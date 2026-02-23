@@ -1,0 +1,22 @@
+# Dependencies and build outputs (root and all subdirs)
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# OS and editor
+.DS_Store
+*.log
+
+# Vercel
+.vercel/
+
+# Optional but recommended: TS build info, coverage, local uploads
+*.tsbuildinfo
+coverage/
+server/uploads/
