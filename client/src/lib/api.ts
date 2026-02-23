@@ -1,14 +1,16 @@
 import { getAccessToken } from './authToken';
 
-// Always use absolute URL so production (Vercel) hits Render backend instead of relative /api
-const rawOrigin = import.meta.env.VITE_API_URL || 'https://messign-workspace.onrender.com';
-const normalizedOrigin = rawOrigin.replace(/\/$/, '');
-export const API_ORIGIN = normalizedOrigin;
-/** Base URL for API requests (always absolute: https://... or http://localhost:...) */
+// This ensures that even if Vercel fails to provide the variable,
+// the app knows exactly where to go in production.
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://messign-workspace.onrender.com';
+
+// This cleans up the URL and forces it to be absolute
+const normalizedOrigin = API_ORIGIN.replace(/\/$/, '');
 export const API_BASE = `${normalizedOrigin}/api`;
 
-// Sanity check: inspect resolved path in browser console during login test
-console.log('API_BASE is:', API_BASE);
+console.log('🚀 Connectivity Check - API_BASE is set to:', API_BASE);
+
+export { normalizedOrigin as API_ORIGIN };
 
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(fn: () => void): void {
