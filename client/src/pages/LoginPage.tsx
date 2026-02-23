@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { MatrixRain, FloatingBadges, ParticleEffect, PulseRings } from '@/components/login';
 import { MessignLogoAnimated } from '@/components/ui';
@@ -202,6 +202,13 @@ export function LoginPage() {
                     </>
                   )}
                 </button>
+
+                <p className="text-center text-sm text-gray-600 mt-4">
+                  Don&apos;t have an account?{' '}
+                  <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                    Sign Up
+                  </Link>
+                </p>
               </form>
 
               <div className="mt-6 p-4 rounded-xl bg-gray-50 border border-gray-200">

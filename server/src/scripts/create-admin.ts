@@ -1,0 +1,84 @@
+/**
+ * One-off script to create the first admin user in production (Neon PostgreSQL).
+ * Uses the same bcrypt hashing and tables (employee_auth, reimbursement_users) as the app.
+ *
+ * Usage:
+ *   Set ADMIN_PASSWORD to your chosen password, then run from the server directory:
+ *     ADMIN_PASSWORD='YourSecurePassword' npx tsx src/scripts/create-admin.ts
+ *   Or: npm run create-admin
+ *   (with ADMIN_PASSWORD in .env or exported in the shell)
+ */
+import 'dotenv/config';
+import bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
+import { query } from '../db/index.js';
+import { upsert as upsertEmployeeAuth } from '../db/employeeAuthDb.js';
+
+const DEFAULT_ORG_SLUG = 'messign';
+const ADMIN_EMAIL = 'hamza.akcit@hotmail.com';
+const SALT_ROUNDS = 12;
+
+async function main(): Promise<void> {
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password || password.length < 8) {
+    console.error(
+      'Set ADMIN_PASSWORD (min 8 chars) and run again, e.g.:\n  ADMIN_PASSWORD="YourPassword" npx tsx src/scripts/create-admin.ts'
+    );
+    process.exit(1);
+  }
+
+  const orgResult = await query<{ id: string }>(
+    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+    [DEFAULT_ORG_SLUG]
+  );
+  const orgId = orgResult.rows[0]?.id;
+  if (!orgId) {
+    console.error('Organization with slug "messign" not found. Run db:seed first or create the organization.');
+    process.exit(1);
+  }
+
+  const emailNormalized = ADMIN_EMAIL.trim().toLowerCase();
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+  // Reuse existing auth_user_id if this email already has a reimbursement_users row
+  const existing = await query<{ auth_user_id: string }>(
+    `SELECT auth_user_id FROM reimbursement_users WHERE organization_id = $1 AND LOWER(TRIM(email)) = $2 LIMIT 1`,
+    [orgId, emailNormalized]
+  );
+  const authUserId = existing.rows[0]?.auth_user_id ?? randomUUID();
+
+  // Ensure reimbursement_users has an admin row (create or update by email)
+  await query(
+    `INSERT INTO reimbursement_users (organization_id, auth_user_id, email, full_name, role, status)
+     VALUES ($1, $2, $3, $4, 'admin', 'active')
+     ON CONFLICT (organization_id, email) DO UPDATE SET
+       auth_user_id = EXCLUDED.auth_user_id,
+       full_name = EXCLUDED.full_name,
+       role = 'admin',
+       status = 'active',
+       updated_at = NOW()`,
+    [orgId, authUserId, emailNormalized, 'Admin']
+  );
+
+  // Upsert employee_auth so login works (email + password)
+  await upsertEmployeeAuth({
+    auth_user_id: authUserId,
+    email: emailNormalized,
+    password_hash: passwordHash,
+    must_change_password: false,
+    temporary_password: null,
+    account_status: 'active',
+    created_by: 'create-admin-script',
+    updated_by: 'create-admin-script',
+  });
+
+  console.log('Admin user created successfully!');
+  console.log('  Email:', ADMIN_EMAIL);
+  console.log('  Role: admin');
+  console.log('  You can log in at https://messign.vercel.app using this email and your chosen password.');
+}
+
+main().catch((err) => {
+  console.error('Failed to create admin user:', err);
+  process.exit(1);
+});

@@ -21,6 +21,7 @@ import { ReimbursementSettings } from '@/admin/pages/ReimbursementSettings';
 import { InvoicesAdmin } from '@/admin/pages/InvoicesAdmin';
 import { ReimbursementProvider } from '@/contexts/ReimbursementContext';
 import { LoginPage } from '@/pages/LoginPage';
+import { SignUpPage } from '@/pages/SignUpPage';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
 import { SecurityManagementPage } from '@/admin/pages/SecurityManagementPage';
 import { ProjectsAdminPage } from '@/admin/pages/ProjectsAdminPage';
@@ -98,6 +99,7 @@ function App() {
       {user && <NotificationSocketSubscriber />}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
         <Route path="/force-password-change" element={<RequireAuth><ForcePasswordChangePage /></RequireAuth>} />
         <Route path="/approvals" element={<Navigate to="/admin/reimbursements" replace />} />
         <Route path="/admin" element={<AdminGuard />}>

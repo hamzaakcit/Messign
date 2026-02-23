@@ -1,6 +1,8 @@
 import { getAccessToken } from './authToken';
 
-const API_BASE = '/api';
+/** Backend origin: Vercel env in production, localhost in development */
+export const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE = `${API_ORIGIN.replace(/\/$/, '')}/api`;
 
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(fn: () => void): void {
