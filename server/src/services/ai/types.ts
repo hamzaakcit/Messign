@@ -74,6 +74,10 @@ export interface ToolResult {
     timeRange?: string;
     /** Retrieval confidence 0–1 (for search_knowledge_base) */
     confidence?: number;
+    /** Chunk count returned (search_knowledge_base RAG) */
+    chunksReturned?: number;
+    avgVectorScore?: number;
+    avgKeywordScore?: number;
   };
 }
 

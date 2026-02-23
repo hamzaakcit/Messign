@@ -214,12 +214,14 @@ function assembleSections(
 
     if (tokens < minChunkSize) {
       if (mergeBuffer) {
+        const prev: Section = mergeBuffer;
         mergeBuffer = {
-          ...mergeBuffer,
-          content: mergeBuffer.content + '\n\n' + section.sectionTitle + '\n' + section.content,
+          ...prev,
+          content: prev.content + '\n\n' + section.sectionTitle + '\n' + section.content,
         };
       } else {
-        mergeBuffer = { ...section };
+        const sec: Section = section;
+        mergeBuffer = { ...sec };
       }
       continue;
     }

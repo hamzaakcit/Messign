@@ -4,7 +4,7 @@ import type {
   PendingAction,
 } from './types.js';
 import { markExecuted } from './actionStore.js';
-import { updateTask } from '../../db/tasksDb.js';
+import { updateTask } from '../../../db/tasksDb.js';
 
 export async function executeConfirmedAction(
   action: PendingAction,

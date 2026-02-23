@@ -109,7 +109,7 @@ documentsRouter.post('/', async (req: Request, res: Response) => {
     if (doc) {
       await logAudit({ userId, action: 'create', entityType: 'document', entityId: doc.id, details: { title: doc.title } });
       if (doc.status === 'published' || doc.status === 'in_review') {
-        ingestDocument(toKHDocument(doc)).catch((e) => console.error('[rag-ingest] create:', e));
+        ingestDocument(toKHDocument(doc as unknown as Record<string, unknown>)).catch((e) => console.error('[rag-ingest] create:', e));
       }
     }
     res.status(201).json(doc);
@@ -161,7 +161,7 @@ documentsRouter.put('/:id', async (req: Request, res: Response) => {
     if (doc) {
       await logAudit({ userId, action: 'update', entityType: 'document', entityId: doc.id, details: { title: doc.title } });
       if (doc.status === 'published' || doc.status === 'in_review') {
-        ingestDocument(toKHDocument(doc)).catch((e) => console.error('[rag-ingest] update:', e));
+        ingestDocument(toKHDocument(doc as unknown as Record<string, unknown>)).catch((e) => console.error('[rag-ingest] update:', e));
       }
     }
     res.json(doc);
@@ -211,7 +211,7 @@ documentsRouter.post('/:id/embed', async (req: Request, res: Response) => {
   try {
     const doc = await db.getDocumentById(req.params.id);
     if (!doc) { res.status(404).json({ error: 'Not found' }); return; }
-    ingestDocument(toKHDocument(doc)).catch((e) => console.error('[rag-ingest] embed:', e));
+    ingestDocument(toKHDocument(doc as unknown as Record<string, unknown>)).catch((e) => console.error('[rag-ingest] embed:', e));
     embedDocument(doc.id, doc.plain_text).catch(e => console.error('[embed-legacy]', e));
     res.json({ ok: true, message: 'Embedding started (RAG + legacy)' });
   } catch (e) {
