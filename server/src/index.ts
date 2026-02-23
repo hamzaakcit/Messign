@@ -67,9 +67,18 @@ import { initNewTables } from './db/initNewTables.js';
 
 const app = express();
 const httpServer = createServer(app);
+
+// Allowed origins: production frontend + local dev (Vite often uses 5173; app sometimes 3000)
+const CORS_ORIGINS = [
+  'https://messign.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+const corsOptions = { origin: CORS_ORIGINS, credentials: true };
+
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: CORS_ORIGINS,
     methods: ['GET', 'POST'],
   },
 });
@@ -78,7 +87,7 @@ app.set('io', io);
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '5mb', type: 'application/json' }));
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use('/api', optionalJwt);
