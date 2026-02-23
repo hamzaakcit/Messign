@@ -1,20 +1,14 @@
 import { getAccessToken } from './authToken';
 
-/**
- * Backend origin only (no path, no trailing slash).
- * VITE_API_URL must be set to e.g. https://messign-workspace.onrender.com
- * (do NOT include /api — the client adds /api when calling routes).
- * Prevents double /api and invalid ...com//api/auth/login.
- */
-function getApiOrigin(): string {
-  const raw = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-  const trimmed = (typeof raw === 'string' ? raw : '').trim().replace(/\/+$/, '');
-  return trimmed.replace(/\/api\/?$/, '') || 'http://localhost:3001';
-}
+// Always use absolute URL so production (Vercel) hits Render backend instead of relative /api
+const rawOrigin = import.meta.env.VITE_API_URL || 'https://messign-workspace.onrender.com';
+const normalizedOrigin = rawOrigin.replace(/\/$/, '');
+export const API_ORIGIN = normalizedOrigin;
+/** Base URL for API requests (always absolute: https://... or http://localhost:...) */
+export const API_BASE = `${normalizedOrigin}/api`;
 
-export const API_ORIGIN = getApiOrigin();
-/** Base URL for API requests: origin + /api (backend mounts routes at /api/auth, /api/users, etc.) */
-const API_BASE = `${API_ORIGIN}/api`;
+// Sanity check: inspect resolved path in browser console during login test
+console.log('API_BASE is:', API_BASE);
 
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(fn: () => void): void {
