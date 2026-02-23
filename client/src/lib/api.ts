@@ -1,8 +1,20 @@
 import { getAccessToken } from './authToken';
 
-/** Backend origin: Vercel env in production, localhost in development */
-export const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const API_BASE = `${API_ORIGIN.replace(/\/$/, '')}/api`;
+/**
+ * Backend origin only (no path, no trailing slash).
+ * VITE_API_URL must be set to e.g. https://messign-workspace.onrender.com
+ * (do NOT include /api — the client adds /api when calling routes).
+ * Prevents double /api and invalid ...com//api/auth/login.
+ */
+function getApiOrigin(): string {
+  const raw = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const trimmed = (typeof raw === 'string' ? raw : '').trim().replace(/\/+$/, '');
+  return trimmed.replace(/\/api\/?$/, '') || 'http://localhost:3001';
+}
+
+export const API_ORIGIN = getApiOrigin();
+/** Base URL for API requests: origin + /api (backend mounts routes at /api/auth, /api/users, etc.) */
+const API_BASE = `${API_ORIGIN}/api`;
 
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(fn: () => void): void {
