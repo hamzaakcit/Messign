@@ -1,16 +1,19 @@
 import { getAccessToken } from './authToken';
 
-// This ensures that even if Vercel fails to provide the variable,
-// the app knows exactly where to go in production.
-const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://messign-workspace.onrender.com';
+// 1. Check for the environment variable
+const envUrl = import.meta.env.VITE_API_URL;
 
-// This cleans up the URL and forces it to be absolute
+// 2. Define the absolute production fallback
+const prodUrl = 'https://messign-workspace.onrender.com';
+
+// 3. Logic to ensure we NEVER use a relative path in production
+export const API_ORIGIN = (envUrl && envUrl !== 'undefined') ? envUrl : prodUrl;
+
+// 4. Normalize and add the /api prefix
 const normalizedOrigin = API_ORIGIN.replace(/\/$/, '');
 export const API_BASE = `${normalizedOrigin}/api`;
 
-console.log('🚀 Connectivity Check - API_BASE is set to:', API_BASE);
-
-export { normalizedOrigin as API_ORIGIN };
+console.log('🛠️ Messign Debug - API_BASE:', API_BASE);
 
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(fn: () => void): void {
