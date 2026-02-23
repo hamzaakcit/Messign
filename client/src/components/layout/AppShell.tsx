@@ -1,0 +1,239 @@
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useChatStore } from '@/stores/chatStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { useUsersStore } from '@/stores/usersStore';
+import { useGameStore } from '@/stores/gameStore';
+import { LeftSidebar } from './LeftSidebar';
+import { RightSidebar } from './RightSidebar';
+import { MainContent } from './MainContent';
+import { XPGainNotification } from '@/components/ui';
+import { CommandPaletteOverlay } from '@/components/knowledge/CommandPaletteOverlay';
+import { FloatingWidget } from '@/components/dora/FloatingWidget';
+import { toast } from 'sonner';
+import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError } from '@/lib/socket';
+
+const PATH_TO_VIEW: Record<string, string> = {
+  '/': 'dashboard',
+  '/dashboard': 'dashboard',
+  '/dora': 'dora',
+  '/chat': 'chat',
+  '/knowledge': 'knowledge',
+  '/knowledge-hub': 'knowledge',
+  '/achievements': 'achievements',
+  '/team': 'team',
+  '/projects': 'projects',
+  '/settings': 'settings',
+};
+
+function getViewFromPath(path: string): string {
+  if (path === '/reimbursements/invoices' || path.startsWith('/reimbursements/invoices/')) return 'invoices';
+  if (path.startsWith('/reimbursements')) return 'reimbursements';
+  if (path.startsWith('/knowledge-hub')) return 'knowledge';
+  if (path.startsWith('/knowledge')) return 'knowledge';
+  if (path === '/dora/game') return 'game';
+  if (path.startsWith('/dora')) return 'dora';
+  return PATH_TO_VIEW[path] ?? 'dashboard';
+}
+
+export function AppShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { leftSidebarOpen, rightSidebarOpen, leftSidebarCollapsed, rightSidebarCollapsed, isMobile, setMobile, setView, currentView } = useUIStore();
+  const { user, updateUser } = useAuthStore();
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+
+  // Global Cmd+K handler
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+  const { fetchChannels, addMessage, incrementChannelUnread } = useChatStore();
+  const { fetchProjects, fetchTasks } = useProjectStore();
+  const { fetchUsers, updateUserStatus } = useUsersStore();
+  const { fetchBadges, fetchActivities, fetchLeaderboard, addActivity, addXPGain, showXPGain, lastXPGain } = useGameStore();
+
+  // Sync URL to view
+  useEffect(() => {
+    const path = location.pathname;
+    const view = getViewFromPath(path);
+    if (view !== currentView) {
+      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'reimbursements' | 'invoices');
+    }
+  }, [location.pathname]);
+
+  // Initialize app data when user is present
+  useEffect(() => {
+    if (!user) return;
+    if (user.id) fetchChannels(user.id);
+    fetchProjects();
+    fetchTasks();
+    fetchUsers();
+    fetchBadges();
+    fetchActivities();
+    fetchLeaderboard();
+  }, [user?.id]);
+
+  // Handle responsive layout
+  useEffect(() => {
+    const handleResize = () => {
+      setMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setMobile]);
+
+  // Socket event listeners
+  useEffect(() => {
+    const socket = getSocket();
+
+    socket.on('message:new', (message: { userId?: string; channelId?: string; senderName?: string; content?: string }) => {
+      const currentUserId = useAuthStore.getState().user?.id;
+      if (currentUserId && message.userId === currentUserId) return;
+      addMessage(message as any);
+      // Notify unread when message is in a channel we're not viewing
+      const { activeChannelId, channels } = useChatStore.getState();
+      const viewingThisChannel = activeChannelId === message.channelId;
+      if (message.channelId && !viewingThisChannel) {
+        incrementChannelUnread(message.channelId);
+        const channelName = channels.find((c) => c.id === message.channelId)?.name ?? 'Chat';
+        const from = message.senderName ?? 'Someone';
+        const preview = typeof message.content === 'string' && message.content.length > 0
+          ? message.content.slice(0, 80) + (message.content.length > 80 ? '…' : '')
+          : 'New message';
+        toast(`${from} in ${channelName}`, { description: preview });
+        if (typeof document !== 'undefined' && document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(`${from} in ${channelName}`, { body: preview });
+        }
+      }
+    });
+
+    socket.on('xp:gained', ({ amount }) => {
+      addXPGain(amount);
+    });
+
+    socket.on('activity:new', (activity) => {
+      addActivity(activity);
+    });
+
+    socket.on('user:status', ({ userId, status }) => {
+      updateUserStatus(userId, status as any);
+    });
+
+    const handleEmployeeUpdated = (data: { employee?: { id: string; name?: string; jobTitle?: string; department?: string; email?: string; role?: string; phone?: string; location?: string } }) => {
+      const currentUser = useAuthStore.getState().user;
+      const emp = data.employee;
+      if (currentUser && emp && emp.id === currentUser.id) {
+        updateUser({
+          name: emp.name ?? currentUser.name,
+          jobTitle: emp.jobTitle ?? currentUser.jobTitle,
+          department: emp.department ?? currentUser.department,
+          email: emp.email ?? currentUser.email,
+          role: (emp.role ?? currentUser.role) as 'admin' | 'manager' | 'member',
+          ...(emp.phone !== undefined && { phone: emp.phone }),
+          ...(emp.location !== undefined && { location: emp.location }),
+        });
+      }
+    };
+
+    socket.on('employee:updated', handleEmployeeUpdated);
+
+    const handleSocketError = (err: { message?: string; code?: string; channelId?: string }) => {
+      if (err.code === 'CHANNEL_NOT_FOUND') {
+        toast.error('Channel not found. Refreshing channel list.');
+        const uid = useAuthStore.getState().user?.id;
+        if (uid) fetchChannels(uid);
+      } else if (err.code === 'SEND_FAILED' || err.message) {
+        toast.error(err.message ?? 'Something went wrong');
+      }
+    };
+    onSocketError(handleSocketError);
+
+    const unsubAdded = onEmployeeAdded(() => fetchUsers());
+    const unsubUpdated = onEmployeeUpdated(() => fetchUsers());
+    const unsubDeleted = onEmployeeDeleted(() => fetchUsers());
+    const unsubBulkImport = onEmployeeBulkImport(() => fetchUsers());
+
+    return () => {
+      socket.off('message:new');
+      socket.off('xp:gained');
+      socket.off('activity:new');
+      socket.off('user:status');
+      socket.off('employee:updated', handleEmployeeUpdated);
+      offSocketError(handleSocketError);
+      unsubAdded();
+      unsubUpdated();
+      unsubDeleted();
+      unsubBulkImport();
+    };
+  }, [updateUser]);
+
+  return (
+    <div className="h-screen flex bg-app overflow-hidden transition-colors duration-200">
+      {/* Command Palette */}
+      <CommandPaletteOverlay
+        open={cmdPaletteOpen}
+        onClose={() => setCmdPaletteOpen(false)}
+        onSelect={(action) => {
+          setCmdPaletteOpen(false);
+          if (action.startsWith('/')) {
+            navigate(action);
+          }
+        }}
+      />
+
+      {/* MP Gain Notification */}
+      <XPGainNotification amount={lastXPGain} show={showXPGain} />
+
+      {/* Left Sidebar */}
+      <div
+        className={`
+          ${!leftSidebarOpen ? 'w-0' : leftSidebarCollapsed ? 'w-16' : 'w-72'}
+          ${isMobile ? 'absolute z-40 h-full' : 'relative'}
+          transition-all duration-300 ease-in-out overflow-hidden
+        `}
+      >
+        {leftSidebarOpen && <LeftSidebar collapsed={leftSidebarCollapsed} />}
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <MainContent />
+      </div>
+
+      {/* Right Sidebar */}
+      <div
+        className={`
+          ${!rightSidebarOpen ? 'w-0' : rightSidebarCollapsed ? 'w-12' : 'w-80'}
+          ${isMobile ? 'absolute right-0 z-40 h-full' : 'relative'}
+          transition-all duration-300 ease-in-out overflow-hidden
+        `}
+      >
+        {rightSidebarOpen && <RightSidebar collapsed={rightSidebarCollapsed} />}
+      </div>
+
+      {/* Mobile overlay */}
+      {isMobile && (leftSidebarOpen || rightSidebarOpen) && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30"
+          onClick={() => {
+            if (leftSidebarOpen) useUIStore.getState().toggleLeftSidebar();
+            if (rightSidebarOpen) useUIStore.getState().toggleRightSidebar();
+          }}
+        />
+      )}
+
+      {/* Floating Dora Widget (global, persists across pages) */}
+      {user && <FloatingWidget />}
+    </div>
+  );
+}

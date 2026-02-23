@@ -1,0 +1,183 @@
+.container {
+  position: relative;
+  cursor: pointer;
+}
+
+/* Glow effect */
+.glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  filter: blur(20px);
+  opacity: 0.3;
+  transition: all 0.3s ease;
+}
+
+.glowActive {
+  opacity: 0.6;
+  transform: scale(1.3);
+}
+
+/* Main wrapper with flight animation */
+.logoWrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s ease;
+}
+
+.flying {
+  animation: boomerangFlight 2.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+@keyframes boomerangFlight {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg) scale(1);
+  }
+  15% {
+    transform: translateX(80px) translateY(-20px) rotate(-15deg) scale(0.85);
+  }
+  30% {
+    transform: translateX(160px) translateY(0) rotate(-5deg) scale(0.7);
+  }
+  50% {
+    transform: translateX(180px) translateY(10px) rotate(180deg) scale(0.65);
+  }
+  70% {
+    transform: translateX(100px) translateY(25px) rotate(220deg) scale(0.75);
+  }
+  85% {
+    transform: translateX(30px) translateY(10px) rotate(320deg) scale(0.9);
+  }
+  100% {
+    transform: translateX(0) translateY(0) rotate(360deg) scale(1);
+  }
+}
+
+/* Logo styles */
+.logo {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.logo.hidden {
+  opacity: 0;
+  transform: scale(0.8) rotateY(90deg);
+}
+
+.logoSvg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.4));
+}
+
+/* Paper plane styles */
+.plane {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(0.8) rotateY(-90deg);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.plane.visible {
+  opacity: 1;
+  transform: scale(1) rotateY(0);
+}
+
+.planeSvg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 16px rgba(99, 102, 241, 0.5));
+}
+
+/* Trail particles */
+.trailContainer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--particle-color);
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+  animation: particleTrail 0.6s ease-out forwards;
+}
+
+@keyframes particleTrail {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  30% {
+    opacity: 0.8;
+    transform: translate(calc(-50% - 30px), calc(-50% + var(--y-offset, 0px))) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% - 80px), calc(-50% + var(--y-offset, 0px))) scale(0.5);
+  }
+}
+
+.particle:nth-child(1) { --y-offset: -8px; }
+.particle:nth-child(2) { --y-offset: 8px; }
+.particle:nth-child(3) { --y-offset: -4px; }
+.particle:nth-child(4) { --y-offset: 4px; }
+.particle:nth-child(5) { --y-offset: -12px; }
+.particle:nth-child(6) { --y-offset: 12px; }
+.particle:nth-child(7) { --y-offset: 0px; }
+.particle:nth-child(8) { --y-offset: -6px; }
+
+/* Speed lines */
+.speedLines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.speedLine {
+  position: absolute;
+  left: -20px;
+  height: 2px;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--line-color));
+  animation: speedLineAnim 0.4s ease-out forwards;
+  animation-iteration-count: 4;
+}
+
+@keyframes speedLineAnim {
+  0% {
+    width: 0;
+    opacity: 0;
+    transform: translateX(0);
+  }
+  50% {
+    width: 40px;
+    opacity: 0.7;
+  }
+  100% {
+    width: 0;
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+}
+
+/* Hover effect */
+.container:hover .glow {
+  opacity: 0.5;
+  transform: scale(1.1);
+}
+
+.container:hover .logoWrapper:not(.flying) {
+  transform: scale(1.05);
+}

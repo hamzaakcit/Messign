@@ -1,0 +1,88 @@
+
+> messign-workspace@1.0.0 type-check
+> npm run type-check --workspaces --if-present
+
+
+> client@1.0.0 type-check
+> tsc --noEmit
+
+src/admin/components/DataTable.tsx(11,8): error TS6133: 'Row' is declared but its value is never read.
+src/admin/components/DataTable.tsx(55,5): error TS2322: Type '(updater: (prev: RowSelectionState) => RowSelectionState) => void' is not assignable to type 'OnChangeFn<RowSelectionState>'.
+  Types of parameters 'updater' and 'updaterOrValue' are incompatible.
+    Type 'Updater<RowSelectionState>' is not assignable to type '(prev: RowSelectionState) => RowSelectionState'.
+      Type 'RowSelectionState' is not assignable to type '(prev: RowSelectionState) => RowSelectionState'.
+        Type 'RowSelectionState' provides no match for the signature '(prev: RowSelectionState): RowSelectionState'.
+src/admin/components/DataTable.tsx(193,9): error TS2322: Type '{ type: "checkbox"; checked: boolean; indeterminate: boolean; onChange: (e: ChangeEvent<HTMLInputElement>) => void; "aria-label": string; }' is not assignable to type 'DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>'.
+  Property 'indeterminate' does not exist on type 'DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>'.
+src/admin/pages/AdminDashboard.tsx(71,43): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(predicate: (value: unknown, index: number, array: unknown[]) => value is unknown, thisArg?: any): unknown[]', gave the following error.
+    Argument of type '(e: { status?: string; }) => boolean' is not assignable to parameter of type '(value: unknown, index: number, array: unknown[]) => value is unknown'.
+      Types of parameters 'e' and 'value' are incompatible.
+        Type 'unknown' is not assignable to type '{ status?: string | undefined; }'.
+  Overload 2 of 2, '(predicate: (value: unknown, index: number, array: unknown[]) => unknown, thisArg?: any): unknown[]', gave the following error.
+    Argument of type '(e: { status?: string; }) => boolean' is not assignable to parameter of type '(value: unknown, index: number, array: unknown[]) => unknown'.
+      Types of parameters 'e' and 'value' are incompatible.
+        Type 'unknown' is not assignable to type '{ status?: string | undefined; }'.
+src/admin/pages/AdminDashboard.tsx(73,18): error TS2571: Object is of type 'unknown'.
+src/admin/pages/AdminDashboard.tsx(73,38): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(callbackfn: (previousValue: unknown, currentValue: unknown, currentIndex: number, array: unknown[]) => unknown, initialValue: unknown): unknown', gave the following error.
+    Argument of type '(sum: number, e: { xp?: number; }) => number' is not assignable to parameter of type '(previousValue: unknown, currentValue: unknown, currentIndex: number, array: unknown[]) => unknown'.
+      Types of parameters 'sum' and 'previousValue' are incompatible.
+        Type 'unknown' is not assignable to type 'number'.
+  Overload 2 of 3, '(callbackfn: (previousValue: number, currentValue: unknown, currentIndex: number, array: unknown[]) => number, initialValue: number): number', gave the following error.
+    Argument of type '(sum: number, e: { xp?: number; }) => number' is not assignable to parameter of type '(previousValue: number, currentValue: unknown, currentIndex: number, array: unknown[]) => number'.
+      Types of parameters 'e' and 'currentValue' are incompatible.
+        Type 'unknown' is not assignable to type '{ xp?: number | undefined; }'.
+src/admin/pages/DepartmentManagement.tsx(8,1): error TS6133: 'cn' is declared but its value is never read.
+src/admin/pages/EmployeeForm.tsx(66,40): error TS6133: 'isDirty' is declared but its value is never read.
+src/admin/pages/RolePermissions.tsx(2,24): error TS6133: 'Users' is declared but its value is never read.
+src/admin/pages/Settings.tsx(86,19): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/admin/pages/Settings.tsx(134,19): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/admin/pages/XPAchievements.tsx(1,1): error TS6133: 'useState' is declared but its value is never read.
+src/admin/pages/XPAchievements.tsx(2,30): error TS6133: 'BarChart3' is declared but its value is never read.
+src/admin/types.ts(1,21): error TS6196: 'Badge' is declared but never used.
+src/admin/types.ts(7,18): error TS2430: Interface 'Employee' incorrectly extends interface 'User'.
+  Types of property 'managerId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+src/components/dashboard/PerformanceChart.tsx(21,54): error TS2345: Argument of type '"monthly"' is not assignable to parameter of type 'ChartTimeRange | (() => ChartTimeRange)'.
+src/components/dashboard/PerformanceChart.tsx(22,16): error TS2367: This comparison appears to be unintentional because the types 'ChartTimeRange' and '"monthly"' have no overlap.
+src/components/dashboard/PerformanceChart.tsx(37,37): error TS2345: Argument of type '"monthly"' is not assignable to parameter of type 'SetStateAction<ChartTimeRange>'.
+src/components/dashboard/PerformanceChart.tsx(40,15): error TS2367: This comparison appears to be unintentional because the types 'ChartTimeRange' and '"monthly"' have no overlap.
+src/components/dashboard/PerformanceChart.tsx(48,37): error TS2345: Argument of type '"yearly"' is not assignable to parameter of type 'SetStateAction<ChartTimeRange>'.
+src/components/dashboard/PerformanceChart.tsx(51,15): error TS2367: This comparison appears to be unintentional because the types 'ChartTimeRange' and '"yearly"' have no overlap.
+src/components/dashboard/PerformanceTrendChart.tsx(257,18): error TS2322: Type '{ data: PerformanceChartDataPoint[]; activeMetric: ActiveMetric; separator?: string | undefined; wrapperClassName?: string | undefined; ... 29 more ...; wrapperStyle?: CSSProperties | undefined; }' is not assignable to type 'ContextualTooltipProps'.
+  Types of property 'payload' are incompatible.
+    Type 'Payload<ValueType, NameType>[] | undefined' is not assignable to type '{ payload: PerformanceChartDataPoint; value: number; dataKey: string; }[] | undefined'.
+      Type 'Payload<ValueType, NameType>[]' is not assignable to type '{ payload: PerformanceChartDataPoint; value: number; dataKey: string; }[]'.
+        Type 'Payload<ValueType, NameType>' is not assignable to type '{ payload: PerformanceChartDataPoint; value: number; dataKey: string; }'.
+          Property 'payload' is optional in type 'Payload<ValueType, NameType>' but required in type '{ payload: PerformanceChartDataPoint; value: number; dataKey: string; }'.
+src/components/layout/AppShell.tsx(28,9): error TS6133: 'navigate' is declared but its value is never read.
+src/components/layout/rightSidebars/AchievementsRightSidebar.tsx(1,45): error TS6133: 'ChevronRight' is declared but its value is never read.
+src/components/layout/rightSidebars/KnowledgeRightSidebar.tsx(1,32): error TS6133: 'Search' is declared but its value is never read.
+src/components/layout/rightSidebars/KnowledgeRightSidebar.tsx(1,47): error TS6133: 'ChevronRight' is declared but its value is never read.
+src/components/layout/rightSidebars/ProjectsRightSidebar.tsx(1,49): error TS6133: 'ChevronRight' is declared but its value is never read.
+src/components/layout/rightSidebars/ProjectsRightSidebar.tsx(3,1): error TS6133: 'Avatar' is declared but its value is never read.
+src/components/layout/rightSidebars/ProjectsRightSidebar.tsx(10,9): error TS6133: 'getUserById' is declared but its value is never read.
+src/components/projects/ProjectCard.tsx(5,22): error TS6133: 'getProjectTypeColor' is declared but its value is never read.
+src/components/projects/TaskCard.tsx(6,10): error TS6133: 'Card' is declared but its value is never read.
+src/hooks/useSocket.ts(1,10): error TS6133: 'useEffect' is declared but its value is never read.
+src/pages/KnowledgeView.tsx(7,22): error TS6133: 'cn' is declared but its value is never read.
+src/pages/KnowledgeView.tsx(14,10): error TS6133: 'selectedDoc' is declared but its value is never read.
+src/pages/KnowledgeView.tsx(15,10): error TS6133: 'isLoading' is declared but its value is never read.
+src/pages/ProjectsView.tsx(2,16): error TS6133: 'Filter' is declared but its value is never read.
+src/stores/chatStore.ts(4,71): error TS6133: 'getSocket' is declared but its value is never read.
+src/stores/gameStore.ts(4,1): error TS6133: 'calculateLevel' is declared but its value is never read.
+src/stores/gameStore.ts(34,53): error TS6133: 'get' is declared but its value is never read.
+npm error Lifecycle script `type-check` failed with error:
+npm error code 2
+npm error path /Users/hamzaakcit/messign-workspace/client
+npm error workspace client@1.0.0
+npm error location /Users/hamzaakcit/messign-workspace/client
+npm error command failed
+npm error command sh -c tsc --noEmit
+
+
+> server@1.0.0 type-check
+> tsc --noEmit
+

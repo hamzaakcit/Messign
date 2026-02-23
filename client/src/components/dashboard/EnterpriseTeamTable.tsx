@@ -1,0 +1,143 @@
+import { Avatar } from '@/components/ui';
+import type { TeamMemberEnterprise } from '@/types/performance';
+import { Eye, Pencil, MoreHorizontal } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface EnterpriseTeamTableProps {
+  members: TeamMemberEnterprise[];
+  onAction?: (memberId: string, action: 'view' | 'edit' | 'more') => void;
+}
+
+const statusColors: Record<string, string> = {
+  exceeding: 'bg-green-500/20 text-green-400 border-green-500/30',
+  on_target: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  needs_attention: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  below_target: 'bg-red-500/20 text-red-400 border-red-500/30',
+};
+
+function targetColor(pct: number): string {
+  if (pct >= 100) return 'text-green-500';
+  if (pct >= 90) return 'text-yellow-500';
+  return 'text-red-500';
+}
+
+function rateBadge(rate: number): string {
+  if (rate >= 95) return 'bg-green-500/20 text-green-400';
+  if (rate >= 90) return 'bg-yellow-500/20 text-yellow-400';
+  return 'bg-red-500/20 text-red-400';
+}
+
+export function EnterpriseTeamTable({ members, onAction }: EnterpriseTeamTableProps) {
+  return (
+    <div className="rounded-xl border border-gray-800/50 overflow-hidden bg-gray-900/40">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px]" role="table" aria-label="Enterprise sales team members">
+          <thead>
+            <tr className="bg-[#252536] border-b border-gray-800/50">
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[50px]">Rank</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[200px]">Member</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[120px]">Revenue</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[120px]">SMS</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[120px]">Mail</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[90px]">Conv.</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[100px]">Status</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[70px]">Trend</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[80px]">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {members.map((m) => (
+              <tr key={m.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
+                <td className="py-2 px-3">
+                  {m.rank <= 3 ? (
+                    <span className="text-lg" aria-label={`Rank ${m.rank}`}>
+                      {m.rank === 1 ? '🥇' : m.rank === 2 ? '🥈' : '🥉'}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-app-surface-tertiary text-app text-sm font-medium">
+                      {m.rank}
+                    </span>
+                  )}
+                </td>
+                <td className="py-2 px-3">
+                  <div className="flex items-center gap-2">
+                    <Avatar src={m.avatar} name={m.name} size="sm" showStatus={false} className="shrink-0" />
+                    <div>
+                      <p className="font-medium text-sm text-app">{m.name}</p>
+                      <p className="text-xs text-app-muted">{m.role}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="py-2 px-3">
+                  <p className="font-medium text-sm text-app">{m.metrics.revenue.formatted}</p>
+                  <p className={cn('text-xs', targetColor(m.metrics.revenue.targetPercent))}>
+                    {m.metrics.revenue.targetPercent}% vs target
+                  </p>
+                </td>
+                <td className="py-2 px-3">
+                  <p className="text-sm text-app">{m.metrics.smsAttempts.formatted}</p>
+                  <span className={cn('inline-block mt-0.5 px-2 py-0.5 rounded text-xs', rateBadge(m.metrics.smsAttempts.deliveryRate))}>
+                    {m.metrics.smsAttempts.deliveryRate}%
+                  </span>
+                </td>
+                <td className="py-2 px-3">
+                  <p className="text-sm text-app">{m.metrics.mailAttempts.formatted}</p>
+                  <span className={cn('inline-block mt-0.5 px-2 py-0.5 rounded text-xs', rateBadge(m.metrics.mailAttempts.deliveryRate))}>
+                    {m.metrics.mailAttempts.deliveryRate}%
+                  </span>
+                </td>
+                <td className="py-2 px-3">
+                  <p className="text-sm text-app font-medium">{m.metrics.conversionRate}%</p>
+                  <div className="mt-1 h-1.5 w-full rounded-full bg-app-surface-tertiary overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary-500"
+                      style={{ width: `${Math.min(100, m.metrics.conversionRate * 8)}%` }}
+                    />
+                  </div>
+                </td>
+                <td className="py-2 px-3">
+                  <span className={cn('inline-flex px-2 py-0.5 rounded text-xs font-medium border', statusColors[m.status] ?? 'bg-app-surface-tertiary text-app-muted')}>
+                    {m.statusLabel}
+                  </span>
+                </td>
+                <td className="py-2 px-3">
+                  <span className={cn('text-xs', m.metrics.revenue.trend.direction === 'up' ? 'text-green-500' : 'text-red-500')}>
+                    {m.metrics.revenue.trend.direction === 'up' ? '↑' : '↓'} {Math.abs(m.metrics.revenue.trend.percent)}%
+                  </span>
+                </td>
+                <td className="py-2 px-3">
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => onAction?.(m.id, 'view')}
+                      className="p-1.5 rounded text-app-muted hover:text-app hover:bg-app-hover focus:ring-2 focus:ring-primary-500"
+                      aria-label="View details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onAction?.(m.id, 'edit')}
+                      className="p-1.5 rounded text-app-muted hover:text-app hover:bg-app-hover focus:ring-2 focus:ring-primary-500"
+                      aria-label="Edit"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onAction?.(m.id, 'more')}
+                      className="p-1.5 rounded text-app-muted hover:text-app hover:bg-app-hover focus:ring-2 focus:ring-primary-500"
+                      aria-label="More options"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

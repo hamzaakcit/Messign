@@ -1,0 +1,41 @@
+import { Router } from 'express';
+import { documentsRouter } from './documents.js';
+import { categoriesRouter } from './categories.js';
+import { tagsRouter } from './tags.js';
+import { searchRouter } from './search.js';
+import { versionsRouter } from './versions.js';
+import { commentsRouter } from './comments.js';
+import { workflowRouter } from './workflow.js';
+import { bookmarksRouter } from './bookmarks.js';
+import { collectionsRouter } from './collections.js';
+import { notificationsRouter } from './notifications.js';
+import { flagsRouter } from './flags.js';
+import { analyticsRouter } from './analytics.js';
+import { teamsRouter } from './teams.js';
+import { uploadRouter } from './upload.js';
+import { aiRouter } from './ai.js';
+import aiAdminRouter from './aiAdmin.js';
+import { rolesRouter } from './roles.js';
+import { requireAuth } from '../../middleware/requireAuth.js';
+
+export const knowledgeHubRouter = Router();
+
+knowledgeHubRouter.use(requireAuth);
+
+knowledgeHubRouter.use('/ai/admin', aiAdminRouter);
+knowledgeHubRouter.use('/documents', documentsRouter);
+knowledgeHubRouter.use('/categories', categoriesRouter);
+knowledgeHubRouter.use('/tags', tagsRouter);
+knowledgeHubRouter.use('/search', searchRouter);
+knowledgeHubRouter.use('/versions', versionsRouter);
+knowledgeHubRouter.use('/comments', commentsRouter);
+knowledgeHubRouter.use('/workflow', workflowRouter);
+knowledgeHubRouter.use('/bookmarks', bookmarksRouter);
+knowledgeHubRouter.use('/collections', collectionsRouter);
+knowledgeHubRouter.use('/notifications', notificationsRouter);
+knowledgeHubRouter.use('/flags', flagsRouter);
+knowledgeHubRouter.use('/analytics', analyticsRouter);
+knowledgeHubRouter.use('/teams', teamsRouter);
+knowledgeHubRouter.use('/upload', uploadRouter);
+knowledgeHubRouter.use('/ai', aiRouter);
+knowledgeHubRouter.use('/roles', rolesRouter);
