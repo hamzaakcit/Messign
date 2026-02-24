@@ -1,7 +1,13 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://localhost:5432/messign_reimbursement';
+const connectionString =
+  process.env.DATABASE_URL ||
+  (process.env.NODE_ENV !== 'production' ? 'postgresql://localhost:5432/messign_reimbursement' : undefined);
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is required in production. Set it in your environment.');
+}
 
 export const pool = new Pool({
   connectionString,

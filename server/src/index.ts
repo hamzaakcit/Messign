@@ -68,9 +68,8 @@ import { initNewTables } from './db/initNewTables.js';
 const app = express();
 const httpServer = createServer(app);
 
-// Allowed origins: production frontend + local dev (Vite often uses 5173; app sometimes 3000)
+// Local development origins only
 const CORS_ORIGINS = [
-  'https://messign.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
 ];
@@ -84,6 +83,7 @@ const io = new Server(httpServer, {
 });
 app.set('io', io);
 
+// Phase 5: will be replaced by cloud storage (Supabase Storage or R2); ephemeral disk is wiped on redeploy.
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 
 // Middleware
@@ -129,6 +129,23 @@ app.use('/api/dora', requireAuth, doraHistoryRouter);
 // Health check
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// DB health check (helps debug "Internal Server Error" on login when DB is down)
+app.get('/api/health/db', async (_req, res) => {
+  try {
+    const { pool } = await import('./db/index.js');
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (e) {
+    console.error('[health/db]', e);
+    res.status(503).json({
+      status: 'error',
+      database: 'disconnected',
+      message: e instanceof Error ? e.message : 'Database connection failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // Global error handler: catch unhandled errors from async route handlers (Express 4 doesn't catch these)

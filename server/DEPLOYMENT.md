@@ -34,7 +34,7 @@ Set these in the Render/Railway dashboard (or in a `.env` file for local runs).
 |----------|-------------|---------|
 | `PORT` | HTTP port (Render/Railway set this automatically) | `3001` |
 | `NODE_ENV` | `production` or `development` | — |
-| `UPLOAD_DIR` | Directory for uploaded files | `./uploads` (relative to cwd) |
+| `UPLOAD_DIR` | Directory for uploaded files (Phase 5: replace with cloud storage — Supabase/R2) | `./uploads` (relative to cwd) |
 
 ### Optional (AI / Knowledge Hub)
 
