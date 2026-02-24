@@ -69,10 +69,9 @@ const app = express();
 const httpServer = createServer(app);
 
 // Local development origins only
-const CORS_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-];
+const CORS_ORIGINS = process.env.NODE_ENV === 'production'
+  ? ['https://www.messign.com', 'https://messign.com']
+  : ['http://localhost:5173', 'http://localhost:3000'];
 const corsOptions = { origin: CORS_ORIGINS, credentials: true };
 
 const io = new Server(httpServer, {
@@ -163,9 +162,9 @@ app.set('io', io);
 setupSocketHandlers(io);
 
 // Start server
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, async () => {
-  console.log(`🚀 Messign server running on http://localhost:${PORT}`);
+const port = process.env.PORT || 5000;
+httpServer.listen(port, async () => {
+  console.log(`🚀 Messign server running on http://localhost:${port}`);
   console.log(`📡 Socket.io ready for connections`);
   try {
     await initNewTables();
