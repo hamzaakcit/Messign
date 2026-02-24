@@ -70,7 +70,11 @@ const httpServer = createServer(app);
 
 // Local development origins only
 const CORS_ORIGINS = process.env.NODE_ENV === 'production'
-  ? ['https://www.messign.com', 'https://messign.com']
+  ? [
+      'https://www.messign.com',
+      'https://messign.com',
+      process.env.CLIENT_URL || '',
+    ].filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:3000'];
 const corsOptions = { origin: CORS_ORIGINS, credentials: true };
 
