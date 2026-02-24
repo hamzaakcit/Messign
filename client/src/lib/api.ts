@@ -1,19 +1,8 @@
 import { getAccessToken } from './authToken';
 
-// 1. Check for the environment variable
-const envUrl = import.meta.env.VITE_API_URL;
-
-// 2. Define the absolute production fallback
-const prodUrl = 'https://messign-workspace.onrender.com';
-
-// 3. Logic to ensure we NEVER use a relative path in production
-export const API_ORIGIN = (envUrl && envUrl !== 'undefined') ? envUrl : prodUrl;
-
-// 4. Normalize and add the /api prefix
-const normalizedOrigin = API_ORIGIN.replace(/\/$/, '');
-export const API_BASE = `${normalizedOrigin}/api`;
-
-console.log('🛠️ Messign Debug - API_BASE:', API_BASE);
+// Local development: Vite proxy forwards /api to http://localhost:3001
+export const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:3001';
+const API_BASE = `${API_ORIGIN}/api`;
 
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(fn: () => void): void {
