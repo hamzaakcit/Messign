@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { query } from '../db/index.js';
+import { ensureReimbursementUserForAuth } from '../db/ensureReimbursementUser.js';
+import { getByAuthUserId } from '../db/employeeAuthDb.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
 
@@ -19,10 +21,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       res.status(503).json({ error: 'Organization not configured' });
       return;
     }
-    const userResult = await query<{ id: string; role?: string }>(
+    let userResult = await query<{ id: string; role?: string }>(
       `SELECT id, role FROM reimbursement_users WHERE organization_id = $1 AND auth_user_id = $2 LIMIT 1`,
       [orgId, userId]
     );
+    if (!userResult.rows[0]) {
+      const auth = await getByAuthUserId(userId);
+      if (auth) {
+        await ensureReimbursementUserForAuth(userId, auth.email);
+        userResult = await query<{ id: string; role?: string }>(
+          `SELECT id, role FROM reimbursement_users WHERE organization_id = $1 AND auth_user_id = $2 LIMIT 1`,
+          [orgId, userId]
+        );
+      }
+    }
     if (!userResult.rows[0]) {
       res.status(401).json({ error: 'User not found' });
       return;

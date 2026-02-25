@@ -1,4 +1,5 @@
 import { query } from './index.js';
+import { ensureReimbursementUserForAuth } from './ensureReimbursementUser.js';
 import type { EmployeeAuth, AccountStatus } from '../types/auth.js';
 
 interface AuthRow {
@@ -110,6 +111,11 @@ export async function upsert(params: {
   );
   const row = result.rows[0];
   if (!row) throw new Error('employee_auth upsert failed');
+  try {
+    await ensureReimbursementUserForAuth(params.auth_user_id, params.email.trim().toLowerCase());
+  } catch (e) {
+    console.warn('[employeeAuthDb] ensureReimbursementUserForAuth failed:', e);
+  }
   return mapRow(row);
 }
 
