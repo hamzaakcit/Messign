@@ -91,6 +91,7 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 
 // Middleware
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '5mb', type: 'application/json' }));
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use('/api', optionalJwt);
