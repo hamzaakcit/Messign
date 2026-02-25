@@ -1,3 +1,6 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // @ts-ignore
 const PptxGenJS = require('pptxgenjs');
 
