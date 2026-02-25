@@ -1,7 +1,6 @@
 import { getAccessToken } from './authToken';
 
-// Local development: Vite proxy forwards /api to http://localhost:3001
-export const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ||
+export const API_ORIGIN = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_ORIGIN ||
   (import.meta.env.PROD ? 'https://server-production-7283.up.railway.app' : 'http://localhost:3001');
 const API_BASE = `${API_ORIGIN}/api`;
 
