@@ -1,7 +1,8 @@
 import type { KhDocument, KhCategory, KhTag, KhVersion, KhComment, KhCollection, KhNotification, KhContentFlag, KhSearchResult, KhAnalyticsStats, KhContentHealth, KhTeam, KhReviewAction } from '@/types/knowledge-hub';
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 
-const API = '/api/knowledge-hub';
+const API = `${API_ORIGIN}/api/knowledge-hub`;
 
 function getHeaders(): Record<string, string> {
   const token = getAccessToken();

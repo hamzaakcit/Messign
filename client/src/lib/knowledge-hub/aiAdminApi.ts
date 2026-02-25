@@ -4,8 +4,9 @@
  */
 
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 
-const API = '/api/knowledge-hub/ai/admin';
+const API = `${API_ORIGIN}/api/knowledge-hub/ai/admin`;
 
 function getHeaders(): Record<string, string> {
   const token = getAccessToken();
