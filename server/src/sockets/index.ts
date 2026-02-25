@@ -85,7 +85,9 @@ export function setupSocketHandlers(io: Server) {
           timestamp: row.created_at,
         };
 
-        io.to(channelId).emit('message:new', message);
+        for (const memberId of channel.members) {
+          emitToUser(memberId, 'message:new', message);
+        }
         socket.emit('xp:gained', { amount: xpGained, total: updatedUser?.xp });
 
         const channelUpdated = await getChannelById(channelId);

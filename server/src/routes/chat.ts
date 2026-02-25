@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import type { Server } from 'socket.io';
 import {
   getChannelsForUser,
   getMessagesForChannel,
@@ -10,6 +9,7 @@ import {
   type ChannelRow,
   type MessageWithSender,
 } from '../db/chatDb.js';
+import { emitToUser } from '../sockets/index.js';
 import { addEmployeeXP } from '../db/employeesDb.js';
 
 export const chatRouter = Router();
@@ -139,8 +139,9 @@ chatRouter.post('/channels/:id/messages', async (req, res) => {
     });
     await addEmployeeXP(userId, xpGained);
     const payload = toClientMessage(message);
-    const io = req.app.get('io') as Server | undefined;
-    if (io) io.to(channelId).emit('message:new', payload);
+    for (const memberId of channel.members) {
+      emitToUser(memberId, 'message:new', payload);
+    }
     res.status(201).json(payload);
   } catch (e) {
     console.error('[chat] POST /channels/:id/messages', e);
