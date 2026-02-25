@@ -19,6 +19,7 @@ import type {
   AIWidgetPayload,
 } from '@/types/knowledge-hub/ai';
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 import { khAIFeedbackAPI } from '@/lib/knowledge-hub/api';
 
 function generateMessageId(): string {
@@ -56,7 +57,7 @@ interface UseAIChatReturn {
 export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const {
     maxHistory = 50,
-    apiBaseUrl = '/api/knowledge-hub',
+    apiBaseUrl = `${API_ORIGIN}/api/knowledge-hub`,
     initialMessages,
     onMessagesChange,
   } = options;
