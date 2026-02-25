@@ -446,61 +446,67 @@ export function DoraChatAvatar({ size = 38, isThinking = false }: DoraChatAvatar
     <div style={{
       position: 'relative',
       width: size + 10,
-      height: size + 10,
+      height: size + 14,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     }}>
+      {/* Thinking spin ring — only visible when processing */}
       {isThinking && (
         <div style={{
           position: 'absolute',
-          inset: -2,
+          inset: -4,
           borderRadius: '50%',
-          background: 'conic-gradient(from 0deg, transparent, rgba(0,217,213,0.5), rgba(59,130,246,0.4), rgba(139,92,246,0.3), transparent)',
+          background: 'conic-gradient(from 0deg, transparent, rgba(0,217,213,0.45), rgba(59,130,246,0.35), rgba(139,92,246,0.25), transparent)',
           animation: 'dp-barrel-roll 2.5s linear infinite',
         }} />
       )}
 
+      {/* Plane — no circle background, fully transparent */}
       <div style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: isThinking
-          ? 'linear-gradient(135deg, #0c1929, #0f172a)'
-          : 'linear-gradient(135deg, #0f172a, #1e293b)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: isThinking
-          ? '0 0 20px rgba(59,130,246,0.25), inset 0 0 12px rgba(0,217,213,0.05)'
-          : '0 2px 8px rgba(0,0,0,0.3)',
-        border: `1.5px solid ${isThinking ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.12)'}`,
-        transition: 'all 0.5s ease',
-        overflow: 'visible',
+        animation: isThinking ? 'none' : 'dp-bob 3s ease-in-out infinite',
+        filter: isThinking
+          ? 'drop-shadow(0 0 8px rgba(0,217,213,0.6)) drop-shadow(0 0 16px rgba(59,130,246,0.35))'
+          : 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))',
+        transition: 'filter 0.5s ease',
       }}>
-        <div style={{
-          animation: isThinking ? 'none' : 'dp-bob 3s ease-in-out infinite',
-          display: 'flex',
-        }}>
-          <PilotPlaneSVG
-            size={size * 0.7}
-            showEngineGlow={isThinking}
-            showGoggleGlint={!isThinking}
-            style={{ marginTop: -2 }}
-          />
-        </div>
+        <PilotPlaneSVG
+          size={size}
+          showEngineGlow={isThinking}
+          showGoggleGlint={!isThinking}
+        />
       </div>
 
+      {/* Ground glow — soft elliptical light beneath the plane */}
       <div style={{
         position: 'absolute',
-        bottom: 1,
-        right: 1,
-        width: isThinking ? 10 : 8,
-        height: isThinking ? 10 : 8,
+        bottom: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: size * 0.75,
+        height: 5,
+        borderRadius: '50%',
+        background: isThinking
+          ? 'radial-gradient(ellipse, rgba(59,130,246,0.45) 0%, transparent 70%)'
+          : 'radial-gradient(ellipse, rgba(0,217,213,0.25) 0%, transparent 70%)',
+        filter: 'blur(2px)',
+        transition: 'background 0.5s ease',
+      }} />
+
+      {/* Status dot */}
+      <div style={{
+        position: 'absolute',
+        bottom: 6,
+        right: 0,
+        width: isThinking ? 9 : 7,
+        height: isThinking ? 9 : 7,
         borderRadius: '50%',
         background: isThinking ? '#3B82F6' : '#22c55e',
-        border: '2px solid #0f172a',
+        border: '2px solid rgba(15,23,42,0.8)',
         transition: 'all 0.3s',
         boxShadow: isThinking
           ? '0 0 8px rgba(59,130,246,0.6)'
@@ -792,11 +798,8 @@ export function DoraWelcomeHero({
   const [showSubtext, setShowSubtext] = useState(false);
 
   const getGreeting = useCallback(() => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  }, []);
+    return userName ? `Welcome back, ${userName}!` : 'Welcome back!';
+  }, [userName]);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -811,7 +814,7 @@ export function DoraWelcomeHero({
     timers.push(setTimeout(() => setPhase('idle'), 4200));
 
     timers.push(setTimeout(() => {
-      const g = userName ? `${getGreeting()}, ${userName}` : getGreeting();
+      const g = getGreeting();
       let i = 0;
       const typeTimer = setInterval(() => {
         setGreeting(g.slice(0, i + 1));
@@ -824,9 +827,9 @@ export function DoraWelcomeHero({
     timers.push(setTimeout(() => onEntranceComplete?.(), 3600));
 
     return () => timers.forEach(clearTimeout);
-  }, [userName, getGreeting, onEntranceComplete]);
+  }, [getGreeting, onEntranceComplete]);
 
-  const fullGreeting = userName ? `${getGreeting()}, ${userName}` : getGreeting();
+  const fullGreeting = getGreeting();
 
   return (
     <div style={{

@@ -49,13 +49,16 @@ export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessag
   return (
     <div className="flex justify-start mb-4">
       <div className="flex items-start gap-2 max-w-[85%]">
-        <div className="flex-shrink-0 mt-0.5">
-          <DoraAvatar size={26} isThinking={!!message.isStreaming} />
-        </div>
+        {/* Hide avatar while thinking — the planes inside ThinkingIndicator serve as the avatar */}
+        {!isEmptyStreaming && (
+          <div className="flex-shrink-0 mt-0.5">
+            <DoraAvatar size={26} isThinking={!!message.isStreaming} />
+          </div>
+        )}
 
         <div className="flex-1 min-w-0">
           {isEmptyStreaming ? (
-            <ThinkingIndicator statusText="Analyzing your question" />
+            <ThinkingIndicator />
           ) : (
             <div className="dora-glass px-4 py-3 rounded-2xl rounded-tl-md">
               <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap [&_strong]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_ul]:my-1 [&_li]:text-gray-300">

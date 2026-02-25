@@ -34,13 +34,14 @@ authRouter.post('/login', (req, res) => {
       return res.status(401).json({ success: false, error: result.error });
     } catch (e) {
       console.error('[auth] login error:', e);
-      const message = e instanceof Error ? e.message : 'Login failed';
-      send500(message);
+      // Don't send raw DB/network errors to client; log and return a safe message
+      const safeMessage = 'Login failed. Please try again.';
+      send500(safeMessage);
     }
   };
   run().catch((e) => {
     console.error('[auth] login unhandled:', e);
-    send500(e instanceof Error ? e.message : 'Login failed');
+    send500('Login failed. Please try again.');
   });
 });
 

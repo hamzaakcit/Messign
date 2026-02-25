@@ -15,7 +15,7 @@ import { query } from '../db/index.js';
 import { upsert as upsertEmployeeAuth } from '../db/employeeAuthDb.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
-const ADMIN_EMAIL = 'hamza.akcit@hotmail.com';
+const ADMIN_EMAIL = 'hamza@messign.com';
 const SALT_ROUNDS = 12;
 
 async function main(): Promise<void> {
@@ -72,10 +72,40 @@ async function main(): Promise<void> {
     updated_by: 'create-admin-script',
   });
 
+  // Award starter badges so the Achievements page is not empty for the admin
+  const starterBadgeIds = [
+    'badge-first-task',  // First Steps (common)
+    'badge-level-10',    // Rising Star (common)
+    'badge-1k-xp',       // XP Hunter (common)
+    'badge-team-player', // Team Player (rare)
+    'badge-communicator', // Communicator (rare)
+  ];
+  for (const badgeId of starterBadgeIds) {
+    await query(
+      `INSERT INTO user_badges (user_id, badge_id) VALUES ($1, $2) ON CONFLICT (user_id, badge_id) DO NOTHING`,
+      [authUserId, badgeId]
+    );
+  }
+
+  // Seed initial activity feed entries for the admin so the feed is not empty
+  const adminActivities = [
+    { type: 'badge_earned', message: 'Admin earned the "First Steps" badge', xp_gained: 100 },
+    { type: 'badge_earned', message: 'Admin earned the "Rising Star" badge', xp_gained: 50 },
+    { type: 'project_joined', message: 'Admin joined "Messign Mobile App"', xp_gained: 10 },
+    { type: 'badge_earned', message: 'Admin earned the "Team Player" badge', xp_gained: 100 },
+  ];
+  for (const a of adminActivities) {
+    await query(
+      `INSERT INTO activities (user_id, type, message, xp_gained) VALUES ($1, $2, $3, $4)`,
+      [authUserId, a.type, a.message, a.xp_gained]
+    );
+  }
+
   console.log('Admin user created successfully!');
   console.log('  Email:', ADMIN_EMAIL);
   console.log('  Role: admin');
-  console.log('  You can log in at https://messign.vercel.app using this email and your chosen password.');
+  console.log('  Starter badges awarded: 5');
+  console.log('  You can log in at http://localhost:3000 using this email and your chosen password.');
 }
 
 main().catch((err) => {

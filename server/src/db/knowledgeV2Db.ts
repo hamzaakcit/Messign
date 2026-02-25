@@ -37,12 +37,12 @@ function slugify(text: string): string {
 
 async function getUserNames(ids: string[]): Promise<Record<string, string>> {
   if (!ids.length) return {};
-  const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
-  const res = await query<{ id: string; full_name: string }>(
-    `SELECT id, full_name FROM reimbursement_users WHERE id IN (${placeholders})`, ids
+  const res = await query<{ auth_user_id: string; full_name: string }>(
+    `SELECT auth_user_id, full_name FROM reimbursement_users WHERE auth_user_id = ANY($1)`,
+    [ids]
   );
   const map: Record<string, string> = {};
-  for (const r of res.rows) map[r.id] = r.full_name;
+  for (const r of res.rows) map[r.auth_user_id] = r.full_name;
   return map;
 }
 

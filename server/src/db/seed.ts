@@ -479,6 +479,114 @@ export async function seed(): Promise<void> {
       );
     }
 
+    // Bounties (side ops visible in ProjectsView and SideOpsBoard)
+    const BOUNTIES_SEED = [
+      { id: 'bounty-1', title: 'Design new onboarding email templates', description: 'Create 3 HTML email templates for user onboarding: welcome, day-3 nudge, and week-1 recap. Must match the brand guidelines in the Design System doc.', creator_id: 'user-6', category: 'DESIGN', department: 'Marketing', xp_reward: 200, estimated_minutes: 180, urgency: 'NORMAL', expires_at: '2026-04-15' },
+      { id: 'bounty-2', title: 'Write API integration guide for Zapier', description: 'Document the steps to integrate our API with Zapier and Make.com. Include working code examples and screenshots. Target audience: non-technical users.', creator_id: 'user-5', category: 'CONTENT', department: 'Engineering', xp_reward: 150, estimated_minutes: 120, urgency: 'HIGH', expires_at: '2026-03-15' },
+      { id: 'bounty-3', title: 'Build CSV bulk-import for employee records', description: 'Add a CSV import feature to the admin dashboard so managers can bulk-upload employee records. Must validate columns and display inline errors for malformed rows.', creator_id: 'user-1', category: 'DEVELOPMENT', department: 'Engineering', xp_reward: 400, estimated_minutes: 360, urgency: 'HIGH', expires_at: '2026-03-31' },
+      { id: 'bounty-4', title: 'Analyse Q4 campaign performance', description: 'Pull the Q4 email and SMS campaign data from the analytics dashboard, produce a one-page summary report with key metrics and suggest three improvements for Q1.', creator_id: 'user-2', category: 'DATA', department: 'Marketing', xp_reward: 175, estimated_minutes: 150, urgency: 'NORMAL', expires_at: '2026-03-10' },
+      { id: 'bounty-5', title: 'User research: onboarding friction points', description: 'Interview 5 team members who joined in the last 3 months. Identify the top 3 friction points during onboarding and document your findings with quotes and recommendations.', creator_id: 'user-2', category: 'RESEARCH', department: 'Product', xp_reward: 250, estimated_minutes: 240, urgency: 'NORMAL', expires_at: '2026-04-01' },
+      { id: 'bounty-6', title: 'Fix dashboard chart tooltip overlap on mobile', description: 'The performance trend chart tooltips overlap when 3+ data series are shown on screens narrower than 480 px. Reproduce, fix, and add a regression test.', creator_id: 'user-4', category: 'DEVELOPMENT', department: 'Engineering', xp_reward: 125, estimated_minutes: 90, urgency: 'LOW', expires_at: '2026-03-20' },
+      { id: 'bounty-7', title: 'Update employee handbook — remote work policy', description: 'Revise section 4.2 of the employee handbook to reflect the updated remote work policy agreed in the January all-hands. Must be reviewed by HR before publishing.', creator_id: 'user-6', category: 'ADMIN', department: 'HR', xp_reward: 100, estimated_minutes: 60, urgency: 'NORMAL', expires_at: '2026-03-15' },
+      { id: 'bounty-8', title: 'Create social media content calendar template', description: 'Build a reusable monthly content calendar template in Notion (or Google Sheets) that the marketing team can use each quarter. Include columns for platform, format, caption, and publish date.', creator_id: 'user-10', category: 'CONTENT', department: 'Marketing', xp_reward: 120, estimated_minutes: 90, urgency: 'LOW', expires_at: '2026-04-10' },
+    ];
+    for (const b of BOUNTIES_SEED) {
+      await client.query(
+        `INSERT INTO bounties (id, title, description, creator_id, category, department, xp_reward, estimated_minutes, urgency, status, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'OPEN', $10)
+         ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description, updated_at = NOW()`,
+        [b.id, b.title, b.description, b.creator_id, b.category, b.department, b.xp_reward, b.estimated_minutes, b.urgency, b.expires_at]
+      );
+    }
+
+    // Knowledge Hub v2 documents (knowledge_documents table — new KH system)
+    const KH_DOCS_SEED = [
+      {
+        id: '11111111-2222-3333-4444-000000000001',
+        title: 'Getting Started Guide',
+        slug: 'getting-started-guide',
+        excerpt: 'Your first steps in the Messign workspace — Chat, Projects, XP, and Badges explained.',
+        plain_text: 'Welcome to the Messign Workspace. This guide covers Chat (real-time team communication), Projects (track and manage work), XP & Leveling (earn points for contributions), and Badges (unlock achievements). Complete daily tasks to earn XP, collaborate with teammates on projects, document your knowledge, and help colleagues for bonus XP.',
+        document_type: 'guide',
+        is_pinned: true,
+        is_featured: true,
+        view_count: 342,
+        author_id: 'user-2',
+      },
+      {
+        id: '11111111-2222-3333-4444-000000000002',
+        title: 'API Documentation v3',
+        slug: 'api-documentation-v3',
+        excerpt: 'Complete API reference for developers — authentication, endpoints, and rate limits.',
+        plain_text: 'All API requests require a valid JWT token in the Authorization header. Users endpoints: GET /api/users lists all users, GET /api/users/:id returns a single user. Projects endpoints: GET /api/projects, POST /api/projects. Requests are limited to 100 per minute per user.',
+        document_type: 'specification',
+        is_pinned: true,
+        is_featured: false,
+        view_count: 567,
+        author_id: 'user-5',
+      },
+      {
+        id: '11111111-2222-3333-4444-000000000003',
+        title: 'Design System Guidelines',
+        slug: 'design-system-guidelines',
+        excerpt: 'Brand and design guidelines — colours, typography, and component usage.',
+        plain_text: 'Primary palette: Blue #3b82f6, Purple #8b5cf6, Background #0a0a0a. Typography uses Inter font family with headings at 600–800 weight. All components follow the atomic design principle and must be reviewed before merging.',
+        document_type: 'guide',
+        is_pinned: true,
+        is_featured: false,
+        view_count: 234,
+        author_id: 'user-3',
+      },
+      {
+        id: '11111111-2222-3333-4444-000000000004',
+        title: 'Engineering Best Practices',
+        slug: 'engineering-best-practices',
+        excerpt: 'Coding standards, code review rules, and testing requirements for the engineering team.',
+        plain_text: 'All PRs require at least one approval. Use conventional commits (feat, fix, chore, docs). Write unit tests for new features and maintain greater than 80% code coverage. No direct pushes to main — always open a PR.',
+        document_type: 'sop',
+        is_pinned: false,
+        is_featured: false,
+        view_count: 189,
+        author_id: 'user-1',
+      },
+      {
+        id: '11111111-2222-3333-4444-000000000005',
+        title: 'Marketing Playbook Q1 2026',
+        slug: 'marketing-playbook-q1-2026',
+        excerpt: 'Campaign goals, target audience, and execution plan for Q1 2026.',
+        plain_text: 'Campaign goals: increase brand awareness by 25% and generate 1,000 qualified leads. Target audience: tech professionals aged 25–45 and B2B SaaS decision makers. Key channels: LinkedIn, email newsletter, and webinars.',
+        document_type: 'roadmap',
+        is_pinned: false,
+        is_featured: false,
+        view_count: 87,
+        author_id: 'user-6',
+      },
+      {
+        id: '11111111-2222-3333-4444-000000000006',
+        title: 'Product Roadmap 2026',
+        slug: 'product-roadmap-2026',
+        excerpt: 'Product vision and quarterly priorities for 2026.',
+        plain_text: 'Q1 priorities: mobile app launch, API v3 migration, and performance improvements. Q2 plans: advanced analytics dashboard and enhanced team collaboration features. Q3 plans: AI-powered insights and mobile offline mode.',
+        document_type: 'roadmap',
+        is_pinned: false,
+        is_featured: true,
+        view_count: 156,
+        author_id: 'user-2',
+      },
+    ];
+    for (const d of KH_DOCS_SEED) {
+      const contentJson = JSON.stringify({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: d.plain_text }] }],
+      });
+      await client.query(
+        `INSERT INTO knowledge_documents (id, title, slug, content, plain_text, excerpt, status, document_type, author_id, is_pinned, is_featured, view_count, published_at)
+         VALUES ($1, $2, $3, $4::jsonb, $5, $6, 'published', $7, $8, $9, $10, $11, NOW())
+         ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, slug = EXCLUDED.slug, plain_text = EXCLUDED.plain_text, excerpt = EXCLUDED.excerpt, is_featured = EXCLUDED.is_featured, view_count = EXCLUDED.view_count, updated_at = NOW()`,
+        [d.id, d.title, d.slug, contentJson, d.plain_text, d.excerpt, d.document_type, d.author_id, d.is_pinned, d.is_featured, d.view_count]
+      );
+    }
+
     // Roles (role_key maps to reimbursement_users.role for memberCount)
     const ROLES_SEED = [
       { id: 'role-admin', name: 'Admin', description: 'Full system access', role_key: 'admin', permissions: [{ module: 'employees', actions: ['view', 'create', 'edit', 'delete', 'approve'], scope: 'all' }, { module: 'departments', actions: ['view', 'create', 'edit', 'delete', 'approve'], scope: 'all' }, { module: 'roles', actions: ['view', 'create', 'edit', 'delete', 'approve'], scope: 'all' }, { module: 'settings', actions: ['view', 'create', 'edit', 'delete', 'approve'], scope: 'all' }, { module: 'audit', actions: ['view'], scope: 'all' }, { module: 'xp', actions: ['view', 'create', 'edit', 'approve'], scope: 'all' }], is_system: true },

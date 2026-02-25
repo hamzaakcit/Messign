@@ -167,8 +167,8 @@ setupSocketHandlers(io);
 
 // Start server
 const port = process.env.PORT || 5000;
-httpServer.listen(port, async () => {
-  console.log(`🚀 Messign server running on http://localhost:${port}`);
+httpServer.listen(port, '0.0.0.0', async () => {
+  console.log(`🚀 Messign server running on port ${port}`);
   console.log(`📡 Socket.io ready for connections`);
   try {
     await initNewTables();

@@ -4,7 +4,7 @@
 
 - **Build:** `npm run build` — compiles TypeScript to `dist/`
 - **Start:** `npm run start` — runs `node dist/index.js` (production)
-- The server listens on **`process.env.PORT`** (default `3001`). Set `PORT` on Render/Railway; the platform assigns it.
+- The server listens on **`process.env.PORT`** (default `5000`). Set `PORT` on Render/Railway; the platform assigns it.
 
 ## CORS
 
@@ -32,7 +32,7 @@ Set these in the Render/Railway dashboard (or in a `.env` file for local runs).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | HTTP port (Render/Railway set this automatically) | `3001` |
+| `PORT` | HTTP port (Render/Railway set this automatically) | `5000` |
 | `NODE_ENV` | `production` or `development` | — |
 | `UPLOAD_DIR` | Directory for uploaded files (Phase 5: replace with cloud storage — Supabase/R2) | `./uploads` (relative to cwd) |
 
@@ -87,6 +87,40 @@ GRAPHHOPPER_API_KEY
 ACCESS_TOKEN_EXPIRY
 REFRESH_TOKEN_EXPIRY
 ```
+
+## Phase 2 — Migrate local Postgres to Railway
+
+Use this when moving from a local PostgreSQL database to Railway.
+
+1. **Sign up:** Go to [railway.app](https://railway.app) and sign in with GitHub.
+2. **New project:** Create a new project; then **+ New → Database → PostgreSQL**. Railway provisions a Postgres instance and exposes `DATABASE_URL` in the service variables.
+3. **Copy `DATABASE_URL`:** In the Railway dashboard, open the PostgreSQL service and copy the `DATABASE_URL` (or the full connection string from the Variables tab).
+4. **Dump local DB:** From your machine (with `psql`/`pg_dump` available), run:
+   ```bash
+   pg_dump -U your_local_user -d your_db_name -F c -f messign_backup.dump
+   ```
+   Replace `your_local_user` and `your_db_name` with your local Postgres user and database name.
+5. **Restore to Railway:** Use the **resolved** `DATABASE_PUBLIC_URL` from the Railway Postgres service **Variables** tab (the value Railway shows with the real host and port, not the `${{...}}` template). From your project root (where the `.dump` files are), run:
+
+   **Main app:**
+   ```bash
+   pg_restore --no-owner --no-privileges \
+     -d "YOUR_PUBLIC_URL" \
+     messign_main.dump
+   ```
+
+   **Knowledge-hub** (same Railway Postgres database; restore second):
+   ```bash
+   pg_restore --no-owner --no-privileges \
+     -d "YOUR_PUBLIC_URL" \
+     messign_knowledge.dump
+   ```
+
+   Replace `YOUR_PUBLIC_URL` with the actual `DATABASE_PUBLIC_URL` value from Railway (e.g. `postgresql://postgres:****@proxy.railway.internal:5432/railway` or the public TCP proxy URL Railway displays).
+
+6. **Configure app:** Set `DATABASE_URL` in your Railway project (and in the server/knowledge-hub service env) to the Railway Postgres URL so the app uses the migrated database. Use the private `DATABASE_URL` (with `RAILWAY_PRIVATE_DOMAIN`) for server-side apps; use `DATABASE_PUBLIC_URL` only for restores from your local machine.
+
+**pgvector:** If your dumps include tables that use the `vector` type (e.g. knowledge-hub embeddings, RAG), Railway’s default Postgres image may not have the `pgvector` extension. Enable pgvector via Railway’s Postgres extensions (if offered) or use a Postgres image that includes pgvector (e.g. `ankane/pgvector`), then re-run the restores.
 
 ## Deploy steps (Render / Railway)
 

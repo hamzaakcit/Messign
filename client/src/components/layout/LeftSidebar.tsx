@@ -13,8 +13,8 @@ import {
   Wallet,
   Briefcase,
   FileText,
-  Brain,
 } from 'lucide-react';
+import { PilotPlaneSVG } from '@/components/dora/DoraPilot';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -40,7 +40,7 @@ const VIEW_TO_PATH: Record<string, string> = {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'dora', label: 'Dora', icon: Brain },
+  { id: 'dora', label: 'Dora', icon: null },
   { id: 'chat', label: 'Chat', icon: MessageSquare, showUnread: true },
   { id: 'projects', label: 'Project Marketplace', icon: Briefcase },
   { id: 'knowledge', label: 'Knowledge Hub', icon: LayoutDashboard },
@@ -148,9 +148,35 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
             >
               {item.id === 'knowledge' ? (
                 <KnowledgeHubIcon size={20} active={currentView === 'knowledge'} className="flex-shrink-0" />
-              ) : (
+              ) : item.id === 'dora' ? (
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{
+                    filter: currentView === 'dora'
+                      ? 'drop-shadow(0 0 6px rgba(0,217,213,0.7)) drop-shadow(0 0 12px rgba(59,130,246,0.4))'
+                      : 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))',
+                    transition: 'filter 0.3s ease',
+                  }}>
+                    <PilotPlaneSVG size={20} showGoggleGlint={currentView === 'dora'} />
+                  </div>
+                  {/* Ground glow */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: -2,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 14,
+                    height: 4,
+                    borderRadius: '50%',
+                    background: currentView === 'dora'
+                      ? 'radial-gradient(ellipse, rgba(0,217,213,0.5) 0%, transparent 70%)'
+                      : 'radial-gradient(ellipse, rgba(0,217,213,0.15) 0%, transparent 70%)',
+                    filter: 'blur(1px)',
+                    transition: 'background 0.3s ease',
+                  }} />
+                </div>
+              ) : item.icon ? (
                 <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden />
-              )}
+              ) : null}
               {!collapsed && (
                 <>
                   <span className="font-medium flex-1 text-left">{item.label}</span>

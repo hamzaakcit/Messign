@@ -664,7 +664,7 @@ CREATE INDEX IF NOT EXISTS idx_mileage_claims_reimbursement ON mileage_claims(re
 -- ============================================
 CREATE TABLE IF NOT EXISTS game_scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(100) NOT NULL REFERENCES reimbursement_users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES reimbursement_users(id) ON DELETE CASCADE,
   score INTEGER NOT NULL DEFAULT 0,
   duration_ms INTEGER NOT NULL DEFAULT 0,
   played_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -677,7 +677,7 @@ CREATE INDEX IF NOT EXISTS idx_game_scores_user ON game_scores (user_id);
 -- ============================================
 CREATE TABLE IF NOT EXISTS dora_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(100) NOT NULL REFERENCES reimbursement_users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES reimbursement_users(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL DEFAULT 'New conversation',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

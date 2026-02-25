@@ -29,27 +29,28 @@ export function DoraPage() {
   const user = useAuthStore((s) => s.user);
   const {
     sessions,
-    activeSessionId,
+    // activeSessionId,
     createSession,
     setActiveSession,
   } = useDoraStore();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // chatKey changes whenever we switch sessions → forces DoraChatBody remount
+  // Prefer a welcome (empty) session when opening Dora so we show the welcome page, not the last conversation
+  const emptySession = sessions.find((s) => s.messages.length === 0);
   const [chatKey, setChatKey] = useState<string>(() => {
-    if (activeSessionId) return activeSessionId;
-    if (sessions.length > 0) return sessions[0].id;
+    // Prefer empty (welcome) so we don't flash the last conversation before the effect runs
+    if (emptySession) return emptySession.id;
     return 'new';
   });
 
-  // Ensure there's always an active session
+  // On open: show welcome page — reuse an existing empty session if any, otherwise create one (don't create a second empty)
   useEffect(() => {
-    if (!activeSessionId && sessions.length === 0) {
+    if (emptySession) {
+      setActiveSession(emptySession.id);
+      setChatKey(emptySession.id);
+    } else {
       const s = createSession();
       setChatKey(s.id);
-    } else if (!activeSessionId && sessions.length > 0) {
-      setActiveSession(sessions[0].id);
-      setChatKey(sessions[0].id);
     }
   }, []);
 
@@ -71,17 +72,17 @@ export function DoraPage() {
         onNewChat={handleNewChat}
         onSelectSession={handleSelectSession}
       />
-      <DoraChatBody key={chatKey} user={user} />
+      <DoraChatBody key={chatKey} user={user} welcomeOnly={chatKey === 'new'} />
     </div>
   );
 }
 
 // ─── Inner chat body — re-keyed on session switch ───────────────────────────
-function DoraChatBody({ user }: { user: { name?: string; role?: string } | null }) {
+function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; role?: string } | null; welcomeOnly?: boolean }) {
   const userRole = user?.role ?? 'member';
   const { getActiveMessages, setActiveMessages, createSession, activeSessionId } = useDoraStore();
 
-  const initialMessages = getActiveMessages();
+  const initialMessages = welcomeOnly ? [] : getActiveMessages();
 
   const {
     messages,
@@ -384,7 +385,7 @@ function DoraChatBody({ user }: { user: { name?: string; role?: string } | null 
                   width: '100%',
                   boxShadow: '0 0 30px rgba(56,189,248,0.04), inset 0 1px 0 rgba(255,255,255,0.04)',
                 }}>
-                  <AISuggestionChips userRole={userRole} onSuggestionClick={handleSuggestion} compact isTopLevel />
+                  <AISuggestionChips userRole={userRole} onSuggestionClick={handleSuggestion} isTopLevel />
                 </div>
 
                 {/* Presentation button */}
@@ -455,7 +456,10 @@ function DoraChatBody({ user }: { user: { name?: string; role?: string } | null 
               {messages.map((msg) => (
                 <AIMessageBubble key={msg.id} message={msg} onFeedback={msg.role === 'assistant' ? submitFeedback : undefined} onSendMessage={sendMessage} />
               ))}
-              <AITypingIndicator isLoading={isLoading} isStreaming={isStreaming} />
+              {/* Don't show standalone indicator when a message bubble is already showing "Analyzing..." (avoids duplicate) */}
+              {!messages.some((m) => m.role === 'assistant' && m.isStreaming && !m.content) && (
+                <AITypingIndicator isLoading={isLoading} isStreaming={isStreaming} />
+              )}
               {error && (
                 <div className="flex items-center gap-2 px-4 py-2 mb-4 bg-danger-500/10 text-danger-500 rounded-lg text-sm">
                   <span>&#x26A0;&#xFE0F; {error}</span>
@@ -468,7 +472,7 @@ function DoraChatBody({ user }: { user: { name?: string; role?: string } | null 
           {!isLoading && (
               <div style={{ flexShrink: 0, padding: '8px 20px', borderTop: '1px solid rgba(56,189,248,0.06)', background: 'rgba(2,8,23,0.6)' }}>
                 <div className="max-w-4xl mx-auto">
-                  <AISuggestionChips userRole={userRole} onSuggestionClick={handleSuggestion} compact isTopLevel />
+                  <AISuggestionChips userRole={userRole} onSuggestionClick={handleSuggestion} isTopLevel />
                 </div>
               </div>
             )}
