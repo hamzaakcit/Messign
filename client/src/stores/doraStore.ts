@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 
 const MAX_LOCAL_SESSIONS = 30;
 const MAX_MESSAGES_PER_SESSION = 100;
@@ -74,7 +75,7 @@ export const useDoraStore = create<DoraState>()(
         // Also delete from backend (fire and forget)
         const token = getAccessToken();
         if (token) {
-          fetch(`/api/dora/sessions/${id}`, {
+          fetch(`${API_ORIGIN}/api/dora/sessions/${id}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => {});

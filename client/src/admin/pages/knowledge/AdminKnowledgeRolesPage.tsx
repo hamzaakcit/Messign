@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 
 interface UserRole {
   id: string;
@@ -36,8 +37,8 @@ export function AdminKnowledgeRolesPage() {
     (async () => {
       try {
         const [orgRes, rolesRes] = await Promise.all([
-          fetch('/api/users', { headers: getHeaders() }),
-          fetch('/api/knowledge-hub/roles', { headers: getHeaders() }),
+          fetch(`${API_ORIGIN}/api/users`, { headers: getHeaders() }),
+          fetch(`${API_ORIGIN}/api/knowledge-hub/roles`, { headers: getHeaders() }),
         ]);
         const orgUsers: OrgUser[] = orgRes.ok ? await orgRes.json() : [];
         const existingRoles: UserRole[] = rolesRes.ok ? await rolesRes.json() : [];
@@ -62,7 +63,7 @@ export function AdminKnowledgeRolesPage() {
     const userId = user.auth_user_id || user.id;
     setSaving(userId);
     try {
-      const res = await fetch(`/api/knowledge-hub/roles/${userId}`, {
+      const res = await fetch(`${API_ORIGIN}/api/knowledge-hub/roles/${userId}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({ role: newRole }),

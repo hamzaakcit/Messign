@@ -8,6 +8,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Trophy, Play, RotateCcw, ArrowLeft, Target, Zap, Clock, Gamepad2 } from 'lucide-react';
 import { useDoraDash } from '@/hooks/useDoraDash';
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 
 interface LeaderboardEntry {
   userId: string;
@@ -32,7 +33,7 @@ export function DoraDashPage() {
   const fetchLeaderboard = useCallback(async () => {
     try {
       const token = getAccessToken();
-      const res = await fetch('/api/game/leaderboard', {
+      const res = await fetch(`${API_ORIGIN}/api/game/leaderboard`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -50,7 +51,7 @@ export function DoraDashPage() {
       setSubmitting(true);
       try {
         const token = getAccessToken();
-        const res = await fetch('/api/game/scores', {
+        const res = await fetch(`${API_ORIGIN}/api/game/scores`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

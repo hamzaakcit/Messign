@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useWidgetContext, type SuggestionChip } from '@/hooks/useWidgetContext';
 import { useAuthStore } from '@/stores/authStore';
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 import { DoraSidebarLogo, DoraChatAvatar, PilotPlaneSVG } from './DoraPilot';
 
 interface PendingActionContent {
@@ -100,7 +101,7 @@ export function FloatingWidget() {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      const response = await fetch('/api/knowledge-hub/ai/answer', {
+      const response = await fetch(`${API_ORIGIN}/api/knowledge-hub/ai/answer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +221,7 @@ export function FloatingWidget() {
   ) => {
     try {
       const token = getAccessToken();
-      const response = await fetch('/api/ai/actions/confirm', {
+      const response = await fetch(`${API_ORIGIN}/api/ai/actions/confirm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -261,7 +262,7 @@ export function FloatingWidget() {
   ) => {
     try {
       const token = getAccessToken();
-      await fetch('/api/ai/actions/cancel', {
+      await fetch(`${API_ORIGIN}/api/ai/actions/cancel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

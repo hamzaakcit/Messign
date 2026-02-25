@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollText } from 'lucide-react';
+import { API_ORIGIN } from '@/lib/api';
 
 interface AuditEntry {
   id: string;
@@ -22,7 +23,7 @@ export function AdminAuditLogPage() {
       try { const p = JSON.parse(token); headers['Authorization'] = `Bearer ${p?.state?.accessToken ?? p}`; } catch { headers['Authorization'] = `Bearer ${token}`; }
     }
 
-    fetch('/api/knowledge-hub/analytics/stats', { headers })
+    fetch(`${API_ORIGIN}/api/knowledge-hub/analytics/stats`, { headers })
       .then(r => r.json())
       .catch(() => {})
       .finally(() => setLoading(false));

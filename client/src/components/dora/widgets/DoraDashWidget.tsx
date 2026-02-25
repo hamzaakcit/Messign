@@ -9,6 +9,7 @@ import { Trophy, Play, RotateCcw, Gamepad2, Clock, Zap, Target, ExternalLink } f
 import { useNavigate } from 'react-router-dom';
 import { useDoraDash } from '@/hooks/useDoraDash';
 import { getAccessToken } from '@/lib/authToken';
+import { API_ORIGIN } from '@/lib/api';
 
 // ── Leaderboard types ───────────────────────────────────────────
 interface LeaderboardEntry {
@@ -43,7 +44,7 @@ export function DoraDashWidget() {
   const fetchLeaderboard = useCallback(async () => {
     try {
       const token = getAccessToken();
-      const res = await fetch('/api/game/leaderboard', {
+      const res = await fetch(`${API_ORIGIN}/api/game/leaderboard`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -69,7 +70,7 @@ export function DoraDashWidget() {
       setSubmitting(true);
       try {
         const token = getAccessToken();
-        const res = await fetch('/api/game/scores', {
+        const res = await fetch(`${API_ORIGIN}/api/game/scores`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
