@@ -35,6 +35,18 @@ async function fixMissingColumns(): Promise<void> {
     `);
     console.log('✅ reimbursement_users.updated_at');
 
+    // Add status to kb_documents
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'kb_documents' AND column_name = 'status') THEN
+          ALTER TABLE kb_documents ADD COLUMN status VARCHAR(20) DEFAULT 'published';
+          RAISE NOTICE 'Added status to kb_documents';
+        END IF;
+      END $$;
+    `);
+    console.log('✅ kb_documents.status');
+
     console.log('Done. All missing columns are in place.');
   } catch (err) {
     console.error('Error fixing columns:', err);
