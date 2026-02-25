@@ -1,4 +1,4 @@
-import PptxGenJS from 'pptxgenjs';
+import PptxGenJS = require('pptxgenjs');
 
 export interface PresentationSlide {
   title: string;
