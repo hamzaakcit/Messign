@@ -4,6 +4,7 @@ import { SystemOverviewWidget } from './SystemOverviewWidget';
 import { TaskTableWidget } from './TaskTableWidget';
 import ProjectStatusWidget, { type ProjectData } from './ProjectStatusWidget';
 import RevenueChartWidget from './RevenueChartWidget';
+import { FinancialSummaryWidget } from './FinancialSummaryWidget';
 import { DoraDashWidget } from './DoraDashWidget';
 
 // ============================================================
@@ -74,36 +75,61 @@ export function AIWidgetRenderer({ widget, index = 0, onSendMessage }: AIWidgetR
       break;
 
     case 'project_status': {
-      const projectData = data as Record<string, unknown>;
-      const shaped: ProjectData = {
-        name: (projectData.name as string) || 'Unknown Project',
-        lead: (projectData.lead as string) || (projectData.projectManager as string) || 'Unassigned',
-        dueDate: (projectData.dueDate as string) || (projectData.deadline as string) || 'TBD',
-        status: (projectData.status as ProjectData['status']) || 'active',
-        completion: (projectData.completion as number) || (projectData.progress as number) || 0,
-        tasks: {
-          total: (projectData.totalTasks as number) || 0,
-          done: (projectData.completedTasks as number) || 0,
-          inProgress: (projectData.inProgressTasks as number) || 0,
-          blocked: (projectData.blockedTasks as number) || 0,
-        },
-        team: (projectData.team as string[]) || (projectData.members as string[]) || [],
-      };
-      inner = <ProjectStatusWidget project={shaped} delay={staggerDelay} />;
+      const rawData = data as Record<string, unknown> | Record<string, unknown>[];
+      const projects = Array.isArray(rawData) ? rawData : [rawData];
+
+      inner = (
+        <>
+          {projects.slice(0, 3).map((projectData, pi) => {
+            const taskStats = (projectData.taskStats as Record<string, number>) || {};
+            const members = projectData.members as Array<{ full_name?: string }> | null;
+
+            const shaped: ProjectData = {
+              name: (projectData.name as string) || 'Unknown Project',
+              lead: (projectData.lead as string) || (projectData.projectManager as string) || 'Unassigned',
+              dueDate: (projectData.dueDate as string) || (projectData.deadline as string) || 'TBD',
+              status: (projectData.status as ProjectData['status']) || 'active',
+              completion: (projectData.completionPercentage as number) || (projectData.completion as number) || (projectData.progress as number) || 0,
+              tasks: {
+                total: taskStats.total || (projectData.totalTasks as number) || 0,
+                done: taskStats.completed || (projectData.completedTasks as number) || 0,
+                inProgress: taskStats.in_progress || (projectData.inProgressTasks as number) || 0,
+                blocked: taskStats.blocked || (projectData.blockedTasks as number) || 0,
+              },
+              team: members?.map((m) => m.full_name || 'Unknown').filter(Boolean) as string[]
+                || (projectData.team as string[])
+                || [],
+            };
+            return <ProjectStatusWidget key={pi} project={shaped} delay={staggerDelay + pi * 0.1} />;
+          })}
+        </>
+      );
       break;
     }
 
     case 'revenue_chart': {
       const chartData = data as Record<string, unknown>;
-      inner = (
-        <RevenueChartWidget
-          data={(chartData.data as Array<{ month: string; revenue: number }>) || []}
-          title={(chartData.title as string) || title}
-          subtitle={(chartData.subtitle as string) || undefined}
-          accent={(chartData.accent as string) || 'green-cyan'}
-          delay={staggerDelay}
-        />
-      );
+      const timeSeriesData = chartData.data as Array<{ month: string; revenue: number }> | undefined;
+
+      if (Array.isArray(timeSeriesData) && timeSeriesData.length > 0) {
+        inner = (
+          <RevenueChartWidget
+            data={timeSeriesData}
+            title={(chartData.title as string) || title}
+            subtitle={(chartData.subtitle as string) || undefined}
+            accent={(chartData.accent as string) || 'green-cyan'}
+            delay={staggerDelay}
+          />
+        );
+      } else {
+        inner = (
+          <FinancialSummaryWidget
+            data={chartData}
+            title={title}
+            delay={staggerDelay}
+          />
+        );
+      }
       break;
     }
 
