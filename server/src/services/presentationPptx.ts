@@ -1,4 +1,5 @@
-import PptxGenJS = require('pptxgenjs');
+// @ts-ignore
+const PptxGenJS = require('pptxgenjs');
 
 export interface PresentationSlide {
   title: string;
