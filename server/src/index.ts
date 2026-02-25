@@ -76,7 +76,12 @@ const CORS_ORIGINS = process.env.NODE_ENV === 'production'
       process.env.CLIENT_URL || '',
     ].filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:3000'];
-const corsOptions = { origin: CORS_ORIGINS, credentials: true };
+const corsOptions = {
+  origin: CORS_ORIGINS,
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+};
 
 const io = new Server(httpServer, {
   cors: {
