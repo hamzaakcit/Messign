@@ -75,7 +75,7 @@ const CORS_ORIGINS = process.env.NODE_ENV === 'production'
       'https://messign.com',
       process.env.CLIENT_URL || '',
     ].filter(Boolean)
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://127.0.0.1:3002'];
 const corsOptions = {
   origin: CORS_ORIGINS,
   credentials: true,
@@ -172,7 +172,7 @@ app.set('io', io);
 setupSocketHandlers(io);
 
 // Start server
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3001;
 httpServer.listen(Number(port), '0.0.0.0', async () => {
   console.log(`🚀 Messign server running on port ${port}`);
   console.log(`📡 Socket.io ready for connections`);

@@ -64,9 +64,10 @@ export async function orchestrate(
   ctx: DoraRequestContext,
   legacyContext: ToolContext,
   onChunk: (chunk: string) => void,
-  config: Partial<OrchestratorConfig> = {},
+  config: Partial<OrchestratorConfig> & { provider?: string } = {},
 ): Promise<OrchestrationResult> {
-  const cfg = { ...DEFAULT_ORCHESTRATOR_CONFIG, ...config };
+  const { provider, ...restConfig } = config;
+  const cfg = { ...DEFAULT_ORCHESTRATOR_CONFIG, ...restConfig };
   const tracker = new StepTracker(cfg);
   const startTime = Date.now();
 
@@ -323,7 +324,7 @@ export async function orchestrate(
     );
 
     const finalAnswer = await synthesizeAndStream(
-      query, history, ctx, tracker, terminationReason, onChunk, cfg
+      query, history, ctx, tracker, terminationReason, onChunk, cfg, provider
     );
 
     return buildResult(tracker, terminationReason, finalAnswer, startTime, undefined, pendingActionEvents);
@@ -347,6 +348,71 @@ export async function orchestrate(
   }
 }
 
+async function streamClaudeSynthesis(
+  synthesisPrompt: string,
+  query: string,
+  history: Array<{ role: string; content: string }>,
+  fullContext: string,
+  onChunk: (chunk: string) => void,
+): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+
+  const userMessage =
+    `Context:\n${fullContext.substring(0, 4000)}\n\nQuestion: ${query}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 2048,
+      stream: true,
+      system: synthesisPrompt,
+      messages: [
+        ...history.slice(-4)
+          .filter((h) => h.role === 'user' || h.role === 'assistant')
+          .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+        { role: 'user', content: userMessage },
+      ],
+    }),
+  });
+
+  if (!res.ok || !res.body) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Anthropic API error ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalAnswer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const event = JSON.parse(line.slice(6)) as { type?: string; delta?: { text?: string } };
+          if (event.type === 'content_block_delta' && event.delta?.text) {
+            onChunk(event.delta.text);
+            finalAnswer += event.delta.text;
+          }
+        } catch { /* skip parse errors */ }
+      }
+    }
+  }
+  return finalAnswer;
+}
+
 async function synthesizeAndStream(
   query: string,
   history: Array<{ role: string; content: string }>,
@@ -355,6 +421,7 @@ async function synthesizeAndStream(
   terminationReason: TerminationReason,
   onChunk: (chunk: string) => void,
   cfg: OrchestratorConfig,
+  provider?: string,
 ): Promise<string> {
   const fullContext = tracker.buildFullContextForSynthesis();
   const toolsUsed = tracker.getUniqueToolsUsed();
@@ -375,8 +442,19 @@ async function synthesizeAndStream(
 
   let finalAnswer = '';
 
-  // Try streaming with Groq first
-  if (getGroqApiKey()) {
+  // Use Claude for synthesis if explicitly requested
+  if (provider === 'claude') {
+    try {
+      console.log('[Orchestrator] Using Claude for synthesis (provider=claude)');
+      finalAnswer = await streamClaudeSynthesis(synthesisPrompt, query, history, fullContext, onChunk);
+      if (finalAnswer.trim()) return finalAnswer;
+    } catch (claudeErr) {
+      console.warn('[Orchestrator] Claude synthesis failed, falling back to Groq:', claudeErr);
+    }
+  }
+
+  // Try streaming with Groq first (default path)
+  if (!finalAnswer.trim() && getGroqApiKey()) {
     try {
       const stream = streamGroqCompletion(synthMessages, {
         model: cfg.model,

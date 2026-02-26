@@ -47,7 +47,7 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: OrchestratorConfig = {
   stepTimeoutMs: 10_000,
   enableDeduplication: true,
   logThoughts: true,
-  model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  model: 'llama-3.3-70b-versatile',
   reasoningTemperature: 0.1,
   synthesisTemperature: 0.3,
 };

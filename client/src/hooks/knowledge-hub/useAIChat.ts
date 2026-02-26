@@ -37,7 +37,7 @@ interface UseAIChatOptions {
   onMessagesChange?: (messages: AIMessage[]) => void;
 }
 
-export type ResponseMode = 'concise' | 'detailed' | 'search';
+export type ResponseMode = 'concise' | 'detailed' | 'search' | 'claude';
 
 interface UseAIChatReturn {
   messages: AIMessage[];
@@ -133,6 +133,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           currentPath: window.location.pathname,
           sessionId,
           searchMode: responseMode === 'search',
+          ...(responseMode === 'claude' ? { provider: 'claude' } : {}),
         }),
         signal: abortControllerRef.current.signal,
       });

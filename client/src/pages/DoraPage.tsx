@@ -8,7 +8,10 @@ import {
   AlignLeft,
   FileText,
   Globe,
+  Sparkles,
 } from 'lucide-react';
+import { API_ORIGIN } from '@/lib/api';
+import { getAccessToken } from '@/lib/authToken';
 import { DoraChatAvatar, DoraWelcomeHero } from '@/components/dora/DoraPilot';
 import { DoraHistorySidebar } from '@/components/dora/DoraHistorySidebar';
 import { useAIChat } from '@/hooks/knowledge-hub/useAIChat';
@@ -107,6 +110,20 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
   const [presentation, setPresentation] = useState<PresentationData | null>(null);
   const [presentationLoading, setPresentationLoading] = useState(false);
   const [presentationError, setPresentationError] = useState<string | null>(null);
+  const [claudeStatus, setClaudeStatus] = useState<{ used: number; limit: number; remaining: number } | null>(null);
+
+  useEffect(() => {
+    const fetchClaudeStatus = async () => {
+      try {
+        const token = getAccessToken();
+        const res = await fetch(`${API_ORIGIN}/api/knowledge-hub/ai/answer/claude-status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) setClaudeStatus(await res.json());
+      } catch { /* ignore */ }
+    };
+    fetchClaudeStatus();
+  }, []);
 
   // Ensure session exists if component mounts without one
   useEffect(() => {
@@ -137,8 +154,18 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
     if (!query || isLoading) return;
     setInputValue('');
     if (inputRef.current) inputRef.current.style.height = 'auto';
+    const wasClaudeMode = responseMode === 'claude';
     await sendMessage(query);
-  }, [inputValue, isLoading, sendMessage]);
+    if (wasClaudeMode) {
+      try {
+        const token = getAccessToken();
+        const res = await fetch(`${API_ORIGIN}/api/knowledge-hub/ai/answer/claude-status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) setClaudeStatus(await res.json());
+      } catch { /* ignore */ }
+    }
+  }, [inputValue, isLoading, sendMessage, responseMode]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -167,6 +194,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
   const isEmpty = messages.length === 0;
 
   /* ───────────────────────── MODE TOGGLE ───────────────────────── */
+  const claudeExhausted = claudeStatus !== null && claudeStatus.remaining <= 0;
   const ModeToggle = (
     <div className="flex items-center bg-dark-800 rounded-full border border-dark-600 p-0.5">
       {([
@@ -194,6 +222,33 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
           {label}
         </button>
       ))}
+      <button
+        onClick={() => { if (!claudeExhausted) setResponseMode('claude'); }}
+        disabled={claudeExhausted}
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+          responseMode === 'claude'
+            ? 'bg-violet-500/20 text-violet-400 border border-violet-500/40'
+            : claudeExhausted
+              ? 'text-gray-600 border border-transparent cursor-not-allowed opacity-50'
+              : 'text-gray-500 hover:text-gray-300 border border-transparent'
+        }`}
+        title={
+          claudeExhausted
+            ? `Daily Claude limit reached (${claudeStatus?.used ?? 0}/${claudeStatus?.limit ?? 0}). Resets at midnight UTC.`
+            : claudeStatus
+              ? `Claude (${claudeStatus.remaining}/${claudeStatus.limit} uses left today)`
+              : 'Claude — premium AI synthesis'
+        }
+      >
+        <Sparkles size={12} />
+        Claude
+        {claudeStatus && !claudeExhausted && (
+          <span className="ml-0.5 text-[10px] text-violet-400/70">{claudeStatus.remaining}</span>
+        )}
+        {claudeExhausted && (
+          <span className="ml-0.5 text-[10px] text-gray-600">0</span>
+        )}
+      </button>
     </div>
   );
 

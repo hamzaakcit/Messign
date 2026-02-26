@@ -6,6 +6,7 @@ import { routeQuery } from '../../services/ai/intentRouter.js';
 import '../../services/ai/tools/index.js';
 import { getToolCount } from '../../services/ai/tools/index.js';
 import { aiAnswerRateLimit, aiPresentationRateLimit } from '../../middleware/aiRateLimit.js';
+import { claudeRateLimit, incrementClaudeUsage, getClaudeUsageStatus } from '../../middleware/claudeRateLimit.js';
 import { validateAIAnswerInput, validateAIPresentationInput } from '../../middleware/aiInputValidation.js';
 import { logQuery } from '../../services/ai/queryLogger.js';
 import { recordTiming } from '../../services/ai/performanceMonitor.js';
@@ -194,6 +195,21 @@ const sendSSE = (res: Response) => (event: Record<string, unknown>) => {
   } catch { /* client disconnected */ }
 };
 
+aiRouter.get('/answer/claude-status', async (req: Request, res: Response) => {
+  const authReq = req as AuthReq;
+  if (!authReq.userId) {
+    res.status(401).json({ error: 'Authentication required.' });
+    return;
+  }
+  try {
+    const status = await getClaudeUsageStatus(authReq.userId, authReq.role ?? 'employee');
+    res.json(status);
+  } catch (e) {
+    console.error('[kh-ai] claude-status:', e);
+    res.status(500).json({ error: 'Failed to get Claude usage status.' });
+  }
+});
+
 aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: Request, res: Response) => {
   const userQuery = req.body.query as string;
   const history: { role: string; content: string }[] = req.body.history ?? [];
@@ -201,8 +217,26 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   const currentPath = (req.body.currentPath as string) || '';
   const sessionId = (req.body.sessionId as string) || `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const searchMode = req.body.searchMode === true;
+  const provider = (req.body.provider as string) || 'auto';
 
   const authReq = req as AuthReq;
+
+  // Claude provider: enforce daily limit before opening SSE stream
+  if (provider === 'claude') {
+    try {
+      const status = await getClaudeUsageStatus(authReq.userId, authReq.role ?? 'employee');
+      if (status.remaining <= 0) {
+        res.status(429).json({
+          error: `Daily Claude limit reached (${status.limit}/day). Resets at midnight UTC.`,
+          used: status.used,
+          limit: status.limit,
+          remaining: 0,
+        });
+        return;
+      }
+    } catch { /* allow through on DB error */ }
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -267,6 +301,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       doraCtx,
       legacyContext,
       (chunk) => { send({ type: 'text', content: chunk }); },
+      provider !== 'auto' ? { provider } : {},
     );
 
     const allToolResults = result.steps.flatMap((s) => s.observations);
@@ -326,6 +361,10 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
 
     send({ type: 'done' });
     res.end();
+
+    if (provider === 'claude' && result.success) {
+      incrementClaudeUsage(authReq.userId).catch(() => {});
+    }
 
     recordTiming({
       routerMs: totalMs,
