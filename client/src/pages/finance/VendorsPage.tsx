@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { financeAPI } from '@/lib/financeApi';
 import { StatusBadge } from '@/components/finance/StatusBadge';
 import { cn } from '@/lib/utils';
-import { Plus, Search, Building2, Filter, X, Download, CheckSquare, Square, Ban } from 'lucide-react';
+import { Plus, Search, Building2, Filter, Download, CheckSquare, Square, Ban } from 'lucide-react';
 
 interface Props {
   onCreateNew: () => void;
@@ -23,7 +23,7 @@ const VENDOR_FIELDS = [
   { key: 'payment_terms', label: 'Payment Terms', type: 'select', options: ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Due on Receipt'] },
 ];
 
-export function VendorsPage({ onCreateNew, onViewVendor }: Props) {
+export function VendorsPage({ onViewVendor }: Props) {
   const { user, isAdmin } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
   const [vendors, setVendors] = useState<Array<Record<string, unknown>>>([]);
@@ -241,8 +241,8 @@ export function VendorsPage({ onCreateNew, onViewVendor }: Props) {
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-app-text font-medium">{v.name as string}</div>
-                    {v.vendor_code && <div className="text-xs text-app-muted">{v.vendor_code as string}</div>}
+                    <div className="text-app-text font-medium">{v.name != null ? String(v.name) : ''}</div>
+                    {v.vendor_code != null && <div className="text-xs text-app-muted">{String(v.vendor_code)}</div>}
                   </td>
                   <td className="px-4 py-3 text-app-muted text-xs">{(v.email as string) || '—'}</td>
                   <td className="px-4 py-3 text-app-muted text-xs">{(v.payment_terms as string) || 'Net 30'}</td>

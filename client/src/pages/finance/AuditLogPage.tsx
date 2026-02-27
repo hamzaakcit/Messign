@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI, type AuditEntry } from '@/lib/financeApi';
-import { Shield, Clock, Search, Filter, ChevronDown, CheckCircle, AlertTriangle, Info, Bot, User, Download, X, ChevronRight, Link2, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Shield, Clock, Search, Filter, ChevronDown, CheckCircle, AlertTriangle, Info, Bot, User, Download, ChevronRight, Link2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const severityColors: Record<string, string> = {

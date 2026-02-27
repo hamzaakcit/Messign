@@ -14,6 +14,8 @@ export interface User {
   status: UserStatus;
   role: UserRole;
   joinedAt: string;
+  /** Auth provider user ID (e.g. Supabase auth.uid); used by finance pages */
+  authUserId?: string;
   /** Optional fields for employee detail panel */
   phone?: string;
   location?: string;

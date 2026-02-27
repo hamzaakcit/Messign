@@ -99,8 +99,8 @@ export function VendorDetailPage({ vendorId, onBack }: Props) {
               <Building2 className="h-6 w-6 text-primary-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-app-text">{vendor.name as string}</h2>
-              {vendor.vendor_code && <p className="text-sm text-app-muted">{vendor.vendor_code as string}</p>}
+              <h2 className="text-xl font-bold text-app-text">{String(vendor.name)}</h2>
+              {vendor.vendor_code != null && <p className="text-sm text-app-muted">{String(vendor.vendor_code)}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -152,10 +152,10 @@ export function VendorDetailPage({ vendorId, onBack }: Props) {
               { label: 'Country', value: vendor.country },
               { label: 'Website', value: vendor.website },
               { label: 'Legal Name', value: vendor.legal_name },
-            ].map(({ label, value }) => value ? (
+            ].map(({ label, value }) => value != null ? (
               <div key={label}>
                 <span className="text-xs text-app-muted">{label}</span>
-                <p className="text-app-text font-medium">{value as string}</p>
+                <p className="text-app-text font-medium">{String(value)}</p>
               </div>
             ) : null)}
           </div>

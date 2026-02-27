@@ -103,7 +103,7 @@ export function APAgingPage() {
             </tr>
           </thead>
           <tbody>
-            {report.buckets.map(bucket => (
+            {report.buckets.map((bucket: any) => (
               <>
                 <tr
                   key={bucket.name}
@@ -136,7 +136,7 @@ export function APAgingPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {bucket.invoices.map(inv => (
+                          {bucket.invoices.map((inv: any) => (
                             <tr key={inv.id} className="border-t border-white/5">
                               <td className="py-1.5 font-mono">{inv.invoice_number}</td>
                               <td className="py-1.5 text-right font-mono">${inv.grand_total.toFixed(2)}</td>

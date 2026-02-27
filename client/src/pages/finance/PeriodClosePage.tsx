@@ -129,8 +129,8 @@ export function PeriodClosePage() {
                 key={task.task_key}
                 className={cn('flex items-center gap-4 px-5 py-4 transition-colors',
                   isEditable ? 'cursor-pointer hover:bg-white/5' : '',
-                  task.is_completed && 'opacity-70')}
-                onClick={() => isEditable && toggleTask(task.task_key, task.is_completed)}
+                  (task.is_completed ?? false) && 'opacity-70')}
+                onClick={() => isEditable && toggleTask(task.task_key, task.is_completed ?? false)}
               >
                 {task.is_completed ? (
                   <CheckCircle className="h-5 w-5 text-green-400 shrink-0" />

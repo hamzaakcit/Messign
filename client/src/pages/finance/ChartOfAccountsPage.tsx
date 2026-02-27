@@ -23,7 +23,6 @@ export function ChartOfAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set(TYPE_ORDER));
-  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ code: '', name: '', type: 'expense', description: '', parent_id: '' });
@@ -62,12 +61,6 @@ export function ChartOfAccountsPage() {
     setExpandedTypes(next);
   };
 
-  const toggleAccount = (id: string) => {
-    const next = new Set(expandedAccounts);
-    next.has(id) ? next.delete(id) : next.add(id);
-    setExpandedAccounts(next);
-  };
-
   const handleCreate = async () => {
     if (!user?.id || !formData.code || !formData.name) return;
     try {
@@ -75,8 +68,8 @@ export function ChartOfAccountsPage() {
         code: formData.code,
         name: formData.name,
         type: formData.type as GLAccount['type'],
-        description: formData.description || null,
-        parent_id: formData.parent_id || null,
+        description: formData.description || undefined,
+        parent_id: formData.parent_id || undefined,
       });
       setShowAddForm(false);
       setFormData({ code: '', name: '', type: 'expense', description: '', parent_id: '' });
@@ -91,7 +84,7 @@ export function ChartOfAccountsPage() {
     try {
       await financeAPI.updateGLAccount(user.id, id, {
         name: formData.name,
-        description: formData.description || null,
+        description: formData.description || undefined,
       });
       setEditingId(null);
       fetchData();
@@ -131,11 +124,11 @@ export function ChartOfAccountsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs text-app-muted">Total Debits</p>
-            <p className="text-xl font-bold text-app-text">${trialBalance.totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+            <p className="text-xl font-bold text-app-text">${(trialBalance.totalDebit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs text-app-muted">Total Credits</p>
-            <p className="text-xl font-bold text-app-text">${trialBalance.totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+            <p className="text-xl font-bold text-app-text">${(trialBalance.totalCredit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs text-app-muted">Balance Status</p>

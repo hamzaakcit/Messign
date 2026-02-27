@@ -129,7 +129,6 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
   const isDraft = invoice.status === 'draft';
   const isSent = invoice.status === 'sent';
   const isPartial = invoice.status === 'partially_paid';
-  const isPaid = invoice.status === 'paid';
   const isVoided = invoice.status === 'voided';
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
@@ -148,7 +148,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
   const { user } = useAuthStore();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [recentExpenses, setRecentExpenses] = useState<Array<Record<string, unknown>>>([]);
+  const [, setRecentExpenses] = useState<Array<Record<string, unknown>>>([]);
   const [activity, setActivity] = useState<Array<{ type: string; id: string; title: string; amount?: number; status: string; created_at: string }>>([]);
   const [pendingApprovals, setPendingApprovals] = useState<Array<{ id: string; type: string; title: string; amount: number; submitted_by_name: string; created_at: string }>>([]);
   const [loading, setLoading] = useState(true);

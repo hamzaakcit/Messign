@@ -243,6 +243,8 @@ export interface GLAccount {
   normal_balance: 'debit' | 'credit';
   children?: GLAccount[];
   created_at: string;
+  computed_balance?: number;
+  balance?: number;
 }
 
 export interface TrialBalance {
@@ -257,6 +259,9 @@ export interface TrialBalance {
   total_debit: number;
   total_credit: number;
   balanced: boolean;
+  totalDebit?: number;
+  totalCredit?: number;
+  isBalanced?: boolean;
 }
 
 export interface JournalEntry {
@@ -273,6 +278,7 @@ export interface JournalEntry {
   created_by?: string;
   created_at: string;
   lines?: JournalLine[];
+  is_auto_generated?: boolean;
 }
 
 export interface JournalLine {
@@ -283,19 +289,25 @@ export interface JournalLine {
   description?: string;
   debit_amount: number;
   credit_amount: number;
+  gl_code?: string;
+  gl_name?: string;
 }
 
 export interface ProfitLossReport {
   period_from: string;
   period_to: string;
-  revenue: { items: Array<{ name: string; total: number }>; total: number };
-  expenses: { items: Array<{ name: string; total: number }>; total: number };
+  revenue: any;
+  expenses: any;
   net_income: number;
+  totalRevenue?: number;
+  totalExpenses?: number;
+  netIncome?: number;
+  previousPeriod?: { totalRevenue: number; totalExpenses: number; netIncome: number };
 }
 
 export interface AgingReport {
-  summary: { current: number; days_30: number; days_60: number; days_90: number; over_90: number; total: number };
-  details: Array<{
+  summary?: { current: number; days_30: number; days_60: number; days_90: number; over_90: number; total: number };
+  details?: Array<{
     name: string;
     current: number;
     days_30: number;
@@ -304,6 +316,8 @@ export interface AgingReport {
     over_90: number;
     total: number;
   }>;
+  totals?: any;
+  buckets?: any;
 }
 
 export interface TaxSummary {
@@ -337,6 +351,10 @@ export interface PeriodClose {
   closed_by?: string;
   locked_at?: string;
   created_at: string;
+  label?: string;
+  revenue_total?: number;
+  expense_total?: number;
+  net_income?: number;
 }
 
 export interface PeriodCloseTask {
@@ -347,6 +365,8 @@ export interface PeriodCloseTask {
   completed: boolean;
   completed_at?: string;
   completed_by?: string;
+  is_completed?: boolean;
+  label?: string;
 }
 
 // ── API Client ─────────────────────────────────────

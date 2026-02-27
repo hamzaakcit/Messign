@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   Plus, Search, FileText, DollarSign, AlertTriangle, Clock,
   ChevronLeft, ChevronRight, CheckSquare, Square, Send, Repeat, Play, Pause,
-  Filter, X, Download, Calendar,
+  Filter, X, Download,
 } from 'lucide-react';
 
 const STATUS_TABS = [

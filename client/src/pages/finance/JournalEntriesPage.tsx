@@ -4,7 +4,7 @@ import { financeAPI, type JournalEntry } from '@/lib/financeApi';
 import { StatusBadge } from '@/components/finance/StatusBadge';
 import { cn } from '@/lib/utils';
 import {
-  Search, Filter, ChevronDown, ChevronRight, Zap, RotateCcw,
+  Search, ChevronDown, ChevronRight, Zap, RotateCcw,
   Plus, X, Check, Trash2, Loader2,
 } from 'lucide-react';
 
@@ -231,13 +231,13 @@ export function JournalEntriesPage() {
                   <td className="px-4 py-3 text-app-muted">{entry.entry_date}</td>
                   <td className="px-4 py-3 text-app-text max-w-[200px] truncate">
                     <div className="flex items-center gap-2">
-                      {entry.is_auto_generated && <Zap className="h-3.5 w-3.5 text-yellow-400 shrink-0" title="Auto-generated" />}
+                      {entry.is_auto_generated && <span title="Auto-generated"><Zap className="h-3.5 w-3.5 text-yellow-400 shrink-0" /></span>}
                       <span className="truncate">{entry.description}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs text-app-muted px-2 py-0.5 rounded bg-white/5">
-                      {SOURCE_LABELS[entry.source_type] || entry.source_type}
+                      {(SOURCE_LABELS[entry.source_type ?? ''] || entry.source_type) ?? ''}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-app-text">${parseFloat(String(entry.total_debit)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>

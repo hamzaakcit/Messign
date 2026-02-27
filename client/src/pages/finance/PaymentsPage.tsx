@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/finance/StatusBadge';
 import { cn } from '@/lib/utils';
 import {
   Search, CheckCircle, Loader2, CreditCard, ChevronDown, ChevronRight,
-  Filter, X, Download, CheckSquare, Square,
+  Filter, Download, CheckSquare, Square,
 } from 'lucide-react';
 
 const STATUS_TABS = [

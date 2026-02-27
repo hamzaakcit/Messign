@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI, type FinanceSettings, type ExpensePolicy, type TaxRate, type ApprovalWorkflowStep } from '@/lib/financeApi';
-import { Settings, Shield, Bot, Receipt, Plus, Edit2, X, Check, Ban, Save, Trash2, ChevronDown, GitBranch, Bell } from 'lucide-react';
+import { Settings, Shield, Bot, Receipt, Plus, Edit2, X, Check, Ban, Save, Trash2, GitBranch, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SettingsTab = 'general' | 'policies' | 'ai' | 'tax' | 'workflows' | 'notifications';
@@ -55,7 +55,7 @@ export function SettingsPage() {
 }
 
 function GeneralTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
-  const [settings, setSettings] = useState<FinanceSettings | null>(null);
+  const [, setSettings] = useState<FinanceSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -297,7 +297,7 @@ function PoliciesTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) 
                   p.violation_action === 'warn' ? 'text-yellow-400 bg-yellow-500/20' :
                   'text-red-400 bg-red-500/20'
                 )}>{p.violation_action}</span>
-                {((p.rules as Record<string, unknown>)?.max_amount) && (
+                {(p.rules as Record<string, unknown>)?.max_amount != null && (
                   <span className="text-xs text-app-muted">Max: ${String((p.rules as Record<string, unknown>).max_amount)}</span>
                 )}
               </div>
@@ -317,7 +317,7 @@ function PoliciesTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) 
 }
 
 function AITab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
-  const [settings, setSettings] = useState<FinanceSettings | null>(null);
+  const [, setSettings] = useState<FinanceSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({

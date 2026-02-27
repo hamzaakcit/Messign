@@ -19,7 +19,7 @@ interface ExpenseDetailPageProps {
 export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps) {
   const user = useAuthStore((s) => s.user);
   const userId = user?.authUserId || user?.id || '';
-  const userRole = (user as Record<string, unknown>)?.role as string ?? 'employee';
+  const userRole = (user as unknown as Record<string, unknown>)?.role as string ?? 'employee';
 
   const [expense, setExpense] = useState<Expense | null>(null);
   const [loading, setLoading] = useState(true);
@@ -690,7 +690,7 @@ function BudgetImpact({ budgetId, amount, userId }: { budgetId: string; amount: 
     <div>
       <p className="text-xs font-medium text-app-muted mb-1">Budget Impact</p>
       <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-xs space-y-1">
-        <p className="text-app-muted">Budget: <span className="text-app-text">{budget.name || budget.department || 'Unknown'}</span></p>
+        <p className="text-app-muted">Budget: <span className="text-app-text">{budget.name || (budget as any).department || 'Unknown'}</span></p>
         <p className="text-app-muted">Remaining before: <span className="text-app-text">${remainingBefore.toFixed(2)}</span></p>
         <p className={cn('font-medium', overBudget ? 'text-red-400' : 'text-emerald-400')}>
           After: ${remainingAfter.toFixed(2)} {overBudget && '(OVER BUDGET)'}
