@@ -194,6 +194,241 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'approve_expense',
+      description:
+        '[ACTION] Approve a reimbursement expense request. Moves the expense to the next approval stage. ' +
+        'Only managers, finance, and admins can approve. Use when: ' +
+        '"Approve that expense", "Approve the travel reimbursement from Emily".',
+      parameters: {
+        type: 'object',
+        properties: {
+          reimbursement_id: {
+            type: 'string',
+            description: 'The reimbursement request ID to approve.',
+          },
+          comment: {
+            type: 'string',
+            description: 'Optional approval comment or note.',
+          },
+        },
+        required: ['reimbursement_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'flag_expense',
+      description:
+        '[ACTION] Flag a suspicious or unusual expense for review. Adds a review flag and notifies the submitter\'s manager. ' +
+        'Use when: "Flag this expense", "This expense looks suspicious", "Mark the receipt for review".',
+      parameters: {
+        type: 'object',
+        properties: {
+          reimbursement_id: {
+            type: 'string',
+            description: 'The reimbursement request ID to flag.',
+          },
+          reason: {
+            type: 'string',
+            description: 'Why this expense is being flagged (e.g., "Unusual amount", "Missing receipt", "Duplicate submission").',
+          },
+        },
+        required: ['reimbursement_id', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_budget_alert',
+      description:
+        '[ACTION] Create a budget threshold alert for a department. Sends a notification when budget usage crosses the threshold. ' +
+        'Use when: "Alert me when engineering hits 90% budget", "Set up a budget warning".',
+      parameters: {
+        type: 'object',
+        properties: {
+          department: {
+            type: 'string',
+            description: 'Department to monitor.',
+          },
+          threshold: {
+            type: 'number',
+            description: 'Fraction (0-1) at which to trigger the alert. E.g., 0.9 = 90%.',
+          },
+          message: {
+            type: 'string',
+            description: 'Custom alert message.',
+          },
+        },
+        required: ['department', 'threshold'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_budget',
+      description:
+        '[ACTION] Create a new department budget with allocated amount and date range. ' +
+        'Only admins and finance can create budgets. Use when: ' +
+        '"Create a budget for engineering", "Set Q1 budget for marketing".',
+      parameters: {
+        type: 'object',
+        properties: {
+          department: {
+            type: 'string',
+            description: 'The department this budget is for (e.g., "Engineering", "Marketing").',
+          },
+          allocated_amount: {
+            type: 'number',
+            description: 'Total budget amount allocated.',
+          },
+          period_start: {
+            type: 'string',
+            description: 'Budget period start date (YYYY-MM-DD).',
+          },
+          period_end: {
+            type: 'string',
+            description: 'Budget period end date (YYYY-MM-DD).',
+          },
+          currency: {
+            type: 'string',
+            description: 'Currency code (default: EUR).',
+          },
+          alert_threshold: {
+            type: 'number',
+            description: 'Fraction (0-1) at which to trigger alerts. Default: 0.80 (80%).',
+          },
+        },
+        required: ['department', 'allocated_amount', 'period_start', 'period_end'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_budget',
+      description:
+        '[ACTION] Update an existing budget\'s amount, dates, or alert threshold. ' +
+        'Use when: "Increase the engineering budget", "Change Q1 budget to...".',
+      parameters: {
+        type: 'object',
+        properties: {
+          budget_id: {
+            type: 'string',
+            description: 'The budget ID to update (from get_budget_status result).',
+          },
+          allocated_amount: {
+            type: 'number',
+            description: 'New allocated amount.',
+          },
+          period_start: {
+            type: 'string',
+            description: 'New period start (YYYY-MM-DD).',
+          },
+          period_end: {
+            type: 'string',
+            description: 'New period end (YYYY-MM-DD).',
+          },
+          alert_threshold: {
+            type: 'number',
+            description: 'New alert threshold (0-1).',
+          },
+        },
+        required: ['budget_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'auto_approve_expense',
+      description:
+        '[ACTION] Automatically approve an expense that meets all policy criteria. ' +
+        'Only for expenses under the auto-approve threshold with high AI confidence.',
+      parameters: {
+        type: 'object',
+        properties: {
+          expense_id: { type: 'string', description: 'The expense ID to auto-approve.' },
+          reason: { type: 'string', description: 'Reason for auto-approval.' },
+        },
+        required: ['expense_id', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'flag_expense_for_review',
+      description:
+        '[ACTION] Flag an expense for manual review due to policy violations, anomalies, or risk factors.',
+      parameters: {
+        type: 'object',
+        properties: {
+          expense_id: { type: 'string', description: 'The expense ID to flag.' },
+          reason: { type: 'string', description: 'Why this expense needs review.' },
+          risk_level: { type: 'string', description: 'Risk severity.', enum: ['low', 'medium', 'high'] },
+        },
+        required: ['expense_id', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'generate_invoice',
+      description:
+        '[ACTION] Generate a draft invoice for a client. Specify the client name, line items, and payment terms.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_name: { type: 'string', description: 'Client or company name.' },
+          items: { type: 'string', description: 'JSON array of line items [{description, quantity, unit_price}].' },
+          payment_terms: { type: 'string', description: 'Payment terms e.g. "Net 30".' },
+          currency: { type: 'string', description: 'Currency code. Default: USD.' },
+        },
+        required: ['client_name', 'items'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_payment_reminder',
+      description:
+        '[ACTION] Send a payment reminder for an overdue invoice. Creates a notification for the responsible party.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoice_id: { type: 'string', description: 'The invoice ID to send reminder for.' },
+          message: { type: 'string', description: 'Custom reminder message.' },
+        },
+        required: ['invoice_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'suggest_budget_reallocation',
+      description:
+        '[ACTION] Suggest moving budget from an under-utilized category to an over-utilized one.',
+      parameters: {
+        type: 'object',
+        properties: {
+          from_budget_id: { type: 'string', description: 'Source budget to move funds from.' },
+          to_budget_id: { type: 'string', description: 'Target budget to move funds to.' },
+          amount: { type: 'number', description: 'Amount to reallocate.' },
+          reason: { type: 'string', description: 'Reason for reallocation.' },
+        },
+        required: ['from_budget_id', 'to_budget_id', 'amount', 'reason'],
+      },
+    },
+  },
 ];
 
 export const WRITE_TOOL_NAMES = new Set<string>(
@@ -217,6 +452,42 @@ export function getToolsForRole(
     }
 
     if (name === 'send_reminder' && !['admin', 'cpo', 'manager', 'hr'].includes(userRole)) {
+      return false;
+    }
+
+    if ((name === 'create_budget' || name === 'update_budget') && !['admin', 'finance'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'approve_expense' && !['admin', 'finance', 'manager'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'flag_expense' && !['admin', 'finance', 'manager', 'hr'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'create_budget_alert' && !['admin', 'finance', 'manager'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'auto_approve_expense' && !['admin', 'finance'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'flag_expense_for_review' && !['admin', 'finance', 'manager'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'generate_invoice' && !['admin', 'finance'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'send_payment_reminder' && !['admin', 'finance'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'suggest_budget_reallocation' && !['admin', 'finance'].includes(userRole)) {
       return false;
     }
 

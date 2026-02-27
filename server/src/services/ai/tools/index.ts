@@ -38,8 +38,14 @@ import './compareEmployees.js';
 import './departmentReport.js';
 import './availableQuestions.js';
 
+// Phase 3: Budget Management (1 tool)
+import './budgetTools.js';
+
 // Phase 5.5: Easter Egg (1 tool)
 import './doraDash.js';
+
+// Finance v1.2: 14 finance tools (9 read + 5 write)
+import './finance/index.js';
 
 export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
 

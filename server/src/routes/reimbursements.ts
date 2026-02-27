@@ -6,6 +6,8 @@ import { randomUUID } from 'crypto';
 import { query } from '../db/index.js';
 import { reimbursementAuth, type ReimbursementRequest } from '../middleware/reimbursementAuth.js';
 import { processReceiptOCR } from '../services/ocr.js';
+import { extractReceiptData, applyExtractionToReimbursement } from '../services/ai/receiptExtractor.js';
+import { emitToUser } from '../sockets/index.js';
 import { getExchangeRate } from './exchangeRates.js';
 
 const router = Router();
@@ -497,28 +499,54 @@ router.post('/:id/documents/:docId/ocr', async (req: ReimbursementRequest, res) 
     const buffer = readFileSync(filePath);
     const base64 = buffer.toString('base64');
     const mediaType = mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
-    const extracted = await processReceiptOCR(base64, mediaType);
-    const rawResponse = JSON.stringify(extracted);
+    const extraction = await extractReceiptData(base64, mediaType);
     await query(
       `UPDATE reimbursement_documents SET
        ocr_processed = TRUE, ocr_vendor_name = $1, ocr_amount = $2, ocr_currency = $3, ocr_date = $4,
-       ocr_confidence_score = 0.9, ocr_raw_response = $5
-       WHERE id = $6`,
+       ocr_confidence_score = $5, ocr_raw_response = $6
+       WHERE id = $7`,
       [
-        extracted.vendor_name ?? null,
-        extracted.amount ?? null,
-        extracted.currency ?? null,
-        extracted.date ?? null,
-        rawResponse,
+        extraction.vendor_name ?? null,
+        extraction.amount ?? null,
+        extraction.currency ?? null,
+        extraction.date ?? null,
+        extraction.confidence,
+        JSON.stringify(extraction.raw_extraction),
         docId,
       ]
     );
+    await applyExtractionToReimbursement(id, extraction);
+
+    if (extraction.confidence >= 0.85) {
+      try {
+        const submitter = await query<{ manager_id: string; full_name: string; auth_user_id: string }>(
+          `SELECT ru.manager_id, ru.full_name, m.auth_user_id
+           FROM reimbursement_users ru
+           LEFT JOIN reimbursement_users m ON m.id = ru.manager_id
+           WHERE ru.id = $1`,
+          [user.id],
+        );
+        const managerAuthId = submitter.rows[0]?.auth_user_id;
+        if (managerAuthId) {
+          emitToUser(managerAuthId, 'dora_notification', {
+            type: 'receipt_extraction',
+            title: 'Receipt Ready for Review',
+            message: `Dora AI extracted a high-confidence receipt from ${user.fullName}: ${extraction.vendor_name || 'Unknown vendor'} — ${extraction.currency || ''} ${extraction.amount ?? 'N/A'} (${(extraction.confidence * 100).toFixed(0)}% confidence)`,
+            reimbursementId: id,
+            confidence: extraction.confidence,
+          });
+        }
+      } catch (notifyErr) {
+        console.error('[OCR] Failed to notify manager:', notifyErr);
+      }
+    }
+
     const updated = await query(
       `SELECT id, reimbursement_id, document_type, file_name, file_url, ocr_processed, ocr_vendor_name, ocr_amount, ocr_currency, ocr_date, ocr_confidence_score, uploaded_at
        FROM reimbursement_documents WHERE id = $1`,
       [docId]
     );
-    res.json(updated.rows[0]);
+    res.json({ ...updated.rows[0], ai_extraction: extraction });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'OCR failed' });

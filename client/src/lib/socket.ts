@@ -164,3 +164,28 @@ export function onKnowledgeFlagResolved(callback: (data: { flagId: string; docum
   s.on('knowledge:flag_resolved', callback);
   return () => s.off('knowledge:flag_resolved', callback);
 }
+
+// Finance events
+export function onFinanceNotification(callback: (data: { id: string; type: string; title: string; message: string; entity_type?: string; entity_id?: string; priority: string }) => void): () => void {
+  const s = getSocket();
+  s.on('finance:notification', callback);
+  return () => s.off('finance:notification', callback);
+}
+
+export function onFinanceExpenseApproved(callback: (data: { expense_id: string; status: string }) => void): () => void {
+  const s = getSocket();
+  s.on('finance:expense:approved', callback);
+  return () => s.off('finance:expense:approved', callback);
+}
+
+export function onFinanceBudgetWarning(callback: (data: { budget_id: string; name: string; utilization_pct: number }) => void): () => void {
+  const s = getSocket();
+  s.on('finance:budget:threshold_warning', callback);
+  return () => s.off('finance:budget:threshold_warning', callback);
+}
+
+export function onFinanceDoraInsight(callback: (data: { type: string; message: string; entity_type?: string; entity_id?: string }) => void): () => void {
+  const s = getSocket();
+  s.on('finance:dora:insight', callback);
+  return () => s.off('finance:dora:insight', callback);
+}

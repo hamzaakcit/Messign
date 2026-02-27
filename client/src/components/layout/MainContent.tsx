@@ -8,6 +8,7 @@ import { TeamView } from '@/pages/TeamView';
 import { ProjectsView } from '@/pages/ProjectsView';
 import { SettingsView } from '@/pages/SettingsView';
 import { ReimbursementRouter } from '@/pages/ReimbursementRouter';
+import { FinancePage } from '@/pages/FinancePage';
 import { DoraPage } from '@/pages/DoraPage';
 import { DoraDashPage } from '@/pages/DoraDashPage';
 import { Header } from './Header';
@@ -37,6 +38,8 @@ export function MainContent() {
         return <ProjectsView />;
       case 'settings':
         return <SettingsView />;
+      case 'finance':
+        return <FinancePage />;
       case 'reimbursements':
       case 'invoices':
         return <ReimbursementRouter />;

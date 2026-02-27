@@ -60,6 +60,9 @@ import { knowledgeHubRouter } from './routes/knowledge-hub/index.js';
 import { actionRoutes } from './services/ai/actions/actionRoutes.js';
 import { gameRouter } from './routes/game.js';
 import { doraHistoryRouter } from './routes/doraHistory.js';
+import { budgetsRouter } from './routes/budgets.js';
+import { financeRouter } from './routes/finance.js';
+import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
 import { initializeAuthRecords } from './services/initAuth.js';
@@ -134,6 +137,8 @@ app.use('/api/knowledge-hub', knowledgeHubRouter);
 app.use('/api/ai/actions', requireAuth, actionRoutes);
 app.use('/api/game', requireAuth, gameRouter);
 app.use('/api/dora', requireAuth, doraHistoryRouter);
+app.use('/api/budgets', budgetsRouter);
+app.use('/api/finance', financeRouter);
 
 // Health check
 app.get('/api/health', (_, res) => {
@@ -186,6 +191,7 @@ httpServer.listen(Number(port), '0.0.0.0', async () => {
   } catch (e) {
     console.warn('[initAuth]', e);
   }
+  startBudgetAlertJob();
 });
 
 export { io };

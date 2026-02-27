@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 const STORAGE_KEY = 'sidebar-layout';
 
-type View = 'dashboard' | 'dora' | 'game' | 'chat' | 'projects' | 'knowledge' | 'achievements' | 'team' | 'settings' | 'reimbursements' | 'invoices';
+type View = 'dashboard' | 'dora' | 'game' | 'chat' | 'projects' | 'knowledge' | 'achievements' | 'team' | 'settings' | 'finance' | 'reimbursements' | 'invoices';
 
 interface SidebarLayout {
   leftOpen: boolean;

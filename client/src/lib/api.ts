@@ -557,6 +557,55 @@ export const reimbursementSettingsAPI = {
     fetchReimbursementAPI<unknown>('/settings/reimbursement', userId, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
+export interface Budget {
+  id: string;
+  organizationId: string;
+  department: string;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+  currency: string;
+  alertThreshold: number;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  spent: number;
+  remaining: number;
+  utilizationPct: number;
+}
+
+export const budgetsAPI = {
+  list: (userId: string, params?: { department?: string; active?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.department) q.set('department', params.department);
+    if (params?.active) q.set('active', 'true');
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return fetchReimbursementAPI<Budget[]>(`/budgets${qs}`, userId);
+  },
+  getById: (userId: string, id: string) =>
+    fetchReimbursementAPI<Budget>(`/budgets/${id}`, userId),
+  getAlerts: (userId: string) =>
+    fetchReimbursementAPI<Budget[]>('/budgets/alerts', userId),
+  create: (userId: string, data: {
+    department: string;
+    periodStart: string;
+    periodEnd: string;
+    allocatedAmount: number;
+    currency?: string;
+    alertThreshold?: number;
+  }) => fetchReimbursementAPI<Budget>('/budgets', userId, { method: 'POST', body: JSON.stringify(data) }),
+  update: (userId: string, id: string, data: Partial<{
+    department: string;
+    periodStart: string;
+    periodEnd: string;
+    allocatedAmount: number;
+    currency: string;
+    alertThreshold: number;
+  }>) => fetchReimbursementAPI<Budget>(`/budgets/${id}`, userId, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (userId: string, id: string) =>
+    fetchReimbursementAPI<void>(`/budgets/${id}`, userId, { method: 'DELETE' }),
+};
+
 export const exchangeRatesAPI = {
   get: (userId: string, from: string, to: string, date?: string) => {
     const q = date ? `?date=${encodeURIComponent(date)}` : '';

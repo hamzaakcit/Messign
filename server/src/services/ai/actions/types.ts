@@ -4,7 +4,17 @@ export type WriteActionType =
   | 'update_task'
   | 'draft_invoice'
   | 'send_chat_message'
-  | 'send_reminder';
+  | 'send_reminder'
+  | 'approve_expense'
+  | 'flag_expense'
+  | 'create_budget_alert'
+  | 'create_budget'
+  | 'update_budget'
+  | 'auto_approve_expense'
+  | 'flag_expense_for_review'
+  | 'generate_invoice'
+  | 'send_payment_reminder'
+  | 'suggest_budget_reallocation';
 
 export interface PendingAction {
   token: string;

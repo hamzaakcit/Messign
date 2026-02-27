@@ -175,6 +175,115 @@ function buildActionPreview(
       };
     }
 
+    case 'approve_expense': {
+      const payload = {
+        reimbursement_id: (args.reimbursement_id as string) || '',
+        comment: (args.comment as string) || '',
+      };
+
+      return {
+        description: `Approve expense request ${payload.reimbursement_id.substring(0, 8)}...`,
+        displayFields: [
+          { key: 'reimbursement_id', label: 'Expense ID', type: 'readonly', value: payload.reimbursement_id, editable: false },
+          { key: 'comment',          label: 'Comment',    type: 'textarea', value: payload.comment,          editable: true },
+        ],
+        editableFields: ['comment'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'flag_expense': {
+      const payload = {
+        reimbursement_id: (args.reimbursement_id as string) || '',
+        reason: (args.reason as string) || '',
+      };
+
+      return {
+        description: `Flag expense ${payload.reimbursement_id.substring(0, 8)}... for review: "${payload.reason}"`,
+        displayFields: [
+          { key: 'reimbursement_id', label: 'Expense ID', type: 'readonly', value: payload.reimbursement_id, editable: false },
+          { key: 'reason',           label: 'Reason',     type: 'textarea', value: payload.reason,           editable: true },
+        ],
+        editableFields: ['reason'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'create_budget_alert': {
+      const payload = {
+        department: (args.department as string) || '',
+        threshold: (args.threshold as number) || 0.9,
+        message: (args.message as string) || '',
+      };
+
+      return {
+        description: `Create budget alert for ${payload.department} at ${(payload.threshold * 100).toFixed(0)}%`,
+        displayFields: [
+          { key: 'department', label: 'Department',       type: 'text',     value: payload.department,                           editable: true },
+          { key: 'threshold',  label: 'Threshold (%)',    type: 'number',   value: payload.threshold,                            editable: true },
+          { key: 'message',    label: 'Alert Message',    type: 'textarea', value: payload.message || `${payload.department} budget has exceeded ${(payload.threshold * 100).toFixed(0)}% utilization`, editable: true },
+        ],
+        editableFields: ['department', 'threshold', 'message'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'create_budget': {
+      const payload = {
+        department: (args.department as string) || '',
+        allocated_amount: (args.allocated_amount as number) || 0,
+        period_start: (args.period_start as string) || '',
+        period_end: (args.period_end as string) || '',
+        currency: (args.currency as string) || 'EUR',
+        alert_threshold: (args.alert_threshold as number) || 0.8,
+      };
+
+      return {
+        description: `Create ${payload.currency} ${payload.allocated_amount.toLocaleString()} budget for ${payload.department} (${payload.period_start} → ${payload.period_end})`,
+        displayFields: [
+          { key: 'department',       label: 'Department',      type: 'text',   value: payload.department,       editable: true },
+          { key: 'allocated_amount', label: 'Amount',          type: 'number', value: payload.allocated_amount, editable: true },
+          { key: 'currency',         label: 'Currency',        type: 'text',   value: payload.currency,         editable: true },
+          { key: 'period_start',     label: 'Start Date',      type: 'date',   value: payload.period_start,     editable: true },
+          { key: 'period_end',       label: 'End Date',        type: 'date',   value: payload.period_end,       editable: true },
+          { key: 'alert_threshold',  label: 'Alert Threshold', type: 'number', value: payload.alert_threshold,  editable: true },
+        ],
+        editableFields: ['department', 'allocated_amount', 'currency', 'period_start', 'period_end', 'alert_threshold'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'update_budget': {
+      const payload = {
+        budget_id: (args.budget_id as string) || '',
+        allocated_amount: args.allocated_amount as number | undefined,
+        period_start: args.period_start as string | undefined,
+        period_end: args.period_end as string | undefined,
+        alert_threshold: args.alert_threshold as number | undefined,
+      };
+
+      const parts: string[] = [];
+      if (payload.allocated_amount != null) parts.push(`amount to ${payload.allocated_amount}`);
+      if (payload.period_start) parts.push(`start to ${payload.period_start}`);
+      if (payload.period_end) parts.push(`end to ${payload.period_end}`);
+      if (payload.alert_threshold != null) parts.push(`threshold to ${payload.alert_threshold}`);
+
+      return {
+        description: parts.length > 0
+          ? `Update budget ${payload.budget_id.substring(0, 8)}...: ${parts.join(', ')}`
+          : `Update budget ${payload.budget_id.substring(0, 8)}...`,
+        displayFields: [
+          { key: 'budget_id',        label: 'Budget ID',       type: 'readonly', value: payload.budget_id,                       editable: false },
+          { key: 'allocated_amount', label: 'New Amount',       type: 'number',   value: payload.allocated_amount ?? '',          editable: true },
+          { key: 'period_start',     label: 'Start Date',       type: 'date',     value: payload.period_start ?? '',              editable: true },
+          { key: 'period_end',       label: 'End Date',         type: 'date',     value: payload.period_end ?? '',                editable: true },
+          { key: 'alert_threshold',  label: 'Alert Threshold',  type: 'number',   value: payload.alert_threshold ?? '',           editable: true },
+        ],
+        editableFields: ['allocated_amount', 'period_start', 'period_end', 'alert_threshold'],
+        sanitizedPayload: payload,
+      };
+    }
+
     case 'send_reminder': {
       const recipient = args.recipient === 'me' ? ctx.user.userName : (args.recipient as string) || '';
 
@@ -192,6 +301,97 @@ function buildActionPreview(
           { key: 'send_at',   label: 'Send At', type: 'text',     value: payload.send_at,   editable: true },
         ],
         editableFields: ['recipient', 'message', 'send_at'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'auto_approve_expense': {
+      const payload = {
+        expense_id: (args.expense_id as string) || '',
+        reason: (args.reason as string) || 'Meets auto-approve criteria',
+      };
+      return {
+        description: `Auto-approve expense ${payload.expense_id.substring(0, 8)}`,
+        displayFields: [
+          { key: 'expense_id', label: 'Expense ID', type: 'readonly' as const, value: payload.expense_id, editable: false },
+          { key: 'reason', label: 'Reason', type: 'text' as const, value: payload.reason, editable: true },
+        ],
+        editableFields: ['reason'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'flag_expense_for_review': {
+      const payload = {
+        expense_id: (args.expense_id as string) || '',
+        reason: (args.reason as string) || '',
+        risk_level: (args.risk_level as string) || 'medium',
+      };
+      return {
+        description: `Flag expense ${payload.expense_id.substring(0, 8)} for review`,
+        displayFields: [
+          { key: 'expense_id', label: 'Expense ID', type: 'readonly' as const, value: payload.expense_id, editable: false },
+          { key: 'reason', label: 'Reason', type: 'textarea' as const, value: payload.reason, editable: true },
+          { key: 'risk_level', label: 'Risk Level', type: 'select' as const, value: payload.risk_level, editable: true,
+            options: [{ label: 'Low', value: 'low' }, { label: 'Medium', value: 'medium' }, { label: 'High', value: 'high' }] },
+        ],
+        editableFields: ['reason', 'risk_level'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'generate_invoice': {
+      const payload = {
+        client_name: (args.client_name as string) || '',
+        items: (args.items as string) || '[]',
+        payment_terms: (args.payment_terms as string) || 'Net 30',
+        currency: (args.currency as string) || 'USD',
+      };
+      return {
+        description: `Generate invoice for ${payload.client_name}`,
+        displayFields: [
+          { key: 'client_name', label: 'Client', type: 'text' as const, value: payload.client_name, editable: true },
+          { key: 'items', label: 'Line Items (JSON)', type: 'textarea' as const, value: payload.items, editable: true },
+          { key: 'payment_terms', label: 'Payment Terms', type: 'text' as const, value: payload.payment_terms, editable: true },
+          { key: 'currency', label: 'Currency', type: 'text' as const, value: payload.currency, editable: true },
+        ],
+        editableFields: ['client_name', 'items', 'payment_terms', 'currency'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'send_payment_reminder': {
+      const payload = {
+        invoice_id: (args.invoice_id as string) || '',
+        message: (args.message as string) || 'This is a friendly reminder that your invoice is due for payment.',
+      };
+      return {
+        description: `Send payment reminder for invoice ${payload.invoice_id.substring(0, 8)}`,
+        displayFields: [
+          { key: 'invoice_id', label: 'Invoice ID', type: 'readonly' as const, value: payload.invoice_id, editable: false },
+          { key: 'message', label: 'Message', type: 'textarea' as const, value: payload.message, editable: true },
+        ],
+        editableFields: ['message'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'suggest_budget_reallocation': {
+      const payload = {
+        from_budget_id: (args.from_budget_id as string) || '',
+        to_budget_id: (args.to_budget_id as string) || '',
+        amount: (args.amount as number) || 0,
+        reason: (args.reason as string) || '',
+      };
+      return {
+        description: `Suggest reallocating $${payload.amount} between budgets`,
+        displayFields: [
+          { key: 'from_budget_id', label: 'From Budget', type: 'text' as const, value: payload.from_budget_id, editable: true },
+          { key: 'to_budget_id', label: 'To Budget', type: 'text' as const, value: payload.to_budget_id, editable: true },
+          { key: 'amount', label: 'Amount', type: 'number' as const, value: payload.amount, editable: true },
+          { key: 'reason', label: 'Reason', type: 'textarea' as const, value: payload.reason, editable: true },
+        ],
+        editableFields: ['from_budget_id', 'to_budget_id', 'amount', 'reason'],
         sanitizedPayload: payload,
       };
     }

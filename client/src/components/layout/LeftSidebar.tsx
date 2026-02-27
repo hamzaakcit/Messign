@@ -12,7 +12,6 @@ import {
   Shield,
   Wallet,
   Briefcase,
-  FileText,
 } from 'lucide-react';
 import { PilotPlaneSVG } from '@/components/dora/DoraPilot';
 import { useUIStore } from '@/stores/uiStore';
@@ -34,6 +33,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   team: '/team',
   projects: '/projects',
   settings: '/settings',
+  finance: '/finance',
   reimbursements: '/reimbursements',
   invoices: '/reimbursements/invoices',
 };
@@ -46,8 +46,7 @@ const navItems = [
   { id: 'knowledge', label: 'Knowledge Hub', icon: LayoutDashboard },
   { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'team', label: 'Team Directory', icon: Users },
-  { id: 'reimbursements', label: 'Reimbursements', icon: Wallet, showReimbBadge: true },
-  { id: 'invoices', label: 'Invoices', icon: FileText },
+  { id: 'finance', label: 'Finance', icon: Wallet, showReimbBadge: true },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

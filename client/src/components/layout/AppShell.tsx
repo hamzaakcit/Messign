@@ -26,9 +26,11 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/team': 'team',
   '/projects': 'projects',
   '/settings': 'settings',
+  '/finance': 'finance',
 };
 
 function getViewFromPath(path: string): string {
+  if (path.startsWith('/finance')) return 'finance';
   if (path === '/reimbursements/invoices' || path.startsWith('/reimbursements/invoices/')) return 'invoices';
   if (path.startsWith('/reimbursements')) return 'reimbursements';
   if (path.startsWith('/knowledge-hub')) return 'knowledge';
@@ -66,7 +68,7 @@ export function AppShell() {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
-      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'reimbursements' | 'invoices');
+      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices');
     }
   }, [location.pathname]);
 
