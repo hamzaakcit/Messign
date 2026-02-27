@@ -15,6 +15,8 @@ export interface AuditEvent {
   ai_involved?: boolean;
   ai_confidence?: number;
   ai_reasoning?: string;
+  severity?: string;
+  is_flagged?: boolean;
 }
 
 export const auditService = {

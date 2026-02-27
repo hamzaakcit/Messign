@@ -136,15 +136,16 @@ async function extractWithAnthropic(
     ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: imageBase64 } }
     : { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: imageBase64 } };
 
+  const content: Array<{ type: 'text'; text: string } | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } } | { type: 'document'; source: { type: 'base64'; media_type: string; data: string } }> = [
+    contentBlock,
+    { type: 'text', text: INVOICE_EXTRACTION_PROMPT },
+  ];
   const response = await anthropicClient.messages.create({
     model: 'claude-opus-4-5',
     max_tokens: 4096,
     messages: [{
       role: 'user',
-      content: [
-        contentBlock as Parameters<typeof anthropicClient.messages.create>[0]['messages'][0]['content'][0],
-        { type: 'text', text: INVOICE_EXTRACTION_PROMPT },
-      ],
+      content: content as any,
     }],
   });
 

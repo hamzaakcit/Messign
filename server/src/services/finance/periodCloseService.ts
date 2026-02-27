@@ -30,7 +30,7 @@ export const periodCloseService = {
     return result.rows;
   },
 
-  async getOrCreate(orgId: string, period: string) {
+  async getOrCreate(orgId: string, period: string): Promise<any> {
     const existing = await query(
       `SELECT pc.*,
          (SELECT json_agg(json_build_object(

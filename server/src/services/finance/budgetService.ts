@@ -87,7 +87,7 @@ export const budgetService = {
     return result.rows;
   },
 
-  async getById(budgetId: string, orgId: string) {
+  async getById(budgetId: string, orgId: string): Promise<Record<string, any> | null> {
     const budget = await query(
       `SELECT b.*,
               u.full_name as owner_name,
@@ -108,7 +108,7 @@ export const budgetService = {
     ]);
 
     return {
-      ...budget.rows[0],
+      ...(budget.rows[0] as Record<string, any>),
       allocations: allocations.rows,
       snapshots: snapshots.rows,
     };

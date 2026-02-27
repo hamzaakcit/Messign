@@ -115,7 +115,7 @@ registerTool({
       [...params, threshold],
     );
 
-    const anomalies = outliers.rows.map((o) => ({
+    const anomalies = outliers.rows.map((o: any) => ({
       ...o,
       deviation: ((parseFloat(o.original_amount) - avg) / stddev).toFixed(1),
     }));
@@ -123,7 +123,7 @@ registerTool({
     return {
       success: true,
       data: { avg, stddev, threshold, anomalies },
-      summary: `Spending pattern analysis (3 months):\nAverage: $${avg.toFixed(2)}, Std Dev: $${stddev.toFixed(2)}\nOutlier threshold: $${threshold.toFixed(2)}\n${anomalies.length} anomalies detected: ${anomalies.map((a) => `"${a.title}" ($${parseFloat(a.original_amount).toLocaleString()}, ${a.deviation}σ)`).join(', ') || 'none'}`,
+      summary: `Spending pattern analysis (3 months):\nAverage: $${avg.toFixed(2)}, Std Dev: $${stddev.toFixed(2)}\nOutlier threshold: $${threshold.toFixed(2)}\n${anomalies.length} anomalies detected: ${anomalies.map((a: any) => `"${a.title}" ($${parseFloat(a.original_amount).toLocaleString()}, ${a.deviation}σ)`).join(', ') || 'none'}`,
       metadata: { source: 'reimbursement_requests', count: anomalies.length },
     };
   },

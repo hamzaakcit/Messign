@@ -31,7 +31,7 @@ async function logJobRun(orgId: string, jobName: string, fn: () => Promise<unkno
 
 async function getOrganizations(): Promise<string[]> {
   const result = await query('SELECT DISTINCT id FROM organizations LIMIT 100');
-  return result.rows.map((r: { id: string }) => r.id);
+  return (result.rows as Array<{ id: string }>).map((r) => r.id);
 }
 
 export const doraScheduler = {

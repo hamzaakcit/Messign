@@ -2,6 +2,7 @@ import { query, getClient } from '../../db/index.js';
 import { auditService } from './auditService.js';
 import { notificationService } from './notificationService.js';
 import { runAIReviewPipeline } from './aiReviewPipeline.js';
+import { journalEntryService } from './journalEntryService.js';
 
 export interface CreateExpenseInput {
   title: string;
@@ -475,7 +476,7 @@ export const expenseService = {
       });
 
       if (newStatus === 'approved') {
-        journalEntryService.generateFromExpense(expenseId, 'approved').catch(err =>
+        journalEntryService.generateFromExpense(expenseId, 'approved').catch((err: unknown) =>
           console.error('[journal] Failed to generate expense approval entry:', err));
       }
 

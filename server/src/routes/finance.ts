@@ -9,7 +9,7 @@ import { requireFinanceRole } from '../middleware/financeRbac.js';
 import { expenseService } from '../services/finance/expenseService.js';
 import { auditService } from '../services/finance/auditService.js';
 import { notificationService } from '../services/finance/notificationService.js';
-import { invoiceService } from '../services/finance/invoiceService.js';
+import { invoiceService, type CreateInvoiceInput } from '../services/finance/invoiceService.js';
 import { budgetService as budgetSvc } from '../services/finance/budgetService.js';
 import { vendorService } from '../services/finance/vendorService.js';
 import { paymentService } from '../services/finance/paymentService.js';
@@ -415,7 +415,7 @@ router.post('/invoices/recurring/:id/generate', requireFinanceRole('finance', 'a
       due_date: config.next_date || new Date().toISOString().split('T')[0],
       line_items: template.line_items || [],
     };
-    const newInvoice = await invoiceService.create(cloneData, user.id, orgId);
+    const newInvoice = await invoiceService.create(cloneData as unknown as CreateInvoiceInput, user.id, orgId);
     const nextDate = computeNextDate(config.next_date || new Date().toISOString().split('T')[0], config.frequency || 'monthly');
     await query(
       `UPDATE invoices SET recurring_config = jsonb_set(COALESCE(recurring_config, '{}'), '{next_date}', $1::jsonb) WHERE id = $2`,
