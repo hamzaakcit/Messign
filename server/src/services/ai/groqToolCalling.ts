@@ -77,6 +77,7 @@ export async function callGroqWithTools(
       messages,
       tools: tools.length > 0 ? tools : undefined,
       tool_choice: tools.length > 0 ? 'auto' : undefined,
+      disable_tool_validation: tools.length > 0,
       temperature: 0.1,
       max_tokens: 512,
     }),
@@ -143,6 +144,7 @@ export async function callGroqWithToolsMultiTurn(
       messages,
       tools: tools.length > 0 ? tools : undefined,
       tool_choice: tools.length > 0 ? 'auto' : undefined,
+      disable_tool_validation: tools.length > 0,
       temperature: 0.2,
       max_tokens: 1024,
     }),
@@ -214,6 +216,7 @@ export async function callGroqWithToolsMultiTurnTracked(
       messages,
       tools: tools.length > 0 ? tools : undefined,
       tool_choice: tools.length > 0 ? 'auto' : undefined,
+      disable_tool_validation: tools.length > 0,
       temperature,
       max_tokens: maxTokens,
     }),
@@ -501,6 +504,85 @@ export async function callGeminiWithTools(
     }
     if (part.text) {
       textContent = part.text;
+    }
+  }
+
+  return { content: textContent, toolCalls };
+}
+
+/**
+ * Fallback: Use Anthropic Claude for tool routing when Groq and Gemini fail.
+ * Reduces dependency on Gemini (which has strict rate limits).
+ */
+export async function callClaudeWithTools(
+  systemPrompt: string,
+  userQuery: string,
+  history: ChatMessage[],
+  tools: LLMToolDefinition[]
+): Promise<LLMRouterResponse> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('Anthropic API key not available');
+  }
+
+  const anthropicTools = tools.map((t) => ({
+    name: t.function.name,
+    description: t.function.description,
+    input_schema: t.function.parameters,
+  }));
+
+  const messages: { role: 'user' | 'assistant'; content: string }[] = [];
+  for (const msg of history.slice(-6)) {
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+  messages.push({ role: 'user', content: userQuery });
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
+      tools: anthropicTools.length > 0 ? anthropicTools : undefined,
+      tool_choice: anthropicTools.length > 0 ? { type: 'auto' } : undefined,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Anthropic API error ${res.status}: ${errorText.slice(0, 300)}`);
+  }
+
+  const data = (await res.json()) as {
+    content?: Array<{
+      type?: string;
+      text?: string;
+      name?: string;
+      input?: Record<string, unknown>;
+    }>;
+  };
+
+  let toolCalls: ParsedToolCall[] | null = null;
+  let textContent: string | null = null;
+
+  for (const block of data.content || []) {
+    if (block.type === 'text' && block.text) {
+      textContent = block.text;
+    }
+    if (block.type === 'tool_use' && block.name && block.input != null) {
+      if (!toolCalls) toolCalls = [];
+      toolCalls.push({
+        name: block.name,
+        args: block.input,
+      });
     }
   }
 

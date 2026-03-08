@@ -2,6 +2,7 @@ import { getToolsForLLM, executeTool } from '../toolRegistry.js';
 import {
   callGroqWithToolsMultiTurnTracked,
   callGeminiWithTools,
+  callClaudeWithTools,
   streamGroqCompletion,
   getGroqApiKey,
   type GroqMessage,
@@ -122,35 +123,61 @@ export async function orchestrate(
           return buildResult(tracker, 'error', rateLimitMsg, startTime, 'rate_limit', pendingActionEvents);
         }
 
-        if (errMsg.includes('400') && (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation'))) {
-          console.warn(`[Orchestrator] Groq tool validation error at step ${stepIndex + 1}, trying Gemini fallback...`);
+        // On any other Groq failure (auth, 5xx, network, tool validation), try Gemini fallback, then Claude
+        console.warn(`[Orchestrator] Groq failed at step ${stepIndex + 1} (${errMsg.substring(0, 80)}...), trying Gemini fallback...`);
+        try {
+          const geminiResult = await callGeminiWithTools(
+            systemPrompt, query,
+            history.slice(-4).filter((h) => h.role === 'user' || h.role === 'assistant')
+              .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+            tools,
+          );
+          llmResponse = {
+            ...geminiResult,
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 500 },
+            rawToolCalls: geminiResult.toolCalls?.map((tc, i) => ({
+              id: `gemini_${stepIndex}_${i}_${tc.name}`,
+              type: 'function' as const,
+              function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+            })),
+          };
+          console.log(`[Orchestrator] Gemini fallback succeeded at step ${stepIndex + 1}`);
+        } catch (geminiError) {
+          const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
+          const is429 = geminiMsg.includes('429') || geminiMsg.toLowerCase().includes('quota exceeded') || geminiMsg.toLowerCase().includes('rate limit');
+
+          if (is429) {
+            console.warn('[Orchestrator] Gemini rate limit (429) — returning user message, skipping Claude to reduce usage');
+            const rateLimitMsg =
+              "AI services are temporarily rate-limited. Please try again in a minute.";
+            onChunk(rateLimitMsg);
+            return buildResult(tracker, 'error', rateLimitMsg, startTime, 'rate_limit', pendingActionEvents);
+          }
+
+          console.warn(`[Orchestrator] Gemini failed at step ${stepIndex + 1}, trying Claude fallback...`);
           try {
-            const geminiResult = await callGeminiWithTools(
+            const claudeResult = await callClaudeWithTools(
               systemPrompt, query,
               history.slice(-4).filter((h) => h.role === 'user' || h.role === 'assistant')
                 .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
               tools,
             );
             llmResponse = {
-              ...geminiResult,
+              ...claudeResult,
               usage: { promptTokens: 0, completionTokens: 0, totalTokens: 500 },
-              rawToolCalls: geminiResult.toolCalls?.map((tc, i) => ({
-                id: `gemini_${stepIndex}_${i}_${tc.name}`,
+              rawToolCalls: claudeResult.toolCalls?.map((tc, i) => ({
+                id: `claude_${stepIndex}_${i}_${tc.name}`,
                 type: 'function' as const,
                 function: { name: tc.name, arguments: JSON.stringify(tc.args) },
               })),
             };
-            console.log(`[Orchestrator] Gemini fallback succeeded at step ${stepIndex + 1}`);
-          } catch (geminiError) {
-            const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
-            console.error(`[Orchestrator] Gemini fallback also failed at step ${stepIndex + 1}:`, geminiMsg);
+            console.log(`[Orchestrator] Claude fallback succeeded at step ${stepIndex + 1}`);
+          } catch (claudeError) {
+            const claudeMsg = claudeError instanceof Error ? claudeError.message : String(claudeError);
+            console.error(`[Orchestrator] Claude fallback also failed at step ${stepIndex + 1}:`, claudeMsg);
             terminationReason = 'cascade_failure';
             break;
           }
-        } else {
-          console.error(`[Orchestrator] LLM call failed at step ${stepIndex + 1}:`, errMsg);
-          terminationReason = 'cascade_failure';
-          break;
         }
       }
 
