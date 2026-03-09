@@ -815,7 +815,7 @@ export const expenseService = {
       entity_type: 'expense',
       entity_id: expenseId,
       action_url: `/finance/expenses/${expenseId}`,
-      priority: 'medium',
+      priority: 'normal',
     });
 
     journalEntryService.generateFromExpense(expenseId, 'paid').catch((err: unknown) =>
