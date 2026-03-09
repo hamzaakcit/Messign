@@ -1,4 +1,5 @@
 import { query } from '../../db/index.js';
+import { doraSchedulerQueue } from '../../queue/index.js';
 import { slaService } from './slaService.js';
 import { notificationService } from './notificationService.js';
 import { auditService } from './auditService.js';
@@ -29,9 +30,24 @@ async function logJobRun(orgId: string, jobName: string, fn: () => Promise<unkno
   }
 }
 
-async function getOrganizations(): Promise<string[]> {
+export async function getOrganizations(): Promise<string[]> {
   const result = await query('SELECT DISTINCT id FROM organizations LIMIT 100');
   return (result.rows as Array<{ id: string }>).map((r) => r.id);
+}
+
+/** Run a scheduler job for all orgs and log each run to finance_dora_job_runs. Used by doraSchedulerWorker. */
+export async function runSchedulerJobForAllOrgs(
+  jobName: string,
+  fn: (orgId: string) => Promise<unknown>,
+): Promise<void> {
+  try {
+    const orgs = await getOrganizations();
+    for (const orgId of orgs) {
+      await logJobRun(orgId, jobName, () => fn(orgId));
+    }
+  } catch (err) {
+    console.error(`[doraScheduler/${jobName}] top-level error`, err);
+  }
 }
 
 export const doraScheduler = {
@@ -192,31 +208,48 @@ export const doraScheduler = {
     }
     return { reminders_sent: admins.rows.length };
   },
-
-  startScheduler() {
-    console.log('[doraScheduler] Starting scheduled jobs...');
-
-    const runForAllOrgs = async (jobName: string, fn: (orgId: string) => Promise<unknown>) => {
-      try {
-        const orgs = await getOrganizations();
-        for (const orgId of orgs) {
-          await logJobRun(orgId, jobName, () => fn(orgId));
-        }
-      } catch (err) {
-        console.error(`[doraScheduler/${jobName}] top-level error`, err);
-      }
-    };
-
-    setInterval(() => runForAllOrgs('checkApprovalSLAs', this.checkApprovalSLAs), 60 * 60 * 1000);
-    setInterval(() => runForAllOrgs('checkBudgetHealth', this.checkBudgetHealth), 6 * 60 * 60 * 1000);
-    setInterval(() => runForAllOrgs('checkOverdueInvoices', this.checkOverdueInvoices), 24 * 60 * 60 * 1000);
-    setInterval(() => runForAllOrgs('generateRecurringInvoices', this.generateRecurringInvoices), 24 * 60 * 60 * 1000);
-    setInterval(() => runForAllOrgs('monthlyCloseReminder', this.monthlyCloseReminder), 24 * 60 * 60 * 1000);
-
-    setTimeout(() => runForAllOrgs('checkApprovalSLAs', this.checkApprovalSLAs), 30000);
-    setTimeout(() => runForAllOrgs('checkBudgetHealth', this.checkBudgetHealth), 60000);
-  },
 };
+
+export async function initDoraScheduler(): Promise<void> {
+  console.log('[DoraScheduler] Initializing scheduled jobs via BullMQ...');
+
+  const existingJobs = await doraSchedulerQueue.getRepeatableJobs();
+  for (const job of existingJobs) {
+    await doraSchedulerQueue.removeRepeatableByKey(job.key);
+  }
+
+  await doraSchedulerQueue.add(
+    'budget-health-check',
+    { type: 'budget_health_check' },
+    { repeat: { every: 6 * 60 * 60 * 1000 }, jobId: 'budget-health-check' },
+  );
+
+  await doraSchedulerQueue.add(
+    'sla-check',
+    { type: 'sla_check' },
+    { repeat: { every: 60 * 60 * 1000 }, jobId: 'sla-check' },
+  );
+
+  await doraSchedulerQueue.add(
+    'overdue-invoice-check',
+    { type: 'overdue_invoice_check' },
+    { repeat: { pattern: '0 8 * * *' }, jobId: 'overdue-invoice-check' },
+  );
+
+  await doraSchedulerQueue.add(
+    'recurring-invoice-gen',
+    { type: 'recurring_invoice_generation' },
+    { repeat: { pattern: '0 6 * * *' }, jobId: 'recurring-invoice-gen' },
+  );
+
+  await doraSchedulerQueue.add(
+    'refresh-materialized-views',
+    { type: 'refresh_materialized_views' },
+    { repeat: { every: 15 * 60 * 1000 }, jobId: 'refresh-mv' },
+  );
+
+  console.log('[DoraScheduler] 5 scheduled jobs registered');
+}
 
 function computeNextDate(current: string, frequency: string): string {
   const d = new Date(current);

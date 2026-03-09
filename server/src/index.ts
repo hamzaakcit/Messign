@@ -29,6 +29,8 @@ if (!process.env.GRAPHHOPPER_API_KEY) {
 }
 import { setupSocketHandlers } from './sockets/index.js';
 import { registerAllSubscribers } from './events/subscribers/index.js';
+import { startAllWorkers } from './queue/workers/index.js';
+import { initDoraScheduler } from './services/finance/doraScheduler.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { channelsRouter } from './routes/channels.js';
@@ -179,6 +181,21 @@ setupSocketHandlers(io);
 
 registerAllSubscribers();
 console.log('[Server] Event bus subscribers registered');
+
+try {
+  startAllWorkers();
+  console.log('[Server] BullMQ workers started');
+  void initDoraScheduler()
+    .then(() => console.log('[Server] Dora scheduler repeatable jobs registered'))
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn('[Server] Dora scheduler failed to register (Redis unavailable?):', message);
+    });
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
+  console.warn('[Server] BullMQ workers failed to start (Redis unavailable?):', message);
+  console.warn('[Server] Async jobs will not be processed. Events will still fire synchronously.');
+}
 
 // Start server
 const port = process.env.PORT || 3001;

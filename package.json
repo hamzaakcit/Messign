@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Gamified Digital Workspace for Messign",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "(npx kill-port 3000 3001 || true) && concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "npm run dev --workspace=client",
