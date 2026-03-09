@@ -361,13 +361,13 @@ async function executeCreateBudgetAlert(
     if (!orgId) throw new Error('Organization not found');
 
     const budgetResult = await query<{ id: string }>(
-      `SELECT id FROM budgets WHERE organization_id = $1 AND department = $2 AND period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE LIMIT 1`,
+      `SELECT id FROM finance_budgets WHERE organization_id = $1 AND department = $2 AND period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE LIMIT 1`,
       [orgId, department],
     );
     const budget = budgetResult.rows[0];
 
     if (budget) {
-      await query(`UPDATE budgets SET alert_threshold = $1, updated_at = NOW() WHERE id = $2`, [threshold, budget.id]);
+      await query(`UPDATE finance_budgets SET alert_threshold = $1, updated_at = NOW() WHERE id = $2`, [threshold, budget.id]);
     }
 
     await logFinancialAction({

@@ -74,7 +74,7 @@ export async function runAIReviewPipeline(
   let budgetImpact: PipelineResult['budget_impact'] = null;
   if (expense.budget_id) {
     const budgetRes = await query(
-      'SELECT allocated_amount, spent_amount FROM budgets WHERE id = $1',
+      'SELECT allocated_amount, spent_amount FROM finance_budgets WHERE id = $1',
       [expense.budget_id],
     );
     if (budgetRes.rows[0]) {
@@ -170,20 +170,30 @@ export async function runAIReviewPipeline(
     // Create approval step for non-auto-approved
     if (decision === 'manager_review') {
       const userRow = await client.query('SELECT manager_id FROM reimbursement_users WHERE id = $1', [submitterId]);
-      const managerId = userRow.rows[0]?.manager_id;
-      if (managerId) {
+      let approverId = userRow.rows[0]?.manager_id;
+      if (!approverId) {
+        const fallback = await client.query(
+          `SELECT id FROM reimbursement_users
+           WHERE organization_id = $1 AND id != $2 AND role IN ('manager', 'admin', 'finance')
+           ORDER BY CASE role WHEN 'admin' THEN 1 WHEN 'finance' THEN 2 WHEN 'manager' THEN 3 ELSE 4 END
+           LIMIT 1`,
+          [orgId, submitterId],
+        );
+        approverId = fallback.rows[0]?.id ?? null;
+      }
+      if (approverId) {
         await client.query(
           `INSERT INTO approval_steps
            (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name,
             ai_recommendation, ai_confidence)
            VALUES ($1, 1, 'manager_approval', $2, 'pending', 'expense', $1, 'Manager Approval',
                    'approve', $3)
-           ON CONFLICT DO NOTHING`,
-          [expenseId, managerId, confidence],
+           ON CONFLICT (reimbursement_id, step_order) DO NOTHING`,
+          [expenseId, approverId, confidence],
         );
         await client.query(
           'UPDATE reimbursement_requests SET current_approver_id = $1 WHERE id = $2',
-          [managerId, expenseId],
+          [approverId, expenseId],
         );
       }
     } else if (decision === 'flag') {
@@ -208,7 +218,7 @@ export async function runAIReviewPipeline(
     // Budget impact: if auto-approved, update budget spent
     if (decision === 'auto_approve' && expense.budget_id) {
       await client.query(
-        'UPDATE budgets SET spent_amount = spent_amount + $1 WHERE id = $2',
+        'UPDATE finance_budgets SET spent_amount = spent_amount + $1 WHERE id = $2',
         [amount, expense.budget_id],
       );
     }

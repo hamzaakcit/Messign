@@ -40,18 +40,4 @@ export async function initNewTables(): Promise<void> {
   } catch (err) {
     console.warn('[initNewTables] warning:', err);
   }
-
-  // Patch missing columns on kb_documents (safe to run every startup)
-  try {
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'kb_documents' AND column_name = 'status') THEN
-          ALTER TABLE kb_documents ADD COLUMN status VARCHAR(20) DEFAULT 'published';
-        END IF;
-      END $$;
-    `);
-  } catch (err) {
-    console.warn('[initNewTables] kb_documents.status patch warning:', err);
-  }
 }

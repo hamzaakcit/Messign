@@ -12,6 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  */
 export async function runFixMigration(): Promise<void> {
   const migrations = [
+    'schema_migrations_init.sql',
     'fix_all_missing.sql',
     'add_missing_channel.sql',
     'add_projects_tags.sql',

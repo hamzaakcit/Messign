@@ -80,13 +80,20 @@ export function LoginPage() {
               </div>
 
               {displayError && (
-                <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                    <span className="text-red-500 font-bold">!</span>
+                <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                      <span className="text-red-500 font-bold">!</span>
+                    </div>
+                    <span className="text-red-600 text-sm">{displayError}</span>
+                    {loginError?.remainingAttempts != null && (
+                      <span className="text-xs text-red-500">({loginError.remainingAttempts} attempts left)</span>
+                    )}
                   </div>
-                  <span className="text-red-600 text-sm">{displayError}</span>
-                  {loginError?.remainingAttempts != null && (
-                    <span className="text-xs text-red-500">({loginError.remainingAttempts} attempts left)</span>
+                  {import.meta.env.DEV && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Local dev: use an email ending with @messign.com. Ensure the server is running on port 3001 and the DB is seeded (e.g. <code className="bg-gray-200 px-1 rounded">npm run db:seed</code> in server). Seed users use the default password from <code className="bg-gray-200 px-1 rounded">server/src/types/auth.ts</code>.
+                    </p>
                   )}
                 </div>
               )}

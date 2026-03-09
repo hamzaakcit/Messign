@@ -26,6 +26,8 @@ const SEED_USERS: SeedUser[] = [
   { auth_user_id: 'user-8', email: 'amanda.taylor@messign.com', full_name: 'Amanda Taylor', role: 'employee', manager_auth_id: 'user-2' },
   { auth_user_id: 'user-9', email: 'chris.wilson@messign.com', full_name: 'Chris Wilson', role: 'employee', manager_auth_id: 'user-2' },
   { auth_user_id: 'user-10', email: 'rachel.lee@messign.com', full_name: 'Rachel Lee', role: 'employee', manager_auth_id: 'user-6' },
+  { auth_user_id: 'user-11', email: 'onur@messign.com', full_name: 'Onur', role: 'employee', manager_auth_id: 'user-2' },
+  { auth_user_id: 'user-12', email: 'yuka@messign.com', full_name: 'Yuka', role: 'employee', manager_auth_id: 'user-2' },
 ];
 
 const CATEGORIES = [
@@ -135,7 +137,7 @@ export async function seed(): Promise<void> {
     const enterpriseTeamId = teamIdByCode['enterprise-sales'];
     const wholesaleTeamId = teamIdByCode['wholesale-sms'];
     if (enterpriseTeamId) {
-      const members = ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8'];
+      const members = ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8', 'user-11', 'user-12'];
       for (let i = 0; i < members.length; i++) {
         await client.query(
           `INSERT INTO performance_team_members (team_id, employee_id, role_in_team, start_date, is_active)
@@ -169,6 +171,8 @@ export async function seed(): Promise<void> {
       ['user-8', 'business-development'],
       ['user-9', 'marketing'],
       ['user-10', 'software'],
+      ['user-11', 'marketing'],
+      ['user-12', 'software'],
     ];
     for (const [authId, teamCode] of employeeToDept) {
       const teamId = teamIdByCode[teamCode];
@@ -458,24 +462,6 @@ export async function seed(): Promise<void> {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description, status = EXCLUDED.status, assignees = EXCLUDED.assignees, tags = EXCLUDED.tags, due_date = EXCLUDED.due_date, xp_reward = EXCLUDED.xp_reward, priority = EXCLUDED.priority, completed_at = EXCLUDED.completed_at`,
         [t.id, t.project_id, t.title, t.description, t.status, JSON.stringify(t.assignees), JSON.stringify(t.tags), t.due_date, t.xp_reward, t.priority, t.completed_at]
-      );
-    }
-
-    // Knowledge base documents
-    const DOCS_SEED = [
-      { id: 'doc-1', title: 'Getting Started Guide', content: '# Welcome to Messign Workspace\n\n## Introduction\nWelcome to the Messign gamified workspace! This guide will help you get started with all the features available to you.\n\n## Key Features\n- **Chat**: Communicate with your team in real-time\n- **Projects**: Track and manage your work\n- **XP & Leveling**: Earn XP for your contributions\n- **Badges**: Unlock achievements as you grow\n\n## Tips for Success\n1. Complete your daily tasks to earn XP\n2. Collaborate with teammates on projects\n3. Document your knowledge in the wiki\n4. Help colleagues to earn bonus XP\n', description: 'Your first steps in the Messign workspace', tags: ['onboarding', 'guide', 'getting-started'], author_id: 'user-2', type: 'wiki', is_pinned: true, views: 342 },
-      { id: 'doc-2', title: 'API Documentation v3', content: '# API Documentation v3\n\n## Authentication\nAll API requests require a valid JWT token in the Authorization header.\n\n## Endpoints\n### Users\n- GET /api/users - List all users\n- GET /api/users/:id - Get user by ID\n\n### Projects\n- GET /api/projects - List all projects\n- POST /api/projects - Create project\n\n## Rate Limiting\nAPI requests are limited to 100 requests per minute per user.\n', description: 'Complete API reference for developers', tags: ['api', 'documentation', 'technical'], author_id: 'user-5', type: 'wiki', is_pinned: true, views: 567 },
-      { id: 'doc-3', title: 'Design System Guidelines', content: '# Messign Design System\n\n## Colors\n### Primary Palette\n- Blue: #3b82f6\n- Purple: #8b5cf6\n- Background: #0a0a0a\n\n## Typography\n- Font Family: Inter\n- Headings: 600-800 weight\n', description: 'Brand and design guidelines for all products', tags: ['design', 'branding', 'guidelines'], author_id: 'user-3', type: 'wiki', is_pinned: true, views: 234 },
-      { id: 'doc-4', title: 'Engineering Best Practices', content: '# Engineering Best Practices\n\n## Code Review\n- All PRs require at least one approval\n- Use conventional commits\n\n## Testing\n- Write unit tests for new features\n- Maintain >80% code coverage\n', description: 'Coding standards and best practices', tags: ['engineering', 'best-practices', 'coding'], author_id: 'user-1', type: 'wiki', is_pinned: false, views: 189 },
-      { id: 'doc-5', title: 'Marketing Playbook Q1 2026', content: '# Q1 2026 Marketing Playbook\n\n## Campaign Goals\n- Increase brand awareness by 25%\n- Generate 1000 qualified leads\n\n## Target Audience\n- Tech professionals 25-45\n- B2B SaaS decision makers\n', description: 'Marketing strategy and execution plan', tags: ['marketing', 'strategy', 'Q1-2026'], author_id: 'user-6', type: 'wiki', is_pinned: false, views: 87 },
-      { id: 'doc-6', title: 'Product Roadmap 2026', content: '# Product Roadmap 2026\n\n## Q1 Priorities\n- Mobile app launch\n- API v3 migration\n- Performance improvements\n\n## Q2 Plans\n- Advanced analytics\n- Team collaboration features\n', description: 'Product vision and roadmap for 2026', tags: ['product', 'roadmap', '2026'], author_id: 'user-2', type: 'wiki', is_pinned: false, views: 156 },
-    ];
-    for (const d of DOCS_SEED) {
-      await client.query(
-        `INSERT INTO kb_documents (id, title, content, description, tags, author_id, type, is_pinned, views)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content, description = EXCLUDED.description, tags = EXCLUDED.tags, type = EXCLUDED.type, is_pinned = EXCLUDED.is_pinned, views = EXCLUDED.views, updated_at = NOW()`,
-        [d.id, d.title, d.content, d.description, JSON.stringify(d.tags), d.author_id, d.type, d.is_pinned, d.views]
       );
     }
 

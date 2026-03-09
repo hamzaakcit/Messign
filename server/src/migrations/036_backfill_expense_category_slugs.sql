@@ -1,0 +1,22 @@
+-- Backfill slugs for existing expense_categories (matches finance seed mapping)
+UPDATE expense_categories SET slug = 'travel_flight' WHERE name = 'Travel - Flights' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'travel_hotel' WHERE name = 'Travel - Hotels' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'travel_ground' WHERE name IN ('Travel - Ground', 'Travel - Ground Transport') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'meals_business' WHERE name = 'Meals - Business' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'meals_team' WHERE name = 'Meals - Team' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'meals_client' WHERE name IN ('Meals - Client', 'Meals - Client Entertainment') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'office_supplies' WHERE name = 'Office Supplies' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'office_equipment' WHERE name = 'Office Equipment' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'software_subscription' WHERE name IN ('Software - Subscription', 'Software Subscription') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'software_license' WHERE name IN ('Software - License', 'Software License') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'marketing_ads' WHERE name IN ('Marketing - Ads', 'Marketing - Advertising') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'marketing_events' WHERE name IN ('Marketing - Events', 'Marketing Events') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'training_course' WHERE name IN ('Training - Courses', 'Training Courses') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'training_conference' WHERE name IN ('Training - Conference', 'Training - Conferences') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'professional_legal' WHERE name IN ('Professional - Legal', 'Legal') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'professional_consulting' WHERE name IN ('Professional - Consulting', 'Consulting') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'utilities' WHERE name = 'Utilities' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'communication_phone' WHERE name IN ('Communication - Phone', 'Phone') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'communication_internet' WHERE name IN ('Communication - Internet', 'Internet') AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'healthcare' WHERE name = 'Healthcare' AND (slug IS NULL OR slug = '');
+UPDATE expense_categories SET slug = 'other' WHERE name = 'Other' AND (slug IS NULL OR slug = '');

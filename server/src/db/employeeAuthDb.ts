@@ -229,6 +229,8 @@ export async function updateMustChangePassword(
   );
 }
 
+const DEFAULT_ORG_SLUG = 'messign';
+
 export async function getAllWithAuth(): Promise<(EmployeeAuth & { full_name?: string; role?: string; department?: string | null })[]> {
   const result = await query<AuthRow & { full_name?: string; role?: string; department?: string | null }>(
     `SELECT ea.id::text AS id, ea.auth_user_id, ea.email, ea.password_hash, ea.must_change_password,
@@ -242,7 +244,9 @@ export async function getAllWithAuth(): Promise<(EmployeeAuth & { full_name?: st
         WHERE ptm.employee_id = ea.auth_user_id AND ptm.is_active = TRUE LIMIT 1) AS department
      FROM employee_auth ea
      LEFT JOIN reimbursement_users ru ON ru.auth_user_id = ea.auth_user_id
-     ORDER BY ea.email`
+       AND ru.organization_id = (SELECT id FROM organizations WHERE slug = $1 LIMIT 1)
+     ORDER BY ea.email`,
+    [DEFAULT_ORG_SLUG]
   );
   return result.rows.map((row) => ({ ...mapRow(row), full_name: row.full_name, role: row.role, department: row.department }));
 }

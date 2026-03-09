@@ -20,7 +20,7 @@ export const analyticsService = {
            COALESCE(SUM(allocated_amount), 0) as total_allocated,
            COALESCE(SUM(COALESCE(spent_amount, 0)), 0) as total_spent,
            COUNT(*) FILTER (WHERE COALESCE(spent_amount, 0) / NULLIF(allocated_amount, 0) * 100 >= COALESCE(critical_threshold, 95)) as critical_count
-         FROM budgets
+         FROM finance_budgets
          WHERE organization_id = $1 AND status = 'active'`,
         [orgId],
       ),

@@ -1,4 +1,13 @@
+import dotenv from 'dotenv';
+import { existsSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import Anthropic from '@anthropic-ai/sdk';
+
+// Ensure .env is loaded (works when invoiceExtractor is imported before main index dotenv)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const serverEnv = join(__dirname, '..', '..', '..', '.env');
+if (existsSync(serverEnv)) dotenv.config({ path: serverEnv });
 
 export interface InvoiceExtractionResult {
   vendor_name: string | null;
@@ -159,7 +168,11 @@ async function extractWithGroq(
 ): Promise<InvoiceExtractionResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('Groq API key not configured');
-  if (mediaType === 'application/pdf') throw new Error('PDF extraction requires Anthropic API — image scanning with Groq does not support PDFs');
+  if (mediaType === 'application/pdf') {
+    throw new Error(
+      'PDF scanning requires Anthropic API. Add ANTHROPIC_API_KEY to your server .env, or upload a JPG/PNG image instead.',
+    );
+  }
 
   const dataUrl = `data:${mediaType};base64,${imageBase64}`;
 

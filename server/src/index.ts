@@ -61,7 +61,7 @@ import { actionRoutes } from './services/ai/actions/actionRoutes.js';
 import { gameRouter } from './routes/game.js';
 import { doraHistoryRouter } from './routes/doraHistory.js';
 import { budgetsRouter } from './routes/budgets.js';
-import { financeRouter } from './routes/finance.js';
+import { financeRouter } from './routes/finance/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { optionalJwt } from './middleware/authMiddleware.js';

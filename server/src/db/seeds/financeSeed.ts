@@ -1,5 +1,6 @@
 import { query, getClient } from '../index.js';
 import crypto from 'crypto';
+import { CATEGORY_DEPARTMENT_MAP } from '../../services/finance/categoryDepartmentMap.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
 
@@ -251,14 +252,13 @@ export async function seedFinanceData() {
       const spent = randomFloat(allocated * 0.3, allocated * 0.92);
       const owner = users.find((u) => u.role === 'admin' || u.role === 'manager') || users[0];
       const r = await client.query<{ id: string }>(
-        `INSERT INTO budgets
+        `INSERT INTO finance_budgets
          (organization_id, name, department, allocated_amount, spent_amount, currency,
           period_start, period_end, status, owner_id,
           warning_threshold, critical_threshold, created_by,
-          ai_health_score, ai_forecast_amount)
+          ai_health_score, ai_forecast_amount, is_active)
          VALUES ($1, $2, $3, $4, $5, 'USD', $6, $7, 'active', $8,
-                 80.00, 95.00, $8, $9, $10)
-         ON CONFLICT DO NOTHING
+                 80.00, 95.00, $8, $9, $10, TRUE)
          RETURNING id`,
         [
           orgId, `${departments[i]} Q1 Budget`, departments[i],
@@ -425,21 +425,9 @@ export async function seedFinanceData() {
     }
 
     // 9. Link expenses to budgets by mapping category to department
-    const categoryDeptMap: Record<string, string> = {
-      travel_flight: 'Operations', travel_hotel: 'Operations', travel_ground: 'Operations',
-      meals_business: 'General', meals_team: 'General', meals_client: 'Sales',
-      office_supplies: 'General', office_equipment: 'General',
-      software_subscription: 'Engineering', software_license: 'Engineering',
-      marketing_ads: 'Marketing', marketing_events: 'Marketing',
-      training_course: 'General', training_conference: 'General',
-      professional_legal: 'General', professional_consulting: 'General',
-      utilities: 'Operations', communication_phone: 'Operations',
-      communication_internet: 'Engineering', healthcare: 'General', other: 'General',
-    };
-
     const budgetByDept = new Map<string, string>();
     for (const bid of budgetIds) {
-      const br = await client.query<{ department: string }>('SELECT department FROM budgets WHERE id = $1', [bid]);
+      const br = await client.query<{ department: string }>('SELECT department FROM finance_budgets WHERE id = $1', [bid]);
       if (br.rows[0]) budgetByDept.set(br.rows[0].department, bid);
     }
 
@@ -447,7 +435,7 @@ export async function seedFinanceData() {
       const er = await client.query<{ category_slug: string }>('SELECT category_slug FROM reimbursement_requests WHERE id = $1', [eid]);
       const slug = er.rows[0]?.category_slug;
       if (slug) {
-        const dept = categoryDeptMap[slug] || 'General';
+        const dept = CATEGORY_DEPARTMENT_MAP[slug] || 'General';
         const bid = budgetByDept.get(dept);
         if (bid) {
           await client.query('UPDATE reimbursement_requests SET budget_id = $1 WHERE id = $2', [bid, eid]);
@@ -494,7 +482,7 @@ export async function seedFinanceData() {
       const risk = confidence != null ? randomFloat(0, 0.4) : null;
       const autoApproved = tmpl.status === 'ai_approved';
       const catId = categoryMap.get(tmpl.slug) || categoryMap.values().next().value;
-      const dept = categoryDeptMap[tmpl.slug] || 'General';
+      const dept = CATEGORY_DEPARTMENT_MAP[tmpl.slug] || 'General';
       const bid = budgetByDept.get(dept) || null;
 
       const isApproved = ['approved', 'paid', 'ai_approved'].includes(tmpl.status);
@@ -524,18 +512,18 @@ export async function seedFinanceData() {
 
     // 9c. Sync budget spent_amount from actual approved expenses
     await client.query(`
-      UPDATE budgets SET spent_amount = sub.total FROM (
+      UPDATE finance_budgets SET spent_amount = sub.total FROM (
         SELECT budget_id, COALESCE(SUM(original_amount), 0) as total
         FROM reimbursement_requests
         WHERE budget_id IS NOT NULL AND status IN ('approved','paid','ai_approved','reimbursed') AND is_deleted = FALSE
         GROUP BY budget_id
-      ) sub WHERE budgets.id = sub.budget_id
+      ) sub WHERE finance_budgets.id = sub.budget_id
     `);
 
     // 9d. Budget snapshots (30 daily entries per budget)
     for (const bid of budgetIds) {
       const budgetRow = await client.query<{ allocated_amount: string; spent_amount: string }>(
-        'SELECT allocated_amount, spent_amount FROM budgets WHERE id = $1', [bid],
+        'SELECT allocated_amount, spent_amount FROM finance_budgets WHERE id = $1', [bid],
       );
       const allocated = parseFloat(budgetRow.rows[0]?.allocated_amount ?? '0');
       const finalSpent = parseFloat(budgetRow.rows[0]?.spent_amount ?? '0');

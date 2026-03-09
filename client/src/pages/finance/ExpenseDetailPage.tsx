@@ -19,11 +19,13 @@ interface ExpenseDetailPageProps {
 export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps) {
   const user = useAuthStore((s) => s.user);
   const userId = user?.authUserId || user?.id || '';
-  const userRole = (user as unknown as Record<string, unknown>)?.role as string ?? 'employee';
 
   const [expense, setExpense] = useState<Expense | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  // Finance-specific role and ID (from reimbursement_users, may differ from auth store role)
+  const [financeRole, setFinanceRole] = useState<string>((user as unknown as Record<string, unknown>)?.role as string ?? 'employee');
+  const [financeUserId, setFinanceUserId] = useState<string | null>(null);
 
   // Modals
   const [showApproveModal, setShowApproveModal] = useState(false);
@@ -32,6 +34,7 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
   const [rejectReason, setRejectReason] = useState('');
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [infoMessage, setInfoMessage] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Comments
   const [newComment, setNewComment] = useState('');
@@ -65,28 +68,38 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
     Promise.all([
       financeAPI.getExpense(userId, expenseId),
       financeAPI.getSLAStatus(userId, expenseId).catch(() => null),
-    ]).then(([exp, sla]) => {
+      financeAPI.getMe(userId).catch(() => null),
+    ]).then(([exp, sla, me]) => {
       setExpense(exp);
       setSlaStatus(sla);
+      if (me?.role) setFinanceRole(me.role);
+      if (me?.id) setFinanceUserId(me.id);
     }).catch((err) => console.error('Failed to load expense:', err))
       .finally(() => setLoading(false));
   }, [userId, expenseId]);
 
-  const isOwner = expense?.submitted_by === userId;
+  // isOwner: true if the current finance user submitted this expense
+  const isOwner = financeUserId ? expense?.submitted_by === financeUserId : false;
   const isDraft = expense?.status === 'draft';
   const isInfoRequested = expense?.status === 'info_requested';
-  const canApprove = expense && ['manager_review', 'finance_review', 'submitted', 'ai_flagged'].includes(expense.status) && ['admin', 'finance', 'manager'].includes(userRole) && !isOwner;
-  const canMarkPaid = expense && expense.status === 'approved' && ['admin', 'finance'].includes(userRole);
+  // Use financeRole (fetched from reimbursement_users) for access control — the auth store role may differ
+  const canApprove = expense &&
+    ['submitted', 'manager_review', 'finance_review', 'ai_flagged', 'ai_reviewing', 'pending_approval'].includes(expense.status) &&
+    ['admin', 'finance', 'manager', 'cfo', 'finance_admin'].includes(financeRole);
+  const canMarkPaid = expense && expense.status === 'approved' && ['admin', 'finance', 'cfo', 'finance_admin'].includes(financeRole);
 
   const handleApprove = async () => {
     if (!expense) return;
     setActionLoading(true);
+    setActionError(null);
     try {
       await financeAPI.approveExpense(userId, expense.id, approveComment || undefined);
       setShowApproveModal(false);
       setApproveComment('');
       await refresh();
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Approve failed';
+      setActionError(msg);
       console.error('Approve failed:', err);
     } finally {
       setActionLoading(false);
@@ -96,12 +109,15 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
   const handleReject = async () => {
     if (!expense || !rejectReason.trim()) return;
     setActionLoading(true);
+    setActionError(null);
     try {
       await financeAPI.rejectExpense(userId, expense.id, rejectReason);
       setShowRejectModal(false);
       setRejectReason('');
       await refresh();
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Reject failed';
+      setActionError(msg);
       console.error('Reject failed:', err);
     } finally {
       setActionLoading(false);
@@ -111,12 +127,15 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
   const handleRequestInfo = async () => {
     if (!expense || !infoMessage.trim()) return;
     setActionLoading(true);
+    setActionError(null);
     try {
       await financeAPI.requestInfo(userId, expense.id, infoMessage);
       setShowInfoModal(false);
       setInfoMessage('');
       await refresh();
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Request info failed';
+      setActionError(msg);
       console.error('Request info failed:', err);
     } finally {
       setActionLoading(false);
@@ -476,7 +495,7 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
 
       {/* Approve Modal */}
       {showApproveModal && (
-        <Modal title="Approve Expense" onClose={() => setShowApproveModal(false)}>
+        <Modal title="Approve Expense" onClose={() => { setShowApproveModal(false); setActionError(null); }}>
           <p className="text-sm text-app-muted mb-3">Approve "{expense.title}" for {fmt(expense.original_amount, expense.original_currency)}?</p>
           <textarea
             value={approveComment}
@@ -485,8 +504,11 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
             rows={3}
             className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
           />
+          {actionError && (
+            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3">{actionError}</p>
+          )}
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowApproveModal(false)} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
+            <button onClick={() => { setShowApproveModal(false); setActionError(null); }} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleApprove} disabled={actionLoading}
               className="px-5 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2">
               <CheckCircle className="h-4 w-4" /> {actionLoading ? 'Approving...' : 'Approve'}
@@ -497,7 +519,7 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <Modal title="Reject Expense" onClose={() => setShowRejectModal(false)}>
+        <Modal title="Reject Expense" onClose={() => { setShowRejectModal(false); setActionError(null); }}>
           <p className="text-sm text-app-muted mb-3">Provide a reason for rejecting "{expense.title}".</p>
           <textarea
             value={rejectReason}
@@ -506,8 +528,11 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
             rows={3}
             className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
           />
+          {actionError && (
+            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3">{actionError}</p>
+          )}
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
+            <button onClick={() => { setShowRejectModal(false); setActionError(null); }} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleReject} disabled={actionLoading || !rejectReason.trim()}
               className="px-5 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 flex items-center gap-2">
               <XCircle className="h-4 w-4" /> {actionLoading ? 'Rejecting...' : 'Reject'}

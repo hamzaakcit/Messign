@@ -24,7 +24,7 @@ export interface CreateBudgetInput {
 export const budgetService = {
   async create(data: CreateBudgetInput, userId: string, orgId: string) {
     const result = await query(
-      `INSERT INTO budgets
+      `INSERT INTO finance_budgets
        (organization_id, name, description, department, budget_code,
         team_id, project_id, owner_id, allocated_amount, currency,
         period_start, period_end, period_type,
@@ -78,7 +78,7 @@ export const budgetService = {
                 THEN ROUND((COALESCE(b.spent_amount,0) / b.allocated_amount * 100)::numeric, 1)
                 ELSE 0 END as utilization_pct,
               b.allocated_amount - COALESCE(b.spent_amount, 0) as remaining
-       FROM budgets b
+       FROM finance_budgets b
        LEFT JOIN reimbursement_users u ON u.id = b.owner_id
        WHERE ${conditions.join(' AND ')}
        ORDER BY b.created_at DESC`,
@@ -95,7 +95,7 @@ export const budgetService = {
                 THEN ROUND((COALESCE(b.spent_amount,0) / b.allocated_amount * 100)::numeric, 1)
                 ELSE 0 END as utilization_pct,
               b.allocated_amount - COALESCE(b.spent_amount, 0) as remaining
-       FROM budgets b
+       FROM finance_budgets b
        LEFT JOIN reimbursement_users u ON u.id = b.owner_id
        WHERE b.id = $1 AND b.organization_id = $2`,
       [budgetId, orgId],
@@ -141,7 +141,7 @@ export const budgetService = {
 
     params.push(budgetId, orgId);
     const result = await query(
-      `UPDATE budgets SET ${sets.join(', ')}, updated_at = NOW()
+      `UPDATE finance_budgets SET ${sets.join(', ')}, updated_at = NOW()
        WHERE id = $${idx++} AND organization_id = $${idx++} RETURNING *`,
       params,
     );
@@ -227,7 +227,7 @@ export const budgetService = {
   },
 
   async takeSnapshot(budgetId: string) {
-    const budget = await query('SELECT * FROM budgets WHERE id = $1', [budgetId]);
+    const budget = await query('SELECT * FROM finance_budgets WHERE id = $1', [budgetId]);
     if (!budget.rows[0]) return;
 
     const b = budget.rows[0];

@@ -1,9 +1,14 @@
 import pg from 'pg';
+import os from 'os';
 const { Pool } = pg;
+
+// Local dev fallback: use current OS user (Mac username) instead of postgres
+const localUser = process.env.USER || os.userInfo().username || 'postgres';
+const localFallback = `postgresql://${localUser}@localhost:5432/messign`;
 
 const connectionString =
   process.env.DATABASE_URL ||
-  (process.env.NODE_ENV !== 'production' ? 'postgresql://localhost:5432/messign_reimbursement' : undefined);
+  (process.env.NODE_ENV !== 'production' ? localFallback : undefined);
 
 if (!connectionString) {
   throw new Error('DATABASE_URL is required in production. Set it in your environment.');

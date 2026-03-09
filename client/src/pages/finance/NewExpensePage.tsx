@@ -61,21 +61,36 @@ export function NewExpensePage({ onBack, onCreated }: NewExpensePageProps) {
 
   // Budget check state
   const [budgetInfo, setBudgetInfo] = useState<{ department: string; remaining: number; allocated: number; pct: number } | null>(null);
+  const [categoryDeptMap, setCategoryDeptMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (userId) {
+      financeAPI.getCategoryDepartmentMap(userId).then(setCategoryDeptMap).catch(() => {});
+    }
+  }, [userId]);
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setFieldConfidence((prev) => ({ ...prev, [field]: null }));
     setError('');
-    if (field === 'category_slug' && value && userId) {
+    if (field === 'category_slug') {
+      if (!value || !userId) {
+        setBudgetInfo(null);
+        return;
+      }
+      const department = categoryDeptMap[value] || 'General';
       financeAPI.listBudgets(userId, {}).then((budgets: unknown[]) => {
         const b = budgets.find((b: unknown) => {
-          const bObj = b as { category_slug?: string; department?: string; spent?: number; allocated_amount?: number; allocatedAmount?: number };
-          return bObj.category_slug === value || bObj.department?.toLowerCase().includes(value.split('_')[0]?.toLowerCase() || '');
-        }) as { department?: string; remaining?: number; allocated_amount?: number; allocatedAmount?: number; spent?: number; utilizationPct?: number } | undefined;
+          const bObj = b as { department?: string };
+          return bObj.department === department;
+        }) as { department?: string; remaining?: number | string; allocated_amount?: number | string; allocatedAmount?: number | string; spent_amount?: number | string; spent?: number | string; utilization_pct?: number | string; utilizationPct?: number | string } | undefined;
         if (b) {
-          const alloc = b.allocated_amount ?? b.allocatedAmount ?? 0;
-          const rem = b.remaining ?? (alloc - (b.spent ?? 0));
-          setBudgetInfo({ department: b.department || '', remaining: rem, allocated: alloc, pct: b.utilizationPct ?? (alloc > 0 ? (b.spent ?? 0) / alloc : 0) });
+          const alloc = Number(b.allocated_amount ?? b.allocatedAmount ?? 0) || 0;
+          const spent = Number(b.spent_amount ?? b.spent ?? 0) || 0;
+          const rem = Number(b.remaining ?? (alloc - spent)) || 0;
+          const pctVal = b.utilization_pct ?? b.utilizationPct;
+          const pct = pctVal != null ? Number(pctVal) / 100 : (alloc > 0 ? spent / alloc : 0);
+          setBudgetInfo({ department: b.department || '', remaining: rem, allocated: alloc, pct });
         } else {
           setBudgetInfo(null);
         }
@@ -445,7 +460,7 @@ export function NewExpensePage({ onBack, onCreated }: NewExpensePageProps) {
               <div className={cn('mt-1.5 flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg',
                 budgetInfo.pct >= 1 ? 'bg-red-500/10 text-red-400' : budgetInfo.pct >= 0.8 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400')}>
                 <span className="font-medium">{budgetInfo.department}:</span>
-                <span>${budgetInfo.remaining.toFixed(0)} remaining of ${budgetInfo.allocated.toFixed(0)}</span>
+                <span>${Number(budgetInfo.remaining).toFixed(0)} remaining of ${Number(budgetInfo.allocated).toFixed(0)}</span>
                 <span>({(budgetInfo.pct * 100).toFixed(0)}% used)</span>
               </div>
             )}

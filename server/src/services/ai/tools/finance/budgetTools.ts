@@ -35,7 +35,7 @@ registerTool({
                 THEN ROUND((COALESCE(b.spent_amount,0) / b.allocated_amount * 100)::numeric, 1)
                 ELSE 0 END as utilization_pct,
               b.allocated_amount - COALESCE(b.spent_amount,0) as remaining
-       FROM budgets b
+       FROM finance_budgets b
        WHERE ${condition}
        ORDER BY b.created_at DESC LIMIT 10`,
       params,
@@ -86,7 +86,7 @@ registerTool({
 
     const budgets = await query(
       `SELECT b.*, b.allocated_amount - COALESCE(b.spent_amount,0) as remaining
-       FROM budgets b WHERE ${budgetCondition} LIMIT 5`,
+       FROM finance_budgets b WHERE ${budgetCondition} LIMIT 5`,
       params,
     );
 

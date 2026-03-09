@@ -97,30 +97,8 @@ async function searchDocuments(userQuery: string): Promise<DocRow[]> {
       [...params, limit]
     );
     return res.rows;
-  } catch (e) {
-    const errMsg = e instanceof Error ? e.message : String(e);
-    if (errMsg.includes('knowledge_documents')) {
-      try {
-        const fallback = await query<{ id: string; title: string; content: string; author_id: string; type: string; updated_at: string }>(
-          `SELECT id, title, content, author_id, type, COALESCE(updated_at, created_at)::text as updated_at
-           FROM kb_documents d WHERE (d.title ILIKE $1 OR d.content ILIKE $1)
-           ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST LIMIT $2`,
-          [phrase, limit]
-        );
-        return fallback.rows.map((r) => ({
-          id: r.id,
-          title: r.title,
-          slug: r.id,
-          document_type: r.type ?? 'document',
-          status: 'published',
-          plain_text: r.content ?? null,
-          author_id: r.author_id,
-          updated_at: r.updated_at,
-        }));
-      } catch {
-        console.error('[searchKnowledgeBase] Fallback failed');
-      }
-    }
+  } catch {
+    /* search failed */
   }
   return [];
 }

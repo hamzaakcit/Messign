@@ -531,6 +531,8 @@ export const financeAPI = {
     const params = new URLSearchParams(filters || {});
     return financeRequest<unknown[]>(`/budgets?${params}`, {}, userId);
   },
+  getCategoryDepartmentMap: (userId: string) =>
+    financeRequest<Record<string, string>>('/category-department-map', {}, userId),
   getBudget: (userId: string, budgetId: string) =>
     financeRequest<unknown>(`/budgets/${budgetId}`, {}, userId),
   createBudget: (userId: string, data: Record<string, unknown>) =>
@@ -794,6 +796,9 @@ export const financeAPI = {
   getPendingApprovals: (userId: string) =>
     financeRequest<Array<{ id: string; type: string; title: string; amount: number; submitted_by_name: string; created_at: string }>>(
       '/pending-approvals', {}, userId),
+
+  getMe: (userId: string) =>
+    financeRequest<{ id: string; role: string; email: string; full_name: string }>('/me', {}, userId),
 };
 
 // ── Sprint 4 Types ──────────────────────────────────

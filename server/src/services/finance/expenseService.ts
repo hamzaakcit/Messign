@@ -3,6 +3,7 @@ import { auditService } from './auditService.js';
 import { notificationService } from './notificationService.js';
 import { runAIReviewPipeline } from './aiReviewPipeline.js';
 import { journalEntryService } from './journalEntryService.js';
+import { getBudgetIdForCategory } from './categoryDepartmentMap.js';
 
 export interface CreateExpenseInput {
   title: string;
@@ -42,6 +43,33 @@ export interface ExpenseFilters {
 
 export const expenseService = {
   async create(data: CreateExpenseInput, userId: string, orgId: string) {
+    let categoryId = data.category_id ?? null;
+    let budgetId = data.budget_id ?? null;
+
+    if (data.category_slug) {
+      if (!categoryId) {
+        const cat = await query<{ id: string }>(
+          'SELECT id FROM expense_categories WHERE organization_id = $1 AND slug = $2 AND is_active = TRUE LIMIT 1',
+          [orgId, data.category_slug],
+        );
+        categoryId = cat.rows[0]?.id ?? null;
+      }
+      if (!budgetId) {
+        budgetId = await getBudgetIdForCategory(orgId, data.category_slug);
+      }
+    }
+
+    if (!categoryId) {
+      const fallback = await query<{ id: string }>(
+        'SELECT id FROM expense_categories WHERE organization_id = $1 AND is_active = TRUE ORDER BY name LIMIT 1',
+        [orgId],
+      );
+      categoryId = fallback.rows[0]?.id ?? null;
+    }
+    if (!categoryId) {
+      throw new Error('No expense category found. Please add at least one category in settings.');
+    }
+
     const result = await query(
       `INSERT INTO reimbursement_requests
        (organization_id, submitted_by, title, description, category_id, category_slug,
@@ -52,10 +80,10 @@ export const expenseService = {
        RETURNING *`,
       [
         orgId, userId, data.title, data.description ?? null,
-        data.category_id ?? null, data.category_slug ?? null,
+        categoryId, data.category_slug ?? null,
         data.amount, data.currency ?? 'USD', data.expense_date,
         data.tax_amount ?? null, data.tax_rate ?? null, data.tip_amount ?? null,
-        data.budget_id ?? null, data.vendor_id ?? null, data.project_id ?? null,
+        budgetId, data.vendor_id ?? null, data.project_id ?? null,
         data.team_id ?? null, data.tags ?? [], data.notes ?? null,
         data.receipt_url ?? null,
       ],
@@ -335,19 +363,29 @@ export const expenseService = {
         'SELECT manager_id FROM reimbursement_users WHERE id = $1',
         [userId],
       );
-      const managerId = userRow.rows[0]?.manager_id;
+      let approverId = userRow.rows[0]?.manager_id;
+      if (!approverId) {
+        const fallback = await client.query(
+          `SELECT id FROM reimbursement_users
+           WHERE organization_id = $1 AND id != $2 AND role IN ('manager', 'admin', 'finance')
+           ORDER BY CASE role WHEN 'admin' THEN 1 WHEN 'finance' THEN 2 WHEN 'manager' THEN 3 ELSE 4 END
+           LIMIT 1`,
+          [orgId, userId],
+        );
+        approverId = fallback.rows[0]?.id ?? null;
+      }
 
-      if (managerId) {
+      if (approverId) {
         await client.query(
           `INSERT INTO approval_steps
            (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name)
            VALUES ($1, 1, 'manager_approval', $2, 'pending', 'expense', $1, 'Manager Approval')`,
-          [expenseId, managerId],
+          [expenseId, approverId],
         );
 
         await client.query(
           `UPDATE reimbursement_requests SET status = 'manager_review', current_approver_id = $1 WHERE id = $2`,
-          [managerId, expenseId],
+          [approverId, expenseId],
         );
       }
 
@@ -361,14 +399,14 @@ export const expenseService = {
         actor_id: userId,
         entity_type: 'expense',
         entity_id: expenseId,
-        changes: { status: managerId ? 'manager_review' : 'submitted' },
+        changes: { status: approverId ? 'manager_review' : 'submitted' },
       });
 
-      if (managerId) {
+      if (approverId) {
         const expense = existing.rows[0];
         await notificationService.create({
           organization_id: orgId,
-          recipient_id: managerId,
+          recipient_id: approverId,
           type: 'expense.submitted',
           title: 'New Expense for Review',
           message: `"${expense.title}" ($${expense.original_amount}) needs your approval.`,
@@ -404,17 +442,79 @@ export const expenseService = {
       );
       if (!expense.rows[0]) throw new Error('Expense not found');
 
-      if (expense.rows[0].submitted_by === approverId) {
+      // Fetch approver role to determine privilege level
+      const approverRow = await client.query(
+        'SELECT role FROM reimbursement_users WHERE id = $1',
+        [approverId],
+      );
+      const approverRole = approverRow.rows[0]?.role ?? 'employee';
+      const isPrivileged = ['admin', 'finance', 'cfo', 'finance_admin'].includes(approverRole);
+
+      // Admins/finance can approve any expense, including their own (edge case in small orgs)
+      if (expense.rows[0].submitted_by === approverId && !isPrivileged) {
         throw new Error('Cannot approve your own expense');
       }
 
-      const step = await client.query(
+      // 1. Look for a step directly assigned to this approver
+      let step = await client.query(
         `SELECT * FROM approval_steps
          WHERE reimbursement_id = $1 AND assigned_to = $2 AND status = 'pending'
          ORDER BY step_order LIMIT 1`,
         [expenseId, approverId],
       );
-      if (!step.rows[0]) throw new Error('No pending approval step for this user');
+      // 2. Fallback: any pending step for this expense if user has privileged role
+      if (!step.rows[0]) {
+        step = await client.query(
+          `SELECT s.* FROM approval_steps s
+           JOIN reimbursement_users u ON u.id = $2
+           WHERE s.reimbursement_id = $1 AND s.status = 'pending'
+             AND u.role IN ('manager', 'admin', 'finance', 'cfo', 'finance_admin')
+           ORDER BY s.step_order LIMIT 1`,
+          [expenseId, approverId],
+        );
+      }
+      // 3. No step exists at all — privileged users can create + approve on the fly
+      if (!step.rows[0]) {
+        if (!isPrivileged) throw new Error('No pending approval step for this user');
+        // Insert an auto-approval step for privileged users and immediately mark it approved
+        await client.query(
+          `INSERT INTO approval_steps
+           (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name, decision_at, decision_notes)
+           VALUES ($1, 1, 'manager_approval', $2, 'approved', 'expense', $1, 'Admin Approval', NOW(), $3)
+           ON CONFLICT (reimbursement_id, step_order) DO UPDATE
+             SET status = 'approved', decision_at = NOW(), assigned_to = EXCLUDED.assigned_to, decision_notes = EXCLUDED.decision_notes
+           RETURNING *`,
+          [expenseId, approverId, comments ?? 'Admin force-approved'],
+        );
+        // Directly update the expense status to approved
+        await client.query(
+          `UPDATE reimbursement_requests
+           SET status = 'approved', approved_at = NOW(), updated_at = NOW(), updated_by = $1,
+               current_approver_id = NULL
+           WHERE id = $2`,
+          [approverId, expenseId],
+        );
+        if (expense.rows[0].budget_id) {
+          await client.query(
+            `UPDATE finance_budgets SET spent_amount = spent_amount + $1 WHERE id = $2`,
+            [expense.rows[0].original_amount, expense.rows[0].budget_id],
+          );
+        }
+        await client.query('COMMIT');
+        await auditService.log({
+          organization_id: orgId,
+          event_type: 'expense.approved',
+          event_category: 'expense',
+          actor_type: 'user',
+          actor_id: approverId,
+          entity_type: 'expense',
+          entity_id: expenseId,
+          changes: { status: 'approved', note: 'admin_force_approved' },
+        });
+        journalEntryService.generateFromExpense(expenseId, 'approved').catch((err: unknown) =>
+          console.error('[journal] Failed to generate expense approval entry:', err));
+        return { success: true, newStatus: 'approved' };
+      }
 
       await client.query(
         `UPDATE approval_steps SET status = 'approved', decision_at = NOW(), decision_notes = $1
@@ -446,7 +546,7 @@ export const expenseService = {
 
       if (expense.rows[0].budget_id && newStatus === 'approved') {
         await client.query(
-          `UPDATE budgets SET spent_amount = spent_amount + $1 WHERE id = $2`,
+          `UPDATE finance_budgets SET spent_amount = spent_amount + $1 WHERE id = $2`,
           [expense.rows[0].original_amount, expense.rows[0].budget_id],
         );
       }
@@ -500,19 +600,48 @@ export const expenseService = {
       );
       if (!expense.rows[0]) throw new Error('Expense not found');
 
-      const step = await client.query(
+      const approverRow2 = await client.query('SELECT role FROM reimbursement_users WHERE id = $1', [approverId]);
+      const approverRole2 = approverRow2.rows[0]?.role ?? 'employee';
+      const isPrivileged2 = ['admin', 'finance', 'cfo', 'finance_admin'].includes(approverRole2);
+
+      let step = await client.query(
         `SELECT * FROM approval_steps
          WHERE reimbursement_id = $1 AND assigned_to = $2 AND status = 'pending'
          ORDER BY step_order LIMIT 1`,
         [expenseId, approverId],
       );
-      if (!step.rows[0]) throw new Error('No pending approval step for this user');
-
-      await client.query(
-        `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1
-         WHERE id = $2`,
-        [reason, step.rows[0].id],
-      );
+      if (!step.rows[0]) {
+        step = await client.query(
+          `SELECT s.* FROM approval_steps s
+           JOIN reimbursement_users u ON u.id = $2
+           WHERE s.reimbursement_id = $1 AND s.status = 'pending'
+             AND u.role IN ('manager', 'admin', 'finance', 'cfo', 'finance_admin')
+           ORDER BY s.step_order LIMIT 1`,
+          [expenseId, approverId],
+        );
+      }
+      // Privileged users can reject even without an existing pending step
+      let stepId: string;
+      if (!step.rows[0]) {
+        if (!isPrivileged2) throw new Error('No pending approval step for this user');
+        const forceStep = await client.query(
+          `INSERT INTO approval_steps
+           (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name, decision_at, decision_notes)
+           VALUES ($1, 1, 'manager_approval', $2, 'rejected', 'expense', $1, 'Admin Rejection', NOW(), $3)
+           ON CONFLICT (reimbursement_id, step_order) DO UPDATE
+             SET status = 'rejected', decision_at = NOW(), assigned_to = EXCLUDED.assigned_to, decision_notes = EXCLUDED.decision_notes
+           RETURNING id`,
+          [expenseId, approverId, reason],
+        );
+        stepId = forceStep.rows[0].id;
+      } else {
+        stepId = step.rows[0].id;
+        await client.query(
+          `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1
+           WHERE id = $2`,
+          [reason, stepId],
+        );
+      }
 
       await client.query(
         `UPDATE reimbursement_requests

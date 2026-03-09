@@ -52,7 +52,7 @@ function mapRowToBudget(row: BudgetRow): Budget {
 
 export async function getAllBudgets(orgId: string): Promise<BudgetWithSpent[]> {
   const result = await query<BudgetRow>(
-    `SELECT * FROM budgets WHERE organization_id = $1 ORDER BY period_start DESC`,
+    `SELECT * FROM finance_budgets WHERE organization_id = $1 ORDER BY period_start DESC`,
     [orgId],
   );
   const budgets = result.rows.map(mapRowToBudget);
@@ -61,7 +61,7 @@ export async function getAllBudgets(orgId: string): Promise<BudgetWithSpent[]> {
 
 export async function getBudgetById(id: string, orgId: string): Promise<BudgetWithSpent | null> {
   const result = await query<BudgetRow>(
-    `SELECT * FROM budgets WHERE id = $1 AND organization_id = $2`,
+    `SELECT * FROM finance_budgets WHERE id = $1 AND organization_id = $2`,
     [id, orgId],
   );
   const row = result.rows[0];
@@ -71,7 +71,7 @@ export async function getBudgetById(id: string, orgId: string): Promise<BudgetWi
 
 export async function getBudgetsByDepartment(department: string, orgId: string): Promise<BudgetWithSpent[]> {
   const result = await query<BudgetRow>(
-    `SELECT * FROM budgets WHERE department = $1 AND organization_id = $2 ORDER BY period_start DESC`,
+    `SELECT * FROM finance_budgets WHERE department = $1 AND organization_id = $2 ORDER BY period_start DESC`,
     [department, orgId],
   );
   const budgets = result.rows.map(mapRowToBudget);
@@ -80,7 +80,7 @@ export async function getBudgetsByDepartment(department: string, orgId: string):
 
 export async function getActiveBudgets(orgId: string): Promise<BudgetWithSpent[]> {
   const result = await query<BudgetRow>(
-    `SELECT * FROM budgets
+    `SELECT * FROM finance_budgets
      WHERE organization_id = $1 AND period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE
      ORDER BY department`,
     [orgId],
@@ -102,7 +102,7 @@ export async function createBudget(
   },
 ): Promise<Budget> {
   const result = await query<BudgetRow>(
-    `INSERT INTO budgets (organization_id, department, period_start, period_end, allocated_amount, currency, alert_threshold, created_by)
+    `INSERT INTO finance_budgets (organization_id, department, period_start, period_end, allocated_amount, currency, alert_threshold, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
@@ -148,7 +148,7 @@ export async function updateBudget(
   values.push(id, orgId);
 
   const result = await query<BudgetRow>(
-    `UPDATE budgets SET ${sets.join(', ')} WHERE id = $${idx++} AND organization_id = $${idx} RETURNING *`,
+    `UPDATE finance_budgets SET ${sets.join(', ')} WHERE id = $${idx++} AND organization_id = $${idx} RETURNING *`,
     values,
   );
   if (!result.rows[0]) return null;
@@ -156,7 +156,7 @@ export async function updateBudget(
 }
 
 export async function deleteBudget(id: string, orgId: string): Promise<boolean> {
-  const result = await query(`DELETE FROM budgets WHERE id = $1 AND organization_id = $2`, [id, orgId]);
+  const result = await query(`DELETE FROM finance_budgets WHERE id = $1 AND organization_id = $2`, [id, orgId]);
   return (result.rowCount ?? 0) > 0;
 }
 

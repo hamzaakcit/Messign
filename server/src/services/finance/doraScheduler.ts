@@ -42,7 +42,7 @@ export const doraScheduler = {
          WHERE r.budget_id = b.id AND r.is_deleted = FALSE
          AND r.status IN ('approved', 'ai_approved', 'manager_approved', 'finance_approved', 'paid', 'reimbursed')
         ), 0) as actual_spent
-       FROM budgets b WHERE b.organization_id = $1 AND b.is_active = TRUE`,
+       FROM finance_budgets b WHERE b.organization_id = $1 AND (b.is_active = TRUE OR b.status = 'active')`,
       [orgId],
     );
 
@@ -53,7 +53,7 @@ export const doraScheduler = {
       if (allocated <= 0) continue;
       const pct = spent / allocated;
 
-      await query('UPDATE budgets SET spent_amount = $1 WHERE id = $2', [spent, budget.id]);
+      await query('UPDATE finance_budgets SET spent_amount = $1 WHERE id = $2', [spent, budget.id]);
 
       const threshold = budget.alert_threshold || 0.8;
       if (pct >= threshold) {

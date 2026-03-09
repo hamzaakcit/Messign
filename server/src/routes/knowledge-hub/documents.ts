@@ -76,8 +76,7 @@ documentsRouter.get('/by-slug/:slug', async (req: Request, res: Response) => {
     try {
       await db.incrementViewCount(doc.id, (req as AuthReq).userId);
     } catch {
-      const kbDb = await import('../../db/knowledgeDb.js');
-      await kbDb.incrementViews(doc.id);
+      /* view count increment best-effort */
     }
     res.json(doc);
   } catch (e) {
