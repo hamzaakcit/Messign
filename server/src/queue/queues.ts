@@ -9,6 +9,10 @@ const connection = redisConnection as unknown as ConnectionOptions;
 // Each queue handles a different category of async work
 
 // Tier 2: Immediate processing (< 5 seconds)
+function onQueueError(name: string, err: Error): void {
+  console.warn(`[Queues] ${name} error (Redis?):`, err.message);
+}
+
 export const crossModuleQueue = new Queue('cross-module', {
   connection,
   defaultJobOptions: {
@@ -18,6 +22,7 @@ export const crossModuleQueue = new Queue('cross-module', {
     removeOnFail: { count: 5000 },
   },
 });
+crossModuleQueue.on('error', (err) => onQueueError('cross-module', err));
 
 export const notificationQueue = new Queue('notifications', {
   connection,
@@ -28,6 +33,7 @@ export const notificationQueue = new Queue('notifications', {
     removeOnFail: { count: 2000 },
   },
 });
+notificationQueue.on('error', (err) => onQueueError('notifications', err));
 
 export const gamificationQueue = new Queue('gamification', {
   connection,
@@ -37,6 +43,7 @@ export const gamificationQueue = new Queue('gamification', {
     removeOnFail: { count: 1000 },
   },
 });
+gamificationQueue.on('error', (err) => onQueueError('gamification', err));
 
 // Tier 3: Deferred/scheduled processing
 export const doraInsightsQueue = new Queue('dora-insights', {
@@ -48,6 +55,7 @@ export const doraInsightsQueue = new Queue('dora-insights', {
     removeOnFail: { count: 2000 },
   },
 });
+doraInsightsQueue.on('error', (err) => onQueueError('dora-insights', err));
 
 export const doraSchedulerQueue = new Queue('dora-scheduler', {
   connection,
@@ -57,6 +65,7 @@ export const doraSchedulerQueue = new Queue('dora-scheduler', {
     removeOnFail: { count: 500 },
   },
 });
+doraSchedulerQueue.on('error', (err) => onQueueError('dora-scheduler', err));
 
 export const analyticsQueue = new Queue('analytics', {
   connection,
@@ -66,5 +75,6 @@ export const analyticsQueue = new Queue('analytics', {
     removeOnFail: { count: 500 },
   },
 });
+analyticsQueue.on('error', (err) => onQueueError('analytics', err));
 
 console.log('[Queues] All BullMQ queues initialized');
