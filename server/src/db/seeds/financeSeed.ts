@@ -21,6 +21,13 @@ export async function seedFinanceData() {
   const orgId = orgResult.rows[0]?.id;
   if (!orgId) { console.log('[seed] No org found, skipping.'); return; }
 
+  // Idempotency: skip if finance data already exists (expenses are inserted without conflict clauses)
+  const existing = await query<{ c: string }>('SELECT COUNT(*) as c FROM reimbursement_requests WHERE organization_id = $1', [orgId]);
+  if (parseInt(existing.rows[0].c) > 5) {
+    console.log('[seed] Finance data already seeded (' + existing.rows[0].c + ' expenses exist), skipping.');
+    return;
+  }
+
   const usersResult = await query<{ id: string; full_name: string; role: string; manager_id: string | null }>(
     'SELECT id, full_name, role, manager_id FROM reimbursement_users WHERE organization_id = $1 LIMIT 20',
     [orgId],
@@ -660,7 +667,7 @@ export async function seedFinanceData() {
     for (const r of glRows.rows) glAccountMap.set(r.code, r.id);
 
     const approvedExpenses = await client.query(
-      `SELECT r.id, r.amount, r.title, r.approved_at, ec.gl_code
+      `SELECT r.id, r.original_amount AS amount, r.title, r.approved_at, ec.gl_code
        FROM reimbursement_requests r
        LEFT JOIN expense_categories ec ON ec.id = r.category_id
        WHERE r.organization_id = $1 AND r.status IN ('approved', 'paid', 'reimbursed', 'ai_approved', 'manager_approved', 'finance_approved')
@@ -685,9 +692,10 @@ export async function seedFinanceData() {
                  'posted', $6, $7, $7, TRUE, NOW())
          ON CONFLICT (organization_id, entry_number) DO NOTHING
          RETURNING id`,
-        [orgId, entryNum, exp.approved_at?.split('T')[0] || null,
+        [orgId, entryNum,
+         exp.approved_at ? new Date(exp.approved_at).toISOString().split('T')[0] : null,
          `Expense approved: ${exp.title}`, exp.id,
-         (exp.approved_at || new Date().toISOString()).slice(0, 7), amount],
+         (exp.approved_at ? new Date(exp.approved_at).toISOString() : new Date().toISOString()).slice(0, 7), amount],
       );
       if (je.rows[0]) {
         await client.query(
@@ -721,9 +729,10 @@ export async function seedFinanceData() {
                  'posted', $6, $7, $7, TRUE, NOW())
          ON CONFLICT (organization_id, entry_number) DO NOTHING
          RETURNING id`,
-        [orgId, entryNum, inv.sent_at?.split('T')[0] || null,
+        [orgId, entryNum,
+         inv.sent_at ? new Date(inv.sent_at).toISOString().split('T')[0] : null,
          `Invoice sent: ${inv.invoice_number} to ${inv.to_name || 'Client'}`, inv.id,
-         (inv.sent_at || new Date().toISOString()).slice(0, 7), amount],
+         (inv.sent_at ? new Date(inv.sent_at).toISOString() : new Date().toISOString()).slice(0, 7), amount],
       );
       if (je.rows[0]) {
         await client.query(

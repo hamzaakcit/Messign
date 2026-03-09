@@ -2,6 +2,7 @@ import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import { pool } from './index.js';
 import { DEFAULT_PASSWORD } from '../types/auth.js';
+import { seedFinanceData } from './seeds/financeSeed.js';
 
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 const DEFAULT_ORG_SLUG = 'messign';
@@ -28,6 +29,7 @@ const SEED_USERS: SeedUser[] = [
   { auth_user_id: 'user-10', email: 'rachel.lee@messign.com', full_name: 'Rachel Lee', role: 'employee', manager_auth_id: 'user-6' },
   { auth_user_id: 'user-11', email: 'onur@messign.com', full_name: 'Onur', role: 'employee', manager_auth_id: 'user-2' },
   { auth_user_id: 'user-12', email: 'yuka@messign.com', full_name: 'Yuka', role: 'employee', manager_auth_id: 'user-2' },
+  { auth_user_id: 'user-hamza', email: 'hamza@messign.com', full_name: 'Hamza Akcit', role: 'admin', manager_auth_id: null },
 ];
 
 const CATEGORIES = [
@@ -173,6 +175,7 @@ export async function seed(): Promise<void> {
       ['user-10', 'software'],
       ['user-11', 'marketing'],
       ['user-12', 'software'],
+      ['user-hamza', 'operations'],
     ];
     for (const [authId, teamCode] of employeeToDept) {
       const teamId = teamIdByCode[teamCode];
@@ -296,7 +299,7 @@ export async function seed(): Promise<void> {
       const row = r.rows[0];
       if (row) channelIdByName[row.name] = row.id;
     }
-    const allUserIds = ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8', 'user-9', 'user-10'];
+    const allUserIds = ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8', 'user-9', 'user-10', 'user-hamza'];
     const channelMembers: Record<string, string[]> = {
       general: allUserIds,
       engineering: ['user-1', 'user-4', 'user-5', 'user-7', 'user-8'],
@@ -304,7 +307,7 @@ export async function seed(): Promise<void> {
       product: ['user-2', 'user-1', 'user-3', 'user-9'],
       marketing: ['user-6', 'user-10', 'user-2'],
       random: allUserIds,
-      leadership: ['user-1', 'user-2', 'user-6'],
+      leadership: ['user-1', 'user-2', 'user-6', 'user-hamza'],
       'project-alpha': ['user-1', 'user-4', 'user-5', 'user-3'],
     };
     for (const [chName, userIds] of Object.entries(channelMembers)) {
@@ -622,18 +625,26 @@ export async function seed(): Promise<void> {
     );
 
     await client.query('COMMIT');
-    console.log('Seed completed.');
+    console.log('Core seed completed.');
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;
   } finally {
     client.release();
   }
+
+  // Finance seed runs its own transaction — must happen after the core commit
+  // so that the org and users it depends on already exist.
+  await seedFinanceData();
+  console.log('Finance seed completed.');
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   seed()
-    .then(() => process.exit(0))
+    .then(() => {
+      console.log('All seeds completed.');
+      process.exit(0);
+    })
     .catch((err) => {
       console.error(err);
       process.exit(1);
