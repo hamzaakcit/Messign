@@ -34,6 +34,9 @@ const MODULE_TOOLS: Record<string, string[]> = {
   chat: [
     'search_chat_messages',
   ],
+  crm: [
+    'get_pipeline_status', 'get_deal_details', 'get_sales_forecast', 'get_activity_gaps',
+  ],
   admin: [
     'get_system_stats', 'get_approval_queue', 'get_department_report',
     'get_team_overview', 'get_financial_summary',
@@ -59,6 +62,7 @@ const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
   { keywords: ['activity', 'recent', 'latest', 'feed'], tools: ['get_recent_activity'] },
   { keywords: ["where's the fun stuff", 'fun stuff'], tools: ['play_dora_dash'] },
   { keywords: ['financial', 'finance', 'money', 'budget', 'cost'], tools: ['get_financial_summary', 'get_invoice_details'] },
+  { keywords: ['deal', 'deals', 'pipeline', 'crm', 'prospect', 'lead', 'leads', 'close', 'won', 'lost', 'forecast', 'sales forecast'], tools: ['get_pipeline_status', 'get_deal_details', 'get_sales_forecast', 'get_activity_gaps'] },
   { keywords: ['report', 'summary', 'analysis'], tools: ['get_department_report', 'get_financial_summary'] },
 ];
 

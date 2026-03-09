@@ -65,6 +65,9 @@ import { gameRouter } from './routes/game.js';
 import { doraHistoryRouter } from './routes/doraHistory.js';
 import { budgetsRouter } from './routes/budgets.js';
 import { financeRouter } from './routes/finance/index.js';
+import { crmRouter } from './routes/crm/index.js';
+import { okrRouter } from './routes/okr/index.js';
+import { seedRouter } from './routes/seed.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
@@ -142,6 +145,9 @@ app.use('/api/game', requireAuth, gameRouter);
 app.use('/api/dora', requireAuth, doraHistoryRouter);
 app.use('/api/budgets', budgetsRouter);
 app.use('/api/finance', financeRouter);
+app.use('/api/crm', crmRouter);
+app.use('/api/okr', okrRouter);
+app.use('/api/seed', seedRouter);
 
 // Health check
 app.get('/api/health', (_, res) => {

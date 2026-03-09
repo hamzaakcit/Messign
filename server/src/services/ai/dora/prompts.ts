@@ -42,6 +42,10 @@ const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
   admin:
     'The user is in the Admin area. They may want system health, employee management, ' +
     'compliance, or audit data. They have elevated permissions.',
+  crm:
+    'The user is in the Sales CRM module. They likely want pipeline status, deal details, ' +
+    'sales forecasts, or activity gaps. Prioritize get_pipeline_status, get_deal_details, ' +
+    'get_sales_forecast, and get_activity_gaps for CRM-related queries.',
   dora:
     'The user opened Dora directly from the main sidebar. No specific page context — ' +
     'route based on the question content alone.',
@@ -234,6 +238,10 @@ ${moduleHint ? `- Page hint: ${moduleHint}` : ''}
 - Showcase items → get_showcase_items
 - Compare employees → compare_employees
 - "What can I ask?" → get_available_questions
+- Pipeline status, deal counts, sales overview → get_pipeline_status
+- Deal details, specific deal info → get_deal_details
+- Sales forecast, revenue projection, quota → get_sales_forecast
+- Stale deals, follow-up needed, activity gaps → get_activity_gaps
 
 ## Rules
 1. For company-data questions, ALWAYS call at least one tool.

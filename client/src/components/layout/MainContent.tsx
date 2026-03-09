@@ -9,6 +9,8 @@ import { ProjectsView } from '@/pages/ProjectsView';
 import { SettingsView } from '@/pages/SettingsView';
 import { ReimbursementRouter } from '@/pages/ReimbursementRouter';
 import { FinancePage } from '@/pages/FinancePage';
+import { CRMLayout } from '@/pages/crm/CRMLayout';
+import { OKRPage } from '@/pages/okr/OKRPage';
 import { DoraPage } from '@/pages/DoraPage';
 import { DoraDashPage } from '@/pages/DoraDashPage';
 import { Header } from './Header';
@@ -40,6 +42,10 @@ export function MainContent() {
         return <SettingsView />;
       case 'finance':
         return <FinancePage />;
+      case 'crm':
+        return <CRMLayout />;
+      case 'okr':
+        return <OKRPage />;
       case 'reimbursements':
       case 'invoices':
         return <ReimbursementRouter />;

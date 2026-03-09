@@ -38,6 +38,7 @@ export type DoraModule =
   | 'settings'
   | 'admin'
   | 'dora'
+  | 'crm'
   | 'unknown';
 
 /**

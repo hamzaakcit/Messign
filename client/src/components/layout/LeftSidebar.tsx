@@ -12,6 +12,8 @@ import {
   Shield,
   Wallet,
   Briefcase,
+  Target,
+  CheckCircle2,
 } from 'lucide-react';
 import { PilotPlaneSVG } from '@/components/dora/DoraPilot';
 import { useUIStore } from '@/stores/uiStore';
@@ -36,6 +38,8 @@ const VIEW_TO_PATH: Record<string, string> = {
   finance: '/finance',
   reimbursements: '/reimbursements',
   invoices: '/reimbursements/invoices',
+  crm: '/crm',
+  okr: '/okr',
 };
 
 const navItems = [
@@ -47,6 +51,8 @@ const navItems = [
   { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'team', label: 'Team Directory', icon: Users },
   { id: 'finance', label: 'Finance', icon: Wallet, showReimbBadge: true },
+  { id: 'crm', label: 'Sales CRM', icon: Target },
+  { id: 'okr', label: 'OKRs & Goals', icon: CheckCircle2 },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

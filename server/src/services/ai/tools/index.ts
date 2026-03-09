@@ -47,6 +47,9 @@ import './doraDash.js';
 // Finance v1.2: 14 finance tools (9 read + 5 write)
 import './finance/index.js';
 
+// Sales CRM: 4 tools (pipeline status, deal details, forecast, activity gaps)
+import './crm/index.js';
+
 export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
 
 import { getToolCount } from '../toolRegistry.js';

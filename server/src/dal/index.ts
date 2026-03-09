@@ -7,3 +7,5 @@ export * as employeesDal from './employees.js';
 export * as projectsDal from './projects.js';
 export * as channelsDal from './channels.js';
 export * as doraReads from './doraReads.js';
+export * as crm from './crm/index.js';
+export * as okrs from './okrs.js';

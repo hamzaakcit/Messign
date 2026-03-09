@@ -47,6 +47,25 @@ export interface EventMap {
   'reimbursement.approved': { requestId: string; approverId: string; amount: number };
   'reimbursement.rejected': { requestId: string; approverId: string; reason: string };
 
+  // ── Sales CRM ──
+  'crm.contact.created': { contactId: string; ownerId: string; email?: string; companyId?: string };
+  'crm.contact.updated': { contactId: string; updatedBy: string };
+  'crm.company.created': { companyId: string; name: string; createdBy: string };
+  'crm.deal.created': { dealId: string; title: string; amount: number; currency: string; ownerId: string; companyId?: string; stageId: string };
+  'crm.deal.stage_changed': { dealId: string; oldStage: string; newStage: string; amount: number; movedBy: string };
+  'crm.deal.won': { dealId: string; amount: number; currency: string; companyId?: string; ownerId: string; closedAt: string };
+  'crm.deal.lost': { dealId: string; amount: number; reason?: string; ownerId: string };
+  'crm.deal.updated': { dealId: string; updatedBy: string; changes: string[] };
+  'crm.activity.logged': { activityId: string; dealId?: string; contactId?: string; userId: string; type: 'call' | 'email' | 'meeting' | 'note' };
+  'crm.forecast.updated': { pipelineId: string; totalValue: number; weightedValue: number; period: string };
+
+  // ── OKRs ──
+  'okr.goal.created': { goalId: string; title: string; ownerId: string; level: string };
+  'okr.goal.updated': { goalId: string; progress: number; status: string };
+  'okr.key_result.created': { keyResultId: string; goalId: string; title: string };
+  'okr.key_result.updated': { keyResultId: string; goalId: string; progress: number };
+  'okr.check_in.submitted': { checkInId: string; keyResultId: string; value: number; userId: string };
+
   // ── System ──
   'system.audit.logged': { action: string; actorId: string; entityType: string; entityId: string };
   'system.notification.created': { userId: string; type: string; title: string; link?: string };

@@ -12,7 +12,9 @@ type Module =
   | 'knowledge'
   | 'team'
   | 'chat'
-  | 'achievements';
+  | 'achievements'
+  | 'sales'
+  | 'okr';
 
 interface DoraInsightBarProps {
   module: Module;
@@ -28,6 +30,8 @@ const FALLBACK_MESSAGES: Record<Module, string> = {
   team: 'Dora analyzes team performance and engagement patterns.',
   chat: 'Dora can extract action items and summarize conversations.',
   achievements: 'Keep earning XP across the workspace to unlock new badges.',
+  sales: 'Dora is tracking your sales pipeline and deal velocity.',
+  okr: 'Dora tracks OKR progress and flags at-risk goals.',
 };
 
 const DISMISS_TTL_MS = 24 * 60 * 60 * 1000;

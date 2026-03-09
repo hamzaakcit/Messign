@@ -35,6 +35,12 @@ const worker = new Worker<CrossModuleJob>(
         // TODO: Call vendor DAL
         console.log(`[CrossModule] Would update vendor timeline for payment ${payload.paymentId}`);
         break;
+      case 'generate_invoice_from_deal':
+        console.log(`[CrossModule] Would create invoice from deal ${payload.dealId} for ${payload.amount} ${payload.currency}`);
+        break;
+      case 'update_okr_progress':
+        console.log(`[CrossModule] Would recalculate OKR auto-progress from ${payload.source}`);
+        break;
       default:
         console.log(`[CrossModule] Unknown job type: ${type}`);
     }

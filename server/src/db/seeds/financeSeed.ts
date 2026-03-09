@@ -271,8 +271,8 @@ export async function seedFinanceData() {
     }
 
     // 7. Budgets (per department)
-    const departments = ['Engineering', 'Marketing', 'Operations', 'Sales', 'General'];
-    const budgetAmounts = [50000, 30000, 20000, 25000, 15000];
+    const departments = ['Engineering', 'Marketing', 'Operations', 'Sales', 'Platform', 'General'];
+    const budgetAmounts = [50000, 30000, 20000, 25000, 18000, 15000];
     const budgetIds: string[] = [];
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -503,6 +503,15 @@ export async function seedFinanceData() {
       { title: 'Notion subscription', slug: 'software_subscription', min: 10, max: 15, status: 'ai_approved' },
       { title: 'Team offsite catering', slug: 'meals_team', min: 300, max: 600, status: 'manager_review' },
       { title: 'Conference ticket SaaStr', slug: 'training_conference', min: 700, max: 1200, status: 'submitted' },
+      // Platform / Vercel-style seed data
+      { title: 'Vercel Pro plan', slug: 'software_subscription', min: 20, max: 150, status: 'paid' },
+      { title: 'Vercel team add-ons', slug: 'software_subscription', min: 40, max: 80, status: 'approved' },
+      { title: 'Vercel bandwidth overage', slug: 'software_subscription', min: 25, max: 120, status: 'ai_approved' },
+      { title: 'Production hosting (Vercel)', slug: 'software_subscription', min: 80, max: 200, status: 'paid' },
+      { title: 'Preview deployments (Vercel)', slug: 'software_subscription', min: 15, max: 45, status: 'approved' },
+      { title: 'Edge functions usage', slug: 'software_subscription', min: 30, max: 90, status: 'manager_review' },
+      { title: 'Vercel Analytics', slug: 'software_subscription', min: 10, max: 25, status: 'ai_approved' },
+      { title: 'Domain on Vercel', slug: 'software_subscription', min: 12, max: 20, status: 'paid' },
     ];
 
     const today = new Date();
