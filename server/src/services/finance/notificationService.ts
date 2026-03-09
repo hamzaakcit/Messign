@@ -10,7 +10,7 @@ export interface CreateNotificationInput {
   entity_type?: string;
   entity_id?: string;
   action_url?: string;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  priority?: 'low' | 'medium' | 'normal' | 'high' | 'urgent';
   ai_generated?: boolean;
 }
 
@@ -31,7 +31,7 @@ export const notificationService = {
         input.entity_type ?? null,
         input.entity_id ?? null,
         input.action_url ?? null,
-        input.priority ?? 'normal',
+        (input.priority === 'medium' ? 'normal' : input.priority) ?? 'normal',
         input.ai_generated ?? false,
       ],
     );
@@ -46,7 +46,7 @@ export const notificationService = {
       entity_type: input.entity_type,
       entity_id: input.entity_id,
       action_url: input.action_url,
-      priority: input.priority ?? 'normal',
+      priority: (input.priority === 'medium' ? 'normal' : input.priority) ?? 'normal',
       ai_generated: input.ai_generated ?? false,
       created_at: notification.created_at,
     });

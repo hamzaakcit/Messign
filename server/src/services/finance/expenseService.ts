@@ -1,6 +1,6 @@
 import { query, getClient } from '../../db/index.js';
 import { auditService } from './auditService.js';
-import { notificationService } from './notificationService.js';
+import { notificationService, type CreateNotificationInput } from './notificationService.js';
 import { runAIReviewPipeline } from './aiReviewPipeline.js';
 import { journalEntryService } from './journalEntryService.js';
 import { getBudgetIdForCategory } from './categoryDepartmentMap.js';
@@ -806,7 +806,7 @@ export const expenseService = {
       changes: { status: 'paid', notes },
     });
 
-    await notificationService.create({
+    const paidNotification: CreateNotificationInput = {
       organization_id: orgId,
       recipient_id: expense.rows[0].submitted_by,
       type: 'expense.paid',
@@ -816,7 +816,8 @@ export const expenseService = {
       entity_id: expenseId,
       action_url: `/finance/expenses/${expenseId}`,
       priority: 'normal',
-    });
+    };
+    await notificationService.create(paidNotification);
 
     journalEntryService.generateFromExpense(expenseId, 'paid').catch((err: unknown) =>
       console.error('[journal] Failed to generate payment entry:', err));
