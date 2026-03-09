@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Calendar, Users, Zap, Tag, ExternalLink, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
+import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { useProjectStore } from '@/stores/projectStore';
 import { projectsAPI, bountiesAPI, type MarketplaceProject, type RecruitmentSlot } from '@/lib/api';
 import { Button, Modal } from '@/components/ui';
@@ -729,6 +730,9 @@ export function ProjectsView() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <div className="px-6 pt-4">
+        <DoraInsightBar module="projects" />
+      </div>
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'marketplace' | 'tasks')} className="h-full flex flex-col">
         <MarketplaceNavBar
           activeTab={viewMode === 'marketplace' ? 'opportunity-hub' : 'tasks'}

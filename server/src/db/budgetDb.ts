@@ -4,6 +4,8 @@ export interface BudgetRow {
   id: string;
   organization_id: string;
   department: string;
+  name: string | null;
+  description: string | null;
   period_start: string;
   period_end: string;
   allocated_amount: string;
@@ -18,6 +20,8 @@ export interface Budget {
   id: string;
   organizationId: string;
   department: string;
+  name?: string;
+  description?: string;
   periodStart: string;
   periodEnd: string;
   allocatedAmount: number;
@@ -39,6 +43,8 @@ function mapRowToBudget(row: BudgetRow): Budget {
     id: row.id,
     organizationId: row.organization_id,
     department: row.department,
+    name: row.name ?? undefined,
+    description: row.description ?? undefined,
     periodStart: row.period_start,
     periodEnd: row.period_end,
     allocatedAmount: parseFloat(row.allocated_amount),
@@ -99,15 +105,29 @@ export async function createBudget(
     currency?: string;
     alertThreshold?: number;
     createdBy?: string;
+    name?: string;
+    description?: string;
   },
 ): Promise<Budget> {
+  const existing = await query<BudgetRow>(
+    `SELECT * FROM finance_budgets
+     WHERE organization_id = $1 AND department = $2
+       AND period_start = $3 AND period_end = $4`,
+    [orgId, data.department, data.periodStart, data.periodEnd],
+  );
+  if (existing.rows[0]) {
+    throw new Error(`A budget already exists for ${data.department} in this period`);
+  }
+
   const result = await query<BudgetRow>(
-    `INSERT INTO finance_budgets (organization_id, department, period_start, period_end, allocated_amount, currency, alert_threshold, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO finance_budgets (organization_id, department, name, description, period_start, period_end, allocated_amount, currency, alert_threshold, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       orgId,
       data.department,
+      data.name || null,
+      data.description || null,
       data.periodStart,
       data.periodEnd,
       data.allocatedAmount,
@@ -165,10 +185,10 @@ async function attachSpent(budget: Budget, orgId: string): Promise<BudgetWithSpe
     `SELECT COALESCE(SUM(converted_amount), 0) AS total
      FROM reimbursement_requests
      WHERE organization_id = $1
+       AND budget_id = $2
        AND status NOT IN ('draft', 'rejected', 'cancelled')
-       AND expense_date >= $2
-       AND expense_date <= $3`,
-    [orgId, budget.periodStart, budget.periodEnd],
+       AND is_deleted = FALSE`,
+    [orgId, budget.id],
   );
   const spent = parseFloat(spentResult.rows[0]?.total || '0');
   const remaining = Math.max(0, budget.allocatedAmount - spent);

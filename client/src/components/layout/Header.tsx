@@ -1,7 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { Menu, Search, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
-import { Input } from '@/components/ui';
 import { NotificationPanel } from '@/components/notifications';
 import { KnowledgeHubIcon } from '@/components/knowledge-hub/icons';
 
@@ -21,7 +20,7 @@ const viewTitles: Record<string, string> = {
 
 export function Header() {
   const location = useLocation();
-  const { currentView, toggleLeftSidebar, toggleRightSidebar, leftSidebarOpen, rightSidebarOpen, leftSidebarCollapsed, rightSidebarCollapsed, isMobile } = useUIStore();
+  const { currentView, toggleLeftSidebar, toggleRightSidebar, leftSidebarOpen, rightSidebarOpen, leftSidebarCollapsed, rightSidebarCollapsed, isMobile, openCommandSurface } = useUIStore();
   const isKnowledgeHub = location.pathname.startsWith('/knowledge-hub');
 
   return (
@@ -57,20 +56,41 @@ export function Header() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search trigger — opens Command Surface */}
       {!isMobile && (
         <div className="flex-1 max-w-md mx-8">
-          <Input
-            placeholder="Search..."
-            icon={<Search className="w-4 h-4" />}
-          />
+          <button
+            onClick={openCommandSurface}
+            className="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border transition-colors text-left"
+            style={{
+              backgroundColor: 'var(--input-bg)',
+              borderColor: 'var(--input-border)',
+              color: 'var(--input-placeholder)',
+            }}
+          >
+            <Search className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-sm">Search or ask Dora...</span>
+            <kbd
+              className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono"
+              style={{
+                backgroundColor: 'var(--app-card)',
+                color: 'var(--app-text-tertiary)',
+                border: '1px solid var(--app-border)',
+              }}
+            >
+              ⌘K
+            </kbd>
+          </button>
         </div>
       )}
 
       <div className="flex items-center gap-2">
         {/* Search (mobile) */}
         {isMobile && (
-          <button className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors">
+          <button
+            onClick={openCommandSurface}
+            className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+          >
             <Search className="w-5 h-5" />
           </button>
         )}

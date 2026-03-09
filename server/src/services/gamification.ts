@@ -1,6 +1,7 @@
 import { getEmployeeByIdAsUser, addEmployeeXP } from '../db/employeesDb.js';
 import { hasBadge as dbHasBadge, awardBadgeToUser } from '../db/badgesDb.js';
 import { addActivity } from '../db/activitiesDb.js';
+import { eventBus } from '../events/index.js';
 
 export const XP_REWARDS = {
   message_sent: 5,
@@ -45,6 +46,7 @@ export async function awardXP(userId: string, amount: number, reason: string) {
   if (!user) return null;
   const oldLevel = user.level;
   await addEmployeeXP(userId, amount);
+  eventBus.emit('gamification.xp.awarded', { userId, amount, reason, source: 'gamification-service' });
   const updatedUser = await getEmployeeByIdAsUser(userId);
   if (!updatedUser) return null;
   if (updatedUser.level > oldLevel) {
@@ -107,5 +109,6 @@ async function awardBadge(userId: string, badgeId: string) {
       timestamp: new Date().toISOString(),
     });
     await addEmployeeXP(userId, 100);
+    eventBus.emit('gamification.badge.earned', { userId, badgeId, badgeName: badge.name });
   }
 }

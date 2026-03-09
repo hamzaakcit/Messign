@@ -28,6 +28,7 @@ if (!process.env.GRAPHHOPPER_API_KEY) {
   console.warn('[server] GRAPHHOPPER_API_KEY not set; mileage calculator will use fallback 10 km.');
 }
 import { setupSocketHandlers } from './sockets/index.js';
+import { registerAllSubscribers } from './events/subscribers/index.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { channelsRouter } from './routes/channels.js';
@@ -175,6 +176,9 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 
 app.set('io', io);
 setupSocketHandlers(io);
+
+registerAllSubscribers();
+console.log('[Server] Event bus subscribers registered');
 
 // Start server
 const port = process.env.PORT || 3001;

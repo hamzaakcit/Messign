@@ -46,6 +46,7 @@ interface UIState {
   isMobile: boolean;
   modalOpen: string | null;
   modalData: any;
+  commandSurfaceOpen: boolean;
   setView: (view: View) => void;
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
@@ -54,6 +55,9 @@ interface UIState {
   setMobile: (isMobile: boolean) => void;
   openModal: (modalId: string, data?: any) => void;
   closeModal: () => void;
+  openCommandSurface: () => void;
+  closeCommandSurface: () => void;
+  toggleCommandSurface: () => void;
 }
 
 const stored = getStoredSidebarState();
@@ -67,6 +71,7 @@ export const useUIStore = create<UIState>((set) => ({
   isMobile: false,
   modalOpen: null,
   modalData: null,
+  commandSurfaceOpen: false,
 
   setView: (view) => set({ currentView: view }),
 
@@ -176,4 +181,8 @@ export const useUIStore = create<UIState>((set) => ({
   openModal: (modalId, data) => set({ modalOpen: modalId, modalData: data }),
 
   closeModal: () => set({ modalOpen: null, modalData: null }),
+
+  openCommandSurface: () => set({ commandSurfaceOpen: true }),
+  closeCommandSurface: () => set({ commandSurfaceOpen: false }),
+  toggleCommandSurface: () => set((s) => ({ commandSurfaceOpen: !s.commandSurfaceOpen })),
 }));

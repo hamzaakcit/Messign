@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useFinanceStore } from '@/stores/financeStore';
 import { financeAPI, type Expense } from '@/lib/financeApi';
 import { StatusBadge } from '@/components/finance/StatusBadge';
+import { SlideOverPanel } from '@/components/ui';
+import { ExpenseDetailPanel } from './ExpenseDetailPanel';
+import { ExpenseCreatePanel } from './ExpenseCreatePanel';
 import { cn } from '@/lib/utils';
 import {
   Plus, Search, ChevronLeft, ChevronRight, CheckSquare, Square,
@@ -52,18 +56,22 @@ const RISK_LEVELS = [
 
 const PAGE_SIZE = 20;
 
-interface ExpensesPageProps {
-  onCreateNew: () => void;
-  onViewExpense: (id: string) => void;
-}
-
-export function ExpensesPage({ onCreateNew, onViewExpense }: ExpensesPageProps) {
+export function ExpensesPage() {
   const user = useAuthStore((s) => s.user);
   const {
     expenses, expensesTotal, expenseFilters,
     selectedExpenseIds, setExpenses, setExpenseFilters,
     toggleExpenseSelection, clearExpenseSelection, selectAllExpenses,
   } = useFinanceStore();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const detailId = searchParams.get('detail');
+  const isCreating = searchParams.get('new') === 'true';
+
+  const openDetail = (id: string) => setSearchParams({ detail: id });
+  const openCreate = () => setSearchParams({ new: 'true' });
+  const closePanel = () => setSearchParams({});
+  const handleCreated = (id: string) => setSearchParams({ detail: id });
 
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
@@ -221,7 +229,7 @@ export function ExpensesPage({ onCreateNew, onViewExpense }: ExpensesPageProps) 
           )}
         </button>
         <button
-          onClick={onCreateNew}
+          onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
         >
           <Plus className="h-4 w-4" /> New Expense
@@ -351,7 +359,7 @@ export function ExpensesPage({ onCreateNew, onViewExpense }: ExpensesPageProps) 
               <tr><td colSpan={8} className="p-8 text-center text-app-muted">
                 <DollarSign className="h-8 w-8 mx-auto mb-2 opacity-40" />
                 <p>No expenses found</p>
-                <button onClick={onCreateNew} className="mt-3 text-primary-400 hover:text-primary-300 text-sm font-medium">
+                <button onClick={openCreate} className="mt-3 text-primary-400 hover:text-primary-300 text-sm font-medium">
                   Create your first expense
                 </button>
               </td></tr>
@@ -359,7 +367,7 @@ export function ExpensesPage({ onCreateNew, onViewExpense }: ExpensesPageProps) 
               expenses.map((expense) => (
                 <tr
                   key={expense.id}
-                  onClick={() => onViewExpense(expense.id)}
+                  onClick={() => openDetail(expense.id)}
                   className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
                 >
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
@@ -442,6 +450,32 @@ export function ExpensesPage({ onCreateNew, onViewExpense }: ExpensesPageProps) 
           </button>
         </div>
       )}
+
+      {/* Detail Slide-Over */}
+      <SlideOverPanel
+        isOpen={!!detailId}
+        onClose={closePanel}
+        title="Expense Detail"
+      >
+        {detailId && (
+          <ExpenseDetailPanel
+            expenseId={detailId}
+            onClose={closePanel}
+          />
+        )}
+      </SlideOverPanel>
+
+      {/* Create Slide-Over */}
+      <SlideOverPanel
+        isOpen={isCreating}
+        onClose={closePanel}
+        title="New Expense"
+      >
+        <ExpenseCreatePanel
+          onClose={closePanel}
+          onCreated={handleCreated}
+        />
+      </SlideOverPanel>
     </div>
   );
 }

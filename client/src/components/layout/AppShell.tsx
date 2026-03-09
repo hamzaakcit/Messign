@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -10,7 +10,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
 import { MainContent } from './MainContent';
 import { XPGainNotification } from '@/components/ui';
-import { CommandPaletteOverlay } from '@/components/knowledge/CommandPaletteOverlay';
+import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
 import { FloatingWidget } from '@/components/dora/FloatingWidget';
 import { toast } from 'sonner';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError } from '@/lib/socket';
@@ -40,36 +40,52 @@ function getViewFromPath(path: string): string {
   return PATH_TO_VIEW[path] ?? 'dashboard';
 }
 
+const VIEW_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  dora: 'Dora',
+  game: 'Dora Game',
+  chat: 'Chat',
+  knowledge: 'Knowledge Hub',
+  achievements: 'Achievements',
+  team: 'Team Directory',
+  projects: 'Projects',
+  settings: 'Settings',
+  finance: 'Finance',
+  reimbursements: 'Reimbursements',
+  invoices: 'Invoices',
+};
+
 export function AppShell() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { leftSidebarOpen, rightSidebarOpen, leftSidebarCollapsed, rightSidebarCollapsed, isMobile, setMobile, setView, currentView } = useUIStore();
+  const { leftSidebarOpen, rightSidebarOpen, leftSidebarCollapsed, rightSidebarCollapsed, isMobile, setMobile, setView, currentView, commandSurfaceOpen, closeCommandSurface, toggleCommandSurface } = useUIStore();
   const { user, updateUser } = useAuthStore();
-  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const { recentPages, trackPage } = useRecentPages();
 
   // Global Cmd+K handler
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setCmdPaletteOpen(prev => !prev);
+        toggleCommandSurface();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [toggleCommandSurface]);
   const { fetchChannels, addMessage, incrementChannelUnread } = useChatStore();
   const { fetchProjects, fetchTasks } = useProjectStore();
   const { fetchUsers, updateUserStatus } = useUsersStore();
   const { fetchBadges, fetchActivities, fetchLeaderboard, addActivity, addXPGain, showXPGain, lastXPGain } = useGameStore();
 
-  // Sync URL to view
+  // Sync URL to view + track recent pages
   useEffect(() => {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
       setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices');
     }
+    const label = VIEW_LABELS[view] ?? view;
+    trackPage(path, label);
   }, [location.pathname]);
 
   // Initialize app data when user is present
@@ -181,16 +197,11 @@ export function AppShell() {
 
   return (
     <div className="h-screen flex bg-app overflow-hidden transition-colors duration-200">
-      {/* Command Palette */}
-      <CommandPaletteOverlay
-        open={cmdPaletteOpen}
-        onClose={() => setCmdPaletteOpen(false)}
-        onSelect={(action) => {
-          setCmdPaletteOpen(false);
-          if (action.startsWith('/')) {
-            navigate(action);
-          }
-        }}
+      {/* Command Surface (Cmd+K) */}
+      <CommandSurface
+        open={commandSurfaceOpen}
+        onClose={closeCommandSurface}
+        recentPages={recentPages}
       />
 
       {/* MP Gain Notification */}

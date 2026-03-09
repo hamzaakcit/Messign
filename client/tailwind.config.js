@@ -98,6 +98,32 @@ export default {
           'table-border': 'var(--admin-table-border)',
           'table-row-hover': 'var(--admin-table-row-hover)',
         },
+        semantic: {
+          primary: { light: '#60A5FA', DEFAULT: '#3B82F6', dark: '#1D4ED8' },
+          success: { light: '#34D399', DEFAULT: '#10B981', dark: '#059669' },
+          warning: { light: '#FBBF24', DEFAULT: '#F59E0B', dark: '#D97706' },
+          danger:  { light: '#F87171', DEFAULT: '#EF4444', dark: '#DC2626' },
+          neutral: { light: '#94A3B8', DEFAULT: '#64748B', dark: '#475569' },
+        },
+      },
+      fontSize: {
+        xs:   ['12px', { lineHeight: '16px' }],
+        sm:   ['14px', { lineHeight: '20px' }],
+        base: ['16px', { lineHeight: '24px' }],
+        lg:   ['20px', { lineHeight: '28px' }],
+        xl:   ['28px', { lineHeight: '36px' }],
+      },
+      borderRadius: {
+        sm: '6px',
+        md: '8px',
+        lg: '12px',
+        xl: '16px',
+        full: '9999px',
+      },
+      transitionDuration: {
+        fast: '120ms',
+        normal: '220ms',
+        slow: '380ms',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

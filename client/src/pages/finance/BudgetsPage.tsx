@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { budgetsAPI, type Budget } from '@/lib/api';
+import { type Budget } from '@/lib/api';
+import { financeAPI } from '@/lib/financeApi';
 import { StatusBadge } from '@/components/finance/StatusBadge';
 import { cn } from '@/lib/utils';
 import { Plus, PiggyBank, DollarSign, TrendingUp, BarChart3, Download, Filter } from 'lucide-react';
@@ -19,6 +20,7 @@ export function BudgetsPage({ onViewBudget }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [utilizationFilter, setUtilizationFilter] = useState('');
+  const [departments, setDepartments] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     department: '', allocatedAmount: '', periodStart: '', periodEnd: '',
     currency: 'EUR', alertThreshold: '0.8', name: '', description: '',
@@ -28,8 +30,14 @@ export function BudgetsPage({ onViewBudget }: Props) {
     if (!userId) return;
     setLoading(true);
     try {
-      const data = await budgetsAPI.list(userId);
+      const [data, depts] = await Promise.all([
+        financeAPI.listBudgets(userId).then((rows) =>
+          (rows as unknown as Budget[]),
+        ),
+        financeAPI.getDepartments(userId).catch(() => [] as string[]),
+      ]);
       setBudgets(data);
+      setDepartments(depts);
     } catch {}
     setLoading(false);
   }, [userId]);
@@ -39,13 +47,15 @@ export function BudgetsPage({ onViewBudget }: Props) {
   const handleCreate = async () => {
     if (!userId || !formData.department || !formData.allocatedAmount) return;
     try {
-      await budgetsAPI.create(userId, {
+      await financeAPI.createBudget(userId, {
         department: formData.department,
         periodStart: formData.periodStart,
         periodEnd: formData.periodEnd,
         allocatedAmount: parseFloat(formData.allocatedAmount),
         currency: formData.currency,
         alertThreshold: parseFloat(formData.alertThreshold),
+        name: formData.name || undefined,
+        description: formData.description || undefined,
       });
       setShowCreate(false);
       setFormData({ department: '', allocatedAmount: '', periodStart: '', periodEnd: '', currency: 'EUR', alertThreshold: '0.8', name: '', description: '' });
@@ -71,9 +81,9 @@ export function BudgetsPage({ onViewBudget }: Props) {
   };
 
   const filtered = budgets.filter((b) => {
-    if (statusFilter === 'active') return b.utilizationPct < 1;
-    if (statusFilter === 'exceeded') return b.utilizationPct >= 1;
-    if (departmentFilter && !b.department.toLowerCase().includes(departmentFilter.toLowerCase())) return false;
+    if (statusFilter === 'active' && b.utilizationPct >= 1) return false;
+    if (statusFilter === 'exceeded' && b.utilizationPct < 1) return false;
+    if (departmentFilter && b.department !== departmentFilter) return false;
     if (utilizationFilter === 'above80' && b.utilizationPct < 0.8) return false;
     if (utilizationFilter === 'above50' && b.utilizationPct < 0.5) return false;
     return true;
@@ -114,8 +124,11 @@ export function BudgetsPage({ onViewBudget }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-app-muted mb-1">Department</label>
-              <input type="text" placeholder="Filter by department" value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+              <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none">
+                <option value="">All Departments</option>
+                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Utilization</label>
@@ -155,30 +168,65 @@ export function BudgetsPage({ onViewBudget }: Props) {
         <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
           <h4 className="font-semibold text-app-text">Create New Budget</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { label: 'Department', key: 'department', type: 'text', placeholder: 'e.g., Engineering' },
-              { label: 'Allocated Amount', key: 'allocatedAmount', type: 'number', placeholder: '50000' },
-              { label: 'Currency', key: 'currency', type: 'select', options: ['EUR', 'USD', 'TRY', 'GBP'] },
-              { label: 'Period Start', key: 'periodStart', type: 'date' },
-              { label: 'Period End', key: 'periodEnd', type: 'date' },
-              { label: 'Alert Threshold', key: 'alertThreshold', type: 'number', placeholder: '0.8' },
-            ].map(({ label, key, type, placeholder, options }) => (
-              <div key={key}>
-                <label className="block text-xs text-app-muted mb-1">{label}</label>
-                {type === 'select' ? (
-                  <select value={formData[key as keyof typeof formData]}
-                    onChange={(e) => setFormData((p) => ({ ...p, [key]: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none">
-                    {options?.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input type={type} value={formData[key as keyof typeof formData]}
-                    onChange={(e) => setFormData((p) => ({ ...p, [key]: e.target.value }))} placeholder={placeholder}
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none" />
-                )}
-              </div>
-            ))}
+            <div>
+              <label className="block text-xs text-app-muted mb-1">Department *</label>
+              <select value={formData.department} onChange={(e) => setFormData((p) => ({ ...p, department: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none">
+                <option value="">Select department</option>
+                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-app-muted mb-1">Budget Name</label>
+              <input type="text" value={formData.name} onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Q1 Cloud Costs"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-app-muted mb-1">Allocated Amount *</label>
+              <input type="number" value={formData.allocatedAmount} onChange={(e) => setFormData((p) => ({ ...p, allocatedAmount: e.target.value }))}
+                placeholder="50000"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-app-muted mb-1">Currency</label>
+              <select value={formData.currency} onChange={(e) => setFormData((p) => ({ ...p, currency: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none">
+                {['EUR', 'USD', 'TRY', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-app-muted mb-1">Period Start</label>
+              <input type="date" value={formData.periodStart} onChange={(e) => setFormData((p) => ({ ...p, periodStart: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-app-muted mb-1">Period End</label>
+              <input type="date" value={formData.periodEnd} onChange={(e) => setFormData((p) => ({ ...p, periodEnd: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-app-muted mb-1">Alert Threshold</label>
+              <input type="number" step="0.05" min="0" max="1" value={formData.alertThreshold}
+                onChange={(e) => setFormData((p) => ({ ...p, alertThreshold: e.target.value }))}
+                placeholder="0.8"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs text-app-muted mb-1">Description</label>
+              <input type="text" value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+                placeholder="Optional budget description"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none" />
+            </div>
           </div>
+          {formData.department && (() => {
+            const existing = budgets.filter((b) => b.department === formData.department);
+            return existing.length > 0 ? (
+              <div className="text-xs text-app-muted p-2 rounded-lg bg-white/5">
+                Existing budgets for {formData.department}: {existing.map((b) => `${(b as Budget & { name?: string }).name || 'Unnamed'} (${b.currency} ${b.allocatedAmount.toLocaleString()})`).join(', ')}
+              </div>
+            ) : null;
+          })()}
           <div className="flex gap-2">
             <button onClick={handleCreate} disabled={!formData.department || !formData.allocatedAmount}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">Create Budget</button>
@@ -209,7 +257,9 @@ export function BudgetsPage({ onViewBudget }: Props) {
                 className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3 hover:border-white/20 transition-colors cursor-pointer">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h4 className="font-semibold text-app-text">{b.department}</h4>
+                    <h4 className="font-semibold text-app-text">
+                      {b.department}{b.name ? ` — ${b.name}` : ''}
+                    </h4>
                     <p className="text-xs text-app-muted mt-0.5">
                       {new Date(b.periodStart).toLocaleDateString()} — {new Date(b.periodEnd).toLocaleDateString()}
                     </p>

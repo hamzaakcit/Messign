@@ -4,6 +4,7 @@ import { notificationService } from './notificationService.js';
 import { runAIReviewPipeline } from './aiReviewPipeline.js';
 import { journalEntryService } from './journalEntryService.js';
 import { getBudgetIdForCategory } from './categoryDepartmentMap.js';
+import { eventBus } from '../../events/index.js';
 
 export interface CreateExpenseInput {
   title: string;
@@ -70,6 +71,7 @@ export const expenseService = {
       throw new Error('No expense category found. Please add at least one category in settings.');
     }
 
+    try {
     const result = await query(
       `INSERT INTO reimbursement_requests
        (organization_id, submitted_by, title, description, category_id, category_slug,
@@ -101,7 +103,15 @@ export const expenseService = {
       changes: { status: 'draft', amount: data.amount },
     });
 
+    eventBus.emit('finance.expense.created', {
+      expenseId: expense.id, userId, amount: expense.original_amount,
+      currency: expense.currency, category: expense.category, departmentId: expense.department_id,
+    });
+
     return expense;
+    } catch (err: unknown) {
+      throw err;
+    }
   },
 
   async list(filters: ExpenseFilters, userId: string, orgId: string, userRole: string, teamId?: string) {
@@ -250,6 +260,12 @@ export const expenseService = {
       throw new Error('Not authorized to edit this expense');
     }
 
+    // Re-resolve budget when category changes
+    let resolvedBudgetId = data.budget_id;
+    if (data.category_slug && data.category_slug !== existing.rows[0].category_slug && !data.budget_id) {
+      resolvedBudgetId = await getBudgetIdForCategory(orgId, data.category_slug) ?? undefined;
+    }
+
     const sets: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
@@ -265,7 +281,7 @@ export const expenseService = {
       ['tax_amount', data.tax_amount],
       ['tax_rate', data.tax_rate],
       ['tip_amount', data.tip_amount],
-      ['budget_id', data.budget_id],
+      ['budget_id', resolvedBudgetId],
       ['vendor_id', data.vendor_id],
       ['project_id', data.project_id],
       ['team_id', data.team_id],
@@ -379,8 +395,8 @@ export const expenseService = {
         await client.query(
           `INSERT INTO approval_steps
            (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name)
-           VALUES ($1, 1, 'manager_approval', $2, 'pending', 'expense', $1, 'Manager Approval')`,
-          [expenseId, approverId],
+           VALUES ($1::UUID, 1, 'manager_approval', $2::UUID, 'pending', 'expense', $3::UUID, 'Manager Approval')`,
+          [expenseId, approverId, expenseId],
         );
 
         await client.query(
@@ -400,6 +416,10 @@ export const expenseService = {
         entity_type: 'expense',
         entity_id: expenseId,
         changes: { status: approverId ? 'manager_review' : 'submitted' },
+      });
+
+      eventBus.emit('finance.expense.submitted', {
+        expenseId, userId, amount: existing.rows[0].original_amount,
       });
 
       if (approverId) {
@@ -456,35 +476,43 @@ export const expenseService = {
       }
 
       // 1. Look for a step directly assigned to this approver
-      let step = await client.query(
-        `SELECT * FROM approval_steps
-         WHERE reimbursement_id = $1 AND assigned_to = $2 AND status = 'pending'
-         ORDER BY step_order LIMIT 1`,
-        [expenseId, approverId],
-      );
-      // 2. Fallback: any pending step for this expense if user has privileged role
-      if (!step.rows[0]) {
+      let step: { rows: Record<string, unknown>[] };
+      try {
         step = await client.query(
-          `SELECT s.* FROM approval_steps s
-           JOIN reimbursement_users u ON u.id = $2
-           WHERE s.reimbursement_id = $1 AND s.status = 'pending'
-             AND u.role IN ('manager', 'admin', 'finance', 'cfo', 'finance_admin')
-           ORDER BY s.step_order LIMIT 1`,
+          `SELECT * FROM approval_steps
+           WHERE reimbursement_id = $1 AND assigned_to = $2 AND status = 'pending'
+           ORDER BY step_order LIMIT 1`,
           [expenseId, approverId],
         );
+      } catch (e1: unknown) {
+        throw e1;
+      }
+      // 2. Fallback: any pending step for this expense if user has privileged role
+      if (!step.rows[0]) {
+        try {
+          step = await client.query(
+            `SELECT s.* FROM approval_steps s
+             JOIN reimbursement_users u ON u.id = $2
+             WHERE s.reimbursement_id = $1 AND s.status = 'pending'
+               AND u.role IN ('manager', 'admin', 'finance', 'cfo', 'finance_admin')
+             ORDER BY s.step_order LIMIT 1`,
+            [expenseId, approverId],
+          );
+        } catch (e2: unknown) {
+          throw e2;
+        }
       }
       // 3. No step exists at all — privileged users can create + approve on the fly
       if (!step.rows[0]) {
         if (!isPrivileged) throw new Error('No pending approval step for this user');
-        // Insert an auto-approval step for privileged users and immediately mark it approved
         await client.query(
           `INSERT INTO approval_steps
            (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name, decision_at, decision_notes)
-           VALUES ($1, 1, 'manager_approval', $2, 'approved', 'expense', $1, 'Admin Approval', NOW(), $3)
+           VALUES ($1::UUID, 1, 'manager_approval', $2::UUID, 'approved', 'expense', $3::UUID, 'Admin Approval', NOW(), $4)
            ON CONFLICT (reimbursement_id, step_order) DO UPDATE
              SET status = 'approved', decision_at = NOW(), assigned_to = EXCLUDED.assigned_to, decision_notes = EXCLUDED.decision_notes
            RETURNING *`,
-          [expenseId, approverId, comments ?? 'Admin force-approved'],
+          [expenseId, approverId, expenseId, comments ?? 'Admin force-approved'],
         );
         // Directly update the expense status to approved
         await client.query(
@@ -510,6 +538,9 @@ export const expenseService = {
           entity_type: 'expense',
           entity_id: expenseId,
           changes: { status: 'approved', note: 'admin_force_approved' },
+        });
+        eventBus.emit('finance.expense.approved', {
+          expenseId, approverId, amount: expense.rows[0].original_amount,
         });
         journalEntryService.generateFromExpense(expenseId, 'approved').catch((err: unknown) =>
           console.error('[journal] Failed to generate expense approval entry:', err));
@@ -538,9 +569,9 @@ export const expenseService = {
 
       await client.query(
         `UPDATE reimbursement_requests
-         SET status = $1, approved_at = CASE WHEN $1 = 'approved' THEN NOW() ELSE approved_at END,
-             updated_at = NOW(), updated_by = $2
-         WHERE id = $3`,
+         SET status = $1::TEXT, approved_at = CASE WHEN $1::TEXT = 'approved' THEN NOW() ELSE approved_at END,
+             updated_at = NOW(), updated_by = $2::UUID
+         WHERE id = $3::UUID`,
         [newStatus, approverId, expenseId],
       );
 
@@ -562,6 +593,10 @@ export const expenseService = {
         entity_type: 'expense',
         entity_id: expenseId,
         changes: { status: newStatus },
+      });
+
+      eventBus.emit('finance.expense.approved', {
+        expenseId, approverId, amount: expense.rows[0].original_amount,
       });
 
       await notificationService.create({
@@ -627,11 +662,11 @@ export const expenseService = {
         const forceStep = await client.query(
           `INSERT INTO approval_steps
            (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name, decision_at, decision_notes)
-           VALUES ($1, 1, 'manager_approval', $2, 'rejected', 'expense', $1, 'Admin Rejection', NOW(), $3)
+           VALUES ($1::UUID, 1, 'manager_approval', $2::UUID, 'rejected', 'expense', $3::UUID, 'Admin Rejection', NOW(), $4)
            ON CONFLICT (reimbursement_id, step_order) DO UPDATE
              SET status = 'rejected', decision_at = NOW(), assigned_to = EXCLUDED.assigned_to, decision_notes = EXCLUDED.decision_notes
            RETURNING id`,
-          [expenseId, approverId, reason],
+          [expenseId, approverId, expenseId, reason],
         );
         stepId = forceStep.rows[0].id;
       } else {
@@ -662,6 +697,8 @@ export const expenseService = {
         entity_id: expenseId,
         changes: { status: 'rejected', reason },
       });
+
+      eventBus.emit('finance.expense.rejected', { expenseId, approverId, reason });
 
       await notificationService.create({
         organization_id: orgId,
@@ -737,6 +774,52 @@ export const expenseService = {
       action_url: `/finance/expenses/${expenseId}`,
       priority: 'high',
     });
+
+    return { success: true };
+  },
+
+  async markPaid(expenseId: string, userId: string, orgId: string, notes?: string) {
+    const expense = await query(
+      'SELECT * FROM reimbursement_requests WHERE id = $1 AND organization_id = $2 AND is_deleted = FALSE',
+      [expenseId, orgId],
+    );
+    if (!expense.rows[0]) throw new Error('Expense not found');
+    if (expense.rows[0].status !== 'approved') {
+      throw new Error('Only approved expenses can be marked as paid');
+    }
+
+    await query(
+      `UPDATE reimbursement_requests
+       SET status = 'paid', paid_at = NOW(), updated_at = NOW(), updated_by = $1::UUID
+       WHERE id = $2::UUID`,
+      [userId, expenseId],
+    );
+
+    await auditService.log({
+      organization_id: orgId,
+      event_type: 'expense.paid',
+      event_category: 'expense',
+      actor_type: 'user',
+      actor_id: userId,
+      entity_type: 'expense',
+      entity_id: expenseId,
+      changes: { status: 'paid', notes },
+    });
+
+    await notificationService.create({
+      organization_id: orgId,
+      recipient_id: expense.rows[0].submitted_by,
+      type: 'expense.paid',
+      title: 'Expense Paid',
+      message: `Your expense "${expense.rows[0].title}" has been paid.`,
+      entity_type: 'expense',
+      entity_id: expenseId,
+      action_url: `/finance/expenses/${expenseId}`,
+      priority: 'medium',
+    });
+
+    journalEntryService.generateFromExpense(expenseId, 'paid').catch((err: unknown) =>
+      console.error('[journal] Failed to generate payment entry:', err));
 
     return { success: true };
   },

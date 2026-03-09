@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import {
   Trophy,
   Star,
@@ -139,6 +140,9 @@ export function AchievementsView() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-app transition-colors duration-200">
+      <div className="px-6 pt-4">
+        <DoraInsightBar module="achievements" />
+      </div>
       {/* Page Header */}
       <header className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-app">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getMessagesForChannel, addMessage } from '../db/chatDb.js';
 import { addEmployeeXP } from '../db/employeesDb.js';
+import { eventBus } from '../events/index.js';
 
 export const messagesRouter = Router();
 
@@ -61,6 +62,9 @@ messagesRouter.post('/', async (req, res) => {
       xpGained,
     });
     await addEmployeeXP(userId, xpGained);
+    eventBus.emit('chat.message.sent', {
+      messageId: row.id, channelId, userId, hasAttachment: attachments.length > 0,
+    });
     res.status(201).json(toClientMessage(row));
   } catch (e) {
     console.error('[messages]', e);

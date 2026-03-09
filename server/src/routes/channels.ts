@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db/index.js';
 import { getChannelById, getChannelsForUser, getMessagesForChannel, createChannel as createChannelDb, addMessage as addMessageDb, type ChannelRow } from '../db/chatDb.js';
 import { addEmployeeXP } from '../db/employeesDb.js';
+import { eventBus } from '../events/index.js';
 
 export const channelsRouter = Router();
 
@@ -100,6 +101,9 @@ channelsRouter.post('/:id/messages', async (req, res) => {
       xpGained,
     });
     await addEmployeeXP(userId, xpGained);
+    eventBus.emit('chat.message.sent', {
+      messageId: row.id, channelId, userId, hasAttachment: attachments.length > 0,
+    });
     res.status(201).json({
       id: row.id,
       channelId: row.channel_id,

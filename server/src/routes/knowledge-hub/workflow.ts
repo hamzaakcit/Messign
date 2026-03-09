@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import * as db from '../../db/knowledgeV2Db.js';
+import { eventBus } from '../../events/index.js';
 
 export const workflowRouter = Router();
 type AuthReq = Request & { userId: string };
@@ -56,6 +57,13 @@ async function transition(req: Request, res: Response, targetStatus: string, act
     }
 
     await db.logAudit({ userId, action: `workflow_${targetStatus}`, entityType: 'document', entityId: doc.id });
+
+    if (targetStatus === 'published') {
+      eventBus.emit('knowledge.document.published', {
+        documentId: doc.id, authorId: doc.author_id, title: doc.title, categoryId: doc.category_id ?? undefined,
+      });
+    }
+
     res.json(updated);
   } catch (e) {
     console.error('[kh-workflow]:', e);

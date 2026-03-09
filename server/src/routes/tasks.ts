@@ -4,6 +4,7 @@ import { addEmployeeXP } from '../db/employeesDb.js';
 import { addActivity } from '../db/activitiesDb.js';
 import { requireJwt } from '../middleware/authMiddleware.js';
 import type { TaskStatus, TaskPriority } from '../types/index.js';
+import { eventBus } from '../events/index.js';
 
 export const tasksRouter = Router();
 
@@ -64,6 +65,9 @@ tasksRouter.post('/', async (req, res) => {
       priority: (priority ?? 'medium') as TaskPriority,
       createdAt: new Date().toISOString(),
     });
+    eventBus.emit('project.task.created', {
+      taskId: newTask.id, projectId, assigneeId: assignees?.[0], title,
+    });
     res.status(201).json(newTask);
   } catch (e) {
     console.error('[tasks] create error:', e);
@@ -94,6 +98,9 @@ tasksRouter.patch('/:id/status', requireJwt, async (req, res) => {
         message: `completed "${task.title}"`,
         xpGained: task.xpReward,
         timestamp: new Date().toISOString(),
+      });
+      eventBus.emit('project.task.completed', {
+        taskId: req.params.id, projectId: task.projectId, completedBy: actorId, xpAwarded: task.xpReward,
       });
     }
     res.json(task);

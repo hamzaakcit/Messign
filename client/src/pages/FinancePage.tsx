@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
 import { financeAPI, type DashboardMetrics } from '@/lib/financeApi';
-import { reimbursementAPI, budgetsAPI, type Budget } from '@/lib/api';
+import { reimbursementAPI, type Budget } from '@/lib/api';
 import { FinanceNav } from '@/components/finance/FinanceNav';
 import { NotificationBell } from '@/components/finance/NotificationBell';
-import { DoraInsightBar } from '@/components/finance/DoraInsightBar';
+import { DoraInsightBar as FinanceDoraInsightBar } from '@/components/finance/DoraInsightBar';
+import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
 import { StatusBadge } from '@/components/finance/StatusBadge';
 import { SpendingTrendChart } from '@/components/finance/SpendingTrendChart';
 import { ExpensesPage } from '@/pages/finance/ExpensesPage';
-import { NewExpensePage } from '@/pages/finance/NewExpensePage';
-import { ExpenseDetailPage } from '@/pages/finance/ExpenseDetailPage';
 import { FinanceInvoicesPage } from '@/pages/finance/FinanceInvoicesPage';
 import { InvoiceFormPage } from '@/pages/finance/InvoiceFormPage';
 import { InvoiceDetailPage } from '@/pages/finance/InvoiceDetailPage';
@@ -44,6 +43,7 @@ type SubView = 'list' | 'new' | 'edit' | 'detail';
 
 export function FinancePage() {
   const location = useLocation();
+  const [, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
   const { activeView, setActiveView } = useFinanceStore();
   const [subView, setSubView] = useState<SubView>('list');
@@ -57,8 +57,10 @@ export function FinancePage() {
   }, [location.pathname, setActiveView]);
 
   useEffect(() => {
-    setSubView('list');
-    setSelectedId('');
+    if (activeView !== 'expenses') {
+      setSubView('list');
+      setSelectedId('');
+    }
   }, [activeView]);
 
   const handleView = (id: string) => { setSelectedId(id); setSubView('detail'); };
@@ -67,16 +69,16 @@ export function FinancePage() {
   const handleCreated = (id: string) => { setSelectedId(id); setSubView('detail'); };
 
   const handleNotifNavigate = (entityType: string, entityId: string) => {
-    if (entityType === 'expense') { setActiveView('expenses'); setSelectedId(entityId); setSubView('detail'); }
-    else if (entityType === 'invoice') { setActiveView('invoices'); setSelectedId(entityId); setSubView('detail'); }
+    if (entityType === 'expense') {
+      setActiveView('expenses');
+      setSearchParams({ detail: entityId });
+    } else if (entityType === 'invoice') { setActiveView('invoices'); setSelectedId(entityId); setSubView('detail'); }
     else if (entityType === 'budget') { setActiveView('budgets'); setSelectedId(entityId); setSubView('detail'); }
   };
 
   const renderContent = () => {
     if (activeView === 'expenses') {
-      if (subView === 'new') return <NewExpensePage onBack={handleBack} onCreated={handleCreated} />;
-      if (subView === 'detail') return <ExpenseDetailPage expenseId={selectedId} onBack={handleBack} />;
-      return <ExpensesPage onCreateNew={handleCreate} onViewExpense={handleView} />;
+      return <ExpensesPage />;
     }
     if (activeView === 'invoices') {
       if (subView === 'new') return <InvoiceFormPage onBack={handleBack} onSaved={handleCreated} />;
@@ -113,7 +115,7 @@ export function FinancePage() {
         actionLabel: i.action_label,
         onAction: i.action_url ? () => {
           const parts = i.action_url!.split('/');
-          const view = parts[2] as FinanceView;
+          const view = parts[2]?.split('?')[0] as FinanceView;
           if (view) setActiveView(view);
         } : undefined,
       })));
@@ -132,9 +134,12 @@ export function FinancePage() {
             </div>
             <NotificationBell onNavigate={handleNotifNavigate} />
           </div>
+          <div className="px-6 pb-2">
+            <DoraInsightBar module="finance" />
+          </div>
           {doraInsights.length > 0 && (
             <div className="px-6 pb-3">
-              <DoraInsightBar insights={doraInsights} />
+              <FinanceDoraInsightBar insights={doraInsights} />
             </div>
           )}
           <div className="p-6 pt-0">{renderContent()}</div>
@@ -160,7 +165,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
     setLoading(true);
     Promise.all([
       financeAPI.getDashboard(userId).catch(() => null),
-      budgetsAPI.list(userId, { active: true }).catch(() => []),
+      financeAPI.listBudgets(userId, { active: 'true' }).catch(() => []),
       reimbursementAPI.list(userId).catch(() => []),
       financeAPI.getRecentActivity(userId, 8).catch(() => []),
       financeAPI.getPendingApprovals(userId).catch(() => []),

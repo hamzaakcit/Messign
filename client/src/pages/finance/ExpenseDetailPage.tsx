@@ -156,6 +156,22 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
     }
   };
 
+  const handleMarkPaid = async () => {
+    if (!expense) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await financeAPI.markPaid(userId, expense.id);
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Mark as paid failed';
+      setActionError(msg);
+      console.error('Mark paid failed:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleReceiptUpload = async (file: File) => {
     if (!expense) return;
     try {
@@ -491,6 +507,7 @@ export function ExpenseDetailPage({ expenseId, onBack }: ExpenseDetailPageProps)
         onApprove={() => setShowApproveModal(true)}
         onReject={() => setShowRejectModal(true)}
         onRequestInfo={() => setShowInfoModal(true)}
+        onMarkPaid={handleMarkPaid}
       />
 
       {/* Approve Modal */}
@@ -591,7 +608,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 function ActionBar({
   isDraft, isOwner, isInfoRequested, canApprove, canMarkPaid,
   editing, actionLoading,
-  onEdit, onSaveEdit, onCancelEdit, onSubmit, onDelete, onApprove, onReject, onRequestInfo,
+  onEdit, onSaveEdit, onCancelEdit, onSubmit, onDelete, onApprove, onReject, onRequestInfo, onMarkPaid,
 }: {
   isDraft: boolean; isOwner: boolean; isInfoRequested: boolean;
   canApprove: boolean; canMarkPaid: boolean;
@@ -599,6 +616,7 @@ function ActionBar({
   onEdit: () => void; onSaveEdit: () => void; onCancelEdit: () => void;
   onSubmit: () => void; onDelete: () => void;
   onApprove: () => void; onReject: () => void; onRequestInfo: () => void;
+  onMarkPaid: () => void;
 }) {
   const hasActions = isDraft || isInfoRequested || canApprove || canMarkPaid;
   if (!hasActions) return null;
@@ -653,7 +671,8 @@ function ActionBar({
 
       {/* Mark as Paid (finance/admin only when approved) */}
       {canMarkPaid && (
-        <button disabled className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium opacity-70 cursor-not-allowed">
+        <button onClick={onMarkPaid} disabled={actionLoading}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
           <DollarSign className="h-4 w-4" /> Mark as Paid
         </button>
       )}

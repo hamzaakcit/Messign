@@ -1,5 +1,6 @@
 import { query, getClient } from '../../db/index.js';
 import { auditService } from './auditService.js';
+import { eventBus } from '../../events/index.js';
 
 export interface CreateBudgetInput {
   name: string;
@@ -176,6 +177,14 @@ export const budgetService = {
     if (pct >= 100) status = 'exceeded';
     else if (pct >= critical) status = 'critical';
     else if (pct >= warning) status = 'warning';
+
+    if (status !== 'healthy') {
+      eventBus.emit('finance.budget.threshold_breached', {
+        budgetId, departmentId: budget.department,
+        currentPercent: pct,
+        threshold: status === 'critical' || status === 'exceeded' ? critical : warning,
+      });
+    }
 
     return {
       id: budget.id,

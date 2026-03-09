@@ -4,7 +4,7 @@ import { financeAPI } from '@/lib/financeApi';
 import { budgetsAPI, type Budget } from '@/lib/api';
 import { StatusBadge } from '@/components/finance/StatusBadge';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Trash2, PiggyBank, TrendingUp, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Trash2, PiggyBank, TrendingUp, AlertTriangle, Plus } from 'lucide-react';
 
 interface Props {
   budgetId: string;
@@ -35,6 +35,28 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
   }, [userId, budgetId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState('');
+  const [topUpLoading, setTopUpLoading] = useState(false);
+
+  const handleTopUp = async () => {
+    const amount = parseFloat(topUpAmount);
+    if (!budget || isNaN(amount) || amount <= 0) return;
+    setTopUpLoading(true);
+    try {
+      await financeAPI.updateBudget(userId, budgetId, {
+        allocated_amount: budget.allocatedAmount + amount,
+      });
+      setShowTopUp(false);
+      setTopUpAmount('');
+      await fetchData();
+    } catch (err) {
+      console.error('Top up failed:', err);
+    } finally {
+      setTopUpLoading(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!confirm('Delete this budget?')) return;
@@ -74,7 +96,9 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
               <PiggyBank className="h-6 w-6 text-primary-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-app-text">{budget.department}</h2>
+              <h2 className="text-xl font-bold text-app-text">
+                {budget.department}{budget.name ? ` — ${budget.name}` : ''}
+              </h2>
               <p className="text-sm text-app-muted">
                 {new Date(budget.periodStart).toLocaleDateString()} — {new Date(budget.periodEnd).toLocaleDateString()}
               </p>
@@ -83,9 +107,15 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
           <div className="flex items-center gap-2">
             <StatusBadge status={budget.utilizationPct >= 1 ? 'overdue' : budget.utilizationPct >= budget.alertThreshold ? 'ai_flagged' : 'active'} />
             {isAdmin && (
-              <button onClick={handleDelete} className="p-2 text-app-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <>
+                <button onClick={() => setShowTopUp(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500/10 text-primary-400 text-sm font-medium hover:bg-primary-500/20 transition-colors">
+                  <Plus className="h-3.5 w-3.5" /> Top Up
+                </button>
+                <button onClick={handleDelete} className="p-2 text-app-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -172,6 +202,43 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {showTopUp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1a2e] p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-app-text mb-1">Top Up Budget</h3>
+            <p className="text-sm text-app-muted mb-4">
+              Current allocation: {budget.currency} {budget.allocatedAmount.toFixed(2)}
+            </p>
+            <label className="block text-sm text-app-muted mb-1">Additional amount ({budget.currency})</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={topUpAmount}
+              onChange={(e) => setTopUpAmount(e.target.value)}
+              placeholder="e.g. 5000"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-app-text text-sm focus:outline-none focus:border-primary-500 mb-1"
+              autoFocus
+            />
+            {topUpAmount && !isNaN(parseFloat(topUpAmount)) && parseFloat(topUpAmount) > 0 && (
+              <p className="text-xs text-app-muted mb-4">
+                New total: {budget.currency} {(budget.allocatedAmount + parseFloat(topUpAmount)).toFixed(2)}
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-3 mt-4">
+              <button onClick={() => { setShowTopUp(false); setTopUpAmount(''); }}
+                className="px-4 py-2 text-sm text-app-muted hover:text-app-text">
+                Cancel
+              </button>
+              <button onClick={handleTopUp} disabled={topUpLoading || !topUpAmount || isNaN(parseFloat(topUpAmount)) || parseFloat(topUpAmount) <= 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+                <Plus className="h-4 w-4" /> {topUpLoading ? 'Updating...' : 'Top Up'}
+              </button>
+            </div>
           </div>
         </div>
       )}

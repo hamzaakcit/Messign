@@ -4,16 +4,22 @@ import { query } from '../../db/index.js';
 import { type ReimbursementRequest } from '../../middleware/reimbursementAuth.js';
 import { requireFinanceRole } from '../../middleware/financeRbac.js';
 import { budgetService as budgetSvc } from '../../services/finance/budgetService.js';
+import { getAllBudgets, getActiveBudgets, getBudgetsByDepartment } from '../../db/budgetDb.js';
 
 const router = Router();
 
 router.get('/', async (req: ReimbursementRequest, res: Response) => {
   try {
     const orgId = req.organizationId!;
-    const budgets = await budgetSvc.list(orgId, {
-      status: req.query.status as string | undefined,
-      team_id: req.query.team_id as string | undefined,
-    });
+    const { department, active } = req.query;
+    let budgets;
+    if (active === 'true') {
+      budgets = await getActiveBudgets(orgId);
+    } else if (department && typeof department === 'string') {
+      budgets = await getBudgetsByDepartment(department, orgId);
+    } else {
+      budgets = await getAllBudgets(orgId);
+    }
     res.json(budgets);
   } catch (err) {
     res.status(500).json({ error: 'Failed to list budgets' });
@@ -22,7 +28,19 @@ router.get('/', async (req: ReimbursementRequest, res: Response) => {
 
 router.post('/', requireFinanceRole('finance', 'admin'), async (req: ReimbursementRequest, res: Response) => {
   try {
-    const budget = await budgetSvc.create(req.body, req.reimbursementUser!.id, req.organizationId!);
+    const b = req.body;
+    const data = {
+      ...b,
+      department: b.department,
+      name: b.name ?? null,
+      description: b.description ?? null,
+      allocated_amount: b.allocated_amount ?? b.allocatedAmount,
+      period_start: b.period_start ?? b.periodStart,
+      period_end: b.period_end ?? b.periodEnd,
+      owner_id: b.owner_id ?? req.reimbursementUser!.id,
+      warning_threshold: b.warning_threshold ?? (b.alertThreshold != null ? parseFloat(b.alertThreshold) * 100 : undefined),
+    };
+    const budget = await budgetSvc.create(data, req.reimbursementUser!.id, req.organizationId!);
     res.status(201).json(budget);
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to create budget' });

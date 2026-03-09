@@ -10,6 +10,7 @@ import {
   deleteBudget,
   getBudgetsExceedingThreshold,
 } from '../db/budgetDb.js';
+import { FINANCE_DEPARTMENTS } from '../services/finance/categoryDepartmentMap.js';
 
 const router = Router();
 router.use(reimbursementAuth);
@@ -63,10 +64,15 @@ router.get('/:id', async (req: ReimbursementRequest, res) => {
 router.post('/', requireRole('admin', 'finance'), async (req: ReimbursementRequest, res) => {
   const orgId = req.organizationId!;
   const user = req.reimbursementUser!;
-  const { department, periodStart, periodEnd, allocatedAmount, currency, alertThreshold } = req.body;
+  const { department, periodStart, periodEnd, allocatedAmount, currency, alertThreshold, name, description } = req.body;
 
   if (!department || !periodStart || !periodEnd || allocatedAmount == null) {
     res.status(400).json({ error: 'Missing required fields: department, periodStart, periodEnd, allocatedAmount' });
+    return;
+  }
+
+  if (!(FINANCE_DEPARTMENTS as readonly string[]).includes(department)) {
+    res.status(400).json({ error: `Invalid department "${department}". Valid: ${FINANCE_DEPARTMENTS.join(', ')}` });
     return;
   }
 
@@ -79,11 +85,13 @@ router.post('/', requireRole('admin', 'finance'), async (req: ReimbursementReque
       currency,
       alertThreshold: alertThreshold != null ? parseFloat(alertThreshold) : undefined,
       createdBy: user.id,
+      name: name || undefined,
+      description: description || undefined,
     });
     res.status(201).json(budget);
   } catch (err) {
     console.error('[budgets] POST /', err);
-    res.status(500).json({ error: 'Failed to create budget' });
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to create budget' });
   }
 });
 

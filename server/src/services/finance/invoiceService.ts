@@ -3,6 +3,7 @@ import { getExchangeRate } from '../../routes/exchangeRates.js';
 import { auditService } from './auditService.js';
 import { notificationService } from './notificationService.js';
 import { journalEntryService } from './journalEntryService.js';
+import { eventBus } from '../../events/index.js';
 
 export interface CreateInvoiceInput {
   invoice_type?: string;
@@ -124,6 +125,10 @@ export const invoiceService = {
         changes: { total: grandTotal, to: data.to_name },
       });
 
+      eventBus.emit('finance.invoice.created', {
+        invoiceId: invoice.id, vendorId: data.to_name ?? '', amount: grandTotal, currency,
+      });
+
       return invoice;
     } catch (e) {
       await client.query('ROLLBACK');
@@ -194,6 +199,8 @@ export const invoiceService = {
       entity_id: invoiceId,
     });
 
+    eventBus.emit('finance.invoice.sent', { invoiceId, vendorId: result.rows[0].to_name ?? '' });
+
     journalEntryService.generateFromInvoice(invoiceId, 'sent').catch(err =>
       console.error('[journal] Failed to generate invoice sent entry:', err));
 
@@ -229,6 +236,8 @@ export const invoiceService = {
         entity_id: invoiceId,
         changes: { amount, new_paid: newPaid, status: newStatus },
       });
+
+      eventBus.emit('finance.invoice.paid', { invoiceId, amount, paidAt: new Date().toISOString() });
 
       journalEntryService.generateFromInvoice(invoiceId, 'paid', amount).catch(err =>
         console.error('[journal] Failed to generate invoice payment entry:', err));

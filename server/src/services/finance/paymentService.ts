@@ -1,5 +1,6 @@
 import { query, getClient } from '../../db/index.js';
 import { auditService } from './auditService.js';
+import { eventBus } from '../../events/index.js';
 
 export interface CreatePaymentInput {
   payment_type: string;
@@ -130,6 +131,10 @@ export const paymentService = {
         entity_type: 'payment',
         entity_id: paymentId,
         changes: { amount: pay.rows[0].amount },
+      });
+
+      eventBus.emit('finance.payment.completed', {
+        paymentId, amount: pay.rows[0].amount, vendorId: pay.rows[0].vendor_id ?? '',
       });
 
       return pay.rows[0];

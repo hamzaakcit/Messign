@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Filter, LayoutGrid, List } from 'lucide-react';
 import { useUsersStore } from '@/stores/usersStore';
 import type { User, UserRole, UserStatus } from '@/types';
+import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { Card, Badge, Avatar, Input, ProgressBar } from '@/components/ui';
 import { EmployeeDetailPanel } from '@/components/team';
 import { cn, formatNumber, getStatusColor } from '@/lib/utils';
@@ -44,6 +45,9 @@ export function TeamView() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <div className="px-6 pt-4">
+        <DoraInsightBar module="team" />
+      </div>
       {/* Toolbar */}
       <div className="px-6 py-4 border-b border-app flex flex-wrap items-center gap-4 flex-shrink-0">
         <Input

@@ -4,6 +4,7 @@ import { addEmployeeXP, getEmployeeByIdAsUser, updateEmployeeStatus } from '../d
 import { addActivity } from '../db/activitiesDb.js';
 import { updateTaskStatus } from '../db/tasksDb.js';
 import { setupKnowledgeSocketHandlers } from './knowledgeHandlers.js';
+import { eventBus } from '../events/index.js';
 
 interface UserSocket {
   oderId: string;
@@ -73,6 +74,10 @@ export function setupSocketHandlers(io: Server) {
 
         const empRow = await addEmployeeXP(userId, xpGained);
         const updatedUser = empRow ? await getEmployeeByIdAsUser(userId) : null;
+
+        eventBus.emit('chat.message.sent', {
+          messageId: row.id, channelId, userId, hasAttachment: attachments.length > 0,
+        });
 
         const message = {
           id: row.id,
@@ -148,6 +153,10 @@ export function setupSocketHandlers(io: Server) {
 
           socket.emit('xp:gained', { amount: task.xpReward, total: updatedUser?.xp });
           io.emit('activity:new', activity);
+
+          eventBus.emit('project.task.completed', {
+            taskId: data.taskId, projectId: task.projectId, completedBy: data.userId, xpAwarded: task.xpReward,
+          });
         }
 
         io.emit('task:updated', task);

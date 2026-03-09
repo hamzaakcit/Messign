@@ -407,6 +407,12 @@ export const financeAPI = {
       body: JSON.stringify({ reason }),
     }, userId),
 
+  markPaid: (userId: string, expenseId: string, notes?: string) =>
+    financeRequest<{ success: boolean }>(`/expenses/${expenseId}/mark-paid`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }, userId),
+
   bulkApprove: (userId: string, expenseIds: string[]) =>
     financeRequest<{ results: Array<{ id: string; success: boolean; error?: string }> }>(
       '/expenses/bulk-approve',
@@ -533,6 +539,8 @@ export const financeAPI = {
   },
   getCategoryDepartmentMap: (userId: string) =>
     financeRequest<Record<string, string>>('/category-department-map', {}, userId),
+  getDepartments: (userId: string) =>
+    financeRequest<string[]>('/departments', {}, userId),
   getBudget: (userId: string, budgetId: string) =>
     financeRequest<unknown>(`/budgets/${budgetId}`, {}, userId),
   createBudget: (userId: string, data: Record<string, unknown>) =>

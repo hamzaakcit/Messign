@@ -39,6 +39,30 @@ export async function seedFinanceData() {
   try {
     await client.query('BEGIN');
 
+    // 0. Ensure required columns exist (handles DBs where migrations were skipped or out of sync)
+    await client.query(`
+      ALTER TABLE expense_categories ADD COLUMN IF NOT EXISTS slug VARCHAR(100);
+      ALTER TABLE expense_categories ADD COLUMN IF NOT EXISTS gl_code VARCHAR(20);
+    `);
+    await client.query(`
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS category_slug VARCHAR(100);
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS ai_confidence_score NUMERIC(3,2);
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS ai_risk_score DECIMAL(3,2) DEFAULT 0;
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS ai_auto_approved BOOLEAN DEFAULT FALSE;
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS ai_category_suggestion VARCHAR(100);
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS ai_review_notes TEXT;
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS budget_id UUID;
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS created_by UUID;
+      ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+    `);
+    await client.query(`
+      ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS entity_type VARCHAR(50);
+      ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS entity_id UUID;
+      ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS step_name VARCHAR(100);
+    `);
+
     // 1. Expense categories with GL codes
     const categories = [
       { slug: 'travel_flight', name: 'Travel - Flights', gl_code: '6100', icon: 'plane' },
@@ -266,6 +290,8 @@ export async function seedFinanceData() {
           ai_health_score, ai_forecast_amount, is_active)
          VALUES ($1, $2, $3, $4, $5, 'USD', $6, $7, 'active', $8,
                  80.00, 95.00, $8, $9, $10, TRUE)
+         ON CONFLICT (organization_id, department, name) WHERE name IS NOT NULL
+           DO UPDATE SET allocated_amount = EXCLUDED.allocated_amount, updated_at = NOW()
          RETURNING id`,
         [
           orgId, `${departments[i]} Q1 Budget`, departments[i],

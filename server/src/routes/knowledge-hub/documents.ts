@@ -10,6 +10,7 @@ import { extractTextFromAttachments } from '../../services/pdfTextExtractor.js';
 import { ingestDocument, batchIngest, removeDocumentFromRAG } from '../../services/rag/ingest.js';
 import { setupRAGSchema } from '../../services/rag/db.js';
 import type { KHDocument } from '../../services/rag/types.js';
+import { eventBus } from '../../events/index.js';
 
 async function extractAttachmentText(metadata: unknown): Promise<string> {
   const meta = metadata as { attachments?: { url: string; fileName: string }[] } | undefined;
@@ -110,6 +111,11 @@ documentsRouter.post('/', async (req: Request, res: Response) => {
       if (doc.status === 'published' || doc.status === 'in_review') {
         ingestDocument(toKHDocument(doc as unknown as Record<string, unknown>)).catch((e) => console.error('[rag-ingest] create:', e));
       }
+      if (doc.status === 'published') {
+        eventBus.emit('knowledge.document.published', {
+          documentId: doc.id, authorId: userId, title: doc.title, categoryId: doc.category_id ?? undefined,
+        });
+      }
     }
     res.status(201).json(doc);
   } catch (e) {
@@ -161,6 +167,11 @@ documentsRouter.put('/:id', async (req: Request, res: Response) => {
       await logAudit({ userId, action: 'update', entityType: 'document', entityId: doc.id, details: { title: doc.title } });
       if (doc.status === 'published' || doc.status === 'in_review') {
         ingestDocument(toKHDocument(doc as unknown as Record<string, unknown>)).catch((e) => console.error('[rag-ingest] update:', e));
+      }
+      if (doc.status === 'published') {
+        eventBus.emit('knowledge.document.published', {
+          documentId: doc.id, authorId: userId, title: doc.title, categoryId: doc.category_id ?? undefined,
+        });
       }
     }
     res.json(doc);

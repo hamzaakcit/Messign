@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { eventBus } from '../events/index.js';
 import {
   getChannelsForUser,
   getMessagesForChannel,
@@ -138,6 +139,9 @@ chatRouter.post('/channels/:id/messages', async (req, res) => {
       xpGained,
     });
     await addEmployeeXP(userId, xpGained);
+    eventBus.emit('chat.message.sent', {
+      messageId: message.id, channelId, userId, hasAttachment: attachments.length > 0,
+    });
     const payload = toClientMessage(message);
     for (const memberId of channel.members) {
       emitToUser(memberId, 'message:new', payload);

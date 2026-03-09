@@ -6,9 +6,18 @@ import { requireFinanceRole } from '../../middleware/financeRbac.js';
 import { expenseService } from '../../services/finance/expenseService.js';
 import { auditService } from '../../services/finance/auditService.js';
 import { notificationService } from '../../services/finance/notificationService.js';
-import { CATEGORY_DEPARTMENT_MAP } from '../../services/finance/categoryDepartmentMap.js';
+import { CATEGORY_DEPARTMENT_MAP, FINANCE_DEPARTMENTS } from '../../services/finance/categoryDepartmentMap.js';
 
 const router = Router();
+
+router.get('/departments', async (_req: ReimbursementRequest, res: Response) => {
+  try {
+    res.json(FINANCE_DEPARTMENTS);
+  } catch (err) {
+    console.error('[finance/departments]', err);
+    res.status(500).json({ error: 'Failed to load departments' });
+  }
+});
 
 router.get('/category-department-map', async (_req: ReimbursementRequest, res: Response) => {
   try {

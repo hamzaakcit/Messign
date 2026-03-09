@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { performanceAPI } from '@/lib/api';
 import { DashboardKPIRow } from '@/components/dashboard/DashboardKPIRow';
+import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { PerformanceTrendChart } from '@/components/dashboard/PerformanceTrendChart';
 import {
   DashboardTeamPerformancePanel,
@@ -88,6 +89,9 @@ export function DashboardView() {
       role="main"
       aria-label="Dashboard"
     >
+      <div className="px-6 pt-4">
+        <DoraInsightBar module="dashboard" />
+      </div>
       <motion.div
         variants={container}
         initial="hidden"

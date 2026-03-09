@@ -11,3 +11,5 @@ export * from './InfoTooltip';
 export * from './MessignLogo';
 export * from './MessignLogoAnimated';
 export * from './MessignLogoAnimatedCSS';
+export * from './SlideOverPanel';
+export * from './DataTable';

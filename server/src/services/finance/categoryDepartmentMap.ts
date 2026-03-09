@@ -1,5 +1,17 @@
 import { query } from '../../db/index.js';
 
+export const FINANCE_DEPARTMENTS = [
+  'Engineering',
+  'Marketing',
+  'Operations',
+  'Sales',
+  'Finance',
+  'HR',
+  'General',
+] as const;
+
+export type FinanceDepartment = (typeof FINANCE_DEPARTMENTS)[number];
+
 /** Maps expense category slugs to budget departments. */
 export const CATEGORY_DEPARTMENT_MAP: Record<string, string> = {
   travel_flight: 'Operations',

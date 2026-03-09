@@ -561,6 +561,8 @@ export interface Budget {
   id: string;
   organizationId: string;
   department: string;
+  name?: string;
+  description?: string;
   periodStart: string;
   periodEnd: string;
   allocatedAmount: number;
@@ -593,6 +595,8 @@ export const budgetsAPI = {
     allocatedAmount: number;
     currency?: string;
     alertThreshold?: number;
+    name?: string;
+    description?: string;
   }) => fetchReimbursementAPI<Budget>('/budgets', userId, { method: 'POST', body: JSON.stringify(data) }),
   update: (userId: string, id: string, data: Partial<{
     department: string;

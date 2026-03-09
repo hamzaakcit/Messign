@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutGrid, List, FileText, BookOpen, FolderOpen, Plus, Bot, ArrowLeft } from 'lucide-react';
 import { knowledgeAPI } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -350,6 +351,9 @@ export function KnowledgeView() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 overflow-auto">
+        <div className="px-6 pt-4">
+          <DoraInsightBar module="knowledge" />
+        </div>
         {/* ──── Hero Section ──── */}
         <div className="px-6 pt-8 pb-6">
           <div className="text-center mb-6">

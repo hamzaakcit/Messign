@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ChannelList } from '@/components/chat/ChannelList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { AdminMessagesPanel } from '@/components/chat/AdminMessagesPanel';
+import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -37,6 +38,9 @@ export function ChatView() {
 
       {/* Chat Window or Admin Messages */}
       <div className="flex-1 flex flex-col">
+        <div className="px-4 pt-3">
+          <DoraInsightBar module="chat" />
+        </div>
         {showAdminMessages ? <AdminMessagesPanel /> : <ChatWindow />}
       </div>
     </div>

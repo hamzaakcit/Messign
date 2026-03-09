@@ -155,6 +155,18 @@ router.post('/:id/approve', requireFinanceRole('manager', 'finance', 'admin'), a
   }
 });
 
+router.post('/:id/mark-paid', requireFinanceRole('finance', 'admin'), async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const user = req.reimbursementUser!;
+    const orgId = req.organizationId!;
+    const result = await expenseService.markPaid(req.params.id, user.id, orgId, req.body.notes);
+    res.json(result);
+  } catch (err) {
+    console.error('[finance/expenses/:id/mark-paid]', err);
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to mark expense as paid' });
+  }
+});
+
 router.post('/:id/reject', requireFinanceRole('manager', 'finance', 'admin'), async (req: ReimbursementRequest, res: Response) => {
   try {
     const user = req.reimbursementUser!;

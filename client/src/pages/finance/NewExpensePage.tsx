@@ -434,27 +434,36 @@ export function NewExpensePage({ onBack, onCreated }: NewExpensePageProps) {
               className={cn(inputClass('category_slug'), expenseType === 'mileage' && 'opacity-60 cursor-not-allowed')}
             >
               <option value="">Select category</option>
-              <option value="travel_flight">Travel - Flights</option>
-              <option value="travel_hotel">Travel - Hotels</option>
-              <option value="travel_ground">Travel - Ground</option>
-              <option value="meals_business">Meals - Business</option>
-              <option value="meals_team">Meals - Team</option>
-              <option value="meals_client">Meals - Client</option>
-              <option value="office_supplies">Office Supplies</option>
-              <option value="office_equipment">Office Equipment</option>
-              <option value="software_subscription">Software - Subscription</option>
-              <option value="software_license">Software - License</option>
-              <option value="marketing_ads">Marketing - Ads</option>
-              <option value="marketing_events">Marketing - Events</option>
-              <option value="training_course">Training - Courses</option>
-              <option value="training_conference">Training - Conference</option>
-              <option value="professional_legal">Professional - Legal</option>
-              <option value="professional_consulting">Professional - Consulting</option>
-              <option value="utilities">Utilities</option>
-              <option value="communication_phone">Communication - Phone</option>
-              <option value="communication_internet">Communication - Internet</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="other">Other</option>
+              {(() => {
+                const CATEGORY_LABELS: Record<string, string> = {
+                  travel_flight: 'Travel - Flights', travel_hotel: 'Travel - Hotels', travel_ground: 'Travel - Ground',
+                  meals_business: 'Meals - Business', meals_team: 'Meals - Team', meals_client: 'Meals - Client',
+                  office_supplies: 'Office Supplies', office_equipment: 'Office Equipment',
+                  software_subscription: 'Software - Subscription', software_license: 'Software - License',
+                  marketing_ads: 'Marketing - Ads', marketing_events: 'Marketing - Events',
+                  training_course: 'Training - Courses', training_conference: 'Training - Conference',
+                  professional_legal: 'Professional - Legal', professional_consulting: 'Professional - Consulting',
+                  utilities: 'Utilities', communication_phone: 'Communication - Phone',
+                  communication_internet: 'Communication - Internet', healthcare: 'Healthcare', other: 'Other',
+                };
+                const grouped = new Map<string, string[]>();
+                for (const [slug, dept] of Object.entries(categoryDeptMap)) {
+                  if (!grouped.has(dept)) grouped.set(dept, []);
+                  grouped.get(dept)!.push(slug);
+                }
+                if (grouped.size === 0) {
+                  return Object.entries(CATEGORY_LABELS).map(([slug, label]) => (
+                    <option key={slug} value={slug}>{label}</option>
+                  ));
+                }
+                return Array.from(grouped.entries()).map(([dept, slugs]) => (
+                  <optgroup key={dept} label={dept}>
+                    {slugs.map((slug) => (
+                      <option key={slug} value={slug}>{CATEGORY_LABELS[slug] || slug}</option>
+                    ))}
+                  </optgroup>
+                ));
+              })()}
             </select>
             {budgetInfo && (
               <div className={cn('mt-1.5 flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg',
@@ -462,6 +471,12 @@ export function NewExpensePage({ onBack, onCreated }: NewExpensePageProps) {
                 <span className="font-medium">{budgetInfo.department}:</span>
                 <span>${Number(budgetInfo.remaining).toFixed(0)} remaining of ${Number(budgetInfo.allocated).toFixed(0)}</span>
                 <span>({(budgetInfo.pct * 100).toFixed(0)}% used)</span>
+              </div>
+            )}
+            {form.category_slug && !budgetInfo && categoryDeptMap[form.category_slug] && (
+              <div className="mt-1.5 flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                <AlertTriangle className="h-3 w-3" />
+                <span>No active budget for {categoryDeptMap[form.category_slug]}</span>
               </div>
             )}
           </div>
