@@ -5,6 +5,7 @@ import { addActivity } from '../db/activitiesDb.js';
 import { updateTaskStatus } from '../db/tasksDb.js';
 import { setupKnowledgeSocketHandlers } from './knowledgeHandlers.js';
 import { eventBus } from '../events/index.js';
+import { query } from '../db/index.js';
 
 interface UserSocket {
   oderId: string;
@@ -12,14 +13,84 @@ interface UserSocket {
 }
 
 const connectedUsers: Map<string, Socket> = new Map();
+let socketServer: Server | null = null;
 
 /** Emit an event to a specific user's socket (by Messign auth user id). */
-export function emitToUser(userId: string, event: string, data: unknown): void {
+export async function emitToUser(userId: string, event: string, data: unknown): Promise<void> {
   const socket = connectedUsers.get(userId);
-  if (socket) socket.emit(event, data);
+  if (socket) {
+    socket.emit(event, data);
+    return;
+  }
+
+  const result = await query<{ auth_user_id: string | null }>(
+    `SELECT auth_user_id
+     FROM reimbursement_users
+     WHERE id = $1
+     LIMIT 1`,
+    [userId],
+  );
+  const authUserId = result.rows[0]?.auth_user_id;
+  const fallbackSocket = authUserId ? connectedUsers.get(authUserId) : null;
+  if (fallbackSocket) {
+    fallbackSocket.emit(event, data);
+  }
+}
+
+export async function emitToRole(
+  role: string,
+  event: string,
+  data: unknown,
+  organizationId?: string,
+): Promise<void> {
+  const conditions = ['role = $1', 'auth_user_id IS NOT NULL'];
+  const params: unknown[] = [role];
+
+  if (organizationId) {
+    conditions.push(`organization_id = $${params.length + 1}`);
+    params.push(organizationId);
+  }
+
+  const result = await query<{ auth_user_id: string }>(
+    `SELECT auth_user_id
+     FROM reimbursement_users
+     WHERE ${conditions.join(' AND ')}`,
+    params,
+  );
+
+  await Promise.all(
+    result.rows.map((row) => emitToUser(row.auth_user_id, event, data)),
+  );
+}
+
+export async function emitToDepartment(
+  department: string,
+  event: string,
+  data: unknown,
+  _organizationId?: string,
+): Promise<void> {
+  const result = await query<{ auth_user_id: string }>(
+    `SELECT DISTINCT ru.auth_user_id
+     FROM reimbursement_users ru
+     JOIN performance_team_members ptm ON ptm.employee_id = ru.auth_user_id
+     JOIN performance_teams pt ON pt.id = ptm.team_id
+     WHERE ru.auth_user_id IS NOT NULL
+       AND ptm.is_active = TRUE
+       AND pt.team_name = $1`,
+    [department],
+  );
+
+  await Promise.all(
+    result.rows.map((row) => emitToUser(row.auth_user_id, event, data)),
+  );
+}
+
+export function emitBroadcast(event: string, data: unknown): void {
+  socketServer?.emit(event, data);
 }
 
 export function setupSocketHandlers(io: Server) {
+  socketServer = io;
   setupKnowledgeSocketHandlers(io);
 
   io.on('connection', (socket: Socket) => {
@@ -91,7 +162,7 @@ export function setupSocketHandlers(io: Server) {
         };
 
         for (const memberId of channel.members) {
-          emitToUser(memberId, 'message:new', message);
+          void emitToUser(memberId, 'message:new', message);
         }
         socket.emit('xp:gained', { amount: xpGained, total: updatedUser?.xp });
 

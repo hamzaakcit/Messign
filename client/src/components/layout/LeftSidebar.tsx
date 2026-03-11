@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -14,6 +14,7 @@ import {
   Briefcase,
   Target,
   CheckCircle2,
+  LifeBuoy,
 } from 'lucide-react';
 import { PilotPlaneSVG } from '@/components/dora/DoraPilot';
 import { useUIStore } from '@/stores/uiStore';
@@ -25,6 +26,10 @@ import { rankingStats, personalOverviewDetail } from '@/data/dashboard';
 import { cn } from '@/lib/utils';
 import { MessignLogoAnimated } from '@/components/ui';
 import { KnowledgeHubIcon } from '@/components/knowledge-hub/icons';
+import { API_ORIGIN } from '@/lib/api';
+import { getAccessToken } from '@/lib/authToken';
+import { onDoraInsightCounts } from '@/lib/socket';
+import { DoraInsightCountBadge } from '@/components/dora/DoraInsightCountBadge';
 
 const VIEW_TO_PATH: Record<string, string> = {
   dashboard: '/dashboard',
@@ -39,6 +44,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   reimbursements: '/reimbursements',
   invoices: '/reimbursements/invoices',
   crm: '/crm',
+  support: '/support',
   okr: '/okr',
 };
 
@@ -52,6 +58,7 @@ const navItems = [
   { id: 'team', label: 'Team Directory', icon: Users },
   { id: 'finance', label: 'Finance', icon: Wallet, showReimbBadge: true },
   { id: 'crm', label: 'Sales CRM', icon: Target },
+  { id: 'support', label: 'Support', icon: LifeBuoy, badgeText: 'NEW' },
   { id: 'okr', label: 'OKRs & Goals', icon: CheckCircle2 },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
@@ -67,6 +74,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   const { channels } = useChatStore();
   const reimbContext = useReimbursementContext();
   const [personalDetailOpen, setPersonalDetailOpen] = useState(false);
+  const [insightCounts, setInsightCounts] = useState<Record<string, number>>({});
   const totalUnread = channels.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   if (!user) return null;
@@ -76,6 +84,50 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
     const path = VIEW_TO_PATH[viewId];
     if (path) navigate(path);
   };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const userId = user.authUserId || user.id;
+    if (!userId) return;
+
+    const controller = new AbortController();
+
+    const fetchCounts = async () => {
+      try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'X-User-Id': userId,
+        };
+        const token = getAccessToken();
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const res = await fetch(`${API_ORIGIN}/api/dora/insights/counts`, {
+          headers,
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
+        setInsightCounts(data?.counts ?? {});
+      } catch {
+        if (!controller.signal.aborted) {
+          setInsightCounts({});
+        }
+      }
+    };
+
+    void fetchCounts();
+    const unsubscribe = onDoraInsightCounts(() => {
+      void fetchCounts();
+    });
+
+    return () => {
+      controller.abort();
+      unsubscribe();
+    };
+  }, [user?.id, user?.authUserId]);
 
   return (
     <div
@@ -134,7 +186,16 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
         {navItems.map((item) => {
           const unread = 'showUnread' in item && item.showUnread && totalUnread > 0 ? totalUnread : 0;
           const reimbBadge = 'showReimbBadge' in item && item.showReimbBadge && reimbContext ? reimbContext.myPendingCount : 0;
+          const insightBadge =
+            item.id === 'finance'
+              ? insightCounts.finance ?? 0
+              : item.id === 'crm'
+                ? (insightCounts.sales ?? insightCounts.crm ?? 0)
+                : item.id === 'support'
+                  ? insightCounts.support ?? 0
+                  : 0;
           const badge = unread > 0 ? unread : reimbBadge;
+          const badgeText = 'badgeText' in item ? item.badgeText : undefined;
           return (
             <button
               key={item.id}
@@ -185,6 +246,12 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
               {!collapsed && (
                 <>
                   <span className="font-medium flex-1 text-left">{item.label}</span>
+                  {badgeText && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-primary-500/15 text-primary-300 text-[10px] font-semibold tracking-wide">
+                      {badgeText}
+                    </span>
+                  )}
+                  <DoraInsightCountBadge count={insightBadge} />
                   {badge > 0 && (
                     <span className="min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-primary-500 text-white text-xs font-medium">
                       {badge > 99 ? '99+' : badge}

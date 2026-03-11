@@ -59,6 +59,20 @@ export interface EventMap {
   'crm.activity.logged': { activityId: string; dealId?: string; contactId?: string; userId: string; type: 'call' | 'email' | 'meeting' | 'note' };
   'crm.forecast.updated': { pipelineId: string; totalValue: number; weightedValue: number; period: string };
 
+  // ── Customer Support ──
+  'support.ticket.created': { ticketId: string; subject: string; reporterEmail: string; priority: 'critical' | 'high' | 'medium' | 'low'; category?: string; crmCompanyId?: string; crmContactId?: string; assigneeId?: string };
+  'support.ticket.assigned': { ticketId: string; assigneeId: string; assignedBy: string; previousAssigneeId?: string };
+  'support.ticket.status_changed': { ticketId: string; oldStatus: string; newStatus: string; changedBy: string };
+  'support.ticket.escalated': { ticketId: string; escalatedTo: string; reason: string; slaBreached: boolean };
+  'support.ticket.resolved': { ticketId: string; resolvedBy: string; resolutionTimeHours: number; firstResponseTimeHours: number };
+  'support.ticket.closed': { ticketId: string; closedBy: string; autoClose: boolean };
+  'support.ticket.reopened': { ticketId: string; reopenedBy: string; reason?: string };
+  'support.sla.warning': { ticketId: string; slaType: 'first_response' | 'resolution'; percentElapsed: number; hoursRemaining: number };
+  'support.sla.breached': { ticketId: string; slaType: 'first_response' | 'resolution'; breachedAt: string; assigneeId?: string };
+  'support.csat.submitted': { ticketId: string; rating: number; comment?: string; crmCompanyId?: string };
+  'support.volume.spike': { currentCount: number; averageCount: number; percentAboveAverage: number; timeWindow: string; organizationId?: string };
+  'support.pattern.detected': { pattern: string; ticketIds: string[]; frequency: number; suggestedAction: string; organizationId?: string };
+
   // ── OKRs ──
   'okr.goal.created': { goalId: string; title: string; ownerId: string; level: string };
   'okr.goal.updated': { goalId: string; progress: number; status: string };

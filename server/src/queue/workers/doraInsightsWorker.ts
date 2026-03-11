@@ -1,11 +1,32 @@
 import { Worker, Job } from 'bullmq';
 import type { ConnectionOptions } from 'bullmq';
 import { redisConnection } from '../connection.js';
+import {
+  onBudgetThresholdBreached,
+  onExpenseCreated,
+  onInvoiceOverdue,
+} from './insightGenerators/financeInsights.js';
+import {
+  onPatternDetected,
+  onSLABreached,
+  onTicketCreated,
+  onTicketVolumeSpike,
+} from './insightGenerators/supportInsights.js';
+import { onDealStale, onDealWon } from './insightGenerators/crmInsights.js';
 
 const connection = redisConnection as unknown as ConnectionOptions;
 
 interface DoraInsightJob {
-  type: 'analyze_expense' | 'budget_health_check' | 'sla_check' | 'overdue_invoice_check' | 'generate_insight';
+  type:
+    | 'expense_created'
+    | 'invoice_overdue'
+    | 'budget_threshold_breached'
+    | 'support_sla_breached'
+    | 'support_pattern_detected'
+    | 'support_volume_spike'
+    | 'support_ticket_created'
+    | 'crm_deal_won'
+    | 'crm_deal_stale';
   payload: Record<string, unknown>;
 }
 
@@ -16,26 +37,90 @@ const worker = new Worker<DoraInsightJob>(
     console.log(`[DoraInsights] Processing ${type}`, payload);
 
     switch (type) {
-      case 'analyze_expense':
-        // TODO: Run AI review pipeline on the expense
-        console.log(`[DoraInsights] Would analyze expense ${payload.expenseId}`);
+      case 'expense_created':
+        await onExpenseCreated(payload as {
+          expenseId: string;
+          userId: string;
+          amount: number;
+          category: string;
+          departmentId?: string;
+        });
         break;
-      case 'budget_health_check':
-        // TODO: Check all budgets, generate alerts for >85%
-        console.log(`[DoraInsights] Would check all budget health`);
+
+      case 'invoice_overdue':
+        await onInvoiceOverdue(payload as {
+          invoiceId: string;
+          vendorId: string;
+          daysOverdue: number;
+          amount: number;
+        });
         break;
-      case 'sla_check':
-        // TODO: Check approval SLAs, escalate breaches
-        console.log(`[DoraInsights] Would check SLA compliance`);
+
+      case 'budget_threshold_breached':
+        await onBudgetThresholdBreached(payload as {
+          budgetId: string;
+          departmentId: string;
+          currentPercent: number;
+          threshold: number;
+        });
         break;
-      case 'overdue_invoice_check':
-        // TODO: Find overdue invoices, generate reminders
-        console.log(`[DoraInsights] Would check overdue invoices`);
+
+      case 'support_sla_breached':
+        await onSLABreached(payload as {
+          ticketId: string;
+          slaType: string;
+          assigneeId?: string;
+        });
         break;
-      case 'generate_insight':
-        // TODO: Generate a contextual Dora insight
-        console.log(`[DoraInsights] Would generate insight for ${payload.module}`);
+
+      case 'support_pattern_detected':
+        await onPatternDetected(payload as {
+          pattern: string;
+          ticketIds: string[];
+          frequency: number;
+          suggestedAction: string;
+          organizationId?: string;
+        });
         break;
+
+      case 'support_volume_spike':
+        await onTicketVolumeSpike(payload as {
+          currentCount: number;
+          averageCount: number;
+          percentAboveAverage: number;
+          organizationId?: string;
+        });
+        break;
+
+      case 'support_ticket_created':
+        await onTicketCreated(payload as {
+          ticketId: string;
+          subject: string;
+          reporterEmail: string;
+          category?: string;
+          assigneeId?: string;
+        });
+        break;
+
+      case 'crm_deal_won':
+        await onDealWon(payload as {
+          dealId: string;
+          amount: number;
+          ownerId: string;
+        });
+        break;
+
+      case 'crm_deal_stale':
+        await onDealStale(payload as {
+          dealId: string;
+          title: string;
+          daysSinceActivity: number;
+          ownerId: string;
+        });
+        break;
+
+      default:
+        console.log(`[DoraInsights] Unknown job type: ${type}`);
     }
   },
   { connection, concurrency: 3 }

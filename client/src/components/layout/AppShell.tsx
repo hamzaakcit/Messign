@@ -28,12 +28,14 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/settings': 'settings',
   '/finance': 'finance',
   '/crm': 'crm',
+  '/support': 'support',
   '/okr': 'okr',
 };
 
 function getViewFromPath(path: string): string {
   if (path.startsWith('/okr')) return 'okr';
   if (path.startsWith('/crm')) return 'crm';
+  if (path.startsWith('/support')) return 'support';
   if (path.startsWith('/finance')) return 'finance';
   if (path === '/reimbursements/invoices' || path.startsWith('/reimbursements/invoices/')) return 'invoices';
   if (path.startsWith('/reimbursements')) return 'reimbursements';
@@ -58,6 +60,7 @@ const VIEW_LABELS: Record<string, string> = {
   reimbursements: 'Reimbursements',
   invoices: 'Invoices',
   crm: 'Sales CRM',
+  support: 'Support',
   okr: 'OKRs & Goals',
 };
 
@@ -88,7 +91,7 @@ export function AppShell() {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
-      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'okr');
+      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'support' | 'okr');
     }
     const label = VIEW_LABELS[view] ?? view;
     trackPage(path, label);

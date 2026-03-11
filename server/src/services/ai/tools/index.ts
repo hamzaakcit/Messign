@@ -50,6 +50,9 @@ import './finance/index.js';
 // Sales CRM: 4 tools (pipeline status, deal details, forecast, activity gaps)
 import './crm/index.js';
 
+// Customer Support: 3 tools (ticket overview, customer health, support metrics)
+import './support/index.js';
+
 export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
 
 import { getToolCount } from '../toolRegistry.js';

@@ -22,6 +22,7 @@ import {
   Building2,
   BarChart3,
   BookOpenCheck,
+  LifeBuoy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFinanceStore } from '@/stores/financeStore';
@@ -56,6 +57,7 @@ const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-finance-payments', label: 'Finance > Payments', icon: CreditCard, path: '/finance', keywords: 'pay transfer', type: 'navigate', financeView: 'payments' },
   { id: 'nav-finance-accounting', label: 'Finance > Accounting', icon: BookOpenCheck, path: '/finance', keywords: 'ledger journal', type: 'navigate', financeView: 'accounting' },
   { id: 'nav-finance-reports', label: 'Finance > Reports', icon: BarChart3, path: '/finance', keywords: 'analytics charts data', type: 'navigate', financeView: 'reports' },
+  { id: 'nav-support', label: 'Support', icon: LifeBuoy, path: '/support', keywords: 'tickets help desk sla customer support', type: 'navigate' },
   { id: 'nav-settings', label: 'Settings', icon: Settings, path: '/settings', keywords: 'preferences config profile', type: 'navigate' },
   { id: 'nav-admin', label: 'Admin', icon: Shield, path: '/admin', keywords: 'administration management', type: 'navigate' },
 ];

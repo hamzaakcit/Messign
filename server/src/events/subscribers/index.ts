@@ -4,6 +4,7 @@ import { register as registerNotificationSubscriber } from './notificationSubscr
 import { register as registerDoraSubscriber } from './doraSubscriber.js';
 import { register as registerCrmSubscriber } from './crmSubscriber.js';
 import { register as registerOkrSubscriber } from './okrSubscriber.js';
+import { register as registerSupportSubscriber } from './supportSubscriber.js';
 
 export function registerAllSubscribers(): void {
   registerAuditSubscriber();
@@ -12,4 +13,5 @@ export function registerAllSubscribers(): void {
   registerDoraSubscriber();
   registerCrmSubscriber();
   registerOkrSubscriber();
+  registerSupportSubscriber();
 }

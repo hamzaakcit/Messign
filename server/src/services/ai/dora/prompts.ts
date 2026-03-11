@@ -46,6 +46,10 @@ const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
     'The user is in the Sales CRM module. They likely want pipeline status, deal details, ' +
     'sales forecasts, or activity gaps. Prioritize get_pipeline_status, get_deal_details, ' +
     'get_sales_forecast, and get_activity_gaps for CRM-related queries.',
+  support:
+    'The user is in Customer Support. They likely want ticket queue health, SLA breaches, ' +
+    'customer health, or agent workload. Prioritize get_ticket_overview, get_customer_health, ' +
+    'and get_support_metrics for support-related queries.',
   dora:
     'The user opened Dora directly from the main sidebar. No specific page context — ' +
     'route based on the question content alone.',

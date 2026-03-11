@@ -189,3 +189,40 @@ export function onFinanceDoraInsight(callback: (data: { type: string; message: s
   s.on('finance:dora:insight', callback);
   return () => s.off('finance:dora:insight', callback);
 }
+
+export interface DoraRealtimeInsight {
+  id: string;
+  module: string;
+  severity: 'info' | 'warning' | 'critical' | 'success';
+  title: string;
+  message: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DoraInsightCountsEvent {
+  module?: string | null;
+  updatedAt?: string;
+}
+
+export function onDoraNewInsight(callback: (insight: DoraRealtimeInsight) => void): () => void {
+  const s = getSocket();
+  s.on('dora:new-insight', callback);
+  return () => s.off('dora:new-insight', callback);
+}
+
+export function offDoraNewInsight(callback: (insight: DoraRealtimeInsight) => void) {
+  getSocket().off('dora:new-insight', callback);
+}
+
+export function onDoraInsightCounts(callback: (payload: DoraInsightCountsEvent) => void): () => void {
+  const s = getSocket();
+  s.on('dora:insight-counts', callback);
+  return () => s.off('dora:insight-counts', callback);
+}
+
+export function offDoraInsightCounts(callback: (payload: DoraInsightCountsEvent) => void) {
+  getSocket().off('dora:insight-counts', callback);
+}

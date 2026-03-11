@@ -1,5 +1,8 @@
 import { query } from '../../db/index.js';
 import { doraSchedulerQueue } from '../../queue/index.js';
+import type { CallerContext } from '../../dal/types.js';
+import * as support from '../../dal/support/index.js';
+import { eventBus } from '../../events/index.js';
 import { slaService } from './slaService.js';
 import { notificationService } from './notificationService.js';
 import { auditService } from './auditService.js';
@@ -48,6 +51,46 @@ export async function runSchedulerJobForAllOrgs(
   } catch (err) {
     console.error(`[doraScheduler/${jobName}] top-level error`, err);
   }
+}
+
+function buildSystemCtx(orgId: string): CallerContext {
+  return {
+    userId: `system:${orgId}`,
+    role: 'system_admin',
+    organizationId: orgId,
+  };
+}
+
+function getActiveSlaWindow(ticket: support.sla.TicketSLAItem): {
+  slaType: 'first_response' | 'resolution';
+  percentElapsed: number;
+  hoursRemaining: number;
+} {
+  const useFirstResponse = !ticket.firstResponse.isMet && ticket.firstResponse.dueAt !== null;
+  const active = useFirstResponse ? ticket.firstResponse : ticket.resolution;
+  return {
+    slaType: useFirstResponse ? 'first_response' : 'resolution',
+    percentElapsed: active.percentElapsed,
+    hoursRemaining: Math.max(0, Number((active.totalHours - active.elapsedHours).toFixed(2))),
+  };
+}
+
+async function resolveEscalationTarget(orgId: string, excludeAssigneeId?: string | null): Promise<string | null> {
+  const result = await query<{ id: string }>(
+    `SELECT id::text AS id
+     FROM reimbursement_users
+     WHERE organization_id = $1
+       AND role IN ('manager', 'admin', 'finance')
+       AND ($2::uuid IS NULL OR id != $2::uuid)
+     ORDER BY CASE role
+       WHEN 'manager' THEN 1
+       WHEN 'admin' THEN 2
+       ELSE 3
+     END, created_at ASC
+     LIMIT 1`,
+    [orgId, excludeAssigneeId ?? null],
+  );
+  return result.rows[0]?.id ?? null;
 }
 
 export const doraScheduler = {
@@ -208,6 +251,137 @@ export const doraScheduler = {
     }
     return { reminders_sent: admins.rows.length };
   },
+
+  async checkSupportSLAs(orgId: string) {
+    const systemCtx = buildSystemCtx(orgId);
+    const report = await support.sla.checkSLACompliance(systemCtx);
+
+    let escalated = 0;
+    for (const ticket of report.atRisk) {
+      const activeWindow = getActiveSlaWindow(ticket);
+      eventBus.emit('support.sla.warning', {
+        ticketId: ticket.ticketId,
+        slaType: activeWindow.slaType,
+        percentElapsed: activeWindow.percentElapsed,
+        hoursRemaining: activeWindow.hoursRemaining,
+      });
+    }
+
+    for (const ticket of report.breached) {
+      const activeWindow = getActiveSlaWindow(ticket);
+      eventBus.emit('support.sla.breached', {
+        ticketId: ticket.ticketId,
+        slaType: activeWindow.slaType,
+        breachedAt: new Date().toISOString(),
+        assigneeId: ticket.assigneeId ?? undefined,
+      });
+
+      const escalationTarget = await resolveEscalationTarget(orgId, ticket.assigneeId);
+      if (escalationTarget) {
+        await support.tickets.escalateTicket(
+          systemCtx,
+          ticket.ticketId,
+          escalationTarget,
+          'SLA breached - auto-escalated by Dora',
+        );
+        escalated++;
+      }
+    }
+
+    return {
+      on_track: report.onTrack.length,
+      at_risk: report.atRisk.length,
+      breached: report.breached.length,
+      escalated,
+    };
+  },
+
+  async recalculateCustomerHealth(orgId: string) {
+    const companies = await query<{ crm_company_id: string }>(
+      `SELECT DISTINCT crm_company_id::text AS crm_company_id
+       FROM support_tickets
+       WHERE organization_id = $1
+         AND crm_company_id IS NOT NULL
+         AND created_at >= NOW() - INTERVAL '7 days'`,
+      [orgId],
+    );
+
+    let updated = 0;
+    for (const row of companies.rows) {
+      await support.customerHealth.updateCustomerHealth(row.crm_company_id);
+      updated++;
+    }
+
+    return { companies_updated: updated };
+  },
+
+  async detectSupportPatterns(orgId: string) {
+    const patterns = await query<{
+      pattern: string;
+      ticket_ids: string[];
+      frequency: string;
+    }>(
+      `SELECT LOWER(TRIM(subject)) AS pattern,
+              ARRAY_AGG(id::text ORDER BY created_at DESC) AS ticket_ids,
+              COUNT(*)::int AS frequency
+       FROM support_tickets
+       WHERE organization_id = $1
+         AND created_at >= NOW() - INTERVAL '7 days'
+       GROUP BY LOWER(TRIM(subject))
+       HAVING COUNT(*) >= 3
+       ORDER BY COUNT(*) DESC
+       LIMIT 10`,
+      [orgId],
+    );
+
+    for (const row of patterns.rows) {
+      eventBus.emit('support.pattern.detected', {
+        pattern: row.pattern,
+        ticketIds: row.ticket_ids,
+        frequency: parseInt(row.frequency, 10),
+        suggestedAction: 'Review repeated issue and prepare a standard response or product fix.',
+        organizationId: orgId,
+      });
+    }
+
+    const volumeResult = await query<{ current_count: string; average_count: string }>(
+      `WITH current_window AS (
+         SELECT COUNT(*)::numeric AS current_count
+         FROM support_tickets
+         WHERE organization_id = $1
+           AND created_at >= NOW() - INTERVAL '24 hours'
+       ),
+       previous_days AS (
+         SELECT DATE(created_at) AS day, COUNT(*)::numeric AS daily_count
+         FROM support_tickets
+         WHERE organization_id = $1
+           AND created_at >= NOW() - INTERVAL '8 days'
+           AND created_at < NOW() - INTERVAL '24 hours'
+         GROUP BY DATE(created_at)
+       )
+       SELECT
+         COALESCE((SELECT current_count FROM current_window), 0)::text AS current_count,
+         COALESCE((SELECT AVG(daily_count) FROM previous_days), 0)::text AS average_count`,
+      [orgId],
+    );
+
+    const currentCount = Number(volumeResult.rows[0]?.current_count ?? 0);
+    const averageCount = Number(volumeResult.rows[0]?.average_count ?? 0);
+    if (averageCount > 0 && currentCount >= averageCount * 1.5 && currentCount - averageCount >= 3) {
+      eventBus.emit('support.volume.spike', {
+        currentCount,
+        averageCount,
+        percentAboveAverage: Number((((currentCount - averageCount) / averageCount) * 100).toFixed(2)),
+        timeWindow: '24h',
+        organizationId: orgId,
+      });
+    }
+
+    return {
+      patterns_detected: patterns.rows.length,
+      volume_spike: averageCount > 0 && currentCount >= averageCount * 1.5 && currentCount - averageCount >= 3,
+    };
+  },
 };
 
 export async function initDoraScheduler(): Promise<void> {
@@ -248,7 +422,26 @@ export async function initDoraScheduler(): Promise<void> {
     { repeat: { every: 15 * 60 * 1000 }, jobId: 'refresh-mv' },
   );
 
-  console.log('[DoraScheduler] 5 scheduled jobs registered');
+  await doraSchedulerQueue.add(
+    'support-sla-check',
+    { type: 'support_sla_check' },
+    { repeat: { every: 30 * 60 * 1000 }, jobId: 'support-sla-check' },
+  );
+
+  await doraSchedulerQueue.add(
+    'customer-health-recalc',
+    { type: 'customer_health_recalc' },
+    { repeat: { every: 2 * 60 * 60 * 1000 }, jobId: 'customer-health-recalc' },
+  );
+
+  await doraSchedulerQueue.add(
+    'support-pattern-detection',
+    { type: 'support_pattern_detection' },
+    { repeat: { every: 6 * 60 * 60 * 1000 }, jobId: 'support-pattern-detection' },
+  );
+
+  console.log('[DoraScheduler] Registered support jobs: support-sla-check, customer-health-recalc, support-pattern-detection');
+  console.log('[DoraScheduler] 8 scheduled jobs registered');
 }
 
 function computeNextDate(current: string, frequency: string): string {

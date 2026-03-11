@@ -2,6 +2,35 @@
 -- Sales CRM Module — Database Schema
 -- ════════════════════════════════════════
 
+-- Guard: ensure finance_vendors exists (created in finance_v12_schema which runs later alphabetically)
+CREATE TABLE IF NOT EXISTS finance_vendors (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id     UUID NOT NULL REFERENCES organizations(id),
+  name                VARCHAR(255) NOT NULL,
+  legal_name          VARCHAR(255),
+  tax_id              VARCHAR(50),
+  vendor_code         VARCHAR(20),
+  email               VARCHAR(255),
+  phone               VARCHAR(50),
+  website             VARCHAR(500),
+  address             TEXT,
+  country             VARCHAR(3),
+  default_currency    VARCHAR(3) DEFAULT 'USD',
+  payment_terms       VARCHAR(50),
+  default_gl_code     VARCHAR(20),
+  ai_risk_score       DECIMAL(3,2),
+  ai_category         VARCHAR(100),
+  ai_notes            TEXT,
+  is_active           BOOLEAN DEFAULT TRUE,
+  is_verified         BOOLEAN DEFAULT FALSE,
+  total_invoiced      DECIMAL(14,2) DEFAULT 0,
+  total_paid          DECIMAL(14,2) DEFAULT 0,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fin_vendors_org ON finance_vendors(organization_id);
+CREATE INDEX IF NOT EXISTS idx_fin_vendors_name ON finance_vendors(organization_id, name);
+
 -- Guard: ensure performance_teams exists (created in schema.sql but not in migrations)
 CREATE TABLE IF NOT EXISTS performance_teams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

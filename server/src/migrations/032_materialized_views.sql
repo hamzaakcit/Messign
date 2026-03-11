@@ -2,6 +2,66 @@
 -- These are refreshed every 15 minutes by the BullMQ dora-scheduler worker
 -- CONCURRENTLY requires a unique index on each view
 
+-- Ensure dependencies exist so this migration can run in alphabetical order (before 033/037/042/045)
+-- Mirrors performance_teams (045), team_id/budget_id/is_deleted (037/042), finance_budgets (033)
+CREATE TABLE IF NOT EXISTS performance_teams (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_code VARCHAR(50) UNIQUE NOT NULL,
+    team_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    team_type VARCHAR(50) NOT NULL DEFAULT 'sales',
+    team_lead_id VARCHAR(100),
+    metrics_config JSONB NOT NULL DEFAULT '{"revenue": true, "sms": true}',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES performance_teams(id);
+ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS budget_id UUID;
+ALTER TABLE reimbursement_requests ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS finance_budgets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  department TEXT NOT NULL,
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  allocated_amount NUMERIC(12,2) NOT NULL,
+  currency CHAR(3) NOT NULL DEFAULT 'EUR',
+  alert_threshold NUMERIC(3,2) NOT NULL DEFAULT 0.80,
+  created_by UUID REFERENCES reimbursement_users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  name VARCHAR(255),
+  description TEXT,
+  budget_code VARCHAR(20),
+  team_id UUID REFERENCES performance_teams(id),
+  project_id UUID,
+  owner_id UUID REFERENCES reimbursement_users(id),
+  spent_amount DECIMAL(14,2) DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'active',
+  warning_threshold DECIMAL(5,2) DEFAULT 80.00,
+  critical_threshold DECIMAL(5,2) DEFAULT 95.00,
+  hard_limit BOOLEAN DEFAULT FALSE,
+  ai_forecast_amount DECIMAL(14,2),
+  ai_forecast_date DATE,
+  ai_health_score DECIMAL(3,2),
+  ai_recommendations JSONB DEFAULT '[]',
+  ai_anomaly_flags JSONB DEFAULT '[]',
+  allow_rollover BOOLEAN DEFAULT FALSE,
+  rollover_amount DECIMAL(14,2) DEFAULT 0,
+  requires_approval BOOLEAN DEFAULT TRUE,
+  approval_threshold DECIMAL(12,2),
+  period_type VARCHAR(20) DEFAULT 'monthly',
+  is_active BOOLEAN DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_finance_budgets_org ON finance_budgets(organization_id);
+CREATE INDEX IF NOT EXISTS idx_finance_budgets_department ON finance_budgets(department);
+CREATE INDEX IF NOT EXISTS idx_finance_budgets_period ON finance_budgets(period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_finance_budgets_team ON finance_budgets(team_id);
+CREATE INDEX IF NOT EXISTS idx_finance_budgets_status ON finance_budgets(status);
+CREATE INDEX IF NOT EXISTS idx_finance_budgets_owner ON finance_budgets(owner_id);
+
 -- =============================================================================
 -- View 1: mv_department_spend — Total spending by department (current month)
 -- Uses reimbursement_requests + team from performance_teams for department name

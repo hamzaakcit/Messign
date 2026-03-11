@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { seedFinanceData } from '../db/seeds/financeSeed.js';
+import { seedCrmOkrData } from '../db/seeds/crmOkrSeed.js';
 
 const router = Router();
 
@@ -32,6 +33,30 @@ router.all('/finance', requireSeedSecret, async (_req: Request, res: Response) =
     res.json({ ok: true, message: 'Finance seed completed.' });
   } catch (err) {
     console.error('[seed/finance]', err);
+    res.status(500).json({
+      ok: false,
+      error: err instanceof Error ? err.message : 'Seed failed',
+    });
+  }
+});
+
+/**
+ * POST or GET /api/seed/crm-okr
+ * Ensures default CRM pipeline + stages exist and inserts sample companies, contacts, deals.
+ * Ensures OKR period Q2 2026 exists and inserts sample goals + key results.
+ * Idempotent: skips inserts if data already present.
+ */
+router.all('/crm-okr', requireSeedSecret, async (_req: Request, res: Response) => {
+  try {
+    const result = await seedCrmOkrData();
+    res.json({
+      ok: true,
+      message: 'CRM + OKR seed completed.',
+      crm: result.crm,
+      okr: result.okr,
+    });
+  } catch (err) {
+    console.error('[seed/crm-okr]', err);
     res.status(500).json({
       ok: false,
       error: err instanceof Error ? err.message : 'Seed failed',

@@ -16,6 +16,8 @@ const MATERIALIZED_VIEWS = [
   'mv_approval_pipeline',
   'mv_team_performance',
   'mv_project_velocity',
+  'mv_customer_health',
+  'mv_pipeline_summary',
 ];
 
 async function refreshMaterializedViews(): Promise<void> {
@@ -63,6 +65,24 @@ const worker = new Worker<SchedulerJob>(
 
       case 'refresh_materialized_views':
         await refreshMaterializedViews();
+        break;
+
+      case 'support_sla_check':
+        await runSchedulerJobForAllOrgs('checkSupportSLAs', (orgId) =>
+          doraScheduler.checkSupportSLAs(orgId),
+        );
+        break;
+
+      case 'customer_health_recalc':
+        await runSchedulerJobForAllOrgs('recalculateCustomerHealth', (orgId) =>
+          doraScheduler.recalculateCustomerHealth(orgId),
+        );
+        break;
+
+      case 'support_pattern_detection':
+        await runSchedulerJobForAllOrgs('detectSupportPatterns', (orgId) =>
+          doraScheduler.detectSupportPatterns(orgId),
+        );
         break;
 
       default:

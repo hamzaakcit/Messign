@@ -61,6 +61,9 @@ const ROUTE_PATTERNS: RoutePattern[] = [
   { pattern: /^\/team/, module: 'team-directory' },
   { pattern: /^\/settings/, module: 'settings' },
   { pattern: /^\/dora/, module: 'dora' },
+  { pattern: /^\/crm/, module: 'crm' },
+  { pattern: /^\/support/, module: 'support' },
+  { pattern: /^\/okr/, module: 'okr' },
 ];
 
 function resolveRoute(pathname: string): {
@@ -124,6 +127,16 @@ function getPageChips(module: string, entityName?: string): SuggestionChip[] {
       return [
         { label: 'Recent decisions', query: 'What decisions were made recently in chat?',  icon: '💬', category: 'team' },
         { label: 'Send a message',   query: 'Send a message to the general channel',       icon: '📤', category: 'action' },
+      ];
+    case 'crm':
+      return [
+        { label: 'Pipeline status', query: 'What is the current pipeline status?', icon: '🎯', category: 'company' },
+        { label: 'Stale deals', query: 'Which deals need attention?', icon: '⏳', category: 'team' },
+      ];
+    case 'support':
+      return [
+        { label: 'Ticket overview', query: 'Give me the current support ticket overview', icon: '🎫', category: 'team' },
+        { label: 'At-risk customers', query: 'Show at-risk customers from support', icon: '⚠️', category: 'company' },
       ];
     case 'invoices':
       return [
@@ -194,6 +207,9 @@ export function useWidgetContext(userRole: string = 'employee') {
       invoices: 'Invoices',
       admin: 'Admin',
       dora: 'Dora',
+      crm: 'Sales CRM',
+      support: 'Support',
+      okr: 'OKRs & Goals',
     };
     return moduleLabels[routeInfo.module] || '';
   }, [routeInfo]);
