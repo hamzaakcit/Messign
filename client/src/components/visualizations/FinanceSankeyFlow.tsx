@@ -101,42 +101,42 @@ export function FinanceSankeyFlow({ data, loading }: FinanceSankeyFlowProps) {
       .selectAll('path')
       .data(layoutLinks)
       .join('path')
-      .attr('stroke', (d) => {
+      .attr('stroke', (d: SankeyLinkExtra) => {
         const s = d.source as SankeyNodeExtra;
         return s.color ?? '#64748B';
       })
-      .attr('stroke-width', (d) => Math.max(2, d.width ?? 0))
+      .attr('stroke-width', (d: SankeyLinkExtra) => Math.max(2, d.width ?? 0))
       .attr('d', sankeyLinkHorizontal());
 
-    link.append('title').text((d) => `${d.value.toLocaleString()}`);
+    link.append('title').text((d: SankeyLinkExtra) => `${d.value.toLocaleString()}`);
 
     const node = g
       .append('g')
       .selectAll('g')
       .data(layoutNodes)
       .join('g')
-      .attr('transform', (d) => `translate(${d.x0 ?? 0},${d.y0 ?? 0})`);
+      .attr('transform', (d: SankeyNodeExtra) => `translate(${d.x0 ?? 0},${d.y0 ?? 0})`);
 
     node
       .append('rect')
-      .attr('height', (d) => (d.y1 ?? 0) - (d.y0 ?? 0))
-      .attr('width', (d) => (d.x1 ?? 0) - (d.x0 ?? 0))
-      .attr('fill', (d) => d.color)
+      .attr('height', (d: SankeyNodeExtra) => (d.y1 ?? 0) - (d.y0 ?? 0))
+      .attr('width', (d: SankeyNodeExtra) => (d.x1 ?? 0) - (d.x0 ?? 0))
+      .attr('fill', (d: SankeyNodeExtra) => d.color)
       .attr('rx', 4)
       .attr('ry', 4);
 
     node
       .append('text')
-      .attr('x', (d) => {
+      .attr('x', (d: SankeyNodeExtra) => {
         const w = (d.x1 ?? 0) - (d.x0 ?? 0);
         return (d.x0 ?? 0) < width / 2 ? -6 : w + 6;
       })
-      .attr('y', (d) => ((d.y1 ?? 0) - (d.y0 ?? 0)) / 2)
+      .attr('y', (d: SankeyNodeExtra) => ((d.y1 ?? 0) - (d.y0 ?? 0)) / 2)
       .attr('dy', '0.35em')
-      .attr('text-anchor', (d) => ((d.x0 ?? 0) < width / 2 ? 'end' : 'start'))
+      .attr('text-anchor', (d: SankeyNodeExtra) => ((d.x0 ?? 0) < width / 2 ? 'end' : 'start'))
       .attr('fill', '#94A3B8')
       .attr('font-size', 11)
-      .text((d) => d.name);
+      .text((d: SankeyNodeExtra) => d.name);
   }, [data, dimensions]);
 
   if (loading) {
