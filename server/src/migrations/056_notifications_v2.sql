@@ -12,6 +12,19 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Handle existing table with recipient_id (e.g. from finance_notifications-style schema)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'recipient_id')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'user_id') THEN
+    DELETE FROM notifications WHERE recipient_id IS NULL;
+    ALTER TABLE notifications ADD COLUMN user_id UUID REFERENCES reimbursement_users(id);
+    UPDATE notifications SET user_id = recipient_id;
+    ALTER TABLE notifications ALTER COLUMN user_id SET NOT NULL;
+    ALTER TABLE notifications DROP COLUMN recipient_id;
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
