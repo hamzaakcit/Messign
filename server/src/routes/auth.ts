@@ -6,6 +6,14 @@ import { requireJwt } from '../middleware/authMiddleware.js';
 
 export const authRouter = Router();
 
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/api/auth/refresh',
+};
+
 // Public: login with email + password (wrap in Promise so async rejections are caught)
 authRouter.post('/login', (req, res) => {
   const send500 = (message: string) => {
@@ -29,12 +37,13 @@ authRouter.post('/login', (req, res) => {
       }
       const result = await authService.login(normalizedEmail, password, req);
       if (result.success) {
-        return res.json({ success: true, data: result.data });
+        const { refreshToken, ...responseData } = result.data;
+        res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
+        return res.json({ success: true, data: responseData });
       }
       return res.status(401).json({ success: false, error: result.error });
     } catch (e) {
       console.error('[auth] login error:', e);
-      // Don't send raw DB/network errors to client; log and return a safe message
       const safeMessage = 'Login failed. Please try again.';
       send500(safeMessage);
     }
@@ -45,16 +54,17 @@ authRouter.post('/login', (req, res) => {
   });
 });
 
-// Public: refresh access token
+// Public: refresh access token (reads refresh token from HttpOnly cookie)
 authRouter.post('/refresh', async (req, res) => {
-  const { refreshToken } = req.body as { refreshToken?: string };
+  const refreshToken = req.cookies?.refreshToken as string | undefined;
   if (!refreshToken || typeof refreshToken !== 'string') {
-    return res.status(400).json({ error: 'refreshToken is required' });
+    return res.status(400).json({ error: 'Refresh token cookie missing' });
   }
   try {
-    const tokens = await authService.refresh(refreshToken);
+    const tokens = await authService.refresh(refreshToken, req);
     if (!tokens) return res.status(401).json({ error: 'Invalid or expired refresh token' });
-    return res.json({ success: true, data: tokens });
+    res.cookie('refreshToken', tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+    return res.json({ success: true, data: { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn } });
   } catch (e) {
     return res.status(401).json({ error: 'Invalid or expired refresh token' });
   }
@@ -62,13 +72,15 @@ authRouter.post('/refresh', async (req, res) => {
 
 // Public or with Bearer: logout (revoke session)
 authRouter.post('/logout', async (req, res) => {
-  const { refreshToken, sessionId } = req.body as { refreshToken?: string; sessionId?: string };
+  const refreshToken = req.cookies?.refreshToken as string | undefined;
+  const { sessionId } = req.body as { sessionId?: string };
   try {
     await authService.logout(refreshToken ?? null, sessionId ?? null);
-    return res.json({ success: true });
   } catch {
-    return res.json({ success: true });
+    // ignore
   }
+  res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
+  return res.json({ success: true });
 });
 
 // Protected: current user

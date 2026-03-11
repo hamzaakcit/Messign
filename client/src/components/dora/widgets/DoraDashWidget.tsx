@@ -45,6 +45,7 @@ export function DoraDashWidget() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_ORIGIN}/api/game/leaderboard`, {
+        credentials: 'include',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -72,6 +73,7 @@ export function DoraDashWidget() {
         const token = getAccessToken();
         const res = await fetch(`${API_ORIGIN}/api/game/scores`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),

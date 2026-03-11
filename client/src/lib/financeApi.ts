@@ -15,6 +15,7 @@ async function financeRequest<T>(
 
   const res = await fetch(`${FINANCE_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: { ...headers, ...(options.headers as Record<string, string>) },
   });
 
@@ -500,7 +501,7 @@ export const financeAPI = {
     const token = getAccessToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (userId) headers['X-User-Id'] = userId;
-    const res = await fetch(`${FINANCE_BASE}/invoices/${invoiceId}/pdf`, { headers });
+    const res = await fetch(`${FINANCE_BASE}/invoices/${invoiceId}/pdf`, { credentials: 'include', headers });
     if (!res.ok) throw new Error('Failed to download PDF');
     return res.blob();
   },
@@ -514,6 +515,7 @@ export const financeAPI = {
     if (userId) headers['X-User-Id'] = userId;
     const res = await fetch(`${FINANCE_BASE}/invoices/scan`, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: formData,
     });
@@ -608,6 +610,7 @@ export const financeAPI = {
     if (userId) headers['X-User-Id'] = userId;
     const res = await fetch(`${FINANCE_BASE}/expenses/${expenseId}/receipts`, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: formData,
     });

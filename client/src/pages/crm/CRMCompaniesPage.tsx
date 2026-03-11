@@ -5,6 +5,7 @@ import { CRMNav } from '@/components/crm/CRMNav';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
+import { NLFilterBar } from '@/components/ui/NLFilterBar';
 import { CompanyDetailPanel } from '@/components/crm/CompanyDetailPanel';
 import { CompanyCreatePanel } from '@/components/crm/CompanyCreatePanel';
 import { crmAPI, type Company } from '@/lib/crmApi';
@@ -102,6 +103,19 @@ export function CRMCompaniesPage() {
               New Company
             </button>
           </div>
+
+          <NLFilterBar
+            placeholder="Try: &quot;companies with revenue over 1M in technology&quot;"
+            availableFields={[
+              { key: 'industry', label: 'Industry', type: 'string' },
+              { key: 'revenueMin', label: 'Revenue', type: 'number' },
+              { key: 'revenueMax', label: 'Revenue', type: 'number' },
+              { key: 'size', label: 'Company Size', type: 'string' },
+              { key: 'country', label: 'Country', type: 'string' },
+            ]}
+            module="crm"
+            onFiltersApplied={() => {}}
+          />
 
           <DataTable
             data={companies}

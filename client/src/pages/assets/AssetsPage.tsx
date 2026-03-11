@@ -4,10 +4,20 @@ import { KPICard } from '@/components/finance/KPICard';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { Badge } from '@/components/ui/Badge';
+import { NLFilterBar, type AvailableField } from '@/components/ui/NLFilterBar';
 import { useAuthStore } from '@/stores/authStore';
 import { assetsAPI, type Asset, type License } from '@/lib/assetsApi';
 import { AssetsNav } from './components/AssetsNav';
 import { BarChart3, Box, Euro, ShieldAlert, Sparkles } from 'lucide-react';
+
+const ASSET_FILTER_FIELDS: AvailableField[] = [
+  { key: 'status', label: 'Status', type: 'enum', values: ['available', 'assigned', 'in_maintenance', 'retired', 'lost'] },
+  { key: 'category', label: 'Category', type: 'string' },
+  { key: 'manufacturer', label: 'Manufacturer', type: 'string' },
+  { key: 'purchaseCostMin', label: 'Purchase Cost', type: 'number' },
+  { key: 'purchaseCostMax', label: 'Purchase Cost', type: 'number' },
+  { key: 'warrantyExpiring', label: 'Warranty Expiring', type: 'enum', values: ['true', 'false'] },
+];
 
 type Tab = 'equipment' | 'licenses' | 'dashboard';
 
@@ -138,6 +148,13 @@ export function AssetsPage({ initialTab = 'equipment' }: Props) {
           </div>
 
           {tab === 'equipment' && (
+            <div className="space-y-4">
+              <NLFilterBar
+                placeholder="Try: &quot;available laptops over €1000&quot;"
+                availableFields={ASSET_FILTER_FIELDS}
+                module="assets"
+                onFiltersApplied={() => {}}
+              />
             <DataTable
               data={assets}
               columns={assetColumns}
@@ -146,6 +163,7 @@ export function AssetsPage({ initialTab = 'equipment' }: Props) {
               rowClassName={(row) => (row.status === 'retired' ? 'opacity-70' : '')}
               emptyMessage="No assets found."
             />
+            </div>
           )}
 
           {tab === 'licenses' && (

@@ -1,4 +1,4 @@
-import { getAccessToken } from './authToken';
+import { getAccessToken, setAccessToken } from './authToken';
 
 export const API_ORIGIN = import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD
@@ -33,6 +33,7 @@ function authHeaders(userId?: string): Record<string, string> {
 
 async function fetchWithUserId<T>(endpoint: string, userId: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: 'include',
     headers: { ...authHeaders(userId), ...(options?.headers as Record<string, string>) },
     ...options,
   });
@@ -67,11 +68,41 @@ export const dashboardAPI = {
   },
 };
 
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefreshToken(): Promise<boolean> {
+  if (isRefreshing && refreshPromise) return refreshPromise;
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) return false;
+      const body = await res.json();
+      const data = (body as { data?: { accessToken: string; expiresIn: number } }).data;
+      if (!data?.accessToken) return false;
+      setAccessToken(data.accessToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: 'include',
     headers: { ...headers, ...(options?.headers as Record<string, string>) },
     ...options,
   });
@@ -80,6 +111,24 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
     const body = await response.json().catch(() => ({}));
     const err = (body as { error?: string | { message?: string } }).error;
     const message = typeof err === 'string' ? err : (err && typeof err === 'object' && err.message ? err.message : response.statusText);
+
+    if (response.status === 401 && !endpoint.startsWith('/auth/')) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const newToken = getAccessToken();
+        if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
+        const retryResponse = await fetch(`${API_BASE}${endpoint}`, {
+          credentials: 'include',
+          headers: { ...retryHeaders, ...(options?.headers as Record<string, string>) },
+          ...options,
+        });
+        if (retryResponse.ok) return retryResponse.json();
+      }
+      onUnauthorized?.();
+      throw new Error(message);
+    }
+
     if (isAuthError(response.status, message)) onUnauthorized?.();
     throw new Error(message);
   }
@@ -92,25 +141,25 @@ export const authAPI = {
   login: async (email: string, password: string) => {
     const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
     const body = await response.json().catch(() => ({}));
-    if (response.ok) return body as { success: true; data: { accessToken: string; refreshToken: string; expiresIn: number; user: unknown; mustChangePassword: boolean } };
+    if (response.ok) return body as { success: true; data: { accessToken: string; expiresIn: number; user: unknown; mustChangePassword: boolean } };
     const rawErr = (body as { success?: boolean; error?: { code: string; message: string; remainingAttempts?: number; lockedUntil?: string } | string }).error;
     const err = typeof rawErr === 'object' && rawErr !== null && 'message' in rawErr ? rawErr : { code: 'UNKNOWN', message: typeof rawErr === 'string' ? rawErr : response.statusText ?? 'Sign in failed' };
     const message = err.message ?? response.statusText ?? 'Sign in failed';
     return { success: false, error: { ...err, message } };
   },
-  refresh: (refreshToken: string) =>
-    fetchAPI<{ success: boolean; data?: { accessToken: string; refreshToken: string; expiresIn: number } }>('/auth/refresh', {
+  refresh: () =>
+    fetchAPI<{ success: boolean; data?: { accessToken: string; expiresIn: number } }>('/auth/refresh', {
       method: 'POST',
-      body: JSON.stringify({ refreshToken }),
     }),
-  logout: (refreshToken?: string) =>
+  logout: () =>
     fetchAPI<{ success: boolean }>('/auth/logout', {
       method: 'POST',
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({}),
     }),
   getMe: () =>
     fetchAPI<{ success: boolean; data?: { user: unknown; mustChangePassword: boolean } }>('/auth/me'),
@@ -173,7 +222,7 @@ function chatFetch<T>(endpoint: string, userId?: string, options?: RequestInit):
   const token = getAccessToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (userId) headers['X-User-Id'] = userId;
-  return fetch(`${API_BASE}${endpoint}`, { ...options, headers: { ...headers, ...(options?.headers as Record<string, string>) } }).then((res) => {
+  return fetch(`${API_BASE}${endpoint}`, { ...options, credentials: 'include', headers: { ...headers, ...(options?.headers as Record<string, string>) } }).then((res) => {
     if (!res.ok) {
       return res.json().catch(() => ({})).then((body: unknown) => {
         const err = (body as { error?: string | { message?: string } }).error;
@@ -444,6 +493,7 @@ async function fetchReimbursementAPI<T>(
   options?: RequestInit
 ): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: 'include',
     headers: { ...authHeaders(userId), ...(options?.headers as Record<string, string>) },
     ...options,
   });
@@ -470,6 +520,7 @@ async function fetchReimbursementFormData(
   try {
     response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: formData,
     });
@@ -655,6 +706,7 @@ async function fetchAdminAPI<T>(
   options?: RequestInit
 ): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: 'include',
     headers: { ...authHeaders(userId), ...(options?.headers as Record<string, string>) },
     ...options,
   });
@@ -832,6 +884,7 @@ export const adminAPI = {
       fetchAdminAPI<unknown>(`/admin/export${format ? `?format=${format}` : ''}`, userId),
     getBlob: async (userId: string, format: 'csv'): Promise<Blob> => {
       const response = await fetch(`${API_BASE}/admin/export?format=${format}`, {
+        credentials: 'include',
         headers: authHeaders(userId),
       });
       if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
@@ -974,6 +1027,7 @@ export const invoicesAPI = {
 
   downloadPdf: async (userId: string, invoiceId: string) => {
     const response = await fetch(`${API_BASE}/invoices/${invoiceId}/pdf`, {
+      credentials: 'include',
       headers: authHeaders(userId),
     });
     if (!response.ok) throw new Error('PDF download failed');
@@ -1028,7 +1082,7 @@ export const knowledgeAPI = {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (userId) headers['X-User-Id'] = userId;
       return fetch(`${API_BASE}/knowledge/documents`, {
-        method: 'POST', headers, body: formData,
+        method: 'POST', credentials: 'include', headers, body: formData,
       }).then(async r => {
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error || r.statusText); }
         return r.json();
@@ -1040,7 +1094,7 @@ export const knowledgeAPI = {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (userId) headers['X-User-Id'] = userId;
       return fetch(`${API_BASE}/knowledge/documents/${id}`, {
-        method: 'PUT', headers, body: formData,
+        method: 'PUT', credentials: 'include', headers, body: formData,
       }).then(async r => {
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error || r.statusText); }
         return r.json();
@@ -1114,7 +1168,7 @@ export const adminKnowledgeAPI = {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (userId) headers['X-User-Id'] = userId;
       return fetch(`${API_BASE}/admin/knowledge/documents`, {
-        method: 'POST', headers, body: formData,
+        method: 'POST', credentials: 'include', headers, body: formData,
       }).then(async r => {
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error || r.statusText); }
         return r.json();
@@ -1126,7 +1180,7 @@ export const adminKnowledgeAPI = {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (userId) headers['X-User-Id'] = userId;
       return fetch(`${API_BASE}/admin/knowledge/documents/${id}`, {
-        method: 'PUT', headers, body: formData,
+        method: 'PUT', credentials: 'include', headers, body: formData,
       }).then(async r => {
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error || r.statusText); }
         return r.json();

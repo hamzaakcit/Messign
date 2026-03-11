@@ -33,6 +33,8 @@ export interface QueryLogEntry {
   conciseMode: boolean;
   /** The AI provider that generated the synthesis (groq/gemini/anthropic) */
   synthesisProvider?: string;
+  /** Number of PII fields stripped before sending to external AI */
+  piiFieldsStripped?: number;
 }
 
 /**
@@ -42,6 +44,9 @@ export interface QueryLogEntry {
  */
 export async function logQuery(entry: QueryLogEntry): Promise<number | null> {
   try {
+    if (entry.piiFieldsStripped && entry.piiFieldsStripped > 0) {
+      console.log(`[Query Logger] PII stripped: ${entry.piiFieldsStripped} field(s) sanitized before AI call`);
+    }
     const res = await pool.query<{ id: number }>(`
       INSERT INTO knowledge_ai_query_logs (
         user_id, query, tools_used, data_points_returned,
@@ -51,7 +56,7 @@ export async function logQuery(entry: QueryLogEntry): Promise<number | null> {
       RETURNING id
     `, [
       entry.userId,
-      entry.query.slice(0, 2000), // Truncate query for storage
+      entry.query.slice(0, 2000),
       JSON.stringify(entry.toolsUsed),
       entry.dataPointsReturned,
       entry.responseTimeMs,

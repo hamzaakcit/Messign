@@ -15,6 +15,7 @@ async function okrRequest<T>(
 
   const res = await fetch(`${OKR_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: { ...headers, ...(options.headers as Record<string, string>) },
   });
 

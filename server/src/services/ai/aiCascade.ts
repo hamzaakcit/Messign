@@ -8,6 +8,7 @@
 import { streamGroqAnswer, getGroqApiKey } from '../knowledgeGroq.js';
 import { streamGeminiAnswer, getGeminiApiKey } from '../knowledgeGemini.js';
 import { recordSuccess, recordFailure, getAvailableProviders } from './circuitBreaker.js';
+import { getSynthesisProviderOrder } from './taskRouter.js';
 
 const CASCADE_TIMEOUT_MS = 20_000;
 
@@ -35,7 +36,9 @@ export async function streamWithCascade(
   options: StreamCascadeOptions
 ): Promise<StreamCascadeResult | null> {
   const timeoutMs = options.timeoutMs ?? CASCADE_TIMEOUT_MS;
-  const providers = getAvailableProviders();
+  const available = new Set(getAvailableProviders());
+  const preferred = getSynthesisProviderOrder();
+  const providers = preferred.filter(p => available.has(p));
   if (providers.length === 0) {
     return null;
   }

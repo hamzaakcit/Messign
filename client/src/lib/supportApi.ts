@@ -284,6 +284,7 @@ async function supportRequest<T>(
   const hasBody = options.body !== undefined;
   const response = await fetch(`${SUPPORT_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: {
       ...buildHeaders(userId, hasBody),
       ...(options.headers as Record<string, string> | undefined),

@@ -33,6 +33,7 @@ async function timeRequest<T>(path: string, options: RequestInit = {}, userId?: 
   const hasBody = options.body !== undefined;
   const response = await fetch(`${TIME_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: {
       ...headers(userId, hasBody),
       ...(options.headers as Record<string, string> | undefined),

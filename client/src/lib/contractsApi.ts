@@ -13,6 +13,7 @@ async function contractsRequest<T>(path: string, options: RequestInit = {}, user
   }
   const res = await fetch(`${CONTRACTS_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {

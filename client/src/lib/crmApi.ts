@@ -15,6 +15,7 @@ async function crmRequest<T>(
 
   const res = await fetch(`${CRM_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: { ...headers, ...(options.headers as Record<string, string>) },
   });
 

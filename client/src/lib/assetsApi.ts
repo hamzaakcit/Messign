@@ -10,6 +10,7 @@ async function assetsRequest<T>(path: string, options: RequestInit = {}, userId?
   if (userId) headers['X-User-Id'] = userId;
   const res = await fetch(`${ASSETS_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {

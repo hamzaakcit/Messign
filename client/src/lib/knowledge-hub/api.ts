@@ -14,7 +14,7 @@ function getHeaders(): Record<string, string> {
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = { ...getHeaders(), ...(options?.headers as Record<string, string> ?? {}) };
   if (options?.body instanceof FormData) delete headers['Content-Type'];
-  const res = await fetch(`${API}${path}`, { ...options, headers });
+  const res = await fetch(`${API}${path}`, { ...options, credentials: 'include' as RequestCredentials, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || res.statusText);
@@ -215,6 +215,7 @@ export const khPresentationAPI = {
     const headers = getHeaders();
     const res = await fetch(`${API}/ai/presentation/export`, {
       method: 'POST',
+      credentials: 'include',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });

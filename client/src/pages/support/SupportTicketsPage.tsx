@@ -13,6 +13,7 @@ import { KPICard } from '@/components/finance/KPICard';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { Button } from '@/components/ui/Button';
+import { NLFilterBar, type AvailableField } from '@/components/ui/NLFilterBar';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import {
@@ -406,6 +407,20 @@ export function SupportTicketsPage() {
               </div>
             )}
           </div>
+
+          <NLFilterBar
+            placeholder="Try: &quot;high priority open tickets from last week&quot;"
+            availableFields={[
+              { key: 'status', label: 'Status', type: 'enum', values: ['open', 'in_progress', 'waiting', 'resolved', 'closed'] },
+              { key: 'priority', label: 'Priority', type: 'enum', values: ['low', 'medium', 'high', 'urgent'] },
+              { key: 'category', label: 'Category', type: 'string' },
+              { key: 'assignee', label: 'Assignee', type: 'string' },
+              { key: 'createdFrom', label: 'Created Date', type: 'date' },
+              { key: 'createdTo', label: 'Created Date', type: 'date' },
+            ] satisfies AvailableField[]}
+            module="support"
+            onFiltersApplied={() => {}}
+          />
 
           <DataTable
             data={filteredTickets}

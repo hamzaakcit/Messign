@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyAccess } from '../utils/jwt.js';
+import { computeFingerprint } from '../services/authService.js';
 
 declare global {
   namespace Express {
@@ -9,6 +10,12 @@ declare global {
       sessionId?: string;
     }
   }
+}
+
+function verifyFingerprint(req: Request, fp?: string): boolean {
+  if (!fp) return true;
+  const expected = computeFingerprint(req.ip, req.headers['user-agent']);
+  return fp === expected;
 }
 
 /**
@@ -24,6 +31,10 @@ export function optionalJwt(req: Request, res: Response, next: NextFunction): vo
   }
   try {
     const payload = verifyAccess(token);
+    if (!verifyFingerprint(req, payload.fp)) {
+      next();
+      return;
+    }
     req.userId = payload.sub;
     req.role = payload.role;
     req.sessionId = payload.sessionId;
@@ -46,6 +57,10 @@ export function requireJwt(req: Request, res: Response, next: NextFunction): voi
   }
   try {
     const payload = verifyAccess(token);
+    if (!verifyFingerprint(req, payload.fp)) {
+      res.status(401).json({ error: 'Session fingerprint mismatch — please log in again' });
+      return;
+    }
     req.userId = payload.sub;
     req.role = payload.role;
     req.sessionId = payload.sessionId;

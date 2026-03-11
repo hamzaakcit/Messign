@@ -20,6 +20,7 @@ export interface AccessPayload {
   sub: string;
   role?: string;
   sessionId?: string;
+  fp?: string;
 }
 
 export interface RefreshPayload {
@@ -46,7 +47,7 @@ export function signRefresh(payload: RefreshPayload): string {
 export function verifyAccess(token: string): AccessPayload {
   const decoded = jwt.verify(token, ACCESS_SECRET) as jwt.JwtPayload & AccessPayload;
   if (decoded.type !== 'access') throw new Error('Invalid token type');
-  return { sub: decoded.sub, role: decoded.role, sessionId: decoded.sessionId };
+  return { sub: decoded.sub, role: decoded.role, sessionId: decoded.sessionId, fp: decoded.fp };
 }
 
 export function verifyRefresh(token: string): RefreshPayload {

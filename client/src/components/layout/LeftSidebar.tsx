@@ -120,6 +120,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
         }
 
         const res = await fetch(`${API_ORIGIN}/api/dora/insights/counts`, {
+          credentials: 'include',
           headers,
           signal: controller.signal,
         });

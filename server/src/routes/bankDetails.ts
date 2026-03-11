@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/index.js';
 import { reimbursementAuth, requireRole, type ReimbursementRequest } from '../middleware/reimbursementAuth.js';
+import { encrypt, decrypt } from '../services/crypto/encryptionService.js';
 
 const router = Router();
 router.use(reimbursementAuth);
@@ -16,7 +17,12 @@ router.get('/:userId', requireRole('admin', 'finance'), async (req: Reimbursemen
        WHERE bd.user_id = $1`,
       [userId]
     );
-    res.json(result.rows[0] || null);
+    const row = result.rows[0] || null;
+    if (row) {
+      if (row.iban) row.iban = decrypt(row.iban);
+      if (row.swift_bic) row.swift_bic = decrypt(row.swift_bic);
+    }
+    res.json(row);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Failed to get bank details' });
@@ -30,6 +36,10 @@ router.put('/:userId', requireRole('admin', 'finance'), async (req: Reimbursemen
   const { bankName, iban, swiftBic, accountHolder } = req.body as {
     bankName?: string; iban?: string; swiftBic?: string; accountHolder?: string;
   };
+
+  const encryptedIban = iban ? encrypt(iban) : null;
+  const encryptedSwift = swiftBic ? encrypt(swiftBic) : null;
+
   try {
     const result = await query(
       `INSERT INTO bank_details (user_id, bank_name, iban, swift_bic, account_holder, updated_by, updated_at)
@@ -39,9 +49,14 @@ router.put('/:userId', requireRole('admin', 'finance'), async (req: Reimbursemen
                      swift_bic = EXCLUDED.swift_bic, account_holder = EXCLUDED.account_holder,
                      updated_by = EXCLUDED.updated_by, updated_at = NOW()
        RETURNING *`,
-      [userId, bankName || null, iban || null, swiftBic || null, accountHolder || null, admin.id]
+      [userId, bankName || null, encryptedIban, encryptedSwift, accountHolder || null, admin.id]
     );
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    if (row) {
+      if (row.iban) row.iban = decrypt(row.iban);
+      if (row.swift_bic) row.swift_bic = decrypt(row.swift_bic);
+    }
+    res.json(row);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Failed to update bank details' });

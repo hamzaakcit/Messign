@@ -4,10 +4,20 @@ import { KPICard } from '@/components/finance/KPICard';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { Badge } from '@/components/ui/Badge';
+import { NLFilterBar, type AvailableField } from '@/components/ui/NLFilterBar';
 import { useAuthStore } from '@/stores/authStore';
 import { contractsAPI, type Contract } from '@/lib/contractsApi';
 import { ContractsNav } from './components/ContractsNav';
 import { BellRing, CheckCheck, ClipboardList, FileSignature, FileText } from 'lucide-react';
+
+const CONTRACT_FILTER_FIELDS: AvailableField[] = [
+  { key: 'status', label: 'Status', type: 'enum', values: ['draft', 'pending_signature', 'active', 'expiring', 'expired', 'terminated', 'renewed'] },
+  { key: 'type', label: 'Type', type: 'enum', values: ['vendor', 'client', 'employee', 'nda', 'partnership', 'lease', 'service', 'other'] },
+  { key: 'counterpartyName', label: 'Counterparty', type: 'string' },
+  { key: 'totalValueMin', label: 'Total Value', type: 'number' },
+  { key: 'totalValueMax', label: 'Total Value', type: 'number' },
+  { key: 'autoRenew', label: 'Auto-Renew', type: 'enum', values: ['true', 'false'] },
+];
 
 type Tab = 'contracts' | 'renewals' | 'obligations' | 'dashboard';
 
@@ -113,13 +123,21 @@ export function ContractsPage({ initialTab = 'contracts' }: Props) {
           </div>
 
           {tab === 'contracts' && (
-            <DataTable
-              data={contracts}
-              columns={contractColumns}
-              isLoading={loading}
-              onRowClick={(row) => setSelectedContractId(row.id)}
-              emptyMessage="No contracts found."
-            />
+            <div className="space-y-4">
+              <NLFilterBar
+                placeholder="Try: &quot;active vendor contracts over €10000&quot;"
+                availableFields={CONTRACT_FILTER_FIELDS}
+                module="contracts"
+                onFiltersApplied={() => {}}
+              />
+              <DataTable
+                data={contracts}
+                columns={contractColumns}
+                isLoading={loading}
+                onRowClick={(row) => setSelectedContractId(row.id)}
+                emptyMessage="No contracts found."
+              />
+            </div>
           )}
 
           {tab === 'renewals' && (

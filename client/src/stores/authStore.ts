@@ -15,7 +15,6 @@ export interface LoginError {
 interface AuthState {
   user: User | null;
   accessToken: string | null;
-  refreshToken: string | null;
   expiresAt: number | null;
   mustChangePassword: boolean;
   isAuthenticated: boolean;
@@ -23,7 +22,6 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   loginError: LoginError | null;
-  /** Set to true when persist has rehydrated; prevents rehydration from overwriting a fresh login */
   _hasHydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -38,7 +36,6 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
       expiresAt: null,
       mustChangePassword: false,
       isAuthenticated: false,
@@ -68,7 +65,6 @@ export const useAuthStore = create<AuthState>()(
           }
           const d = data as {
             accessToken: string;
-            refreshToken: string;
             expiresIn: number;
             user: User;
             mustChangePassword: boolean;
@@ -78,7 +74,6 @@ export const useAuthStore = create<AuthState>()(
           set({
             user: d.user,
             accessToken: d.accessToken,
-            refreshToken: d.refreshToken,
             expiresAt,
             mustChangePassword: d.mustChangePassword ?? false,
             isAuthenticated: true,
@@ -99,7 +94,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try {
-          await authAPI.logout(get().refreshToken ?? undefined);
+          await authAPI.logout();
         } catch {
           // ignore
         }
@@ -108,7 +103,6 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           accessToken: null,
-          refreshToken: null,
           expiresAt: null,
           mustChangePassword: false,
           isAuthenticated: false,
@@ -117,17 +111,14 @@ export const useAuthStore = create<AuthState>()(
       },
 
       refreshAccessToken: async () => {
-        const refreshToken = get().refreshToken;
-        if (!refreshToken) return false;
         try {
-          const res = await authAPI.refresh(refreshToken);
-          const data = (res as { success?: boolean; data?: { accessToken: string; refreshToken: string; expiresIn: number } }).data;
+          const res = await authAPI.refresh();
+          const data = (res as { success?: boolean; data?: { accessToken: string; expiresIn: number } }).data;
           if (!data) return false;
           const expiresAt = Date.now() + (data.expiresIn ?? 900) * 1000;
           setAccessToken(data.accessToken);
           set({
             accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
             expiresAt,
           });
           return true;
@@ -153,7 +144,6 @@ export const useAuthStore = create<AuthState>()(
       partialize: (s) => ({
         user: s.user,
         accessToken: s.accessToken,
-        refreshToken: s.refreshToken,
         expiresAt: s.expiresAt,
         mustChangePassword: s.mustChangePassword,
         isAuthenticated: s.isAuthenticated,
@@ -167,7 +157,6 @@ export const useAuthStore = create<AuthState>()(
         if (current.isAuthenticated && current.accessToken) {
           merged.user = current.user;
           merged.accessToken = current.accessToken;
-          merged.refreshToken = current.refreshToken;
           merged.expiresAt = current.expiresAt;
           merged.isAuthenticated = true;
           merged.isAdmin = current.isAdmin;

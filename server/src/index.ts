@@ -4,6 +4,9 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
@@ -65,6 +68,7 @@ import { gameRouter } from './routes/game.js';
 import { doraHistoryRouter } from './routes/doraHistory.js';
 import doraInsightsRouter from './routes/dora/insights.js';
 import doraAutomationsRouter from './routes/dora/automations.js';
+import doraFiltersRouter from './routes/dora/filters.js';
 import { budgetsRouter } from './routes/budgets.js';
 import { financeRouter } from './routes/finance/index.js';
 import { crmRouter } from './routes/crm/index.js';
@@ -111,11 +115,28 @@ app.set('io', io);
 // Phase 5: will be replaced by cloud storage (Supabase Storage or R2); ephemeral disk is wiped on redeploy.
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 
+// Security headers
+app.use(helmet({
+  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+
 // Middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '5mb', type: 'application/json' }));
 app.use('/uploads', express.static(UPLOAD_DIR));
+
+// Rate limiting
+const apiLimiter = rateLimit({ windowMs: 60_000, max: 100, message: { error: 'Too many requests' } });
+app.use('/api', apiLimiter);
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many login attempts' } });
+app.use('/api/auth/login', authLimiter);
+const aiLimiter = rateLimit({ windowMs: 60_000, max: 10, message: { error: 'AI rate limit reached' } });
+app.use('/api/dora', aiLimiter);
+
 app.use('/api', optionalJwt);
 
 // API Routes
@@ -152,6 +173,7 @@ app.use('/api/ai/actions', requireAuth, actionRoutes);
 app.use('/api/game', requireAuth, gameRouter);
 app.use('/api/dora', doraInsightsRouter);
 app.use('/api/dora/automations', doraAutomationsRouter);
+app.use('/api/dora', doraFiltersRouter);
 app.use('/api/dora', requireAuth, doraHistoryRouter);
 app.use('/api/budgets', budgetsRouter);
 app.use('/api/finance', financeRouter);

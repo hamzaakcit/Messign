@@ -135,7 +135,7 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
       try {
         const res = await fetch(
           `${API_ORIGIN}/api/dora/insights?module=${module}&limit=3&unreadOnly=true`,
-          { headers: buildHeaders(userId), signal: controller.signal },
+          { credentials: 'include', headers: buildHeaders(userId), signal: controller.signal },
         );
 
         if (!res.ok) throw new Error(res.statusText);
@@ -207,6 +207,7 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
     try {
       const res = await fetch(`${API_ORIGIN}/api/dora/insights/${insightId}/dismiss`, {
         method: 'PUT',
+        credentials: 'include',
         headers: buildHeaders(userId),
       });
       if (!res.ok) throw new Error(res.statusText);

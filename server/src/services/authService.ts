@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { getEmployeeByEmail, getEmployeeByIdAsUser } from '../db/employeesDb.js';
 import { getBadgesForUser } from '../db/badgesDb.js';
 import {
@@ -16,6 +17,13 @@ import { signAccess, signRefresh, verifyRefresh, getAccessExpirySeconds } from '
 import * as authSessionsDb from '../db/authSessionsDb.js';
 import type { User } from '../types/index.js';
 import { DEFAULT_PASSWORD } from '../types/auth.js';
+
+export function computeFingerprint(ip?: string | null, userAgent?: string | null): string {
+  return crypto.createHash('sha256')
+    .update(`${ip ?? ''}:${userAgent ?? ''}`)
+    .digest('hex')
+    .substring(0, 16);
+}
 
 function getClientIp(req: { ip?: string; headers?: { 'x-forwarded-for'?: string } }): string | null {
   const forwarded = req.headers?.['x-forwarded-for'];
@@ -176,7 +184,8 @@ export async function login(
     location: null,
   });
 
-  const accessToken = signAccess({ sub: authUserId, sessionId });
+  const fp = computeFingerprint(ip, userAgent);
+  const accessToken = signAccess({ sub: authUserId, sessionId, fp });
   const refreshJwt = signRefresh({ sub: authUserId, sessionId });
 
   await insertAudit({
@@ -208,11 +217,17 @@ export async function login(
   };
 }
 
-export async function refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> {
+export async function refresh(
+  refreshToken: string,
+  req?: { ip?: string; headers?: Record<string, string | string[] | undefined> }
+): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> {
   const payload = verifyRefresh(refreshToken);
   const session = await sessionService.findSessionByRefreshToken(refreshToken);
   if (!session || session.id !== payload.sessionId) return null;
-  const accessToken = signAccess({ sub: payload.sub, sessionId: payload.sessionId });
+  const ip = req ? getClientIp(req) : null;
+  const userAgent = req ? getClientUserAgent(req) : null;
+  const fp = computeFingerprint(ip, userAgent);
+  const accessToken = signAccess({ sub: payload.sub, sessionId: payload.sessionId, fp });
   const newRefreshJwt = signRefresh({ sub: payload.sub, sessionId: payload.sessionId });
   return {
     accessToken,

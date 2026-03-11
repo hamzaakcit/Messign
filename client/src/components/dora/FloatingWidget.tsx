@@ -103,6 +103,7 @@ export function FloatingWidget() {
 
       const response = await fetch(`${API_ORIGIN}/api/knowledge-hub/ai/answer`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -223,6 +224,7 @@ export function FloatingWidget() {
       const token = getAccessToken();
       const response = await fetch(`${API_ORIGIN}/api/ai/actions/confirm`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -264,6 +266,7 @@ export function FloatingWidget() {
       const token = getAccessToken();
       await fetch(`${API_ORIGIN}/api/ai/actions/cancel`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

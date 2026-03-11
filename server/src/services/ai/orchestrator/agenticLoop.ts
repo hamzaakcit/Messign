@@ -15,6 +15,8 @@ import { StepTracker } from './stepTracker.js';
 import { selectToolsForQuery } from './toolSelector.js';
 import { isWriteTool, interceptWriteAction } from '../actions/actionInterceptor.js';
 import { getToolsForRole } from '../tools/writeDefinitions.js';
+import { classifyTask, selectModelForTask } from '../taskRouter.js';
+import { stripPII, restorePII } from '../piiStripper.js';
 import type { ToolContext, ToolResult } from '../types.js';
 import type { DoraRequestContext } from '../dora/types.js';
 import type { PendingActionSSEEvent } from '../actions/types.js';
@@ -79,13 +81,22 @@ export async function orchestrate(
   const tools = selectToolsForQuery(query, ctx.page.currentModule, allToolsWithWrites);
   const pendingActionEvents: PendingActionSSEEvent[] = [];
 
-  console.log(`[Orchestrator] Selected ${tools.length}/${allToolsWithWrites.length} tools for query`);
+  const taskType = classifyTask(tools.length, tools.map(t => t.function.name), query.length);
+  const modelSelection = selectModelForTask(taskType);
+  console.log(`[Orchestrator] Selected ${tools.length}/${allToolsWithWrites.length} tools for query (task: ${taskType}, provider: ${modelSelection.provider})`);
+
+  const piiResult = stripPII(query);
+  const sanitizedQuery = piiResult.sanitizedText;
+  const piiMappings = piiResult.mappings;
+  if (piiResult.strippedCount > 0) {
+    console.log(`[Orchestrator] Stripped ${piiResult.strippedCount} PII field(s) from query`);
+  }
 
   const messages: GroqMessage[] = [
     { role: 'system', content: systemPrompt },
     ...history.slice(-6).filter((h) => h.role === 'user' || h.role === 'assistant')
       .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
-    { role: 'user', content: query },
+    { role: 'user', content: sanitizedQuery },
   ];
 
   let terminationReason: TerminationReason = 'complete';
@@ -350,11 +361,16 @@ export async function orchestrate(
       `(${terminationReason}). Tools used: ${tracker.getUniqueToolsUsed().join(', ')}`
     );
 
+    const piiRestoringChunk = piiMappings.size > 0
+      ? (chunk: string) => onChunk(restorePII(chunk, piiMappings))
+      : onChunk;
+
     const finalAnswer = await synthesizeAndStream(
-      query, history, ctx, tracker, terminationReason, onChunk, cfg, provider
+      query, history, ctx, tracker, terminationReason, piiRestoringChunk, cfg, provider
     );
 
-    return buildResult(tracker, terminationReason, finalAnswer, startTime, undefined, pendingActionEvents);
+    const restoredAnswer = piiMappings.size > 0 ? restorePII(finalAnswer, piiMappings) : finalAnswer;
+    return buildResult(tracker, terminationReason, restoredAnswer, startTime, undefined, pendingActionEvents);
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown orchestration error';
