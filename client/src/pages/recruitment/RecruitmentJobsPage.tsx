@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDebouncedCallback } from '@/hooks';
 import { Briefcase, Clock3, Plus, Users, Waypoints } from 'lucide-react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
@@ -57,6 +58,10 @@ export function RecruitmentJobsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const debouncedSearch = useDebouncedCallback((search: string) => {
+    setFilters((current) => ({ ...current, search }));
+  }, 300);
 
   const columns = useMemo<ColumnDef<RecruitmentJob>[]>(() => [
     {
@@ -138,7 +143,7 @@ export function RecruitmentJobsPage() {
             sortable
             searchable
             searchPlaceholder="Search jobs…"
-            onSearch={(search) => setFilters((current) => ({ ...current, search }))}
+            onSearch={debouncedSearch}
             pagination
             pageSize={20}
             totalItems={total}

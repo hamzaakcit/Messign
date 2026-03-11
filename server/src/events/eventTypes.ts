@@ -2,7 +2,7 @@ export interface EventMap {
   // ── Finance ──
   'finance.expense.created': { expenseId: string; userId: string; amount: number; currency: string; category: string; departmentId?: string };
   'finance.expense.submitted': { expenseId: string; userId: string; amount: number };
-  'finance.expense.approved': { expenseId: string; approverId: string; amount: number };
+  'finance.expense.approved': { expenseId: string; approverId: string; amount: number; organizationId?: string };
   'finance.expense.rejected': { expenseId: string; approverId: string; reason: string };
   'finance.invoice.created': { invoiceId: string; vendorId: string; amount: number; currency: string };
   'finance.invoice.sent': { invoiceId: string; vendorId: string };
@@ -22,7 +22,7 @@ export interface EventMap {
   'project.status_changed': { projectId: string; oldStatus: string; newStatus: string };
 
   // ── Chat / Communication ──
-  'chat.message.sent': { messageId: string; channelId: string; userId: string; hasAttachment: boolean };
+  'chat.message.sent': { messageId: string; channelId: string; userId: string; hasAttachment: boolean; content?: string };
   'chat.mention.created': { messageId: string; mentionedUserId: string; channelId: string };
   'chat.thread.resolved': { threadId: string; channelId: string; resolvedBy: string };
 
@@ -54,7 +54,7 @@ export interface EventMap {
   'crm.company.created': { companyId: string; name: string; createdBy: string };
   'crm.deal.created': { dealId: string; title: string; amount: number; currency: string; ownerId: string; companyId?: string; stageId: string };
   'crm.deal.stage_changed': { dealId: string; oldStage: string; newStage: string; amount: number; movedBy: string };
-  'crm.deal.won': { dealId: string; amount: number; currency: string; companyId?: string; ownerId: string; closedAt: string };
+  'crm.deal.won': { dealId: string; amount: number; currency: string; companyId?: string; ownerId: string; closedAt: string; organizationId?: string };
   'crm.deal.lost': { dealId: string; amount: number; reason?: string; ownerId: string };
   'crm.deal.updated': { dealId: string; updatedBy: string; changes: string[] };
   'crm.activity.logged': { activityId: string; dealId?: string; contactId?: string; userId: string; type: 'call' | 'email' | 'meeting' | 'note' };
@@ -88,7 +88,7 @@ export interface EventMap {
   'recruitment.offer.sent': { offerId: string; applicationId: string; candidateId: string; salary: number; currency: string };
   'recruitment.offer.accepted': { offerId: string; applicationId: string; candidateId: string; startDate: string };
   'recruitment.offer.rejected': { offerId: string; applicationId: string; candidateId: string; reason?: string };
-  'recruitment.candidate.hired': { applicationId: string; candidateId: string; jobId: string; departmentId: string; startDate: string; salary: number };
+  'recruitment.candidate.hired': { applicationId: string; candidateId: string; jobId: string; departmentId: string; startDate: string; salary: number; organizationId?: string };
 
   // ── Assets ──
   'asset.created': { assetId: string; name: string; type: string; purchaseCost: number; currency: string };
@@ -138,14 +138,26 @@ export interface EventMap {
 
   // ── OKRs ──
   'okr.goal.created': { goalId: string; title: string; ownerId: string; level: string };
-  'okr.goal.updated': { goalId: string; progress: number; status: string };
+  'okr.goal.updated': { goalId: string; progress: number; status: string; organizationId?: string };
   'okr.key_result.created': { keyResultId: string; goalId: string; title: string };
   'okr.key_result.updated': { keyResultId: string; goalId: string; progress: number };
+  'okr.key_result.completed': { keyResultId: string; goalId: string; title: string; ownerId?: string };
   'okr.check_in.submitted': { checkInId: string; keyResultId: string; value: number; userId: string };
 
   // ── System ──
   'system.audit.logged': { action: string; actorId: string; entityType: string; entityId: string };
   'system.notification.created': { userId: string; type: string; title: string; link?: string };
+
+  // ── Dora Heart (Sentiment & Team Health) ──
+  'heart.sentiment.analyzed': { userId: string; source: 'chat' | 'checkin' | 'ticket_response' | 'review'; score: number; previousScore: number; shiftDetected: boolean };
+  'heart.burnout.risk_detected': { userId: string; riskLevel: 'low' | 'medium' | 'high'; signals: string[]; confidenceScore: number };
+  'heart.burnout.risk_cleared': { userId: string; previousRiskLevel: string };
+  'heart.engagement.shift': { userId: string; direction: 'increasing' | 'decreasing'; magnitude: number; period: string };
+  'heart.wellness.check_sent': { userId: string; triggerSignal: string; checkType: 'private_nudge' | 'manager_alert' };
+  'heart.pulse.survey_sent': { surveyId: string; questionCount: number; recipientCount: number };
+  'heart.pulse.response_submitted': { surveyId: string; userId: string; anonymous: boolean };
+  'heart.onboarding.milestone': { userId: string; milestone: 'day_1' | 'week_1' | 'day_30' | 'day_60' | 'day_90'; status: 'triggered' | 'completed' };
+  'heart.team.health_updated': { departmentId: string; healthScore: number; previousScore: number; trend: string };
 
   // ── Dora AI ──
   'dora.insight.generated': { insightId: string; module: string; severity: 'info' | 'warning' | 'critical'; message: string };

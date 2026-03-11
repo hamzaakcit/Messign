@@ -6,6 +6,11 @@ import { doraScheduler, runSchedulerJobForAllOrgs } from '../../services/finance
 import { generateBriefing } from '../../services/dora/dailyBriefing.js';
 import { emitToUser } from '../../sockets/index.js';
 import type { CallerContext } from '../../dal/types.js';
+import { assessBurnoutRisk } from '../../services/dora/heart/burnoutDetector.js';
+import { calculateTeamHealth } from '../../services/dora/heart/teamHealthCalculator.js';
+import { generateWeeklyComposite } from '../../services/dora/heart/sentimentAnalyzer.js';
+import { checkDueMilestones } from '../../services/dora/heart/onboardingGuide.js';
+import { createAutoPulseSurvey } from '../../services/dora/heart/pulseSurveys.js';
 
 const connection = redisConnection as unknown as ConnectionOptions;
 
@@ -25,6 +30,7 @@ const MATERIALIZED_VIEWS = [
   'mv_asset_summary',
   'mv_license_utilization',
   'mv_contract_renewals',
+  'mv_org_sentiment',
 ];
 
 async function refreshMaterializedViews(): Promise<void> {
@@ -121,6 +127,67 @@ const worker = new Worker<SchedulerJob>(
           doraScheduler.checkContractObligations(orgId),
         );
         break;
+
+      case 'burnout_assessment': {
+        console.log('[DoraScheduler] Running weekly burnout assessments...');
+        const users = await query<{ id: string }>(
+          `SELECT id::text AS id FROM reimbursement_users WHERE status IS DISTINCT FROM 'inactive'`
+        );
+        for (const row of users.rows) {
+          try {
+            await assessBurnoutRisk(row.id);
+          } catch (err) {
+            console.warn(`[DoraScheduler] Burnout assessment failed for ${row.id}:`, err instanceof Error ? err.message : err);
+          }
+        }
+        break;
+      }
+
+      case 'team_health_calculation': {
+        console.log('[DoraScheduler] Calculating team health...');
+        const orgs = await query<{ id: string }>(`SELECT id::text AS id FROM organizations LIMIT 100`);
+        for (const org of orgs.rows) {
+          try {
+            await calculateTeamHealth('organization', undefined, org.id);
+            const teams = await query<{ id: string }>(
+              `SELECT id::text AS id FROM performance_teams WHERE is_active = TRUE`
+            );
+            for (const team of teams.rows) {
+              await calculateTeamHealth('department', team.id, org.id);
+            }
+          } catch (err) {
+            console.warn(`[DoraScheduler] Team health failed for org ${org.id}:`, err instanceof Error ? err.message : err);
+          }
+        }
+        break;
+      }
+
+      case 'weekly_sentiment_composite': {
+        console.log('[DoraScheduler] Generating weekly sentiment composites...');
+        const usersWithSentiment = await query<{ user_id: string }>(
+          `SELECT DISTINCT user_id::text AS user_id FROM heart_sentiment_scores WHERE analyzed_at >= NOW() - INTERVAL '7 days'`
+        );
+        for (const row of usersWithSentiment.rows) {
+          try {
+            await generateWeeklyComposite(row.user_id);
+          } catch (err) {
+            console.warn(`[DoraScheduler] Weekly composite failed for ${row.user_id}:`, err instanceof Error ? err.message : err);
+          }
+        }
+        break;
+      }
+
+      case 'auto_pulse_survey': {
+        console.log('[DoraScheduler] Creating auto pulse survey...');
+        await createAutoPulseSurvey();
+        break;
+      }
+
+      case 'onboarding_milestone_check': {
+        console.log('[DoraScheduler] Checking onboarding milestones...');
+        await checkDueMilestones();
+        break;
+      }
 
       case 'generate_daily_briefings': {
         console.log('[DoraScheduler] Generating daily briefings for all users...');

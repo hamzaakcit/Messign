@@ -2,13 +2,13 @@ import crypto from 'crypto';
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const ALGORITHM = 'aes-256-gcm';
-
-if (!ENCRYPTION_KEY && process.env.NODE_ENV === 'production') {
-  console.error('[Crypto] ENCRYPTION_KEY not set! Sensitive data will not be encrypted.');
-}
+const isProduction = process.env.NODE_ENV === 'production';
 
 export function encrypt(plaintext: string): string {
-  if (!ENCRYPTION_KEY) return plaintext;
+  if (!ENCRYPTION_KEY) {
+    if (isProduction) throw new Error('ENCRYPTION_KEY must be set in production');
+    return plaintext;
+  }
   const key = Buffer.from(ENCRYPTION_KEY, 'hex');
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
@@ -19,7 +19,10 @@ export function encrypt(plaintext: string): string {
 }
 
 export function decrypt(ciphertext: string): string {
-  if (!ENCRYPTION_KEY) return ciphertext;
+  if (!ENCRYPTION_KEY) {
+    if (isProduction) throw new Error('ENCRYPTION_KEY must be set in production');
+    return ciphertext;
+  }
   const parts = ciphertext.split(':');
   if (parts.length !== 3) return ciphertext;
   const [ivHex, authTagHex, encrypted] = parts;

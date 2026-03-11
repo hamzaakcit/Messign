@@ -624,3 +624,15 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Page skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Celebration confetti */
+@keyframes celebrationConfetti {
+  0% { transform: translate(-50%, -50%) translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) translateY(-100vh) rotate(720deg); opacity: 0; }
+}

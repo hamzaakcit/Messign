@@ -147,12 +147,28 @@ export async function validateAndConsume(
     return { valid: false, action: null, error: 'This action has expired. Please ask Dora again.' };
   }
 
+  const originalPayload = (row.payload as Record<string, unknown>) ?? {};
+  const editableFields = Array.isArray(row.editable_fields)
+    ? (row.editable_fields as string[])
+    : [];
+  const sanitizedEdits: Record<string, unknown> = {};
+  for (const key of editableFields) {
+    if (Object.prototype.hasOwnProperty.call(editedPayload, key)) {
+      sanitizedEdits[key] = editedPayload[key];
+    }
+  }
+  const mergedPayload: Record<string, unknown> = { ...originalPayload, ...sanitizedEdits };
+  const validationError = validatePayloadForAction(row.action_type as WriteActionType, mergedPayload);
+  if (validationError) {
+    return { valid: false, action: null, error: validationError };
+  }
+
   const updateResult = await query(
     `UPDATE pending_actions
      SET status = 'confirmed', confirmed_payload = $1, confirmed_at = NOW()
      WHERE token = $2 AND status = 'pending'
      RETURNING *`,
-    [JSON.stringify(editedPayload), token],
+    [JSON.stringify(mergedPayload), token],
   );
 
   if (updateResult.rows.length === 0) {
@@ -177,6 +193,33 @@ export async function validateAndConsume(
       originQuery: confirmedRow.origin_query as string,
     },
   };
+}
+
+function validatePayloadForAction(actionType: WriteActionType, payload: Record<string, unknown>): string | null {
+  const required: Partial<Record<WriteActionType, string[]>> = {
+    approve_expense: ['reimbursement_id'],
+    flag_expense: ['reimbursement_id', 'reason'],
+    create_budget: ['department', 'allocated_amount', 'period_start', 'period_end'],
+    update_budget: ['budget_id'],
+    auto_approve_expense: ['expense_id'],
+    flag_expense_for_review: ['expense_id', 'reason'],
+    generate_invoice: ['client_name'],
+    send_payment_reminder: ['invoice_id'],
+    create_deal: ['title', 'amount', 'companyName'],
+    create_ticket: ['subject', 'description'],
+    assign_asset: ['assetName', 'employeeName'],
+    send_renewal_reminder: ['contractName'],
+    create_campaign: ['name', 'channel', 'budget'],
+    post_job: ['title', 'department', 'description'],
+  };
+  const requiredFields = required[actionType] ?? [];
+  for (const field of requiredFields) {
+    const value = payload[field];
+    if (value == null || String(value).trim() === '') {
+      return `Missing required field: ${field}`;
+    }
+  }
+  return null;
 }
 
 export async function markExecuted(token: string): Promise<void> {

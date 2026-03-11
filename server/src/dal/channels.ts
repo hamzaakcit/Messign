@@ -225,6 +225,7 @@ export async function sendMessage(
     channelId,
     userId: message.userId,
     hasAttachment: (attachments?.length ?? 0) > 0,
+    content: content ?? '',
   });
 
   return message;

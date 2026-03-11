@@ -1,5 +1,6 @@
 import { query, getClient } from '../db/index.js';
 import { eventBus } from '../events/index.js';
+import { emitToUser } from '../sockets/index.js';
 import type { CallerContext } from './types.js';
 
 // ── Interfaces ──
@@ -257,6 +258,7 @@ export async function updateGoal(
     goalId: goal.id,
     progress: Number(goal.progress),
     status: goal.status,
+    organizationId: goal.organization_id ?? undefined,
   });
 
   return goal;
@@ -350,6 +352,24 @@ export async function checkIn(
       goalId: kr.goal_id,
       progress,
     });
+
+    if (progress >= 100) {
+      const goalRow = (await client.query('SELECT owner_id FROM okr_goals WHERE id = $1', [kr.goal_id])).rows[0];
+      const ownerId = goalRow?.owner_id;
+      eventBus.emit('okr.key_result.completed', {
+        keyResultId: krId,
+        goalId: kr.goal_id,
+        title: kr.title,
+        ownerId,
+      });
+      if (ownerId) {
+        void emitToUser(ownerId, 'celebration:okr-kr-completed', {
+          keyResultId: krId,
+          goalId: kr.goal_id,
+          title: kr.title,
+        });
+      }
+    }
 
     return ci;
   } catch (err) {

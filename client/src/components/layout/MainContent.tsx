@@ -1,33 +1,36 @@
+import React, { Suspense } from 'react';
 import { useUIStore } from '@/stores/uiStore';
-import { useLocation } from 'react-router-dom';
-import { Navigate } from 'react-router-dom';
-import { DashboardView } from '@/pages/DashboardView';
-import { ChatView } from '@/pages/ChatView';
-import { KnowledgeHubLayout } from '@/pages/knowledge-hub/KnowledgeHubLayout';
-import { AchievementsView } from '@/pages/AchievementsView';
-import { TeamView } from '@/pages/TeamView';
-import { ProjectsView } from '@/pages/ProjectsView';
-import { SettingsView } from '@/pages/SettingsView';
-import { ReimbursementRouter } from '@/pages/ReimbursementRouter';
-import { FinancePage } from '@/pages/FinancePage';
-import { CRMLayout } from '@/pages/crm/CRMLayout';
-import { MarketingLayout } from '@/pages/marketing/MarketingLayout';
-import { RecruitmentLayout } from '@/pages/recruitment/RecruitmentLayout';
-import { SupportLayout } from '@/pages/support/SupportLayout';
-import { TimeTrackingPage } from '@/pages/time/TimeTrackingPage';
-import { OKRPage } from '@/pages/okr/OKRPage';
-import { AssetsLayout } from '@/pages/assets/AssetsLayout';
-import { ContractsLayout } from '@/pages/contracts/ContractsLayout';
-import { DoraPage } from '@/pages/DoraPage';
-import { DoraDashPage } from '@/pages/DoraDashPage';
-import { AutomationPoliciesPage } from '@/pages/dora/AutomationPoliciesPage';
-import { AutomationLogPage } from '@/pages/dora/AutomationLogPage';
-import { DailyBriefingPage } from '@/pages/dora/DailyBriefingPage';
-import { ExecutiveDashboardPage } from '@/pages/executive/ExecutiveDashboardPage';
-import { ReportHubPage } from '@/pages/reports/ReportHubPage';
-import { NotificationsPage } from '@/pages/notifications/NotificationsPage';
+import { useLocation, Navigate } from 'react-router-dom';
+import { PageSkeleton } from '@/components/ui';
 import { Header } from './Header';
 import { useAuthStore } from '@/stores/authStore';
+
+const DashboardView = React.lazy(() => import('@/pages/DashboardView').then((m) => ({ default: m.DashboardView })));
+const ChatView = React.lazy(() => import('@/pages/ChatView').then((m) => ({ default: m.ChatView })));
+const KnowledgeHubLayout = React.lazy(() => import('@/pages/knowledge-hub/KnowledgeHubLayout').then((m) => ({ default: m.KnowledgeHubLayout })));
+const AchievementsView = React.lazy(() => import('@/pages/AchievementsView').then((m) => ({ default: m.AchievementsView })));
+const TeamView = React.lazy(() => import('@/pages/TeamView').then((m) => ({ default: m.TeamView })));
+const ProjectsView = React.lazy(() => import('@/pages/ProjectsView').then((m) => ({ default: m.ProjectsView })));
+const SettingsView = React.lazy(() => import('@/pages/SettingsView').then((m) => ({ default: m.SettingsView })));
+const ReimbursementRouter = React.lazy(() => import('@/pages/ReimbursementRouter').then((m) => ({ default: m.ReimbursementRouter })));
+const FinancePage = React.lazy(() => import('@/pages/FinancePage').then((m) => ({ default: m.FinancePage })));
+const CRMLayout = React.lazy(() => import('@/pages/crm/CRMLayout').then((m) => ({ default: m.CRMLayout })));
+const MarketingLayout = React.lazy(() => import('@/pages/marketing/MarketingLayout').then((m) => ({ default: m.MarketingLayout })));
+const RecruitmentLayout = React.lazy(() => import('@/pages/recruitment/RecruitmentLayout').then((m) => ({ default: m.RecruitmentLayout })));
+const SupportLayout = React.lazy(() => import('@/pages/support/SupportLayout').then((m) => ({ default: m.SupportLayout })));
+const TimeTrackingPage = React.lazy(() => import('@/pages/time/TimeTrackingPage').then((m) => ({ default: m.TimeTrackingPage })));
+const OKRPage = React.lazy(() => import('@/pages/okr/OKRPage').then((m) => ({ default: m.OKRPage })));
+const AssetsLayout = React.lazy(() => import('@/pages/assets/AssetsLayout').then((m) => ({ default: m.AssetsLayout })));
+const ContractsLayout = React.lazy(() => import('@/pages/contracts/ContractsLayout').then((m) => ({ default: m.ContractsLayout })));
+const CultureDashboardPage = React.lazy(() => import('@/pages/culture/CultureDashboardPage').then((m) => ({ default: m.CultureDashboardPage })));
+const DoraPage = React.lazy(() => import('@/pages/DoraPage').then((m) => ({ default: m.DoraPage })));
+const DoraDashPage = React.lazy(() => import('@/pages/DoraDashPage').then((m) => ({ default: m.DoraDashPage })));
+const AutomationPoliciesPage = React.lazy(() => import('@/pages/dora/AutomationPoliciesPage').then((m) => ({ default: m.AutomationPoliciesPage })));
+const AutomationLogPage = React.lazy(() => import('@/pages/dora/AutomationLogPage').then((m) => ({ default: m.AutomationLogPage })));
+const DailyBriefingPage = React.lazy(() => import('@/pages/dora/DailyBriefingPage').then((m) => ({ default: m.DailyBriefingPage })));
+const ExecutiveDashboardPage = React.lazy(() => import('@/pages/executive/ExecutiveDashboardPage').then((m) => ({ default: m.ExecutiveDashboardPage })));
+const ReportHubPage = React.lazy(() => import('@/pages/reports/ReportHubPage').then((m) => ({ default: m.ReportHubPage })));
+const NotificationsPage = React.lazy(() => import('@/pages/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 
 export function MainContent() {
   const { currentView } = useUIStore();
@@ -92,6 +95,8 @@ export function MainContent() {
         return <AssetsLayout />;
       case 'contracts':
         return <ContractsLayout />;
+      case 'culture':
+        return <CultureDashboardPage />;
       case 'reimbursements':
       case 'invoices':
         return <ReimbursementRouter />;
@@ -104,8 +109,10 @@ export function MainContent() {
     return (
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app transition-colors duration-200">
         <Header />
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in" role="main">
-          <KnowledgeHubLayout />
+        <main id="main-content" className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in" role="main">
+          <Suspense fallback={<PageSkeleton variant="list" />}>
+            <KnowledgeHubLayout />
+          </Suspense>
         </main>
       </div>
     );
@@ -114,8 +121,10 @@ export function MainContent() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app transition-colors duration-200">
       <Header />
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in" role="main">
-        {renderView()}
+      <main id="main-content" className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in" role="main">
+        <Suspense fallback={<PageSkeleton variant="dashboard" />}>
+          {renderView()}
+        </Suspense>
       </main>
     </div>
   );

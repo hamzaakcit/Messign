@@ -22,7 +22,8 @@ export type ReportType =
   | 'cross_module_correlation'
   | 'dora_automation_summary'
   | 'contract_renewals'
-  | 'asset_inventory';
+  | 'asset_inventory'
+  | 'financial_flow';
 
 export interface ReportRequest {
   type: ReportType;
@@ -63,8 +64,15 @@ function withPeriod(request: ReportRequest): { from: string; to: string } {
   return request.period ?? getDefaultPeriod();
 }
 
-function orgParam(ctx: CallerContext): [string | null] {
-  return [ctx.organizationId ?? null];
+function requireOrganizationId(ctx: CallerContext): string {
+  if (!ctx.organizationId) {
+    throw new Error('Missing organization context');
+  }
+  return ctx.organizationId;
+}
+
+function orgParam(ctx: CallerContext): [string] {
+  return [requireOrganizationId(ctx)];
 }
 
 export async function generateReport(ctx: CallerContext, request: ReportRequest): Promise<ReportResult> {
@@ -83,6 +91,7 @@ export async function generateReport(ctx: CallerContext, request: ReportRequest)
     case 'time_billing': return generateTimeBillingReport(ctx, request);
     case 'cross_module_correlation': return generateCrossModuleReport(ctx, request);
     case 'dora_automation_summary': return generateAutomationSummaryReport(ctx, request);
+    case 'financial_flow': return generateFinancialFlowReport(ctx, request);
     default: return placeholderReport(request);
   }
 }
@@ -133,6 +142,7 @@ async function generateExecutiveSummaryReport(ctx: CallerContext, req: ReportReq
 
 async function generateFinancialOverviewReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
+  const orgId = requireOrganizationId(ctx);
   const [spendByMonth, overdue, budgets] = await Promise.all([
     query(
       `SELECT to_char(date_trunc('month', created_at), 'Mon YY') AS month,
@@ -143,7 +153,7 @@ async function generateFinancialOverviewReport(ctx: CallerContext, req: ReportRe
          AND created_at::date BETWEEN $2::date AND $3::date
        GROUP BY 1
        ORDER BY MIN(date_trunc('month', created_at))`,
-      [ctx.organizationId ?? null, period.from, period.to],
+      [orgId, period.from, period.to],
     ),
     query(
       `SELECT COUNT(*)::int AS overdue_count, COALESCE(SUM(grand_total), 0)::numeric AS overdue_total
@@ -151,9 +161,29 @@ async function generateFinancialOverviewReport(ctx: CallerContext, req: ReportRe
        WHERE status = 'overdue'
          AND ($1::uuid IS NULL OR organization_id = $1::uuid)
          AND (is_deleted IS NULL OR is_deleted = FALSE)`,
-      orgParam(ctx),
+      [orgId],
     ),
-    query(`SELECT health_status, COUNT(*)::int AS count FROM mv_budget_health GROUP BY health_status`),
+    query(
+      `SELECT
+         CASE
+           WHEN b.allocated_amount > 0 AND COALESCE(spend.total_spent, 0) / b.allocated_amount > 0.9 THEN 'critical'
+           WHEN b.allocated_amount > 0 AND COALESCE(spend.total_spent, 0) / b.allocated_amount > 0.75 THEN 'warning'
+           ELSE 'healthy'
+         END AS health_status,
+         COUNT(*)::int AS count
+       FROM finance_budgets b
+       LEFT JOIN (
+         SELECT budget_id, COALESCE(SUM(COALESCE(converted_amount, original_amount)), 0)::numeric AS total_spent
+         FROM reimbursement_requests
+         WHERE budget_id IS NOT NULL
+           AND (is_deleted IS NULL OR is_deleted = FALSE)
+           AND status NOT IN ('voided', 'draft', 'rejected')
+         GROUP BY budget_id
+       ) spend ON spend.budget_id = b.id
+       WHERE b.organization_id = $1::uuid
+       GROUP BY health_status`,
+      [orgId],
+    ),
   ]);
 
   return {
@@ -173,15 +203,30 @@ async function generateFinancialOverviewReport(ctx: CallerContext, req: ReportRe
 
 async function generateSalesPipelineReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
+  const orgId = requireOrganizationId(ctx);
   const [pipelineByStage, wins] = await Promise.all([
-    query(`SELECT stage_name, total_value, weighted_value, deal_count FROM mv_pipeline_summary ORDER BY total_value DESC`),
+    query(
+      `SELECT
+         s.name AS stage_name,
+         COALESCE(SUM(COALESCE(d.amount_eur, d.amount, 0)), 0)::numeric AS total_value,
+         COALESCE(SUM(COALESCE(d.amount_eur, d.amount, 0) * COALESCE(d.probability, 0) / 100.0), 0)::numeric AS weighted_value,
+         COUNT(d.id)::int AS deal_count
+       FROM crm_deal_stages s
+       LEFT JOIN crm_deals d ON d.stage_id = s.id
+         AND d.organization_id = s.organization_id
+         AND d.status NOT IN ('won', 'lost')
+       WHERE s.organization_id = $1::uuid
+       GROUP BY s.id
+       ORDER BY s.position ASC`,
+      [orgId],
+    ),
     query(
       `SELECT COUNT(*)::int AS won_count, COALESCE(SUM(amount), 0)::numeric AS won_total
        FROM crm_deals
        WHERE status = 'won'
          AND ($1::uuid IS NULL OR organization_id = $1::uuid)
          AND closed_at::date BETWEEN $2::date AND $3::date`,
-      [ctx.organizationId ?? null, period.from, period.to],
+      [orgId, period.from, period.to],
     ),
   ]);
   return {
@@ -210,7 +255,7 @@ async function generateSupportPerformanceReport(ctx: CallerContext, req: ReportR
        FROM support_tickets
        WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
          AND created_at::date BETWEEN $2::date AND $3::date`,
-      [ctx.organizationId ?? null, period.from, period.to],
+      [requireOrganizationId(ctx), period.from, period.to],
     ),
     query(
       `SELECT COALESCE(AVG(rating), 0)::numeric AS avg_csat
@@ -218,7 +263,7 @@ async function generateSupportPerformanceReport(ctx: CallerContext, req: ReportR
        JOIN support_tickets t ON t.id = r.ticket_id
        WHERE ($1::uuid IS NULL OR t.organization_id = $1::uuid)
          AND r.created_at::date BETWEEN $2::date AND $3::date`,
-      [ctx.organizationId ?? null, period.from, period.to],
+      [requireOrganizationId(ctx), period.from, period.to],
     ),
   ]);
   return {
@@ -236,13 +281,31 @@ async function generateSupportPerformanceReport(ctx: CallerContext, req: ReportR
 
 async function generateMarketingROIReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
-  const roi = await query(`SELECT campaign_name, channel, roi_percent, lead_count FROM mv_marketing_roi ORDER BY roi_percent DESC`);
+  const roi = await query(
+    `SELECT
+       c.name AS campaign_name,
+       c.channel,
+       c.status,
+       c.leads_generated,
+       CASE
+         WHEN c.actual_spend_eur > 0
+           THEN COALESCE(SUM(d.amount_eur), 0) / c.actual_spend_eur
+         ELSE 0
+       END AS roi_multiplier
+     FROM marketing_campaigns c
+     LEFT JOIN marketing_leads l ON l.campaign_id = c.id
+     LEFT JOIN crm_deals d ON d.id = l.crm_deal_id
+     WHERE c.organization_id = $1::uuid
+     GROUP BY c.id
+     ORDER BY roi_multiplier DESC`,
+    [requireOrganizationId(ctx)],
+  );
   const leads = await query(
     `SELECT COUNT(*)::int AS leads_total, COUNT(*) FILTER (WHERE is_mql = TRUE)::int AS mql_total
      FROM marketing_leads
      WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
        AND created_at::date BETWEEN $2::date AND $3::date`,
-    [ctx.organizationId ?? null, period.from, period.to],
+    [requireOrganizationId(ctx), period.from, period.to],
   );
   return {
     type: 'marketing_roi',
@@ -260,7 +323,7 @@ async function generateMarketingROIReport(ctx: CallerContext, req: ReportRequest
 
 async function generateRecruitmentFunnelReport(_ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
-  const funnel = await query(`SELECT * FROM mv_recruitment_funnel ORDER BY applications_count DESC`);
+  const funnel = await query(`SELECT * FROM mv_recruitment_funnel ORDER BY total_applicants DESC`);
   return {
     type: 'recruitment_funnel',
     title: 'Recruitment Funnel',
@@ -274,9 +337,30 @@ async function generateRecruitmentFunnelReport(_ctx: CallerContext, req: ReportR
   };
 }
 
-async function generateTeamUtilizationReport(_ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
+async function generateTeamUtilizationReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
-  const util = await query(`SELECT user_id, total_hours_week, target_hours_week, utilization_percent FROM mv_time_utilization ORDER BY utilization_percent DESC`);
+  const util = await query(
+    `SELECT user_id, full_name, total_hours_30d, billable_hours_30d, utilization_percent
+     FROM (
+       SELECT
+         u.id AS user_id,
+         u.full_name,
+         COALESCE(SUM(te.hours), 0)::numeric AS total_hours_30d,
+         COALESCE(SUM(te.hours) FILTER (WHERE te.is_billable), 0)::numeric AS billable_hours_30d,
+         CASE WHEN COALESCE(SUM(te.hours), 0) > 0
+           THEN ROUND((SUM(te.hours) FILTER (WHERE te.is_billable) / SUM(te.hours) * 100)::numeric, 1)
+           ELSE 0
+         END AS utilization_percent
+       FROM reimbursement_users u
+       LEFT JOIN time_entries te ON te.user_id = u.id
+         AND te.date >= CURRENT_DATE - INTERVAL '30 days'
+         AND te.status != 'rejected'
+       WHERE u.organization_id = $1::uuid
+       GROUP BY u.id, u.full_name
+     ) util
+     ORDER BY utilization_percent DESC`,
+    [requireOrganizationId(ctx)],
+  );
   return {
     type: 'team_utilization',
     title: 'Team Utilization',
@@ -286,7 +370,7 @@ async function generateTeamUtilizationReport(_ctx: CallerContext, req: ReportReq
     data: { utilization: util.rows },
     sections: [
       { title: 'Utilization Table', type: 'table', data: util.rows },
-      { title: 'Utilization Chart', type: 'chart_data', data: util.rows.map((r) => ({ userId: r.user_id, utilization: Number(r.utilization_percent) })) },
+      { title: 'Utilization Chart', type: 'chart_data', data: util.rows.map((r) => ({ userId: r.user_id, utilization: Number(r.utilization_percent), hours30d: Number(r.total_hours_30d) })) },
     ],
   };
 }
@@ -316,9 +400,34 @@ async function generateOKRProgressReport(ctx: CallerContext, req: ReportRequest)
   };
 }
 
-async function generateBudgetHealthReport(_ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
+async function generateBudgetHealthReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
-  const rows = await query(`SELECT budget_name, department_id, percent_consumed, health_status FROM mv_budget_health ORDER BY percent_consumed DESC`);
+  const rows = await query(
+    `SELECT
+       b.name AS budget_name,
+       b.department AS department_id,
+       CASE WHEN b.allocated_amount > 0
+         THEN ROUND((COALESCE(spend.total_spent, 0) / b.allocated_amount * 100)::numeric, 1)
+         ELSE 0
+       END AS percent_consumed,
+       CASE
+         WHEN b.allocated_amount > 0 AND COALESCE(spend.total_spent, 0) / b.allocated_amount > 0.9 THEN 'critical'
+         WHEN b.allocated_amount > 0 AND COALESCE(spend.total_spent, 0) / b.allocated_amount > 0.75 THEN 'warning'
+         ELSE 'healthy'
+       END AS health_status
+     FROM finance_budgets b
+     LEFT JOIN (
+       SELECT budget_id, COALESCE(SUM(COALESCE(converted_amount, original_amount)), 0)::numeric AS total_spent
+       FROM reimbursement_requests
+       WHERE budget_id IS NOT NULL
+         AND (is_deleted IS NULL OR is_deleted = FALSE)
+         AND status NOT IN ('voided', 'draft', 'rejected')
+       GROUP BY budget_id
+     ) spend ON spend.budget_id = b.id
+     WHERE b.organization_id = $1::uuid
+     ORDER BY percent_consumed DESC`,
+    [requireOrganizationId(ctx)],
+  );
   return {
     type: 'budget_health',
     title: 'Budget Health',
@@ -330,9 +439,24 @@ async function generateBudgetHealthReport(_ctx: CallerContext, req: ReportReques
   };
 }
 
-async function generateCustomerHealthReport(_ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
+async function generateCustomerHealthReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
-  const rows = await query(`SELECT * FROM mv_customer_health ORDER BY health_score ASC`);
+  const rows = await query(
+    `SELECT
+       sch.crm_company_id,
+       c.name AS company_name,
+       sch.health_score,
+       sch.open_ticket_count,
+       sch.avg_resolution_hours,
+       sch.avg_csat,
+       sch.trend,
+       sch.calculated_at
+     FROM support_customer_health sch
+     JOIN crm_companies c ON c.id = sch.crm_company_id
+     WHERE c.organization_id = $1::uuid
+     ORDER BY sch.health_score ASC`,
+    [requireOrganizationId(ctx)],
+  );
   return {
     type: 'customer_health',
     title: 'Customer Health',
@@ -354,7 +478,7 @@ async function generateExpenseReport(ctx: CallerContext, req: ReportRequest): Pr
        AND (is_deleted IS NULL OR is_deleted = FALSE)
      ORDER BY created_at DESC
      LIMIT 500`,
-    [ctx.organizationId ?? null, period.from, period.to],
+    [requireOrganizationId(ctx), period.from, period.to],
   );
   return {
     type: 'expense_report',
@@ -376,7 +500,7 @@ async function generateTimeBillingReport(ctx: CallerContext, req: ReportRequest)
        AND date BETWEEN $2::date AND $3::date
      GROUP BY user_id, project_id
      ORDER BY billable_total DESC`,
-    [ctx.organizationId ?? null, period.from, period.to],
+    [requireOrganizationId(ctx), period.from, period.to],
   );
   return {
     type: 'time_billing',
@@ -398,14 +522,14 @@ async function generateCrossModuleReport(ctx: CallerContext, req: ReportRequest)
        WHERE status = 'won'
          AND ($1::uuid IS NULL OR organization_id = $1::uuid)
          AND closed_at::date BETWEEN $2::date AND $3::date`,
-      [ctx.organizationId ?? null, period.from, period.to],
+      [requireOrganizationId(ctx), period.from, period.to],
     ),
     query(
       `SELECT COUNT(*)::int AS c
        FROM support_tickets
        WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
          AND created_at::date BETWEEN $2::date AND $3::date`,
-      [ctx.organizationId ?? null, period.from, period.to],
+      [requireOrganizationId(ctx), period.from, period.to],
     ),
     query(
       `SELECT COUNT(*)::int AS c
@@ -414,7 +538,7 @@ async function generateCrossModuleReport(ctx: CallerContext, req: ReportRequest)
        WHERE a.stage = 'hired'
          AND ($1::uuid IS NULL OR j.organization_id = $1::uuid)
          AND a.updated_at::date BETWEEN $2::date AND $3::date`,
-      [ctx.organizationId ?? null, period.from, period.to],
+      [requireOrganizationId(ctx), period.from, period.to],
     ),
   ]);
   const corr = {
@@ -433,6 +557,129 @@ async function generateCrossModuleReport(ctx: CallerContext, req: ReportRequest)
   };
 }
 
+async function generateFinancialFlowReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
+  const period = withPeriod(req);
+  const orgId = requireOrganizationId(ctx);
+
+  const [revenueByBucket, budgetByDept] = await Promise.all([
+    query(
+      `SELECT
+         CASE
+           WHEN COALESCE(d.amount_eur, d.amount, 0) < 10000 THEN 'Small'
+           WHEN COALESCE(d.amount_eur, d.amount, 0) < 50000 THEN 'Medium'
+           ELSE 'Large'
+         END AS bucket,
+         COALESCE(SUM(COALESCE(d.amount_eur, d.amount, 0)), 0)::numeric AS total
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       WHERE d.organization_id = $1::uuid AND s.is_won = true
+         AND d.actual_close_date IS NOT NULL
+         AND d.actual_close_date::date BETWEEN $2::date AND $3::date
+       GROUP BY 1`,
+      [orgId, period.from, period.to],
+    ),
+    query(
+      `SELECT department, COALESCE(SUM(allocated_amount), 0)::numeric AS allocated
+       FROM finance_budgets
+       WHERE organization_id = $1::uuid
+         AND period_start <= $3::date AND period_end >= $2::date
+       GROUP BY department`,
+      [orgId, period.from, period.to],
+    ),
+  ]);
+
+  const revenueRows = revenueByBucket.rows as Array<{ bucket: string; total: number }>;
+  const budgetRows = budgetByDept.rows as Array<{ department: string; allocated: number }>;
+
+  const expenseByCat = await query(
+    `SELECT COALESCE(category_slug, 'Other') AS category,
+            COALESCE(SUM(COALESCE(converted_amount, original_amount)), 0)::numeric AS total
+     FROM reimbursement_requests
+     WHERE organization_id = $1::uuid
+       AND (is_deleted IS NULL OR is_deleted = FALSE)
+       AND status NOT IN ('voided', 'draft', 'rejected')
+       AND created_at::date BETWEEN $2::date AND $3::date
+     GROUP BY COALESCE(category_slug, 'Other')`,
+    [orgId, period.from, period.to],
+  );
+  const expenseRows = expenseByCat.rows as Array<{ category: string; total: number }>;
+
+  const nodes: Array<{ id: string; name: string; color: string }> = [];
+  const links: Array<{ source: string; target: string; value: number }> = [];
+
+  const revColors: Record<string, string> = { Small: '#10B981', Medium: '#26A641', Large: '#39D353' };
+  const deptColors: Record<string, string> = {
+    Engineering: '#3B82F6', Sales: '#8B5CF6', Marketing: '#EC4899',
+    Operations: '#F59E0B', HR: '#06B6D4', Finance: '#6366F1',
+  };
+  const expColors: Record<string, string> = {
+    Salaries: '#1B6FA0', Tools: '#3B9DD1', 'Marketing Spend': '#EC4899',
+    Office: '#F59E0B', Travel: '#06B6D4', Vendors: '#6366F1', Other: '#64748B',
+  };
+
+  const nodeIds: Record<string, string> = {};
+
+  for (const r of revenueRows) {
+    const id = `rev-${r.bucket}`;
+    if (!nodeIds[id]) nodeIds[id] = id;
+    nodes.push({ id, name: `Deals Won (${r.bucket})`, color: revColors[r.bucket] ?? '#10B981' });
+  }
+  for (const b of budgetRows) {
+    const id = `dept-${b.department}`;
+    if (!nodeIds[id]) nodeIds[id] = id;
+    nodes.push({ id, name: b.department, color: deptColors[b.department] ?? '#64748B' });
+  }
+  for (const e of expenseRows) {
+    const id = `exp-${e.category}`;
+    if (!nodeIds[id]) nodeIds[id] = id;
+    nodes.push({ id, name: e.category, color: expColors[e.category] ?? '#64748B' });
+  }
+
+  const totalRevenue = revenueRows.reduce((s, r) => s + Number(r.total), 0);
+  const totalBudget = budgetRows.reduce((s, b) => s + Number(b.allocated), 0);
+  const totalExpense = expenseRows.reduce((s, e) => s + Number(e.total), 0);
+
+  for (const r of revenueRows) {
+    const val = Number(r.total);
+    if (val <= 0) continue;
+    for (const b of budgetRows) {
+      const alloc = Number(b.allocated);
+      if (alloc <= 0) continue;
+      const share = totalBudget > 0 ? (alloc / totalBudget) * val : 0;
+      if (share > 0) {
+        links.push({ source: `rev-${r.bucket}`, target: `dept-${b.department}`, value: Math.round(share) });
+      }
+    }
+  }
+
+  for (const b of budgetRows) {
+    const alloc = Number(b.allocated);
+    if (alloc <= 0) continue;
+    for (const e of expenseRows) {
+      const expTotal = Number(e.total);
+      if (expTotal <= 0) continue;
+      const share = totalExpense > 0 ? (expTotal / totalExpense) * alloc : 0;
+      if (share > 0) {
+        links.push({ source: `dept-${b.department}`, target: `exp-${e.category}`, value: Math.round(share) });
+      }
+    }
+  }
+
+  const sankeyData = { nodes, links };
+
+  return {
+    type: 'financial_flow',
+    title: 'Financial Flow',
+    description: 'Money flow from revenue through departments to expense categories.',
+    generatedAt: new Date().toISOString(),
+    period,
+    data: sankeyData,
+    sections: [
+      { title: 'Sankey Data', type: 'chart_data', data: sankeyData },
+    ],
+  };
+}
+
 async function generateAutomationSummaryReport(ctx: CallerContext, req: ReportRequest): Promise<ReportResult> {
   const period = withPeriod(req);
   const rows = await query(
@@ -442,7 +689,7 @@ async function generateAutomationSummaryReport(ctx: CallerContext, req: ReportRe
        AND created_at::date BETWEEN $2::date AND $3::date
      GROUP BY action_type, result
      ORDER BY count DESC`,
-    [ctx.organizationId ?? null, period.from, period.to],
+    [requireOrganizationId(ctx), period.from, period.to],
   );
   return {
     type: 'dora_automation_summary',
@@ -494,4 +741,5 @@ export const AVAILABLE_REPORT_TYPES: Array<{ type: ReportType; description: stri
   { type: 'dora_automation_summary', description: 'Automation actions and outcomes', permission: 'manager' },
   { type: 'contract_renewals', description: 'Contract renewal timeline report', permission: 'manager' },
   { type: 'asset_inventory', description: 'Asset and license inventory report', permission: 'manager' },
+  { type: 'financial_flow', description: 'Sankey diagram of money flow through the organization', permission: 'finance' },
 ];

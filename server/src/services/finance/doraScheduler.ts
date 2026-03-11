@@ -705,10 +705,38 @@ export async function initDoraScheduler(): Promise<void> {
     { repeat: { pattern: '0 7 * * 1-5' }, jobId: 'daily-briefings' },
   );
 
+  // ── Dora Heart jobs ──
+  await doraSchedulerQueue.add(
+    'burnout-assessment',
+    { type: 'burnout_assessment' },
+    { repeat: { pattern: '0 8 * * 1' }, jobId: 'burnout-assessment' },
+  );
+  await doraSchedulerQueue.add(
+    'team-health-calc',
+    { type: 'team_health_calculation' },
+    { repeat: { pattern: '0 9 * * 1' }, jobId: 'team-health-calc' },
+  );
+  await doraSchedulerQueue.add(
+    'weekly-sentiment-composite',
+    { type: 'weekly_sentiment_composite' },
+    { repeat: { pattern: '0 0 * * 0' }, jobId: 'weekly-sentiment-composite' },
+  );
+  await doraSchedulerQueue.add(
+    'auto-pulse-survey',
+    { type: 'auto_pulse_survey' },
+    { repeat: { pattern: '0 10 * * 3' }, jobId: 'auto-pulse-survey' },
+  );
+  await doraSchedulerQueue.add(
+    'onboarding-milestone-check',
+    { type: 'onboarding_milestone_check' },
+    { repeat: { pattern: '0 9 * * *' }, jobId: 'onboarding-milestone-check' },
+  );
+
   console.log('[DoraScheduler] Registered support jobs: support-sla-check, customer-health-recalc, support-pattern-detection');
   console.log('[DoraScheduler] Registered time jobs: utilization-check');
   console.log('[DoraScheduler] Registered asset/contracts jobs: asset-warranty-check, license-utilization-check, contract-renewal-check, contract-obligation-check');
-  console.log('[DoraScheduler] 14 scheduled jobs registered');
+  console.log('[DoraScheduler] Registered Heart jobs: burnout-assessment, team-health-calc, weekly-sentiment-composite, auto-pulse-survey, onboarding-milestone-check');
+  console.log('[DoraScheduler] 19 scheduled jobs registered');
 }
 
 function computeNextDate(current: string, frequency: string): string {

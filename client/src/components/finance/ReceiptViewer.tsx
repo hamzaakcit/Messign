@@ -28,7 +28,7 @@ export function ReceiptViewer({ imageUrl, fileName, extractedData, isVerified, v
               <a href={imageUrl} target="_blank" rel="noopener" className="p-1 text-app-muted hover:text-app-text">
                 <ExternalLink className="h-4 w-4" />
               </a>
-              <button onClick={onClose} className="p-1 text-app-muted hover:text-app-text">
+              <button onClick={onClose} className="p-1 text-app-muted hover:text-app-text" aria-label="Close">
                 <X className="h-4 w-4" />
               </button>
             </div>

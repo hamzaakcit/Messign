@@ -16,7 +16,9 @@ export type NotificationType =
   | 'knowledge_document_updated'
   | 'knowledge_required_reading'
   | 'knowledge_flag_created'
-  | 'knowledge_flag_resolved';
+  | 'knowledge_flag_resolved'
+  | 'timesheet_approved'
+  | 'task_completed';
 
 export interface Notification {
   id: string;

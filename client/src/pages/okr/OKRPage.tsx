@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   ChevronDown, ChevronRight, Plus, Target, CheckCircle2,
-  AlertTriangle, XCircle, BarChart3, Send,
+  AlertTriangle, XCircle, BarChart3, Send, LayoutGrid, GitBranch,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
@@ -9,6 +9,8 @@ import { KPICard } from '@/components/finance/KPICard';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import * as okrAPI from '@/lib/okrApi';
 import type { Goal, KeyResult, OKRPeriod, OKRMetrics, CreateGoalInput, CreateKeyResultInput } from '@/lib/okrApi';
+import { OKRGoalTree } from '@/components/visualizations/OKRGoalTree';
+import { EmptyState } from '@/components/ui';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
   on_track: { color: 'bg-emerald-400', bg: 'bg-emerald-400/10', label: 'On Track' },
@@ -546,6 +548,7 @@ export function OKRPage() {
 
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
 
   const fetchPeriods = useCallback(async () => {
     if (!userId) return;
@@ -632,11 +635,34 @@ export function OKRPage() {
         <div className="flex items-center gap-3">
           <Target className="w-5 h-5 text-primary-400" />
           <h2 className="text-lg font-semibold text-white">OKRs & Goals</h2>
+          {!loading && goals.length > 0 && (
+            <div className="flex rounded-lg border border-[var(--app-border)] overflow-hidden">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition ${
+                  viewMode === 'list' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                List View
+              </button>
+              <button
+                onClick={() => setViewMode('tree')}
+                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition ${
+                  viewMode === 'tree' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white'
+                }`}
+              >
+                <GitBranch className="w-4 h-4" />
+                Tree View
+              </button>
+            </div>
+          )}
           {periods.length > 0 && (
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value)}
               className="ml-4 bg-white/5 border border-[var(--app-border)] rounded-lg px-3 py-1.5 text-sm text-white"
+              aria-label="Select OKR period"
             >
               {periods.map(p => (
                 <option key={p.id} value={p.id}>
@@ -675,20 +701,16 @@ export function OKRPage() {
 
       {/* Goal Tree */}
       {!loading && goals.length === 0 && (
-        <div className="text-center py-16">
-          <Target className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-400 mb-2">No Goals Yet</h3>
-          <p className="text-sm text-gray-500 mb-4">Create your first OKR to get started.</p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm"
-          >
-            Create Goal
-          </button>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="No Goals Yet"
+          description="Create your first OKR to get started."
+          actionLabel="Create Goal"
+          onAction={() => setShowCreate(true)}
+        />
       )}
 
-      {!loading && goals.length > 0 && (
+      {!loading && goals.length > 0 && viewMode === 'list' && (
         <div>
           {goals.map(goal => (
             <GoalCard
@@ -700,6 +722,14 @@ export function OKRPage() {
             />
           ))}
         </div>
+      )}
+
+      {!loading && goals.length > 0 && viewMode === 'tree' && (
+        <OKRGoalTree
+          goals={goals}
+          periodId={selectedPeriod}
+          onGoalClick={(id) => setSelectedGoalId(id)}
+        />
       )}
 
       {/* Goal Detail Panel */}

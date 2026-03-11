@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { getSocket } from '@/lib/socket';
+import { getSocket, onFinanceNotification } from '@/lib/socket';
+import { successToast } from '@/components/ui/SuccessToast';
 import { useAuthStore } from '@/stores/authStore';
-import { useNotificationStore, type NotificationType } from '@/stores/notificationStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 
 /**
  * Subscribes to notification:new, xp:updated, and knowledge hub events
@@ -48,8 +49,36 @@ export function NotificationSocketSubscriber() {
       actionLabel?: string;
     }) => {
       if (data.userId !== user.id) return;
-      const notifType = (data.type ?? 'admin_message') as NotificationType;
+      const notifType = (data.type ?? 'admin_message') as string;
 
+      if (notifType === 'time.timesheet.approved' || notifType === 'timesheet_approved') {
+        successToast(data.title ?? 'Timesheet approved', {
+          description: data.message,
+          duration: 4000,
+        });
+        useNotificationStore.getState().addNotification({
+          type: 'timesheet_approved',
+          title: data.title ?? 'Timesheet approved',
+          message: data.message ?? '',
+          actionUrl: data.actionUrl ?? '/time',
+          actionLabel: data.actionLabel ?? 'View',
+        });
+        return;
+      }
+      if (notifType === 'project.task.completed' || notifType === 'task_completed') {
+        successToast(data.title ?? 'Task completed', {
+          description: data.message,
+          duration: 4000,
+        });
+        useNotificationStore.getState().addNotification({
+          type: 'task_completed',
+          title: data.title ?? 'Task completed',
+          message: data.message ?? '',
+          actionUrl: data.actionUrl ?? '/projects',
+          actionLabel: data.actionLabel ?? 'View',
+        });
+        return;
+      }
       if (notifType === 'reimbursement_approved' || notifType === 'reimbursement_rejected') {
         toast[notifType === 'reimbursement_approved' ? 'success' : 'error'](
           data.title ? (
@@ -170,6 +199,12 @@ export function NotificationSocketSubscriber() {
     };
 
     socket.on('xp:updated', handleXPUpdated);
+
+    const unsubFinance = onFinanceNotification((data) => {
+      if (data.type === 'expense.approved' || data.type === 'expense_approved') {
+        successToast(data.title, { description: data.message, duration: 4000 });
+      }
+    });
     socket.on('notification:new', handleNotificationNew);
     socket.on('knowledge:new_document', handleNewDocument);
     socket.on('knowledge:document_updated', handleDocumentUpdated);
@@ -177,6 +212,7 @@ export function NotificationSocketSubscriber() {
     socket.on('knowledge:flag_created', handleFlagCreated);
 
     return () => {
+      unsubFinance();
       socket.off('xp:updated', handleXPUpdated);
       socket.off('notification:new', handleNotificationNew);
       socket.off('knowledge:new_document', handleNewDocument);

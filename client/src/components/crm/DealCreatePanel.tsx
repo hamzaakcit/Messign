@@ -226,14 +226,14 @@ export function DealCreatePanel({ pipelineId, stages, onCreated, onCancel }: Dea
     <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
       {/* Title */}
       <FormField label="Title *" error={errors.title?.message}>
-        <input {...register('title')} className={inputCls} placeholder="Acme Corp — Enterprise License" autoFocus />
+        <input data-testid="deal-title" {...register('title')} className={inputCls} placeholder="Acme Corp — Enterprise License" autoFocus />
       </FormField>
 
       {/* Amount + Currency */}
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-2">
           <FormField label="Amount" error={errors.amount?.message}>
-            <input {...register('amount')} type="number" min="0" step="0.01" className={inputCls} placeholder="0" />
+            <input data-testid="deal-amount" {...register('amount')} type="number" min="0" step="0.01" className={inputCls} placeholder="0" />
           </FormField>
         </div>
         <FormField label="Currency" error={errors.currency?.message}>

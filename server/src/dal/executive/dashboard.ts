@@ -79,8 +79,15 @@ function num(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function orgParams(ctx: CallerContext): [string | null] {
-  return [ctx.organizationId ?? null];
+function requireOrganizationId(ctx: CallerContext): string {
+  if (!ctx.organizationId) {
+    throw new Error('Missing organization context');
+  }
+  return ctx.organizationId;
+}
+
+function orgParams(ctx: CallerContext): [string] {
+  return [requireOrganizationId(ctx)];
 }
 
 export async function getExecutiveDashboard(ctx: CallerContext): Promise<ExecutiveDashboard> {
@@ -127,38 +134,44 @@ export async function getRevenueMetrics(ctx: CallerContext): Promise<ExecutiveDa
   const [pipeline, dealsWon, trend] = await Promise.all([
     query(
       `SELECT
-         COALESCE(SUM(total_value), 0)::numeric AS pipeline_value,
-         COALESCE(SUM(weighted_value), 0)::numeric AS weighted_pipeline
-       FROM mv_pipeline_summary`,
+         COALESCE(SUM(COALESCE(d.amount_eur, d.amount, 0)), 0)::numeric AS pipeline_value,
+         COALESCE(SUM(COALESCE(d.amount_eur, d.amount, 0) * COALESCE(d.probability, 0) / 100.0), 0)::numeric AS weighted_pipeline
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       WHERE d.organization_id = $1::uuid
+         AND s.is_won = FALSE AND s.is_lost = FALSE`,
+      orgParams(ctx),
     ),
     query(
       `SELECT
          COUNT(*) FILTER (
-           WHERE status = 'won'
-             AND date_trunc('month', closed_at) = date_trunc('month', NOW())
+           WHERE s.is_won = TRUE
+             AND date_trunc('month', d.actual_close_date) = date_trunc('month', NOW())
          )::int AS deals_won_this_month,
-         CASE WHEN COUNT(*) FILTER (WHERE status IN ('won', 'lost')) > 0
+         CASE WHEN COUNT(*) FILTER (WHERE s.is_won = TRUE OR s.is_lost = TRUE) > 0
            THEN ROUND(
-             COUNT(*) FILTER (WHERE status = 'won')::numeric
-             / COUNT(*) FILTER (WHERE status IN ('won', 'lost'))::numeric
+             COUNT(*) FILTER (WHERE s.is_won = TRUE)::numeric
+             / COUNT(*) FILTER (WHERE s.is_won = TRUE OR s.is_lost = TRUE)::numeric
              * 100, 1
            )
            ELSE 0
          END AS win_rate,
-         COALESCE(SUM(amount) FILTER (WHERE status = 'won' AND date_part('year', closed_at) = date_part('year', NOW())), 0)::numeric AS total_ytd
-       FROM crm_deals
-       WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+         COALESCE(SUM(d.amount) FILTER (WHERE s.is_won = TRUE AND date_part('year', d.actual_close_date) = date_part('year', NOW())), 0)::numeric AS total_ytd
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       WHERE d.organization_id = $1::uuid`,
       orgParams(ctx),
     ),
     query(
-      `SELECT to_char(date_trunc('month', closed_at), 'Mon YY') AS month,
-              COALESCE(SUM(amount), 0)::numeric AS value
-       FROM crm_deals
-       WHERE status = 'won'
-         AND ($1::uuid IS NULL OR organization_id = $1::uuid)
-         AND closed_at >= date_trunc('month', NOW()) - INTERVAL '11 months'
+      `SELECT to_char(date_trunc('month', d.actual_close_date), 'Mon YY') AS month,
+              COALESCE(SUM(d.amount), 0)::numeric AS value
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       WHERE s.is_won = TRUE
+         AND d.organization_id = $1::uuid
+         AND d.actual_close_date >= date_trunc('month', NOW()) - INTERVAL '11 months'
        GROUP BY 1
-       ORDER BY MIN(date_trunc('month', closed_at))`,
+       ORDER BY MIN(date_trunc('month', d.actual_close_date))`,
       orgParams(ctx),
     ),
   ]);
@@ -177,13 +190,35 @@ export async function getFinanceMetrics(ctx: CallerContext): Promise<ExecutiveDa
   const [budgets, approvals, overdue, qtdExpenses] = await Promise.all([
     query(
       `SELECT
-         COALESCE(AVG(percent_consumed), 0)::numeric AS budget_health_avg,
-         COUNT(*) FILTER (WHERE health_status = 'critical')::int AS critical_budgets
-       FROM mv_budget_health`,
+         COALESCE(AVG(
+           CASE WHEN b.allocated_amount > 0
+             THEN (COALESCE(spend.total_spent, 0) / b.allocated_amount) * 100
+             ELSE 0
+           END
+         ), 0)::numeric AS budget_health_avg,
+         COUNT(*) FILTER (
+           WHERE b.allocated_amount > 0
+             AND (COALESCE(spend.total_spent, 0) / b.allocated_amount) > 0.9
+         )::int AS critical_budgets
+       FROM finance_budgets b
+       LEFT JOIN (
+         SELECT budget_id, COALESCE(SUM(COALESCE(converted_amount, original_amount)), 0)::numeric AS total_spent
+         FROM reimbursement_requests
+         WHERE budget_id IS NOT NULL
+           AND (is_deleted IS NULL OR is_deleted = FALSE)
+           AND status NOT IN ('voided', 'draft', 'rejected')
+         GROUP BY budget_id
+       ) spend ON spend.budget_id = b.id
+       WHERE b.organization_id = $1::uuid`,
+      orgParams(ctx),
     ),
     query(
       `SELECT COUNT(*)::int AS pending_approvals
-       FROM mv_approval_pipeline`,
+       FROM reimbursement_requests
+       WHERE organization_id = $1::uuid
+         AND (is_deleted IS NULL OR is_deleted = FALSE)
+         AND status IN ('submitted', 'under_review', 'pending')`,
+      orgParams(ctx),
     ),
     query(
       `SELECT
@@ -191,14 +226,14 @@ export async function getFinanceMetrics(ctx: CallerContext): Promise<ExecutiveDa
          COALESCE(SUM(grand_total), 0)::numeric AS overdue_amount
        FROM invoices
        WHERE status = 'overdue'
-         AND ($1::uuid IS NULL OR organization_id = $1::uuid)
+         AND organization_id = $1::uuid
          AND (is_deleted IS NULL OR is_deleted = FALSE)`,
       orgParams(ctx),
     ),
     query(
       `SELECT COALESCE(SUM(original_amount), 0)::numeric AS total_expenses_qtd
        FROM reimbursement_requests
-       WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
+       WHERE organization_id = $1::uuid
          AND (is_deleted IS NULL OR is_deleted = FALSE)
          AND status IN ('approved', 'ai_approved', 'manager_approved', 'finance_approved', 'paid', 'reimbursed')
          AND created_at >= date_trunc('quarter', NOW())`,
@@ -238,18 +273,21 @@ export async function getSupportMetrics(ctx: CallerContext): Promise<ExecutiveDa
          END AS sla_compliance,
          COALESCE(AVG(first_response_time_hours) FILTER (WHERE status = 'resolved' AND updated_at >= NOW() - INTERVAL '30 days'), 0)::numeric AS avg_response
        FROM support_tickets
-       WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+       WHERE organization_id = $1::uuid`,
       orgParams(ctx),
     ),
     query(
       `SELECT COUNT(*) FILTER (WHERE health_status IN ('at_risk', 'critical'))::int AS at_risk
-       FROM mv_customer_health`,
+       FROM support_customer_health sch
+       JOIN crm_companies c ON c.id = sch.crm_company_id
+       WHERE c.organization_id = $1::uuid`,
+      orgParams(ctx),
     ),
     query(
       `SELECT COALESCE(AVG(rating), 0)::numeric AS csat
        FROM support_csat_ratings r
        JOIN support_tickets t ON t.id = r.ticket_id
-       WHERE ($1::uuid IS NULL OR t.organization_id = $1::uuid)`,
+       WHERE t.organization_id = $1::uuid`,
       orgParams(ctx),
     ),
   ]);
@@ -268,25 +306,51 @@ export async function getMarketingMetrics(ctx: CallerContext): Promise<Executive
   const [roi, leads] = await Promise.all([
     query(
       `SELECT
-         COUNT(*) FILTER (WHERE campaign_status IN ('active', 'running'))::int AS active_campaigns,
-         COALESCE(AVG(roi_percent), 0)::numeric AS avg_roi
-       FROM mv_marketing_roi`,
+         COUNT(*) FILTER (WHERE status IN ('active', 'running'))::int AS active_campaigns,
+         COALESCE(AVG(roi_multiplier), 0)::numeric AS avg_roi
+       FROM (
+         SELECT
+           c.id,
+           c.status,
+           CASE
+             WHEN c.actual_spend_eur > 0
+               THEN COALESCE(SUM(d.amount_eur), 0) / c.actual_spend_eur
+             ELSE 0
+           END AS roi_multiplier
+         FROM marketing_campaigns c
+         LEFT JOIN marketing_leads l ON l.campaign_id = c.id
+         LEFT JOIN crm_deals d ON d.id = l.crm_deal_id
+         WHERE c.organization_id = $1::uuid
+         GROUP BY c.id
+       ) roi_stats`,
+      orgParams(ctx),
     ),
     query(
       `SELECT
          COUNT(*) FILTER (WHERE date_trunc('month', created_at) = date_trunc('month', NOW()))::int AS leads_this_month,
-         COUNT(*) FILTER (WHERE is_mql = TRUE AND date_trunc('month', created_at) = date_trunc('month', NOW()))::int AS mqls
+         COUNT(*) FILTER (WHERE status = 'qualified' AND date_trunc('month', created_at) = date_trunc('month', NOW()))::int AS mqls
        FROM marketing_leads
-       WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+       WHERE organization_id = $1::uuid`,
       orgParams(ctx),
     ),
   ]);
 
-  const topCampaign = await query(
-    `SELECT campaign_name, roi_percent
-     FROM mv_marketing_roi
+  const topCampaign = await query<{ campaign_name: string; roi_percent: number }>(
+    `SELECT
+       c.name AS campaign_name,
+       CASE
+         WHEN c.actual_spend_eur > 0
+           THEN COALESCE(SUM(d.amount_eur), 0) / c.actual_spend_eur
+         ELSE 0
+       END AS roi_percent
+     FROM marketing_campaigns c
+     LEFT JOIN marketing_leads l ON l.campaign_id = c.id
+     LEFT JOIN crm_deals d ON d.id = l.crm_deal_id
+     WHERE c.organization_id = $1::uuid
+     GROUP BY c.id
      ORDER BY roi_percent DESC NULLS LAST
      LIMIT 1`,
+    orgParams(ctx),
   );
 
   return {
@@ -307,15 +371,32 @@ export async function getPeopleMetrics(ctx: CallerContext): Promise<ExecutiveDas
          COUNT(*)::int AS total_employees,
          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS new_hires
        FROM reimbursement_users
-       WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+       WHERE organization_id = $1::uuid`,
       orgParams(ctx),
     ),
-    query(`SELECT COALESCE(AVG(utilization_percent), 0)::numeric AS avg_utilization FROM mv_time_utilization`),
+    query(
+      `SELECT COALESCE(AVG(utilization_percent), 0)::numeric AS avg_utilization
+       FROM (
+         SELECT
+           u.id,
+           CASE WHEN COALESCE(SUM(te.hours), 0) > 0
+             THEN ROUND((SUM(te.hours) FILTER (WHERE te.is_billable) / SUM(te.hours) * 100)::numeric, 1)
+             ELSE 0
+           END AS utilization_percent
+         FROM reimbursement_users u
+         LEFT JOIN time_entries te ON te.user_id = u.id
+           AND te.date >= CURRENT_DATE - INTERVAL '30 days'
+           AND te.status != 'rejected'
+         WHERE u.organization_id = $1::uuid
+         GROUP BY u.id
+       ) scoped_util`,
+      orgParams(ctx),
+    ),
     query(
       `SELECT COUNT(*)::int AS pending_timesheets
        FROM time_timesheets
        WHERE status = 'submitted'
-         AND ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+         AND organization_id = $1::uuid`,
       orgParams(ctx),
     ),
   ]);
@@ -324,7 +405,7 @@ export async function getPeopleMetrics(ctx: CallerContext): Promise<ExecutiveDas
     `SELECT COUNT(*)::int AS open_positions
      FROM recruitment_jobs
      WHERE status IN ('published', 'open')
-       AND ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+       AND organization_id = $1::uuid`,
     orgParams(ctx),
   );
 
@@ -342,14 +423,28 @@ export async function getProjectMetrics(ctx: CallerContext): Promise<ExecutiveDa
     query(
       `SELECT
          COUNT(*)::int AS active_projects,
-         COALESCE(AVG(completion_rate), 0)::numeric AS avg_velocity
-       FROM mv_project_velocity`,
+         COALESCE(AVG(
+           CASE WHEN stats.total_tasks > 0
+             THEN (stats.completed_tasks::numeric / stats.total_tasks::numeric) * 100
+             ELSE 0
+           END
+         ), 0)::numeric AS avg_velocity
+       FROM (
+         SELECT
+           p.id,
+           COUNT(t.id)::int AS total_tasks,
+           COUNT(t.id) FILTER (WHERE t.status IN ('completed', 'done'))::int AS completed_tasks
+         FROM projects p
+         LEFT JOIN tasks t ON t.project_id = p.id
+         GROUP BY p.id
+       ) stats`,
     ),
     query(
       `SELECT
-         COUNT(*) FILTER (WHERE status IN ('completed', 'done') AND completed_at >= NOW() - INTERVAL '7 days')::int AS completed_week,
-         COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked_tasks
-       FROM tasks`,
+         COUNT(*) FILTER (WHERE t.status IN ('completed', 'done') AND t.completed_at >= NOW() - INTERVAL '7 days')::int AS completed_week,
+         COUNT(*) FILTER (WHERE t.status = 'blocked')::int AS blocked_tasks
+       FROM tasks t
+       JOIN projects p ON p.id = t.project_id`,
     ),
   ]);
 
@@ -370,7 +465,7 @@ export async function getOKRMetrics(ctx: CallerContext): Promise<ExecutiveDashbo
        COUNT(*) FILTER (WHERE status IN ('behind', 'off_track'))::int AS behind
      FROM okr_goals
      WHERE is_archived = FALSE
-       AND ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+       AND organization_id = $1::uuid`,
     orgParams(ctx),
   );
   return {
@@ -388,7 +483,7 @@ export async function getOperationsMetrics(ctx: CallerContext): Promise<Executiv
        FROM contracts
        WHERE end_date >= CURRENT_DATE
          AND end_date <= CURRENT_DATE + INTERVAL '30 days'
-         AND ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+         AND organization_id = $1::uuid`,
       orgParams(ctx),
     ),
     query(
@@ -396,7 +491,7 @@ export async function getOperationsMetrics(ctx: CallerContext): Promise<Executiv
        FROM licenses
        WHERE expiry_date >= CURRENT_DATE
          AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'
-         AND ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+         AND organization_id = $1::uuid`,
       orgParams(ctx),
     ),
     query(
@@ -404,7 +499,7 @@ export async function getOperationsMetrics(ctx: CallerContext): Promise<Executiv
        FROM assets
        WHERE assignee_id IS NULL
          AND status IN ('available', 'in_stock')
-         AND ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+         AND organization_id = $1::uuid`,
       orgParams(ctx),
     ),
   ]);
@@ -429,7 +524,7 @@ export async function getRecentActivity(ctx: CallerContext): Promise<ExecutiveDa
          '#10b981'::text AS color
        FROM reimbursement_requests e
        LEFT JOIN reimbursement_users u ON u.id = e.submitted_by
-       WHERE ($1::uuid IS NULL OR e.organization_id = $1::uuid)
+       WHERE e.organization_id = $1::uuid
        ORDER BY e.updated_at DESC
        LIMIT 6
      ) finance_events
@@ -438,14 +533,15 @@ export async function getRecentActivity(ctx: CallerContext): Promise<ExecutiveDa
        SELECT
          d.id::text AS id,
          'sales'::text AS module,
-         CASE WHEN d.status = 'won' THEN 'deal.won' ELSE 'deal.updated' END AS type,
+         CASE WHEN s.is_won = TRUE THEN 'deal.won' ELSE 'deal.updated' END AS type,
          d.title::text AS title,
          COALESCE(u.full_name, 'System') AS actor,
          d.updated_at AS timestamp,
          '#3b82f6'::text AS color
        FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
        LEFT JOIN reimbursement_users u ON u.id = d.owner_id
-       WHERE ($1::uuid IS NULL OR d.organization_id = $1::uuid)
+       WHERE d.organization_id = $1::uuid
        ORDER BY d.updated_at DESC
        LIMIT 6
      ) sales_events
@@ -461,7 +557,7 @@ export async function getRecentActivity(ctx: CallerContext): Promise<ExecutiveDa
          '#f59e0b'::text AS color
        FROM support_tickets t
        LEFT JOIN reimbursement_users u ON u.id = t.assignee_id
-       WHERE ($1::uuid IS NULL OR t.organization_id = $1::uuid)
+       WHERE t.organization_id = $1::uuid
        ORDER BY t.updated_at DESC
        LIMIT 6
      ) support_events
@@ -488,12 +584,12 @@ export async function getInsightCounts(ctx: CallerContext): Promise<ExecutiveDas
        COUNT(*) FILTER (WHERE severity = 'warning' AND is_read = FALSE)::int AS warning_count,
        COUNT(*) FILTER (WHERE is_read = FALSE)::int AS total_unread
      FROM dora_insights
-     WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
+     WHERE organization_id = $1::uuid
        AND (
          target_user_id = $2::uuid
          OR target_user_id IS NULL
        )`,
-    [ctx.organizationId ?? null, ctx.userId],
+    [requireOrganizationId(ctx), ctx.userId],
   );
   return {
     criticalCount: num(result.rows[0]?.critical_count),

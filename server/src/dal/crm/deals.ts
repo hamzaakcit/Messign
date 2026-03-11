@@ -383,6 +383,7 @@ export async function moveDealToStage(
         dealId, amount: deal.amount, currency: deal.currency,
         companyId: deal.company_id ?? undefined, ownerId: deal.owner_id,
         closedAt: new Date().toISOString(),
+        organizationId: deal.organization_id ?? undefined,
       });
     }
 

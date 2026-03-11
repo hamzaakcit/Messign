@@ -26,6 +26,7 @@ export function PipelineColumn({ stage, deals, onDealClick }: PipelineColumnProp
 
   return (
     <div
+      data-testid={stage.is_won ? 'pipeline-stage-won' : stage.is_lost ? 'pipeline-stage-lost' : `pipeline-stage-${stage.id}`}
       className={cn(
         'flex flex-col rounded-lg border border-app-border overflow-hidden shrink-0',
         'w-[280px] min-w-[280px] max-h-full',
@@ -59,6 +60,7 @@ export function PipelineColumn({ stage, deals, onDealClick }: PipelineColumnProp
       {!collapsed && (
         <div
           ref={setNodeRef}
+          data-testid={stage.is_won ? 'pipeline-stage-won-dropzone' : undefined}
           className={cn(
             'flex-1 p-2 space-y-2 overflow-y-auto min-h-[120px] transition-colors',
             isOver && 'bg-primary-500/10',

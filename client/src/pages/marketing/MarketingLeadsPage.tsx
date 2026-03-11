@@ -181,6 +181,7 @@ export function MarketingLeadsPage() {
             onSelectionChange={setSelectedIds}
             onRowClick={(row) => setSelectedLeadId(row.id)}
             emptyMessage="No leads found."
+            virtualized
           />
         </div>
       </div>

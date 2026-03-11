@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI } from '@/lib/financeApi';
+import { reportsAPI } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
   BarChart3, TrendingUp, AlertTriangle, DollarSign,
-  ArrowUpRight, ArrowDownRight, Bot, Clock,
+  ArrowUpRight, ArrowDownRight, Bot, Clock, GitBranch, LayoutGrid,
 } from 'lucide-react';
+import { FinanceSankeyFlow, type SankeyData } from '@/components/visualizations/FinanceSankeyFlow';
+import { PageSkeleton } from '@/components/ui';
 
 interface BudgetForecast {
   budget_id: string;
@@ -47,6 +50,32 @@ export function ReportsPage() {
   const [aiMetrics, setAiMetrics] = useState<AIMetrics | null>(null);
   const [spendByCategory, setSpendByCategory] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
+  const [reportView, setReportView] = useState<'charts' | 'flow'>('charts');
+  const [sankeyData, setSankeyData] = useState<SankeyData | null>(null);
+  const [sankeyLoading, setSankeyLoading] = useState(false);
+
+  const loadSankey = useCallback(async () => {
+    if (!userId) return;
+    setSankeyLoading(true);
+    try {
+      const report = await reportsAPI.generateSimple(userId, 'financial_flow');
+      const raw = report?.sections?.find((s: { type: string }) => s.type === 'chart_data')?.data ?? report?.data;
+      const chartData = raw && typeof raw === 'object' && 'nodes' in raw && 'links' in raw ? (raw as SankeyData) : null;
+      if (chartData) {
+        setSankeyData(chartData);
+      } else {
+        setSankeyData(null);
+      }
+    } catch {
+      setSankeyData(null);
+    } finally {
+      setSankeyLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (reportView === 'flow') void loadSankey();
+  }, [reportView, loadSankey]);
 
   useEffect(() => {
     if (!userId) return;
@@ -66,15 +95,43 @@ export function ReportsPage() {
   }, [userId]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-500 border-t-transparent" />
-      </div>
-    );
+    return <PageSkeleton variant="dashboard" />;
   }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Flow View Toggle */}
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-lg border border-[var(--app-border)] overflow-hidden">
+          <button
+            onClick={() => setReportView('charts')}
+            className={cn(
+              'px-3 py-1.5 text-sm flex items-center gap-1.5 transition',
+              reportView === 'charts' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white',
+            )}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Charts
+          </button>
+          <button
+            onClick={() => setReportView('flow')}
+            className={cn(
+              'px-3 py-1.5 text-sm flex items-center gap-1.5 transition',
+              reportView === 'flow' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white',
+            )}
+          >
+            <GitBranch className="w-4 h-4" />
+            Flow View
+          </button>
+        </div>
+      </div>
+
+      {reportView === 'flow' && (
+        <FinanceSankeyFlow data={sankeyData} loading={sankeyLoading} />
+      )}
+
+      {reportView === 'charts' && (
+        <>
       {/* AI Performance Metrics */}
       {aiMetrics && (
         <div className="rounded-xl border border-primary-500/20 bg-primary-500/5 p-6">
@@ -234,6 +291,8 @@ export function ReportsPage() {
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

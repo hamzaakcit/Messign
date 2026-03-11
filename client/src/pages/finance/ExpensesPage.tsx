@@ -229,6 +229,7 @@ export function ExpensesPage() {
           )}
         </button>
         <button
+          data-testid="expense-new"
           onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
         >

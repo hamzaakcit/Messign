@@ -9,9 +9,11 @@ import {
   type ReportResult,
   type ReportType,
 } from '../../dal/reports/reportGenerator.js';
+import { redisConnection } from '../../queue/connection.js';
 
 const reportsRouter = Router();
-const reportHistory: ReportResult[] = [];
+const REPORT_CACHE_TTL = 60;
+const reportHistoryByScope = new Map<string, ReportResult[]>();
 
 function buildCtx(req: ReimbursementRequest): CallerContext {
   const user = req.reimbursementUser!;
@@ -20,6 +22,18 @@ function buildCtx(req: ReimbursementRequest): CallerContext {
     role: user.role as CallerContext['role'],
     organizationId: req.organizationId,
   };
+}
+
+function scopeKey(req: ReimbursementRequest): string {
+  return `${req.organizationId ?? 'no-org'}:${req.reimbursementUser?.id ?? 'unknown-user'}`;
+}
+
+function pushReportHistory(req: ReimbursementRequest, report: ReportResult): void {
+  const key = scopeKey(req);
+  const current = reportHistoryByScope.get(key) ?? [];
+  current.unshift(report);
+  if (current.length > 50) current.splice(50);
+  reportHistoryByScope.set(key, current);
 }
 
 function toCsvRows(data: unknown[]): string {
@@ -65,11 +79,35 @@ reportsRouter.get('/types', (_req, res) => {
   res.json(AVAILABLE_REPORT_TYPES);
 });
 
+function reportCacheKey(req: ReimbursementRequest, type: string, period?: { from: string; to: string }, departmentId?: string): string {
+  const org = req.organizationId ?? 'no-org';
+  const user = req.reimbursementUser?.id ?? 'unknown';
+  const p = period ? `${period.from}_${period.to}` : 'default';
+  const dept = departmentId ?? 'all';
+  return `report_${org}_${user}_${type}_${p}_${dept}`;
+}
+
 reportsRouter.post('/generate', async (req: ReimbursementRequest, res) => {
   try {
-    const report = await generateReport(buildCtx(req), req.body as ReportRequest);
-    reportHistory.unshift(report);
-    reportHistory.splice(50);
+    const body = req.body as ReportRequest;
+    const cacheKey = reportCacheKey(req, body.type ?? 'unknown', body.period, body.departmentId);
+    try {
+      const cached = await redisConnection.get(cacheKey);
+      if (cached) {
+        const report = JSON.parse(cached) as ReportResult;
+        pushReportHistory(req, report);
+        return res.json(report);
+      }
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] report cache get:', e.message);
+    }
+    const report = await generateReport(buildCtx(req), body);
+    pushReportHistory(req, report);
+    try {
+      await redisConnection.setex(cacheKey, REPORT_CACHE_TTL, JSON.stringify(report));
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] report cache set:', e.message);
+    }
     res.json(report);
   } catch (error) {
     console.error('[reports/generate]', error);
@@ -82,15 +120,31 @@ reportsRouter.get('/generate/:type', async (req: ReimbursementRequest, res) => {
     const period = (req.query.from && req.query.to)
       ? { from: String(req.query.from), to: String(req.query.to) }
       : undefined;
+    const departmentId = req.query.departmentId ? String(req.query.departmentId) : undefined;
+    const cacheKey = reportCacheKey(req, req.params.type, period, departmentId);
+    try {
+      const cached = await redisConnection.get(cacheKey);
+      if (cached) {
+        const report = JSON.parse(cached) as ReportResult;
+        pushReportHistory(req, report);
+        return res.json(report);
+      }
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] report cache get:', e.message);
+    }
     const report = await generateReport(buildCtx(req), {
       type: req.params.type as ReportType,
       format: 'json',
       period,
-      departmentId: req.query.departmentId ? String(req.query.departmentId) : undefined,
+      departmentId,
       filters: {},
     });
-    reportHistory.unshift(report);
-    reportHistory.splice(50);
+    pushReportHistory(req, report);
+    try {
+      await redisConnection.setex(cacheKey, REPORT_CACHE_TTL, JSON.stringify(report));
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] report cache set:', e.message);
+    }
     res.json(report);
   } catch (error) {
     console.error('[reports/generate/:type]', error);
@@ -127,8 +181,8 @@ reportsRouter.post('/export/pdf', async (req: ReimbursementRequest, res) => {
   }
 });
 
-reportsRouter.get('/history', (_req, res) => {
-  res.json(reportHistory);
+reportsRouter.get('/history', (req: ReimbursementRequest, res) => {
+  res.json(reportHistoryByScope.get(scopeKey(req)) ?? []);
 });
 
 export default reportsRouter;

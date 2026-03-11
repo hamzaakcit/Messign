@@ -50,6 +50,7 @@ export function DealCard({ deal, isDragging, isWonColumn, onClick }: DealCardPro
     <div
       ref={setNodeRef}
       style={style}
+      data-testid={`deal-card-${deal.id}`}
       {...attributes}
       {...listeners}
       onClick={(e) => {

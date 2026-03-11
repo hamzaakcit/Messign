@@ -140,7 +140,7 @@ chatRouter.post('/channels/:id/messages', async (req, res) => {
     });
     await addEmployeeXP(userId, xpGained);
     eventBus.emit('chat.message.sent', {
-      messageId: message.id, channelId, userId, hasAttachment: attachments.length > 0,
+      messageId: message.id, channelId, userId, hasAttachment: attachments.length > 0, content: content ?? '',
     });
     const payload = toClientMessage(message);
     for (const memberId of channel.members) {

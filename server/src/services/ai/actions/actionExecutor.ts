@@ -8,10 +8,27 @@ import { updateTask } from '../../../db/tasksDb.js';
 import { createBudget, updateBudget, logFinancialAction } from '../../../db/budgetDb.js';
 import { query } from '../../../db/index.js';
 
+interface ActionExecutionContext {
+  authUserId: string;
+  actorReimbursementUserId: string;
+  role: string;
+  organizationId: string;
+}
+
 export async function executeConfirmedAction(
   action: PendingAction,
+  context: ActionExecutionContext,
 ): Promise<ActionExecutionResult> {
   const { actionType, payload, token } = action;
+  const authzError = checkWritePermission(actionType, context.role);
+  if (authzError) {
+    return {
+      success: false,
+      actionType,
+      message: authzError,
+      error: 'FORBIDDEN',
+    };
+  }
 
   console.log(`[ActionExecutor] Executing ${actionType} (token: ${token.substring(0, 8)}...)`);
 
@@ -38,52 +55,52 @@ export async function executeConfirmedAction(
         result = await executeSendReminder(payload);
         break;
       case 'approve_expense':
-        result = await executeApproveExpense(payload);
+        result = await executeApproveExpense(payload, context);
         break;
       case 'flag_expense':
-        result = await executeFlagExpense(payload);
+        result = await executeFlagExpense(payload, context);
         break;
       case 'create_budget_alert':
-        result = await executeCreateBudgetAlert(payload);
+        result = await executeCreateBudgetAlert(payload, context);
         break;
       case 'create_budget':
-        result = await executeCreateBudget(payload);
+        result = await executeCreateBudget(payload, context);
         break;
       case 'update_budget':
-        result = await executeUpdateBudget(payload);
+        result = await executeUpdateBudget(payload, context);
         break;
       case 'auto_approve_expense':
-        result = await executeAutoApproveExpense(payload);
+        result = await executeAutoApproveExpense(payload, context);
         break;
       case 'flag_expense_for_review':
-        result = await executeFlagExpenseForReview(payload);
+        result = await executeFlagExpenseForReview(payload, context);
         break;
       case 'generate_invoice':
-        result = await executeGenerateInvoice(payload);
+        result = await executeGenerateInvoice(payload, context);
         break;
       case 'send_payment_reminder':
-        result = await executeSendPaymentReminder(payload);
+        result = await executeSendPaymentReminder(payload, context);
         break;
       case 'suggest_budget_reallocation':
-        result = await executeSuggestBudgetReallocation(payload);
+        result = await executeSuggestBudgetReallocation(payload, context);
         break;
       case 'create_deal':
-        result = await executeCreateDeal(payload);
+        result = await executeCreateDeal(payload, context);
         break;
       case 'create_ticket':
-        result = await executeCreateTicket(payload);
+        result = await executeCreateTicket(payload, context);
         break;
       case 'assign_asset':
-        result = await executeAssignAsset(payload);
+        result = await executeAssignAsset(payload, context);
         break;
       case 'send_renewal_reminder':
-        result = await executeSendRenewalReminder(payload);
+        result = await executeSendRenewalReminder(payload, context);
         break;
       case 'create_campaign':
-        result = await executeCreateCampaign(payload);
+        result = await executeCreateCampaign(payload, context);
         break;
       case 'post_job':
-        result = await executePostJob(payload);
+        result = await executePostJob(payload, context);
         break;
       default:
         result = {
@@ -110,6 +127,34 @@ export async function executeConfirmedAction(
       error: message,
     };
   }
+}
+
+function checkWritePermission(actionType: WriteActionType, role: string): string | null {
+  const normalizedRole = String(role || '').toLowerCase();
+  const roleMap: Partial<Record<WriteActionType, string[]>> = {
+    create_budget: ['admin', 'finance'],
+    update_budget: ['admin', 'finance'],
+    create_budget_alert: ['admin', 'finance', 'manager'],
+    approve_expense: ['admin', 'finance', 'manager'],
+    flag_expense: ['admin', 'finance', 'manager', 'hr'],
+    auto_approve_expense: ['admin', 'finance'],
+    flag_expense_for_review: ['admin', 'finance', 'manager'],
+    generate_invoice: ['admin', 'finance'],
+    send_payment_reminder: ['admin', 'finance'],
+    suggest_budget_reallocation: ['admin', 'finance'],
+    create_deal: ['admin', 'manager', 'dept_head', 'system_admin'],
+    assign_asset: ['admin', 'manager', 'dept_head', 'system_admin'],
+    send_renewal_reminder: ['admin', 'manager', 'dept_head', 'system_admin'],
+    create_campaign: ['admin', 'manager', 'dept_head', 'system_admin'],
+    post_job: ['admin', 'manager', 'dept_head', 'system_admin'],
+    create_ticket: ['admin', 'manager', 'member', 'dept_head', 'system_admin'],
+  };
+  const allowedRoles = roleMap[actionType];
+  if (!allowedRoles) return null;
+  if (!allowedRoles.includes(normalizedRole)) {
+    return `Role "${role}" is not allowed to execute action "${actionType}".`;
+  }
+  return null;
 }
 
 // Wire these to real DB mutations as each module's API becomes available.
@@ -259,6 +304,7 @@ async function executeSendReminder(
 
 async function executeApproveExpense(
   payload: Record<string, unknown>,
+  context: ActionExecutionContext,
 ): Promise<ActionExecutionResult> {
   const reimbursementId = payload.reimbursement_id as string;
   if (!reimbursementId) {
@@ -267,8 +313,11 @@ async function executeApproveExpense(
 
   try {
     const result = await query<{ status: string; title: string }>(
-      `SELECT status, title FROM reimbursement_requests WHERE id = $1`,
-      [reimbursementId],
+      `SELECT status, title
+       FROM reimbursement_requests
+       WHERE id = $1
+         AND organization_id = $2::uuid`,
+      [reimbursementId, context.organizationId],
     );
     const row = result.rows[0];
     if (!row) {
@@ -285,7 +334,13 @@ async function executeApproveExpense(
       return { success: false, actionType: 'approve_expense', message: `Cannot approve expense in "${row.status}" status.`, error: 'INVALID_STATUS' };
     }
 
-    await query(`UPDATE reimbursement_requests SET status = $1, updated_at = NOW() WHERE id = $2`, [nextStatus, reimbursementId]);
+    await query(
+      `UPDATE reimbursement_requests
+       SET status = $1, updated_at = NOW()
+       WHERE id = $2
+         AND organization_id = $3::uuid`,
+      [nextStatus, reimbursementId, context.organizationId],
+    );
 
     if (payload.comment) {
       await query(
@@ -316,6 +371,7 @@ async function executeApproveExpense(
 
 async function executeFlagExpense(
   payload: Record<string, unknown>,
+  context: ActionExecutionContext,
 ): Promise<ActionExecutionResult> {
   const reimbursementId = payload.reimbursement_id as string;
   const reason = payload.reason as string;
@@ -325,8 +381,11 @@ async function executeFlagExpense(
 
   try {
     const result = await query<{ title: string; status: string }>(
-      `SELECT title, status FROM reimbursement_requests WHERE id = $1`,
-      [reimbursementId],
+      `SELECT title, status
+       FROM reimbursement_requests
+       WHERE id = $1
+         AND organization_id = $2::uuid`,
+      [reimbursementId, context.organizationId],
     );
     const row = result.rows[0];
     if (!row) {
@@ -366,6 +425,7 @@ async function executeFlagExpense(
 
 async function executeCreateBudgetAlert(
   payload: Record<string, unknown>,
+  context: ActionExecutionContext,
 ): Promise<ActionExecutionResult> {
   const department = payload.department as string;
   const threshold = payload.threshold as number;
@@ -374,9 +434,7 @@ async function executeCreateBudgetAlert(
   }
 
   try {
-    const orgResult = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
-    const orgId = orgResult.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
 
     const budgetResult = await query<{ id: string }>(
       `SELECT id FROM finance_budgets WHERE organization_id = $1 AND department = $2 AND period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE LIMIT 1`,
@@ -411,6 +469,7 @@ async function executeCreateBudgetAlert(
 
 async function executeCreateBudget(
   payload: Record<string, unknown>,
+  context: ActionExecutionContext,
 ): Promise<ActionExecutionResult> {
   const department = payload.department as string;
   const allocatedAmount = payload.allocated_amount as number;
@@ -427,9 +486,7 @@ async function executeCreateBudget(
   }
 
   try {
-    const orgResult = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
-    const orgId = orgResult.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
 
     const budget = await createBudget(orgId, {
       department,
@@ -467,6 +524,7 @@ async function executeCreateBudget(
 
 async function executeUpdateBudget(
   payload: Record<string, unknown>,
+  context: ActionExecutionContext,
 ): Promise<ActionExecutionResult> {
   const budgetId = payload.budget_id as string;
   if (!budgetId) {
@@ -479,9 +537,7 @@ async function executeUpdateBudget(
   }
 
   try {
-    const orgResult = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
-    const orgId = orgResult.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
 
     const budget = await updateBudget(budgetId, orgId, {
       allocatedAmount: payload.allocated_amount as number | undefined,
@@ -524,7 +580,7 @@ async function executeUpdateBudget(
   }
 }
 
-async function executeAutoApproveExpense(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeAutoApproveExpense(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
     const { query: dbQuery } = await import('../../../db/index.js');
     const expenseId = payload.expense_id as string;
@@ -532,8 +588,10 @@ async function executeAutoApproveExpense(payload: Record<string, unknown>): Prom
 
     await dbQuery(
       `UPDATE reimbursement_requests SET status = 'ai_approved', ai_auto_approved = TRUE,
-       ai_review_notes = $1, approved_at = NOW(), updated_at = NOW() WHERE id = $2`,
-      [reason, expenseId],
+       ai_review_notes = $1, approved_at = NOW(), updated_at = NOW()
+       WHERE id = $2
+         AND organization_id = $3::uuid`,
+      [reason, expenseId, context.organizationId],
     );
 
     return {
@@ -547,7 +605,7 @@ async function executeAutoApproveExpense(payload: Record<string, unknown>): Prom
   }
 }
 
-async function executeFlagExpenseForReview(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeFlagExpenseForReview(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
     const { query: dbQuery } = await import('../../../db/index.js');
     const expenseId = payload.expense_id as string;
@@ -560,8 +618,10 @@ async function executeFlagExpenseForReview(payload: Record<string, unknown>): Pr
       `UPDATE reimbursement_requests SET status = 'ai_flagged',
        ai_risk_score = $1, ai_review_notes = $2,
        ai_risk_flags = COALESCE(ai_risk_flags, '[]'::jsonb) || $3::jsonb,
-       updated_at = NOW() WHERE id = $4`,
-      [riskScore, reason, JSON.stringify([{ type: 'manual_flag', severity: riskLevel, description: reason }]), expenseId],
+       updated_at = NOW()
+       WHERE id = $4
+         AND organization_id = $5::uuid`,
+      [riskScore, reason, JSON.stringify([{ type: 'manual_flag', severity: riskLevel, description: reason }]), expenseId, context.organizationId],
     );
 
     return {
@@ -575,14 +635,12 @@ async function executeFlagExpenseForReview(payload: Record<string, unknown>): Pr
   }
 }
 
-async function executeGenerateInvoice(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeGenerateInvoice(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
     const { invoiceService } = await import('../../finance/invoiceService.js');
     const { query: dbQuery } = await import('../../../db/index.js');
 
-    const orgResult = await dbQuery<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
 
     const items = typeof payload.items === 'string' ? JSON.parse(payload.items) : (payload.items as unknown[]) ?? [];
 
@@ -605,7 +663,7 @@ async function executeGenerateInvoice(payload: Record<string, unknown>): Promise
   }
 }
 
-async function executeSendPaymentReminder(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeSendPaymentReminder(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
     const { query: dbQuery } = await import('../../../db/index.js');
     const { notificationService } = await import('../../finance/notificationService.js');
@@ -613,12 +671,9 @@ async function executeSendPaymentReminder(payload: Record<string, unknown>): Pro
     const invoiceId = payload.invoice_id as string;
     const message = (payload.message as string) ?? 'Payment reminder for your invoice.';
 
-    const inv = await dbQuery('SELECT * FROM invoices WHERE id = $1', [invoiceId]);
+    const inv = await dbQuery('SELECT * FROM invoices WHERE id = $1 AND organization_id = $2::uuid', [invoiceId, context.organizationId]);
     if (!inv.rows[0]) throw new Error('Invoice not found');
-
-    const orgResult = await dbQuery<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
 
     if (inv.rows[0].employee_id) {
       await notificationService.create({
@@ -645,14 +700,12 @@ async function executeSendPaymentReminder(payload: Record<string, unknown>): Pro
   }
 }
 
-async function executeSuggestBudgetReallocation(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeSuggestBudgetReallocation(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
     const { auditService } = await import('../../finance/auditService.js');
     const { query: dbQuery } = await import('../../../db/index.js');
 
-    const orgResult = await dbQuery<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
 
     await auditService.log({
       organization_id: orgId,
@@ -682,11 +735,9 @@ async function executeSuggestBudgetReallocation(payload: Record<string, unknown>
   }
 }
 
-async function executeCreateDeal(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeCreateDeal(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
-    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
-    const orgId = org.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
 
     const company = await query<{ id: string }>(
       `SELECT id::text FROM crm_companies
@@ -715,11 +766,9 @@ async function executeCreateDeal(payload: Record<string, unknown>): Promise<Acti
   }
 }
 
-async function executeCreateTicket(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeCreateTicket(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
-    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
-    const orgId = org.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
     const row = await query<{ id: string }>(
       `INSERT INTO support_tickets (organization_id, subject, description, priority, reporter_email, category, status)
        VALUES ($1, $2, $3, $4, $5, $6, 'open')
@@ -739,15 +788,25 @@ async function executeCreateTicket(payload: Record<string, unknown>): Promise<Ac
   }
 }
 
-async function executeAssignAsset(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeAssignAsset(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
     const asset = await query<{ id: string }>(
-      `SELECT id::text FROM assets WHERE LOWER(name) LIKE LOWER($1) ORDER BY created_at DESC LIMIT 1`,
-      [`%${String(payload.assetName ?? '')}%`],
+      `SELECT id::text
+       FROM assets
+       WHERE organization_id = $1::uuid
+         AND LOWER(name) LIKE LOWER($2)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [context.organizationId, `%${String(payload.assetName ?? '')}%`],
     );
     const user = await query<{ id: string }>(
-      `SELECT id::text FROM reimbursement_users WHERE LOWER(full_name) LIKE LOWER($1) ORDER BY created_at DESC LIMIT 1`,
-      [`%${String(payload.employeeName ?? '')}%`],
+      `SELECT id::text
+       FROM reimbursement_users
+       WHERE organization_id = $1::uuid
+         AND LOWER(full_name) LIKE LOWER($2)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [context.organizationId, `%${String(payload.employeeName ?? '')}%`],
     );
     if (!asset.rows[0]?.id || !user.rows[0]?.id) throw new Error('Asset or employee not found');
     await query(
@@ -762,15 +821,16 @@ async function executeAssignAsset(payload: Record<string, unknown>): Promise<Act
   }
 }
 
-async function executeSendRenewalReminder(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeSendRenewalReminder(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
     const contract = await query<{ id: string; title: string }>(
       `SELECT id::text, title
        FROM contracts
-       WHERE LOWER(title) LIKE LOWER($1)
+       WHERE organization_id = $1::uuid
+         AND LOWER(title) LIKE LOWER($2)
        ORDER BY end_date ASC NULLS LAST
        LIMIT 1`,
-      [`%${String(payload.contractName ?? '')}%`],
+      [context.organizationId, `%${String(payload.contractName ?? '')}%`],
     );
     if (!contract.rows[0]) throw new Error('Contract not found');
     await query(
@@ -784,11 +844,9 @@ async function executeSendRenewalReminder(payload: Record<string, unknown>): Pro
   }
 }
 
-async function executeCreateCampaign(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executeCreateCampaign(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
-    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
-    const orgId = org.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
     const row = await query<{ id: string }>(
       `INSERT INTO marketing_campaigns (organization_id, name, channel, budget, start_date, description, status)
        VALUES ($1, $2, $3, $4, $5::date, $6, 'draft')
@@ -808,11 +866,9 @@ async function executeCreateCampaign(payload: Record<string, unknown>): Promise<
   }
 }
 
-async function executePostJob(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+async function executePostJob(payload: Record<string, unknown>, context: ActionExecutionContext): Promise<ActionExecutionResult> {
   try {
-    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
-    const orgId = org.rows[0]?.id;
-    if (!orgId) throw new Error('Organization not found');
+    const orgId = context.organizationId;
     const row = await query<{ id: string }>(
       `INSERT INTO recruitment_jobs (organization_id, title, department, description, requirements, status)
        VALUES ($1, $2, $3, $4, $5::text[], 'open')

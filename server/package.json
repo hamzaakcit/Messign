@@ -22,7 +22,10 @@
     "create-admin": "tsx src/scripts/create-admin.ts",
     "db:ensure-departments": "tsx src/scripts/ensureDepartments.ts",
     "db:knowledge-v12": "tsx src/db/runKnowledgeV12Migration.ts",
-    "db:embed-knowledge": "tsx src/db/embedKnowledgeDocs.ts"
+    "db:embed-knowledge": "tsx src/db/embedKnowledgeDocs.ts",
+    "kpi:validate": "tsx src/scripts/validateExecutiveKpis.ts",
+    "audit:perf": "tsx src/scripts/performanceAudit.ts",
+    "launch:check": "tsx src/scripts/launchChecklist.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

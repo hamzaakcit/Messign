@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, Clock3, Percent, Wallet } from 'lucide-react';
+import { TimeHeatmapCalendar, type TimeHeatmapDay } from '@/components/visualizations/TimeHeatmapCalendar';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { KPICard } from '@/components/finance/KPICard';
@@ -82,6 +83,7 @@ export function TimeTrackingPage() {
   const [addRowSubmitting, setAddRowSubmitting] = useState(false);
   const [weekEntries, setWeekEntries] = useState<any[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
+  const [heatmapData, setHeatmapData] = useState<TimeHeatmapDay[]>([]);
 
   const weekEnd = useMemo(() => {
     const end = new Date(`${weekStart}T00:00:00Z`);
@@ -122,12 +124,44 @@ export function TimeTrackingPage() {
     setTeamUtilization(Array.isArray(team) ? team : []);
   }, [userId]);
 
+  const loadHeatmapData = useCallback(async () => {
+    if (!userId) return;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 26 * 7);
+    try {
+      const res = (await timeApi.listEntries(userId, {
+        from: start.toISOString().slice(0, 10),
+        to: end.toISOString().slice(0, 10),
+        pageSize: 500,
+      })) as { data?: any[] };
+      const entries = Array.isArray(res?.data) ? res.data : [];
+      const byDate = new Map<string, { hours: number; billable: number }>();
+      for (const e of entries) {
+        const d = (e.date ?? e.Date ?? '').toString().slice(0, 10);
+        if (!d) continue;
+        const h = Number(e.hours ?? e.Hours ?? 0);
+        const b = e.isBillable ?? e.is_billable ? h : 0;
+        const cur = byDate.get(d) ?? { hours: 0, billable: 0 };
+        cur.hours += h;
+        cur.billable += b;
+        byDate.set(d, cur);
+      }
+      setHeatmapData(
+        Array.from(byDate.entries()).map(([date, v]) => ({ date, hours: v.hours, billable: v.billable })),
+      );
+    } catch {
+      setHeatmapData([]);
+    }
+  }, [userId]);
+
   useEffect(() => {
     if (!userId) return;
     void loadWeek();
     void loadEntries();
     void loadUtilization();
-  }, [userId, loadWeek, loadEntries, loadUtilization]);
+    void loadHeatmapData();
+  }, [userId, loadWeek, loadEntries, loadUtilization, loadHeatmapData]);
 
   useEffect(() => {
     if (!addRowOpen || !userId) return;
@@ -458,7 +492,16 @@ export function TimeTrackingPage() {
         )}
 
         {tab === 'utilization' && (
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-4">
+            <TimeHeatmapCalendar
+              data={heatmapData}
+              weeks={26}
+              onDayClick={(date) => {
+                setWeekStart(fmt(mondayOf(new Date(date))));
+                setTab('timesheet');
+              }}
+            />
+            <div className="grid gap-4 lg:grid-cols-3">
             <div className="rounded-xl border border-app-border bg-app-card p-4 lg:col-span-2">
               <h3 className="mb-3 text-sm font-semibold text-app">Daily billable vs non-billable</h3>
               <div className="h-64">
@@ -495,6 +538,7 @@ export function TimeTrackingPage() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+            </div>
             </div>
           </div>
         )}

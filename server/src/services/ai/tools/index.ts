@@ -65,6 +65,9 @@ import './assets/index.js';
 import './contracts/index.js';
 import './executiveTools.js';
 
+// Dora Heart: team health, wellness, culture, pulse
+import './heart/index.js';
+
 export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
 
 import { getToolCount } from '../toolRegistry.js';

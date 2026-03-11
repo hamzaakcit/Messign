@@ -20,6 +20,7 @@ import {
   UserPlus,
   Package,
   FileSignature,
+  Heart,
 } from 'lucide-react';
 import { PilotPlaneSVG } from '@/components/dora/DoraPilot';
 import { useUIStore } from '@/stores/uiStore';
@@ -35,6 +36,8 @@ import { API_ORIGIN } from '@/lib/api';
 import { getAccessToken } from '@/lib/authToken';
 import { onDoraInsightCounts } from '@/lib/socket';
 import { DoraInsightCountBadge } from '@/components/dora/DoraInsightCountBadge';
+
+const NEW_BADGE_HIDE_AFTER = '2025-03-25'; // Auto-hide NEW badges after this date (2 weeks from launch)
 
 const VIEW_TO_PATH: Record<string, string> = {
   dashboard: '/dashboard',
@@ -58,6 +61,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   okr: '/okr',
   assets: '/assets',
   contracts: '/contracts',
+  culture: '/culture',
 };
 
 const navItems = [
@@ -71,6 +75,7 @@ const navItems = [
   { id: 'knowledge', label: 'Knowledge Hub', icon: LayoutDashboard },
   { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'team', label: 'Team Directory', icon: Users },
+  { id: 'culture', label: 'Culture', icon: Heart, badgeText: 'NEW' },
   { id: 'finance', label: 'Finance', icon: Wallet, showReimbBadge: true },
   { id: 'crm', label: 'Sales CRM', icon: Target },
   { id: 'marketing', label: 'Marketing', icon: Megaphone, badgeText: 'NEW' },
@@ -152,14 +157,14 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   return (
     <div
       className={cn(
-        'h-full bg-app-sidebar border-r border-app flex flex-col transition-colors duration-200 transition-all duration-300 ease-in-out',
+        'h-full bg-app-sidebar border-r border-app flex flex-col transition-colors duration-200 transition-all duration-200 ease-out',
         collapsed && 'items-center'
       )}
     >
       {/* Header */}
       <div
         className={cn(
-          'p-4 border-b border-app flex items-center gap-2 transition-all duration-300 ease-in-out',
+          'p-4 border-b border-app flex items-center gap-2 transition-all duration-200 ease-out',
           collapsed ? 'justify-center px-2' : 'justify-between'
         )}
       >
@@ -190,15 +195,16 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
 
       {/* Personal Overview - hidden when collapsed */}
       {!collapsed && (
-        <div className="px-2 py-2 border-b border-app transition-all duration-300 ease-in-out">
+        <div className="px-2 py-2 border-b border-app transition-all duration-200 ease-out">
           <PersonalOverviewCard user={user} onClick={() => setPersonalDetailOpen(true)} />
         </div>
       )}
 
       {/* Navigation */}
       <nav
+        data-testid="onboarding-sidebar"
         className={cn(
-          'flex-1 py-2 space-y-1 overflow-y-auto transition-all duration-300 ease-in-out',
+          'flex-1 py-2 space-y-1 overflow-y-auto transition-all duration-200 ease-out',
           collapsed ? 'px-2 w-full flex flex-col items-center' : 'px-3'
         )}
         aria-label="Main navigation"
@@ -225,13 +231,16 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
                     ? insightCounts.time ?? 0
                   : 0;
           const badge = unread > 0 ? unread : reimbBadge;
-          const badgeText = 'badgeText' in item ? item.badgeText : undefined;
+          const rawBadgeText = 'badgeText' in item ? item.badgeText : undefined;
+          const showNewBadge = rawBadgeText === 'NEW' && new Date().toISOString().slice(0, 10) < NEW_BADGE_HIDE_AFTER;
+          const badgeText = rawBadgeText && (rawBadgeText !== 'NEW' || showNewBadge) ? rawBadgeText : undefined;
           return (
             <button
               key={item.id}
+              data-testid={item.id === 'dora' ? 'onboarding-dora-nav' : `nav-${item.id}`}
               onClick={() => handleNavClick(item.id)}
               className={cn(
-                'w-full flex items-center rounded-lg transition-all duration-200',
+                'w-full flex items-center rounded-lg transition-all duration-200 ease-out',
                 collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5',
                 currentView === item.id
                   ? 'bg-app-hover text-app border-l-2 border-primary-500'
@@ -277,7 +286,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
                 <>
                   <span className="font-medium flex-1 text-left">{item.label}</span>
                   {badgeText && (
-                    <span className="px-1.5 py-0.5 rounded-full bg-primary-500/15 text-primary-300 text-[10px] font-semibold tracking-wide">
+                    <span className="px-1.5 py-0.5 rounded-full bg-primary-500/15 text-primary-300 text-[10px] font-semibold tracking-wide animate-badge-pulse">
                       {badgeText}
                     </span>
                   )}
@@ -324,6 +333,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
           </button>
         )}
         <button
+          data-testid="sidebar-logout"
           onClick={logout}
           className={cn(
             'w-full flex items-center rounded-lg text-app-muted hover:text-danger-500 hover:bg-danger-500/10 transition-all duration-200',

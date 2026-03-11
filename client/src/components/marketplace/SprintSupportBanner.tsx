@@ -160,7 +160,7 @@ export function SprintSupportBanner({ compact }: SprintSupportBannerProps = {}) 
                     title={h.user.name}
                   >
                     {h.user.avatar ? (
-                      <img src={h.user.avatar} alt={h.user.name} className="w-full h-full object-cover" />
+                      <img src={h.user.avatar} alt={h.user.name} className="w-full h-full object-cover" loading="lazy" width={32} height={32} />
                     ) : (
                       <span className="text-xs text-app-muted">{h.user.name?.[0] ?? '?'}</span>
                     )}

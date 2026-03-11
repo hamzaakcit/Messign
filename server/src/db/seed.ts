@@ -189,6 +189,35 @@ export async function seed(): Promise<void> {
       }
     }
 
+    // Recruitment seed: job, candidate, application in offer stage (for E2E Hired → Auto HR Record)
+    const recruitmentJobId = 'a1000000-0000-4000-8000-000000000001';
+    const recruitmentCandidateId = 'a1000000-0000-4000-8000-000000000002';
+    const recruitmentApplicationId = 'a1000000-0000-4000-8000-000000000003';
+    const softwareTeamId = teamIdByCode['software'];
+    const hiringManagerId = userIdByAuthId['user-1'];
+    if (softwareTeamId && hiringManagerId) {
+      await client.query(
+        `INSERT INTO recruitment_jobs (id, organization_id, title, department, department_id, status, hiring_manager_id, recruiter_id, positions_count, positions_filled)
+         VALUES ($1, $2, 'E2E Software Engineer', 'Software', $3, 'open', $4, $4, 2, 0)
+         ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, status = 'open'`,
+        [recruitmentJobId, orgId, softwareTeamId, hiringManagerId]
+      );
+      const candRes = await client.query(
+        `INSERT INTO recruitment_candidates (id, organization_id, first_name, last_name, email, current_company, current_title, source)
+         VALUES ($1, $2, 'E2E', 'Candidate', 'e2e.candidate@example.com', 'Test Corp', 'Engineer', 'e2e')
+         ON CONFLICT (organization_id, email) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name
+         RETURNING id`,
+        [recruitmentCandidateId, orgId]
+      );
+      const candId = candRes.rows[0]?.id ?? recruitmentCandidateId;
+      await client.query(
+        `INSERT INTO recruitment_applications (id, job_id, candidate_id, stage, status, match_score, screened_method, source)
+         VALUES ($1, $2, $3, 'offer', 'active', 85, 'manual', 'e2e')
+         ON CONFLICT (job_id, candidate_id) DO UPDATE SET stage = 'offer', status = 'active'`,
+        [recruitmentApplicationId, recruitmentJobId, candId]
+      );
+    }
+
     // Performance metrics: company (global), teams, members – last 12 months for demo
     for (let m = 0; m < 12; m++) {
       const metricDate = new Date();

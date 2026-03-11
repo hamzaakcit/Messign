@@ -224,7 +224,12 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
   let currentGroup = '';
 
   return (
-    <div className="cmd-surface-overlay fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
+    <div
+      className="cmd-surface-overlay fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette: search, navigate, or ask Dora"
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -240,8 +245,9 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
       >
         {/* Input row */}
         <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: 'var(--app-border)' }}>
-          <Search className="w-5 h-5 shrink-0" style={{ color: 'var(--app-text-tertiary)' }} />
+          <Search className="w-5 h-5 shrink-0" style={{ color: 'var(--app-text-tertiary)' }} aria-hidden />
           <input
+            data-testid="command-surface-input"
             ref={inputRef}
             type="text"
             value={query}
@@ -250,6 +256,10 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
             placeholder="Search anything, take action, or ask Dora..."
             className="flex-1 bg-transparent text-base outline-none"
             style={{ color: 'var(--app-text)', caretColor: 'var(--primary-500)' }}
+            aria-label="Search command"
+            aria-controls="command-surface-listbox"
+            aria-autocomplete="list"
+            aria-expanded={flatItems.length > 0}
           />
           <kbd
             className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-mono select-none"
@@ -264,7 +274,13 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
         </div>
 
         {/* Results */}
-        <div ref={listRef} className="max-h-[360px] overflow-y-auto py-1">
+        <div
+          ref={listRef}
+          id="command-surface-listbox"
+          role="listbox"
+          aria-label="Command options"
+          className="max-h-[360px] overflow-y-auto py-1"
+        >
           {flatItems.length === 0 && !query && (
             <div className="px-5 py-8 text-center text-sm" style={{ color: 'var(--app-text-tertiary)' }}>
               Start typing to search pages, actions, or ask Dora...
@@ -300,6 +316,8 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
                     if (el) itemRefs.current.set(idx, el);
                     else itemRefs.current.delete(idx);
                   }}
+                  role="option"
+                  aria-selected={isSelected}
                   onClick={() => executeItem(item, entry.isDoraFallback)}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={cn(

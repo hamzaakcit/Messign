@@ -24,6 +24,7 @@ const MODULE_TOOLS: Record<string, string[]> = {
   ],
   'team-directory': [
     'get_team_overview', 'get_employee_performance', 'compare_employees',
+    'get_team_sentiment', 'get_burnout_risk', 'get_culture_score',
   ],
   invoices: [
     'get_invoice_details', 'get_financial_summary',
@@ -54,6 +55,10 @@ const MODULE_TOOLS: Record<string, string[]> = {
   ],
   time: [
     'get_time_summary', 'get_utilization_report', 'suggest_time_allocation',
+  ],
+  culture: [
+    'get_team_sentiment', 'get_burnout_risk', 'get_culture_score',
+    'get_my_wellness', 'send_pulse_survey',
   ],
   admin: [
     'get_system_stats', 'get_approval_queue', 'get_department_report',
@@ -88,6 +93,7 @@ const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
   { keywords: ['ticket', 'tickets', 'support', 'help desk', 'helpdesk', 'sla', 'customer health', 'csat', 'agent'], tools: ['get_ticket_overview', 'get_customer_health', 'get_support_metrics'] },
   { keywords: ['time', 'hours', 'timesheet', 'utilization', 'billable', 'timer'], tools: ['get_time_summary', 'get_utilization_report', 'suggest_time_allocation'] },
   { keywords: ['report', 'summary', 'analysis'], tools: ['get_department_report', 'get_financial_summary'] },
+  { keywords: ['sentiment', 'burnout', 'wellness', 'culture', 'team health', 'engagement', 'pulse', 'morale', 'stress', 'work-life'], tools: ['get_team_sentiment', 'get_burnout_risk', 'get_culture_score', 'get_my_wellness', 'send_pulse_survey'] },
 ];
 
 const MAX_TOOLS = 12;

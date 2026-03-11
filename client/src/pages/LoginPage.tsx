@@ -113,6 +113,7 @@ export function LoginPage() {
                       />
                     </div>
                     <input
+                      data-testid="login-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -146,6 +147,7 @@ export function LoginPage() {
                       />
                     </div>
                     <input
+                      data-testid="login-password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -186,6 +188,7 @@ export function LoginPage() {
                 </div>
 
                 <button
+                  data-testid="login-submit"
                   type="submit"
                   disabled={isLoading}
                   className="

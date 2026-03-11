@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { validateAndConsume, cancelAction, expireStaleActions } from './actionStore.js';
 import { executeConfirmedAction } from './actionExecutor.js';
 import type { ConfirmActionRequest } from './types.js';
+import { query } from '../../../db/index.js';
 
 const router = Router();
 type AuthReq = Request & { userId: string; role?: string };
@@ -36,7 +37,25 @@ router.post('/confirm', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await executeConfirmedAction(validation.action);
+    const actorLookup = await query<{ id: string; organization_id: string }>(
+      `SELECT id::text, organization_id::text
+       FROM reimbursement_users
+       WHERE auth_user_id = $1
+       LIMIT 1`,
+      [userId],
+    );
+    const actor = actorLookup.rows[0];
+    if (!actor?.organization_id) {
+      res.status(403).json({ success: false, message: 'Unable to resolve actor organization context.' });
+      return;
+    }
+
+    const result = await executeConfirmedAction(validation.action, {
+      authUserId: userId,
+      role: (req as AuthReq).role ?? 'employee',
+      organizationId: actor.organization_id,
+      actorReimbursementUserId: actor.id,
+    });
 
     if (result.success) {
       console.log(`[ActionRoutes] Executed ${result.actionType} for user ${userId}: ${result.message}`);

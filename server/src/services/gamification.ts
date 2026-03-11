@@ -2,6 +2,7 @@ import { getEmployeeByIdAsUser, addEmployeeXP } from '../db/employeesDb.js';
 import { hasBadge as dbHasBadge, awardBadgeToUser } from '../db/badgesDb.js';
 import { addActivity } from '../db/activitiesDb.js';
 import { eventBus } from '../events/index.js';
+import { emitToUser } from '../sockets/index.js';
 
 export const XP_REWARDS = {
   message_sent: 5,
@@ -110,5 +111,6 @@ async function awardBadge(userId: string, badgeId: string) {
     });
     await addEmployeeXP(userId, 100);
     eventBus.emit('gamification.badge.earned', { userId, badgeId, badgeName: badge.name });
+    void emitToUser(userId, 'celebration:badge-earned', { badgeId, badgeName: badge.name });
   }
 }

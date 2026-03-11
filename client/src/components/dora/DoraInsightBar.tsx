@@ -23,7 +23,8 @@ type Module =
   | 'contracts'
   | 'support'
   | 'time'
-  | 'okr';
+  | 'okr'
+  | 'culture';
 
 interface DoraInsightBarProps {
   module: Module;
@@ -48,6 +49,7 @@ const FALLBACK_MESSAGES: Record<Module, string> = {
   support: 'Dora monitors ticket SLAs and detects patterns across support requests.',
   time: 'Dora tracks your utilization and suggests optimal time allocation.',
   okr: 'Dora tracks OKR progress and flags at-risk goals.',
+  culture: 'Dora monitors team health and engagement patterns to help build a stronger culture.',
 };
 
 const DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
@@ -218,7 +220,7 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
   };
 
   return (
-    <div className={cn('mb-4 space-y-2', className)}>
+    <div data-testid="onboarding-insight-bar" className={cn('mb-4 space-y-2', className)}>
       <AnimatePresence initial={false}>
         {visibleInsights.map((insight) => {
           const styles = getBarStyles(insight.severity);

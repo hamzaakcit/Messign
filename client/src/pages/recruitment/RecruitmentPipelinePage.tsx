@@ -121,6 +121,7 @@ export function RecruitmentPipelinePage() {
                 return (
                   <div
                     key={stage.id}
+                    data-testid={stage.id === 'hired' ? 'recruitment-stage-hired' : `recruitment-stage-${stage.id}`}
                     className="w-[290px] min-w-[290px] rounded-xl border border-app-border bg-app-card/60 flex flex-col"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={async () => {
@@ -141,6 +142,7 @@ export function RecruitmentPipelinePage() {
                         return (
                           <button
                             key={application.id}
+                            data-testid={`application-card-${application.id}`}
                             draggable
                             onDragStart={() => setDraggedApplication(application)}
                             onClick={() => setSelectedApplicationId(application.id)}

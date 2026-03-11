@@ -28,6 +28,7 @@ function rel(iso: string): string {
 export function NotificationBell() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.authUserId || user?.id || '';
+  const socketIdentity = userId;
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -59,7 +60,7 @@ export function NotificationBell() {
   useEffect(() => {
     const s = getSocket();
     const handler = (payload: any) => {
-      if ((payload?.userId ?? '') !== (user?.id ?? '')) return;
+      if ((payload?.userId ?? '') !== socketIdentity) return;
       setItems((prev) => [
         {
           id: payload.id || crypto.randomUUID(),
@@ -81,7 +82,7 @@ export function NotificationBell() {
     return () => {
       s.off('notification:new', handler);
     };
-  }, [user?.id]);
+  }, [socketIdentity]);
 
   const markOneRead = async (id: string) => {
     if (!userId) return;

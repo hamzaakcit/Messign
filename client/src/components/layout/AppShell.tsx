@@ -9,9 +9,11 @@ import { useGameStore } from '@/stores/gameStore';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
 import { MainContent } from './MainContent';
-import { XPGainNotification } from '@/components/ui';
+import { XPGainNotification, CelebrationOverlay } from '@/components/ui';
 import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
 import { FloatingWidget } from '@/components/dora/FloatingWidget';
+import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthrough';
+import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
 import { FloatingTimer } from '@/components/time/FloatingTimer';
 import { toast } from 'sonner';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError } from '@/lib/socket';
@@ -39,6 +41,7 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/okr': 'okr',
   '/assets': 'assets',
   '/contracts': 'contracts',
+  '/culture': 'culture',
 };
 
 function getViewFromPath(path: string): string {
@@ -53,6 +56,7 @@ function getViewFromPath(path: string): string {
   if (path.startsWith('/time')) return 'time';
   if (path.startsWith('/assets')) return 'assets';
   if (path.startsWith('/contracts')) return 'contracts';
+  if (path.startsWith('/culture')) return 'culture';
   if (path.startsWith('/finance')) return 'finance';
   if (path === '/reimbursements/invoices' || path.startsWith('/reimbursements/invoices/')) return 'invoices';
   if (path.startsWith('/reimbursements')) return 'reimbursements';
@@ -87,6 +91,7 @@ const VIEW_LABELS: Record<string, string> = {
   okr: 'OKRs & Goals',
   assets: 'Assets',
   contracts: 'Contracts',
+  culture: 'Culture',
 };
 
 export function AppShell() {
@@ -116,7 +121,7 @@ export function AppShell() {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
-      setView(view as 'dashboard' | 'executive' | 'reports' | 'notifications' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'time' | 'okr' | 'assets' | 'contracts');
+      setView(view as 'dashboard' | 'executive' | 'reports' | 'notifications' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'time' | 'okr' | 'assets' | 'contracts' | 'culture');
     }
     const label = VIEW_LABELS[view] ?? view;
     trackPage(path, label);
@@ -231,6 +236,12 @@ export function AppShell() {
 
   return (
     <div className="h-screen flex bg-app overflow-hidden transition-colors duration-200">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-white focus:text-black focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+      >
+        Skip to main content
+      </a>
       {/* Command Surface (Cmd+K) */}
       <CommandSurface
         open={commandSurfaceOpen}
@@ -241,12 +252,18 @@ export function AppShell() {
       {/* MP Gain Notification */}
       <XPGainNotification amount={lastXPGain} show={showXPGain} />
 
+      {/* Celebration Overlay (confetti on deal won, badge earned, etc.) */}
+      {user && <CelebrationOverlay />}
+
+      {/* Morning briefing toast (first login of day) */}
+      {user && <MorningBriefingToast />}
+
       {/* Left Sidebar */}
       <div
         className={`
           ${!leftSidebarOpen ? 'w-0' : leftSidebarCollapsed ? 'w-16' : 'w-72'}
           ${isMobile ? 'absolute z-40 h-full' : 'relative'}
-          transition-all duration-300 ease-in-out overflow-hidden
+          transition-all duration-200 ease-out overflow-hidden
         `}
       >
         {leftSidebarOpen && <LeftSidebar collapsed={leftSidebarCollapsed} />}
@@ -262,7 +279,7 @@ export function AppShell() {
         className={`
           ${!rightSidebarOpen ? 'w-0' : rightSidebarCollapsed ? 'w-12' : 'w-80'}
           ${isMobile ? 'absolute right-0 z-40 h-full' : 'relative'}
-          transition-all duration-300 ease-in-out overflow-hidden
+          transition-all duration-200 ease-out overflow-hidden
         `}
       >
         {rightSidebarOpen && <RightSidebar collapsed={rightSidebarCollapsed} />}
@@ -282,6 +299,9 @@ export function AppShell() {
       {/* Floating Dora Widget (global, persists across pages) */}
       {user && <FloatingTimer />}
       {user && <FloatingWidget />}
+
+      {/* Onboarding walkthrough (first-time users) */}
+      {user && <OnboardingWalkthrough />}
     </div>
   );
 }

@@ -121,7 +121,7 @@ export function AllDocumentsPage() {
             const docPath = `/knowledge-hub/documents/${doc.slug || doc.id}`;
             return (
               <Link key={doc.id} to={docPath} className="text-left p-4 rounded-xl bg-dark-800 border border-dark-700 hover:border-primary-500/40 transition-all group block">
-                {doc.cover_image && <img src={doc.cover_image} className="w-full h-32 object-cover rounded-lg mb-3" alt="" />}
+                {doc.cover_image && <img src={doc.cover_image} className="w-full h-32 object-cover rounded-lg mb-3" alt="" loading="lazy" />}
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: typeMeta?.color + '20', color: typeMeta?.color }}>{typeMeta?.label}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: statusMeta?.color + '20', color: statusMeta?.color }}>{statusMeta?.label}</span>

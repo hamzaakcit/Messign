@@ -294,7 +294,7 @@ export function SupportTicketsPage() {
                 ))}
               </div>
 
-              <Button onClick={() => setCreateOpen(true)}>
+              <Button data-testid="support-new-ticket" onClick={() => setCreateOpen(true)}>
                 <Plus className="w-4 h-4" />
                 New Ticket
               </Button>
@@ -323,6 +323,7 @@ export function SupportTicketsPage() {
                   setPage(0);
                 }}
                 className={inputClass}
+                aria-label="Filter by priority"
               >
                 <option value="">All priorities</option>
                 <option value="critical">Critical</option>
@@ -337,6 +338,7 @@ export function SupportTicketsPage() {
                   setPage(0);
                 }}
                 className={inputClass}
+                aria-label="Filter by category"
               >
                 <option value="">All categories</option>
                 {categories.map((category) => (
@@ -355,6 +357,7 @@ export function SupportTicketsPage() {
                   setPage(0);
                 }}
                 className={inputClass}
+                aria-label="Filter by assignee"
               >
                 <option value="">All assignees</option>
                 {users.map((assignee) => (
@@ -385,6 +388,7 @@ export function SupportTicketsPage() {
                   value={bulkAction}
                   onChange={(event) => setBulkAction(event.target.value as typeof bulkAction)}
                   className={inputClass}
+                  aria-label="Bulk action"
                 >
                   <option value="">Bulk action…</option>
                   <option value="assign">Assign</option>
@@ -396,6 +400,7 @@ export function SupportTicketsPage() {
                     value={bulkAssigneeId}
                     onChange={(event) => setBulkAssigneeId(event.target.value)}
                     className={inputClass}
+                    aria-label="Choose assignee"
                   >
                     <option value="">Choose assignee</option>
                     {users.map((assignee) => (
@@ -410,6 +415,7 @@ export function SupportTicketsPage() {
                     value={bulkPriority}
                     onChange={(event) => setBulkPriority(event.target.value as SupportPriority)}
                     className={inputClass}
+                    aria-label="Change priority"
                   >
                     <option value="critical">Critical</option>
                     <option value="high">High</option>

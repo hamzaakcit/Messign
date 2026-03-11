@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDebouncedCallback } from '@/hooks';
 import { Users } from 'lucide-react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
@@ -34,6 +35,19 @@ export function RecruitmentCandidatesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const debouncedSearch = useDebouncedCallback(async (search: string) => {
+    if (!userId) return;
+    setPage(0);
+    setLoading(true);
+    try {
+      const result = await recruitmentAPI.listCandidates(userId, { page: '1', pageSize: '20', search });
+      setCandidates(result.data);
+      setTotal(result.total);
+    } finally {
+      setLoading(false);
+    }
+  }, 300);
 
   const columns = useMemo<ColumnDef<RecruitmentCandidate>[]>(() => [
     {
@@ -73,17 +87,7 @@ export function RecruitmentCandidatesPage() {
             isLoading={loading}
             searchable
             searchPlaceholder="Search candidates…"
-            onSearch={async (search) => {
-              if (!userId) return;
-              setLoading(true);
-              try {
-                const result = await recruitmentAPI.listCandidates(userId, { page: '1', pageSize: '20', search });
-                setCandidates(result.data);
-                setTotal(result.total);
-              } finally {
-                setLoading(false);
-              }
-            }}
+            onSearch={debouncedSearch}
             pagination
             pageSize={20}
             totalItems={total}

@@ -3,9 +3,22 @@ import type { EventName, EventPayload } from './eventTypes.js';
 
 const emitter = mitt();
 
+function redactPayloadForLogs(payload: unknown): string {
+  try {
+    const raw = JSON.stringify(payload);
+    const redacted = raw
+      .replace(/"email"\s*:\s*"[^"]*"/gi, '"email":"[redacted]"')
+      .replace(/"phone"\s*:\s*"[^"]*"/gi, '"phone":"[redacted]"')
+      .replace(/"reason"\s*:\s*"[^"]{0,120}"/gi, '"reason":"[redacted]"');
+    return redacted.substring(0, 200);
+  } catch {
+    return '[unserializable]';
+  }
+}
+
 export const eventBus = {
   emit<T extends EventName>(event: T, payload: EventPayload<T>): void {
-    console.log(`[EventBus] ${event}`, JSON.stringify(payload).substring(0, 200));
+    console.log(`[EventBus] ${event}`, redactPayloadForLogs(payload));
     emitter.emit(event, payload);
   },
 

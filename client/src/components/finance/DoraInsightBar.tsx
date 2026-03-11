@@ -60,11 +60,11 @@ export function DoraInsightBar({ insights, className }: DoraInsightBarProps) {
           </button>
         )}
         {insights.length > 1 && (
-          <button onClick={() => setExpanded(!expanded)} className="p-1 text-app-muted hover:text-app-text">
+          <button onClick={() => setExpanded(!expanded)} className="p-1 text-app-muted hover:text-app-text" aria-label={expanded ? 'Collapse insight' : 'Expand insight'}>
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
         )}
-        <button onClick={() => setDismissed(true)} className="p-1 text-app-muted hover:text-app-text">
+        <button onClick={() => setDismissed(true)} className="p-1 text-app-muted hover:text-app-text" aria-label="Dismiss">
           <X className="h-3.5 w-3.5" />
         </button>
       </div>

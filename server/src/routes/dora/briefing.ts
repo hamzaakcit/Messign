@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { reimbursementAuth, type ReimbursementRequest } from '../../middleware/reimbursementAuth.js';
 import type { CallerContext } from '../../dal/types.js';
 import { generateBriefing, getBriefingByDate, getOrGenerateBriefing } from '../../services/dora/dailyBriefing.js';
+import { redisConnection } from '../../queue/connection.js';
 
 const router = Router();
+const CACHE_TTL = 60;
 
 function buildCtx(req: ReimbursementRequest): CallerContext {
   const user = req.reimbursementUser!;
@@ -14,13 +16,34 @@ function buildCtx(req: ReimbursementRequest): CallerContext {
   };
 }
 
+function today(): string {
+  return new Date().toISOString().split('T')[0]!;
+}
+
 router.use(reimbursementAuth);
 
 router.get('/daily', async (req: ReimbursementRequest, res) => {
   try {
     const refresh = req.query.refresh === 'true';
     const ctx = buildCtx(req);
+    const date = today();
+    const cacheKey = `daily_briefing_${ctx.userId}_${date}`;
+    if (!refresh) {
+      try {
+        const cached = await redisConnection.get(cacheKey);
+        if (cached) {
+          return res.json(JSON.parse(cached));
+        }
+      } catch (e) {
+        if (e instanceof Error) console.warn('[Redis] daily briefing cache get:', e.message);
+      }
+    }
     const briefing = refresh ? await generateBriefing(ctx) : await getOrGenerateBriefing(ctx);
+    try {
+      await redisConnection.setex(cacheKey, CACHE_TTL, JSON.stringify(briefing));
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] daily briefing cache set:', e.message);
+    }
     res.json(briefing);
   } catch (error) {
     console.error('[dora/briefing] get daily failed', error);

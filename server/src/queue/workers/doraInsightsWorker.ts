@@ -13,11 +13,13 @@ import {
   onTicketVolumeSpike,
 } from './insightGenerators/supportInsights.js';
 import { onDealStale, onDealWon } from './insightGenerators/crmInsights.js';
+import { analyzeSentiment } from '../../services/dora/heart/sentimentAnalyzer.js';
 
 const connection = redisConnection as unknown as ConnectionOptions;
 
 interface DoraInsightJob {
   type:
+    | 'analyze_sentiment'
     | 'expense_created'
     | 'invoice_overdue'
     | 'budget_threshold_breached'
@@ -37,6 +39,12 @@ const worker = new Worker<DoraInsightJob>(
     console.log(`[DoraInsights] Processing ${type}`, payload);
 
     switch (type) {
+      case 'analyze_sentiment': {
+        const { userId, text, source } = payload as { userId: string; text: string; source: 'chat' | 'checkin' | 'ticket_response' | 'review' };
+        await analyzeSentiment({ userId, text, source });
+        break;
+      }
+
       case 'expense_created':
         await onExpenseCreated(payload as {
           expenseId: string;

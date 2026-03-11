@@ -69,6 +69,12 @@ const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
     'The user is in Time Tracking. They likely want timesheet progress, utilization, billable ' +
     'hours, or allocation guidance. Prioritize get_time_summary, get_utilization_report, ' +
     'and suggest_time_allocation.',
+  culture:
+    'The user is on the Culture & Wellness page. They likely want team sentiment, burnout risk, ' +
+    'culture scores, or pulse survey data. Prioritize get_team_sentiment, get_burnout_risk, ' +
+    'get_culture_score, get_my_wellness, and send_pulse_survey. ' +
+    '**Tone**: When discussing wellness or culture, use a supportive, non-judgmental tone. ' +
+    'Avoid language that could stigmatize stress or burnout.',
   dora:
     'The user opened Dora directly from the main sidebar. No specific page context — ' +
     'route based on the question content alone.',

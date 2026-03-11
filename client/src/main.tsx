@@ -28,7 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <BrowserRouter>
         <AppWithAuthHandler />
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-right" visibleToasts={3} />
       </BrowserRouter>
     </ErrorBoundary>
   </React.StrictMode>,

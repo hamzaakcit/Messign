@@ -63,6 +63,7 @@ export function Header() {
       {!isMobile && (
         <div className="flex-1 max-w-md mx-8">
           <button
+            data-testid="onboarding-cmdk"
             onClick={openCommandSurface}
             className="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border transition-colors text-left"
             style={{
@@ -99,7 +100,9 @@ export function Header() {
         )}
 
         {/* Notifications */}
-        <NotificationBell />
+        <div data-testid="onboarding-notifications">
+          <NotificationBell />
+        </div>
 
         {/* Toggle Right Sidebar */}
         <button

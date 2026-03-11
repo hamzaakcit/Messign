@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronUp,
   ChevronDown,
@@ -44,6 +45,8 @@ export interface DataTableProps<T> {
   searchable?: boolean;
   searchPlaceholder?: string;
   onSearch?: (query: string) => void;
+  /** When true and data length > 100, virtualize rows for better performance */
+  virtualized?: boolean;
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -78,6 +81,7 @@ export function DataTable<T>({
   searchable = false,
   searchPlaceholder = 'Search…',
   onSearch,
+  virtualized = false,
 }: DataTableProps<T>) {
   const [internalPage, setInternalPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +146,17 @@ export function DataTable<T>({
   const showTo = pagination
     ? Math.min((page + 1) * pageSize, resolvedTotal)
     : resolvedTotal;
+
+  const scrollParentRef = useRef<HTMLDivElement>(null);
+  const useVirtual = virtualized && visibleData.length > 100 && !isLoading;
+  const rowVirtualizer = useVirtualizer({
+    count: visibleData.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => 48,
+    overscan: 5,
+  });
+  const virtualItems = useVirtual ? rowVirtualizer.getVirtualItems() : [];
+  const totalVirtualHeight = useVirtual ? rowVirtualizer.getTotalSize() : 0;
 
   // --- Handlers ---
   const handleSort = useCallback(
@@ -288,7 +303,13 @@ export function DataTable<T>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div
+        ref={useVirtual ? scrollParentRef : undefined}
+        className={cn(
+          'overflow-x-auto',
+          useVirtual && 'overflow-y-auto max-h-[480px]',
+        )}
+      >
         <table className="w-full border-collapse text-left">
           <thead className="sticky top-0 z-10 bg-app-card border-b border-app-border">
             <tr>
@@ -371,7 +392,13 @@ export function DataTable<T>({
             </tr>
           </thead>
 
-          <tbody>
+          <tbody
+            style={
+              useVirtual
+                ? { position: 'relative', height: `${totalVirtualHeight}px` }
+                : undefined
+            }
+          >
             {/* Loading skeleton */}
             {isLoading &&
               Array.from({ length: SKELETON_ROWS }).map((_, rowIdx) => (
@@ -418,7 +445,70 @@ export function DataTable<T>({
             )}
 
             {/* Data rows */}
-            {!isLoading &&
+            {!isLoading && useVirtual && (
+              <>
+                <tr style={{ height: `${virtualItems[0]?.start ?? 0}px` }}>
+                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="p-0" />
+                </tr>
+                {virtualItems.map((virtualRow) => {
+                  const row = visibleData[virtualRow.index]!;
+                  const rowId = getRowId(row);
+                  const isSelected = selectable && selectedIds?.has(rowId);
+                  return (
+                    <tr
+                      key={rowId ?? virtualRow.key}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`,
+                        height: `${virtualRow.size}px`,
+                      }}
+                      className={cn(
+                        'border-b border-app-border transition-colors duration-fast',
+                        virtualRow.index % 2 === 1 && 'bg-app-bg',
+                        'hover:bg-primary-500/5',
+                        isSelected && 'bg-primary-500/10 border-l-2 border-l-primary-500',
+                        onRowClick && 'cursor-pointer',
+                        rowClassName?.(row),
+                      )}
+                      onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    >
+                      {selectable && (
+                        <td className="w-12 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={!!isSelected}
+                            onChange={() => handleSelectRow(row)}
+                            onClick={(e) => e.stopPropagation()}
+                            role="checkbox"
+                            aria-checked={!!isSelected}
+                            aria-label={`Select row ${rowId}`}
+                            className="w-4 h-4 rounded border-app-border text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0 cursor-pointer"
+                          />
+                        </td>
+                      )}
+                      {columns.map((col) => {
+                        const val = getNestedValue(row, col.key);
+                        return (
+                          <td
+                            key={col.key}
+                            className="px-4 py-3 text-[13px] text-app-text"
+                          >
+                            {col.render ? col.render(val, row) : (val ?? '—')}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+                <tr style={{ height: `${totalVirtualHeight - (virtualItems[virtualItems.length - 1]?.end ?? totalVirtualHeight)}px` }}>
+                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="p-0" />
+                </tr>
+              </>
+            )}
+            {!isLoading && !useVirtual &&
               visibleData.map((row, rowIdx) => {
                 const rowId = getRowId(row);
                 const isSelected = selectable && selectedIds?.has(rowId);

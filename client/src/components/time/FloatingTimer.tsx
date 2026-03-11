@@ -124,6 +124,7 @@ export function FloatingTimer() {
     <div className="fixed bottom-[80px] right-5 z-40">
       {!timer ? (
         <button
+          data-testid="timer-start"
           type="button"
           onClick={handleStart}
           disabled={busy}
@@ -134,6 +135,7 @@ export function FloatingTimer() {
         </button>
       ) : (
         <div
+          data-testid="timer-running"
           className={cn(
             'rounded-xl border border-emerald-500/30 bg-app-card shadow-lg transition-all',
             expanded ? 'w-[320px] p-3' : 'w-auto px-3 py-2',
@@ -148,12 +150,12 @@ export function FloatingTimer() {
             {!expanded ? (
               <>
                 <span className="max-w-[140px] truncate text-xs text-app-muted">{label}</span>
-                <button type="button" onClick={() => setExpanded(true)} className="ml-auto text-app-muted hover:text-app">
+                <button data-testid="timer-expand" type="button" onClick={() => setExpanded(true)} className="ml-auto text-app-muted hover:text-app" aria-label="Expand">
                   <Expand className="w-4 h-4" />
                 </button>
               </>
             ) : (
-              <button type="button" onClick={() => setExpanded(false)} className="ml-auto text-app-muted hover:text-app">
+              <button type="button" onClick={() => setExpanded(false)} className="ml-auto text-app-muted hover:text-app" aria-label="Minimize">
                 <Minimize2 className="w-4 h-4" />
               </button>
             )}

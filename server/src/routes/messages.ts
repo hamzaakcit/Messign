@@ -42,16 +42,11 @@ messagesRouter.get('/channel/:channelId', async (req, res) => {
   }
 });
 
-// Send a message (userId from JWT or body)
+// Send a message (userId from requireAuth — never trust body.userId)
 messagesRouter.post('/', async (req, res) => {
   try {
-    const authUserId = (req as { userId?: string }).userId ?? (req.headers['x-user-id'] as string);
-    const { channelId, userId: bodyUserId, content, attachments = [], mentions = [] } = req.body;
-    const userId = bodyUserId ?? authUserId;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized', message: 'User ID required (login or body.userId)' });
-      return;
-    }
+    const userId = (req as { userId: string }).userId;
+    const { channelId, content, attachments = [], mentions = [] } = req.body;
     const xpGained = 5;
     const row = await addMessage({
       channelId,
@@ -63,7 +58,7 @@ messagesRouter.post('/', async (req, res) => {
     });
     await addEmployeeXP(userId, xpGained);
     eventBus.emit('chat.message.sent', {
-      messageId: row.id, channelId, userId, hasAttachment: attachments.length > 0,
+      messageId: row.id, channelId, userId, hasAttachment: attachments.length > 0, content,
     });
     res.status(201).json(toClientMessage(row));
   } catch (e) {

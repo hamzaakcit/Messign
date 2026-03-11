@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI } from '@/lib/financeApi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export function SpendingTrendChart() {
+export const SpendingTrendChart = React.memo(function SpendingTrendChart() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.authUserId || user?.id || '';
   const [data, setData] = useState<Array<{ month: string; total: number }>>([]);
@@ -47,4 +47,4 @@ export function SpendingTrendChart() {
       </AreaChart>
     </ResponsiveContainer>
   );
-}
+});

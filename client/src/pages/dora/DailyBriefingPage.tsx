@@ -22,12 +22,19 @@ export function DailyBriefingPage() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.authUserId || user?.id || '';
   const dateKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const cached = useDailyBriefingStore((s) => s.getBriefing(dateKey));
+  const cached = useDailyBriefingStore((s) => s.getBriefing(userId, dateKey));
   const setBriefing = useDailyBriefingStore((s) => s.setBriefing);
   const [briefing, setLocalBriefing] = useState<DailyBriefing | null>(cached);
   const [loading, setLoading] = useState(!cached);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (cached) {
+      setLocalBriefing(cached);
+      setLoading(false);
+    }
+  }, [cached]);
 
   const hydrateExpansion = (b: DailyBriefing) => {
     const next: Record<string, boolean> = {};
@@ -49,14 +56,14 @@ export function DailyBriefingPage() {
       .then((res) => {
         if (cancelled) return;
         setLocalBriefing(res);
-        setBriefing(res);
+        setBriefing(userId, res);
         hydrateExpansion(res);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [userId, dateKey]);
+  }, [userId, dateKey, cached, setBriefing]);
 
   const refresh = async () => {
     if (!userId) return;
@@ -64,7 +71,7 @@ export function DailyBriefingPage() {
     try {
       const fresh = await doraBriefingAPI.getToday(userId, true);
       setLocalBriefing(fresh);
-      setBriefing(fresh);
+      setBriefing(userId, fresh);
       hydrateExpansion(fresh);
     } finally {
       setRefreshing(false);

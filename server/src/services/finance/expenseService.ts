@@ -541,6 +541,7 @@ export const expenseService = {
         });
         eventBus.emit('finance.expense.approved', {
           expenseId, approverId, amount: expense.rows[0].original_amount,
+          organizationId: orgId ?? undefined,
         });
         journalEntryService.generateFromExpense(expenseId, 'approved').catch((err: unknown) =>
           console.error('[journal] Failed to generate expense approval entry:', err));
@@ -597,6 +598,7 @@ export const expenseService = {
 
       eventBus.emit('finance.expense.approved', {
         expenseId, approverId, amount: expense.rows[0].original_amount,
+        organizationId: orgId ?? undefined,
       });
 
       await notificationService.create({

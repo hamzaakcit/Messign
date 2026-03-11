@@ -31,6 +31,10 @@ const MODULE_CONTEXT_HINTS: Record<string, string> = {
     'The user is in Asset Management. Start with get_asset_summary or get_license_utilization.',
   contracts:
     'The user is in Contracts & E-Sign. Start with get_contract_renewals or extract_contract_terms.',
+  culture:
+    'The user is on Culture & Wellness. Start with get_team_sentiment, get_burnout_risk, ' +
+    'get_culture_score, get_my_wellness, or send_pulse_survey. ' +
+    '**Tone**: Use a supportive, non-judgmental tone. Avoid stigmatizing stress or burnout.',
 };
 
 function getPermissionBoundaries(role: string): string {

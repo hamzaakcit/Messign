@@ -132,9 +132,9 @@ export function ExecutiveDashboardPage() {
         </div>
       )}
 
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div data-testid="executive-kpis" className="flex gap-3 overflow-x-auto pb-2">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="min-w-[190px] rounded-lg border border-app bg-app-card p-3">
+          <div key={kpi.label} data-testid={`executive-kpi-${kpi.label.replace(/\s/g, '-')}`} className="min-w-[190px] rounded-lg border border-app bg-app-card p-3">
             <div className="text-xs text-app-muted">{kpi.label}</div>
             <div className="mt-1 text-lg font-semibold text-app">{kpi.value}</div>
             <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -146,7 +146,7 @@ export function ExecutiveDashboardPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
         <div className="xl:col-span-3 space-y-4">
-          <div className="rounded-lg border border-app bg-app-card p-4">
+          <div data-testid="executive-chart" className="rounded-lg border border-app bg-app-card p-4">
             <div className="text-sm font-semibold text-app mb-3">Revenue Trend</div>
             <div className="space-y-2">
               {data.revenue.monthlyTrend.slice(-12).map((m) => (
@@ -200,7 +200,7 @@ export function ExecutiveDashboardPage() {
             </ul>
           </div>
 
-          <div className="rounded-lg border border-app bg-app-card p-4">
+          <div data-testid="executive-activity" className="rounded-lg border border-app bg-app-card p-4">
             <div className="text-sm font-semibold text-app mb-2">Recent Activity</div>
             <div className="space-y-2">
               {data.recentActivity.slice(0, 15).map((a) => (

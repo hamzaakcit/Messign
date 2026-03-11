@@ -222,7 +222,7 @@ export function TalentHeatmap() {
                       title={`${u.name}: ${u.currentProjects}/${u.maxProjects} projects`}
                     >
                       {u.avatar ? (
-                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" loading="lazy" width={32} height={32} />
                       ) : (
                         <span className="text-xs text-app-muted">{u.name[0]}</span>
                       )}

@@ -12,6 +12,9 @@ import { register as registerAutomationSubscriber } from './automationSubscriber
 import { register as registerAssetsSubscriber } from './assetsSubscriber.js';
 import { register as registerContractsSubscriber } from './contractsSubscriber.js';
 import { register as registerWebhookSubscriber } from './webhookSubscriber.js';
+import { register as registerHeartSubscriber } from './heartSubscriber.js';
+import { register as registerCelebrationSubscriber } from './celebrationSubscriber.js';
+import { register as registerCacheInvalidationSubscriber } from './cacheInvalidationSubscriber.js';
 
 export function registerAllSubscribers(): void {
   registerAuditSubscriber();
@@ -28,4 +31,7 @@ export function registerAllSubscribers(): void {
   registerAssetsSubscriber();
   registerContractsSubscriber();
   registerWebhookSubscriber();
+  registerHeartSubscriber();
+  registerCelebrationSubscriber();
+  registerCacheInvalidationSubscriber();
 }

@@ -3,26 +3,26 @@ import { persist } from 'zustand/middleware';
 import type { DailyBriefing } from '@/lib/api';
 
 interface DailyBriefingState {
-  byDate: Record<string, DailyBriefing>;
-  setBriefing: (briefing: DailyBriefing) => void;
-  getBriefing: (date: string) => DailyBriefing | null;
+  byUserAndDate: Record<string, DailyBriefing>;
+  setBriefing: (userId: string, briefing: DailyBriefing) => void;
+  getBriefing: (userId: string, date: string) => DailyBriefing | null;
   clear: () => void;
 }
 
 export const useDailyBriefingStore = create<DailyBriefingState>()(
   persist(
     (set, get) => ({
-      byDate: {},
-      setBriefing: (briefing) =>
+      byUserAndDate: {},
+      setBriefing: (userId, briefing) =>
         set((state) => ({
-          byDate: { ...state.byDate, [briefing.date]: briefing },
+          byUserAndDate: { ...state.byUserAndDate, [`${userId}:${briefing.date}`]: briefing },
         })),
-      getBriefing: (date) => get().byDate[date] ?? null,
-      clear: () => set({ byDate: {} }),
+      getBriefing: (userId, date) => get().byUserAndDate[`${userId}:${date}`] ?? null,
+      clear: () => set({ byUserAndDate: {} }),
     }),
     {
       name: 'daily-briefing-cache',
-      partialize: (state) => ({ byDate: state.byDate }),
+      partialize: (state) => ({ byUserAndDate: state.byUserAndDate }),
     },
   ),
 );

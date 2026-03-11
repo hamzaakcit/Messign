@@ -378,8 +378,8 @@ export async function moveToStage(
     });
   }
   if (newStage === 'hired') {
-    const job = await query<{ department_id: string | null; department: string | null }>(
-      `SELECT department_id::text, department FROM recruitment_jobs WHERE id = $1::uuid`,
+    const job = await query<{ department_id: string | null; department: string | null; organization_id: string | null }>(
+      `SELECT department_id::text, department, organization_id::text FROM recruitment_jobs WHERE id = $1::uuid`,
       [updated.job_id],
     );
     const offer = await query<{ salary: string | number | null; start_date: string | null }>(
@@ -397,6 +397,7 @@ export async function moveToStage(
       departmentId: job.rows[0]?.department_id ?? job.rows[0]?.department ?? '',
       startDate: offer.rows[0]?.start_date ?? new Date().toISOString().slice(0, 10),
       salary: toNumber(offer.rows[0]?.salary ?? 0),
+      organizationId: job.rows[0]?.organization_id ?? undefined,
     });
   }
   return updated;

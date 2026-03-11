@@ -146,6 +146,7 @@ export default {
         'slide-in': 'slideIn 0.3s ease-out',
         'fade-in': 'fadeIn 0.2s ease-out',
         'pulse-slow': 'pulse 3s ease-in-out infinite',
+        'badge-pulse': 'badgePulse 2s ease-in-out infinite',
         'bounce-subtle': 'bounceSubtle 0.5s ease-out',
         'kpi-enter': 'kpiEnter 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards',
         'chart-fade': 'chartFade 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards',
@@ -159,6 +160,7 @@ export default {
         'logo-glow': 'logo-glow-pulse 3s ease-in-out infinite',
         'logo-float': 'logo-float 3s ease-in-out infinite',
         'gradient-shift': 'gradient-shift 5s ease infinite',
+        'celebration-confetti': 'celebrationConfetti 2.5s ease-out forwards',
       },
       keyframes: {
         'draw-stroke': {
@@ -254,6 +256,14 @@ export default {
         pulseRing: {
           '0%': { transform: 'scale(0.8)', opacity: '1' },
           '100%': { transform: 'scale(1.5)', opacity: '0' },
+        },
+        celebrationConfetti: {
+          '0%': { transform: 'translateY(0) rotate(0deg)', opacity: '1' },
+          '100%': { transform: 'translateY(-100vh) rotate(720deg)', opacity: '0' },
+        },
+        badgePulse: {
+          '0%, 100%': { opacity: '0.7' },
+          '50%': { opacity: '1' },
         },
       },
     },

@@ -30,18 +30,21 @@ type WebhookRecord = {
   retry_count: number;
 };
 
-function signPayload(secret: string, payload: unknown): string {
+function signPayload(secret: string, payload: unknown, timestamp: string): string {
   const body = JSON.stringify(payload);
-  const sig = crypto.createHmac('sha256', secret).update(body).digest('hex');
+  const signed = `${timestamp}.${body}`;
+  const sig = crypto.createHmac('sha256', secret).update(signed).digest('hex');
   return `sha256=${sig}`;
 }
 
 export const webhookService = {
-  async dispatchWebhook(eventName: string, payload: Record<string, unknown>): Promise<void> {
+  async dispatchWebhook(eventName: string, payload: Record<string, unknown>, organizationId: string): Promise<void> {
     const rows = await query<WebhookRecord>(
       `SELECT id::text, organization_id::text, name, url, secret, events, headers, retry_count
        FROM webhooks
-       WHERE is_active = TRUE`,
+       WHERE is_active = TRUE
+         AND organization_id = $1::uuid`,
+      [organizationId],
     );
     const candidates = rows.rows.filter((row) => Array.isArray(row.events) && row.events.includes(eventName));
     for (const hook of candidates) {
@@ -66,7 +69,7 @@ export const webhookService = {
     if (!hook || !hook.url) return;
 
     const started = Date.now();
-    const signature = signPayload(hook.secret, payload);
+    const timestamp = Math.floor(Date.now() / 1000).toString();
 
     const delivery = await query<{ id: string }>(
       `INSERT INTO webhook_deliveries (webhook_id, event, payload, attempt, status)
@@ -75,18 +78,24 @@ export const webhookService = {
       [webhookId, event, JSON.stringify(payload), attempt, 'pending'],
     );
     const deliveryId = delivery.rows[0]?.id;
+    const signature = signPayload(hook.secret, payload, timestamp);
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       const response = await fetch(hook.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Messign-Event': event,
+          'X-Messign-Timestamp': timestamp,
+          'X-Messign-Delivery-Id': deliveryId ?? '',
           'X-Messign-Signature': signature,
           ...hook.headers,
         },
+        signal: controller.signal,
         body: JSON.stringify(payload),
-      });
+      }).finally(() => clearTimeout(timeout));
       const body = await response.text();
       const status = response.ok ? 'success' : 'failed';
 

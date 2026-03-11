@@ -184,6 +184,7 @@ export function TicketCreatePanel({ onCreated, onCancel }: TicketCreatePanelProp
     <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
       <FormField label="Subject *" error={errors.subject?.message}>
         <input
+          data-testid="ticket-subject"
           {...register('subject')}
           placeholder="Customer unable to sync invoices after upgrade"
           className={inputClass}

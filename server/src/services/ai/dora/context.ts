@@ -36,6 +36,7 @@ const PATH_TO_MODULE: Array<{ prefix: string; module: DoraModule }> = [
   { prefix: '/contracts',              module: 'contracts' },
   { prefix: '/support',                module: 'support' },
   { prefix: '/time',                   module: 'time' },
+  { prefix: '/culture',                module: 'culture' },
 ];
 
 function resolveModule(path: string): DoraModule {
@@ -125,6 +126,7 @@ export async function buildDoraContext(
     userId,
     userName,
     userRole: userRole as DoraUserContext['userRole'],
+    organizationId: orgId ?? null,
     department,
     teamId,
     knowledgeRole,
@@ -191,6 +193,7 @@ export function toLegacyToolContext(ctx: DoraRequestContext) {
     userRole: ctx.user.userRole,
     knowledgeRole: ctx.user.knowledgeRole ?? undefined,
     teamId: ctx.user.teamId ?? undefined,
+    organizationId: ctx.user.organizationId ?? undefined,
     userName: ctx.user.userName,
   };
 }

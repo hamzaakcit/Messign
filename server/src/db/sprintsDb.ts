@@ -1,4 +1,5 @@
 import { query } from './index.js';
+import { eventBus } from '../events/index.js';
 
 export type SprintStatus = 'ACTIVE' | 'IN_PROGRESS' | 'RESOLVED' | 'EXPIRED' | 'CANCELLED';
 
@@ -143,5 +144,11 @@ export async function resolveSprint(
     [note ?? null, sprintId]
   );
   await query(`UPDATE projects SET needs_help = false WHERE id = $1`, [sprint.project_id]);
+  eventBus.emit('project.sprint.completed', {
+    sprintId,
+    projectId: sprint.project_id,
+    completedTasks: helpers.length,
+    totalTasks: helpers.length,
+  });
   return { ok: true };
 }

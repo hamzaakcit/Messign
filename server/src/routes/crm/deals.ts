@@ -4,8 +4,10 @@ import type { ReimbursementRequest } from '../../middleware/reimbursementAuth.js
 import type { CallerContext } from '../../dal/types.js';
 import * as dealsDal from '../../dal/crm/deals.js';
 import * as activitiesDal from '../../dal/crm/activities.js';
+import { redisConnection } from '../../queue/connection.js';
 
 const router = Router();
+const METRICS_CACHE_TTL = 30;
 
 function buildCtx(req: ReimbursementRequest): CallerContext {
   const user = req.reimbursementUser!;
@@ -29,8 +31,23 @@ router.get('/by-stage/:pipelineId', async (req: ReimbursementRequest, res: Respo
 
 router.get('/metrics', async (req: ReimbursementRequest, res: Response) => {
   try {
-    const period = req.query.period as string | undefined;
-    const metrics = await dealsDal.getSalesMetrics(buildCtx(req), period);
+    const period = (req.query.period as string | undefined) ?? 'default';
+    const orgId = req.organizationId ?? 'no-org';
+    const cacheKey = `crm_metrics_${orgId}_${period}`;
+    try {
+      const cached = await redisConnection.get(cacheKey);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] crm metrics cache get:', e.message);
+    }
+    const metrics = await dealsDal.getSalesMetrics(buildCtx(req), period === 'default' ? undefined : period);
+    try {
+      await redisConnection.setex(cacheKey, METRICS_CACHE_TTL, JSON.stringify(metrics));
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] crm metrics cache set:', e.message);
+    }
     res.json(metrics);
   } catch (err) {
     console.error('[crm/deals/metrics GET]', err);

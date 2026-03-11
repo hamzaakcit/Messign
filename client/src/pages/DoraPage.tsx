@@ -269,6 +269,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
     <div className="flex items-end gap-2">
       <div className="flex-1 relative">
         <textarea
+          data-testid="dora-input"
           ref={inputRef}
           value={inputValue}
           onChange={handleInputChange}
@@ -293,6 +294,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
         </button>
       ) : (
         <button
+          data-testid="dora-send"
           onClick={handleSend}
           disabled={!inputValue.trim() || isLoading}
           className="flex-shrink-0 p-2.5 rounded-xl bg-primary-500 hover:bg-primary-600

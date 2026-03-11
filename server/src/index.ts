@@ -85,21 +85,24 @@ import executiveRouter from './routes/executive/index.js';
 import reportsRouter from './routes/reports/index.js';
 import webhookRouter from './routes/webhooks/index.js';
 import notificationsRouter from './routes/notifications/index.js';
+import { heartRouter } from './routes/heart/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
+import { responseTimer } from './middleware/responseTimer.js';
 import { initializeAuthRecords } from './services/initAuth.js';
 import { initNewTables } from './db/initNewTables.js';
 
 const app = express();
 const httpServer = createServer(app);
 
-// Local development origins only
+// CORS: production allows messign.com, CLIENT_URL (Vercel), and ADDITIONAL_CORS_ORIGINS (comma-separated)
 const CORS_ORIGINS = process.env.NODE_ENV === 'production'
   ? [
       'https://www.messign.com',
       'https://messign.com',
       process.env.CLIENT_URL || '',
+      ...(process.env.ADDITIONAL_CORS_ORIGINS?.split(',').map((o) => o.trim()).filter(Boolean) ?? []),
     ].filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://127.0.0.1:3002'];
 const corsOptions = {
@@ -133,11 +136,21 @@ app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '5mb', type: 'application/json' }));
 app.use('/uploads', express.static(UPLOAD_DIR));
+app.use(responseTimer);
 
-// Rate limiting
-const apiLimiter = rateLimit({ windowMs: 60_000, max: 100, message: { error: 'Too many requests' } });
+// Rate limiting (relaxed in development for E2E tests and local dev)
+const isDev = process.env.NODE_ENV !== 'production' || process.env.E2E_TEST === '1';
+const apiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: isDev ? 1000 : 100,
+  message: { error: 'Too many requests' },
+});
 app.use('/api', apiLimiter);
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many login attempts' } });
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 100 : 10,
+  message: { error: 'Too many login attempts' },
+});
 app.use('/api/auth/login', authLimiter);
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 10, message: { error: 'AI rate limit reached' } });
 app.use('/api/dora', aiLimiter);
@@ -146,11 +159,11 @@ app.use('/api', optionalJwt);
 
 // API Routes
 app.use('/api/auth', authRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/channels', channelsRouter);
-app.use('/api/messages', messagesRouter);
-app.use('/api/chat', chatRouter);
-app.use('/api/projects', projectsRouter);
+app.use('/api/users', requireAuth, usersRouter);
+app.use('/api/channels', requireAuth, channelsRouter);
+app.use('/api/messages', requireAuth, messagesRouter);
+app.use('/api/chat', requireAuth, chatRouter);
+app.use('/api/projects', requireAuth, projectsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/badges', badgesRouter);
 app.use('/api/documents', documentsRouter);
@@ -196,6 +209,7 @@ app.use('/api/executive', executiveRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/heart', heartRouter);
 
 // Health check
 app.get('/api/health', (_, res) => {

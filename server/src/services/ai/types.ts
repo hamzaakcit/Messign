@@ -35,6 +35,9 @@ export interface ToolContext {
   /** The user's team ID (from performance_team_members) */
   teamId?: string;
 
+  /** Active organization ID for tenant-scoped tools */
+  organizationId?: string;
+
   /** The user's full name (for display in responses) */
   userName?: string;
 }

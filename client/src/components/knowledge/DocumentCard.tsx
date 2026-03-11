@@ -91,7 +91,7 @@ export function DocumentCard({ document: doc, onView, onPin, onDownload, onFlag,
         onClick={() => onView(doc)}
       >
         {doc.thumbnail_url ? (
-          <img src={doc.thumbnail_url} alt="" className="w-full h-full object-cover" />
+          <img src={doc.thumbnail_url} alt="" className="w-full h-full object-cover" loading="lazy" />
         ) : (
           <div className={cn('w-14 h-14 rounded-xl flex items-center justify-center', doc.category_color ? '' : 'bg-primary-500/20')}>
             <IconComp className="w-7 h-7 text-primary-400" style={doc.category_color ? { color: doc.category_color } : undefined} />

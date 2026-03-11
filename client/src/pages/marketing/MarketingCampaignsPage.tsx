@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDebouncedCallback } from '@/hooks';
 import { DollarSign, Megaphone, Plus, Target, TrendingUp, Wallet } from 'lucide-react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
@@ -79,6 +80,10 @@ export function MarketingCampaignsPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const debouncedSearch = useDebouncedCallback((search: string) => {
+    setFilters((current) => ({ ...current, search }));
+  }, 300);
 
   const columns = useMemo<ColumnDef<Campaign>[]>(() => [
     {
@@ -198,7 +203,7 @@ export function MarketingCampaignsPage() {
             sortable
             searchable
             searchPlaceholder="Search campaigns…"
-            onSearch={(search) => setFilters((current) => ({ ...current, search }))}
+            onSearch={debouncedSearch}
             pagination
             pageSize={20}
             totalItems={total}

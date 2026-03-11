@@ -9,6 +9,7 @@ function toCallerContext(ctx: ToolContext): CallerContext {
     userId: ctx.userId,
     role: (ctx.userRole as CallerContext['role']) || 'employee',
     teamId: ctx.teamId ?? undefined,
+    organizationId: ctx.organizationId ?? undefined,
   };
 }
 
@@ -25,6 +26,9 @@ const executiveDashboardTool: Tool = {
   requiredRoles: ['admin', 'manager', 'cpo'],
   async execute(_args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
     try {
+      if (!context.organizationId) {
+        return { success: false, data: null, summary: 'Cannot fetch executive dashboard: missing organization context.' };
+      }
       const data = await getExecutiveDashboard(toCallerContext(context));
       return {
         success: true,
@@ -50,6 +54,9 @@ const dailyBriefingTool: Tool = {
   requiredRoles: ['admin', 'manager', 'member', 'cpo'],
   async execute(_args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
     try {
+      if (!context.organizationId) {
+        return { success: false, data: null, summary: 'Cannot fetch daily briefing: missing organization context.' };
+      }
       const briefing = await getOrGenerateBriefing(toCallerContext(context));
       return {
         success: true,

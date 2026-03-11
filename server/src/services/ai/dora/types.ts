@@ -9,6 +9,7 @@ export interface DoraUserContext {
   userId: string;
   userName: string;
   userRole: 'admin' | 'manager' | 'employee' | 'cpo' | 'hr' | 'finance';
+  organizationId: string | null;
   department: string;
   teamId: string | null;
   knowledgeRole: string | null;
@@ -45,6 +46,7 @@ export type DoraModule =
   | 'contracts'
   | 'support'
   | 'time'
+  | 'culture'
   | 'unknown';
 
 /**

@@ -1,8 +1,14 @@
 import { eventBus } from '../eventBus.js';
 import { crossModuleQueue, notificationQueue, gamificationQueue } from '../../queue/index.js';
+import { emitToUser } from '../../sockets/index.js';
 
 export function register(): void {
   eventBus.on('crm.deal.won', async (payload) => {
+    void emitToUser(payload.ownerId, 'celebration:deal-won', {
+      dealId: payload.dealId,
+      amount: payload.amount,
+      currency: payload.currency,
+    });
     await crossModuleQueue.add('generate_invoice_from_deal', {
       type: 'generate_invoice_from_deal',
       payload: {

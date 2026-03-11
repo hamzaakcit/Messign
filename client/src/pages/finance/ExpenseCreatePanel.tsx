@@ -362,6 +362,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
               Title * {fieldConfidence.title && <ConfidenceDot level={fieldConfidence.title} />}
             </label>
             <input
+              data-testid="expense-title"
               type="text"
               value={form.title}
               onChange={(e) => handleChange('title', e.target.value)}
@@ -377,6 +378,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
             </label>
             <div className="flex gap-2">
               <input
+                data-testid="expense-amount"
                 type="number"
                 step="0.01"
                 min="0"
@@ -512,6 +514,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
 
         <div className="flex items-center gap-3 pt-2">
           <button
+            data-testid="expense-save-draft"
             onClick={() => handleSubmit(true)}
             disabled={submitting}
             className="px-6 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-app-text hover:bg-white/10 transition-colors disabled:opacity-50"
@@ -519,6 +522,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
             Save as Draft
           </button>
           <button
+            data-testid="expense-submit"
             onClick={() => handleSubmit(false)}
             disabled={submitting}
             className="px-6 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"

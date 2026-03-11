@@ -26,12 +26,24 @@ export function Avatar({ src, name, size = 'md', status, showStatus = true, clas
     xl: 'w-4 h-4',
   };
 
+  const pixelSizes: Record<typeof size, number> = {
+    xs: 24,
+    sm: 32,
+    md: 40,
+    lg: 48,
+    xl: 64,
+  };
+  const px = pixelSizes[size];
+
   return (
     <div className={cn('relative inline-block', className)}>
       {src ? (
         <img
           src={src}
           alt={name ?? ''}
+          width={px}
+          height={px}
+          loading="lazy"
           className={cn(
             'rounded-full object-cover bg-dark-600',
             sizes[size]

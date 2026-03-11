@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -19,9 +19,12 @@ interface PerformanceChartProps {
   yearlyData: PerformanceChartDataPoint[];
 }
 
-export function PerformanceChart({ monthlyData, yearlyData }: PerformanceChartProps) {
+export const PerformanceChart = React.memo(function PerformanceChart({ monthlyData, yearlyData }: PerformanceChartProps) {
   const [range, setRange] = useState<ChartTimeRange>('monthly');
-  const data = range === 'monthly' ? monthlyData : yearlyData;
+  const data = useMemo(
+    () => (range === 'monthly' ? monthlyData : yearlyData),
+    [range, monthlyData, yearlyData],
+  );
 
   const formatTooltipValue = (value: number, name: string) => {
     if (name === 'revenue') return [`$${value}M`, 'Revenue'];
@@ -121,4 +124,4 @@ export function PerformanceChart({ monthlyData, yearlyData }: PerformanceChartPr
       </div>
     </div>
   );
-}
+});

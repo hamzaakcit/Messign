@@ -418,6 +418,7 @@ export async function approveExpense(
 
     eventBus.emit('finance.expense.approved', {
       expenseId, approverId: ctx.userId, amount: expense.rows[0].original_amount,
+      organizationId: ctx.organizationId ?? undefined,
     });
 
     const updated = await getExpenseById(ctx, expenseId);

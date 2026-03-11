@@ -30,7 +30,7 @@ webhookRouter.post('/', async (req: ReimbursementRequest, res) => {
     const row = await query(
       `INSERT INTO webhooks (organization_id, name, url, secret, events, headers, retry_count, created_by)
        VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::uuid)
-       RETURNING *`,
+       RETURNING id, organization_id, name, url, events, headers, is_active, retry_count, last_triggered_at, last_status_code, failure_count, created_by, created_at, updated_at`,
       [
         req.organizationId ?? null,
         name,
@@ -62,7 +62,8 @@ webhookRouter.put('/:id', async (req: ReimbursementRequest, res) => {
            retry_count = COALESCE($6, retry_count),
            updated_at = NOW()
        WHERE id = $7::uuid
-       RETURNING *`,
+         AND organization_id = $8::uuid
+       RETURNING id, organization_id, name, url, events, headers, is_active, retry_count, last_triggered_at, last_status_code, failure_count, created_by, created_at, updated_at`,
       [
         name ?? null,
         url ?? null,
@@ -71,6 +72,7 @@ webhookRouter.put('/:id', async (req: ReimbursementRequest, res) => {
         headers ? JSON.stringify(headers) : null,
         retry_count ?? null,
         req.params.id,
+        req.organizationId ?? null,
       ],
     );
     res.json(row.rows[0] ?? null);
@@ -82,7 +84,7 @@ webhookRouter.put('/:id', async (req: ReimbursementRequest, res) => {
 
 webhookRouter.delete('/:id', async (req: ReimbursementRequest, res) => {
   try {
-    await query('DELETE FROM webhooks WHERE id = $1::uuid', [req.params.id]);
+    await query('DELETE FROM webhooks WHERE id = $1::uuid AND organization_id = $2::uuid', [req.params.id, req.organizationId ?? null]);
     res.json({ ok: true });
   } catch (error) {
     console.error('[webhooks/delete]', error);
@@ -96,8 +98,9 @@ webhookRouter.put('/:id/toggle', async (req: ReimbursementRequest, res) => {
       `UPDATE webhooks
        SET is_active = NOT is_active, updated_at = NOW()
        WHERE id = $1::uuid
+         AND organization_id = $2::uuid
        RETURNING id, is_active`,
-      [req.params.id],
+      [req.params.id, req.organizationId ?? null],
     );
     res.json(row.rows[0] ?? null);
   } catch (error) {
@@ -116,9 +119,12 @@ webhookRouter.get('/:id/deliveries', async (req: ReimbursementRequest, res) => {
       `SELECT id, event, status, status_code, response_time_ms, attempt, error_message, delivered_at, created_at
        FROM webhook_deliveries
        WHERE webhook_id = $1::uuid
+         AND webhook_id IN (
+           SELECT id FROM webhooks WHERE organization_id = $2::uuid
+         )
        ORDER BY created_at DESC
        LIMIT 200`,
-      [req.params.id],
+      [req.params.id, req.organizationId ?? null],
     );
     res.json(rows.rows);
   } catch (error) {
@@ -129,6 +135,13 @@ webhookRouter.get('/:id/deliveries', async (req: ReimbursementRequest, res) => {
 
 webhookRouter.post('/:id/test', async (req: ReimbursementRequest, res) => {
   try {
+    const exists = await query(
+      `SELECT 1 FROM webhooks WHERE id = $1::uuid AND organization_id = $2::uuid LIMIT 1`,
+      [req.params.id, req.organizationId ?? null],
+    );
+    if (!exists.rows.length) {
+      return res.status(404).json({ error: 'Webhook not found' });
+    }
     await webhookService.deliverWebhook(
       req.params.id,
       'webhook.test',
