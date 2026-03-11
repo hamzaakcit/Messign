@@ -25,7 +25,7 @@ export function computeFingerprint(ip?: string | null, userAgent?: string | null
     .substring(0, 16);
 }
 
-function getClientIp(req: { ip?: string; headers?: { 'x-forwarded-for'?: string } }): string | null {
+export function getClientIp(req: { ip?: string; headers?: Record<string, string | string[] | undefined> }): string | null {
   const forwarded = req.headers?.['x-forwarded-for'];
   if (forwarded) return (typeof forwarded === 'string' ? forwarded : forwarded[0])?.trim().split(',')[0] ?? null;
   return req.ip ?? null;

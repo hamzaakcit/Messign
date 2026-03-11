@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyAccess } from '../utils/jwt.js';
-import { computeFingerprint } from '../services/authService.js';
+import { computeFingerprint, getClientIp } from '../services/authService.js';
 
 declare global {
   namespace Express {
@@ -14,7 +14,8 @@ declare global {
 
 function verifyFingerprint(req: Request, fp?: string): boolean {
   if (!fp) return true;
-  const expected = computeFingerprint(req.ip, req.headers['user-agent']);
+  const ip = getClientIp(req);
+  const expected = computeFingerprint(ip, req.headers['user-agent']);
   return fp === expected;
 }
 
