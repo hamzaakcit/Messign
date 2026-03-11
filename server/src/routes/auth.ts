@@ -6,13 +6,20 @@ import { requireJwt } from '../middleware/authMiddleware.js';
 
 export const authRouter = Router();
 
-const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: '/api/auth/refresh',
-};
+// Cross-origin (Vercel + Railway): SameSite=strict blocks cookie on cross-site requests, causing login redirect loop.
+// Use SameSite=none when CLIENT_URL is set (frontend on different domain).
+function getRefreshCookieOptions(): { httpOnly: boolean; secure: boolean; sameSite: 'strict' | 'none'; maxAge: number; path: string } {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const clientUrl = process.env.CLIENT_URL?.trim();
+  const isCrossOrigin = isProduction && !!clientUrl;
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isCrossOrigin ? 'none' : 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/api/auth/refresh',
+  };
+}
 
 // Public: login with email + password (wrap in Promise so async rejections are caught)
 authRouter.post('/login', (req, res) => {
@@ -38,7 +45,7 @@ authRouter.post('/login', (req, res) => {
       const result = await authService.login(normalizedEmail, password, req);
       if (result.success) {
         const { refreshToken, ...responseData } = result.data;
-        res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
+        res.cookie('refreshToken', refreshToken, getRefreshCookieOptions());
         return res.json({ success: true, data: responseData });
       }
       return res.status(401).json({ success: false, error: result.error });
@@ -63,7 +70,7 @@ authRouter.post('/refresh', async (req, res) => {
   try {
     const tokens = await authService.refresh(refreshToken, req);
     if (!tokens) return res.status(401).json({ error: 'Invalid or expired refresh token' });
-    res.cookie('refreshToken', tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie('refreshToken', tokens.refreshToken, getRefreshCookieOptions());
     return res.json({ success: true, data: { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn } });
   } catch (e) {
     return res.status(401).json({ error: 'Invalid or expired refresh token' });
@@ -79,7 +86,7 @@ authRouter.post('/logout', async (req, res) => {
   } catch {
     // ignore
   }
-  res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
+  res.clearCookie('refreshToken', { ...getRefreshCookieOptions(), maxAge: 0 });
   return res.json({ success: true });
 });
 
