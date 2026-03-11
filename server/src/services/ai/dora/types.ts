@@ -39,6 +39,10 @@ export type DoraModule =
   | 'admin'
   | 'dora'
   | 'crm'
+  | 'marketing'
+  | 'recruitment'
+  | 'assets'
+  | 'contracts'
   | 'support'
   | 'time'
   | 'unknown';

@@ -12,10 +12,14 @@ import {
   Shield,
   Wallet,
   Briefcase,
+  Megaphone,
   Clock3,
   Target,
   CheckCircle2,
   LifeBuoy,
+  UserPlus,
+  Package,
+  FileSignature,
 } from 'lucide-react';
 import { PilotPlaneSVG } from '@/components/dora/DoraPilot';
 import { useUIStore } from '@/stores/uiStore';
@@ -45,9 +49,13 @@ const VIEW_TO_PATH: Record<string, string> = {
   reimbursements: '/reimbursements',
   invoices: '/reimbursements/invoices',
   crm: '/crm',
+  marketing: '/marketing',
+  recruitment: '/recruitment',
   support: '/support',
   time: '/time',
   okr: '/okr',
+  assets: '/assets',
+  contracts: '/contracts',
 };
 
 const navItems = [
@@ -61,6 +69,10 @@ const navItems = [
   { id: 'team', label: 'Team Directory', icon: Users },
   { id: 'finance', label: 'Finance', icon: Wallet, showReimbBadge: true },
   { id: 'crm', label: 'Sales CRM', icon: Target },
+  { id: 'marketing', label: 'Marketing', icon: Megaphone, badgeText: 'NEW' },
+  { id: 'recruitment', label: 'Recruitment', icon: UserPlus, badgeText: 'NEW' },
+  { id: 'assets', label: 'Assets', icon: Package, badgeText: 'NEW' },
+  { id: 'contracts', label: 'Contracts', icon: FileSignature, badgeText: 'NEW' },
   { id: 'support', label: 'Support', icon: LifeBuoy, badgeText: 'NEW' },
   { id: 'okr', label: 'OKRs & Goals', icon: CheckCircle2 },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -194,6 +206,14 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
               ? insightCounts.finance ?? 0
               : item.id === 'crm'
                 ? (insightCounts.sales ?? insightCounts.crm ?? 0)
+                : item.id === 'marketing'
+                  ? insightCounts.marketing ?? 0
+                : item.id === 'recruitment'
+                  ? insightCounts.recruitment ?? 0
+                : item.id === 'assets'
+                  ? insightCounts.assets ?? 0
+                : item.id === 'contracts'
+                  ? insightCounts.contracts ?? 0
                 : item.id === 'support'
                   ? insightCounts.support ?? 0
                   : item.id === 'time'

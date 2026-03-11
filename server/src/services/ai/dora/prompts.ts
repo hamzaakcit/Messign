@@ -46,6 +46,21 @@ const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
     'The user is in the Sales CRM module. They likely want pipeline status, deal details, ' +
     'sales forecasts, or activity gaps. Prioritize get_pipeline_status, get_deal_details, ' +
     'get_sales_forecast, and get_activity_gaps for CRM-related queries.',
+  marketing:
+    'The user is in Marketing Hub. They likely want campaign ROI, lead funnel health, ' +
+    'channel performance, or content ideas. Prioritize get_campaign_performance, ' +
+    'get_marketing_roi, and suggest_content_topics for marketing-related queries.',
+  recruitment:
+    'The user is in Recruitment ATS. They likely want pipeline health, candidate scoring, ' +
+    'time-to-hire, or hiring forecasts. Prioritize get_hiring_pipeline, score_candidate, ' +
+    'get_recruitment_metrics, and get_cross_module_report for hiring-related queries.',
+  assets:
+    'The user is in Asset Management. They likely want equipment inventory value, assignment ' +
+    'status, warranty risk, or license utilization optimization. Prioritize get_asset_summary ' +
+    'and get_license_utilization for assets-related queries.',
+  contracts:
+    'The user is in Contracts & E-Sign. They likely want renewals, expiring agreements, ' +
+    'obligations, or AI term extraction. Prioritize get_contract_renewals and extract_contract_terms.',
   support:
     'The user is in Customer Support. They likely want ticket queue health, SLA breaches, ' +
     'customer health, or agent workload. Prioritize get_ticket_overview, get_customer_health, ' +

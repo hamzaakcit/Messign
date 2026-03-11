@@ -30,6 +30,10 @@ const PATH_TO_MODULE: Array<{ prefix: string; module: DoraModule }> = [
   { prefix: '/settings',               module: 'settings' },
   { prefix: '/dora',                   module: 'dora' },
   { prefix: '/crm',                    module: 'crm' },
+  { prefix: '/marketing',              module: 'marketing' },
+  { prefix: '/recruitment',            module: 'recruitment' },
+  { prefix: '/assets',                 module: 'assets' },
+  { prefix: '/contracts',              module: 'contracts' },
   { prefix: '/support',                module: 'support' },
   { prefix: '/time',                   module: 'time' },
 ];

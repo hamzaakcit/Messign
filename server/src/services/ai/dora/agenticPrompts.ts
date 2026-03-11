@@ -23,6 +23,14 @@ const MODULE_CONTEXT_HINTS: Record<string, string> = {
     'The user is viewing Invoices. Start with get_invoice_details or get_financial_summary.',
   admin:
     'The user is in Admin. They have elevated access. Consider get_system_stats.',
+  marketing:
+    'The user is in Marketing Hub. Start with get_campaign_performance or get_marketing_roi.',
+  recruitment:
+    'The user is in Recruitment ATS. Start with get_hiring_pipeline, score_candidate, or get_recruitment_metrics.',
+  assets:
+    'The user is in Asset Management. Start with get_asset_summary or get_license_utilization.',
+  contracts:
+    'The user is in Contracts & E-Sign. Start with get_contract_renewals or extract_contract_terms.',
 };
 
 function getPermissionBoundaries(role: string): string {

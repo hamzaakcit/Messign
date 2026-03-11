@@ -10,9 +10,13 @@ import { SettingsView } from '@/pages/SettingsView';
 import { ReimbursementRouter } from '@/pages/ReimbursementRouter';
 import { FinancePage } from '@/pages/FinancePage';
 import { CRMLayout } from '@/pages/crm/CRMLayout';
+import { MarketingLayout } from '@/pages/marketing/MarketingLayout';
+import { RecruitmentLayout } from '@/pages/recruitment/RecruitmentLayout';
 import { SupportLayout } from '@/pages/support/SupportLayout';
 import { TimeTrackingPage } from '@/pages/time/TimeTrackingPage';
 import { OKRPage } from '@/pages/okr/OKRPage';
+import { AssetsLayout } from '@/pages/assets/AssetsLayout';
+import { ContractsLayout } from '@/pages/contracts/ContractsLayout';
 import { DoraPage } from '@/pages/DoraPage';
 import { DoraDashPage } from '@/pages/DoraDashPage';
 import { AutomationPoliciesPage } from '@/pages/dora/AutomationPoliciesPage';
@@ -54,12 +58,20 @@ export function MainContent() {
         return <FinancePage />;
       case 'crm':
         return <CRMLayout />;
+      case 'marketing':
+        return <MarketingLayout />;
+      case 'recruitment':
+        return <RecruitmentLayout />;
       case 'support':
         return <SupportLayout />;
       case 'time':
         return <TimeTrackingPage />;
       case 'okr':
         return <OKRPage />;
+      case 'assets':
+        return <AssetsLayout />;
+      case 'contracts':
+        return <ContractsLayout />;
       case 'reimbursements':
       case 'invoices':
         return <ReimbursementRouter />;

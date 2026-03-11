@@ -56,6 +56,14 @@ import './support/index.js';
 // Time Tracking: 3 tools (time summary, utilization report, time allocation)
 import './time/index.js';
 
+// Marketing Hub: 3 tools (campaign performance, ROI, content suggestions)
+import './marketing/index.js';
+
+// Recruitment ATS + cross-module analytics
+import './recruitment/index.js';
+import './assets/index.js';
+import './contracts/index.js';
+
 export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
 
 import { getToolCount } from '../toolRegistry.js';

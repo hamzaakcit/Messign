@@ -29,16 +29,24 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/settings': 'settings',
   '/finance': 'finance',
   '/crm': 'crm',
+  '/marketing': 'marketing',
+  '/recruitment': 'recruitment',
   '/support': 'support',
   '/time': 'time',
   '/okr': 'okr',
+  '/assets': 'assets',
+  '/contracts': 'contracts',
 };
 
 function getViewFromPath(path: string): string {
   if (path.startsWith('/okr')) return 'okr';
   if (path.startsWith('/crm')) return 'crm';
+  if (path.startsWith('/marketing')) return 'marketing';
+  if (path.startsWith('/recruitment')) return 'recruitment';
   if (path.startsWith('/support')) return 'support';
   if (path.startsWith('/time')) return 'time';
+  if (path.startsWith('/assets')) return 'assets';
+  if (path.startsWith('/contracts')) return 'contracts';
   if (path.startsWith('/finance')) return 'finance';
   if (path === '/reimbursements/invoices' || path.startsWith('/reimbursements/invoices/')) return 'invoices';
   if (path.startsWith('/reimbursements')) return 'reimbursements';
@@ -63,9 +71,13 @@ const VIEW_LABELS: Record<string, string> = {
   reimbursements: 'Reimbursements',
   invoices: 'Invoices',
   crm: 'Sales CRM',
+  marketing: 'Marketing',
+  recruitment: 'Recruitment',
   support: 'Support',
   time: 'Time Tracking',
   okr: 'OKRs & Goals',
+  assets: 'Assets',
+  contracts: 'Contracts',
 };
 
 export function AppShell() {
@@ -95,7 +107,7 @@ export function AppShell() {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
-      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'support' | 'time' | 'okr');
+      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'time' | 'okr' | 'assets' | 'contracts');
     }
     const label = VIEW_LABELS[view] ?? view;
     trackPage(path, label);

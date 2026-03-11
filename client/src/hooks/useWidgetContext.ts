@@ -62,6 +62,10 @@ const ROUTE_PATTERNS: RoutePattern[] = [
   { pattern: /^\/settings/, module: 'settings' },
   { pattern: /^\/dora/, module: 'dora' },
   { pattern: /^\/crm/, module: 'crm' },
+  { pattern: /^\/marketing/, module: 'marketing' },
+  { pattern: /^\/recruitment/, module: 'recruitment' },
+  { pattern: /^\/assets/, module: 'assets' },
+  { pattern: /^\/contracts/, module: 'contracts' },
   { pattern: /^\/support/, module: 'support' },
   { pattern: /^\/time/, module: 'time' },
   { pattern: /^\/okr/, module: 'okr' },
@@ -133,6 +137,26 @@ function getPageChips(module: string, entityName?: string): SuggestionChip[] {
       return [
         { label: 'Pipeline status', query: 'What is the current pipeline status?', icon: '🎯', category: 'company' },
         { label: 'Stale deals', query: 'Which deals need attention?', icon: '⏳', category: 'team' },
+      ];
+    case 'marketing':
+      return [
+        { label: 'Campaign ROI', query: 'Which marketing campaigns are performing best?', icon: '📣', category: 'company' },
+        { label: 'Hot leads', query: 'Show the hottest marketing leads right now', icon: '🔥', category: 'team' },
+      ];
+    case 'recruitment':
+      return [
+        { label: 'Hiring pipeline', query: 'Show me the current hiring pipeline', icon: '🧑‍💼', category: 'team' },
+        { label: 'Strong candidates', query: 'Which candidates look strongest right now?', icon: '⭐', category: 'team' },
+      ];
+    case 'assets':
+      return [
+        { label: 'Asset summary', query: 'Give me an asset summary by category', icon: '🧰', category: 'company' },
+        { label: 'License usage', query: 'Show underutilized software licenses', icon: '🪪', category: 'company' },
+      ];
+    case 'contracts':
+      return [
+        { label: 'Renewals due', query: 'Which contracts need renewal soon?', icon: '📄', category: 'company' },
+        { label: 'Compliance due', query: 'Show contract compliance obligations due soon', icon: '⚖️', category: 'team' },
       ];
     case 'support':
       return [
@@ -214,6 +238,10 @@ export function useWidgetContext(userRole: string = 'employee') {
       admin: 'Admin',
       dora: 'Dora',
       crm: 'Sales CRM',
+      marketing: 'Marketing',
+      recruitment: 'Recruitment',
+      assets: 'Assets',
+      contracts: 'Contracts',
       support: 'Support',
       time: 'Time Tracking',
       okr: 'OKRs & Goals',

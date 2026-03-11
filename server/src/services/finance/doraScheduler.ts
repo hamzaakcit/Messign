@@ -383,6 +383,182 @@ export const doraScheduler = {
     };
   },
 
+  async checkAssetWarranties(orgId: string) {
+    const assets = await query<{
+      id: string;
+      name: string;
+      warranty_end: string;
+      days_remaining: string;
+    }>(
+      `SELECT
+         id::text AS id,
+         name,
+         warranty_end::text AS warranty_end,
+         (warranty_end - CURRENT_DATE)::int::text AS days_remaining
+       FROM assets
+       WHERE organization_id = $1::uuid
+         AND warranty_end IS NOT NULL
+         AND warranty_end >= CURRENT_DATE
+         AND warranty_end <= CURRENT_DATE + INTERVAL '30 days'`,
+      [orgId],
+    );
+    for (const asset of assets.rows) {
+      eventBus.emit('asset.warranty_expiring', {
+        assetId: asset.id,
+        assetName: asset.name,
+        warrantyEnd: asset.warranty_end,
+        daysRemaining: Number(asset.days_remaining ?? 0),
+      });
+    }
+    return { flagged: assets.rows.length };
+  },
+
+  async checkLicenseUtilization(orgId: string) {
+    const licenses = await query<{
+      license_id: string;
+      software_name: string;
+      expires_at: string | null;
+      days_remaining: string | null;
+      seats_used: number;
+      seats_purchased: number;
+      utilization_percent: string;
+      total_monthly_cost: string | null;
+      is_underutilized: boolean;
+    }>(
+      `SELECT
+         l.id::text AS license_id,
+         l.software_name,
+         l.expiry_date::text AS expires_at,
+         CASE WHEN l.expiry_date IS NULL THEN NULL ELSE (l.expiry_date - CURRENT_DATE)::int::text END AS days_remaining,
+         l.seats_used,
+         l.seats_purchased,
+         mv.utilization_percent::text,
+         l.total_monthly_cost::text,
+         mv.is_underutilized
+       FROM licenses l
+       JOIN mv_license_utilization mv ON mv.license_id = l.id
+       WHERE l.organization_id = $1::uuid`,
+      [orgId],
+    );
+
+    let underutilized = 0;
+    let expiring = 0;
+    for (const license of licenses.rows) {
+      const daysRemaining = Number(license.days_remaining ?? 9999);
+      if (license.is_underutilized) {
+        underutilized++;
+        eventBus.emit('asset.license.underutilized', {
+          licenseId: license.license_id,
+          softwareName: license.software_name,
+          utilizationPercent: Number(license.utilization_percent ?? 0),
+          seatsUsed: Number(license.seats_used ?? 0),
+          seatsPurchased: Number(license.seats_purchased ?? 0),
+          monthlyCost: Number(license.total_monthly_cost ?? 0),
+        });
+      }
+      if (daysRemaining >= 0 && daysRemaining <= 30) {
+        expiring++;
+        eventBus.emit('asset.license.expiring', {
+          licenseId: license.license_id,
+          softwareName: license.software_name,
+          expiresAt: license.expires_at ?? '',
+          daysRemaining,
+          seatsUsed: Number(license.seats_used ?? 0),
+          seatsPurchased: Number(license.seats_purchased ?? 0),
+        });
+      }
+    }
+    return { underutilized, expiring };
+  },
+
+  async checkContractRenewals(orgId: string) {
+    const reminders = await query<{
+      reminder_id: string;
+      contract_id: string;
+      title: string;
+      counterparty_name: string;
+      end_date: string;
+      days_remaining: string;
+      auto_renew: boolean;
+    }>(
+      `SELECT
+         cr.id::text AS reminder_id,
+         c.id::text AS contract_id,
+         c.title,
+         c.counterparty_name,
+         c.end_date::text AS end_date,
+         (c.end_date - CURRENT_DATE)::int::text AS days_remaining,
+         c.auto_renew
+       FROM contract_reminders cr
+       JOIN contracts c ON c.id = cr.contract_id
+       WHERE c.organization_id = $1::uuid
+         AND cr.sent = FALSE
+         AND cr.reminder_date <= CURRENT_DATE`,
+      [orgId],
+    );
+    for (const reminder of reminders.rows) {
+      eventBus.emit('contract.expiring', {
+        contractId: reminder.contract_id,
+        title: reminder.title,
+        counterparty: reminder.counterparty_name,
+        expiresAt: reminder.end_date,
+        daysRemaining: Number(reminder.days_remaining ?? 0),
+        autoRenew: reminder.auto_renew,
+      });
+      await query(
+        `UPDATE contract_reminders SET sent = TRUE, sent_at = NOW() WHERE id = $1::uuid`,
+        [reminder.reminder_id],
+      );
+    }
+    return { reminders_sent: reminders.rows.length };
+  },
+
+  async checkContractObligations(orgId: string) {
+    const dueSoon = await query<{
+      obligation_id: string;
+      contract_id: string;
+      description: string;
+      due_date: string;
+      days_remaining: string;
+    }>(
+      `SELECT
+         co.id::text AS obligation_id,
+         co.contract_id::text AS contract_id,
+         co.description,
+         co.due_date::text AS due_date,
+         (co.due_date - CURRENT_DATE)::int::text AS days_remaining
+       FROM contract_obligations co
+       JOIN contracts c ON c.id = co.contract_id
+       WHERE c.organization_id = $1::uuid
+         AND co.status = 'pending'
+         AND co.due_date IS NOT NULL
+         AND co.due_date <= CURRENT_DATE + INTERVAL '7 days'
+         AND co.due_date >= CURRENT_DATE`,
+      [orgId],
+    );
+    for (const row of dueSoon.rows) {
+      eventBus.emit('contract.compliance_due', {
+        contractId: row.contract_id,
+        obligationId: row.obligation_id,
+        description: row.description,
+        dueDate: row.due_date,
+        daysRemaining: Number(row.days_remaining ?? 0),
+      });
+    }
+
+    const overdueUpdate = await query(
+      `UPDATE contract_obligations co
+       SET status = 'overdue'
+       FROM contracts c
+       WHERE c.id = co.contract_id
+         AND c.organization_id = $1::uuid
+         AND co.status = 'pending'
+         AND co.due_date < CURRENT_DATE`,
+      [orgId],
+    );
+    return { compliance_due: dueSoon.rows.length, overdue_marked: overdueUpdate.rowCount ?? 0 };
+  },
+
   async checkUtilization(orgId: string) {
     const underUtilized = await query<{ user_id: string; utilization_percent: string }>(
       `SELECT mv.user_id::text AS user_id, mv.utilization_percent::text AS utilization_percent
@@ -499,9 +675,34 @@ export async function initDoraScheduler(): Promise<void> {
     { repeat: { pattern: '0 9 * * 1' }, jobId: 'utilization-check' },
   );
 
+  await doraSchedulerQueue.add(
+    'asset-warranty-check',
+    { type: 'asset_warranty_check' },
+    { repeat: { pattern: '0 9 * * *' }, jobId: 'asset-warranty-check' },
+  );
+
+  await doraSchedulerQueue.add(
+    'license-utilization-check',
+    { type: 'license_utilization_check' },
+    { repeat: { pattern: '0 10 * * 1' }, jobId: 'license-utilization-check' },
+  );
+
+  await doraSchedulerQueue.add(
+    'contract-renewal-check',
+    { type: 'contract_renewal_check' },
+    { repeat: { pattern: '0 8 * * *' }, jobId: 'contract-renewal-check' },
+  );
+
+  await doraSchedulerQueue.add(
+    'contract-obligation-check',
+    { type: 'contract_obligation_check' },
+    { repeat: { pattern: '0 9 * * *' }, jobId: 'contract-obligation-check' },
+  );
+
   console.log('[DoraScheduler] Registered support jobs: support-sla-check, customer-health-recalc, support-pattern-detection');
   console.log('[DoraScheduler] Registered time jobs: utilization-check');
-  console.log('[DoraScheduler] 9 scheduled jobs registered');
+  console.log('[DoraScheduler] Registered asset/contracts jobs: asset-warranty-check, license-utilization-check, contract-renewal-check, contract-obligation-check');
+  console.log('[DoraScheduler] 13 scheduled jobs registered');
 }
 
 function computeNextDate(current: string, frequency: string): string {

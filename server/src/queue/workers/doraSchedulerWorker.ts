@@ -19,6 +19,9 @@ const MATERIALIZED_VIEWS = [
   'mv_customer_health',
   'mv_pipeline_summary',
   'mv_time_utilization',
+  'mv_asset_summary',
+  'mv_license_utilization',
+  'mv_contract_renewals',
 ];
 
 async function refreshMaterializedViews(): Promise<void> {
@@ -89,6 +92,30 @@ const worker = new Worker<SchedulerJob>(
       case 'utilization_check':
         await runSchedulerJobForAllOrgs('checkUtilization', (orgId) =>
           doraScheduler.checkUtilization(orgId),
+        );
+        break;
+
+      case 'asset_warranty_check':
+        await runSchedulerJobForAllOrgs('checkAssetWarranties', (orgId) =>
+          doraScheduler.checkAssetWarranties(orgId),
+        );
+        break;
+
+      case 'license_utilization_check':
+        await runSchedulerJobForAllOrgs('checkLicenseUtilization', (orgId) =>
+          doraScheduler.checkLicenseUtilization(orgId),
+        );
+        break;
+
+      case 'contract_renewal_check':
+        await runSchedulerJobForAllOrgs('checkContractRenewals', (orgId) =>
+          doraScheduler.checkContractRenewals(orgId),
+        );
+        break;
+
+      case 'contract_obligation_check':
+        await runSchedulerJobForAllOrgs('checkContractObligations', (orgId) =>
+          doraScheduler.checkContractObligations(orgId),
         );
         break;
 

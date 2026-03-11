@@ -37,6 +37,18 @@ const MODULE_TOOLS: Record<string, string[]> = {
   crm: [
     'get_pipeline_status', 'get_deal_details', 'get_sales_forecast', 'get_activity_gaps',
   ],
+  marketing: [
+    'get_campaign_performance', 'get_marketing_roi', 'suggest_content_topics',
+  ],
+  recruitment: [
+    'get_hiring_pipeline', 'score_candidate', 'get_recruitment_metrics', 'get_cross_module_report',
+  ],
+  assets: [
+    'get_asset_summary', 'get_license_utilization',
+  ],
+  contracts: [
+    'get_contract_renewals', 'extract_contract_terms',
+  ],
   support: [
     'get_ticket_overview', 'get_customer_health', 'get_support_metrics',
   ],
@@ -69,6 +81,10 @@ const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
   { keywords: ["where's the fun stuff", 'fun stuff'], tools: ['play_dora_dash'] },
   { keywords: ['financial', 'finance', 'money', 'budget', 'cost'], tools: ['get_financial_summary', 'get_invoice_details'] },
   { keywords: ['deal', 'deals', 'pipeline', 'crm', 'prospect', 'lead', 'leads', 'close', 'won', 'lost', 'forecast', 'sales forecast'], tools: ['get_pipeline_status', 'get_deal_details', 'get_sales_forecast', 'get_activity_gaps'] },
+  { keywords: ['marketing', 'campaign', 'campaigns', 'roi', 'cpl', 'cac', 'mql', 'content', 'email campaign', 'channel performance'], tools: ['get_campaign_performance', 'get_marketing_roi', 'suggest_content_topics'] },
+  { keywords: ['recruitment', 'hiring', 'candidate', 'job', 'interview', 'applicant', 'resume', 'offer', 'ats'], tools: ['get_hiring_pipeline', 'score_candidate', 'get_recruitment_metrics', 'get_cross_module_report'] },
+  { keywords: ['asset', 'assets', 'equipment', 'license', 'licenses', 'software', 'warranty', 'utilization'], tools: ['get_asset_summary', 'get_license_utilization'] },
+  { keywords: ['contract', 'contracts', 'renewal', 'expiry', 'obligation', 'compliance', 'e-sign', 'esign', 'signature'], tools: ['get_contract_renewals', 'extract_contract_terms'] },
   { keywords: ['ticket', 'tickets', 'support', 'help desk', 'helpdesk', 'sla', 'customer health', 'csat', 'agent'], tools: ['get_ticket_overview', 'get_customer_health', 'get_support_metrics'] },
   { keywords: ['time', 'hours', 'timesheet', 'utilization', 'billable', 'timer'], tools: ['get_time_summary', 'get_utilization_report', 'suggest_time_allocation'] },
   { keywords: ['report', 'summary', 'analysis'], tools: ['get_department_report', 'get_financial_summary'] },

@@ -17,6 +17,10 @@ type Module =
   | 'chat'
   | 'achievements'
   | 'sales'
+  | 'marketing'
+  | 'recruitment'
+  | 'assets'
+  | 'contracts'
   | 'support'
   | 'time'
   | 'okr';
@@ -37,6 +41,10 @@ const FALLBACK_MESSAGES: Record<Module, string> = {
   chat: 'Dora can extract action items and summarize conversations.',
   achievements: 'Keep earning XP across the workspace to unlock new badges.',
   sales: 'Dora is tracking your sales pipeline and deal velocity.',
+  marketing: 'Dora tracks campaign ROI and identifies your highest-performing channels.',
+  recruitment: 'Dora screens resumes and tracks hiring pipeline efficiency.',
+  assets: 'Dora monitors equipment warranties and license utilization.',
+  contracts: 'Dora tracks renewals and extracts key terms from your contracts.',
   support: 'Dora monitors ticket SLAs and detects patterns across support requests.',
   time: 'Dora tracks your utilization and suggests optimal time allocation.',
   okr: 'Dora tracks OKR progress and flags at-risk goals.',
