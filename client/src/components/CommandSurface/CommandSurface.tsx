@@ -44,8 +44,11 @@ interface CommandItem {
 const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', keywords: 'home overview', type: 'navigate' },
   { id: 'nav-dora', label: 'Dora', icon: Sparkles, path: '/dora', keywords: 'ai assistant chat bot', type: 'navigate' },
+  { id: 'nav-dora-automations', label: 'Dora Automations', icon: Sparkles, path: '/dora/automations', keywords: 'automation policy builder autonomous', type: 'navigate' },
+  { id: 'nav-dora-automation-log', label: 'Dora Automation Log', icon: Clock, path: '/dora/automations/log', keywords: 'automation log executions', type: 'navigate' },
   { id: 'nav-chat', label: 'Chat', icon: MessageSquare, path: '/chat', keywords: 'messages conversations', type: 'navigate' },
   { id: 'nav-projects', label: 'Projects', icon: Briefcase, path: '/projects', keywords: 'marketplace tasks bounties', type: 'navigate' },
+  { id: 'nav-time', label: 'Time Tracking', icon: Clock, path: '/time', keywords: 'time hours timesheet utilization timer billable', type: 'navigate' },
   { id: 'nav-knowledge', label: 'Knowledge Hub', icon: BookOpen, path: '/knowledge-hub', keywords: 'docs documents wiki', type: 'navigate' },
   { id: 'nav-achievements', label: 'Achievements', icon: Trophy, path: '/achievements', keywords: 'xp badges gamification', type: 'navigate' },
   { id: 'nav-team', label: 'Team Directory', icon: Users, path: '/team', keywords: 'people employees directory', type: 'navigate' },

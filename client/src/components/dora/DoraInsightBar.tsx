@@ -18,6 +18,7 @@ type Module =
   | 'achievements'
   | 'sales'
   | 'support'
+  | 'time'
   | 'okr';
 
 interface DoraInsightBarProps {
@@ -37,6 +38,7 @@ const FALLBACK_MESSAGES: Record<Module, string> = {
   achievements: 'Keep earning XP across the workspace to unlock new badges.',
   sales: 'Dora is tracking your sales pipeline and deal velocity.',
   support: 'Dora monitors ticket SLAs and detects patterns across support requests.',
+  time: 'Dora tracks your utilization and suggests optimal time allocation.',
   okr: 'Dora tracks OKR progress and flags at-risk goals.',
 };
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Send,
   Trash2,
@@ -68,7 +69,18 @@ export function DoraPage() {
   }, [setActiveSession]);
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden relative">
+      <div className="absolute right-4 top-3 z-20 flex items-center gap-2">
+        <Link to="/dora" className="rounded-lg border border-app-border bg-app-card px-3 py-1.5 text-xs text-app-muted hover:text-app">
+          Chat
+        </Link>
+        <Link to="/dora/automations" className="rounded-lg border border-app-border bg-app-card px-3 py-1.5 text-xs text-app-muted hover:text-app">
+          Automations
+        </Link>
+        <Link to="/dora/automations/log" className="rounded-lg border border-app-border bg-app-card px-3 py-1.5 text-xs text-app-muted hover:text-app">
+          Log
+        </Link>
+      </div>
       <DoraHistorySidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((v) => !v)}

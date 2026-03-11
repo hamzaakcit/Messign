@@ -226,3 +226,15 @@ export function onDoraInsightCounts(callback: (payload: DoraInsightCountsEvent) 
 export function offDoraInsightCounts(callback: (payload: DoraInsightCountsEvent) => void) {
   getSocket().off('dora:insight-counts', callback);
 }
+
+export interface TimeTimerUpdateEvent {
+  type: 'started' | 'stopped' | 'discarded';
+  timerId?: string;
+  userId?: string;
+}
+
+export function onTimeTimerUpdate(callback: (payload: TimeTimerUpdateEvent) => void): () => void {
+  const s = getSocket();
+  s.on('time:timer-update', callback);
+  return () => s.off('time:timer-update', callback);
+}

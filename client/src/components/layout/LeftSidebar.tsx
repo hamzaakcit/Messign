@@ -12,6 +12,7 @@ import {
   Shield,
   Wallet,
   Briefcase,
+  Clock3,
   Target,
   CheckCircle2,
   LifeBuoy,
@@ -45,6 +46,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   invoices: '/reimbursements/invoices',
   crm: '/crm',
   support: '/support',
+  time: '/time',
   okr: '/okr',
 };
 
@@ -53,6 +55,7 @@ const navItems = [
   { id: 'dora', label: 'Dora', icon: null },
   { id: 'chat', label: 'Chat', icon: MessageSquare, showUnread: true },
   { id: 'projects', label: 'Project Marketplace', icon: Briefcase },
+  { id: 'time', label: 'Time Tracking', icon: Clock3, badgeText: 'NEW' },
   { id: 'knowledge', label: 'Knowledge Hub', icon: LayoutDashboard },
   { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'team', label: 'Team Directory', icon: Users },
@@ -193,6 +196,8 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
                 ? (insightCounts.sales ?? insightCounts.crm ?? 0)
                 : item.id === 'support'
                   ? insightCounts.support ?? 0
+                  : item.id === 'time'
+                    ? insightCounts.time ?? 0
                   : 0;
           const badge = unread > 0 ? unread : reimbBadge;
           const badgeText = 'badgeText' in item ? item.badgeText : undefined;

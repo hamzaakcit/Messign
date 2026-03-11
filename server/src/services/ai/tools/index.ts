@@ -53,6 +53,9 @@ import './crm/index.js';
 // Customer Support: 3 tools (ticket overview, customer health, support metrics)
 import './support/index.js';
 
+// Time Tracking: 3 tools (time summary, utilization report, time allocation)
+import './time/index.js';
+
 export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
 
 import { getToolCount } from '../toolRegistry.js';

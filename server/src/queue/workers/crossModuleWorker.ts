@@ -38,6 +38,9 @@ const worker = new Worker<CrossModuleJob>(
       case 'generate_invoice_from_deal':
         console.log(`[CrossModule] Would create invoice from deal ${payload.dealId} for ${payload.amount} ${payload.currency}`);
         break;
+      case 'generate_invoice_from_time':
+        console.log(`[CrossModule] Would create invoice from timesheet for client ${payload.clientId}`);
+        break;
       case 'update_okr_progress':
         console.log(`[CrossModule] Would recalculate OKR auto-progress from ${payload.source}`);
         break;

@@ -64,11 +64,13 @@ import { actionRoutes } from './services/ai/actions/actionRoutes.js';
 import { gameRouter } from './routes/game.js';
 import { doraHistoryRouter } from './routes/doraHistory.js';
 import doraInsightsRouter from './routes/dora/insights.js';
+import doraAutomationsRouter from './routes/dora/automations.js';
 import { budgetsRouter } from './routes/budgets.js';
 import { financeRouter } from './routes/finance/index.js';
 import { crmRouter } from './routes/crm/index.js';
 import { okrRouter } from './routes/okr/index.js';
 import supportRouter from './routes/support/index.js';
+import timeRouter from './routes/time/index.js';
 import { seedRouter } from './routes/seed.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { requireAuth } from './middleware/requireAuth.js';
@@ -145,12 +147,14 @@ app.use('/api/knowledge-hub', knowledgeHubRouter);
 app.use('/api/ai/actions', requireAuth, actionRoutes);
 app.use('/api/game', requireAuth, gameRouter);
 app.use('/api/dora', doraInsightsRouter);
+app.use('/api/dora/automations', doraAutomationsRouter);
 app.use('/api/dora', requireAuth, doraHistoryRouter);
 app.use('/api/budgets', budgetsRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api/crm', crmRouter);
 app.use('/api/okr', okrRouter);
 app.use('/api/support', supportRouter);
+app.use('/api/time', timeRouter);
 app.use('/api/seed', seedRouter);
 
 // Health check

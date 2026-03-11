@@ -58,3 +58,11 @@ export async function getBlockedProjects(_ctx: CallerContext) {
   );
   return result.rows;
 }
+
+// ── Time Utilization ──
+export async function getTimeUtilization(_ctx: CallerContext) {
+  const result = await query(
+    'SELECT * FROM mv_time_utilization ORDER BY utilization_percent DESC, full_name ASC'
+  );
+  return result.rows;
+}

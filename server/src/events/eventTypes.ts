@@ -16,6 +16,7 @@ export interface EventMap {
   'project.task.created': { taskId: string; projectId: string; assigneeId?: string; title: string };
   'project.task.completed': { taskId: string; projectId: string; completedBy: string; xpAwarded?: number };
   'project.task.assigned': { taskId: string; assigneeId: string; assignedBy: string };
+  'project.task.effort_updated': { taskId: string; projectId: string; actualHours: number };
   'project.sprint.started': { sprintId: string; projectId: string; taskCount: number };
   'project.sprint.completed': { sprintId: string; projectId: string; completedTasks: number; totalTasks: number };
   'project.status_changed': { projectId: string; oldStatus: string; newStatus: string };
@@ -72,6 +73,18 @@ export interface EventMap {
   'support.csat.submitted': { ticketId: string; rating: number; comment?: string; crmCompanyId?: string };
   'support.volume.spike': { currentCount: number; averageCount: number; percentAboveAverage: number; timeWindow: string; organizationId?: string };
   'support.pattern.detected': { pattern: string; ticketIds: string[]; frequency: number; suggestedAction: string; organizationId?: string };
+
+  // ── Time Tracking ──
+  'time.entry.created': { entryId: string; userId: string; projectId?: string; taskId?: string; hours: number; billable: boolean; date: string };
+  'time.entry.updated': { entryId: string; userId: string; oldHours: number; newHours: number };
+  'time.entry.deleted': { entryId: string; userId: string; hours: number };
+  'time.timer.started': { timerId: string; userId: string; projectId?: string; taskId?: string; startedAt: string };
+  'time.timer.stopped': { timerId: string; userId: string; durationMinutes: number; autoCreatedEntryId?: string };
+  'time.timesheet.submitted': { timesheetId: string; userId: string; weekStartDate: string; totalHours: number; billableHours: number };
+  'time.timesheet.approved': { timesheetId: string; approvedBy: string; userId: string; totalHours: number; billableHours: number };
+  'time.timesheet.rejected': { timesheetId: string; rejectedBy: string; userId: string; reason: string };
+  'time.utilization.threshold': { userId: string; currentUtilization: number; targetUtilization: number; period: string; isBelow: boolean };
+  'time.overtime.detected': { userId: string; weeklyHours: number; threshold: number; weekStartDate: string };
 
   // ── OKRs ──
   'okr.goal.created': { goalId: string; title: string; ownerId: string; level: string };

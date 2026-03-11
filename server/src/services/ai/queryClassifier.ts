@@ -83,7 +83,7 @@ function isProductIntent(query: string): boolean {
     /\b(my\s+)?(reimbursements?|expense\s+claims?)\b/i.test(q) ||
     /\bpending\s+reimbursements?\b/i.test(q) ||
     // Support
-    /\b(ticket|tickets|support|help\s*desk|sla|csat)\b/i.test(q)
+    /\b(ticket|tickets|support|help\s*desk|sla|csat|timesheet|time\s*tracking|utilization|billable\s*hours|timer)\b/i.test(q)
   );
 }
 

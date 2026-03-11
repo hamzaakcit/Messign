@@ -40,6 +40,7 @@ export type DoraModule =
   | 'dora'
   | 'crm'
   | 'support'
+  | 'time'
   | 'unknown';
 
 /**

@@ -40,6 +40,9 @@ const MODULE_TOOLS: Record<string, string[]> = {
   support: [
     'get_ticket_overview', 'get_customer_health', 'get_support_metrics',
   ],
+  time: [
+    'get_time_summary', 'get_utilization_report', 'suggest_time_allocation',
+  ],
   admin: [
     'get_system_stats', 'get_approval_queue', 'get_department_report',
     'get_team_overview', 'get_financial_summary',
@@ -67,6 +70,7 @@ const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
   { keywords: ['financial', 'finance', 'money', 'budget', 'cost'], tools: ['get_financial_summary', 'get_invoice_details'] },
   { keywords: ['deal', 'deals', 'pipeline', 'crm', 'prospect', 'lead', 'leads', 'close', 'won', 'lost', 'forecast', 'sales forecast'], tools: ['get_pipeline_status', 'get_deal_details', 'get_sales_forecast', 'get_activity_gaps'] },
   { keywords: ['ticket', 'tickets', 'support', 'help desk', 'helpdesk', 'sla', 'customer health', 'csat', 'agent'], tools: ['get_ticket_overview', 'get_customer_health', 'get_support_metrics'] },
+  { keywords: ['time', 'hours', 'timesheet', 'utilization', 'billable', 'timer'], tools: ['get_time_summary', 'get_utilization_report', 'suggest_time_allocation'] },
   { keywords: ['report', 'summary', 'analysis'], tools: ['get_department_report', 'get_financial_summary'] },
 ];
 

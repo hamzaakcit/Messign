@@ -10,4 +10,5 @@ export * as doraReads from './doraReads.js';
 export * as doraInsights from './doraInsights.js';
 export * as crm from './crm/index.js';
 export * as support from './support/index.js';
+export * as time from './time/index.js';
 export * as okrs from './okrs.js';

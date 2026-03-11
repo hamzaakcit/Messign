@@ -382,6 +382,59 @@ export const doraScheduler = {
       volume_spike: averageCount > 0 && currentCount >= averageCount * 1.5 && currentCount - averageCount >= 3,
     };
   },
+
+  async checkUtilization(orgId: string) {
+    const underUtilized = await query<{ user_id: string; utilization_percent: string }>(
+      `SELECT mv.user_id::text AS user_id, mv.utilization_percent::text AS utilization_percent
+       FROM mv_time_utilization mv
+       JOIN reimbursement_users ru ON ru.id = mv.user_id
+       WHERE ru.organization_id = $1
+         AND mv.utilization_percent < 75`,
+      [orgId],
+    );
+
+    for (const row of underUtilized.rows) {
+      eventBus.emit('time.utilization.threshold', {
+        userId: row.user_id,
+        currentUtilization: Number(row.utilization_percent),
+        targetUtilization: 75,
+        period: 'week',
+        isBelow: true,
+      });
+    }
+
+    const overtime = await query<{ user_id: string; weekly_hours: string }>(
+      `SELECT
+         te.user_id::text AS user_id,
+         COALESCE(SUM(te.hours), 0)::float::text AS weekly_hours
+       FROM time_entries te
+       WHERE te.organization_id = $1
+         AND te.date >= DATE_TRUNC('week', CURRENT_DATE)::date
+         AND te.status != 'rejected'
+       GROUP BY te.user_id
+       HAVING COALESCE(SUM(te.hours), 0) > 45`,
+      [orgId],
+    );
+
+    const weekStart = await query<{ week_start: string }>(
+      `SELECT DATE_TRUNC('week', CURRENT_DATE)::date::text AS week_start`,
+    );
+    const weekStartDate = weekStart.rows[0]?.week_start ?? new Date().toISOString().slice(0, 10);
+
+    for (const row of overtime.rows) {
+      eventBus.emit('time.overtime.detected', {
+        userId: row.user_id,
+        weeklyHours: Number(row.weekly_hours),
+        threshold: 45,
+        weekStartDate,
+      });
+    }
+
+    return {
+      under_utilized: underUtilized.rows.length,
+      overtime: overtime.rows.length,
+    };
+  },
 };
 
 export async function initDoraScheduler(): Promise<void> {
@@ -440,8 +493,15 @@ export async function initDoraScheduler(): Promise<void> {
     { repeat: { every: 6 * 60 * 60 * 1000 }, jobId: 'support-pattern-detection' },
   );
 
+  await doraSchedulerQueue.add(
+    'utilization-check',
+    { type: 'utilization_check' },
+    { repeat: { pattern: '0 9 * * 1' }, jobId: 'utilization-check' },
+  );
+
   console.log('[DoraScheduler] Registered support jobs: support-sla-check, customer-health-recalc, support-pattern-detection');
-  console.log('[DoraScheduler] 8 scheduled jobs registered');
+  console.log('[DoraScheduler] Registered time jobs: utilization-check');
+  console.log('[DoraScheduler] 9 scheduled jobs registered');
 }
 
 function computeNextDate(current: string, frequency: string): string {

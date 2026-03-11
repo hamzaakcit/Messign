@@ -63,6 +63,7 @@ const ROUTE_PATTERNS: RoutePattern[] = [
   { pattern: /^\/dora/, module: 'dora' },
   { pattern: /^\/crm/, module: 'crm' },
   { pattern: /^\/support/, module: 'support' },
+  { pattern: /^\/time/, module: 'time' },
   { pattern: /^\/okr/, module: 'okr' },
 ];
 
@@ -138,6 +139,11 @@ function getPageChips(module: string, entityName?: string): SuggestionChip[] {
         { label: 'Ticket overview', query: 'Give me the current support ticket overview', icon: '🎫', category: 'team' },
         { label: 'At-risk customers', query: 'Show at-risk customers from support', icon: '⚠️', category: 'company' },
       ];
+    case 'time':
+      return [
+        { label: 'My utilization', query: 'Show my current utilization', icon: '⏱️', category: 'personal' },
+        { label: 'Timesheet summary', query: 'Summarize my timesheet for this week', icon: '🧾', category: 'personal' },
+      ];
     case 'invoices':
       return [
         { label: 'Pending invoices', query: 'Show me pending invoices', icon: '💰', category: 'company' },
@@ -209,6 +215,7 @@ export function useWidgetContext(userRole: string = 'employee') {
       dora: 'Dora',
       crm: 'Sales CRM',
       support: 'Support',
+      time: 'Time Tracking',
       okr: 'OKRs & Goals',
     };
     return moduleLabels[routeInfo.module] || '';

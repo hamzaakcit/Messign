@@ -11,9 +11,12 @@ import { ReimbursementRouter } from '@/pages/ReimbursementRouter';
 import { FinancePage } from '@/pages/FinancePage';
 import { CRMLayout } from '@/pages/crm/CRMLayout';
 import { SupportLayout } from '@/pages/support/SupportLayout';
+import { TimeTrackingPage } from '@/pages/time/TimeTrackingPage';
 import { OKRPage } from '@/pages/okr/OKRPage';
 import { DoraPage } from '@/pages/DoraPage';
 import { DoraDashPage } from '@/pages/DoraDashPage';
+import { AutomationPoliciesPage } from '@/pages/dora/AutomationPoliciesPage';
+import { AutomationLogPage } from '@/pages/dora/AutomationLogPage';
 import { Header } from './Header';
 
 export function MainContent() {
@@ -26,6 +29,12 @@ export function MainContent() {
       case 'dashboard':
         return <DashboardView />;
       case 'dora':
+        if (location.pathname.startsWith('/dora/automations/log')) {
+          return <AutomationLogPage />;
+        }
+        if (location.pathname.startsWith('/dora/automations')) {
+          return <AutomationPoliciesPage />;
+        }
         return <DoraPage />;
       case 'game':
         return <DoraDashPage />;
@@ -47,6 +56,8 @@ export function MainContent() {
         return <CRMLayout />;
       case 'support':
         return <SupportLayout />;
+      case 'time':
+        return <TimeTrackingPage />;
       case 'okr':
         return <OKRPage />;
       case 'reimbursements':

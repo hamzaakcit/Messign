@@ -12,6 +12,7 @@ import { MainContent } from './MainContent';
 import { XPGainNotification } from '@/components/ui';
 import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
 import { FloatingWidget } from '@/components/dora/FloatingWidget';
+import { FloatingTimer } from '@/components/time/FloatingTimer';
 import { toast } from 'sonner';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError } from '@/lib/socket';
 
@@ -29,6 +30,7 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/finance': 'finance',
   '/crm': 'crm',
   '/support': 'support',
+  '/time': 'time',
   '/okr': 'okr',
 };
 
@@ -36,6 +38,7 @@ function getViewFromPath(path: string): string {
   if (path.startsWith('/okr')) return 'okr';
   if (path.startsWith('/crm')) return 'crm';
   if (path.startsWith('/support')) return 'support';
+  if (path.startsWith('/time')) return 'time';
   if (path.startsWith('/finance')) return 'finance';
   if (path === '/reimbursements/invoices' || path.startsWith('/reimbursements/invoices/')) return 'invoices';
   if (path.startsWith('/reimbursements')) return 'reimbursements';
@@ -61,6 +64,7 @@ const VIEW_LABELS: Record<string, string> = {
   invoices: 'Invoices',
   crm: 'Sales CRM',
   support: 'Support',
+  time: 'Time Tracking',
   okr: 'OKRs & Goals',
 };
 
@@ -91,7 +95,7 @@ export function AppShell() {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
-      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'support' | 'okr');
+      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'support' | 'time' | 'okr');
     }
     const label = VIEW_LABELS[view] ?? view;
     trackPage(path, label);
@@ -255,6 +259,7 @@ export function AppShell() {
       )}
 
       {/* Floating Dora Widget (global, persists across pages) */}
+      {user && <FloatingTimer />}
       {user && <FloatingWidget />}
     </div>
   );

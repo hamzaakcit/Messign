@@ -31,6 +31,7 @@ const PATH_TO_MODULE: Array<{ prefix: string; module: DoraModule }> = [
   { prefix: '/dora',                   module: 'dora' },
   { prefix: '/crm',                    module: 'crm' },
   { prefix: '/support',                module: 'support' },
+  { prefix: '/time',                   module: 'time' },
 ];
 
 function resolveModule(path: string): DoraModule {

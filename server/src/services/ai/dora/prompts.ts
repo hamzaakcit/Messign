@@ -50,6 +50,10 @@ const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
     'The user is in Customer Support. They likely want ticket queue health, SLA breaches, ' +
     'customer health, or agent workload. Prioritize get_ticket_overview, get_customer_health, ' +
     'and get_support_metrics for support-related queries.',
+  time:
+    'The user is in Time Tracking. They likely want timesheet progress, utilization, billable ' +
+    'hours, or allocation guidance. Prioritize get_time_summary, get_utilization_report, ' +
+    'and suggest_time_allocation.',
   dora:
     'The user opened Dora directly from the main sidebar. No specific page context — ' +
     'route based on the question content alone.',
