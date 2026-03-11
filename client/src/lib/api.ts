@@ -68,6 +68,163 @@ export const dashboardAPI = {
   },
 };
 
+export interface ExecutiveDashboard {
+  revenue: { totalYTD: number; monthlyTrend: { month: string; value: number }[]; pipelineValue: number; weightedPipeline: number; dealsWonThisMonth: number; winRate: number };
+  finance: { totalExpensesQTD: number; pendingApprovals: number; overdueInvoices: number; overdueAmount: number; budgetHealthAvg: number; criticalBudgets: number };
+  support: { openTickets: number; avgResponseHours: number; csatScore: number; slaCompliance: number; ticketsResolvedThisWeek: number; atRiskCustomers: number };
+  marketing: { mqls: number; activeCampaigns: number; avgROI: number; topCampaign: { name: string; roi: number } | null; leadsThisMonth: number };
+  people: { totalEmployees: number; openPositions: number; avgUtilization: number; newHiresThisMonth: number; pendingTimesheets: number };
+  projects: { activeProjects: number; tasksCompletedThisWeek: number; blockedTasks: number; avgSprintVelocity: number };
+  okrs: { overallProgress: number; onTrack: number; atRisk: number; behind: number };
+  culture: { healthScore: number; engagementTrend: string; sentimentAvg: number } | null;
+  operations: { contractsExpiringThisMonth: number; licensesExpiringThisMonth: number; assetsUnassigned: number };
+  recentActivity: { id: string; module: string; type: string; title: string; actor: string; timestamp: string; color: string }[];
+  doraInsights: { criticalCount: number; warningCount: number; totalUnread: number };
+}
+
+export const executiveAPI = {
+  getDashboard: (userId: string) =>
+    fetchWithUserId<ExecutiveDashboard>('/executive/dashboard', userId),
+  getRevenue: (userId: string) =>
+    fetchWithUserId<ExecutiveDashboard['revenue']>('/executive/dashboard/revenue', userId),
+  getFinance: (userId: string) =>
+    fetchWithUserId<ExecutiveDashboard['finance']>('/executive/dashboard/finance', userId),
+  getActivity: (userId: string) =>
+    fetchWithUserId<ExecutiveDashboard['recentActivity']>('/executive/dashboard/activity', userId),
+};
+
+export interface BriefingItem {
+  text: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  severity?: 'info' | 'warning' | 'critical' | 'success';
+}
+
+export interface BriefingSection {
+  module: string;
+  icon: string;
+  title: string;
+  items: BriefingItem[];
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface DailyBriefing {
+  id: string;
+  userId: string;
+  date: string;
+  greeting: string;
+  summary: string;
+  sections: BriefingSection[];
+  generatedAt: string;
+}
+
+export const doraBriefingAPI = {
+  getToday: (userId: string, refresh = false) =>
+    fetchWithUserId<DailyBriefing>(`/dora/daily${refresh ? '?refresh=true' : ''}`, userId),
+  getByDate: (userId: string, date: string) =>
+    fetchWithUserId<DailyBriefing>(`/dora/daily/${date}`, userId),
+};
+
+export interface ReportRequest {
+  type: string;
+  period?: { from: string; to: string };
+  departmentId?: string;
+  format: 'json' | 'csv' | 'pdf';
+  filters?: Record<string, unknown>;
+}
+
+export interface ReportResult {
+  type: string;
+  title: string;
+  description: string;
+  generatedAt: string;
+  period: { from: string; to: string };
+  data: Record<string, unknown>;
+  sections: Array<{ title: string; type: 'kpis' | 'table' | 'chart_data' | 'narrative'; data: unknown }>;
+  aiSummary?: string;
+}
+
+export const reportsAPI = {
+  getTypes: (userId: string) => fetchWithUserId<Array<{ type: string; description: string; permission: string }>>('/reports/types', userId),
+  generate: (userId: string, body: ReportRequest) =>
+    fetchWithUserId<ReportResult>('/reports/generate', userId, { method: 'POST', body: JSON.stringify(body) }),
+  generateSimple: (userId: string, type: string, params?: { from?: string; to?: string; departmentId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.departmentId) qs.set('departmentId', params.departmentId);
+    return fetchWithUserId<ReportResult>(`/reports/generate/${type}${qs.toString() ? `?${qs.toString()}` : ''}`, userId);
+  },
+  exportCsv: async (userId: string, body: ReportRequest): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}/reports/export/csv`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders(userId),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`CSV export failed: ${res.statusText}`);
+    return res.blob();
+  },
+  exportPdf: async (userId: string, body: ReportRequest): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}/reports/export/pdf`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders(userId),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`PDF export failed: ${res.statusText}`);
+    return res.blob();
+  },
+  history: (userId: string) => fetchWithUserId<ReportResult[]>('/reports/history', userId),
+};
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string | null;
+  link: string | null;
+  module: string | null;
+  severity: 'info' | 'warning' | 'critical' | 'success';
+  is_read: boolean;
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  id: string;
+  event_type: string;
+  in_app: boolean;
+  email: boolean;
+  push: boolean;
+}
+
+export const notificationsAPI = {
+  list: (userId: string, params?: { unread?: boolean; module?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.unread) qs.set('unread', 'true');
+    if (params?.module) qs.set('module', params.module);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchWithUserId<AppNotification[]>(`/notifications${qs.toString() ? `?${qs.toString()}` : ''}`, userId);
+  },
+  unreadCount: (userId: string) => fetchWithUserId<{ count: number }>('/notifications/unread-count', userId),
+  markRead: (userId: string, id: string) =>
+    fetchWithUserId<{ ok: boolean }>(`/notifications/${id}/read`, userId, { method: 'PUT' }),
+  markAllRead: (userId: string) =>
+    fetchWithUserId<{ ok: boolean }>('/notifications/read-all', userId, { method: 'PUT' }),
+  remove: (userId: string, id: string) =>
+    fetchWithUserId<{ ok: boolean }>(`/notifications/${id}`, userId, { method: 'DELETE' }),
+  preferences: (userId: string) =>
+    fetchWithUserId<NotificationPreference[]>('/notifications/preferences', userId),
+  updatePreferences: (userId: string, rows: Array<{ event_type: string; in_app: boolean; email: boolean; push?: boolean }>) =>
+    fetchWithUserId<{ ok: boolean }>('/notifications/preferences', userId, {
+      method: 'PUT',
+      body: JSON.stringify(rows),
+    }),
+};
+
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 

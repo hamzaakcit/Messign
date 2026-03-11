@@ -25,7 +25,7 @@ async function recalculateAutoSourcedKRs(autoSourcePrefix: string): Promise<void
           break;
         }
         case 'finance.revenue.total': {
-          const r = await query(`SELECT COALESCE(SUM(total), 0)::numeric as total FROM finance_invoices WHERE status = 'paid'`);
+          const r = await query(`SELECT COALESCE(SUM(grand_total), 0)::numeric as total FROM invoices WHERE status = 'paid'`);
           newValue = Number(r.rows[0]?.total ?? 0);
           break;
         }

@@ -1,5 +1,6 @@
 import { useUIStore } from '@/stores/uiStore';
 import { useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { DashboardView } from '@/pages/DashboardView';
 import { ChatView } from '@/pages/ChatView';
 import { KnowledgeHubLayout } from '@/pages/knowledge-hub/KnowledgeHubLayout';
@@ -21,18 +22,37 @@ import { DoraPage } from '@/pages/DoraPage';
 import { DoraDashPage } from '@/pages/DoraDashPage';
 import { AutomationPoliciesPage } from '@/pages/dora/AutomationPoliciesPage';
 import { AutomationLogPage } from '@/pages/dora/AutomationLogPage';
+import { DailyBriefingPage } from '@/pages/dora/DailyBriefingPage';
+import { ExecutiveDashboardPage } from '@/pages/executive/ExecutiveDashboardPage';
+import { ReportHubPage } from '@/pages/reports/ReportHubPage';
+import { NotificationsPage } from '@/pages/notifications/NotificationsPage';
 import { Header } from './Header';
+import { useAuthStore } from '@/stores/authStore';
 
 export function MainContent() {
   const { currentView } = useUIStore();
   const location = useLocation();
+  const user = useAuthStore((s) => s.user);
   const isKnowledgeHub = location.pathname.startsWith('/knowledge-hub');
+  const isLeader = ['admin', 'manager', 'dept_head', 'system_admin'].includes(String(user?.role ?? ''));
 
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
+        if (isLeader && (location.pathname === '/' || location.pathname === '/dashboard')) {
+          return <Navigate to="/executive" replace />;
+        }
         return <DashboardView />;
+      case 'executive':
+        return <ExecutiveDashboardPage />;
+      case 'reports':
+        return <ReportHubPage />;
+      case 'notifications':
+        return <NotificationsPage />;
       case 'dora':
+        if (location.pathname.startsWith('/dora/briefing')) {
+          return <DailyBriefingPage />;
+        }
         if (location.pathname.startsWith('/dora/automations/log')) {
           return <AutomationLogPage />;
         }

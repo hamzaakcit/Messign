@@ -3,6 +3,7 @@ import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
+import { stripPII } from '../../services/ai/piiStripper.js';
 
 export interface Contract {
   id: string;
@@ -443,6 +444,7 @@ export async function extractTermsWithAI(ctx: CallerContext, contractId: string)
     extracted = heuristicExtract(docText);
   } else {
     try {
+      const { sanitizedText } = stripPII(docText.slice(0, 15000));
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -464,7 +466,7 @@ export async function extractTermsWithAI(ctx: CallerContext, contractId: string)
               content: JSON.stringify({
                 instruction:
                   'Extract key terms from this contract: total value, start/end dates, termination clause, renewal terms, SLA commitments, key obligations.',
-                contractText: docText.slice(0, 15000),
+                contractText: sanitizedText,
               }),
             },
           ],

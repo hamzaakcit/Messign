@@ -11,6 +11,7 @@ import { register as registerTimeSubscriber } from './timeSubscriber.js';
 import { register as registerAutomationSubscriber } from './automationSubscriber.js';
 import { register as registerAssetsSubscriber } from './assetsSubscriber.js';
 import { register as registerContractsSubscriber } from './contractsSubscriber.js';
+import { register as registerWebhookSubscriber } from './webhookSubscriber.js';
 
 export function registerAllSubscribers(): void {
   registerAuditSubscriber();
@@ -26,4 +27,5 @@ export function registerAllSubscribers(): void {
   registerAutomationSubscriber();
   registerAssetsSubscriber();
   registerContractsSubscriber();
+  registerWebhookSubscriber();
 }

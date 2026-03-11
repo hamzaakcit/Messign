@@ -113,66 +113,42 @@ export async function orchestrate(
       const stepIndex = tracker.getStepCount();
       const stepStartTime = Date.now();
 
-      console.log(`[Orchestrator] Step ${stepIndex + 1}/${cfg.maxSteps} — calling LLM...`);
+      console.log(`[Orchestrator] Step ${stepIndex + 1}/${cfg.maxSteps} — calling LLM (primary: ${modelSelection.provider})...`);
 
-      let llmResponse;
-      try {
-        llmResponse = await callGroqWithToolsMultiTurnTracked(messages, tools, {
-          model: cfg.model,
-          temperature: cfg.reasoningTemperature,
-          maxTokens: 1500,
-        });
-      } catch (llmError) {
-        const errMsg = llmError instanceof Error ? llmError.message : String(llmError);
+      const providerOrder: ('groq' | 'gemini' | 'anthropic')[] = [
+        modelSelection.provider,
+        ...(['groq', 'gemini', 'anthropic'] as const).filter((p) => p !== modelSelection.provider),
+      ];
 
-        if (errMsg.includes('429') || errMsg.toLowerCase().includes('rate limit')) {
-          console.warn('[Orchestrator] Groq rate limit hit — informing user');
-          const rateLimitMsg =
-            "I'm currently experiencing high demand on my AI processing service. " +
-            "Please wait a few minutes and try again. If this persists, the daily limit may have been reached — it resets at midnight UTC.";
-          onChunk(rateLimitMsg);
-          return buildResult(tracker, 'error', rateLimitMsg, startTime, 'rate_limit', pendingActionEvents);
-        }
+      const historyMessages = history.slice(-4).filter((h) => h.role === 'user' || h.role === 'assistant')
+        .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content }));
 
-        // On any other Groq failure (auth, 5xx, network, tool validation), try Gemini fallback, then Claude
-        console.warn(`[Orchestrator] Groq failed at step ${stepIndex + 1} (${errMsg.substring(0, 80)}...), trying Gemini fallback...`);
+      type LlmResponseShape = { content?: string | null; toolCalls?: Array<{ name: string; args: Record<string, unknown>; callId?: string }> | null; rawToolCalls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; usage?: StepTokenUsage };
+      let llmResponse: LlmResponseShape | undefined;
+      let lastError: Error | null = null;
+
+      for (const provider of providerOrder) {
         try {
-          const geminiResult = await callGeminiWithTools(
-            systemPrompt, query,
-            history.slice(-4).filter((h) => h.role === 'user' || h.role === 'assistant')
-              .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
-            tools,
-          );
-          llmResponse = {
-            ...geminiResult,
-            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 500 },
-            rawToolCalls: geminiResult.toolCalls?.map((tc, i) => ({
-              id: `gemini_${stepIndex}_${i}_${tc.name}`,
-              type: 'function' as const,
-              function: { name: tc.name, arguments: JSON.stringify(tc.args) },
-            })),
-          };
-          console.log(`[Orchestrator] Gemini fallback succeeded at step ${stepIndex + 1}`);
-        } catch (geminiError) {
-          const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
-          const is429 = geminiMsg.includes('429') || geminiMsg.toLowerCase().includes('quota exceeded') || geminiMsg.toLowerCase().includes('rate limit');
-
-          if (is429) {
-            console.warn('[Orchestrator] Gemini rate limit (429) — returning user message, skipping Claude to reduce usage');
-            const rateLimitMsg =
-              "AI services are temporarily rate-limited. Please try again in a minute.";
-            onChunk(rateLimitMsg);
-            return buildResult(tracker, 'error', rateLimitMsg, startTime, 'rate_limit', pendingActionEvents);
-          }
-
-          console.warn(`[Orchestrator] Gemini failed at step ${stepIndex + 1}, trying Claude fallback...`);
-          try {
-            const claudeResult = await callClaudeWithTools(
-              systemPrompt, query,
-              history.slice(-4).filter((h) => h.role === 'user' || h.role === 'assistant')
-                .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
-              tools,
-            );
+          if (provider === 'groq') {
+            const groqRes = await callGroqWithToolsMultiTurnTracked(messages, tools, {
+              model: cfg.model,
+              temperature: cfg.reasoningTemperature,
+              maxTokens: 1500,
+            });
+            llmResponse = { ...groqRes, toolCalls: groqRes.toolCalls ?? undefined };
+          } else if (provider === 'gemini') {
+            const geminiResult = await callGeminiWithTools(systemPrompt, sanitizedQuery, historyMessages, tools);
+            llmResponse = {
+              ...geminiResult,
+              usage: { promptTokens: 0, completionTokens: 0, totalTokens: 500 },
+              rawToolCalls: geminiResult.toolCalls?.map((tc, i) => ({
+                id: `gemini_${stepIndex}_${i}_${tc.name}`,
+                type: 'function' as const,
+                function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+              })),
+            };
+          } else {
+            const claudeResult = await callClaudeWithTools(systemPrompt, sanitizedQuery, historyMessages, tools);
             llmResponse = {
               ...claudeResult,
               usage: { promptTokens: 0, completionTokens: 0, totalTokens: 500 },
@@ -182,17 +158,36 @@ export async function orchestrate(
                 function: { name: tc.name, arguments: JSON.stringify(tc.args) },
               })),
             };
-            console.log(`[Orchestrator] Claude fallback succeeded at step ${stepIndex + 1}`);
-          } catch (claudeError) {
-            const claudeMsg = claudeError instanceof Error ? claudeError.message : String(claudeError);
-            console.error(`[Orchestrator] Claude fallback also failed at step ${stepIndex + 1}:`, claudeMsg);
-            terminationReason = 'cascade_failure';
-            break;
           }
+          console.log(`[Orchestrator] ${provider} succeeded at step ${stepIndex + 1}`);
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          const errMsg = lastError.message;
+
+          if (errMsg.includes('429') || errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('quota exceeded')) {
+            console.warn(`[Orchestrator] ${provider} rate limit hit — informing user`);
+            const rateLimitMsg =
+              provider === 'groq'
+                ? "I'm currently experiencing high demand on my AI processing service. Please wait a few minutes and try again. If this persists, the daily limit may have been reached — it resets at midnight UTC."
+                : "AI services are temporarily rate-limited. Please try again in a minute.";
+            onChunk(rateLimitMsg);
+            return buildResult(tracker, 'error', rateLimitMsg, startTime, 'rate_limit', pendingActionEvents);
+          }
+
+          console.warn(`[Orchestrator] ${provider} failed at step ${stepIndex + 1} (${errMsg.substring(0, 80)}...), trying next provider...`);
         }
       }
 
-      const stepTokens: StepTokenUsage = llmResponse.usage ?? { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      if (!llmResponse) {
+        console.error(`[Orchestrator] All providers failed at step ${stepIndex + 1}:`, lastError?.message);
+        terminationReason = 'cascade_failure';
+        break;
+      }
+
+      const stepTokens: StepTokenUsage = (llmResponse.usage && typeof llmResponse.usage.promptTokens === 'number')
+        ? llmResponse.usage
+        : { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       const thought = llmResponse.content?.trim() || null;
 
       if (cfg.logThoughts && thought) {
@@ -366,7 +361,7 @@ export async function orchestrate(
       : onChunk;
 
     const finalAnswer = await synthesizeAndStream(
-      query, history, ctx, tracker, terminationReason, piiRestoringChunk, cfg, provider
+      sanitizedQuery, history, ctx, tracker, terminationReason, piiRestoringChunk, cfg, provider
     );
 
     const restoredAnswer = piiMappings.size > 0 ? restorePII(finalAnswer, piiMappings) : finalAnswer;

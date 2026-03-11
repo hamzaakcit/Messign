@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { requireAuth } from '../../middleware/requireAuth.js';
+import { stripPII } from '../../services/ai/piiStripper.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -39,13 +40,15 @@ router.post('/parse-filters', async (req: Request, res: Response) => {
     })
     .join('\n');
 
+  const { sanitizedText } = stripPII(nlQuery.trim());
+
   const prompt = `You are a filter parser for a ${module || 'business'} application.
 Parse the following natural language query into structured filters.
 
 Available fields:
 ${fieldsDescription}
 
-User query: "${nlQuery}"
+User query: "${sanitizedText}"
 
 Return ONLY valid JSON with this shape:
 {

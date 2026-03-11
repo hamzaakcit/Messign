@@ -3,6 +3,9 @@ import type { ConnectionOptions } from 'bullmq';
 import { redisConnection } from '../connection.js';
 import { query } from '../../db/index.js';
 import { doraScheduler, runSchedulerJobForAllOrgs } from '../../services/finance/doraScheduler.js';
+import { generateBriefing } from '../../services/dora/dailyBriefing.js';
+import { emitToUser } from '../../sockets/index.js';
+import type { CallerContext } from '../../dal/types.js';
 
 const connection = redisConnection as unknown as ConnectionOptions;
 
@@ -118,6 +121,29 @@ const worker = new Worker<SchedulerJob>(
           doraScheduler.checkContractObligations(orgId),
         );
         break;
+
+      case 'generate_daily_briefings': {
+        console.log('[DoraScheduler] Generating daily briefings for all users...');
+        const users = await query<{ id: string; role: string; organization_id: string }>(
+          `SELECT id::text, role, organization_id::text
+           FROM reimbursement_users
+           WHERE status IS DISTINCT FROM 'inactive'`,
+        );
+        for (const user of users.rows) {
+          const ctx: CallerContext = {
+            userId: user.id,
+            role: user.role as CallerContext['role'],
+            organizationId: user.organization_id,
+          };
+          try {
+            const briefing = await generateBriefing(ctx);
+            await emitToUser(user.id, 'dora:briefing-ready', { date: briefing.date, generatedAt: briefing.generatedAt });
+          } catch (error) {
+            console.warn(`[DoraScheduler] Briefing generation failed for user ${user.id}:`, error instanceof Error ? error.message : error);
+          }
+        }
+        break;
+      }
 
       default:
         console.log(`[DoraScheduler] Unknown job type: ${type}`);

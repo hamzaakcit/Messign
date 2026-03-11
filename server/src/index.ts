@@ -69,6 +69,7 @@ import { doraHistoryRouter } from './routes/doraHistory.js';
 import doraInsightsRouter from './routes/dora/insights.js';
 import doraAutomationsRouter from './routes/dora/automations.js';
 import doraFiltersRouter from './routes/dora/filters.js';
+import doraBriefingRouter from './routes/dora/briefing.js';
 import { budgetsRouter } from './routes/budgets.js';
 import { financeRouter } from './routes/finance/index.js';
 import { crmRouter } from './routes/crm/index.js';
@@ -80,6 +81,10 @@ import { okrRouter } from './routes/okr/index.js';
 import supportRouter from './routes/support/index.js';
 import timeRouter from './routes/time/index.js';
 import { seedRouter } from './routes/seed.js';
+import executiveRouter from './routes/executive/index.js';
+import reportsRouter from './routes/reports/index.js';
+import webhookRouter from './routes/webhooks/index.js';
+import notificationsRouter from './routes/notifications/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
@@ -174,6 +179,7 @@ app.use('/api/game', requireAuth, gameRouter);
 app.use('/api/dora', doraInsightsRouter);
 app.use('/api/dora/automations', doraAutomationsRouter);
 app.use('/api/dora', doraFiltersRouter);
+app.use('/api/dora', doraBriefingRouter);
 app.use('/api/dora', requireAuth, doraHistoryRouter);
 app.use('/api/budgets', budgetsRouter);
 app.use('/api/finance', financeRouter);
@@ -186,6 +192,10 @@ app.use('/api/okr', okrRouter);
 app.use('/api/support', supportRouter);
 app.use('/api/time', timeRouter);
 app.use('/api/seed', seedRouter);
+app.use('/api/executive', executiveRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/webhooks', webhookRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // Health check
 app.get('/api/health', (_, res) => {

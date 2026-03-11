@@ -29,6 +29,24 @@ function getIntentRoutingHint(intent: QueryIntent): string {
   }
 }
 
+function isExecutiveDashboardQuery(query: string): boolean {
+  const q = query.toLowerCase().trim();
+  return (
+    /\bexecutive\s+dashboard\b/i.test(q) ||
+    /\bcompany\s+at\s+a\s+glance\b/i.test(q) ||
+    /\bunified\s+dashboard\b/i.test(q)
+  );
+}
+
+function isDailyBriefingQuery(query: string): boolean {
+  const q = query.toLowerCase().trim();
+  return (
+    /\bdaily\s+briefing\b/i.test(q) ||
+    /\bmorning\s+briefing\b/i.test(q) ||
+    /\bmy\s+briefing\b/i.test(q)
+  );
+}
+
 function getToolsForIntent(intent: QueryIntent): ReturnType<typeof getToolsForLLM> {
   if (intent === 'product') {
     const allTools = getAllTools();
@@ -68,6 +86,8 @@ CRITICAL TOOL ROUTING (use the correct tool for each question type):
 - "Recent activity" / "What happened today" / "Activity feed" → use get_recent_activity
 - "How many documents in the knowledge base?" / "How many are stale?" / "Knowledge base stats" → use get_knowledge_base_stats (NOT search_knowledge_base)
 - "What can I ask?" / "What questions are available?" / "What can you do?" → use get_available_questions
+- "Executive dashboard" / "Company at a glance" → use get_executive_dashboard
+- "Daily briefing" / "Morning briefing" → use generate_daily_briefing
 - Documents, guides, policies, "how do I...?", "what is our policy on...?" → use search_knowledge_base
 - Project status, budgets, deadlines → use get_project_status or search_knowledge_base
 - NEVER use search_knowledge_base for personal data (tasks, performance), system overview, financial summaries, approval queue, project status, team overview, activity, or document count/staleness — use the specific tools instead
@@ -250,6 +270,14 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
   const q = query.toLowerCase().trim();
 
   // "All teams' performance" / "Team comparison" / "Compare teams" → get_team_overview (MUST be before "my performance")
+  if (isExecutiveDashboardQuery(query)) {
+    return [{ name: 'get_executive_dashboard', args: {} }];
+  }
+
+  if (isDailyBriefingQuery(query)) {
+    return [{ name: 'generate_daily_briefing', args: {} }];
+  }
+
   if (isTeamOverviewQuery(query)) {
     const teamId = /\bmy\b.*\bteam|\bteam\b.*\bmy\b/i.test(q) && !/\ball\s+teams?\b/i.test(q) ? 'my' : 'all';
     return [{ name: 'get_team_overview', args: { team_identifier: teamId } }];

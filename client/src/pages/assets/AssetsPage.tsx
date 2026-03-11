@@ -42,23 +42,41 @@ export function AssetsPage({ initialTab = 'equipment' }: Props) {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [selectedLicenseId, setSelectedLicenseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nlFilters, setNlFilters] = useState<Record<string, unknown>>({});
 
   const load = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
+      const assetParams: Record<string, string> = { page: '1', pageSize: '50' };
+      if (nlFilters.status && typeof nlFilters.status === 'string') assetParams.status = nlFilters.status;
+      if (nlFilters.warrantyExpiring === true || nlFilters.warrantyExpiring === 'true') assetParams.warrantyExpiring = 'true';
+      if (nlFilters.category && typeof nlFilters.category === 'string') assetParams.search = nlFilters.category;
+      else if (nlFilters.manufacturer && typeof nlFilters.manufacturer === 'string') assetParams.search = nlFilters.manufacturer;
+
       const [assetRes, licenseRes, metricRes] = await Promise.all([
-        assetsAPI.listAssets(userId, { page: '1', pageSize: '50' }),
+        assetsAPI.listAssets(userId, assetParams),
         assetsAPI.listLicenses(userId, { page: '1', pageSize: '50' }),
         assetsAPI.getMetrics(userId),
       ]);
-      setAssets(assetRes.data);
+
+      let filteredAssets = assetRes.data;
+      const costMin = nlFilters.purchaseCostMin as number | undefined;
+      const costMax = nlFilters.purchaseCostMax as number | undefined;
+      if (typeof costMin === 'number' && costMin > 0) {
+        filteredAssets = filteredAssets.filter((a) => (a.purchase_cost ?? 0) >= costMin);
+      }
+      if (typeof costMax === 'number' && costMax > 0) {
+        filteredAssets = filteredAssets.filter((a) => (a.purchase_cost ?? 0) <= costMax);
+      }
+
+      setAssets(filteredAssets);
       setLicenses(licenseRes.data);
       setMetrics(metricRes);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, nlFilters]);
 
   useEffect(() => {
     void load();
@@ -153,7 +171,7 @@ export function AssetsPage({ initialTab = 'equipment' }: Props) {
                 placeholder="Try: &quot;available laptops over €1000&quot;"
                 availableFields={ASSET_FILTER_FIELDS}
                 module="assets"
-                onFiltersApplied={() => {}}
+                onFiltersApplied={(f) => setNlFilters(f)}
               />
             <DataTable
               data={assets}

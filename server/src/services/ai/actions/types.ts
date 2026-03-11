@@ -14,7 +14,13 @@ export type WriteActionType =
   | 'flag_expense_for_review'
   | 'generate_invoice'
   | 'send_payment_reminder'
-  | 'suggest_budget_reallocation';
+  | 'suggest_budget_reallocation'
+  | 'create_deal'
+  | 'create_ticket'
+  | 'assign_asset'
+  | 'send_renewal_reminder'
+  | 'create_campaign'
+  | 'post_job';
 
 export interface PendingAction {
   token: string;

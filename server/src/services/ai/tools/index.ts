@@ -63,6 +63,7 @@ import './marketing/index.js';
 import './recruitment/index.js';
 import './assets/index.js';
 import './contracts/index.js';
+import './executiveTools.js';
 
 export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
 

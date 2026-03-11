@@ -28,13 +28,26 @@ export function MarketingLeadsPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [hotOnly, setHotOnly] = useState(false);
+  const [nlFilters, setNlFilters] = useState<Record<string, unknown>>({});
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
+      const hasNlFilters = Object.keys(nlFilters).length > 0;
+      const params: Record<string, string> = { pageSize: '100' };
+      if (nlFilters.status && typeof nlFilters.status === 'string') params.status = nlFilters.status;
+      if (nlFilters.source && typeof nlFilters.source === 'string') params.source = nlFilters.source;
+      if (typeof nlFilters.scoreMin === 'number') params.scoreMin = String(nlFilters.scoreMin);
+      if (typeof nlFilters.scoreMax === 'number') params.scoreMax = String(nlFilters.scoreMax);
+      if (nlFilters.search && typeof nlFilters.search === 'string') params.search = nlFilters.search;
+
       const [leadRes, funnelRes] = await Promise.all([
-        hotOnly ? marketingAPI.getHotLeads(userId) : marketingAPI.listLeads(userId, { pageSize: '100' }).then((result) => result.data),
+        hasNlFilters
+          ? marketingAPI.listLeads(userId, params).then((result) => result.data)
+          : hotOnly
+            ? marketingAPI.getHotLeads(userId)
+            : marketingAPI.listLeads(userId, { pageSize: '100' }).then((result) => result.data),
         marketingAPI.getLeadFunnel(userId),
       ]);
       setLeads(leadRes);
@@ -42,7 +55,7 @@ export function MarketingLeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [hotOnly, userId]);
+  }, [hotOnly, nlFilters, userId]);
 
   useEffect(() => {
     fetchData();
@@ -156,7 +169,7 @@ export function MarketingLeadsPage() {
               { key: 'company', label: 'Company', type: 'string' },
             ]}
             module="marketing"
-            onFiltersApplied={() => {}}
+            onFiltersApplied={(f) => setNlFilters(f)}
           />
 
           <DataTable

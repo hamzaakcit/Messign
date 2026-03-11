@@ -699,10 +699,16 @@ export async function initDoraScheduler(): Promise<void> {
     { repeat: { pattern: '0 9 * * *' }, jobId: 'contract-obligation-check' },
   );
 
+  await doraSchedulerQueue.add(
+    'generate-daily-briefings',
+    { type: 'generate_daily_briefings' },
+    { repeat: { pattern: '0 7 * * 1-5' }, jobId: 'daily-briefings' },
+  );
+
   console.log('[DoraScheduler] Registered support jobs: support-sla-check, customer-health-recalc, support-pattern-detection');
   console.log('[DoraScheduler] Registered time jobs: utilization-check');
   console.log('[DoraScheduler] Registered asset/contracts jobs: asset-warranty-check, license-utilization-check, contract-renewal-check, contract-obligation-check');
-  console.log('[DoraScheduler] 13 scheduled jobs registered');
+  console.log('[DoraScheduler] 14 scheduled jobs registered');
 }
 
 function computeNextDate(current: string, frequency: string): string {

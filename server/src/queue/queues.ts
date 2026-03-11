@@ -77,4 +77,15 @@ export const analyticsQueue = new Queue('analytics', {
 });
 analyticsQueue.on('error', (err) => onQueueError('analytics', err));
 
+export const webhookQueue = new Queue('webhooks', {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 3000 },
+    removeOnComplete: { count: 1000 },
+    removeOnFail: { count: 5000 },
+  },
+});
+webhookQueue.on('error', (err) => onQueueError('webhooks', err));
+
 console.log('[Queues] All BullMQ queues initialized');

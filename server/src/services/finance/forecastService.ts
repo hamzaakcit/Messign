@@ -86,8 +86,9 @@ export const forecastService = {
          SUM(CASE WHEN invoice_type = 'payable' THEN grand_total ELSE 0 END) as payables,
          SUM(CASE WHEN invoice_type = 'receivable' THEN grand_total ELSE 0 END) as receivables,
          COUNT(*) as invoice_count
-       FROM finance_invoices
+       FROM invoices
        WHERE organization_id = $1
+         AND (is_deleted IS NULL OR is_deleted = FALSE)
          AND status IN ('sent', 'pending', 'approved')
          AND due_date >= CURRENT_DATE
          AND due_date < CURRENT_DATE + ($2 || ' months')::INTERVAL

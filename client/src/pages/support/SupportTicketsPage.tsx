@@ -77,6 +77,7 @@ export function SupportTicketsPage() {
   const [bulkPriority, setBulkPriority] = useState<SupportPriority>('medium');
   const [detailTicketId, setDetailTicketId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [nlFilters, setNlFilters] = useState<Record<string, unknown>>({});
 
   const fetchMetrics = useCallback(async () => {
     if (!userId) return;
@@ -92,12 +93,25 @@ export function SupportTicketsPage() {
     setLoading(true);
     try {
       const listFn = tab === 'my' ? supportApi.listMyTickets : supportApi.listTickets;
+      const categoryStr = nlFilters.category as string | undefined;
+      const resolvedCategoryId =
+        categoryStr
+          ? categories.find((c) => c.name?.toLowerCase() === categoryStr.toLowerCase())?.id
+          : undefined;
+      const assigneeStr = nlFilters.assignee as string | undefined;
+      const resolvedAssigneeId =
+        assigneeStr
+          ? users.find((u) => (u.name || u.email || '').toLowerCase().includes(assigneeStr.toLowerCase()))?.id
+          : undefined;
+
       const result = await listFn(userId, {
-        search: search || undefined,
-        priority: priority || undefined,
-        categoryId: categoryId || undefined,
-        assigneeId: assigneeId || undefined,
-        status: tab === 'resolved' ? 'resolved' : undefined,
+        search: (nlFilters.search as string) || search || undefined,
+        priority: ((nlFilters.priority === 'urgent' ? 'critical' : nlFilters.priority) as SupportPriority) || priority || undefined,
+        categoryId: resolvedCategoryId || categoryId || undefined,
+        assigneeId: resolvedAssigneeId || assigneeId || undefined,
+        status: (nlFilters.status as string) || (tab === 'resolved' ? 'resolved' : undefined),
+        from: (nlFilters.createdFrom as string) || undefined,
+        to: (nlFilters.createdTo as string) || undefined,
         page: page + 1,
         pageSize: PAGE_SIZE,
         sortBy,
@@ -111,7 +125,7 @@ export function SupportTicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [assigneeId, categoryId, page, priority, search, sortBy, sortDir, tab, userId]);
+  }, [assigneeId, categories, categoryId, nlFilters, page, priority, search, sortBy, sortDir, tab, userId, users]);
 
   useEffect(() => {
     if (!userId) return;
@@ -419,7 +433,7 @@ export function SupportTicketsPage() {
               { key: 'createdTo', label: 'Created Date', type: 'date' },
             ] satisfies AvailableField[]}
             module="support"
-            onFiltersApplied={() => {}}
+            onFiltersApplied={(f) => setNlFilters(f)}
           />
 
           <DataTable

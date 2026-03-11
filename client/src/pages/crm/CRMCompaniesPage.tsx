@@ -58,20 +58,41 @@ export function CRMCompaniesPage() {
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [nlFilters, setNlFilters] = useState<Record<string, unknown>>({});
 
   const fetchCompanies = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const res = await crmAPI.listCompanies(userId, { page: String(page + 1), pageSize: '20' });
-      setCompanies(res.data);
+      const params: Record<string, string> = { page: String(page + 1), pageSize: '20' };
+      if (nlFilters.industry && typeof nlFilters.industry === 'string') params.industry = nlFilters.industry;
+      if (nlFilters.size && typeof nlFilters.size === 'string') params.size = nlFilters.size;
+      if (nlFilters.search && typeof nlFilters.search === 'string') params.search = nlFilters.search;
+
+      const res = await crmAPI.listCompanies(userId, params);
+      let filtered = res.data;
+      const revMin = nlFilters.revenueMin as number | undefined;
+      const revMax = nlFilters.revenueMax as number | undefined;
+      const countryStr = nlFilters.country as string | undefined;
+      if (typeof revMin === 'number' && revMin > 0) {
+        filtered = filtered.filter((c) => (c.annual_revenue ?? 0) >= revMin);
+      }
+      if (typeof revMax === 'number' && revMax > 0) {
+        filtered = filtered.filter((c) => (c.annual_revenue ?? 0) <= revMax);
+      }
+      if (countryStr) {
+        const lower = countryStr.toLowerCase();
+        filtered = filtered.filter((c) => c.country?.toLowerCase().includes(lower));
+      }
+
+      setCompanies(filtered);
       setTotal(res.total);
     } catch {
       setCompanies([]);
     } finally {
       setLoading(false);
     }
-  }, [userId, page]);
+  }, [userId, page, nlFilters]);
 
   useEffect(() => {
     fetchCompanies();
@@ -114,7 +135,7 @@ export function CRMCompaniesPage() {
               { key: 'country', label: 'Country', type: 'string' },
             ]}
             module="crm"
-            onFiltersApplied={() => {}}
+            onFiltersApplied={(f) => setNlFilters(f)}
           />
 
           <DataTable

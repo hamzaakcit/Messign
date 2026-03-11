@@ -41,6 +41,28 @@ function fmt(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+function dayKeyToDate(weekStart: string, dayKey: (typeof DAY_KEYS)[number]): string {
+  const idx = DAY_KEYS.indexOf(dayKey);
+  const d = new Date(`${weekStart}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + idx);
+  return fmt(d);
+}
+
+function buildWeekEntryMap(entries: any[]): Map<string, any[]> {
+  const map = new Map<string, any[]>();
+  for (const e of entries) {
+    const projectId = e.projectId ?? e.project_id ?? 'none';
+    const taskId = e.taskId ?? e.task_id ?? 'none';
+    const date = e.date ?? '';
+    const key = `${projectId}|${taskId}|${date}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(e);
+  }
+  return map;
+}
+
 export function TimeTrackingPage() {
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
@@ -52,21 +74,37 @@ export function TimeTrackingPage() {
   const [utilization, setUtilization] = useState<any>(null);
   const [teamUtilization, setTeamUtilization] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [addRowOpen, setAddRowOpen] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [addRowProjectId, setAddRowProjectId] = useState('');
+  const [addRowTaskId, setAddRowTaskId] = useState('');
+  const [addRowCategoryId, setAddRowCategoryId] = useState('');
+  const [addRowSubmitting, setAddRowSubmitting] = useState(false);
+  const [weekEntries, setWeekEntries] = useState<any[]>([]);
+  const [savingCell, setSavingCell] = useState<string | null>(null);
+
+  const weekEnd = useMemo(() => {
+    const end = new Date(`${weekStart}T00:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return fmt(end);
+  }, [weekStart]);
 
   const loadWeek = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const [grid, sheet] = await Promise.all([
+      const [grid, sheet, entriesRes] = await Promise.all([
         timeApi.getWeeklyGrid(userId, weekStart) as Promise<WeeklyGrid>,
         timeApi.getCurrentTimesheet(userId, weekStart) as Promise<any>,
+        timeApi.listEntries(userId, { from: weekStart, to: weekEnd, pageSize: 200 }) as Promise<{ data?: any[] }>,
       ]);
       setWeeklyGrid(grid);
       setTimesheet(sheet);
+      setWeekEntries(Array.isArray(entriesRes?.data) ? entriesRes.data : []);
     } finally {
       setLoading(false);
     }
-  }, [userId, weekStart]);
+  }, [userId, weekStart, weekEnd]);
 
   const loadEntries = useCallback(async () => {
     if (!userId) return;
@@ -90,6 +128,78 @@ export function TimeTrackingPage() {
     void loadEntries();
     void loadUtilization();
   }, [userId, loadWeek, loadEntries, loadUtilization]);
+
+  useEffect(() => {
+    if (!addRowOpen || !userId) return;
+    timeApi.listCategories(userId).then((list: unknown) => {
+      const arr = Array.isArray(list) ? list : [];
+      setCategories(arr.map((c: any) => ({ id: c.id ?? c.categoryId ?? '', name: c.name ?? '' })));
+      if (arr.length && !addRowCategoryId) setAddRowCategoryId((arr[0] as any).id ?? (arr[0] as any).categoryId ?? '');
+    }).catch(() => setCategories([]));
+  }, [addRowOpen, userId]);
+
+  const submitAddRow = async () => {
+    if (!userId) return;
+    setAddRowSubmitting(true);
+    try {
+      await timeApi.createEntry(userId, {
+        date: weekStart,
+        hours: 0,
+        projectId: addRowProjectId.trim() || undefined,
+        taskId: addRowTaskId.trim() || undefined,
+        categoryId: addRowCategoryId || undefined,
+      });
+      setAddRowOpen(false);
+      setAddRowProjectId('');
+      setAddRowTaskId('');
+      setAddRowCategoryId('');
+      await loadWeek();
+      await loadEntries();
+    } finally {
+      setAddRowSubmitting(false);
+    }
+  };
+
+  const weekEntryMap = useMemo(() => buildWeekEntryMap(weekEntries), [weekEntries]);
+  const canEditGrid = timesheet?.status === 'draft' || timesheet?.status === 'rejected';
+
+  const saveCell = async (
+    projectId: string | null,
+    taskId: string | null,
+    date: string,
+    newHours: number,
+  ) => {
+    if (!userId) return;
+    const p = projectId ?? 'none';
+    const t = taskId ?? 'none';
+    const key = `${p}|${t}|${date}`;
+    setSavingCell(key);
+    try {
+      const list = weekEntryMap.get(key) ?? [];
+      if (list.length === 0) {
+        await timeApi.createEntry(userId, {
+          date,
+          hours: newHours,
+          projectId: p === 'none' ? undefined : p,
+          taskId: t === 'none' ? undefined : t,
+        });
+      } else if (list.length === 1) {
+        const id = list[0].id ?? list[0].entryId;
+        if (id) await timeApi.updateEntry(userId, id, { hours: newHours });
+      } else {
+        const id = list[0].id ?? list[0].entryId;
+        if (id) await timeApi.updateEntry(userId, id, { hours: newHours });
+        for (let i = 1; i < list.length; i++) {
+          const id2 = list[i].id ?? list[i].entryId;
+          if (id2) await timeApi.updateEntry(userId, id2, { hours: 0 });
+        }
+      }
+      await loadWeek();
+      await loadEntries();
+    } finally {
+      setSavingCell(null);
+    }
+  };
 
   const weeklyRangeLabel = useMemo(() => {
     const start = new Date(`${weekStart}T00:00:00Z`);
@@ -200,6 +310,67 @@ export function TimeTrackingPage() {
               </div>
             </div>
 
+            {(timesheet?.status === 'rejected' && (timesheet?.rejectionReason ?? timesheet?.rejection_reason)) && (
+              <div className="rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                <strong>Rejected:</strong> {timesheet.rejectionReason ?? timesheet.rejection_reason}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setAddRowOpen((v) => !v)}
+              >
+                + Add Row
+              </Button>
+            </div>
+
+            {addRowOpen && (
+              <div className="rounded-xl border border-app-border bg-app-card p-4">
+                <h4 className="mb-3 text-sm font-medium text-app">Add project/task row</h4>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-app-muted">Project ID (optional)</label>
+                    <input
+                      type="text"
+                      value={addRowProjectId}
+                      onChange={(e) => setAddRowProjectId(e.target.value)}
+                      className="w-40 rounded-lg border border-app-border bg-app px-2 py-1.5 text-sm text-app"
+                      placeholder="e.g. proj-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-app-muted">Task ID (optional)</label>
+                    <input
+                      type="text"
+                      value={addRowTaskId}
+                      onChange={(e) => setAddRowTaskId(e.target.value)}
+                      className="w-40 rounded-lg border border-app-border bg-app px-2 py-1.5 text-sm text-app"
+                      placeholder="e.g. task-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-app-muted">Category</label>
+                    <select
+                      value={addRowCategoryId}
+                      onChange={(e) => setAddRowCategoryId(e.target.value)}
+                      className="w-48 rounded-lg border border-app-border bg-app px-2 py-1.5 text-sm text-app"
+                    >
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button onClick={submitAddRow} disabled={addRowSubmitting}>
+                    {addRowSubmitting ? 'Adding…' : 'Add'}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setAddRowOpen(false)} disabled={addRowSubmitting}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto rounded-xl border border-app-border bg-app-card p-3">
               <table className="w-full min-w-[980px] text-sm">
                 <thead>
@@ -210,22 +381,52 @@ export function TimeTrackingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(weeklyGrid?.rows ?? []).map((row, idx) => (
-                    <tr key={`${row.project.id ?? 'none'}-${row.task.id ?? 'none'}-${idx}`} className="border-t border-app-border/60">
-                      <td className="py-2">
-                        <div className="text-app">{row.project.name}</div>
-                        <div className="text-xs text-app-muted">{row.task.title}</div>
-                      </td>
-                      <td className={cn(row.billable ? 'text-blue-300' : 'text-app-muted')}>{row.entries.mon || '-'}</td>
-                      <td className={cn(row.billable ? 'text-blue-300' : 'text-app-muted')}>{row.entries.tue || '-'}</td>
-                      <td className={cn(row.billable ? 'text-blue-300' : 'text-app-muted')}>{row.entries.wed || '-'}</td>
-                      <td className={cn(row.billable ? 'text-blue-300' : 'text-app-muted')}>{row.entries.thu || '-'}</td>
-                      <td className={cn(row.billable ? 'text-blue-300' : 'text-app-muted')}>{row.entries.fri || '-'}</td>
-                      <td className={cn(row.billable ? 'text-blue-300' : 'text-app-muted')}>{row.entries.sat || '-'}</td>
-                      <td className={cn(row.billable ? 'text-blue-300' : 'text-app-muted')}>{row.entries.sun || '-'}</td>
-                      <td className="font-medium text-app">{row.total}</td>
-                    </tr>
-                  ))}
+                  {(weeklyGrid?.rows ?? []).map((row, idx) => {
+                    const projectId = row.project.id ?? 'none';
+                    const taskId = row.task.id ?? 'none';
+                    const cellClass = cn(row.billable ? 'text-blue-300' : 'text-app-muted');
+                    const renderCell = (dayKey: (typeof DAY_KEYS)[number]) => {
+                      const date = dayKeyToDate(weekStart, dayKey);
+                      const key = `${projectId}|${taskId}|${date}`;
+                      const list = weekEntryMap.get(key) ?? [];
+                      const hours = list.reduce((s: number, e: any) => s + Number(e.hours ?? 0), 0);
+                      const isSaving = savingCell === key;
+                      if (canEditGrid) {
+                        return (
+                          <td key={dayKey} className={cellClass}>
+                            <input
+                              key={`${key}-${hours}`}
+                              type="number"
+                              step="0.25"
+                              min={0}
+                              max={24}
+                              defaultValue={hours}
+                              className="w-14 rounded border border-app-border bg-app px-1 py-0.5 text-right text-sm text-inherit"
+                              onBlur={(e) => {
+                                const v = Number(e.target.value);
+                                if (!Number.isFinite(v) || v < 0) return;
+                                const clamped = Math.min(24, Math.max(0, Math.round(v * 4) / 4));
+                                if (clamped !== hours) void saveCell(projectId === 'none' ? null : projectId, taskId === 'none' ? null : taskId, date, clamped);
+                              }}
+                              disabled={isSaving}
+                            />
+                            {isSaving && <span className="ml-1 text-xs">…</span>}
+                          </td>
+                        );
+                      }
+                      return <td key={dayKey} className={cellClass}>{hours > 0 ? hours : '-'}</td>;
+                    };
+                    return (
+                      <tr key={`${projectId}-${taskId}-${idx}`} className="border-t border-app-border/60">
+                        <td className="py-2">
+                          <div className="text-app">{row.project.name}</div>
+                          <div className="text-xs text-app-muted">{row.task.title}</div>
+                        </td>
+                        {DAY_KEYS.map((dk) => renderCell(dk))}
+                        <td className="font-medium text-app">{row.total}</td>
+                      </tr>
+                    );
+                  })}
                   <tr className="border-t border-app-border font-medium">
                     <td className="py-2 text-app">Totals</td>
                     <td>{weeklyGrid?.totalByDay.mon ?? 0}</td>

@@ -396,6 +396,122 @@ function buildActionPreview(
       };
     }
 
+    case 'create_deal': {
+      const payload = {
+        title: (args.title as string) || '',
+        amount: (args.amount as number) || 0,
+        companyName: (args.companyName as string) || '',
+        contactEmail: (args.contactEmail as string) || '',
+        stage: (args.stage as string) || 'Lead',
+        description: (args.description as string) || '',
+      };
+      return {
+        description: `Create deal "${payload.title}" (${payload.stage}) for ${payload.companyName}`,
+        displayFields: [
+          { key: 'title', label: 'Title', type: 'text', value: payload.title, editable: true },
+          { key: 'amount', label: 'Amount', type: 'number', value: payload.amount, editable: true },
+          { key: 'companyName', label: 'Company', type: 'text', value: payload.companyName, editable: true },
+          { key: 'contactEmail', label: 'Contact Email', type: 'text', value: payload.contactEmail, editable: true },
+          { key: 'stage', label: 'Stage', type: 'text', value: payload.stage, editable: true },
+          { key: 'description', label: 'Description', type: 'textarea', value: payload.description, editable: true },
+        ],
+        editableFields: ['title', 'amount', 'companyName', 'contactEmail', 'stage', 'description'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'create_ticket': {
+      const payload = {
+        subject: (args.subject as string) || '',
+        description: (args.description as string) || '',
+        priority: (args.priority as string) || 'medium',
+        reporterEmail: (args.reporterEmail as string) || '',
+        category: (args.category as string) || 'general',
+      };
+      return {
+        description: `Create support ticket "${payload.subject}"`,
+        displayFields: [
+          { key: 'subject', label: 'Subject', type: 'text', value: payload.subject, editable: true },
+          { key: 'description', label: 'Description', type: 'textarea', value: payload.description, editable: true },
+          { key: 'priority', label: 'Priority', type: 'text', value: payload.priority, editable: true },
+          { key: 'reporterEmail', label: 'Reporter Email', type: 'text', value: payload.reporterEmail, editable: true },
+          { key: 'category', label: 'Category', type: 'text', value: payload.category, editable: true },
+        ],
+        editableFields: ['subject', 'description', 'priority', 'reporterEmail', 'category'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'assign_asset': {
+      const payload = {
+        assetName: (args.assetName as string) || '',
+        employeeName: (args.employeeName as string) || '',
+      };
+      return {
+        description: `Assign asset "${payload.assetName}" to ${payload.employeeName}`,
+        displayFields: [
+          { key: 'assetName', label: 'Asset', type: 'text', value: payload.assetName, editable: true },
+          { key: 'employeeName', label: 'Employee', type: 'text', value: payload.employeeName, editable: true },
+        ],
+        editableFields: ['assetName', 'employeeName'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'send_renewal_reminder': {
+      const payload = { contractName: (args.contractName as string) || '' };
+      return {
+        description: `Send renewal reminder for contract "${payload.contractName}"`,
+        displayFields: [{ key: 'contractName', label: 'Contract', type: 'text', value: payload.contractName, editable: true }],
+        editableFields: ['contractName'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'create_campaign': {
+      const payload = {
+        name: (args.name as string) || '',
+        channel: (args.channel as string) || '',
+        budget: (args.budget as number) || 0,
+        startDate: (args.startDate as string) || '',
+        description: (args.description as string) || '',
+      };
+      return {
+        description: `Create campaign "${payload.name}" on ${payload.channel}`,
+        displayFields: [
+          { key: 'name', label: 'Name', type: 'text', value: payload.name, editable: true },
+          { key: 'channel', label: 'Channel', type: 'text', value: payload.channel, editable: true },
+          { key: 'budget', label: 'Budget', type: 'number', value: payload.budget, editable: true },
+          { key: 'startDate', label: 'Start Date', type: 'date', value: payload.startDate, editable: true },
+          { key: 'description', label: 'Description', type: 'textarea', value: payload.description, editable: true },
+        ],
+        editableFields: ['name', 'channel', 'budget', 'startDate', 'description'],
+        sanitizedPayload: payload,
+      };
+    }
+
+    case 'post_job': {
+      const payload = {
+        title: (args.title as string) || '',
+        department: (args.department as string) || '',
+        description: (args.description as string) || '',
+        requirements: (args.requirements as string) || '',
+        salaryRange: (args.salaryRange as string) || '',
+      };
+      return {
+        description: `Post job "${payload.title}" in ${payload.department}`,
+        displayFields: [
+          { key: 'title', label: 'Title', type: 'text', value: payload.title, editable: true },
+          { key: 'department', label: 'Department', type: 'text', value: payload.department, editable: true },
+          { key: 'description', label: 'Description', type: 'textarea', value: payload.description, editable: true },
+          { key: 'requirements', label: 'Requirements', type: 'textarea', value: payload.requirements, editable: true },
+          { key: 'salaryRange', label: 'Salary Range', type: 'text', value: payload.salaryRange, editable: true },
+        ],
+        editableFields: ['title', 'department', 'description', 'requirements', 'salaryRange'],
+        sanitizedPayload: payload,
+      };
+    }
+
     default: {
       return {
         description: `Execute ${toolName} action`,

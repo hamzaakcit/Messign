@@ -38,6 +38,8 @@ import { DoraInsightCountBadge } from '@/components/dora/DoraInsightCountBadge';
 
 const VIEW_TO_PATH: Record<string, string> = {
   dashboard: '/dashboard',
+  executive: '/executive',
+  reports: '/reports',
   dora: '/dora',
   chat: '/chat',
   knowledge: '/knowledge-hub',
@@ -60,6 +62,8 @@ const VIEW_TO_PATH: Record<string, string> = {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'executive', label: 'Executive', icon: LayoutDashboard },
+  { id: 'reports', label: 'Reports', icon: FileSignature },
   { id: 'dora', label: 'Dora', icon: null },
   { id: 'chat', label: 'Chat', icon: MessageSquare, showUnread: true },
   { id: 'projects', label: 'Project Marketplace', icon: Briefcase },

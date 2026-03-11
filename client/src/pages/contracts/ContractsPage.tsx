@@ -43,25 +43,48 @@ export function ContractsPage({ initialTab = 'contracts' }: Props) {
   const [metrics, setMetrics] = useState<Record<string, number>>({});
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nlFilters, setNlFilters] = useState<Record<string, unknown>>({});
 
   const load = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
+      const params: Record<string, string> = { page: '1', pageSize: '50' };
+      if (nlFilters.status && typeof nlFilters.status === 'string') params.status = nlFilters.status;
+      if (nlFilters.type && typeof nlFilters.type === 'string') params.type = nlFilters.type;
+      if (nlFilters.counterpartyName && typeof nlFilters.counterpartyName === 'string') params.counterpartyName = nlFilters.counterpartyName;
+
       const [contractRes, expiringRes, obligationsRes, metricsRes] = await Promise.all([
-        contractsAPI.listContracts(userId, { page: '1', pageSize: '50' }),
+        contractsAPI.listContracts(userId, params),
         contractsAPI.getExpiring(userId, 90),
         contractsAPI.listObligations(userId),
         contractsAPI.getMetrics(userId),
       ]);
-      setContracts(contractRes.data);
+
+      let filtered = contractRes.data;
+      const valueMin = nlFilters.totalValueMin as number | undefined;
+      const valueMax = nlFilters.totalValueMax as number | undefined;
+      if (typeof valueMin === 'number' && valueMin > 0) {
+        filtered = filtered.filter((c) => (c.total_value ?? 0) >= valueMin);
+      }
+      if (typeof valueMax === 'number' && valueMax > 0) {
+        filtered = filtered.filter((c) => (c.total_value ?? 0) <= valueMax);
+      }
+      if (nlFilters.autoRenew === true || nlFilters.autoRenew === 'true') {
+        filtered = filtered.filter((c) => c.auto_renew === true);
+      }
+      if (nlFilters.autoRenew === false || nlFilters.autoRenew === 'false') {
+        filtered = filtered.filter((c) => c.auto_renew === false);
+      }
+
+      setContracts(filtered);
       setExpiring(expiringRes);
       setObligations(obligationsRes);
       setMetrics(metricsRes);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, nlFilters]);
 
   useEffect(() => {
     void load();
@@ -128,7 +151,7 @@ export function ContractsPage({ initialTab = 'contracts' }: Props) {
                 placeholder="Try: &quot;active vendor contracts over €10000&quot;"
                 availableFields={CONTRACT_FILTER_FIELDS}
                 module="contracts"
-                onFiltersApplied={() => {}}
+                onFiltersApplied={(f) => setNlFilters(f)}
               />
               <DataTable
                 data={contracts}

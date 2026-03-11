@@ -1,11 +1,14 @@
 import { useLocation } from 'react-router-dom';
 import { Menu, Search, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
-import { NotificationPanel } from '@/components/notifications';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { KnowledgeHubIcon } from '@/components/knowledge-hub/icons';
 
 const viewTitles: Record<string, string> = {
   dashboard: 'Dashboard',
+  executive: 'Executive Dashboard',
+  reports: 'Report Hub',
+  notifications: 'Notifications',
   dora: 'Dora',
   game: 'Dora Game',
   chat: 'Chat',
@@ -96,7 +99,7 @@ export function Header() {
         )}
 
         {/* Notifications */}
-        <NotificationPanel />
+        <NotificationBell />
 
         {/* Toggle Right Sidebar */}
         <button

@@ -67,6 +67,24 @@ export async function executeConfirmedAction(
       case 'suggest_budget_reallocation':
         result = await executeSuggestBudgetReallocation(payload);
         break;
+      case 'create_deal':
+        result = await executeCreateDeal(payload);
+        break;
+      case 'create_ticket':
+        result = await executeCreateTicket(payload);
+        break;
+      case 'assign_asset':
+        result = await executeAssignAsset(payload);
+        break;
+      case 'send_renewal_reminder':
+        result = await executeSendRenewalReminder(payload);
+        break;
+      case 'create_campaign':
+        result = await executeCreateCampaign(payload);
+        break;
+      case 'post_job':
+        result = await executePostJob(payload);
+        break;
       default:
         result = {
           success: false,
@@ -661,5 +679,154 @@ async function executeSuggestBudgetReallocation(payload: Record<string, unknown>
     };
   } catch (err) {
     return { success: false, actionType: 'suggest_budget_reallocation', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function executeCreateDeal(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+  try {
+    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
+    const orgId = org.rows[0]?.id;
+    if (!orgId) throw new Error('Organization not found');
+
+    const company = await query<{ id: string }>(
+      `SELECT id::text FROM crm_companies
+       WHERE organization_id = $1
+         AND LOWER(name) LIKE LOWER($2)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [orgId, `%${String(payload.companyName ?? '')}%`],
+    );
+    const deal = await query<{ id: string }>(
+      `INSERT INTO crm_deals (organization_id, title, amount, currency, owner_id, company_id, status, description, stage_id)
+       VALUES (
+         $1, $2, $3, 'EUR',
+         (SELECT id FROM reimbursement_users WHERE organization_id = $1 ORDER BY created_at ASC LIMIT 1),
+         $4::uuid,
+         'open',
+         $5,
+         (SELECT id FROM crm_pipeline_stages WHERE organization_id = $1 ORDER BY sort_order ASC LIMIT 1)
+       )
+       RETURNING id::text`,
+      [orgId, String(payload.title ?? 'New Deal'), Number(payload.amount ?? 0), company.rows[0]?.id ?? null, String(payload.description ?? '')],
+    );
+    return { success: true, actionType: 'create_deal', message: 'Deal created successfully.', result: { dealId: deal.rows[0]?.id } };
+  } catch (err) {
+    return { success: false, actionType: 'create_deal', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function executeCreateTicket(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+  try {
+    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
+    const orgId = org.rows[0]?.id;
+    if (!orgId) throw new Error('Organization not found');
+    const row = await query<{ id: string }>(
+      `INSERT INTO support_tickets (organization_id, subject, description, priority, reporter_email, category, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'open')
+       RETURNING id::text`,
+      [
+        orgId,
+        String(payload.subject ?? 'Ticket'),
+        String(payload.description ?? ''),
+        String(payload.priority ?? 'medium'),
+        String(payload.reporterEmail ?? ''),
+        String(payload.category ?? 'general'),
+      ],
+    );
+    return { success: true, actionType: 'create_ticket', message: 'Ticket created successfully.', result: { ticketId: row.rows[0]?.id } };
+  } catch (err) {
+    return { success: false, actionType: 'create_ticket', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function executeAssignAsset(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+  try {
+    const asset = await query<{ id: string }>(
+      `SELECT id::text FROM assets WHERE LOWER(name) LIKE LOWER($1) ORDER BY created_at DESC LIMIT 1`,
+      [`%${String(payload.assetName ?? '')}%`],
+    );
+    const user = await query<{ id: string }>(
+      `SELECT id::text FROM reimbursement_users WHERE LOWER(full_name) LIKE LOWER($1) ORDER BY created_at DESC LIMIT 1`,
+      [`%${String(payload.employeeName ?? '')}%`],
+    );
+    if (!asset.rows[0]?.id || !user.rows[0]?.id) throw new Error('Asset or employee not found');
+    await query(
+      `UPDATE assets
+       SET assignee_id = $1::uuid, status = 'assigned', assigned_at = NOW(), updated_at = NOW()
+       WHERE id = $2::uuid`,
+      [user.rows[0].id, asset.rows[0].id],
+    );
+    return { success: true, actionType: 'assign_asset', message: 'Asset assigned successfully.', result: { assetId: asset.rows[0].id, assigneeId: user.rows[0].id } };
+  } catch (err) {
+    return { success: false, actionType: 'assign_asset', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function executeSendRenewalReminder(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+  try {
+    const contract = await query<{ id: string; title: string }>(
+      `SELECT id::text, title
+       FROM contracts
+       WHERE LOWER(title) LIKE LOWER($1)
+       ORDER BY end_date ASC NULLS LAST
+       LIMIT 1`,
+      [`%${String(payload.contractName ?? '')}%`],
+    );
+    if (!contract.rows[0]) throw new Error('Contract not found');
+    await query(
+      `INSERT INTO contract_reminders (contract_id, reminder_type, reminder_date, sent, created_at)
+       VALUES ($1::uuid, 'manual_renewal_reminder', CURRENT_DATE, TRUE, NOW())`,
+      [contract.rows[0].id],
+    );
+    return { success: true, actionType: 'send_renewal_reminder', message: `Renewal reminder recorded for ${contract.rows[0].title}.`, result: { contractId: contract.rows[0].id } };
+  } catch (err) {
+    return { success: false, actionType: 'send_renewal_reminder', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function executeCreateCampaign(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+  try {
+    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
+    const orgId = org.rows[0]?.id;
+    if (!orgId) throw new Error('Organization not found');
+    const row = await query<{ id: string }>(
+      `INSERT INTO marketing_campaigns (organization_id, name, channel, budget, start_date, description, status)
+       VALUES ($1, $2, $3, $4, $5::date, $6, 'draft')
+       RETURNING id::text`,
+      [
+        orgId,
+        String(payload.name ?? 'Campaign'),
+        String(payload.channel ?? 'email'),
+        Number(payload.budget ?? 0),
+        String(payload.startDate ?? new Date().toISOString().slice(0, 10)),
+        String(payload.description ?? ''),
+      ],
+    );
+    return { success: true, actionType: 'create_campaign', message: 'Campaign created successfully.', result: { campaignId: row.rows[0]?.id } };
+  } catch (err) {
+    return { success: false, actionType: 'create_campaign', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function executePostJob(payload: Record<string, unknown>): Promise<ActionExecutionResult> {
+  try {
+    const org = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`);
+    const orgId = org.rows[0]?.id;
+    if (!orgId) throw new Error('Organization not found');
+    const row = await query<{ id: string }>(
+      `INSERT INTO recruitment_jobs (organization_id, title, department, description, requirements, status)
+       VALUES ($1, $2, $3, $4, $5::text[], 'open')
+       RETURNING id::text`,
+      [
+        orgId,
+        String(payload.title ?? 'New Role'),
+        String(payload.department ?? 'General'),
+        String(payload.description ?? ''),
+        String(payload.requirements ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+      ],
+    );
+    return { success: true, actionType: 'post_job', message: 'Job posted successfully.', result: { jobId: row.rows[0]?.id } };
+  } catch (err) {
+    return { success: false, actionType: 'post_job', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }

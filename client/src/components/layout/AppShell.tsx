@@ -19,6 +19,9 @@ import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmp
 const PATH_TO_VIEW: Record<string, string> = {
   '/': 'dashboard',
   '/dashboard': 'dashboard',
+  '/executive': 'executive',
+  '/reports': 'reports',
+  '/notifications': 'notifications',
   '/dora': 'dora',
   '/chat': 'chat',
   '/knowledge': 'knowledge',
@@ -40,6 +43,9 @@ const PATH_TO_VIEW: Record<string, string> = {
 
 function getViewFromPath(path: string): string {
   if (path.startsWith('/okr')) return 'okr';
+  if (path.startsWith('/executive')) return 'executive';
+  if (path.startsWith('/reports')) return 'reports';
+  if (path.startsWith('/notifications')) return 'notifications';
   if (path.startsWith('/crm')) return 'crm';
   if (path.startsWith('/marketing')) return 'marketing';
   if (path.startsWith('/recruitment')) return 'recruitment';
@@ -59,6 +65,9 @@ function getViewFromPath(path: string): string {
 
 const VIEW_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
+  executive: 'Executive Dashboard',
+  reports: 'Report Hub',
+  notifications: 'Notifications',
   dora: 'Dora',
   game: 'Dora Game',
   chat: 'Chat',
@@ -107,7 +116,7 @@ export function AppShell() {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
-      setView(view as 'dashboard' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'time' | 'okr' | 'assets' | 'contracts');
+      setView(view as 'dashboard' | 'executive' | 'reports' | 'notifications' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'time' | 'okr' | 'assets' | 'contracts');
     }
     const label = VIEW_LABELS[view] ?? view;
     trackPage(path, label);

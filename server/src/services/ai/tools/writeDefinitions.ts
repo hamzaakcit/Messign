@@ -429,6 +429,108 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'create_deal',
+      description: '[ACTION] Create a new deal in the Sales CRM pipeline.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Deal title.' },
+          amount: { type: 'number', description: 'Deal amount.' },
+          companyName: { type: 'string', description: 'Company name (fuzzy match).' },
+          contactEmail: { type: 'string', description: 'Primary contact email.' },
+          stage: { type: 'string', description: 'Pipeline stage.', default: 'Lead' },
+          description: { type: 'string', description: 'Deal description.' },
+        },
+        required: ['title', 'amount', 'companyName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_ticket',
+      description: '[ACTION] Create a new support ticket.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subject: { type: 'string', description: 'Ticket subject line.' },
+          description: { type: 'string', description: 'Ticket details and customer context.' },
+          priority: { type: 'string', description: 'Ticket urgency level.', enum: ['low', 'medium', 'high', 'critical'] },
+          reporterEmail: { type: 'string', description: 'Reporter email address.' },
+          category: { type: 'string', description: 'Ticket category.' },
+        },
+        required: ['subject', 'description'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'assign_asset',
+      description: '[ACTION] Assign an asset or equipment to an employee.',
+      parameters: {
+        type: 'object',
+        properties: {
+          assetName: { type: 'string', description: 'Asset name for fuzzy matching.' },
+          employeeName: { type: 'string', description: 'Employee full name for fuzzy matching.' },
+        },
+        required: ['assetName', 'employeeName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_renewal_reminder',
+      description: '[ACTION] Send a renewal reminder for an expiring contract.',
+      parameters: {
+        type: 'object',
+        properties: {
+          contractName: { type: 'string', description: 'Contract title for fuzzy match.' },
+        },
+        required: ['contractName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_campaign',
+      description: '[ACTION] Create a new marketing campaign.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Campaign name.' },
+          channel: { type: 'string', description: 'Primary campaign channel.' },
+          budget: { type: 'number', description: 'Campaign budget amount.' },
+          startDate: { type: 'string', description: 'Campaign start date (YYYY-MM-DD).' },
+          description: { type: 'string', description: 'Campaign summary.' },
+        },
+        required: ['name', 'channel', 'budget'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'post_job',
+      description: '[ACTION] Post a new job opening.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Job title.' },
+          department: { type: 'string', description: 'Hiring department.' },
+          description: { type: 'string', description: 'Job description.' },
+          requirements: { type: 'string', description: 'Comma-separated requirements.' },
+          salaryRange: { type: 'string', description: 'Salary range text.' },
+        },
+        required: ['title', 'department', 'description'],
+      },
+    },
+  },
 ];
 
 export const WRITE_TOOL_NAMES = new Set<string>(
@@ -488,6 +590,30 @@ export function getToolsForRole(
     }
 
     if (name === 'suggest_budget_reallocation' && !['admin', 'finance'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'create_deal' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'create_ticket' && !['admin', 'manager', 'member', 'dept_head', 'system_admin'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'assign_asset' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'send_renewal_reminder' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'create_campaign' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'post_job' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 
