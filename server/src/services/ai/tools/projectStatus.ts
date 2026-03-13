@@ -10,7 +10,15 @@ import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const projectStatusTool: Tool = {
-  name: 'get_project_status',
+  name: 'projects:get_project_status',
+  metadata: {
+    namespace: 'projects',
+    name: 'get_project_status',
+    summary: 'Project status: task breakdown, completion %, team members, recent activity.',
+    tags: ['projects', 'status', 'tasks', 'progress'],
+    alwaysLoaded: false,
+    parameterHints: 'project_name: string, include_task_list?: yes|no, include_members?: yes|no',
+  },
   category: 'projects',
 
   description: `Get the current status of one or more projects, including task breakdown by status,

@@ -18,7 +18,15 @@ async function resolveOrgId(): Promise<string | undefined> {
 }
 
 registerTool({
-  name: 'get_contract_renewals',
+  name: 'contracts:get_contract_renewals',
+  metadata: {
+    namespace: 'contracts',
+    name: 'get_contract_renewals',
+    summary: 'Contract renewals: expiring soon, renewal dates, obligations.',
+    tags: ['contracts', 'renewals', 'expiry'],
+    alwaysLoaded: false,
+    parameterHints: 'days_ahead?: number',
+  },
   category: 'analytics',
   description: 'Get upcoming contract renewals and expirations with their status and required actions.',
   parameters: {
@@ -51,7 +59,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'extract_contract_terms',
+  name: 'contracts:extract_contract_terms',
+  metadata: {
+    namespace: 'contracts',
+    name: 'extract_contract_terms',
+    summary: 'Extract contract terms from document. AI-powered parsing.',
+    tags: ['contracts', 'extraction', 'terms', 'ai'],
+    alwaysLoaded: false,
+    parameterHints: 'contract_id: string',
+  },
   category: 'analytics',
   description: 'Extract key terms, obligations, and dates from a contract document using AI.',
   parameters: {

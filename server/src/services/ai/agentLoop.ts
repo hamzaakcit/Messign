@@ -98,7 +98,7 @@ export async function runAgentLoop(
         toolResults.push(sanitized);
 
         let toolContent = result.summary || JSON.stringify(result.data ?? {});
-        if (tc.name === 'search_knowledge_base' && result.success && result.summary?.includes('| Content:')) {
+        if ((tc.name === 'knowledge:search_knowledge_base' || tc.name?.endsWith('search_knowledge_base')) && result.success && result.summary?.includes('| Content:')) {
           const confidence = result.metadata?.confidence ?? 0.7;
           const lowConfidenceNote =
             confidence < 0.5

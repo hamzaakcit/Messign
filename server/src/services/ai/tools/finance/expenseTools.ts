@@ -3,7 +3,15 @@ import { query } from '../../../../db/index.js';
 import type { ToolContext, ToolResult } from '../../types.js';
 
 registerTool({
-  name: 'scan_receipt',
+  name: 'finance:scan_receipt',
+  metadata: {
+    namespace: 'finance',
+    name: 'scan_receipt',
+    summary: 'Scan receipt: OCR extract amount, vendor, date.',
+    tags: ['finance', 'receipt', 'ocr', 'expense'],
+    alwaysLoaded: false,
+    parameterHints: 'receipt_url?: string',
+  },
   category: 'finance',
   description: 'Analyze a receipt image using OCR to extract vendor, amount, date, and line items. Provide a document_id to process.',
   parameters: {
@@ -35,7 +43,7 @@ registerTool({
 });
 
 registerTool({
-  name: 'categorize_expense',
+  name: 'finance:categorize_expense',
   category: 'finance',
   description: 'Get AI-suggested category for an expense based on title, vendor, and amount.',
   parameters: {
@@ -89,7 +97,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'check_expense_policy',
+  name: 'finance:check_expense_policy',
+  metadata: {
+    namespace: 'finance',
+    name: 'check_expense_policy',
+    summary: 'Check expense policy: compliance, limits, approval rules.',
+    tags: ['finance', 'expense', 'policy'],
+    alwaysLoaded: false,
+    parameterHints: 'amount: number, category?: string',
+  },
   category: 'finance',
   description: 'Check if an expense complies with organization expense policies. Provide amount and category.',
   parameters: {
@@ -126,7 +142,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'detect_duplicate_expense',
+  name: 'finance:detect_duplicate_expense',
+  metadata: {
+    namespace: 'finance',
+    name: 'detect_duplicate_expense',
+    summary: 'Detect duplicate expense: same vendor, amount, date.',
+    tags: ['finance', 'expense', 'duplicate'],
+    alwaysLoaded: false,
+    parameterHints: 'expense_id: string',
+  },
   category: 'finance',
   description: 'Check if an expense might be a duplicate based on amount, date, and vendor similarity.',
   parameters: {

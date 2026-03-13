@@ -10,8 +10,17 @@ import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const knowledgeBaseStatsTool: Tool = {
-  name: 'get_knowledge_base_stats',
+  name: 'knowledge:get_knowledge_base_stats',
   category: 'knowledge',
+
+  metadata: {
+    namespace: 'knowledge',
+    name: 'get_knowledge_base_stats',
+    summary: 'Document counts, staleness breakdown, knowledge base health stats.',
+    tags: ['knowledge', 'documents', 'stats', 'staleness'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
 
   description: `Get knowledge base statistics: total document count, count by status (published, draft, in_review), and staleness breakdown (fresh, aging, stale).
 

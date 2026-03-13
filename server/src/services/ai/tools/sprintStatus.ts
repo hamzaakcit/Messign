@@ -10,8 +10,17 @@ import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const sprintStatusTool: Tool = {
-  name: 'get_sprint_status',
+  name: 'projects:get_sprint_status',
   category: 'projects',
+
+  metadata: {
+    namespace: 'projects',
+    name: 'get_sprint_status',
+    summary: 'Sprint/help request status: progress, remaining tasks, timeline.',
+    tags: ['projects', 'sprint', 'velocity', 'burndown'],
+    alwaysLoaded: false,
+    parameterHints: 'project_name: string, sprint_identifier?: current|last|all',
+  },
 
   description: `Get the current sprint/help request status including progress, remaining tasks, and timeline.
 

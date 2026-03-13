@@ -8,7 +8,15 @@ async function resolveOrgId(): Promise<string | undefined> {
 }
 
 registerTool({
-  name: 'get_asset_summary',
+  name: 'assets:get_asset_summary',
+  metadata: {
+    namespace: 'assets',
+    name: 'get_asset_summary',
+    summary: 'Asset summary: equipment, assignments, warranty status.',
+    tags: ['assets', 'equipment', 'inventory'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'analytics',
   description: 'Get an overview of company assets including total value, availability, and warranty status.',
   parameters: {
@@ -44,7 +52,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_license_utilization',
+  name: 'assets:get_license_utilization',
+  metadata: {
+    namespace: 'assets',
+    name: 'get_license_utilization',
+    summary: 'License utilization: seats used vs purchased, underutilized.',
+    tags: ['assets', 'license', 'software', 'utilization'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'analytics',
   description: 'Get software license utilization showing which licenses are underutilized and potential cost savings.',
   parameters: {

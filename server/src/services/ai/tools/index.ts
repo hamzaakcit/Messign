@@ -47,8 +47,7 @@ import './doraDash.js';
 // Finance v1.2: 14 finance tools (9 read + 5 write)
 import './finance/index.js';
 
-// Sales CRM: 4 tools (pipeline status, deal details, forecast, activity gaps)
-import './crm/index.js';
+// Sales CRM: tools registered via modules/crm (registry)
 
 // Customer Support: 3 tools (ticket overview, customer health, support metrics)
 import './support/index.js';
@@ -68,7 +67,20 @@ import './executiveTools.js';
 // Dora Heart: team health, wellness, culture, pulse
 import './heart/index.js';
 
-export { getAllTools, getToolsForLLM, executeTool, getToolCount } from '../toolRegistry.js';
+// Core: search_tools + activate_tool (always loaded, enables tool discovery)
+import './core/activateTool.js';
+import './core/searchTools.js';
 
-import { getToolCount } from '../toolRegistry.js';
-console.log(`[AI Brain] Tool registration complete. ${getToolCount()} tools available.`);
+export {
+  getAllTools,
+  getToolsForLLM,
+  getBaseToolsForLLM,
+  executeTool,
+  getToolCount,
+  finalizeRegistry,
+} from '../toolRegistry.js';
+export { searchTools, rebuildSearchIndex } from './core/searchTools.js';
+export { createToolSession, activateTool, type ToolSession } from './core/activateTool.js';
+
+import { finalizeRegistry } from '../toolRegistry.js';
+void finalizeRegistry();

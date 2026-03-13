@@ -55,7 +55,7 @@ async function executeAction(
   try {
     const systemCtx = buildSystemCtx(policy);
     switch (policy.actionType) {
-      case 'approve_expense': {
+      case 'finance:approve_expense': {
         if (!payload.expenseId) return { success: false, error: 'Missing expenseId' };
         const result = await expensesDal.approveExpense(systemCtx, String(payload.expenseId));
         return { success: true, result: { approved: true, expenseId: payload.expenseId, status: result.status } };
@@ -90,7 +90,7 @@ async function executeAction(
       }
       case 'send_notification':
         return { success: true, result: { message: policy.actionParams.message ?? 'Notification queued' } };
-      case 'create_task':
+      case 'projects:create_task':
         return { success: true, result: { created: true, title: policy.actionParams.title ?? 'Follow-up task' } };
       default:
         return { success: false, error: `Unknown action type: ${policy.actionType}` };

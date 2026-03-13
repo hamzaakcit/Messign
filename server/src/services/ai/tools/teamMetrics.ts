@@ -34,8 +34,17 @@ function buildTeamDateFilter(period: string): Date {
 }
 
 const teamOverviewTool: Tool = {
-  name: 'get_team_overview',
+  name: 'people:get_team_overview',
   category: 'people',
+
+  metadata: {
+    namespace: 'people',
+    name: 'get_team_overview',
+    summary: 'Team metrics: member count, tasks, completion rate, top performers, XP.',
+    tags: ['people', 'team', 'department', 'performance', 'metrics'],
+    alwaysLoaded: false,
+    parameterHints: 'team_identifier: string, time_period?: this_week|this_month|this_quarter|this_year',
+  },
 
   description: `Get aggregated metrics for a specific team or department.
 Returns: member count, total tasks (by status), completion rate, top performers,

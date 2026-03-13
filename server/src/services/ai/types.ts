@@ -40,6 +40,9 @@ export interface ToolContext {
 
   /** The user's full name (for display in responses) */
   userName?: string;
+
+  /** Per-session activated tools (core:activate_tool). Set by agentic loop. */
+  toolSession?: { activatedTools: Map<string, object> };
 }
 
 /**
@@ -103,11 +106,13 @@ export interface ToolParameterProperty {
   default?: unknown;
 }
 
+import type { ToolMetadata } from './tools/toolIndex.js';
+
 /**
  * A single tool definition.
  */
 export interface Tool {
-  /** Unique identifier. Used by the LLM to call this tool. snake_case. */
+  /** Unique identifier. Used by the LLM to call this tool. Format: namespace:action_noun (e.g. crm:get_pipeline_status). */
   name: string;
 
   /** Category for organizational purposes. */
@@ -122,9 +127,14 @@ export interface Tool {
   /** Which system roles are allowed to trigger this tool. */
   requiredRoles?: string[];
 
+  /** Metadata for tool index (namespace, summary, tags, etc.). */
+  metadata?: ToolMetadata;
+
   /** The actual execution function. */
   execute: (args: Record<string, unknown>, context: ToolContext) => Promise<ToolResult>;
 }
+
+export type { ToolMetadata };
 
 // ============================================================
 // INTENT ROUTER TYPES

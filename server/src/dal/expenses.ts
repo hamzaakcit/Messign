@@ -1,7 +1,12 @@
-import { query, getClient } from '../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../middleware/tenantContext.js';
 import { eventBus } from '../events/index.js';
 import type { CallerContext, PaginatedResult, DateRange, SortOptions } from './types.js';
 import { rbacWhereClause, paginationClause } from './helpers.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 // ── Interfaces ──
 
@@ -92,14 +97,12 @@ export async function listExpenses(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Expense>> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listExpenses');
+
   const conditions = ['r.is_deleted = FALSE'];
   const params: unknown[] = [];
   let idx = 1;
-
-  if (ctx.organizationId) {
-    conditions.push(`r.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
 
   const rbac = rbacWhereClause(ctx, 'r.submitted_by', 'r.team_id', idx);
   if (rbac.clause !== '1=1') {
@@ -147,125 +150,130 @@ export async function listExpenses(
   const orderBy = sortCol[sort?.field ?? 'created'] ?? 'r.created_at';
   const orderDir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
 
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM reimbursement_requests r WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+  return runInTenant(tenantId, async (client) => {
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM reimbursement_requests r WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  const pg = paginationClause(page, pageSize, idx);
+    const pg = paginationClause(page, pageSize, idx);
 
-  const dataResult = await query(
-    `SELECT r.*,
-            u.full_name as submitter_name, u.email as submitter_email,
-            ec.name as category_name, ec.icon as category_icon
-     FROM reimbursement_requests r
-     LEFT JOIN reimbursement_users u ON u.id = r.submitted_by
-     LEFT JOIN expense_categories ec ON ec.id = r.category_id
-     WHERE ${whereSQL}
-     ORDER BY ${orderBy} ${orderDir}
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+    const dataResult = await client.query(
+      `SELECT r.*,
+              u.full_name as submitter_name, u.email as submitter_email,
+              ec.name as category_name, ec.icon as category_icon
+       FROM reimbursement_requests r
+       LEFT JOIN reimbursement_users u ON u.id = r.submitted_by
+       LEFT JOIN expense_categories ec ON ec.id = r.category_id
+       WHERE ${whereSQL}
+       ORDER BY ${orderBy} ${orderDir}
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
 
-  return {
-    data: dataResult.rows as Expense[],
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    return {
+      data: dataResult.rows as Expense[],
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getExpenseById(
   ctx: CallerContext,
   expenseId: string,
 ): Promise<Expense | null> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getExpenseById');
+
   const conditions = ['r.id = $1', 'r.is_deleted = FALSE'];
   const params: unknown[] = [expenseId];
-  let idx = 2;
 
-  if (ctx.organizationId) {
-    conditions.push(`r.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-
-  const result = await query(
-    `SELECT r.*,
-            u.full_name as submitter_name, u.email as submitter_email,
-            ec.name as category_name, ec.icon as category_icon
-     FROM reimbursement_requests r
-     LEFT JOIN reimbursement_users u ON u.id = r.submitted_by
-     LEFT JOIN expense_categories ec ON ec.id = r.category_id
-     WHERE ${conditions.join(' AND ')}`,
-    params,
-  );
-  if (!result.rows[0]) return null;
-
-  const row = result.rows[0] as Record<string, unknown>;
-
-  if (ctx.role === 'employee' && row.submitted_by !== ctx.userId) return null;
-  if (ctx.role === 'manager' && row.submitted_by !== ctx.userId) {
-    const teamCheck = await query<{ count: string }>(
-      'SELECT COUNT(*) as count FROM reimbursement_users WHERE id = $1 AND manager_id = $2',
-      [row.submitted_by, ctx.userId],
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT r.*,
+              u.full_name as submitter_name, u.email as submitter_email,
+              ec.name as category_name, ec.icon as category_icon
+       FROM reimbursement_requests r
+       LEFT JOIN reimbursement_users u ON u.id = r.submitted_by
+       LEFT JOIN expense_categories ec ON ec.id = r.category_id
+       WHERE ${conditions.join(' AND ')}`,
+      params,
     );
-    if (parseInt(teamCheck.rows[0]?.count ?? '0', 10) === 0) return null;
-  }
+    if (!result.rows[0]) return null;
 
-  const [receipts, lineItems, approvalSteps, comments] = await Promise.all([
-    query('SELECT * FROM reimbursement_documents WHERE reimbursement_id = $1 ORDER BY uploaded_at DESC', [expenseId]),
-    query('SELECT * FROM finance_expense_line_items WHERE expense_id = $1 ORDER BY sort_order', [expenseId]),
-    query('SELECT a.*, u.full_name as approver_name FROM approval_steps a LEFT JOIN reimbursement_users u ON u.id = a.assigned_to WHERE a.reimbursement_id = $1 ORDER BY a.step_order', [expenseId]),
-    query('SELECT c.*, u.full_name as author_name FROM reimbursement_comments c LEFT JOIN reimbursement_users u ON u.id = c.user_id WHERE c.reimbursement_id = $1 ORDER BY c.created_at', [expenseId]),
-  ]);
+    const row = result.rows[0] as Record<string, unknown>;
 
-  return {
-    ...row,
-    receipts: receipts.rows,
-    line_items: lineItems.rows,
-    approval_steps: approvalSteps.rows,
-    comments: comments.rows,
-  } as Expense;
+    if (ctx.role === 'employee' && row.submitted_by !== ctx.userId) return null;
+    if (ctx.role === 'manager' && row.submitted_by !== ctx.userId) {
+      const teamCheck = await client.query<{ count: string }>(
+        'SELECT COUNT(*) as count FROM reimbursement_users WHERE id = $1 AND manager_id = $2',
+        [row.submitted_by, ctx.userId],
+      );
+      if (parseInt(teamCheck.rows[0]?.count ?? '0', 10) === 0) return null;
+    }
+
+    const [receipts, lineItems, approvalSteps, comments] = await Promise.all([
+      client.query('SELECT * FROM reimbursement_documents WHERE reimbursement_id = $1 ORDER BY uploaded_at DESC', [expenseId]),
+      client.query('SELECT * FROM finance_expense_line_items WHERE expense_id = $1 ORDER BY sort_order', [expenseId]),
+      client.query('SELECT a.*, u.full_name as approver_name FROM approval_steps a LEFT JOIN reimbursement_users u ON u.id = a.assigned_to WHERE a.reimbursement_id = $1 ORDER BY a.step_order', [expenseId]),
+      client.query('SELECT c.*, u.full_name as author_name FROM reimbursement_comments c LEFT JOIN reimbursement_users u ON u.id = c.user_id WHERE c.reimbursement_id = $1 ORDER BY c.created_at', [expenseId]),
+    ]);
+
+    return {
+      ...row,
+      receipts: receipts.rows,
+      line_items: lineItems.rows,
+      approval_steps: approvalSteps.rows,
+      comments: comments.rows,
+    } as Expense;
+  });
 }
 
 export async function createExpense(
   ctx: CallerContext,
   data: CreateExpenseInput,
 ): Promise<Expense> {
-  const orgId = ctx.organizationId ?? '';
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createExpense');
+
   const currency = data.currency ?? 'USD';
 
-  const result = await query(
-    `INSERT INTO reimbursement_requests
-     (organization_id, submitted_by, title, description,
-      category_id, category_slug, original_amount, original_currency,
-      converted_amount, expense_date, tax_amount, tax_rate, tip_amount,
-      budget_id, vendor_id, project_id, team_id,
-      tags, notes, receipt_url, status, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'draft',$21)
-     RETURNING *`,
-    [
-      orgId, ctx.userId, data.title, data.description ?? null,
-      data.category_id ?? null, data.category_slug ?? null,
-      data.amount, currency, data.amount,
-      data.expense_date, data.tax_amount ?? 0, data.tax_rate ?? 0,
-      data.tip_amount ?? 0, data.budget_id ?? null,
-      data.vendor_id ?? null, data.project_id ?? null, data.team_id ?? null,
-      data.tags ?? [], data.notes ?? null, data.receipt_url ?? null,
-      ctx.userId,
-    ],
-  );
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `INSERT INTO reimbursement_requests
+       (organization_id, submitted_by, title, description,
+        category_id, category_slug, original_amount, original_currency,
+        converted_amount, expense_date, tax_amount, tax_rate, tip_amount,
+        budget_id, vendor_id, project_id, team_id,
+        tags, notes, receipt_url, status, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'draft',$21)
+       RETURNING *`,
+      [
+        tenantId, ctx.userId, data.title, data.description ?? null,
+        data.category_id ?? null, data.category_slug ?? null,
+        data.amount, currency, data.amount,
+        data.expense_date, data.tax_amount ?? 0, data.tax_rate ?? 0,
+        data.tip_amount ?? 0, data.budget_id ?? null,
+        data.vendor_id ?? null, data.project_id ?? null, data.team_id ?? null,
+        data.tags ?? [], data.notes ?? null, data.receipt_url ?? null,
+        ctx.userId,
+      ],
+    );
 
-  const expense = result.rows[0] as Expense;
+    const expense = result.rows[0] as Expense;
 
-  eventBus.emit('finance.expense.created', {
-    expenseId: expense.id, userId: ctx.userId, amount: expense.original_amount,
-    currency: expense.original_currency, category: expense.category_slug ?? '',
-    departmentId: expense.team_id ?? undefined,
+    eventBus.emit('finance.expense.created', {
+      expenseId: expense.id, userId: ctx.userId, amount: expense.original_amount,
+      currency: expense.original_currency, category: expense.category_slug ?? '',
+      departmentId: expense.team_id ?? undefined,
+    });
+
+    return expense;
   });
-
-  return expense;
 }
 
 export async function updateExpense(
@@ -273,6 +281,9 @@ export async function updateExpense(
   expenseId: string,
   data: UpdateExpenseInput,
 ): Promise<Expense> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateExpense');
+
   const existing = await getExpenseById(ctx, expenseId);
   if (!existing) throw new Error('Expense not found');
   if (existing.status !== 'draft') throw new Error('Only draft expenses can be updated');
@@ -305,68 +316,72 @@ export async function updateExpense(
   params.push(ctx.userId);
 
   params.push(expenseId);
-  const result = await query(
-    `UPDATE reimbursement_requests SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
-    params,
-  );
 
-  return result.rows[0] as Expense;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE reimbursement_requests SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params,
+    );
+    return result.rows[0] as Expense;
+  });
 }
 
 export async function submitExpense(
   ctx: CallerContext,
   expenseId: string,
 ): Promise<Expense> {
-  const orgId = ctx.organizationId ?? '';
-  const client = await getClient();
-  try {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for submitExpense');
+
+  let existingAmount = 0;
+  await runInTenant(tenantId, async (client) => {
     await client.query('BEGIN');
-
-    const existing = await client.query(
-      'SELECT * FROM reimbursement_requests WHERE id = $1 AND organization_id = $2 AND submitted_by = $3 AND is_deleted = FALSE',
-      [expenseId, orgId, ctx.userId],
-    );
-    if (!existing.rows[0]) throw new Error('Expense not found');
-    if (existing.rows[0].status !== 'draft') throw new Error('Only draft expenses can be submitted');
-
-    await client.query(
-      `UPDATE reimbursement_requests SET status = 'submitted', submitted_at = NOW(), updated_at = NOW(), updated_by = $1 WHERE id = $2`,
-      [ctx.userId, expenseId],
-    );
-
-    const userRow = await client.query(
-      'SELECT manager_id FROM reimbursement_users WHERE id = $1',
-      [ctx.userId],
-    );
-    const approverId = userRow.rows[0]?.manager_id ?? null;
-
-    if (approverId) {
-      await client.query(
-        `INSERT INTO approval_steps
-         (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name)
-         VALUES ($1::UUID, 1, 'manager_approval', $2::UUID, 'pending', 'expense', $3::UUID, 'Manager Approval')`,
-        [expenseId, approverId, expenseId],
+    try {
+      const existing = await client.query(
+        'SELECT * FROM reimbursement_requests WHERE id = $1 AND submitted_by = $2 AND is_deleted = FALSE',
+        [expenseId, ctx.userId],
       );
+      if (!existing.rows[0]) throw new Error('Expense not found');
+      if (existing.rows[0].status !== 'draft') throw new Error('Only draft expenses can be submitted');
+      existingAmount = existing.rows[0].original_amount;
+
       await client.query(
-        `UPDATE reimbursement_requests SET status = 'manager_review', current_approver_id = $1 WHERE id = $2`,
-        [approverId, expenseId],
+        `UPDATE reimbursement_requests SET status = 'submitted', submitted_at = NOW(), updated_at = NOW(), updated_by = $1 WHERE id = $2`,
+        [ctx.userId, expenseId],
       );
+
+      const userRow = await client.query(
+        'SELECT manager_id FROM reimbursement_users WHERE id = $1',
+        [ctx.userId],
+      );
+      const approverId = userRow.rows[0]?.manager_id ?? null;
+
+      if (approverId) {
+        await client.query(
+          `INSERT INTO approval_steps
+           (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name)
+           VALUES ($1::UUID, 1, 'manager_approval', $2::UUID, 'pending', 'expense', $3::UUID, 'Manager Approval')`,
+          [expenseId, approverId, expenseId],
+        );
+        await client.query(
+          `UPDATE reimbursement_requests SET status = 'manager_review', current_approver_id = $1 WHERE id = $2`,
+          [approverId, expenseId],
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
     }
+  });
 
-    await client.query('COMMIT');
+  eventBus.emit('finance.expense.submitted', {
+    expenseId, userId: ctx.userId, amount: existingAmount,
+  });
 
-    eventBus.emit('finance.expense.submitted', {
-      expenseId, userId: ctx.userId, amount: existing.rows[0].original_amount,
-    });
-
-    const updated = await getExpenseById(ctx, expenseId);
-    return updated!;
-  } catch (e) {
-    await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    client.release();
-  }
+  const updated = await getExpenseById(ctx, expenseId);
+  return updated!;
 }
 
 export async function approveExpense(
@@ -375,60 +390,62 @@ export async function approveExpense(
 ): Promise<Expense> {
   if (ctx.role === 'employee') throw new Error('Insufficient permissions to approve expenses');
 
-  const orgId = ctx.organizationId ?? '';
-  const client = await getClient();
-  try {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for approveExpense');
+
+  let approvedAmount = 0;
+  await runInTenant(tenantId, async (client) => {
     await client.query('BEGIN');
-
-    const expense = await client.query(
-      'SELECT * FROM reimbursement_requests WHERE id = $1 AND organization_id = $2 AND is_deleted = FALSE',
-      [expenseId, orgId],
-    );
-    if (!expense.rows[0]) throw new Error('Expense not found');
-
-    const step = await client.query(
-      `SELECT * FROM approval_steps
-       WHERE reimbursement_id = $1 AND status = 'pending'
-       ORDER BY step_order LIMIT 1`,
-      [expenseId],
-    );
-
-    if (step.rows[0]) {
-      await client.query(
-        `UPDATE approval_steps SET status = 'approved', decision_at = NOW() WHERE id = $1`,
-        [step.rows[0].id],
+    try {
+      const expense = await client.query(
+        'SELECT * FROM reimbursement_requests WHERE id = $1 AND is_deleted = FALSE',
+        [expenseId],
       );
-    }
+      if (!expense.rows[0]) throw new Error('Expense not found');
+      approvedAmount = expense.rows[0].original_amount;
 
-    await client.query(
-      `UPDATE reimbursement_requests
-       SET status = 'approved', approved_at = NOW(), updated_at = NOW(), updated_by = $1, current_approver_id = NULL
-       WHERE id = $2`,
-      [ctx.userId, expenseId],
-    );
-
-    if (expense.rows[0].budget_id) {
-      await client.query(
-        `UPDATE finance_budgets SET spent_amount = spent_amount + $1 WHERE id = $2`,
-        [expense.rows[0].original_amount, expense.rows[0].budget_id],
+      const step = await client.query(
+        `SELECT * FROM approval_steps
+         WHERE reimbursement_id = $1 AND status = 'pending'
+         ORDER BY step_order LIMIT 1`,
+        [expenseId],
       );
+
+      if (step.rows[0]) {
+        await client.query(
+          `UPDATE approval_steps SET status = 'approved', decision_at = NOW() WHERE id = $1`,
+          [step.rows[0].id],
+        );
+      }
+
+      await client.query(
+        `UPDATE reimbursement_requests
+         SET status = 'approved', approved_at = NOW(), updated_at = NOW(), updated_by = $1, current_approver_id = NULL
+         WHERE id = $2`,
+        [ctx.userId, expenseId],
+      );
+
+      if (expense.rows[0].budget_id) {
+        await client.query(
+          `UPDATE finance_budgets SET spent_amount = spent_amount + $1 WHERE id = $2`,
+          [expense.rows[0].original_amount, expense.rows[0].budget_id],
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
     }
+  });
 
-    await client.query('COMMIT');
+  eventBus.emit('finance.expense.approved', {
+    expenseId, approverId: ctx.userId, amount: approvedAmount,
+    organizationId: tenantId,
+  });
 
-    eventBus.emit('finance.expense.approved', {
-      expenseId, approverId: ctx.userId, amount: expense.rows[0].original_amount,
-      organizationId: ctx.organizationId ?? undefined,
-    });
-
-    const updated = await getExpenseById(ctx, expenseId);
-    return updated!;
-  } catch (e) {
-    await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    client.release();
-  }
+  const updated = await getExpenseById(ctx, expenseId);
+  return updated!;
 }
 
 export async function rejectExpense(
@@ -438,50 +455,50 @@ export async function rejectExpense(
 ): Promise<Expense> {
   if (ctx.role === 'employee') throw new Error('Insufficient permissions to reject expenses');
 
-  const orgId = ctx.organizationId ?? '';
-  const client = await getClient();
-  try {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for rejectExpense');
+
+  await runInTenant(tenantId, async (client) => {
     await client.query('BEGIN');
-
-    const expense = await client.query(
-      'SELECT * FROM reimbursement_requests WHERE id = $1 AND organization_id = $2 AND is_deleted = FALSE',
-      [expenseId, orgId],
-    );
-    if (!expense.rows[0]) throw new Error('Expense not found');
-
-    const step = await client.query(
-      `SELECT * FROM approval_steps
-       WHERE reimbursement_id = $1 AND status = 'pending'
-       ORDER BY step_order LIMIT 1`,
-      [expenseId],
-    );
-
-    if (step.rows[0]) {
-      await client.query(
-        `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
-        [reason, step.rows[0].id],
+    try {
+      const expense = await client.query(
+        'SELECT * FROM reimbursement_requests WHERE id = $1 AND is_deleted = FALSE',
+        [expenseId],
       );
+      if (!expense.rows[0]) throw new Error('Expense not found');
+
+      const step = await client.query(
+        `SELECT * FROM approval_steps
+         WHERE reimbursement_id = $1 AND status = 'pending'
+         ORDER BY step_order LIMIT 1`,
+        [expenseId],
+      );
+
+      if (step.rows[0]) {
+        await client.query(
+          `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
+          [reason, step.rows[0].id],
+        );
+      }
+
+      await client.query(
+        `UPDATE reimbursement_requests
+         SET status = 'rejected', rejection_reason = $1, updated_at = NOW(), updated_by = $2
+         WHERE id = $3`,
+        [reason, ctx.userId, expenseId],
+      );
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
     }
+  });
 
-    await client.query(
-      `UPDATE reimbursement_requests
-       SET status = 'rejected', rejection_reason = $1, updated_at = NOW(), updated_by = $2
-       WHERE id = $3`,
-      [reason, ctx.userId, expenseId],
-    );
+  eventBus.emit('finance.expense.rejected', { expenseId, approverId: ctx.userId, reason });
 
-    await client.query('COMMIT');
-
-    eventBus.emit('finance.expense.rejected', { expenseId, approverId: ctx.userId, reason });
-
-    const updated = await getExpenseById(ctx, expenseId);
-    return updated!;
-  } catch (e) {
-    await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    client.release();
-  }
+  const updated = await getExpenseById(ctx, expenseId);
+  return updated!;
 }
 
 export async function checkDuplicate(
@@ -490,6 +507,9 @@ export async function checkDuplicate(
   date: string,
   vendorId?: string,
 ): Promise<{ isDuplicate: boolean; matches: Expense[] }> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for checkDuplicate');
+
   const conditions = [
     'r.original_amount = $1',
     'r.is_deleted = FALSE',
@@ -498,10 +518,6 @@ export async function checkDuplicate(
   const params: unknown[] = [amount, date];
   let idx = 3;
 
-  if (ctx.organizationId) {
-    conditions.push(`r.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
   if (vendorId) {
     conditions.push(`r.vendor_id = $${idx++}`);
     params.push(vendorId);
@@ -513,13 +529,14 @@ export async function checkDuplicate(
     params.push(...rbac.params);
   }
 
-  const result = await query(
-    `SELECT r.* FROM reimbursement_requests r WHERE ${conditions.join(' AND ')} LIMIT 10`,
-    params,
-  );
-
-  return {
-    isDuplicate: result.rows.length > 0,
-    matches: result.rows as Expense[],
-  };
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT r.* FROM reimbursement_requests r WHERE ${conditions.join(' AND ')} LIMIT 10`,
+      params,
+    );
+    return {
+      isDuplicate: result.rows.length > 0,
+      matches: result.rows as Expense[],
+    };
+  });
 }

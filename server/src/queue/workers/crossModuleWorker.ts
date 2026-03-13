@@ -339,6 +339,8 @@ async function createEmployeeFromHire(payload: Record<string, unknown>): Promise
     departmentId: departmentId ?? '',
     managerId: job.hiring_manager_id ?? undefined,
     role: 'employee',
+    organizationId,
+    name: fullName,
   });
 }
 

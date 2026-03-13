@@ -33,8 +33,10 @@ export interface EventMap {
   'knowledge.search.executed': { query: string; userId: string; resultCount: number };
 
   // ── HR / People ──
-  'hr.employee.onboarded': { userId: string; departmentId: string; managerId?: string; role: string };
+  'hr.employee.onboarded': { userId: string; departmentId: string; managerId?: string; role: string; organizationId?: string; name?: string };
+  'hr.employee.created': { userId: string; name: string; role: string; department: string; tenantId: string };
   'hr.employee.offboarded': { userId: string; departmentId: string };
+  'hr.pto.approved': { userId: string; ptoId: string; startDate: string; endDate: string; days: number };
   'hr.performance_review.completed': { userId: string; reviewerId: string; score: number };
   'hr.team.changed': { userId: string; oldTeamId?: string; newTeamId: string };
 
@@ -52,12 +54,13 @@ export interface EventMap {
   'crm.contact.created': { contactId: string; ownerId: string; email?: string; companyId?: string };
   'crm.contact.updated': { contactId: string; updatedBy: string };
   'crm.company.created': { companyId: string; name: string; createdBy: string };
-  'crm.deal.created': { dealId: string; title: string; amount: number; currency: string; ownerId: string; companyId?: string; stageId: string };
+  'crm.deal.created': { dealId: string; title: string; amount: number; currency: string; ownerId: string; companyId?: string; stageId: string; tenantId?: string };
+  'crm.deal.assigned': { dealId: string; assigneeId: string; role?: string };
   'crm.deal.stage_changed': { dealId: string; oldStage: string; newStage: string; amount: number; movedBy: string };
   'crm.deal.won': { dealId: string; amount: number; currency: string; companyId?: string; ownerId: string; closedAt: string; organizationId?: string };
   'crm.deal.lost': { dealId: string; amount: number; reason?: string; ownerId: string };
-  'crm.deal.updated': { dealId: string; updatedBy: string; changes: string[] };
-  'crm.activity.logged': { activityId: string; dealId?: string; contactId?: string; userId: string; type: 'call' | 'email' | 'meeting' | 'note' };
+  'crm.deal.updated': { dealId: string; updatedBy: string; changes: string[]; tenantId?: string; name?: string; value?: number; stage?: string; description?: string };
+  'crm.activity.logged': { activityId: string; dealId?: string; contactId?: string; userId: string; type: 'call' | 'email' | 'meeting' | 'note'; tenantId?: string; notes?: string };
   'crm.forecast.updated': { pipelineId: string; totalValue: number; weightedValue: number; period: string };
 
   // ── Marketing ──

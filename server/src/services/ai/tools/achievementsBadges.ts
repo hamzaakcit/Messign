@@ -12,7 +12,15 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const achievementsLeaderboardTool: Tool = {
-  name: 'get_achievements_leaderboard',
+  name: 'achievements:get_achievements_leaderboard',
+  metadata: {
+    namespace: 'achievements',
+    name: 'get_achievements_leaderboard',
+    summary: 'Leaderboard: XP, badges, rankings, gamification stats.',
+    tags: ['achievements', 'leaderboard', 'xp', 'badges', 'gamification'],
+    alwaysLoaded: false,
+    parameterHints: 'scope?: my|team|company',
+  },
   category: 'achievements',
 
   description: `Get leaderboard rankings, badges earned, points, and achievement progress.

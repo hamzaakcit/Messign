@@ -12,8 +12,17 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const approvalQueueTool: Tool = {
-  name: 'get_approval_queue',
+  name: 'analytics:get_approval_queue',
   category: 'system',
+
+  metadata: {
+    namespace: 'analytics',
+    name: 'get_approval_queue',
+    summary: 'Pending approvals: reimbursements, documents, invoices needing user review.',
+    tags: ['analytics', 'approvals', 'pending', 'review'],
+    alwaysLoaded: false,
+    parameterHints: 'domain?: all|reimbursements|documents|invoices',
+  },
 
   description: `Get all pending items that need the user's approval — reimbursements, knowledge documents, and other approvable items across the system.
 

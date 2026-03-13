@@ -24,7 +24,15 @@ function buildReportDateFilter(period: string): Date {
 }
 
 const departmentReportTool: Tool = {
-  name: 'get_department_report',
+  name: 'analytics:get_department_report',
+  metadata: {
+    namespace: 'analytics',
+    name: 'get_department_report',
+    summary: 'Department report: headcount, metrics, performance by department.',
+    tags: ['analytics', 'department', 'report'],
+    alwaysLoaded: false,
+    parameterHints: 'department_id?: string, time_period?: string',
+  },
   category: 'analytics',
 
   description: `Generate an executive-level department or company-wide report combining team metrics, project health, financial summary, and activity trends.

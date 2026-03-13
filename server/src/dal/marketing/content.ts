@@ -1,7 +1,12 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Content {
   id: string;
@@ -110,134 +115,144 @@ export async function listContent(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Content>> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listContent');
 
-  if (ctx.organizationId) {
-    conditions.push(`mc.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-  if (filters?.status) {
-    conditions.push(`mc.status = $${idx++}`);
-    params.push(filters.status);
-  }
-  if (filters?.contentType) {
-    conditions.push(`mc.content_type = $${idx++}`);
-    params.push(filters.contentType);
-  }
-  if (filters?.channel) {
-    conditions.push(`mc.channel = $${idx++}`);
-    params.push(filters.channel);
-  }
-  if (filters?.campaignId) {
-    conditions.push(`mc.campaign_id = $${idx++}`);
-    params.push(filters.campaignId);
-  }
-  if (filters?.authorId) {
-    conditions.push(`mc.author_id = $${idx++}`);
-    params.push(filters.authorId);
-  }
-  if (filters?.scheduledDateRange?.from) {
-    conditions.push(`mc.scheduled_date >= $${idx++}::date`);
-    params.push(filters.scheduledDateRange.from);
-  }
-  if (filters?.scheduledDateRange?.to) {
-    conditions.push(`mc.scheduled_date <= $${idx++}::date`);
-    params.push(filters.scheduledDateRange.to);
-  }
+  return runInTenant(tenantId, async (client) => {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
 
-  const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
-  const sortColumns: Record<string, string> = {
-    title: 'mc.title',
-    status: 'mc.status',
-    content_type: 'mc.content_type',
-    channel: 'mc.channel',
-    scheduled_date: 'mc.scheduled_date',
-    created: 'mc.created_at',
-    engagement: 'mc.engagement',
-  };
-  const orderBy = sortColumns[sort?.field ?? 'scheduled_date'] ?? 'mc.scheduled_date';
-  const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+      if (filters?.status) {
+      conditions.push(`mc.status = $${idx++}`);
+      params.push(filters.status);
+    }
+    if (filters?.contentType) {
+      conditions.push(`mc.content_type = $${idx++}`);
+      params.push(filters.contentType);
+    }
+    if (filters?.channel) {
+      conditions.push(`mc.channel = $${idx++}`);
+      params.push(filters.channel);
+    }
+    if (filters?.campaignId) {
+      conditions.push(`mc.campaign_id = $${idx++}`);
+      params.push(filters.campaignId);
+    }
+    if (filters?.authorId) {
+      conditions.push(`mc.author_id = $${idx++}`);
+      params.push(filters.authorId);
+    }
+    if (filters?.scheduledDateRange?.from) {
+      conditions.push(`mc.scheduled_date >= $${idx++}::date`);
+      params.push(filters.scheduledDateRange.from);
+    }
+    if (filters?.scheduledDateRange?.to) {
+      conditions.push(`mc.scheduled_date <= $${idx++}::date`);
+      params.push(filters.scheduledDateRange.to);
+    }
 
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*)::int AS count
-     FROM marketing_content mc
-     WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+    const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+    const sortColumns: Record<string, string> = {
+      title: 'mc.title',
+      status: 'mc.status',
+      content_type: 'mc.content_type',
+      channel: 'mc.channel',
+      scheduled_date: 'mc.scheduled_date',
+      created: 'mc.created_at',
+      engagement: 'mc.engagement',
+    };
+    const orderBy = sortColumns[sort?.field ?? 'scheduled_date'] ?? 'mc.scheduled_date';
+    const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
 
-  const pg = paginationClause(page, pageSize, idx);
-  const result = await query(
-    `SELECT
-       mc.*,
-       c.name AS campaign_name,
-       au.full_name AS author_name,
-       rv.full_name AS reviewer_name
-     FROM marketing_content mc
-     LEFT JOIN marketing_campaigns c ON c.id = mc.campaign_id
-     LEFT JOIN reimbursement_users au ON au.id = mc.author_id
-     LEFT JOIN reimbursement_users rv ON rv.id = mc.reviewer_id
-     WHERE ${whereSQL}
-     ORDER BY ${orderBy} ${direction} NULLS LAST, mc.created_at DESC
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count
+       FROM marketing_content mc
+       WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  return {
-    data: result.rows.map((row) => mapContent(row as Record<string, unknown>)),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    const pg = paginationClause(page, pageSize, idx);
+    const result = await client.query(
+      `SELECT
+         mc.*,
+         c.name AS campaign_name,
+         au.full_name AS author_name,
+         rv.full_name AS reviewer_name
+       FROM marketing_content mc
+       LEFT JOIN marketing_campaigns c ON c.id = mc.campaign_id
+       LEFT JOIN reimbursement_users au ON au.id = mc.author_id
+       LEFT JOIN reimbursement_users rv ON rv.id = mc.reviewer_id
+       WHERE ${whereSQL}
+       ORDER BY ${orderBy} ${direction} NULLS LAST, mc.created_at DESC
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+
+    return {
+      data: result.rows.map((row) => mapContent(row as Record<string, unknown>)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getContentById(ctx: CallerContext, contentId: string): Promise<Content | null> {
-  const result = await query(
-    `SELECT
-       mc.*,
-       c.name AS campaign_name,
-       au.full_name AS author_name,
-       rv.full_name AS reviewer_name
-     FROM marketing_content mc
-     LEFT JOIN marketing_campaigns c ON c.id = mc.campaign_id
-     LEFT JOIN reimbursement_users au ON au.id = mc.author_id
-     LEFT JOIN reimbursement_users rv ON rv.id = mc.reviewer_id
-     WHERE mc.id = $1
-       AND ($2::uuid IS NULL OR mc.organization_id = $2::uuid)
-     LIMIT 1`,
-    [contentId, ctx.organizationId ?? null],
-  );
-  return result.rows[0] ? mapContent(result.rows[0] as Record<string, unknown>) : null;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getContentById');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT
+         mc.*,
+         c.name AS campaign_name,
+         au.full_name AS author_name,
+         rv.full_name AS reviewer_name
+       FROM marketing_content mc
+       LEFT JOIN marketing_campaigns c ON c.id = mc.campaign_id
+       LEFT JOIN reimbursement_users au ON au.id = mc.author_id
+       LEFT JOIN reimbursement_users rv ON rv.id = mc.reviewer_id
+       WHERE mc.id = $1
+       LIMIT 1`,
+      [contentId],
+    );
+    return result.rows[0] ? mapContent(result.rows[0] as Record<string, unknown>) : null;
+  });
 }
 
 export async function createContent(ctx: CallerContext, data: CreateContentInput): Promise<Content> {
-  const result = await query(
-    `INSERT INTO marketing_content (
-       organization_id, campaign_id, title, content_type, channel, status, body,
-       body_html, scheduled_date, scheduled_time, author_id, reviewer_id, tags
-     )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-     RETURNING *`,
-    [
-      ctx.organizationId ?? null,
-      data.campaign_id ?? null,
-      data.title,
-      data.content_type,
-      data.channel ?? null,
-      data.status ?? 'idea',
-      data.body ?? null,
-      data.body_html ?? null,
-      data.scheduled_date ?? null,
-      data.scheduled_time ?? null,
-      data.author_id ?? ctx.userId,
-      data.reviewer_id ?? null,
-      JSON.stringify(data.tags ?? []),
-    ],
-  );
-  return (await getContentById(ctx, String(result.rows[0].id))) ?? mapContent(result.rows[0] as Record<string, unknown>);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createContent');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `INSERT INTO marketing_content (
+         organization_id, campaign_id, title, content_type, channel, status, body,
+         body_html, scheduled_date, scheduled_time, author_id, reviewer_id, tags
+       )
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       RETURNING *`,
+      [
+        tenantId,
+        data.campaign_id ?? null,
+        data.title,
+        data.content_type,
+        data.channel ?? null,
+        data.status ?? 'idea',
+        data.body ?? null,
+        data.body_html ?? null,
+        data.scheduled_date ?? null,
+        data.scheduled_time ?? null,
+        data.author_id ?? ctx.userId,
+        data.reviewer_id ?? null,
+        JSON.stringify(data.tags ?? []),
+      ],
+    );
+    return (await getContentById(ctx, String(result.rows[0].id))) ?? mapContent(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function updateContent(
@@ -277,20 +292,22 @@ export async function updateContent(
     }
   }
   sets.push('updated_at = NOW()');
-  params.push(contentId, ctx.organizationId ?? null);
+  params.push(contentId);
 
-  const result = await query(
-    `UPDATE marketing_content
-     SET ${sets.join(', ')}
-     WHERE id = $${idx++}
-       AND ($${idx}::uuid IS NULL OR organization_id = $${idx}::uuid)
-     RETURNING *`,
-    params,
-  );
-  if (!result.rows[0]) {
-    throw new Error('Content not found');
-  }
-  return (await getContentById(ctx, contentId)) ?? mapContent(result.rows[0] as Record<string, unknown>);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateContent');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE marketing_content
+       SET ${sets.join(', ')}
+       WHERE id = $${idx}
+       RETURNING *`,
+      params,
+    );
+    if (!result.rows[0]) throw new Error('Content not found');
+    return (await getContentById(ctx, contentId)) ?? mapContent(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function publishContent(ctx: CallerContext, contentId: string): Promise<Content> {

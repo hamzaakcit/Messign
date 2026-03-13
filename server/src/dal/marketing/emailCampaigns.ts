@@ -1,7 +1,12 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, PaginatedResult } from '../types.js';
 import { paginationClause } from '../helpers.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface EmailCampaign {
   id: string;
@@ -102,68 +107,77 @@ export async function listEmailCampaigns(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<EmailCampaign>> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listEmailCampaigns');
 
-  if (ctx.organizationId) {
-    conditions.push(`c.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-  if (filters?.status) {
-    conditions.push(`mec.status = $${idx++}`);
-    params.push(filters.status);
-  }
-  if (filters?.campaignId) {
-    conditions.push(`mec.campaign_id = $${idx++}`);
-    params.push(filters.campaignId);
-  }
+  return runInTenant(tenantId, async (client) => {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
 
-  const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*)::int AS count
-     FROM marketing_email_campaigns mec
-     LEFT JOIN marketing_campaigns c ON c.id = mec.campaign_id
-     WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+      if (filters?.status) {
+      conditions.push(`mec.status = $${idx++}`);
+      params.push(filters.status);
+    }
+    if (filters?.campaignId) {
+      conditions.push(`mec.campaign_id = $${idx++}`);
+      params.push(filters.campaignId);
+    }
 
-  const pg = paginationClause(page, pageSize, idx);
-  const result = await query(
-    `SELECT mec.*, c.name AS campaign_name
-     FROM marketing_email_campaigns mec
-     LEFT JOIN marketing_campaigns c ON c.id = mec.campaign_id
-     WHERE ${whereSQL}
-     ORDER BY mec.created_at DESC
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+    const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count
+       FROM marketing_email_campaigns mec
+       LEFT JOIN marketing_campaigns c ON c.id = mec.campaign_id
+       WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  return {
-    data: result.rows.map((row) => mapEmailCampaign(row as Record<string, unknown>)),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    const pg = paginationClause(page, pageSize, idx);
+    const result = await client.query(
+      `SELECT mec.*, c.name AS campaign_name
+       FROM marketing_email_campaigns mec
+       LEFT JOIN marketing_campaigns c ON c.id = mec.campaign_id
+       WHERE ${whereSQL}
+       ORDER BY mec.created_at DESC
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+
+    return {
+      data: result.rows.map((row) => mapEmailCampaign(row as Record<string, unknown>)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getEmailCampaignById(ctx: CallerContext, id: string): Promise<EmailCampaign | null> {
-  const result = await query(
-    `SELECT mec.*, c.name AS campaign_name
-     FROM marketing_email_campaigns mec
-     LEFT JOIN marketing_campaigns c ON c.id = mec.campaign_id
-     WHERE mec.id = $1
-       AND ($2::uuid IS NULL OR c.organization_id = $2::uuid OR mec.campaign_id IS NULL)
-     LIMIT 1`,
-    [id, ctx.organizationId ?? null],
-  );
-  return result.rows[0] ? mapEmailCampaign(result.rows[0] as Record<string, unknown>) : null;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getEmailCampaignById');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT mec.*, c.name AS campaign_name
+       FROM marketing_email_campaigns mec
+       LEFT JOIN marketing_campaigns c ON c.id = mec.campaign_id
+       WHERE mec.id = $1
+       LIMIT 1`,
+      [id],
+    );
+    return result.rows[0] ? mapEmailCampaign(result.rows[0] as Record<string, unknown>) : null;
+  });
 }
 
 export async function createEmailCampaign(ctx: CallerContext, data: CreateEmailCampaignInput): Promise<EmailCampaign> {
-  const result = await query(
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createEmailCampaign');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
     `INSERT INTO marketing_email_campaigns (
        campaign_id, name, subject, body_html, body_text, from_name, from_email,
        status, scheduled_at, recipient_count, audience_filter, created_by
@@ -185,7 +199,8 @@ export async function createEmailCampaign(ctx: CallerContext, data: CreateEmailC
       ctx.userId,
     ],
   );
-  return (await getEmailCampaignById(ctx, String(result.rows[0].id))) ?? mapEmailCampaign(result.rows[0] as Record<string, unknown>);
+    return (await getEmailCampaignById(ctx, String(result.rows[0].id))) ?? mapEmailCampaign(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function updateEmailCampaign(
@@ -193,6 +208,9 @@ export async function updateEmailCampaign(
   id: string,
   data: UpdateEmailCampaignInput,
 ): Promise<EmailCampaign> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateEmailCampaign');
+
   const fields: Array<[string, unknown]> = [
     ['campaign_id', data.campaign_id],
     ['name', data.name],
@@ -221,32 +239,35 @@ export async function updateEmailCampaign(
   sets.push('updated_at = NOW()');
   params.push(id);
 
-  const result = await query(
-    `UPDATE marketing_email_campaigns
-     SET ${sets.join(', ')}
-     WHERE id = $${idx}
-     RETURNING *`,
-    params,
-  );
-  if (!result.rows[0]) {
-    throw new Error('Email campaign not found');
-  }
-  return (await getEmailCampaignById(ctx, id)) ?? mapEmailCampaign(result.rows[0] as Record<string, unknown>);
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE marketing_email_campaigns
+       SET ${sets.join(', ')}
+       WHERE id = $${idx}
+       RETURNING *`,
+      params,
+    );
+    if (!result.rows[0]) throw new Error('Email campaign not found');
+    return (await getEmailCampaignById(ctx, id)) ?? mapEmailCampaign(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function sendEmailCampaign(ctx: CallerContext, id: string): Promise<EmailCampaign> {
-  const emailCampaign = await updateEmailCampaign(ctx, id, {
-    status: 'sent',
-  });
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for sendEmailCampaign');
 
-  await query(
-    `UPDATE marketing_email_campaigns
-     SET sent_at = NOW(),
-         delivered = recipient_count,
-         updated_at = NOW()
-     WHERE id = $1`,
-    [id],
-  );
+  const emailCampaign = await updateEmailCampaign(ctx, id, { status: 'sent' });
+
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE marketing_email_campaigns
+       SET sent_at = NOW(),
+           delivered = recipient_count,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id],
+    );
+  });
 
   const updated = await getEmailCampaignById(ctx, id);
   const resolved = updated ?? emailCampaign;
@@ -263,28 +284,31 @@ export async function updateEmailMetrics(
   id: string,
   metrics: EmailMetricsInput,
 ): Promise<EmailCampaign> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateEmailMetrics');
+
   const current = await getEmailCampaignById(ctx, id);
-  if (!current) {
-    throw new Error('Email campaign not found');
-  }
+  if (!current) throw new Error('Email campaign not found');
 
   const delivered = metrics.delivered ?? current.recipient_count;
   const openRate = delivered > 0 ? Number(((metrics.opens / delivered) * 100).toFixed(2)) : 0;
   const clickRate = delivered > 0 ? Number(((metrics.clicks / delivered) * 100).toFixed(2)) : 0;
 
-  await query(
-    `UPDATE marketing_email_campaigns
-     SET delivered = $2,
-         opened = $3,
-         clicked = $4,
-         bounced = $5,
-         unsubscribed = $6,
-         open_rate = $7,
-         click_rate = $8,
-         updated_at = NOW()
-     WHERE id = $1`,
-    [id, delivered, metrics.opens, metrics.clicks, metrics.bounces, metrics.unsubscribes, openRate, clickRate],
-  );
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE marketing_email_campaigns
+       SET delivered = $2,
+           opened = $3,
+           clicked = $4,
+           bounced = $5,
+           unsubscribed = $6,
+           open_rate = $7,
+           click_rate = $8,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id, delivered, metrics.opens, metrics.clicks, metrics.bounces, metrics.unsubscribes, openRate, clickRate],
+    );
+  });
 
   eventBus.emit('marketing.email.metrics_updated', {
     emailCampaignId: id,

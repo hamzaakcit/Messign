@@ -13,8 +13,17 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const tasksByUserTool: Tool = {
-  name: 'get_tasks_by_user',
+  name: 'projects:get_tasks_by_user',
   category: 'projects',
+
+  metadata: {
+    namespace: 'projects',
+    name: 'get_tasks_by_user',
+    summary: 'Tasks assigned to a user. Status, priority, due date, project, overdue flag.',
+    tags: ['projects', 'tasks', 'assignments', 'workload'],
+    alwaysLoaded: false,
+    parameterHints: 'user_identifier: string, status_filter?: all|active|completed|overdue|blocked|in_progress|todo, time_scope?: all|today|this_week|upcoming|overdue',
+  },
 
   description: `Get all tasks assigned to or created by a specific user.
 Returns: task title, status, priority, due date, project name, and whether overdue.

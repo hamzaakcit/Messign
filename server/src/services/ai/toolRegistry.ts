@@ -3,9 +3,13 @@
  *
  * Central registry for all AI tools. Tools self-register on import.
  * The Intent Router reads the registry to tell the LLM what's available.
+ *
+ * Split: always-loaded tools (sent on every request) vs deferred tools
+ * (loaded via core:search_tools + core:activate_tool).
  */
 
 import { getCached, setCache } from './queryCache.js';
+import { toolIndex } from './tools/toolIndex.js';
 import type {
   Tool,
   ToolContext,
@@ -25,7 +29,9 @@ const registry: Map<string, Tool> = new Map();
 
 /**
  * Register a tool in the global registry.
- * Called by each tool file at module level.
+ * Called by each tool file at module level during startup/registration.
+ * Extracts ToolMetadata from the tool configuration and populates toolIndex
+ * using the tool's namespaced name as the key.
  */
 export function registerTool(tool: Tool): void {
   if (registry.has(tool.name)) {
@@ -39,6 +45,20 @@ export function registerTool(tool: Tool): void {
   }
 
   registry.set(tool.name, tool);
+
+  if (tool.metadata) {
+    const metadata = {
+      namespace: tool.metadata.namespace,
+      name: tool.metadata.name,
+      summary: tool.metadata.summary,
+      tags: tool.metadata.tags,
+      alwaysLoaded: tool.metadata.alwaysLoaded,
+      parameterHints: tool.metadata.parameterHints,
+      requiredRoles: tool.requiredRoles ?? [],
+    };
+    toolIndex.set(tool.name, metadata);
+  }
+
   console.log(`[AI Registry] Registered tool: ${tool.name} (${tool.category})`);
 }
 
@@ -52,6 +72,31 @@ export function getAllTools(): Tool[] {
 
 export function getTool(name: string): Tool | undefined {
   return registry.get(name);
+}
+
+export interface FullToolDefinition {
+  requiredRoles: string[];
+  llmSchema: LLMToolDefinition;
+}
+
+/**
+ * Get a tool's full definition for dynamic activation (core:activate_tool).
+ * Returns the LLM schema and required roles for RBAC.
+ */
+export function getFullToolDefinition(name: string): FullToolDefinition | null {
+  const tool = registry.get(name);
+  if (!tool) return null;
+  return {
+    requiredRoles: tool.requiredRoles ?? [],
+    llmSchema: {
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    },
+  };
 }
 
 export function getToolCount(): number {
@@ -70,6 +115,46 @@ export function getToolsForLLM(): LLMToolDefinition[] {
       parameters: tool.parameters,
     },
   }));
+}
+
+/**
+ * Returns ONLY always-loaded tool schemas for the initial LLM call.
+ * Use this for a reduced token payload; deferred tools are loaded via core:search_tools + core:activate_tool.
+ * Filters by userRoles for RBAC.
+ */
+export function getBaseToolsForLLM(userRoles: string[]): LLMToolDefinition[] {
+  const tools: LLMToolDefinition[] = [];
+  for (const [name, metadata] of toolIndex) {
+    if (!metadata.alwaysLoaded) continue;
+    const tool = registry.get(name);
+    if (!tool) continue;
+    const requiredRoles = metadata.requiredRoles ?? tool.requiredRoles ?? [];
+    if (requiredRoles.length > 0) {
+      const hasRole = requiredRoles.some((r) => userRoles.includes(r));
+      if (!hasRole) continue;
+    }
+    tools.push({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    });
+  }
+  return tools;
+}
+
+/**
+ * Call once at startup after all tools register.
+ * Rebuilds the search index for core:search_tools.
+ * Uses dynamic import to avoid circular dependency (searchTools imports registerTool from this module).
+ */
+export async function finalizeRegistry(): Promise<void> {
+  const { rebuildSearchIndex } = await import('./tools/core/searchTools.js');
+  rebuildSearchIndex();
+  const alwaysCount = Array.from(toolIndex.values()).filter((m) => m.alwaysLoaded).length;
+  console.log(`[AI Registry] ${registry.size} tools registered, ${alwaysCount} always-loaded`);
 }
 
 // ============================================================

@@ -1,7 +1,12 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext } from '../types.js';
 import { createEntry, type TimeEntry } from './entries.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Timer {
   id: string;
@@ -44,113 +49,126 @@ function roundToQuarterHours(durationSeconds: number): number {
 }
 
 export async function getActiveTimer(ctx: CallerContext): Promise<Timer | null> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT
-       id::text AS id,
-       organization_id::text AS organization_id,
-       user_id::text AS user_id,
-       project_id,
-       task_id,
-       category_id::text AS category_id,
-       description,
-       is_billable,
-       started_at::text AS started_at,
-       stopped_at::text AS stopped_at,
-       duration_seconds,
-       is_active,
-       created_at::text AS created_at
-     FROM time_timers
-     WHERE organization_id = $1::uuid
-       AND user_id = $2::uuid
-       AND is_active = TRUE
-     ORDER BY started_at DESC
-     LIMIT 1`,
-    [ctx.organizationId, ctx.userId],
-  );
-  return result.rows[0] ? mapTimer(result.rows[0]) : null;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getActiveTimer');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT
+         id::text AS id,
+         organization_id::text AS organization_id,
+         user_id::text AS user_id,
+         project_id,
+         task_id,
+         category_id::text AS category_id,
+         description,
+         is_billable,
+         started_at::text AS started_at,
+         stopped_at::text AS stopped_at,
+         duration_seconds,
+         is_active,
+         created_at::text AS created_at
+       FROM time_timers
+       WHERE user_id = $1::uuid
+         AND is_active = TRUE
+       ORDER BY started_at DESC
+       LIMIT 1`,
+      [ctx.userId],
+    );
+    return result.rows[0] ? mapTimer(result.rows[0]) : null;
+  });
 }
 
 export async function startTimer(
   ctx: CallerContext,
   data: { projectId?: string; taskId?: string; categoryId?: string; description?: string; isBillable?: boolean },
 ): Promise<Timer> {
-  if (!ctx.organizationId) throw new Error('organizationId is required');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('organizationId is required');
+
   const active = await getActiveTimer(ctx);
   if (active) {
     await stopTimer(ctx, active.id);
   }
 
-  const result = await query<Record<string, unknown>>(
-    `INSERT INTO time_timers (
-      organization_id, user_id, project_id, task_id, category_id, description, is_billable, started_at, is_active
-    )
-    VALUES ($1::uuid, $2::uuid, $3, $4, $5::uuid, $6, $7, NOW(), TRUE)
-    RETURNING
-      id::text AS id,
-      organization_id::text AS organization_id,
-      user_id::text AS user_id,
-      project_id,
-      task_id,
-      category_id::text AS category_id,
-      description,
-      is_billable,
-      started_at::text AS started_at,
-      stopped_at::text AS stopped_at,
-      duration_seconds,
-      is_active,
-      created_at::text AS created_at`,
-    [
-      ctx.organizationId,
-      ctx.userId,
-      data.projectId ?? null,
-      data.taskId ?? null,
-      data.categoryId ?? null,
-      data.description ?? null,
-      Boolean(data.isBillable),
-    ],
-  );
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `INSERT INTO time_timers (
+        organization_id, user_id, project_id, task_id, category_id, description, is_billable, started_at, is_active
+      )
+      VALUES ($1::uuid, $2::uuid, $3, $4, $5::uuid, $6, $7, NOW(), TRUE)
+      RETURNING
+        id::text AS id,
+        organization_id::text AS organization_id,
+        user_id::text AS user_id,
+        project_id,
+        task_id,
+        category_id::text AS category_id,
+        description,
+        is_billable,
+        started_at::text AS started_at,
+        stopped_at::text AS stopped_at,
+        duration_seconds,
+        is_active,
+        created_at::text AS created_at`,
+      [
+        tenantId,
+        ctx.userId,
+        data.projectId ?? null,
+        data.taskId ?? null,
+        data.categoryId ?? null,
+        data.description ?? null,
+        Boolean(data.isBillable),
+      ],
+    );
 
-  const timer = mapTimer(result.rows[0]);
-  eventBus.emit('time.timer.started', {
-    timerId: timer.id,
-    userId: timer.user_id,
-    projectId: timer.project_id ?? undefined,
-    taskId: timer.task_id ?? undefined,
-    startedAt: timer.started_at,
+    const timer = mapTimer(result.rows[0]);
+    eventBus.emit('time.timer.started', {
+      timerId: timer.id,
+      userId: timer.user_id,
+      projectId: timer.project_id ?? undefined,
+      taskId: timer.task_id ?? undefined,
+      startedAt: timer.started_at,
+    });
+    return timer;
   });
-  return timer;
 }
 
 export async function stopTimer(ctx: CallerContext, timerId: string): Promise<{ timer: Timer; entry?: TimeEntry }> {
-  const timerResult = await query<Record<string, unknown>>(
-    `SELECT
-       id::text AS id,
-       organization_id::text AS organization_id,
-       user_id::text AS user_id,
-       project_id,
-       task_id,
-       category_id::text AS category_id,
-       description,
-       is_billable,
-       started_at::text AS started_at,
-       stopped_at::text AS stopped_at,
-       duration_seconds,
-       is_active,
-       created_at::text AS created_at
-     FROM time_timers
-     WHERE id = $1::uuid
-       AND organization_id = $2::uuid
-       AND user_id = $3::uuid
-     LIMIT 1`,
-    [timerId, ctx.organizationId, ctx.userId],
-  );
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for stopTimer');
+
+  const timerResult = await runInTenant(tenantId, async (client) => {
+    return client.query<Record<string, unknown>>(
+      `SELECT
+         id::text AS id,
+         organization_id::text AS organization_id,
+         user_id::text AS user_id,
+         project_id,
+         task_id,
+         category_id::text AS category_id,
+         description,
+         is_billable,
+         started_at::text AS started_at,
+         stopped_at::text AS stopped_at,
+         duration_seconds,
+         is_active,
+         created_at::text AS created_at
+       FROM time_timers
+       WHERE id = $1::uuid
+         AND user_id = $2::uuid
+       LIMIT 1`,
+      [timerId, ctx.userId],
+    );
+  });
   if (!timerResult.rows[0]) throw new Error('Timer not found');
   const existing = mapTimer(timerResult.rows[0]);
   if (!existing.is_active) {
     return { timer: existing };
   }
 
-  const stopResult = await query<Record<string, unknown>>(
+  const stopResult = await runInTenant(tenantId, async (client) => {
+    return client.query<Record<string, unknown>>(
     `UPDATE time_timers
      SET stopped_at = NOW(),
          duration_seconds = EXTRACT(EPOCH FROM (NOW() - started_at))::int,
@@ -170,8 +188,9 @@ export async function stopTimer(ctx: CallerContext, timerId: string): Promise<{ 
        duration_seconds,
        is_active,
        created_at::text AS created_at`,
-    [timerId],
-  );
+      [timerId],
+    );
+  });
   const timer = mapTimer(stopResult.rows[0]);
   const durationSeconds = timer.duration_seconds ?? 0;
 
@@ -200,20 +219,28 @@ export async function stopTimer(ctx: CallerContext, timerId: string): Promise<{ 
 }
 
 export async function discardTimer(ctx: CallerContext, timerId: string): Promise<void> {
-  await query(
-    `UPDATE time_timers
-     SET stopped_at = NOW(),
-         duration_seconds = EXTRACT(EPOCH FROM (NOW() - started_at))::int,
-         is_active = FALSE
-     WHERE id = $1::uuid
-       AND organization_id = $2::uuid
-       AND user_id = $3::uuid`,
-    [timerId, ctx.organizationId, ctx.userId],
-  );
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for discardTimer');
+
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE time_timers
+       SET stopped_at = NOW(),
+           duration_seconds = EXTRACT(EPOCH FROM (NOW() - started_at))::int,
+           is_active = FALSE
+       WHERE id = $1::uuid
+         AND user_id = $2::uuid`,
+      [timerId, ctx.userId],
+    );
+  });
 }
 
-export async function getTimerDuration(timerId: string): Promise<number> {
-  const result = await query<{ duration_seconds: string }>(
+export async function getTimerDuration(ctx: CallerContext, timerId: string): Promise<number> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getTimerDuration');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<{ duration_seconds: string }>(
     `SELECT
       CASE
         WHEN is_active THEN EXTRACT(EPOCH FROM (NOW() - started_at))::int::text
@@ -222,7 +249,8 @@ export async function getTimerDuration(timerId: string): Promise<number> {
      FROM time_timers
      WHERE id = $1::uuid
      LIMIT 1`,
-    [timerId],
-  );
-  return Number(result.rows[0]?.duration_seconds ?? 0);
+      [timerId],
+    );
+    return Number(result.rows[0]?.duration_seconds ?? 0);
+  });
 }

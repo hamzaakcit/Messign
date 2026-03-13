@@ -11,7 +11,15 @@ import { truncateText } from '../dataSanitizer.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const meetingDecisionsTool: Tool = {
-  name: 'get_meeting_decisions',
+  name: 'meeting:get_meeting_decisions',
+  metadata: {
+    namespace: 'meeting',
+    name: 'get_meeting_decisions',
+    summary: 'Meeting decisions, action items, and key outcomes from notes.',
+    tags: ['meeting', 'decisions', 'notes', 'action-items'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'knowledge',
 
   description: `Search meeting notes for decisions, action items, and discussion outcomes.

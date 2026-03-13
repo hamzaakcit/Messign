@@ -25,7 +25,8 @@
     "db:embed-knowledge": "tsx src/db/embedKnowledgeDocs.ts",
     "kpi:validate": "tsx src/scripts/validateExecutiveKpis.ts",
     "audit:perf": "tsx src/scripts/performanceAudit.ts",
-    "launch:check": "tsx src/scripts/launchChecklist.ts"
+    "launch:check": "tsx src/scripts/launchChecklist.ts",
+    "litellm": "python3 -m litellm --config ../litellm/config.yaml"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
@@ -38,6 +39,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^8.3.1",
+    "fuse.js": "^7.1.0",
     "helmet": "^8.1.0",
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.3",

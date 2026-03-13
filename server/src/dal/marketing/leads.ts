@@ -1,10 +1,15 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
-import * as crmContacts from '../crm/contacts.js';
-import * as crmDeals from '../crm/deals.js';
+import * as crmContacts from '../../modules/crm/dal/contacts.js';
+import * as crmDeals from '../../modules/crm/dal/deals.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Lead {
   id: string;
@@ -131,16 +136,11 @@ async function refreshRoiView(): Promise<void> {
   await refreshMaterializedViews([ANALYTICS_VIEWS.marketingRoi]);
 }
 
-async function getScoringRulePoints(
-  organizationId: string | undefined,
-  signal: string,
-): Promise<number> {
-  const result = await query<{ points: string }>(
+async function getScoringRulePoints(client: PoolClient, organizationId: string | undefined, signal: string): Promise<number> {
+  const result = await client.query<{ points: string }>(
     `SELECT points::text
      FROM marketing_scoring_rules
-     WHERE signal = $1
-       AND is_active = true
-       AND (organization_id = $2::uuid OR organization_id IS NULL)
+     WHERE signal = $1 AND is_active = true
      ORDER BY CASE WHEN organization_id = $2::uuid THEN 0 ELSE 1 END
      LIMIT 1`,
     [signal, organizationId ?? null],
@@ -148,40 +148,32 @@ async function getScoringRulePoints(
   return parseInt(result.rows[0]?.points ?? '0', 10);
 }
 
-async function maybeLinkCrmContact(organizationId: string | undefined, email: string): Promise<string | null> {
-  const result = await query<{ id: string }>(
+async function maybeLinkCrmContact(client: PoolClient, email: string): Promise<string | null> {
+  const result = await client.query<{ id: string }>(
     `SELECT id::text
      FROM crm_contacts
      WHERE LOWER(email) = LOWER($1)
-       AND ($2::uuid IS NULL OR organization_id = $2::uuid)
      LIMIT 1`,
-    [email, organizationId ?? null],
+    [email],
   );
   return result.rows[0]?.id ?? null;
 }
 
-async function getDefaultPipelineAndStage(
-  organizationId: string | undefined,
-): Promise<{ pipelineId: string; stageId: string } | null> {
-  const pipelineResult = await query<{ id: string }>(
+async function getDefaultPipelineAndStage(client: PoolClient): Promise<{ pipelineId: string; stageId: string } | null> {
+  const pipelineResult = await client.query<{ id: string }>(
     `SELECT id::text
      FROM crm_pipelines
-     WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
      ORDER BY is_default DESC, created_at ASC
      LIMIT 1`,
-    [organizationId ?? null],
+    [],
   );
   const pipelineId = pipelineResult.rows[0]?.id;
-  if (!pipelineId) {
-    return null;
-  }
+  if (!pipelineId) return null;
 
-  const stageResult = await query<{ id: string }>(
+  const stageResult = await client.query<{ id: string }>(
     `SELECT id::text
      FROM crm_deal_stages
-     WHERE pipeline_id = $1
-       AND is_won = false
-       AND is_lost = false
+     WHERE pipeline_id = $1 AND is_won = false AND is_lost = false
      ORDER BY position ASC
      LIMIT 1`,
     [pipelineId],
@@ -190,33 +182,28 @@ async function getDefaultPipelineAndStage(
   return stageId ? { pipelineId, stageId } : null;
 }
 
-async function findOrCreateCompany(organizationId: string | undefined, companyName: string): Promise<string | null> {
-  const existing = await query<{ id: string }>(
+async function findOrCreateCompany(client: PoolClient, tenantId: string, companyName: string): Promise<string | null> {
+  const existing = await client.query<{ id: string }>(
     `SELECT id::text
      FROM crm_companies
-     WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
-       AND LOWER(name) = LOWER($2)
+     WHERE LOWER(name) = LOWER($1)
      LIMIT 1`,
-    [organizationId ?? null, companyName],
+    [companyName],
   );
-  if (existing.rows[0]?.id) {
-    return existing.rows[0].id;
-  }
+  if (existing.rows[0]?.id) return existing.rows[0].id;
 
-  const created = await query<{ id: string }>(
+  const created = await client.query<{ id: string }>(
     `INSERT INTO crm_companies (organization_id, name, created_by)
      VALUES ($1, $2, NULL)
      RETURNING id::text`,
-    [organizationId ?? null, companyName],
+    [tenantId, companyName],
   );
   return created.rows[0]?.id ?? null;
 }
 
-async function updateCampaignLeadCount(campaignId?: string): Promise<void> {
-  if (!campaignId) {
-    return;
-  }
-  await query(
+async function updateCampaignLeadCount(client: PoolClient, campaignId?: string): Promise<void> {
+  if (!campaignId) return;
+  await client.query(
     `UPDATE marketing_campaigns c
      SET leads_generated = COALESCE(src.leads_generated, 0),
          cost_per_lead = CASE
@@ -236,8 +223,8 @@ async function updateCampaignLeadCount(campaignId?: string): Promise<void> {
   );
 }
 
-async function getLeadInternal(ctx: CallerContext, leadId: string): Promise<Lead | null> {
-  const result = await query(
+async function getLeadInternal(client: PoolClient, leadId: string): Promise<Lead | null> {
+  const result = await client.query(
     `SELECT
        l.*,
        c.name AS campaign_name,
@@ -250,9 +237,8 @@ async function getLeadInternal(ctx: CallerContext, leadId: string): Promise<Lead
      LEFT JOIN crm_contacts ct ON ct.id = l.crm_contact_id
      LEFT JOIN crm_deals d ON d.id = l.crm_deal_id
      WHERE l.id = $1
-       AND ($2::uuid IS NULL OR l.organization_id = $2::uuid)
      LIMIT 1`,
-    [leadId, ctx.organizationId ?? null],
+    [leadId],
   );
   return result.rows[0] ? mapLead(result.rows[0] as Record<string, unknown>) : null;
 }
@@ -283,108 +269,115 @@ export async function listLeads(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Lead>> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listLeads');
 
-  if (ctx.organizationId) {
-    conditions.push(`l.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-  if (filters?.status) {
-    conditions.push(`l.status = $${idx++}`);
-    params.push(filters.status);
-  }
-  if (filters?.source) {
-    conditions.push(`l.source = $${idx++}`);
-    params.push(filters.source);
-  }
-  if (filters?.campaignId) {
-    conditions.push(`l.campaign_id = $${idx++}`);
-    params.push(filters.campaignId);
-  }
-  if (filters?.scoreMin != null) {
-    conditions.push(`l.score >= $${idx++}`);
-    params.push(filters.scoreMin);
-  }
-  if (filters?.scoreMax != null) {
-    conditions.push(`l.score <= $${idx++}`);
-    params.push(filters.scoreMax);
-  }
-  if (filters?.search) {
-    conditions.push(`(
-      l.email ILIKE $${idx}
-      OR COALESCE(l.first_name, '') ILIKE $${idx}
-      OR COALESCE(l.last_name, '') ILIKE $${idx}
-      OR COALESCE(l.company_name, '') ILIKE $${idx}
-    )`);
-    params.push(`%${filters.search}%`);
-    idx++;
-  }
+  return runInTenant(tenantId, async (client) => {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
 
-  const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
-  const sortColumns: Record<string, string> = {
-    email: 'l.email',
-    score: 'l.score',
-    status: 'l.status',
-    source: 'l.source',
-    last_activity_at: 'l.last_activity_at',
-    created: 'l.created_at',
-  };
-  const orderBy = sortColumns[sort?.field ?? 'created'] ?? 'l.created_at';
-  const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+      if (filters?.status) {
+      conditions.push(`l.status = $${idx++}`);
+      params.push(filters.status);
+    }
+    if (filters?.source) {
+      conditions.push(`l.source = $${idx++}`);
+      params.push(filters.source);
+    }
+    if (filters?.campaignId) {
+      conditions.push(`l.campaign_id = $${idx++}`);
+      params.push(filters.campaignId);
+    }
+    if (filters?.scoreMin != null) {
+      conditions.push(`l.score >= $${idx++}`);
+      params.push(filters.scoreMin);
+    }
+    if (filters?.scoreMax != null) {
+      conditions.push(`l.score <= $${idx++}`);
+      params.push(filters.scoreMax);
+    }
+    if (filters?.search) {
+      conditions.push(`(
+        l.email ILIKE $${idx}
+        OR COALESCE(l.first_name, '') ILIKE $${idx}
+        OR COALESCE(l.last_name, '') ILIKE $${idx}
+        OR COALESCE(l.company_name, '') ILIKE $${idx}
+      )`);
+      params.push(`%${filters.search}%`);
+      idx++;
+    }
 
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*)::int AS count
-     FROM marketing_leads l
-     WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+    const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+    const sortColumns: Record<string, string> = {
+      email: 'l.email',
+      score: 'l.score',
+      status: 'l.status',
+      source: 'l.source',
+      last_activity_at: 'l.last_activity_at',
+      created: 'l.created_at',
+    };
+    const orderBy = sortColumns[sort?.field ?? 'created'] ?? 'l.created_at';
+    const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
 
-  const pg = paginationClause(page, pageSize, idx);
-  const result = await query(
-    `SELECT
-       l.*,
-       c.name AS campaign_name,
-       mc.title AS content_title,
-       CONCAT(ct.first_name, ' ', COALESCE(ct.last_name, '')) AS crm_contact_name,
-       d.title AS crm_deal_title
-     FROM marketing_leads l
-     LEFT JOIN marketing_campaigns c ON c.id = l.campaign_id
-     LEFT JOIN marketing_content mc ON mc.id = l.content_id
-     LEFT JOIN crm_contacts ct ON ct.id = l.crm_contact_id
-     LEFT JOIN crm_deals d ON d.id = l.crm_deal_id
-     WHERE ${whereSQL}
-     ORDER BY ${orderBy} ${direction} NULLS LAST, l.created_at DESC
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count
+       FROM marketing_leads l
+       WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  return {
-    data: result.rows.map((row) => mapLead(row as Record<string, unknown>)),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    const pg = paginationClause(page, pageSize, idx);
+    const result = await client.query(
+      `SELECT
+         l.*,
+         c.name AS campaign_name,
+         mc.title AS content_title,
+         CONCAT(ct.first_name, ' ', COALESCE(ct.last_name, '')) AS crm_contact_name,
+         d.title AS crm_deal_title
+       FROM marketing_leads l
+       LEFT JOIN marketing_campaigns c ON c.id = l.campaign_id
+       LEFT JOIN marketing_content mc ON mc.id = l.content_id
+       LEFT JOIN crm_contacts ct ON ct.id = l.crm_contact_id
+       LEFT JOIN crm_deals d ON d.id = l.crm_deal_id
+       WHERE ${whereSQL}
+       ORDER BY ${orderBy} ${direction} NULLS LAST, l.created_at DESC
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+
+    return {
+      data: result.rows.map((row) => mapLead(row as Record<string, unknown>)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getLeadById(ctx: CallerContext, leadId: string): Promise<Lead | null> {
-  return getLeadInternal(ctx, leadId);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getLeadById');
+  return runInTenant(tenantId, (client) => getLeadInternal(client, leadId));
 }
 
 export async function captureLead(ctx: CallerContext, data: CaptureLeadInput): Promise<Lead> {
-  const signals = getSourceSignals(data.source);
-  const pointsList = await Promise.all(signals.map((signal) => getScoringRulePoints(ctx.organizationId, signal)));
-  const scoreFactors: Record<string, number> = {};
-  for (let i = 0; i < signals.length; i += 1) {
-    scoreFactors[signals[i]] = pointsList[i];
-  }
-  const totalScore = clampScore(pointsList.reduce((sum, value) => sum + value, 0));
-  const crmContactId = await maybeLinkCrmContact(ctx.organizationId, data.email);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for captureLead');
 
-  const result = await query(
+  return runInTenant(tenantId, async (client) => {
+    const signals = getSourceSignals(data.source);
+    const pointsList = await Promise.all(signals.map((signal) => getScoringRulePoints(client, ctx.organizationId, signal)));
+    const scoreFactors: Record<string, number> = {};
+    for (let i = 0; i < signals.length; i += 1) {
+      scoreFactors[signals[i]] = pointsList[i];
+    }
+    const totalScore = clampScore(pointsList.reduce((sum, value) => sum + value, 0));
+    const crmContactId = await maybeLinkCrmContact(client, data.email);
+
+    const result = await client.query(
     `INSERT INTO marketing_leads (
        organization_id, email, first_name, last_name, company_name, job_title, phone,
        source, campaign_id, content_id, score, score_factors, status, crm_contact_id,
@@ -394,7 +387,7 @@ export async function captureLead(ctx: CallerContext, data: CaptureLeadInput): P
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'new',$13,$14,$15,$16,$17,$18,$19,$20,NOW())
      RETURNING *`,
     [
-      ctx.organizationId ?? null,
+      tenantId,
       data.email,
       data.first_name ?? null,
       data.last_name ?? null,
@@ -417,37 +410,38 @@ export async function captureLead(ctx: CallerContext, data: CaptureLeadInput): P
     ],
   );
 
-  const lead = (await getLeadInternal(ctx, String(result.rows[0].id))) ?? mapLead(result.rows[0] as Record<string, unknown>);
-  await updateCampaignLeadCount(lead.campaign_id ?? undefined);
-  if (lead.content_id) {
-    await query(
-      `UPDATE marketing_content
-       SET leads_attributed = COALESCE(leads_attributed, 0) + 1,
-           updated_at = NOW()
-       WHERE id = $1`,
-      [lead.content_id],
-    );
-  }
+    const lead = (await getLeadInternal(client, String(result.rows[0].id))) ?? mapLead(result.rows[0] as Record<string, unknown>);
+    await updateCampaignLeadCount(client, lead.campaign_id ?? undefined);
+    if (lead.content_id) {
+      await client.query(
+        `UPDATE marketing_content
+         SET leads_attributed = COALESCE(leads_attributed, 0) + 1,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [lead.content_id],
+      );
+    }
 
-  eventBus.emit('marketing.lead.captured', {
-    leadId: lead.id,
-    email: lead.email,
-    source: lead.source,
-    campaignId: lead.campaign_id ?? undefined,
-    score: lead.score,
-  });
-
-  if (lead.score >= 70) {
-    eventBus.emit('marketing.lead.scored', {
+    eventBus.emit('marketing.lead.captured', {
       leadId: lead.id,
-      oldScore: 0,
-      newScore: lead.score,
-      isHot: true,
+      email: lead.email,
+      source: lead.source,
+      campaignId: lead.campaign_id ?? undefined,
+      score: lead.score,
     });
-  }
 
-  await refreshRoiView();
-  return lead;
+    if (lead.score >= 70) {
+      eventBus.emit('marketing.lead.scored', {
+        leadId: lead.id,
+        oldScore: 0,
+        newScore: lead.score,
+        isHot: true,
+      });
+    }
+
+    await refreshRoiView();
+    return lead;
+  });
 }
 
 export async function updateLead(ctx: CallerContext, leadId: string, data: UpdateLeadInput): Promise<Lead> {
@@ -492,33 +486,36 @@ export async function updateLead(ctx: CallerContext, leadId: string, data: Updat
     }
   }
   sets.push('updated_at = NOW()');
-  params.push(leadId, ctx.organizationId ?? null);
+  params.push(leadId);
 
-  const result = await query(
-    `UPDATE marketing_leads
-     SET ${sets.join(', ')}
-     WHERE id = $${idx++}
-       AND ($${idx}::uuid IS NULL OR organization_id = $${idx}::uuid)
-     RETURNING *`,
-    params,
-  );
-  if (!result.rows[0]) {
-    throw new Error('Lead not found');
-  }
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateLead');
 
-  const lead = (await getLeadInternal(ctx, leadId)) ?? mapLead(result.rows[0] as Record<string, unknown>);
-  await updateCampaignLeadCount(lead.campaign_id ?? undefined);
-  await refreshRoiView();
-  return lead;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE marketing_leads
+       SET ${sets.join(', ')}
+       WHERE id = $${idx}
+       RETURNING *`,
+      params,
+    );
+    if (!result.rows[0]) throw new Error('Lead not found');
+
+    const lead = (await getLeadInternal(client, leadId)) ?? mapLead(result.rows[0] as Record<string, unknown>);
+    await updateCampaignLeadCount(client, lead.campaign_id ?? undefined);
+    await refreshRoiView();
+    return lead;
+  });
 }
 
 export async function scoreLead(ctx: CallerContext, leadId: string, signal: string): Promise<Lead> {
-  const lead = await getLeadInternal(ctx, leadId);
-  if (!lead) {
-    throw new Error('Lead not found');
-  }
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for scoreLead');
 
-  const points = await getScoringRulePoints(ctx.organizationId, signal);
+  const lead = await getLeadById(ctx, leadId);
+  if (!lead) throw new Error('Lead not found');
+
+  const points = await runInTenant(tenantId, (client) => getScoringRulePoints(client, tenantId, signal));
   const nextFactors = { ...(lead.score_factors ?? {}) };
   nextFactors[signal] = (nextFactors[signal] ?? 0) + points;
   const oldScore = lead.score;
@@ -558,19 +555,18 @@ export async function convertLeadToCRM(
   ctx: CallerContext,
   leadId: string,
 ): Promise<{ lead: Lead; contact: crmContacts.Contact; deal: crmDeals.Deal }> {
-  const lead = await getLeadInternal(ctx, leadId);
-  if (!lead) {
-    throw new Error('Lead not found');
-  }
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for convertLeadToCRM');
 
-  const pipeline = await getDefaultPipelineAndStage(ctx.organizationId);
-  if (!pipeline) {
-    throw new Error('No CRM pipeline/stage configured');
-  }
+  const lead = await getLeadById(ctx, leadId);
+  if (!lead) throw new Error('Lead not found');
+
+  const pipeline = await runInTenant(tenantId, async (client) => getDefaultPipelineAndStage(client));
+  if (!pipeline) throw new Error('No CRM pipeline/stage configured');
 
   let companyId: string | null = null;
   if (lead.company_name) {
-    companyId = await findOrCreateCompany(ctx.organizationId, lead.company_name);
+    companyId = await runInTenant(tenantId, (client) => findOrCreateCompany(client, tenantId, lead.company_name!));
   }
 
   let contact = lead.crm_contact_id ? await crmContacts.getContactById(ctx, lead.crm_contact_id) : null;

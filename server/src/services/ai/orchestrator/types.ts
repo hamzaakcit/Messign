@@ -37,6 +37,8 @@ export interface OrchestratorConfig {
   model: string;
   reasoningTemperature: number;
   synthesisTemperature: number;
+  /** A/B test: when true, use dynamic tool loop (5 base tools + search/activate). When false, legacy 60-tool payload. */
+  isDynamicToolLoopEnabled?: boolean;
 }
 
 export const DEFAULT_ORCHESTRATOR_CONFIG: OrchestratorConfig = {

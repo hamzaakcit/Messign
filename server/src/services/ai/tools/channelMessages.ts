@@ -13,7 +13,15 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const chatMessagesTool: Tool = {
-  name: 'search_chat_messages',
+  name: 'communication:search_chat_messages',
+  metadata: {
+    namespace: 'communication',
+    name: 'search_chat_messages',
+    summary: 'Search chat channels and DMs for messages by keyword or topic.',
+    tags: ['communication', 'chat', 'messages', 'search'],
+    alwaysLoaded: false,
+    parameterHints: 'query: string',
+  },
   category: 'communication',
 
   description: `Search through chat messages and channel conversations for specific topics or decisions.

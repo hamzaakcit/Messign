@@ -10,7 +10,15 @@ import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const bountyBoardTool: Tool = {
-  name: 'get_bounty_board',
+  name: 'achievements:get_bounty_board',
+  metadata: {
+    namespace: 'achievements',
+    name: 'get_bounty_board',
+    summary: 'Bounty board: open bounties, rewards, claim status.',
+    tags: ['achievements', 'bounty', 'rewards'],
+    alwaysLoaded: false,
+    parameterHints: 'status?: open|claimed|completed',
+  },
   category: 'projects',
 
   description: `Get bounties — open tasks with rewards that anyone can claim.

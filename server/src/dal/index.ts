@@ -8,7 +8,7 @@ export * as projectsDal from './projects.js';
 export * as channelsDal from './channels.js';
 export * as doraReads from './doraReads.js';
 export * as doraInsights from './doraInsights.js';
-export * as crm from './crm/index.js';
+export * as crm from '../modules/crm/dal/index.js';
 export * as marketing from './marketing/index.js';
 export * as recruitment from './recruitment/index.js';
 export * as assets from './assets/index.js';

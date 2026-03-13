@@ -22,7 +22,15 @@ async function resolveOrgId(): Promise<string | undefined> {
 }
 
 registerTool({
-  name: 'get_time_summary',
+  name: 'time:get_time_summary',
+  metadata: {
+    namespace: 'time',
+    name: 'get_time_summary',
+    summary: 'Time tracking summary: hours logged, by project, billable.',
+    tags: ['time', 'timesheet', 'hours'],
+    alwaysLoaded: false,
+    parameterHints: 'user_identifier?: string, time_period?: string',
+  },
   category: 'analytics',
   description: 'Get a summary of time logged by the current user or team including hours, utilization, and billable revenue.',
   parameters: {
@@ -58,7 +66,7 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_utilization_report',
+  name: 'time:get_utilization_report',
   category: 'analytics',
   description: 'Get team utilization report showing billable vs non-billable hours and utilization percentages.',
   parameters: {
@@ -82,7 +90,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'suggest_time_allocation',
+  name: 'time:suggest_time_allocation',
+  metadata: {
+    namespace: 'time',
+    name: 'suggest_time_allocation',
+    summary: 'Suggest time allocation across projects based on capacity.',
+    tags: ['time', 'allocation', 'suggestions'],
+    alwaysLoaded: false,
+    parameterHints: 'user_identifier?: string',
+  },
   category: 'analytics',
   description: 'Suggest optimal time allocation based on current projects, deadlines, and historical patterns.',
   parameters: {

@@ -20,12 +20,12 @@ const triggerOptions = [
 ];
 
 const actionOptions = [
-  { value: 'approve_expense', label: 'Approve Expense' },
+  { value: 'finance:approve_expense', label: 'Approve Expense' },
   { value: 'reject_expense', label: 'Reject Expense' },
   { value: 'assign_ticket', label: 'Assign Ticket' },
   { value: 'close_ticket_after_delay', label: 'Close Ticket' },
   { value: 'send_notification', label: 'Send Notification' },
-  { value: 'create_task', label: 'Create Task' },
+  { value: 'projects:create_task', label: 'Create Task' },
 ];
 
 type FormShape = {
@@ -57,7 +57,7 @@ export function PolicyBuilderPanel({ onCancel, onCreate }: PolicyBuilderPanelPro
       conditionField: 'amount',
       conditionOperator: 'lte',
       conditionValue: '',
-      actionType: 'approve_expense',
+      actionType: 'finance:approve_expense',
       actionParams: '{}',
       riskLevel: 'medium',
       scope: 'team',

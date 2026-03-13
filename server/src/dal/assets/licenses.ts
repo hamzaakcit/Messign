@@ -1,8 +1,13 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface License {
   id: string;
@@ -108,13 +113,12 @@ export async function listLicenses(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<License>> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listLicenses');
+
   const conditions = ['1=1'];
   const params: unknown[] = [];
   let idx = 1;
-  if (ctx.organizationId) {
-    conditions.push(`l.organization_id = $${idx++}::uuid`);
-    params.push(ctx.organizationId);
-  }
   if (filters?.status) {
     conditions.push(`l.status = $${idx++}`);
     params.push(filters.status);
@@ -132,46 +136,51 @@ export async function listLicenses(
     idx++;
   }
   const where = conditions.join(' AND ');
-  const count = await query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM licenses l WHERE ${where}`, params);
-  const total = Number(count.rows[0]?.count ?? 0);
-  const pg = paginationClause(page, pageSize, idx);
-  const orderMap: Record<string, string> = {
-    software_name: 'l.software_name',
-    seats_used: 'l.seats_used',
-    seats_purchased: 'l.seats_purchased',
-    expiry_date: 'l.expiry_date',
-    total_monthly_cost: 'l.total_monthly_cost',
-    created_at: 'l.created_at',
-  };
-  const orderBy = orderMap[sort?.field ?? 'created_at'] ?? 'l.created_at';
-  const dir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
-  const rows = await query<Record<string, unknown>>(
-    `SELECT l.* FROM licenses l WHERE ${where} ORDER BY ${orderBy} ${dir} ${pg.clause}`,
-    [...params, ...pg.params],
-  );
-  return { data: rows.rows.map(mapLicense), total, page, pageSize, totalPages: Math.ceil(total / pageSize) || 1 };
+  return runInTenant(tenantId, async (client) => {
+    const count = await client.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM licenses l WHERE ${where}`, params);
+    const total = Number(count.rows[0]?.count ?? 0);
+    const pg = paginationClause(page, pageSize, idx);
+    const orderMap: Record<string, string> = {
+      software_name: 'l.software_name',
+      seats_used: 'l.seats_used',
+      seats_purchased: 'l.seats_purchased',
+      expiry_date: 'l.expiry_date',
+      total_monthly_cost: 'l.total_monthly_cost',
+      created_at: 'l.created_at',
+    };
+    const orderBy = orderMap[sort?.field ?? 'created_at'] ?? 'l.created_at';
+    const dir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+    const rows = await client.query<Record<string, unknown>>(
+      `SELECT l.* FROM licenses l WHERE ${where} ORDER BY ${orderBy} ${dir} ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+    return { data: rows.rows.map(mapLicense), total, page, pageSize, totalPages: Math.ceil(total / pageSize) || 1 };
+  });
 }
 
 export async function getLicenseById(ctx: CallerContext, licenseId: string): Promise<License | null> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT * FROM licenses
-     WHERE id = $1::uuid
-       AND ($2::uuid IS NULL OR organization_id = $2::uuid)
-     LIMIT 1`,
-    [licenseId, ctx.organizationId ?? null],
-  );
-  const row = result.rows[0];
-  if (!row) return null;
-  const license = mapLicense(row);
-  const seats = await query<Record<string, unknown>>(
-    `SELECT ls.*, ru.full_name AS user_name
-     FROM license_seats ls
-     LEFT JOIN reimbursement_users ru ON ru.id = ls.user_id
-     WHERE ls.license_id = $1::uuid
-     ORDER BY ls.assigned_at DESC`,
-    [licenseId],
-  );
-  license.seats = seats.rows.map((s) => ({
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getLicenseById');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT * FROM licenses
+       WHERE id = $1::uuid
+       LIMIT 1`,
+      [licenseId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    const license = mapLicense(row);
+    const seats = await client.query<Record<string, unknown>>(
+      `SELECT ls.*, ru.full_name AS user_name
+       FROM license_seats ls
+       LEFT JOIN reimbursement_users ru ON ru.id = ls.user_id
+       WHERE ls.license_id = $1::uuid
+       ORDER BY ls.assigned_at DESC`,
+      [licenseId],
+    );
+    license.seats = seats.rows.map((s) => ({
     id: String(s.id),
     license_id: String(s.license_id),
     user_id: String(s.user_id),
@@ -179,12 +188,16 @@ export async function getLicenseById(ctx: CallerContext, licenseId: string): Pro
     last_active_at: s.last_active_at ? String(s.last_active_at) : null,
     user_name: s.user_name ? String(s.user_name) : null,
   }));
-  return license;
+    return license;
+  });
 }
 
 export async function createLicense(ctx: CallerContext, data: CreateLicenseInput): Promise<License> {
-  if (!ctx.organizationId) throw new Error('Organization context required');
-  const result = await query<Record<string, unknown>>(
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Organization context required');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
     `INSERT INTO licenses (
        organization_id, software_name, vendor, vendor_id, license_type, seats_purchased, seats_used,
        cost_per_seat, total_monthly_cost, currency, billing_cycle, start_date, expiry_date, auto_renew,
@@ -194,8 +207,8 @@ export async function createLicense(ctx: CallerContext, data: CreateLicenseInput
        $8, $9, COALESCE($10, 'EUR'), COALESCE($11, 'monthly'), $12::date, $13::date, COALESCE($14, FALSE),
        $15, $16, $17, COALESCE($18::jsonb, '[]'::jsonb), COALESCE($19, 'active')
      ) RETURNING *`,
-    [
-      ctx.organizationId,
+      [
+        tenantId,
       data.software_name,
       data.vendor ?? null,
       data.vendor_id ?? null,
@@ -214,13 +227,17 @@ export async function createLicense(ctx: CallerContext, data: CreateLicenseInput
       data.notes ?? null,
       data.tags ? JSON.stringify(data.tags) : null,
       data.status ?? 'active',
-    ],
-  );
-  await refreshMaterializedViews([ANALYTICS_VIEWS.licenseUtilization]);
-  return mapLicense(result.rows[0]);
+      ],
+    );
+    await refreshMaterializedViews([ANALYTICS_VIEWS.licenseUtilization]);
+    return mapLicense(result.rows[0]);
+  });
 }
 
 export async function updateLicense(ctx: CallerContext, licenseId: string, data: UpdateLicenseInput): Promise<License> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateLicense');
+
   const existing = await getLicenseById(ctx, licenseId);
   if (!existing) throw new Error('License not found');
   const fields: Array<[string, unknown, string?]> = [
@@ -253,29 +270,37 @@ export async function updateLicense(ctx: CallerContext, licenseId: string, data:
     }
   }
   sets.push('updated_at = NOW()');
-  params.push(licenseId, ctx.organizationId ?? null);
-  const result = await query<Record<string, unknown>>(
-    `UPDATE licenses SET ${sets.join(', ')}
-     WHERE id = $${idx++}::uuid
-       AND ($${idx}::uuid IS NULL OR organization_id = $${idx}::uuid)
-     RETURNING *`,
-    params,
-  );
+  params.push(licenseId);
+  const result = await runInTenant(tenantId, async (client) => {
+    return client.query<Record<string, unknown>>(
+      `UPDATE licenses SET ${sets.join(', ')}
+       WHERE id = $${idx}::uuid
+       RETURNING *`,
+      params,
+    );
+  });
   await refreshMaterializedViews([ANALYTICS_VIEWS.licenseUtilization]);
   return mapLicense(result.rows[0]);
 }
 
 export async function assignSeat(ctx: CallerContext, licenseId: string, userId: string): Promise<LicenseSeat> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for assignSeat');
+
   const license = await getLicenseById(ctx, licenseId);
   if (!license) throw new Error('License not found');
-  const inserted = await query<Record<string, unknown>>(
-    `INSERT INTO license_seats (license_id, user_id)
-     VALUES ($1::uuid, $2::uuid)
-     ON CONFLICT (license_id, user_id) DO UPDATE SET last_active_at = COALESCE(license_seats.last_active_at, NOW())
-     RETURNING *`,
-    [licenseId, userId],
-  );
-  await query(`UPDATE licenses SET seats_used = (SELECT COUNT(*) FROM license_seats WHERE license_id = $1::uuid), updated_at = NOW() WHERE id = $1::uuid`, [licenseId]);
+
+  const inserted = await runInTenant(tenantId, async (client) => {
+    const ins = await client.query<Record<string, unknown>>(
+      `INSERT INTO license_seats (license_id, user_id)
+       VALUES ($1::uuid, $2::uuid)
+       ON CONFLICT (license_id, user_id) DO UPDATE SET last_active_at = COALESCE(license_seats.last_active_at, NOW())
+       RETURNING *`,
+      [licenseId, userId],
+    );
+    await client.query(`UPDATE licenses SET seats_used = (SELECT COUNT(*) FROM license_seats WHERE license_id = $1::uuid), updated_at = NOW() WHERE id = $1::uuid`, [licenseId]);
+    return ins;
+  });
   const refreshed = await getLicenseById(ctx, licenseId);
   if (refreshed && refreshed.seats_purchased > 0) {
     const utilization = (refreshed.seats_used / refreshed.seats_purchased) * 100;
@@ -302,42 +327,58 @@ export async function assignSeat(ctx: CallerContext, licenseId: string, userId: 
 }
 
 export async function removeSeat(ctx: CallerContext, licenseId: string, userId: string): Promise<void> {
-  await query(`DELETE FROM license_seats WHERE license_id = $1::uuid AND user_id = $2::uuid`, [licenseId, userId]);
-  await query(`UPDATE licenses SET seats_used = (SELECT COUNT(*) FROM license_seats WHERE license_id = $1::uuid), updated_at = NOW() WHERE id = $1::uuid`, [licenseId]);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for removeSeat');
+
+  await runInTenant(tenantId, async (client) => {
+    await client.query(`DELETE FROM license_seats WHERE license_id = $1::uuid AND user_id = $2::uuid`, [licenseId, userId]);
+    await client.query(`UPDATE licenses SET seats_used = (SELECT COUNT(*) FROM license_seats WHERE license_id = $1::uuid), updated_at = NOW() WHERE id = $1::uuid`, [licenseId]);
+  });
   await refreshMaterializedViews([ANALYTICS_VIEWS.licenseUtilization]);
 }
 
 export async function getLicenseUtilization(ctx: CallerContext): Promise<Array<Record<string, unknown>>> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT * FROM mv_license_utilization
-     WHERE ($1::uuid IS NULL OR license_id IN (SELECT id FROM licenses WHERE organization_id = $1::uuid))
-     ORDER BY utilization_percent ASC, software_name ASC`,
-    [ctx.organizationId ?? null],
-  );
-  return result.rows;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getLicenseUtilization');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT * FROM mv_license_utilization
+       WHERE license_id IN (SELECT id FROM licenses)
+       ORDER BY utilization_percent ASC, software_name ASC`,
+    );
+    return result.rows;
+  });
 }
 
 export async function getUnderutilizedLicenses(ctx: CallerContext): Promise<License[]> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT l.*
-     FROM licenses l
-     WHERE ($1::uuid IS NULL OR l.organization_id = $1::uuid)
-       AND l.seats_purchased > 0
-       AND l.seats_used::numeric / l.seats_purchased < 0.5
-     ORDER BY l.total_monthly_cost DESC NULLS LAST`,
-    [ctx.organizationId ?? null],
-  );
-  return result.rows.map(mapLicense);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getUnderutilizedLicenses');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT l.*
+       FROM licenses l
+       WHERE l.seats_purchased > 0
+         AND l.seats_used::numeric / l.seats_purchased < 0.5
+       ORDER BY l.total_monthly_cost DESC NULLS LAST`,
+    );
+    return result.rows.map(mapLicense);
+  });
 }
 
 export async function getExpiringLicenses(ctx: CallerContext, withinDays: number = 30): Promise<License[]> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT * FROM licenses
-     WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
-       AND expiry_date IS NOT NULL
-       AND expiry_date <= CURRENT_DATE + ($2 || ' days')::interval
-     ORDER BY expiry_date ASC`,
-    [ctx.organizationId ?? null, withinDays],
-  );
-  return result.rows.map(mapLicense);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getExpiringLicenses');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT * FROM licenses
+       WHERE expiry_date IS NOT NULL
+         AND expiry_date <= CURRENT_DATE + ($1 || ' days')::interval
+       ORDER BY expiry_date ASC`,
+      [withinDays],
+    );
+    return result.rows.map(mapLicense);
+  });
 }

@@ -13,7 +13,15 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const reimbursementDetailsTool: Tool = {
-  name: 'get_reimbursement_details',
+  name: 'finance:get_reimbursement_details',
+  metadata: {
+    namespace: 'finance',
+    name: 'get_reimbursement_details',
+    summary: 'Reimbursement/expense details: status, amount, category, receipts.',
+    tags: ['finance', 'reimbursement', 'expense'],
+    alwaysLoaded: false,
+    parameterHints: 'user_identifier: string, status_filter?: all|pending|approved|rejected|paid|draft|submitted',
+  },
   category: 'finance',
 
   description: `Get detailed reimbursement records for a user — individual claims with status, amount, category, and dates.

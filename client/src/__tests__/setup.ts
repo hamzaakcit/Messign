@@ -60,4 +60,8 @@ vi.mock('@/lib/socket', () => ({
   connectSocket: vi.fn(),
   disconnectSocket: vi.fn(),
   getSocket: vi.fn(() => ({ on: vi.fn(), off: vi.fn(), emit: vi.fn() })),
+  onDoraNewInsight: vi.fn(() => () => {}),
+  offDoraNewInsight: vi.fn(),
+  onDoraInsightCounts: vi.fn(() => () => {}),
+  offDoraInsightCounts: vi.fn(),
 }));

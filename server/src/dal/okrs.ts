@@ -1,7 +1,12 @@
-import { query, getClient } from '../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../middleware/tenantContext.js';
 import { eventBus } from '../events/index.js';
 import { emitToUser } from '../sockets/index.js';
 import type { CallerContext } from './types.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 // ── Interfaces ──
 
@@ -91,18 +96,13 @@ export interface CreateKeyResultInput {
 // ── Functions ──
 
 export async function listPeriods(ctx: CallerContext): Promise<OKRPeriod[]> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listPeriods');
 
-  if (ctx.organizationId) {
-    conditions.push(`organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  const result = await query(`SELECT * FROM okr_periods ${where} ORDER BY start_date DESC`, params);
-  return result.rows as OKRPeriod[];
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(`SELECT * FROM okr_periods ORDER BY start_date DESC`, []);
+    return result.rows as OKRPeriod[];
+  });
 }
 
 export async function listGoals(
@@ -111,45 +111,45 @@ export async function listGoals(
   level?: string,
   parentGoalId?: string,
 ): Promise<Goal[]> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listGoals');
 
-  if (ctx.organizationId) {
-    conditions.push(`g.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-  if (periodId) {
-    conditions.push(`g.period_id = $${idx++}`);
-    params.push(periodId);
-  }
-  if (level) {
-    conditions.push(`g.level = $${idx++}`);
-    params.push(level);
-  }
-  if (parentGoalId) {
-    conditions.push(`g.parent_goal_id = $${idx++}`);
-    params.push(parentGoalId);
-  }
+  return runInTenant(tenantId, async (client) => {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+    if (periodId) {
+      conditions.push(`g.period_id = $${idx++}`);
+      params.push(periodId);
+    }
+    if (level) {
+      conditions.push(`g.level = $${idx++}`);
+      params.push(level);
+    }
+    if (parentGoalId) {
+      conditions.push(`g.parent_goal_id = $${idx++}`);
+      params.push(parentGoalId);
+    }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  const result = await query(
-    `SELECT g.*, u.full_name as owner_name
-     FROM okr_goals g
-     LEFT JOIN reimbursement_users u ON u.id = g.owner_id
-     ${where}
-     ORDER BY g.level, g.title`,
-    params,
-  );
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await client.query(
+      `SELECT g.*, u.full_name as owner_name
+       FROM okr_goals g
+       LEFT JOIN reimbursement_users u ON u.id = g.owner_id
+       ${where}
+       ORDER BY g.level, g.title`,
+      params,
+    );
 
-  const goals = result.rows as Goal[];
+    const goals = result.rows as Goal[];
 
-  for (const goal of goals) {
-    const krs = await query('SELECT * FROM okr_key_results WHERE goal_id = $1 ORDER BY created_at', [goal.id]);
-    goal.key_results = krs.rows as KeyResult[];
-  }
+    for (const goal of goals) {
+      const krs = await client.query('SELECT * FROM okr_key_results WHERE goal_id = $1 ORDER BY created_at', [goal.id]);
+      goal.key_results = krs.rows as KeyResult[];
+    }
 
-  return goals;
+    return goals;
+  });
 }
 
 export async function getGoalTree(ctx: CallerContext, periodId: string): Promise<Goal[]> {
@@ -174,62 +174,72 @@ export async function getGoalTree(ctx: CallerContext, periodId: string): Promise
 }
 
 export async function getGoalById(ctx: CallerContext, goalId: string): Promise<Goal | null> {
-  const result = await query(
-    `SELECT g.*, u.full_name as owner_name
-     FROM okr_goals g
-     LEFT JOIN reimbursement_users u ON u.id = g.owner_id
-     WHERE g.id = $1`,
-    [goalId],
-  );
-  if (!result.rows[0]) return null;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getGoalById');
 
-  const goal = result.rows[0] as Goal;
-
-  const krs = await query('SELECT * FROM okr_key_results WHERE goal_id = $1 ORDER BY created_at', [goalId]);
-  goal.key_results = krs.rows as KeyResult[];
-
-  for (const kr of goal.key_results) {
-    const cis = await query(
-      `SELECT c.*, u.full_name as user_name
-       FROM okr_check_ins c
-       LEFT JOIN reimbursement_users u ON u.id = c.user_id
-       WHERE c.key_result_id = $1
-       ORDER BY c.created_at DESC`,
-      [kr.id],
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT g.*, u.full_name as owner_name
+       FROM okr_goals g
+       LEFT JOIN reimbursement_users u ON u.id = g.owner_id
+       WHERE g.id = $1`,
+      [goalId],
     );
-    kr.check_ins = cis.rows as CheckIn[];
-  }
+    if (!result.rows[0]) return null;
 
-  return goal;
+    const goal = result.rows[0] as Goal;
+
+    const krs = await client.query('SELECT * FROM okr_key_results WHERE goal_id = $1 ORDER BY created_at', [goalId]);
+    goal.key_results = krs.rows as KeyResult[];
+
+    for (const kr of goal.key_results) {
+      const cis = await client.query(
+        `SELECT c.*, u.full_name as user_name
+         FROM okr_check_ins c
+         LEFT JOIN reimbursement_users u ON u.id = c.user_id
+         WHERE c.key_result_id = $1
+         ORDER BY c.created_at DESC`,
+        [kr.id],
+      );
+      kr.check_ins = cis.rows as CheckIn[];
+    }
+
+    return goal;
+  });
 }
 
 export async function createGoal(ctx: CallerContext, data: CreateGoalInput): Promise<Goal> {
-  const result = await query(
-    `INSERT INTO okr_goals (organization_id, period_id, parent_goal_id, owner_id, level, department_id, title, description)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING *`,
-    [
-      ctx.organizationId ?? null,
-      data.period_id,
-      data.parent_goal_id ?? null,
-      ctx.userId,
-      data.level,
-      data.department_id ?? null,
-      data.title,
-      data.description ?? null,
-    ],
-  );
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createGoal');
 
-  const goal = result.rows[0] as Goal;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `INSERT INTO okr_goals (organization_id, period_id, parent_goal_id, owner_id, level, department_id, title, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        tenantId,
+        data.period_id,
+        data.parent_goal_id ?? null,
+        ctx.userId,
+        data.level,
+        data.department_id ?? null,
+        data.title,
+        data.description ?? null,
+      ],
+    );
 
-  eventBus.emit('okr.goal.created', {
-    goalId: goal.id,
-    title: goal.title,
-    ownerId: ctx.userId,
-    level: goal.level,
+    const goal = result.rows[0] as Goal;
+
+    eventBus.emit('okr.goal.created', {
+      goalId: goal.id,
+      title: goal.title,
+      ownerId: ctx.userId,
+      level: goal.level,
+    });
+
+    return goal;
   });
-
-  return goal;
 }
 
 export async function updateGoal(
@@ -237,6 +247,9 @@ export async function updateGoal(
   goalId: string,
   data: Partial<Pick<Goal, 'title' | 'description' | 'status' | 'progress'>>,
 ): Promise<Goal> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateGoal');
+
   const sets: string[] = ['updated_at = NOW()'];
   const params: unknown[] = [];
   let idx = 1;
@@ -247,21 +260,24 @@ export async function updateGoal(
   if (data.progress !== undefined) { sets.push(`progress = $${idx++}`); params.push(data.progress); }
 
   params.push(goalId);
-  const result = await query(
-    `UPDATE okr_goals SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
-    params,
-  );
 
-  const goal = result.rows[0] as Goal;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE okr_goals SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params,
+    );
 
-  eventBus.emit('okr.goal.updated', {
-    goalId: goal.id,
-    progress: Number(goal.progress),
-    status: goal.status,
-    organizationId: goal.organization_id ?? undefined,
+    const goal = result.rows[0] as Goal;
+
+    eventBus.emit('okr.goal.updated', {
+      goalId: goal.id,
+      progress: Number(goal.progress),
+      status: goal.status,
+      organizationId: goal.organization_id ?? undefined,
+    });
+
+    return goal;
   });
-
-  return goal;
 }
 
 export async function createKeyResult(
@@ -269,30 +285,35 @@ export async function createKeyResult(
   goalId: string,
   data: CreateKeyResultInput,
 ): Promise<KeyResult> {
-  const result = await query(
-    `INSERT INTO okr_key_results (goal_id, title, metric_type, target_value, start_value, unit, auto_source)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING *`,
-    [
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createKeyResult');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `INSERT INTO okr_key_results (goal_id, title, metric_type, target_value, start_value, unit, auto_source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        goalId,
+        data.title,
+        data.metric_type ?? 'number',
+        data.target_value,
+        data.start_value ?? 0,
+        data.unit ?? null,
+        data.auto_source ?? null,
+      ],
+    );
+
+    const kr = result.rows[0] as KeyResult;
+
+    eventBus.emit('okr.key_result.created', {
+      keyResultId: kr.id,
       goalId,
-      data.title,
-      data.metric_type ?? 'number',
-      data.target_value,
-      data.start_value ?? 0,
-      data.unit ?? null,
-      data.auto_source ?? null,
-    ],
-  );
+      title: kr.title,
+    });
 
-  const kr = result.rows[0] as KeyResult;
-
-  eventBus.emit('okr.key_result.created', {
-    keyResultId: kr.id,
-    goalId,
-    title: kr.title,
+    return kr;
   });
-
-  return kr;
 }
 
 export async function checkIn(
@@ -302,10 +323,10 @@ export async function checkIn(
   note?: string,
   confidence?: 'high' | 'medium' | 'low',
 ): Promise<CheckIn> {
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for checkIn');
 
+  return runInTenant(tenantId, async (client) => {
     const ciResult = await client.query(
       `INSERT INTO okr_check_ins (key_result_id, user_id, value, note, confidence)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
@@ -337,8 +358,6 @@ export async function checkIn(
       `UPDATE okr_goals SET progress = $1, updated_at = NOW() WHERE id = $2`,
       [avg, kr.goal_id],
     );
-
-    await client.query('COMMIT');
 
     eventBus.emit('okr.check_in.submitted', {
       checkInId: ci.id,
@@ -372,12 +391,7 @@ export async function checkIn(
     }
 
     return ci;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function updateKeyResultProgress(
@@ -387,20 +401,23 @@ export async function updateKeyResultProgress(
   note?: string,
   confidence?: 'high' | 'medium' | 'low',
 ): Promise<KeyResult> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateKeyResultProgress');
+
   await checkIn(ctx, krId, value, note, confidence);
-  const result = await query('SELECT * FROM okr_key_results WHERE id = $1', [krId]);
-  return result.rows[0] as KeyResult;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query('SELECT * FROM okr_key_results WHERE id = $1', [krId]);
+    return result.rows[0] as KeyResult;
+  });
 }
 
 export async function getOKRMetrics(ctx: CallerContext, periodId?: string): Promise<OKRMetrics> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getOKRMetrics');
+
   const conditions: string[] = [];
   const params: unknown[] = [];
   let idx = 1;
-
-  if (ctx.organizationId) {
-    conditions.push(`organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
   if (periodId) {
     conditions.push(`period_id = $${idx++}`);
     params.push(periodId);
@@ -408,25 +425,27 @@ export async function getOKRMetrics(ctx: CallerContext, periodId?: string): Prom
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const result = await query(
-    `SELECT
-       COUNT(*)::int as total,
-       COUNT(*) FILTER (WHERE status = 'on_track')::int as on_track,
-       COUNT(*) FILTER (WHERE status = 'at_risk')::int as at_risk,
-       COUNT(*) FILTER (WHERE status = 'behind')::int as behind,
-       COUNT(*) FILTER (WHERE status = 'completed')::int as completed,
-       COALESCE(AVG(progress), 0)::numeric as avg_progress
-     FROM okr_goals ${where}`,
-    params,
-  );
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT
+         COUNT(*)::int as total,
+         COUNT(*) FILTER (WHERE status = 'on_track')::int as on_track,
+         COUNT(*) FILTER (WHERE status = 'at_risk')::int as at_risk,
+         COUNT(*) FILTER (WHERE status = 'behind')::int as behind,
+         COUNT(*) FILTER (WHERE status = 'completed')::int as completed,
+         COALESCE(AVG(progress), 0)::numeric as avg_progress
+       FROM okr_goals ${where}`,
+      params,
+    );
 
-  const row = result.rows[0];
-  return {
-    totalGoals: row.total,
-    onTrack: row.on_track,
-    atRisk: row.at_risk,
-    behind: row.behind,
-    completed: row.completed,
-    avgProgress: Number(row.avg_progress),
-  };
+    const row = result.rows[0];
+    return {
+      totalGoals: row.total,
+      onTrack: row.on_track,
+      atRisk: row.at_risk,
+      behind: row.behind,
+      completed: row.completed,
+      avgProgress: Number(row.avg_progress),
+    };
+  });
 }

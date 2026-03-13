@@ -1,22 +1,15 @@
-import { getToolsForLLM, executeTool } from '../toolRegistry.js';
-import {
-  callGroqWithToolsMultiTurnTracked,
-  callGeminiWithTools,
-  callClaudeWithTools,
-  streamGroqCompletion,
-  getGroqApiKey,
-  type GroqMessage,
-} from '../groqToolCalling.js';
+import { getBaseToolsForLLM, getToolsForLLM, executeTool } from '../toolRegistry.js';
+import { createToolSession, activateTool } from '../tools/core/activateTool.js';
+import { searchTools } from '../tools/core/searchTools.js';
+import { callModelSafe, streamModelSafe, classifyComplexity, type ModelTier } from '../gateway.js';
 import { sanitizeData } from '../dataSanitizer.js';
 import { logToolExecution } from '../queryLogger.js';
-import { streamWithCascade } from '../aiCascade.js';
 import { buildDoraAgenticPrompt, buildForcedSynthesisPrompt } from '../dora/agenticPrompts.js';
 import { StepTracker } from './stepTracker.js';
-import { selectToolsForQuery } from './toolSelector.js';
 import { isWriteTool, interceptWriteAction } from '../actions/actionInterceptor.js';
 import { getToolsForRole } from '../tools/writeDefinitions.js';
-import { classifyTask, selectModelForTask } from '../taskRouter.js';
 import { stripPII, restorePII } from '../piiStripper.js';
+import type { OpenAI } from 'openai';
 import type { ToolContext, ToolResult } from '../types.js';
 import type { DoraRequestContext } from '../dora/types.js';
 import type { PendingActionSSEEvent } from '../actions/types.js';
@@ -32,12 +25,12 @@ import type {
 import { DEFAULT_ORCHESTRATOR_CONFIG } from './types.js';
 
 export const WIDGET_TOOL_NAMES = new Set([
-  'get_system_stats',
-  'get_tasks_by_user',
-  'get_project_status',
-  'get_financial_summary',
-  'get_invoice_details',
-  'play_dora_dash',
+  'analytics:get_system_stats',
+  'projects:get_tasks_by_user',
+  'projects:get_project_status',
+  'finance:get_financial_summary',
+  'finance:get_invoice_details',
+  'fun:play_dora_dash',
 ]);
 
 const STRICT_RAG_PREAMBLE = `STRICT RAG DIRECTIVES (you must follow these for the knowledge base context below):
@@ -58,7 +51,7 @@ CONTEXT:
  * - Bounded iterations (max 6 steps)
  * - Token budget tracking
  * - Tool call deduplication
- * - Cascade fallback (Groq -> Gemini -> Anthropic)
+ * - LiteLLM gateway (tier-based routing + fallbacks)
  * - Streaming final synthesis only
  */
 export async function orchestrate(
@@ -69,21 +62,40 @@ export async function orchestrate(
   onChunk: (chunk: string) => void,
   config: Partial<OrchestratorConfig> & { provider?: string } = {},
 ): Promise<OrchestrationResult> {
-  const { provider, ...restConfig } = config;
+  const { provider, isDynamicToolLoopEnabled = false, ...restConfig } = config;
   const cfg = { ...DEFAULT_ORCHESTRATOR_CONFIG, ...restConfig };
   const tracker = new StepTracker(cfg);
   const startTime = Date.now();
 
   console.log(`[Orchestrator] Starting for query: "${query.substring(0, 80)}..." (user: ${ctx.user.userName})`);
+  console.log(`[A/B Test] Dynamic Loop: ${isDynamicToolLoopEnabled ? 'TRUE' : 'FALSE'}`);
 
   const systemPrompt = buildDoraAgenticPrompt(ctx);
-  const allToolsWithWrites = getToolsForRole(ctx.user.userRole, getToolsForLLM());
-  const tools = selectToolsForQuery(query, ctx.page.currentModule, allToolsWithWrites);
+  const session = createToolSession();
+  const userRoles = [
+    ctx.user.userRole,
+    'employee',
+    'manager',
+    'admin',
+    'cpo',
+    'hr',
+    'finance',
+    'finance_admin',
+    'system_admin',
+  ].filter(Boolean);
+
+  const baseTools = isDynamicToolLoopEnabled
+    ? getBaseToolsForLLM(userRoles)
+    : getToolsForLLM();
   const pendingActionEvents: PendingActionSSEEvent[] = [];
 
-  const taskType = classifyTask(tools.length, tools.map(t => t.function.name), query.length);
-  const modelSelection = selectModelForTask(taskType);
-  console.log(`[Orchestrator] Selected ${tools.length}/${allToolsWithWrites.length} tools for query (task: ${taskType}, provider: ${modelSelection.provider})`);
+  const buildCurrentTools = () => {
+    if (isDynamicToolLoopEnabled) {
+      const activatedSchemas = Array.from(session.activatedTools.values()) as import('../types.js').LLMToolDefinition[];
+      return getToolsForRole(ctx.user.userRole, [...baseTools, ...activatedSchemas]);
+    }
+    return getToolsForRole(ctx.user.userRole, baseTools);
+  };
 
   const piiResult = stripPII(query);
   const sanitizedQuery = piiResult.sanitizedText;
@@ -92,7 +104,11 @@ export async function orchestrate(
     console.log(`[Orchestrator] Stripped ${piiResult.strippedCount} PII field(s) from query`);
   }
 
-  const messages: GroqMessage[] = [
+  const toolsForTask = buildCurrentTools();
+  const tier = classifyComplexity(sanitizedQuery, toolsForTask.length);
+  console.log(`[Orchestrator] ${isDynamicToolLoopEnabled ? 'Base' : 'Legacy'} ${toolsForTask.length} tools (tier: ${tier})`);
+
+  const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history.slice(-6).filter((h) => h.role === 'user' || h.role === 'assistant')
       .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
@@ -113,74 +129,82 @@ export async function orchestrate(
       const stepIndex = tracker.getStepCount();
       const stepStartTime = Date.now();
 
-      console.log(`[Orchestrator] Step ${stepIndex + 1}/${cfg.maxSteps} — calling LLM (primary: ${modelSelection.provider})...`);
-
-      const providerOrder: ('groq' | 'gemini' | 'anthropic')[] = [
-        modelSelection.provider,
-        ...(['groq', 'gemini', 'anthropic'] as const).filter((p) => p !== modelSelection.provider),
-      ];
-
-      const historyMessages = history.slice(-4).filter((h) => h.role === 'user' || h.role === 'assistant')
-        .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content }));
+      console.log(`[Orchestrator] Step ${stepIndex + 1}/${cfg.maxSteps} — calling gateway (tier: ${tier})...`);
 
       type LlmResponseShape = { content?: string | null; toolCalls?: Array<{ name: string; args: Record<string, unknown>; callId?: string }> | null; rawToolCalls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; usage?: StepTokenUsage };
       let llmResponse: LlmResponseShape | undefined;
-      let lastError: Error | null = null;
 
-      for (const provider of providerOrder) {
-        try {
-          if (provider === 'groq') {
-            const groqRes = await callGroqWithToolsMultiTurnTracked(messages, tools, {
-              model: cfg.model,
-              temperature: cfg.reasoningTemperature,
-              maxTokens: 1500,
-            });
-            llmResponse = { ...groqRes, toolCalls: groqRes.toolCalls ?? undefined };
-          } else if (provider === 'gemini') {
-            const geminiResult = await callGeminiWithTools(systemPrompt, sanitizedQuery, historyMessages, tools);
-            llmResponse = {
-              ...geminiResult,
-              usage: { promptTokens: 0, completionTokens: 0, totalTokens: 500 },
-              rawToolCalls: geminiResult.toolCalls?.map((tc, i) => ({
-                id: `gemini_${stepIndex}_${i}_${tc.name}`,
-                type: 'function' as const,
-                function: { name: tc.name, arguments: JSON.stringify(tc.args) },
-              })),
-            };
-          } else {
-            const claudeResult = await callClaudeWithTools(systemPrompt, sanitizedQuery, historyMessages, tools);
-            llmResponse = {
-              ...claudeResult,
-              usage: { promptTokens: 0, completionTokens: 0, totalTokens: 500 },
-              rawToolCalls: claudeResult.toolCalls?.map((tc, i) => ({
-                id: `claude_${stepIndex}_${i}_${tc.name}`,
-                type: 'function' as const,
-                function: { name: tc.name, arguments: JSON.stringify(tc.args) },
-              })),
-            };
-          }
-          console.log(`[Orchestrator] ${provider} succeeded at step ${stepIndex + 1}`);
-          break;
-        } catch (err) {
-          lastError = err instanceof Error ? err : new Error(String(err));
-          const errMsg = lastError.message;
+      const tools = buildCurrentTools();
+      const tenantId = ctx.user.organizationId ?? 'no-tenant';
 
-          if (errMsg.includes('429') || errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('quota exceeded')) {
-            console.warn(`[Orchestrator] ${provider} rate limit hit — informing user`);
-            const rateLimitMsg =
-              provider === 'groq'
-                ? "I'm currently experiencing high demand on my AI processing service. Please wait a few minutes and try again. If this persists, the daily limit may have been reached — it resets at midnight UTC."
-                : "AI services are temporarily rate-limited. Please try again in a minute.";
-            onChunk(rateLimitMsg);
-            return buildResult(tracker, 'error', rateLimitMsg, startTime, 'rate_limit', pendingActionEvents);
-          }
+      try {
+        const response = await callModelSafe({
+          tier,
+          messages,
+          tools: tools.length > 0 ? (tools as unknown as OpenAI.ChatCompletionTool[]) : undefined,
+          tenantId,
+          maxTokens: 1500,
+          temperature: cfg.reasoningTemperature,
+        });
 
-          console.warn(`[Orchestrator] ${provider} failed at step ${stepIndex + 1} (${errMsg.substring(0, 80)}...), trying next provider...`);
+        const choice = response.choices?.[0];
+        const message = choice?.message;
+        if (!message) {
+          throw new Error('No message in gateway response');
         }
+
+        const usage = response.usage
+          ? { promptTokens: response.usage.prompt_tokens ?? 0, completionTokens: response.usage.completion_tokens ?? 0, totalTokens: (response.usage.prompt_tokens ?? 0) + (response.usage.completion_tokens ?? 0) }
+          : { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+
+        let toolCalls: LlmResponseShape['toolCalls'] = null;
+        let rawToolCalls: LlmResponseShape['rawToolCalls'];
+
+        if (message.tool_calls && message.tool_calls.length > 0) {
+          const standardToolCalls = message.tool_calls.filter(
+            (tc): tc is OpenAI.ChatCompletionMessageToolCall & { function: { name: string; arguments: string } } =>
+              tc.type === 'function' && 'function' in tc && tc.function != null,
+          );
+          rawToolCalls = standardToolCalls.map((tc) => ({
+            id: tc.id,
+            type: 'function' as const,
+            function: { name: tc.function.name, arguments: tc.function.arguments },
+          }));
+          toolCalls = standardToolCalls.map((tc) => {
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+            } catch {
+              console.warn(`[Orchestrator] Failed to parse tool args for ${tc.function.name}`);
+            }
+            return { name: tc.function.name, args, callId: tc.id };
+          });
+        }
+
+        llmResponse = {
+          content: message.content ?? null,
+          toolCalls,
+          rawToolCalls,
+          usage,
+        };
+        console.log(`[Orchestrator] Gateway succeeded at step ${stepIndex + 1}`);
+      } catch (err) {
+        const lastError = err instanceof Error ? err : new Error(String(err));
+        const errMsg = lastError.message;
+
+        if (errMsg.includes('429') || errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('quota exceeded')) {
+          console.warn(`[Orchestrator] Gateway rate limit hit — informing user`);
+          const rateLimitMsg = "AI services are temporarily rate-limited. Please try again in a minute.";
+          onChunk(rateLimitMsg);
+          return buildResult(tracker, 'error', rateLimitMsg, startTime, 'rate_limit', pendingActionEvents, isDynamicToolLoopEnabled);
+        }
+
+        console.error(`[Orchestrator] Gateway failed at step ${stepIndex + 1}:`, errMsg);
+        terminationReason = 'cascade_failure';
+        break;
       }
 
       if (!llmResponse) {
-        console.error(`[Orchestrator] All providers failed at step ${stepIndex + 1}:`, lastError?.message);
         terminationReason = 'cascade_failure';
         break;
       }
@@ -213,7 +237,7 @@ export async function orchestrate(
           });
 
           onChunk(thought);
-          return buildResult(tracker, terminationReason, thought, startTime, undefined, pendingActionEvents);
+          return buildResult(tracker, terminationReason, thought, startTime, undefined, pendingActionEvents, isDynamicToolLoopEnabled);
         }
 
         terminationReason = 'complete';
@@ -261,7 +285,7 @@ export async function orchestrate(
           observations.push({ ...cached, toolName, executionTimeMs: 0 });
 
           let toolContent = cached.summary || JSON.stringify(cached.data ?? {});
-          if (toolName === 'search_knowledge_base' && cached.success && cached.summary?.includes('| Content:')) {
+          if ((toolName === 'knowledge:search_knowledge_base' || toolName?.endsWith('search_knowledge_base')) && cached.success && cached.summary?.includes('| Content:')) {
             toolContent = STRICT_RAG_PREAMBLE + cached.summary;
           }
           messages.push({
@@ -299,6 +323,56 @@ export async function orchestrate(
           continue;
         }
 
+        // Inline handling for core:search_tools and core:activate_tool (no executeTool)
+        if (toolName === 'core:search_tools') {
+          const searchQuery = String(parsedArgs.query ?? '').trim();
+          const namespace = typeof parsedArgs.namespace === 'string' ? parsedArgs.namespace.trim() || undefined : undefined;
+          const matches = searchTools(searchQuery, userRoles, 5, namespace);
+          const summary =
+            matches.length === 0
+              ? `No tools found matching "${searchQuery}". Try a different description or omit the namespace filter.`
+              : `**Tools matching "${searchQuery}"**\n\n` +
+                matches
+                  .map((t) => `- **${t.namespace}:${t.name}** — ${t.summary}\n  Params: ${t.parameterHints}`)
+                  .join('\n\n');
+          const toolResult: ToolResult = {
+            success: true,
+            data: matches,
+            summary,
+            metadata: { source: 'tool_index', count: matches.length },
+          };
+          tracker.cacheResult(toolName, parsedArgs, toolResult);
+          observations.push({ ...toolResult, toolName, executionTimeMs: 0 });
+          messages.push({
+            role: 'tool',
+            tool_call_id: callId,
+            content: summary.slice(0, 8000),
+          });
+          continue;
+        }
+
+        if (toolName === 'core:activate_tool') {
+          const toolToActivate = String(parsedArgs.tool_name ?? '').trim();
+          const activation = activateTool(toolToActivate, session, userRoles);
+          const summary = activation.success
+            ? `Tool "${toolToActivate}" is now available. You can call it with the appropriate parameters.`
+            : (activation.error ?? 'Failed to activate tool.');
+          const toolResult: ToolResult = {
+            success: activation.success,
+            data: activation.tool ?? null,
+            summary,
+            metadata: { source: 'tool_registry', count: activation.success ? 1 : 0 },
+          };
+          tracker.cacheResult(toolName, parsedArgs, toolResult);
+          observations.push({ ...toolResult, toolName, executionTimeMs: 0 });
+          messages.push({
+            role: 'tool',
+            tool_call_id: callId,
+            content: summary.slice(0, 8000),
+          });
+          continue;
+        }
+
         const toolStart = Date.now();
         const result = await executeTool(toolName, parsedArgs, legacyContext);
         const toolElapsed = Date.now() - toolStart;
@@ -314,7 +388,7 @@ export async function orchestrate(
         observations.push({ ...sanitized, toolName, executionTimeMs: toolElapsed });
 
         let toolContent = sanitized.summary || JSON.stringify(sanitized.data ?? {});
-        if (toolName === 'search_knowledge_base' && sanitized.success && sanitized.summary?.includes('| Content:')) {
+        if ((toolName === 'knowledge:search_knowledge_base' || toolName?.endsWith('search_knowledge_base')) && sanitized.success && sanitized.summary?.includes('| Content:')) {
           const confidence = sanitized.metadata?.confidence ?? 0.7;
           const lowConfNote =
             confidence < 0.5
@@ -365,7 +439,7 @@ export async function orchestrate(
     );
 
     const restoredAnswer = piiMappings.size > 0 ? restorePII(finalAnswer, piiMappings) : finalAnswer;
-    return buildResult(tracker, terminationReason, restoredAnswer, startTime, undefined, pendingActionEvents);
+    return buildResult(tracker, terminationReason, restoredAnswer, startTime, undefined, pendingActionEvents, isDynamicToolLoopEnabled);
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown orchestration error';
@@ -377,78 +451,13 @@ export async function orchestrate(
         `I ran into an issue completing my analysis, but here's what I found so far:\n\n` +
         collectedContext.substring(0, 2000);
       onChunk(fallbackMsg);
-      return buildResult(tracker, 'error', fallbackMsg, startTime, message, pendingActionEvents);
+      return buildResult(tracker, 'error', fallbackMsg, startTime, message, pendingActionEvents, isDynamicToolLoopEnabled);
     }
 
     const errorMsg = `I'm having trouble accessing the data right now. Please try again in a moment.`;
     onChunk(errorMsg);
-    return buildResult(tracker, 'error', errorMsg, startTime, message, pendingActionEvents);
+    return buildResult(tracker, 'error', errorMsg, startTime, message, pendingActionEvents, isDynamicToolLoopEnabled);
   }
-}
-
-async function streamClaudeSynthesis(
-  synthesisPrompt: string,
-  query: string,
-  history: Array<{ role: string; content: string }>,
-  fullContext: string,
-  onChunk: (chunk: string) => void,
-): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
-
-  const userMessage =
-    `Context:\n${fullContext.substring(0, 4000)}\n\nQuestion: ${query}`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-opus-4-5',
-      max_tokens: 2048,
-      stream: true,
-      system: synthesisPrompt,
-      messages: [
-        ...history.slice(-4)
-          .filter((h) => h.role === 'user' || h.role === 'assistant')
-          .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
-        { role: 'user', content: userMessage },
-      ],
-    }),
-  });
-
-  if (!res.ok || !res.body) {
-    const errBody = await res.text().catch(() => '');
-    throw new Error(`Anthropic API error ${res.status}: ${errBody.slice(0, 200)}`);
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let finalAnswer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        try {
-          const event = JSON.parse(line.slice(6)) as { type?: string; delta?: { text?: string } };
-          if (event.type === 'content_block_delta' && event.delta?.text) {
-            onChunk(event.delta.text);
-            finalAnswer += event.delta.text;
-          }
-        } catch { /* skip parse errors */ }
-      }
-    }
-  }
-  return finalAnswer;
 }
 
 async function synthesizeAndStream(
@@ -463,14 +472,14 @@ async function synthesizeAndStream(
 ): Promise<string> {
   const fullContext = tracker.buildFullContextForSynthesis();
   const toolsUsed = tracker.getUniqueToolsUsed();
-  const hasKBContext = toolsUsed.includes('search_knowledge_base');
+  const hasKBContext = toolsUsed.some((t) => t.includes('search_knowledge_base'));
   const widgetToolsUsed = toolsUsed.filter(t => WIDGET_TOOL_NAMES.has(t));
 
   const synthesisPrompt = buildForcedSynthesisPrompt(
     ctx, toolsUsed, fullContext, hasKBContext, terminationReason, tracker.getStepCount(), widgetToolsUsed
   );
 
-  const synthMessages: GroqMessage[] = [
+  const synthMessages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: synthesisPrompt },
     ...history.slice(-4)
       .filter((h) => h.role === 'user' || h.role === 'assistant')
@@ -480,62 +489,30 @@ async function synthesizeAndStream(
 
   let finalAnswer = '';
 
-  // Use Claude for synthesis if explicitly requested
-  if (provider === 'claude') {
-    try {
-      console.log('[Orchestrator] Using Claude for synthesis (provider=claude)');
-      finalAnswer = await streamClaudeSynthesis(synthesisPrompt, query, history, fullContext, onChunk);
-      if (finalAnswer.trim()) return finalAnswer;
-    } catch (claudeErr) {
-      console.warn('[Orchestrator] Claude synthesis failed, falling back to Groq:', claudeErr);
-    }
-  }
+  // Use gateway for synthesis (LiteLLM handles routing + fallbacks)
+  try {
+    const synthTier: ModelTier = provider === 'claude' ? 'complex' : 'balanced';
+    const tenantId = ctx.user.organizationId ?? 'no-tenant';
 
-  // Try streaming with Groq first (default path)
-  if (!finalAnswer.trim() && getGroqApiKey()) {
-    try {
-      const stream = streamGroqCompletion(synthMessages, {
-        model: cfg.model,
-        temperature: cfg.synthesisTemperature,
-        maxTokens: 2000,
-      });
+    const stream = streamModelSafe({
+      tier: synthTier,
+      messages: synthMessages as OpenAI.ChatCompletionMessageParam[],
+      tenantId,
+      maxTokens: 2000,
+      temperature: cfg.synthesisTemperature,
+    });
 
-      for await (const chunk of stream) {
-        onChunk(chunk);
-        finalAnswer += chunk;
+    for await (const chunk of stream) {
+      const content = chunk.choices?.[0]?.delta?.content;
+      if (content) {
+        onChunk(content);
+        finalAnswer += content;
       }
-
-      if (finalAnswer.trim()) return finalAnswer;
-    } catch (synthError) {
-      console.warn('[Orchestrator] Groq synthesis streaming failed:', synthError);
     }
-  }
 
-  // Fallback to the existing cascade (Groq non-tracked -> Gemini -> Anthropic)
-  if (!finalAnswer.trim()) {
-    try {
-      const cascadeResult = await streamWithCascade(
-        (chunk) => {
-          onChunk(chunk);
-          finalAnswer += chunk;
-        },
-        {
-          userQuery: query,
-          trimmedContext: fullContext,
-          systemPrompt: synthesisPrompt,
-          userMessage: query,
-          chatHistory: history.slice(-4)
-            .filter((h) => h.role === 'user' || h.role === 'assistant')
-            .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
-          concise: ctx.conciseMode,
-          maxTokens: 2000,
-        }
-      );
-
-      if (cascadeResult && finalAnswer.trim()) return finalAnswer;
-    } catch (cascadeErr) {
-      console.warn('[Orchestrator] Cascade synthesis failed:', cascadeErr);
-    }
+    if (finalAnswer.trim()) return finalAnswer;
+  } catch (gatewayErr) {
+    console.warn('[Orchestrator] Gateway synthesis failed:', gatewayErr);
   }
 
   // Last resort: raw context dump
@@ -583,7 +560,15 @@ function buildResult(
   startTime: number,
   error?: string,
   pendingActions?: PendingActionSSEEvent[],
+  isDynamicToolLoopEnabled?: boolean,
 ): OrchestrationResult {
+  const totalDurationMs = Date.now() - startTime;
+  const tokenUsage = tracker.getTokenUsage();
+  if (isDynamicToolLoopEnabled !== undefined) {
+    console.log(
+      `[A/B Test] Dynamic Loop: ${isDynamicToolLoopEnabled ? 'TRUE' : 'FALSE'} | Tokens: ${tokenUsage.totalTokens} | Latency: ${totalDurationMs}ms`,
+    );
+  }
   return {
     success: terminationReason !== 'error' && terminationReason !== 'cascade_failure',
     finalAnswer,
@@ -592,8 +577,8 @@ function buildResult(
     terminationReason,
     toolsUsed: tracker.getUniqueToolsUsed(),
     totalDataPoints: tracker.getTotalDataPoints(),
-    totalTokens: tracker.getTokenUsage(),
-    totalDurationMs: Date.now() - startTime,
+    totalTokens: tokenUsage,
+    totalDurationMs,
     error,
     pendingActions: pendingActions && pendingActions.length > 0 ? pendingActions : undefined,
   };

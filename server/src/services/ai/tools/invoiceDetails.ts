@@ -11,7 +11,15 @@ import { limitRecords } from '../dataSanitizer.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const invoiceDetailsTool: Tool = {
-  name: 'get_invoice_details',
+  name: 'finance:get_invoice_details',
+  metadata: {
+    namespace: 'finance',
+    name: 'get_invoice_details',
+    summary: 'Invoice details: status, amount, vendor, line items.',
+    tags: ['finance', 'invoice', 'billing'],
+    alwaysLoaded: false,
+    parameterHints: 'invoice_id?: string, status_filter?: string',
+  },
   category: 'finance',
 
   description: `Look up specific invoices — status, amounts, client/vendor info, due dates.

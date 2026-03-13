@@ -1,8 +1,13 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Asset {
   id: string;
@@ -173,14 +178,13 @@ export async function listAssets(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Asset>> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listAssets');
+
   const conditions: string[] = ['1=1'];
   const params: unknown[] = [];
   let idx = 1;
 
-  if (ctx.organizationId) {
-    conditions.push(`a.organization_id = $${idx++}::uuid`);
-    params.push(ctx.organizationId);
-  }
   if (filters?.status) {
     conditions.push(`a.status = $${idx++}`);
     params.push(filters.status);
@@ -207,70 +211,75 @@ export async function listAssets(
   }
 
   const where = conditions.join(' AND ');
-  const countRes = await query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM assets a WHERE ${where}`, params);
-  const total = Number(countRes.rows[0]?.count ?? 0);
-  const pg = paginationClause(page, pageSize, idx);
-  const orderByMap: Record<string, string> = {
-    name: 'a.name',
-    status: 'a.status',
-    created_at: 'a.created_at',
-    warranty_end: 'a.warranty_end',
-    purchase_cost: 'a.purchase_cost',
-    current_value: 'a.current_value',
-  };
-  const orderBy = orderByMap[sort?.field ?? 'created_at'] ?? 'a.created_at';
-  const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+  return runInTenant(tenantId, async (client) => {
+    const countRes = await client.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM assets a WHERE ${where}`, params);
+    const total = Number(countRes.rows[0]?.count ?? 0);
+    const pg = paginationClause(page, pageSize, idx);
+    const orderByMap: Record<string, string> = {
+      name: 'a.name',
+      status: 'a.status',
+      created_at: 'a.created_at',
+      warranty_end: 'a.warranty_end',
+      purchase_cost: 'a.purchase_cost',
+      current_value: 'a.current_value',
+    };
+    const orderBy = orderByMap[sort?.field ?? 'created_at'] ?? 'a.created_at';
+    const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
 
-  const rows = await query<Record<string, unknown>>(
-    `SELECT a.*, ac.name AS category_name, ru.full_name AS assigned_to_name
-     FROM assets a
-     LEFT JOIN asset_categories ac ON ac.id = a.category_id
-     LEFT JOIN reimbursement_users ru ON ru.id = a.assigned_to
-     WHERE ${where}
-     ORDER BY ${orderBy} ${direction}
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+    const rows = await client.query<Record<string, unknown>>(
+      `SELECT a.*, ac.name AS category_name, ru.full_name AS assigned_to_name
+       FROM assets a
+       LEFT JOIN asset_categories ac ON ac.id = a.category_id
+       LEFT JOIN reimbursement_users ru ON ru.id = a.assigned_to
+       WHERE ${where}
+       ORDER BY ${orderBy} ${direction}
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
 
-  return {
-    data: rows.rows.map(mapAsset),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize) || 1,
-  };
+    return {
+      data: rows.rows.map(mapAsset),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize) || 1,
+    };
+  });
 }
 
 export async function getAssetById(ctx: CallerContext, assetId: string): Promise<Asset | null> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT a.*, ac.name AS category_name, ru.full_name AS assigned_to_name
-     FROM assets a
-     LEFT JOIN asset_categories ac ON ac.id = a.category_id
-     LEFT JOIN reimbursement_users ru ON ru.id = a.assigned_to
-     WHERE a.id = $1::uuid
-       AND ($2::uuid IS NULL OR a.organization_id = $2::uuid)
-     LIMIT 1`,
-    [assetId, ctx.organizationId ?? null],
-  );
-  const row = result.rows[0];
-  if (!row) return null;
-  const asset = mapAsset(row);
-  const [assignments, maintenance] = await Promise.all([
-    query<Record<string, unknown>>(
-      `SELECT aa.*, u1.full_name AS assigned_to_name, u2.full_name AS assigned_by_name
-       FROM asset_assignments aa
-       LEFT JOIN reimbursement_users u1 ON u1.id = aa.assigned_to
-       LEFT JOIN reimbursement_users u2 ON u2.id = aa.assigned_by
-       WHERE aa.asset_id = $1::uuid
-       ORDER BY aa.assigned_at DESC`,
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getAssetById');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT a.*, ac.name AS category_name, ru.full_name AS assigned_to_name
+       FROM assets a
+       LEFT JOIN asset_categories ac ON ac.id = a.category_id
+       LEFT JOIN reimbursement_users ru ON ru.id = a.assigned_to
+       WHERE a.id = $1::uuid
+       LIMIT 1`,
       [assetId],
-    ),
-    query<Record<string, unknown>>(
-      `SELECT * FROM asset_maintenance WHERE asset_id = $1::uuid ORDER BY created_at DESC`,
-      [assetId],
-    ),
-  ]);
-  asset.assignments = assignments.rows.map((r) => ({
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    const asset = mapAsset(row);
+    const [assignments, maintenance] = await Promise.all([
+      client.query<Record<string, unknown>>(
+        `SELECT aa.*, u1.full_name AS assigned_to_name, u2.full_name AS assigned_by_name
+         FROM asset_assignments aa
+         LEFT JOIN reimbursement_users u1 ON u1.id = aa.assigned_to
+         LEFT JOIN reimbursement_users u2 ON u2.id = aa.assigned_by
+         WHERE aa.asset_id = $1::uuid
+         ORDER BY aa.assigned_at DESC`,
+        [assetId],
+      ),
+      client.query<Record<string, unknown>>(
+        `SELECT * FROM asset_maintenance WHERE asset_id = $1::uuid ORDER BY created_at DESC`,
+        [assetId],
+      ),
+    ]);
+    asset.assignments = assignments.rows.map((r) => ({
     id: String(r.id),
     asset_id: String(r.asset_id),
     assigned_to: String(r.assigned_to),
@@ -295,12 +304,16 @@ export async function getAssetById(ctx: CallerContext, assetId: string): Promise
     notes: r.notes ? String(r.notes) : null,
     created_at: String(r.created_at),
   }));
-  return asset;
+    return asset;
+  });
 }
 
 export async function createAsset(ctx: CallerContext, data: CreateAssetInput): Promise<Asset> {
-  if (!ctx.organizationId) throw new Error('Organization context required');
-  const result = await query<Record<string, unknown>>(
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Organization context required');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
     `INSERT INTO assets (
        organization_id, category_id, name, description, asset_tag, serial_number, manufacturer, model,
        status, condition, purchase_cost, purchase_currency, purchase_cost_eur, purchase_date, current_value, salvage_value,
@@ -312,8 +325,8 @@ export async function createAsset(ctx: CallerContext, data: CreateAssetInput): P
        $17, $18, $19::date, $20::date, $21, $22,
        $23::uuid, $24::uuid, COALESCE($25::jsonb, '{}'::jsonb), COALESCE($26::jsonb, '[]'::jsonb), $27, $28
      ) RETURNING *`,
-    [
-      ctx.organizationId,
+      [
+        tenantId,
       data.category_id ?? null,
       data.name,
       data.description ?? null,
@@ -341,21 +354,25 @@ export async function createAsset(ctx: CallerContext, data: CreateAssetInput): P
       data.tags ? JSON.stringify(data.tags) : null,
       data.notes ?? null,
       data.image_url ?? null,
-    ],
-  );
-  const asset = mapAsset(result.rows[0]);
-  eventBus.emit('asset.created', {
-    assetId: asset.id,
-    name: asset.name,
-    type: asset.category_name ?? 'asset',
-    purchaseCost: asset.purchase_cost ?? 0,
-    currency: asset.purchase_currency,
+      ],
+    );
+    const asset = mapAsset(result.rows[0]);
+    eventBus.emit('asset.created', {
+      assetId: asset.id,
+      name: asset.name,
+      type: asset.category_name ?? 'asset',
+      purchaseCost: asset.purchase_cost ?? 0,
+      currency: asset.purchase_currency,
+    });
+    await refreshMaterializedViews([ANALYTICS_VIEWS.assetSummary]);
+    return asset;
   });
-  await refreshMaterializedViews([ANALYTICS_VIEWS.assetSummary]);
-  return asset;
 }
 
 export async function updateAsset(ctx: CallerContext, assetId: string, data: UpdateAssetInput): Promise<Asset> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateAsset');
+
   const existing = await getAssetById(ctx, assetId);
   if (!existing) throw new Error('Asset not found');
   const fields: Array<[string, unknown]> = [
@@ -397,34 +414,41 @@ export async function updateAsset(ctx: CallerContext, assetId: string, data: Upd
     }
   }
   sets.push('updated_at = NOW()');
-  params.push(assetId, ctx.organizationId ?? null);
-  const result = await query<Record<string, unknown>>(
-    `UPDATE assets SET ${sets.join(', ')}
-     WHERE id = $${idx++}::uuid
-       AND ($${idx}::uuid IS NULL OR organization_id = $${idx}::uuid)
-     RETURNING *`,
-    params,
-  );
+  params.push(assetId);
+  const result = await runInTenant(tenantId, async (client) => {
+    return client.query<Record<string, unknown>>(
+      `UPDATE assets SET ${sets.join(', ')}
+       WHERE id = $${idx}::uuid
+       RETURNING *`,
+      params,
+    );
+  });
   if (!result.rows[0]) throw new Error('Asset not found');
   await refreshMaterializedViews([ANALYTICS_VIEWS.assetSummary]);
   return mapAsset(result.rows[0]);
 }
 
 export async function assignAsset(ctx: CallerContext, assetId: string, assigneeId: string): Promise<Asset> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for assignAsset');
+
   const asset = await getAssetById(ctx, assetId);
   if (!asset) throw new Error('Asset not found');
-  await query(
-    `INSERT INTO asset_assignments (asset_id, assigned_to, assigned_by) VALUES ($1::uuid, $2::uuid, $3::uuid)`,
-    [assetId, assigneeId, ctx.userId],
-  );
-  const updated = await query<Record<string, unknown>>(
-    `UPDATE assets
-     SET assigned_to = $2::uuid, assigned_at = NOW(), status = 'assigned', updated_at = NOW()
-     WHERE id = $1::uuid
-     RETURNING *`,
-    [assetId, assigneeId],
-  );
-  const mapped = mapAsset(updated.rows[0]);
+
+  const mapped = await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `INSERT INTO asset_assignments (asset_id, assigned_to, assigned_by) VALUES ($1::uuid, $2::uuid, $3::uuid)`,
+      [assetId, assigneeId, ctx.userId],
+    );
+    const updated = await client.query<Record<string, unknown>>(
+      `UPDATE assets
+       SET assigned_to = $2::uuid, assigned_at = NOW(), status = 'assigned', updated_at = NOW()
+       WHERE id = $1::uuid
+       RETURNING *`,
+      [assetId, assigneeId],
+    );
+    return mapAsset(updated.rows[0]);
+  });
   eventBus.emit('asset.assigned', {
     assetId: mapped.id,
     assigneeId,
@@ -436,10 +460,15 @@ export async function assignAsset(ctx: CallerContext, assetId: string, assigneeI
 }
 
 export async function returnAsset(ctx: CallerContext, assetId: string, condition: string, notes?: string): Promise<Asset> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for returnAsset');
+
   const asset = await getAssetById(ctx, assetId);
   if (!asset) throw new Error('Asset not found');
   if (!asset.assigned_to) throw new Error('Asset is not currently assigned');
-  await query(
+
+  return runInTenant(tenantId, async (client) => {
+    await client.query(
     `UPDATE asset_assignments
      SET returned_at = NOW(), return_condition = $2, return_notes = $3
      WHERE id = (
@@ -448,33 +477,40 @@ export async function returnAsset(ctx: CallerContext, assetId: string, condition
        ORDER BY assigned_at DESC
        LIMIT 1
      )`,
-    [assetId, condition, notes ?? null],
-  );
-  const updated = await query<Record<string, unknown>>(
-    `UPDATE assets
-     SET assigned_to = NULL, assigned_at = NULL, status = 'available', condition = COALESCE($2, condition), updated_at = NOW()
-     WHERE id = $1::uuid
-     RETURNING *`,
-    [assetId, condition],
-  );
-  const mapped = mapAsset(updated.rows[0]);
-  eventBus.emit('asset.returned', {
-    assetId: mapped.id,
-    returnedBy: ctx.userId,
-    previousAssigneeId: asset.assigned_to,
-    condition,
+      [assetId, condition, notes ?? null],
+    );
+    const updated = await client.query<Record<string, unknown>>(
+      `UPDATE assets
+       SET assigned_to = NULL, assigned_at = NULL, status = 'available', condition = COALESCE($2, condition), updated_at = NOW()
+       WHERE id = $1::uuid
+       RETURNING *`,
+      [assetId, condition],
+    );
+    const mapped = mapAsset(updated.rows[0]);
+    eventBus.emit('asset.returned', {
+      assetId: mapped.id,
+      returnedBy: ctx.userId,
+      previousAssigneeId: asset.assigned_to!,
+      condition,
+    });
+    await refreshMaterializedViews([ANALYTICS_VIEWS.assetSummary]);
+    return mapped;
   });
-  await refreshMaterializedViews([ANALYTICS_VIEWS.assetSummary]);
-  return mapped;
 }
 
 export async function retireAsset(ctx: CallerContext, assetId: string, reason: string): Promise<Asset> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for retireAsset');
+
   const asset = await getAssetById(ctx, assetId);
   if (!asset) throw new Error('Asset not found');
-  const result = await query<Record<string, unknown>>(
+
+  const result = await runInTenant(tenantId, async (client) => {
+    return client.query<Record<string, unknown>>(
     `UPDATE assets SET status = 'retired', notes = COALESCE(notes, '') || $2, updated_at = NOW() WHERE id = $1::uuid RETURNING *`,
-    [assetId, `\n[Retired by ${ctx.userId}] ${reason}`],
-  );
+      [assetId, `\n[Retired by ${ctx.userId}] ${reason}`],
+    );
+  });
   const mapped = mapAsset(result.rows[0]);
   eventBus.emit('asset.retired', {
     assetId: mapped.id,
@@ -487,23 +523,30 @@ export async function retireAsset(ctx: CallerContext, assetId: string, reason: s
 }
 
 export async function scheduleMaintenance(ctx: CallerContext, assetId: string, data: MaintenanceInput): Promise<AssetMaintenance> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for scheduleMaintenance');
+
   const asset = await getAssetById(ctx, assetId);
   if (!asset) throw new Error('Asset not found');
-  const result = await query<Record<string, unknown>>(
+
+  const result = await runInTenant(tenantId, async (client) => {
+    const insertResult = await client.query<Record<string, unknown>>(
     `INSERT INTO asset_maintenance (asset_id, type, description, cost, performed_by, scheduled_date, notes)
      VALUES ($1::uuid, $2, $3, $4, $5, $6::date, $7)
      RETURNING *`,
-    [
-      assetId,
-      data.type ?? null,
-      data.description ?? null,
-      data.cost ?? null,
-      data.performed_by ?? null,
-      data.scheduled_date,
-      data.notes ?? null,
-    ],
-  );
-  await query(`UPDATE assets SET status = 'in_maintenance', updated_at = NOW() WHERE id = $1::uuid`, [assetId]);
+      [
+        assetId,
+        data.type ?? null,
+        data.description ?? null,
+        data.cost ?? null,
+        data.performed_by ?? null,
+        data.scheduled_date,
+        data.notes ?? null,
+      ],
+    );
+    await client.query(`UPDATE assets SET status = 'in_maintenance', updated_at = NOW() WHERE id = $1::uuid`, [assetId]);
+    return insertResult;
+  });
   eventBus.emit('asset.maintenance_scheduled', {
     assetId,
     maintenanceType: data.type ?? 'inspection',
@@ -534,33 +577,34 @@ export async function getAssetMetrics(ctx: CallerContext): Promise<{
   warrantyExpiring: number;
   depreciationThisMonth: number;
 }> {
-  const summary = await query<Record<string, unknown>>(
-    `SELECT
-       COUNT(*)::int AS total_assets,
-       COALESCE(SUM(current_value), 0)::numeric AS total_value,
-       COUNT(*) FILTER (WHERE status = 'assigned')::int AS assigned,
-       COUNT(*) FILTER (WHERE status = 'available')::int AS available,
-       COUNT(*) FILTER (WHERE warranty_end <= CURRENT_DATE + INTERVAL '30 days' AND warranty_end >= CURRENT_DATE)::int AS warranty_expiring
-     FROM assets
-     WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)`,
-    [ctx.organizationId ?? null],
-  );
-  const dep = await query<Record<string, unknown>>(
-    `SELECT COALESCE(SUM((purchase_cost_eur - COALESCE(salvage_value, 0)) / NULLIF(ac.useful_life_months, 0)), 0)::numeric AS depreciation_month
-     FROM assets a
-     LEFT JOIN asset_categories ac ON ac.id = a.category_id
-     WHERE ($1::uuid IS NULL OR a.organization_id = $1::uuid)
-       AND ac.depreciation_method = 'straight_line'
-       AND a.status != 'retired'`,
-    [ctx.organizationId ?? null],
-  );
-  const row = summary.rows[0] ?? {};
-  return {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getAssetMetrics');
+
+  return runInTenant(tenantId, async (client) => {
+    const summary = await client.query<Record<string, unknown>>(
+      `SELECT
+         COUNT(*)::int AS total_assets,
+         COALESCE(SUM(current_value), 0)::numeric AS total_value,
+         COUNT(*) FILTER (WHERE status = 'assigned')::int AS assigned,
+         COUNT(*) FILTER (WHERE status = 'available')::int AS available,
+         COUNT(*) FILTER (WHERE warranty_end <= CURRENT_DATE + INTERVAL '30 days' AND warranty_end >= CURRENT_DATE)::int AS warranty_expiring
+       FROM assets`,
+    );
+    const dep = await client.query<Record<string, unknown>>(
+      `SELECT COALESCE(SUM((purchase_cost_eur - COALESCE(salvage_value, 0)) / NULLIF(ac.useful_life_months, 0)), 0)::numeric AS depreciation_month
+       FROM assets a
+       LEFT JOIN asset_categories ac ON ac.id = a.category_id
+       WHERE ac.depreciation_method = 'straight_line'
+         AND a.status != 'retired'`,
+    );
+    const row = summary.rows[0] ?? {};
+    return {
     totalAssets: toNum(row.total_assets),
     totalValue: toNum(row.total_value),
     assigned: toNum(row.assigned),
     available: toNum(row.available),
     warrantyExpiring: toNum(row.warranty_expiring),
     depreciationThisMonth: toNum(dep.rows[0]?.depreciation_month),
-  };
+    };
+  });
 }

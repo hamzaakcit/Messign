@@ -197,20 +197,20 @@ export async function validateAndConsume(
 
 function validatePayloadForAction(actionType: WriteActionType, payload: Record<string, unknown>): string | null {
   const required: Partial<Record<WriteActionType, string[]>> = {
-    approve_expense: ['reimbursement_id'],
-    flag_expense: ['reimbursement_id', 'reason'],
-    create_budget: ['department', 'allocated_amount', 'period_start', 'period_end'],
-    update_budget: ['budget_id'],
-    auto_approve_expense: ['expense_id'],
-    flag_expense_for_review: ['expense_id', 'reason'],
-    generate_invoice: ['client_name'],
-    send_payment_reminder: ['invoice_id'],
-    create_deal: ['title', 'amount', 'companyName'],
-    create_ticket: ['subject', 'description'],
-    assign_asset: ['assetName', 'employeeName'],
-    send_renewal_reminder: ['contractName'],
-    create_campaign: ['name', 'channel', 'budget'],
-    post_job: ['title', 'department', 'description'],
+    'finance:approve_expense': ['reimbursement_id'],
+    'finance:flag_expense': ['reimbursement_id', 'reason'],
+    'finance:create_budget': ['department', 'allocated_amount', 'period_start', 'period_end'],
+    'finance:update_budget': ['budget_id'],
+    'finance:auto_approve_expense': ['expense_id'],
+    'finance:flag_expense_for_review': ['expense_id', 'reason'],
+    'finance:generate_invoice': ['client_name'],
+    'finance:send_payment_reminder': ['invoice_id'],
+    'crm:create_deal': ['title', 'amount', 'companyName'],
+    'support:create_ticket': ['subject', 'description'],
+    'assets:assign_asset': ['assetName', 'employeeName'],
+    'contracts:send_renewal_reminder': ['contractName'],
+    'marketing:create_campaign': ['name', 'channel', 'budget'],
+    'recruitment:post_job': ['title', 'department', 'description'],
   };
   const requiredFields = required[actionType] ?? [];
   for (const field of requiredFields) {

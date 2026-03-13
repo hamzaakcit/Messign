@@ -65,7 +65,7 @@ SELECT
   'Automatically approve expenses under EUR 50 in Office Supplies.',
   'finance.expense.submitted',
   '[{"field": "amount", "operator": "lte", "value": 50}, {"field": "category", "operator": "eq", "value": "Office Supplies"}]'::jsonb,
-  'approve_expense',
+  'finance:approve_expense',
   '{"reason": "Auto-approved by Dora: amount under EUR 50 policy"}'::jsonb,
   'low',
   'organization',

@@ -1,5 +1,10 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import type { CallerContext } from '../types.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Obligation {
   id: string;
@@ -39,37 +44,38 @@ export async function listObligations(
   status?: string,
   dueSoon?: boolean,
 ): Promise<Obligation[]> {
-  const conditions = ['1=1'];
-  const params: unknown[] = [];
-  let idx = 1;
-  if (ctx.organizationId) {
-    conditions.push(`c.organization_id = $${idx++}::uuid`);
-    params.push(ctx.organizationId);
-  }
-  if (contractId) {
-    conditions.push(`co.contract_id = $${idx++}::uuid`);
-    params.push(contractId);
-  }
-  if (status) {
-    conditions.push(`co.status = $${idx++}`);
-    params.push(status);
-  }
-  if (dueSoon) {
-    conditions.push(`co.due_date <= CURRENT_DATE + INTERVAL '7 days'`);
-  }
-  const result = await query<Record<string, unknown>>(
-    `SELECT co.*, c.title AS contract_title
-     FROM contract_obligations co
-     JOIN contracts c ON c.id = co.contract_id
-     WHERE ${conditions.join(' AND ')}
-     ORDER BY co.due_date ASC NULLS LAST, co.created_at DESC`,
-    params,
-  );
-  return result.rows.map(mapObligation);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listObligations');
+
+  return runInTenant(tenantId, async (client) => {
+    const conditions = ['1=1'];
+    const params: unknown[] = [];
+    let idx = 1;
+    if (contractId) {
+      conditions.push(`co.contract_id = $${idx++}::uuid`);
+      params.push(contractId);
+    }
+    if (status) {
+      conditions.push(`co.status = $${idx++}`);
+      params.push(status);
+    }
+    if (dueSoon) {
+      conditions.push(`co.due_date <= CURRENT_DATE + INTERVAL '7 days'`);
+    }
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT co.*, c.title AS contract_title
+       FROM contract_obligations co
+       JOIN contracts c ON c.id = co.contract_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY co.due_date ASC NULLS LAST, co.created_at DESC`,
+      params,
+    );
+    return result.rows.map(mapObligation);
+  });
 }
 
 export async function createObligation(
-  _ctx: CallerContext,
+  ctx: CallerContext,
   contractId: string,
   data: {
     description: string;
@@ -80,12 +86,16 @@ export async function createObligation(
     notes?: string;
   },
 ): Promise<Obligation> {
-  const result = await query<Record<string, unknown>>(
-    `INSERT INTO contract_obligations (
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createObligation');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `INSERT INTO contract_obligations (
        contract_id, description, obligation_type, responsible_party, due_date, recurring, notes
-     ) VALUES ($1::uuid, $2, $3, $4, $5::date, $6, $7)
-     RETURNING *`,
-    [
+      ) VALUES ($1::uuid, $2, $3, $4, $5::date, $6, $7)
+      RETURNING *`,
+      [
       contractId,
       data.description,
       data.obligation_type ?? null,
@@ -94,31 +104,41 @@ export async function createObligation(
       data.recurring ?? null,
       data.notes ?? null,
     ],
-  );
-  return mapObligation(result.rows[0]);
+    );
+    return mapObligation(result.rows[0]);
+  });
 }
 
-export async function completeObligation(_ctx: CallerContext, obligationId: string): Promise<Obligation> {
-  const result = await query<Record<string, unknown>>(
-    `UPDATE contract_obligations
-     SET status = 'completed', completed_at = NOW()
-     WHERE id = $1::uuid
-     RETURNING *`,
-    [obligationId],
-  );
-  if (!result.rows[0]) throw new Error('Obligation not found');
-  return mapObligation(result.rows[0]);
+export async function completeObligation(ctx: CallerContext, obligationId: string): Promise<Obligation> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for completeObligation');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `UPDATE contract_obligations
+       SET status = 'completed', completed_at = NOW()
+       WHERE id = $1::uuid
+       RETURNING *`,
+      [obligationId],
+    );
+    if (!result.rows[0]) throw new Error('Obligation not found');
+    return mapObligation(result.rows[0]);
+  });
 }
 
 export async function getOverdueObligations(ctx: CallerContext): Promise<Obligation[]> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT co.*, c.title AS contract_title
-     FROM contract_obligations co
-     JOIN contracts c ON c.id = co.contract_id
-     WHERE co.status = 'overdue'
-       AND ($1::uuid IS NULL OR c.organization_id = $1::uuid)
-     ORDER BY co.due_date ASC`,
-    [ctx.organizationId ?? null],
-  );
-  return result.rows.map(mapObligation);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getOverdueObligations');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT co.*, c.title AS contract_title
+       FROM contract_obligations co
+       JOIN contracts c ON c.id = co.contract_id
+       WHERE co.status = 'overdue'
+       ORDER BY co.due_date ASC`,
+      [],
+    );
+    return result.rows.map(mapObligation);
+  });
 }

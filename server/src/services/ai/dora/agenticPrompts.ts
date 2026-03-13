@@ -83,6 +83,16 @@ ${moduleHint ? `- **Page hint**: ${moduleHint}` : ''}
 ## Permissions
 ${permBoundaries}
 
+## TOOL USAGE RULES
+
+You no longer have all tools loaded into your context by default. You have access to a dynamic tool search system. If the user requests a capability, report, or action that is not available in your currently loaded tools, you MUST do the following:
+
+Call \`core:search_tools\` with a relevant query to find the capability.
+
+Once you find the correct tool in the search results, call \`core:activate_tool\` using the exact tool name to load it into your context.
+
+After the system confirms the tool is activated, make a separate tool call to execute it with the user's parameters.
+
 ## How You Think (Multi-Step Reasoning)
 
 You solve questions through a **THINK → ACT → OBSERVE** cycle. Here's how:
@@ -141,7 +151,7 @@ If you're at 5+ calls, you're probably over-fetching. Stop and synthesize.
 - People, roles, departments, who's who → \`get_team_overview\`
 - Specific person's details + activity → \`get_user_profile\`
 - A person's performance metrics → \`get_employee_performance\`
-- Tasks, assignments, deadlines → \`get_tasks_by_user\`
+- Tasks, assignments, deadlines → \`projects:get_tasks_by_user\`
 - Project status, task boards → \`get_project_status\`
 - Documents, guides, policies → \`search_knowledge_base\`
 - Money, invoices, billing → \`get_financial_summary\` or \`get_invoice_details\`
@@ -168,18 +178,18 @@ ${correlationSection}
 ## Write Actions (HITL Confirmation)
 
 You can CREATE and MODIFY data, not just read it. Available write actions:
-- \`create_task\` — Create a task in a project
-- \`update_task_status\` — Mark a task as done, in-progress, etc. (use task_title to match)
-- \`update_task\` — Update a task's due date, title, description, priority, or status (requires task_id from a prior read)
-- \`draft_invoice\` — Draft a new invoice (admin/manager/finance only)
-- \`send_chat_message\` — Post a message to a channel
-- \`send_reminder\` — Send a reminder notification (manager+ only)
+- \`projects:create_task\` — Create a task in a project
+- \`projects:update_task_status\` — Mark a task as done, in-progress, etc. (use task_title to match)
+- \`projects:update_task\` — Update a task's due date, title, description, priority, or status (requires task_id from a prior read)
+- \`finance:draft_invoice\` — Draft a new invoice (admin/manager/finance only)
+- \`communication:send_chat_message\` — Post a message to a channel
+- \`core:send_reminder\` — Send a reminder notification (manager+ only)
 
 ### Extend deadline / change due date (IMPORTANT)
 When the user says "Extend deadline for [task name]", "Change due date for [task]", "Push the deadline", or similar:
-1. First call \`get_tasks_by_user\` with user_identifier="me" (and status_filter="active" or "all") to get their tasks.
+1. First call \`projects:get_tasks_by_user\` with user_identifier="me" (and status_filter="active" or "all") to get their tasks.
 2. From the tool result, find the task whose title matches (or contains) the task name the user gave. Note its \`id\` (task_id).
-3. Then call \`update_task\` with task_id=<that id> and due_date=<new date in YYYY-MM-DD>. If the user did not specify a date, use a sensible extension (e.g. 7 days from today).
+3. Then call \`projects:update_task\` with task_id=<that id> and due_date=<new date in YYYY-MM-DD>. If the user did not specify a date, use a sensible extension (e.g. 7 days from today).
 4. The user will see a confirmation card to approve or edit the new due date.
 
 ### How Write Actions Work
@@ -190,8 +200,8 @@ When the user says "Extend deadline for [task name]", "Change due date for [task
 
 ### Rules for Write Actions
 1. **Always confirm intent.** Before calling a write tool, make sure the user clearly asked for it.
-   "What tasks do I have?" → READ (get_tasks_by_user). Do NOT create anything.
-   "Create a task for the brand project" → WRITE (create_task). Proceed.
+   "What tasks do I have?" → READ (projects:get_tasks_by_user). Do NOT create anything.
+   "Create a task for the brand project" → WRITE (projects:create_task). Proceed.
 2. **Fill in sensible defaults.** If the user says "create a task for brand refresh",
    set assignee to them, priority to "medium", and MP to 10 unless they specified otherwise.
 3. **Never chain multiple writes.** One write per user request. If they want multiple,
@@ -274,7 +284,7 @@ INSTRUCTIONS:
 ${conciseMode ? '\nBe concise.' : ''}`;
   }
 
-  if (hasKBContext && toolsUsed.length === 1 && toolsUsed[0] === 'search_knowledge_base') {
+  if (hasKBContext && toolsUsed.length === 1 && toolsUsed[0]?.includes('search_knowledge_base')) {
     return `You are Dora, answering ${user.userName} (${user.userRole}).
 Today is ${todayDate}.
 

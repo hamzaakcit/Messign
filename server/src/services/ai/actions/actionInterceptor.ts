@@ -23,7 +23,7 @@ function buildActionPreview(
   sanitizedPayload: Record<string, unknown>;
 } {
   switch (toolName) {
-    case 'create_task': {
+    case 'projects:create_task': {
       const assignee = args.assignee === 'me' ? ctx.user.userName : (args.assignee as string) || ctx.user.userName;
 
       const payload = {
@@ -85,7 +85,7 @@ function buildActionPreview(
       };
     }
 
-    case 'update_task': {
+    case 'projects:update_task': {
       const payload = {
         task_id: (args.task_id as string) || '',
         due_date: (args.due_date as string) || '',
@@ -137,7 +137,7 @@ function buildActionPreview(
       };
     }
 
-    case 'draft_invoice': {
+    case 'finance:draft_invoice': {
       const payload = {
         client_name: (args.client_name as string) || '',
         amount: (args.amount as number) || 0,
@@ -158,7 +158,7 @@ function buildActionPreview(
       };
     }
 
-    case 'send_chat_message': {
+    case 'communication:send_chat_message': {
       const payload = {
         channel: (args.channel as string) || 'general',
         message: (args.message as string) || '',
@@ -175,7 +175,7 @@ function buildActionPreview(
       };
     }
 
-    case 'approve_expense': {
+    case 'finance:approve_expense': {
       const payload = {
         reimbursement_id: (args.reimbursement_id as string) || '',
         comment: (args.comment as string) || '',
@@ -192,7 +192,7 @@ function buildActionPreview(
       };
     }
 
-    case 'flag_expense': {
+    case 'finance:flag_expense': {
       const payload = {
         reimbursement_id: (args.reimbursement_id as string) || '',
         reason: (args.reason as string) || '',
@@ -209,7 +209,7 @@ function buildActionPreview(
       };
     }
 
-    case 'create_budget_alert': {
+    case 'finance:create_budget_alert': {
       const payload = {
         department: (args.department as string) || '',
         threshold: (args.threshold as number) || 0.9,
@@ -228,7 +228,7 @@ function buildActionPreview(
       };
     }
 
-    case 'create_budget': {
+    case 'finance:create_budget': {
       const payload = {
         department: (args.department as string) || '',
         allocated_amount: (args.allocated_amount as number) || 0,
@@ -253,7 +253,7 @@ function buildActionPreview(
       };
     }
 
-    case 'update_budget': {
+    case 'finance:update_budget': {
       const payload = {
         budget_id: (args.budget_id as string) || '',
         allocated_amount: args.allocated_amount as number | undefined,
@@ -284,7 +284,7 @@ function buildActionPreview(
       };
     }
 
-    case 'send_reminder': {
+    case 'core:send_reminder': {
       const recipient = args.recipient === 'me' ? ctx.user.userName : (args.recipient as string) || '';
 
       const payload = {
@@ -305,7 +305,7 @@ function buildActionPreview(
       };
     }
 
-    case 'auto_approve_expense': {
+    case 'finance:auto_approve_expense': {
       const payload = {
         expense_id: (args.expense_id as string) || '',
         reason: (args.reason as string) || 'Meets auto-approve criteria',
@@ -321,7 +321,7 @@ function buildActionPreview(
       };
     }
 
-    case 'flag_expense_for_review': {
+    case 'finance:flag_expense_for_review': {
       const payload = {
         expense_id: (args.expense_id as string) || '',
         reason: (args.reason as string) || '',
@@ -340,7 +340,7 @@ function buildActionPreview(
       };
     }
 
-    case 'generate_invoice': {
+    case 'finance:generate_invoice': {
       const payload = {
         client_name: (args.client_name as string) || '',
         items: (args.items as string) || '[]',
@@ -360,7 +360,7 @@ function buildActionPreview(
       };
     }
 
-    case 'send_payment_reminder': {
+    case 'finance:send_payment_reminder': {
       const payload = {
         invoice_id: (args.invoice_id as string) || '',
         message: (args.message as string) || 'This is a friendly reminder that your invoice is due for payment.',
@@ -376,7 +376,7 @@ function buildActionPreview(
       };
     }
 
-    case 'suggest_budget_reallocation': {
+    case 'finance:suggest_budget_reallocation': {
       const payload = {
         from_budget_id: (args.from_budget_id as string) || '',
         to_budget_id: (args.to_budget_id as string) || '',
@@ -396,7 +396,7 @@ function buildActionPreview(
       };
     }
 
-    case 'create_deal': {
+    case 'crm:create_deal': {
       const payload = {
         title: (args.title as string) || '',
         amount: (args.amount as number) || 0,
@@ -420,7 +420,7 @@ function buildActionPreview(
       };
     }
 
-    case 'create_ticket': {
+    case 'support:create_ticket': {
       const payload = {
         subject: (args.subject as string) || '',
         description: (args.description as string) || '',
@@ -442,7 +442,7 @@ function buildActionPreview(
       };
     }
 
-    case 'assign_asset': {
+    case 'assets:assign_asset': {
       const payload = {
         assetName: (args.assetName as string) || '',
         employeeName: (args.employeeName as string) || '',
@@ -458,7 +458,7 @@ function buildActionPreview(
       };
     }
 
-    case 'send_renewal_reminder': {
+    case 'contracts:send_renewal_reminder': {
       const payload = { contractName: (args.contractName as string) || '' };
       return {
         description: `Send renewal reminder for contract "${payload.contractName}"`,
@@ -468,7 +468,7 @@ function buildActionPreview(
       };
     }
 
-    case 'create_campaign': {
+    case 'marketing:create_campaign': {
       const payload = {
         name: (args.name as string) || '',
         channel: (args.channel as string) || '',
@@ -490,7 +490,7 @@ function buildActionPreview(
       };
     }
 
-    case 'post_job': {
+    case 'recruitment:post_job': {
       const payload = {
         title: (args.title as string) || '',
         department: (args.department as string) || '',

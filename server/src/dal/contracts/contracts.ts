@@ -1,9 +1,14 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
 import { stripPII } from '../../services/ai/piiStripper.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Contract {
   id: string;
@@ -130,10 +135,10 @@ function mapContract(row: Record<string, unknown>): Contract {
   };
 }
 
-async function createRenewalReminders(contractId: string, endDate: string, ownerId?: string | null): Promise<void> {
+async function createRenewalReminders(client: PoolClient, contractId: string, endDate: string, ownerId?: string | null): Promise<void> {
   const days = [90, 60, 30];
   for (const d of days) {
-    await query(
+    await client.query(
       `INSERT INTO contract_reminders (contract_id, reminder_days_before, reminder_date, recipient_ids)
        VALUES ($1::uuid, $2, ($3::date - ($2 || ' days')::interval)::date, $4::jsonb)`,
       [contractId, d, endDate, JSON.stringify(ownerId ? [ownerId] : [])],
@@ -148,87 +153,95 @@ export async function listContracts(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Contract>> {
-  const conditions = ['1=1'];
-  const params: unknown[] = [];
-  let idx = 1;
-  if (ctx.organizationId) {
-    conditions.push(`c.organization_id = $${idx++}::uuid`);
-    params.push(ctx.organizationId);
-  }
-  if (filters?.status) {
-    conditions.push(`c.status = $${idx++}`);
-    params.push(filters.status);
-  }
-  if (filters?.type) {
-    conditions.push(`c.type = $${idx++}`);
-    params.push(filters.type);
-  }
-  if (filters?.counterpartyName) {
-    conditions.push(`c.counterparty_name ILIKE $${idx++}`);
-    params.push(`%${filters.counterpartyName}%`);
-  }
-  if (filters?.renewalStatus) {
-    conditions.push(`c.id IN (SELECT contract_id FROM mv_contract_renewals WHERE renewal_status = $${idx++})`);
-    params.push(filters.renewalStatus);
-  }
-  if (filters?.dateRange?.from) {
-    conditions.push(`c.start_date >= $${idx++}::date`);
-    params.push(filters.dateRange.from);
-  }
-  if (filters?.dateRange?.to) {
-    conditions.push(`c.end_date <= $${idx++}::date`);
-    params.push(filters.dateRange.to);
-  }
-  if (filters?.search) {
-    conditions.push(`(c.title ILIKE $${idx} OR c.counterparty_name ILIKE $${idx} OR COALESCE(c.notes, '') ILIKE $${idx})`);
-    params.push(`%${filters.search}%`);
-    idx++;
-  }
-  const where = conditions.join(' AND ');
-  const count = await query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM contracts c WHERE ${where}`, params);
-  const total = Number(count.rows[0]?.count ?? 0);
-  const pg = paginationClause(page, pageSize, idx);
-  const orderMap: Record<string, string> = {
-    title: 'c.title',
-    type: 'c.type',
-    status: 'c.status',
-    end_date: 'c.end_date',
-    total_value: 'c.total_value',
-    created_at: 'c.created_at',
-  };
-  const orderBy = orderMap[sort?.field ?? 'created_at'] ?? 'c.created_at';
-  const dir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
-  const rows = await query<Record<string, unknown>>(
-    `SELECT c.* FROM contracts c WHERE ${where} ORDER BY ${orderBy} ${dir} ${pg.clause}`,
-    [...params, ...pg.params],
-  );
-  return { data: rows.rows.map(mapContract), total, page, pageSize, totalPages: Math.ceil(total / pageSize) || 1 };
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listContracts');
+
+  return runInTenant(tenantId, async (client) => {
+    const conditions = ['1=1'];
+    const params: unknown[] = [];
+    let idx = 1;
+      if (filters?.status) {
+      conditions.push(`c.status = $${idx++}`);
+      params.push(filters.status);
+    }
+    if (filters?.type) {
+      conditions.push(`c.type = $${idx++}`);
+      params.push(filters.type);
+    }
+    if (filters?.counterpartyName) {
+      conditions.push(`c.counterparty_name ILIKE $${idx++}`);
+      params.push(`%${filters.counterpartyName}%`);
+    }
+    if (filters?.renewalStatus) {
+      conditions.push(`c.id IN (SELECT contract_id FROM mv_contract_renewals WHERE renewal_status = $${idx++})`);
+      params.push(filters.renewalStatus);
+    }
+    if (filters?.dateRange?.from) {
+      conditions.push(`c.start_date >= $${idx++}::date`);
+      params.push(filters.dateRange.from);
+    }
+    if (filters?.dateRange?.to) {
+      conditions.push(`c.end_date <= $${idx++}::date`);
+      params.push(filters.dateRange.to);
+    }
+    if (filters?.search) {
+      conditions.push(`(c.title ILIKE $${idx} OR c.counterparty_name ILIKE $${idx} OR COALESCE(c.notes, '') ILIKE $${idx})`);
+      params.push(`%${filters.search}%`);
+      idx++;
+    }
+    const where = conditions.join(' AND ');
+    const count = await client.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM contracts c WHERE ${where}`, params);
+    const total = Number(count.rows[0]?.count ?? 0);
+    const pg = paginationClause(page, pageSize, idx);
+    const orderMap: Record<string, string> = {
+      title: 'c.title',
+      type: 'c.type',
+      status: 'c.status',
+      end_date: 'c.end_date',
+      total_value: 'c.total_value',
+      created_at: 'c.created_at',
+    };
+    const orderBy = orderMap[sort?.field ?? 'created_at'] ?? 'c.created_at';
+    const dir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+    const rows = await client.query<Record<string, unknown>>(
+      `SELECT c.* FROM contracts c WHERE ${where} ORDER BY ${orderBy} ${dir} ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+    return { data: rows.rows.map(mapContract), total, page, pageSize, totalPages: Math.ceil(total / pageSize) || 1 };
+  });
 }
 
 export async function getContractById(ctx: CallerContext, contractId: string): Promise<Contract | null> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT * FROM contracts
-     WHERE id = $1::uuid
-       AND ($2::uuid IS NULL OR organization_id = $2::uuid)
-     LIMIT 1`,
-    [contractId, ctx.organizationId ?? null],
-  );
-  if (!result.rows[0]) return null;
-  const contract = mapContract(result.rows[0]);
-  const [signatories, obligations, reminders] = await Promise.all([
-    query<Record<string, unknown>>(`SELECT * FROM contract_signatories WHERE contract_id = $1::uuid ORDER BY signing_order ASC, created_at ASC`, [contractId]),
-    query<Record<string, unknown>>(`SELECT * FROM contract_obligations WHERE contract_id = $1::uuid ORDER BY due_date ASC NULLS LAST, created_at ASC`, [contractId]),
-    query<Record<string, unknown>>(`SELECT * FROM contract_reminders WHERE contract_id = $1::uuid ORDER BY reminder_date ASC`, [contractId]),
-  ]);
-  contract.signatories = signatories.rows;
-  contract.obligations = obligations.rows;
-  contract.reminders = reminders.rows;
-  return contract;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getContractById');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT * FROM contracts
+       WHERE id = $1::uuid
+       LIMIT 1`,
+      [contractId],
+    );
+    if (!result.rows[0]) return null;
+    const contract = mapContract(result.rows[0]);
+    const [signatories, obligations, reminders] = await Promise.all([
+      client.query<Record<string, unknown>>(`SELECT * FROM contract_signatories WHERE contract_id = $1::uuid ORDER BY signing_order ASC, created_at ASC`, [contractId]),
+      client.query<Record<string, unknown>>(`SELECT * FROM contract_obligations WHERE contract_id = $1::uuid ORDER BY due_date ASC NULLS LAST, created_at ASC`, [contractId]),
+      client.query<Record<string, unknown>>(`SELECT * FROM contract_reminders WHERE contract_id = $1::uuid ORDER BY reminder_date ASC`, [contractId]),
+    ]);
+    contract.signatories = signatories.rows;
+    contract.obligations = obligations.rows;
+    contract.reminders = reminders.rows;
+    return contract;
+  });
 }
 
 export async function createContract(ctx: CallerContext, data: CreateContractInput): Promise<Contract> {
-  if (!ctx.organizationId) throw new Error('Organization context required');
-  const result = await query<Record<string, unknown>>(
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Organization context required');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
     `INSERT INTO contracts (
        organization_id, title, type, status, counterparty_name, counterparty_email, counterparty_type,
        crm_company_id, finance_vendor_id, employee_id, total_value, currency, total_value_eur, payment_terms,
@@ -241,7 +254,7 @@ export async function createContract(ctx: CallerContext, data: CreateContractInp
        $22::date, $23, $24, $25, COALESCE($26::jsonb, '[]'::jsonb), $27, $28::uuid
      ) RETURNING *`,
     [
-      ctx.organizationId,
+      tenantId,
       data.title,
       data.type,
       data.status ?? 'draft',
@@ -271,20 +284,21 @@ export async function createContract(ctx: CallerContext, data: CreateContractInp
       data.owner_id ?? ctx.userId,
     ],
   );
-  const contract = mapContract(result.rows[0]);
-  if (contract.end_date) {
-    await createRenewalReminders(contract.id, contract.end_date, contract.owner_id);
-  }
-  eventBus.emit('contract.created', {
-    contractId: contract.id,
-    title: contract.title,
-    type: contract.type,
-    counterparty: contract.counterparty_name,
-    value: contract.total_value ?? 0,
-    currency: contract.currency,
+    const contract = mapContract(result.rows[0]);
+    if (contract.end_date) {
+      await createRenewalReminders(client, contract.id, contract.end_date, contract.owner_id);
+    }
+    eventBus.emit('contract.created', {
+      contractId: contract.id,
+      title: contract.title,
+      type: contract.type,
+      counterparty: contract.counterparty_name,
+      value: contract.total_value ?? 0,
+      currency: contract.currency,
+    });
+    await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
+    return contract;
   });
-  await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
-  return contract;
 }
 
 export async function updateContract(ctx: CallerContext, contractId: string, data: UpdateContractInput): Promise<Contract> {
@@ -329,89 +343,108 @@ export async function updateContract(ctx: CallerContext, contractId: string, dat
     }
   }
   sets.push('updated_at = NOW()');
-  params.push(contractId, ctx.organizationId ?? null);
-  const result = await query<Record<string, unknown>>(
-    `UPDATE contracts SET ${sets.join(', ')}
-     WHERE id = $${idx++}::uuid
-       AND ($${idx}::uuid IS NULL OR organization_id = $${idx}::uuid)
-     RETURNING *`,
-    params,
-  );
-  if (!result.rows[0]) throw new Error('Contract not found');
-  await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
-  return mapContract(result.rows[0]);
+  params.push(contractId);
+
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateContract');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `UPDATE contracts SET ${sets.join(', ')}
+       WHERE id = $${idx}::uuid
+       RETURNING *`,
+      params,
+    );
+    if (!result.rows[0]) throw new Error('Contract not found');
+    await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
+    return mapContract(result.rows[0]);
+  });
 }
 
 export async function activateContract(ctx: CallerContext, contractId: string): Promise<Contract> {
-  const result = await query<Record<string, unknown>>(
-    `UPDATE contracts
-     SET status = 'active',
-         effective_date = COALESCE(effective_date, CURRENT_DATE),
-         updated_at = NOW()
-     WHERE id = $1::uuid
-       AND ($2::uuid IS NULL OR organization_id = $2::uuid)
-     RETURNING *`,
-    [contractId, ctx.organizationId ?? null],
-  );
-  if (!result.rows[0]) throw new Error('Contract not found');
-  const contract = mapContract(result.rows[0]);
-  eventBus.emit('contract.activated', {
-    contractId: contract.id,
-    startDate: contract.start_date ?? new Date().toISOString().slice(0, 10),
-    endDate: contract.end_date ?? '',
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for activateContract');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `UPDATE contracts
+       SET status = 'active',
+           effective_date = COALESCE(effective_date, CURRENT_DATE),
+           updated_at = NOW()
+       WHERE id = $1::uuid
+       RETURNING *`,
+      [contractId],
+    );
+    if (!result.rows[0]) throw new Error('Contract not found');
+    const contract = mapContract(result.rows[0]);
+    eventBus.emit('contract.activated', {
+      contractId: contract.id,
+      startDate: contract.start_date ?? new Date().toISOString().slice(0, 10),
+      endDate: contract.end_date ?? '',
+    });
+    await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
+    return contract;
   });
-  await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
-  return contract;
 }
 
 export async function terminateContract(ctx: CallerContext, contractId: string, reason: string, effectiveDate: string): Promise<Contract> {
-  const result = await query<Record<string, unknown>>(
-    `UPDATE contracts
-     SET status = 'terminated',
-         notes = COALESCE(notes, '') || $2,
-         updated_at = NOW()
-     WHERE id = $1::uuid
-       AND ($3::uuid IS NULL OR organization_id = $3::uuid)
-     RETURNING *`,
-    [contractId, `\n[Terminated ${effectiveDate} by ${ctx.userId}] ${reason}`, ctx.organizationId ?? null],
-  );
-  if (!result.rows[0]) throw new Error('Contract not found');
-  const contract = mapContract(result.rows[0]);
-  eventBus.emit('contract.terminated', {
-    contractId: contract.id,
-    terminatedBy: ctx.userId,
-    reason,
-    effectiveDate,
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for terminateContract');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `UPDATE contracts
+       SET status = 'terminated',
+           notes = COALESCE(notes, '') || $2,
+           updated_at = NOW()
+       WHERE id = $1::uuid
+       RETURNING *`,
+      [contractId, `\n[Terminated ${effectiveDate} by ${ctx.userId}] ${reason}`],
+    );
+    if (!result.rows[0]) throw new Error('Contract not found');
+    const contract = mapContract(result.rows[0]);
+    eventBus.emit('contract.terminated', {
+      contractId: contract.id,
+      terminatedBy: ctx.userId,
+      reason,
+      effectiveDate,
+    });
+    await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
+    return contract;
   });
-  await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
-  return contract;
 }
 
 export async function renewContract(ctx: CallerContext, contractId: string, newEndDate: string, newValue?: number): Promise<Contract> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for renewContract');
+
   const contract = await getContractById(ctx, contractId);
   if (!contract) throw new Error('Contract not found');
-  const result = await query<Record<string, unknown>>(
-    `UPDATE contracts
-     SET status = 'renewed',
-         end_date = $2::date,
-         total_value = COALESCE($3, total_value),
-         total_value_eur = COALESCE($3, total_value_eur),
-         updated_at = NOW()
-     WHERE id = $1::uuid
-     RETURNING *`,
-    [contractId, newEndDate, newValue ?? null],
-  );
-  const renewed = mapContract(result.rows[0]);
-  await query(`DELETE FROM contract_reminders WHERE contract_id = $1::uuid`, [contractId]);
-  await createRenewalReminders(contractId, newEndDate, renewed.owner_id);
-  eventBus.emit('contract.renewed', {
-    contractId,
-    newContractId: contractId,
-    newEndDate,
-    valueChange: (newValue ?? renewed.total_value ?? 0) - (contract.total_value ?? 0),
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `UPDATE contracts
+       SET status = 'renewed',
+           end_date = $2::date,
+           total_value = COALESCE($3, total_value),
+           total_value_eur = COALESCE($3, total_value_eur),
+           updated_at = NOW()
+       WHERE id = $1::uuid
+       RETURNING *`,
+      [contractId, newEndDate, newValue ?? null],
+    );
+    const renewed = mapContract(result.rows[0]);
+    await client.query(`DELETE FROM contract_reminders WHERE contract_id = $1::uuid`, [contractId]);
+    await createRenewalReminders(client, contractId, newEndDate, renewed.owner_id);
+    eventBus.emit('contract.renewed', {
+      contractId,
+      newContractId: contractId,
+      newEndDate,
+      valueChange: (newValue ?? renewed.total_value ?? 0) - (contract.total_value ?? 0),
+    });
+    await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
+    return renewed;
   });
-  await refreshMaterializedViews([ANALYTICS_VIEWS.contractRenewals]);
-  return renewed;
 }
 
 function heuristicExtract(documentText: string): Record<string, unknown> {
@@ -484,37 +517,46 @@ export async function extractTermsWithAI(ctx: CallerContext, contractId: string)
   }
 
   const confidence = toNum(extracted.confidence ?? 0.6);
-  await query(
-    `UPDATE contracts
-     SET dora_extracted_terms = $2::jsonb,
-         dora_extraction_confidence = $3,
-         updated_at = NOW()
-     WHERE id = $1::uuid`,
-    [contractId, JSON.stringify(extracted), confidence],
-  );
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for extractTermsWithAI');
 
-  const obligations = Array.isArray(extracted.key_obligations) ? extracted.key_obligations.map(String) : [];
-  for (const obligation of obligations.slice(0, 10)) {
-    await query(
-      `INSERT INTO contract_obligations (contract_id, description, obligation_type, responsible_party, status)
-       VALUES ($1::uuid, $2, 'other', 'both', 'pending')`,
-      [contractId, obligation],
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE contracts
+       SET dora_extracted_terms = $2::jsonb,
+           dora_extraction_confidence = $3,
+           updated_at = NOW()
+       WHERE id = $1::uuid`,
+      [contractId, JSON.stringify(extracted), confidence],
     );
-  }
+
+    const obligations = Array.isArray(extracted.key_obligations) ? extracted.key_obligations.map(String) : [];
+    for (const obligation of obligations.slice(0, 10)) {
+      await client.query(
+        `INSERT INTO contract_obligations (contract_id, description, obligation_type, responsible_party, status)
+         VALUES ($1::uuid, $2, 'other', 'both', 'pending')`,
+        [contractId, obligation],
+      );
+    }
+  });
 
   return (await getContractById(ctx, contractId)) as Contract;
 }
 
 export async function getExpiringContracts(ctx: CallerContext, withinDays: number = 90): Promise<Array<Record<string, unknown>>> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT *
-     FROM mv_contract_renewals
-     WHERE days_until_expiry <= $2
-       AND ($1::uuid IS NULL OR contract_id IN (SELECT id FROM contracts WHERE organization_id = $1::uuid))
-     ORDER BY days_until_expiry ASC`,
-    [ctx.organizationId ?? null, withinDays],
-  );
-  return result.rows;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getExpiringContracts');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT *
+       FROM mv_contract_renewals
+       WHERE days_until_expiry <= $1
+       ORDER BY days_until_expiry ASC`,
+      [withinDays],
+    );
+    return result.rows;
+  });
 }
 
 export async function getContractMetrics(ctx: CallerContext): Promise<{
@@ -524,36 +566,39 @@ export async function getContractMetrics(ctx: CallerContext): Promise<{
   renewalsNeeded: number;
   complianceDue: number;
 }> {
-  const [summary, obligations] = await Promise.all([
-    query<Record<string, unknown>>(
-      `SELECT
-         COUNT(*) FILTER (WHERE status = 'active')::int AS total_active,
-         COALESCE(SUM(total_value_eur), 0)::numeric AS total_value,
-         COUNT(*) FILTER (
-           WHERE end_date >= CURRENT_DATE
-             AND end_date < CURRENT_DATE + INTERVAL '30 days'
-         )::int AS expiring_this_month,
-         COUNT(*) FILTER (WHERE auto_renew = FALSE AND status IN ('active', 'expiring'))::int AS renewals_needed
-       FROM contracts
-       WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)`,
-      [ctx.organizationId ?? null],
-    ),
-    query<Record<string, unknown>>(
-      `SELECT COUNT(*)::int AS compliance_due
-       FROM contract_obligations co
-       JOIN contracts c ON c.id = co.contract_id
-       WHERE co.status IN ('pending', 'overdue')
-         AND co.due_date <= CURRENT_DATE + INTERVAL '30 days'
-         AND ($1::uuid IS NULL OR c.organization_id = $1::uuid)`,
-      [ctx.organizationId ?? null],
-    ),
-  ]);
-  const row = summary.rows[0] ?? {};
-  return {
-    totalActive: toNum(row.total_active),
-    totalValue: toNum(row.total_value),
-    expiringThisMonth: toNum(row.expiring_this_month),
-    renewalsNeeded: toNum(row.renewals_needed),
-    complianceDue: toNum(obligations.rows[0]?.compliance_due),
-  };
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getContractMetrics');
+
+  return runInTenant(tenantId, async (client) => {
+    const [summary, obligations] = await Promise.all([
+      client.query<Record<string, unknown>>(
+        `SELECT
+           COUNT(*) FILTER (WHERE status = 'active')::int AS total_active,
+           COALESCE(SUM(total_value_eur), 0)::numeric AS total_value,
+           COUNT(*) FILTER (
+             WHERE end_date >= CURRENT_DATE
+               AND end_date < CURRENT_DATE + INTERVAL '30 days'
+           )::int AS expiring_this_month,
+           COUNT(*) FILTER (WHERE auto_renew = FALSE AND status IN ('active', 'expiring'))::int AS renewals_needed
+         FROM contracts`,
+        [],
+      ),
+      client.query<Record<string, unknown>>(
+        `SELECT COUNT(*)::int AS compliance_due
+         FROM contract_obligations co
+         JOIN contracts c ON c.id = co.contract_id
+         WHERE co.status IN ('pending', 'overdue')
+           AND co.due_date <= CURRENT_DATE + INTERVAL '30 days'`,
+        [],
+      ),
+    ]);
+    const row = summary.rows[0] ?? {};
+    return {
+      totalActive: toNum(row.total_active),
+      totalValue: toNum(row.total_value),
+      expiringThisMonth: toNum(row.expiring_this_month),
+      renewalsNeeded: toNum(row.renewals_needed),
+      complianceDue: toNum(obligations.rows[0]?.compliance_due),
+    };
+  });
 }

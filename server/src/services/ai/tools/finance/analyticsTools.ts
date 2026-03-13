@@ -3,7 +3,15 @@ import { query } from '../../../../db/index.js';
 import type { ToolContext, ToolResult } from '../../types.js';
 
 registerTool({
-  name: 'get_spending_insights',
+  name: 'finance:get_spending_insights',
+  metadata: {
+    namespace: 'finance',
+    name: 'get_spending_insights',
+    summary: 'Spending insights: trends, top categories, anomalies.',
+    tags: ['finance', 'spending', 'analytics'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period?: string',
+  },
   category: 'finance',
   description: 'Get aggregate spending analytics including totals by category, top vendors, and trends for the organization.',
   parameters: {
@@ -67,7 +75,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'analyze_spending_pattern',
+  name: 'finance:analyze_spending_pattern',
+  metadata: {
+    namespace: 'finance',
+    name: 'analyze_spending_pattern',
+    summary: 'Analyze spending patterns: recurring, seasonal, outliers.',
+    tags: ['finance', 'spending', 'patterns'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period?: string',
+  },
   category: 'finance',
   description: 'Detect anomalies and unusual patterns in spending. Identifies outliers and trend deviations.',
   parameters: {
@@ -130,7 +146,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_finance_dashboard',
+  name: 'finance:get_finance_dashboard',
+  metadata: {
+    namespace: 'finance',
+    name: 'get_finance_dashboard',
+    summary: 'Finance dashboard: KPIs, pending approvals, budget status.',
+    tags: ['finance', 'dashboard', 'kpis'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'finance',
   description: 'Get comprehensive finance dashboard metrics including pending expenses, budget health, invoice status, and payment summary.',
   parameters: {

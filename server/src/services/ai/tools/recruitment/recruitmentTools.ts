@@ -29,7 +29,15 @@ async function resolveOrgId(): Promise<string | undefined> {
 }
 
 registerTool({
-  name: 'get_hiring_pipeline',
+  name: 'recruitment:get_hiring_pipeline',
+  metadata: {
+    namespace: 'recruitment',
+    name: 'get_hiring_pipeline',
+    summary: 'Hiring pipeline: jobs, applications, stages, candidates.',
+    tags: ['recruitment', 'hiring', 'pipeline', 'ats'],
+    alwaysLoaded: false,
+    parameterHints: 'job_id?: string, stage?: string',
+  },
   category: 'analytics',
   description: 'Get the current hiring pipeline status showing open positions, applicants by stage, and time-to-hire metrics.',
   parameters: {
@@ -86,7 +94,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'score_candidate',
+  name: 'recruitment:score_candidate',
+  metadata: {
+    namespace: 'recruitment',
+    name: 'score_candidate',
+    summary: 'AI score candidate: match score, skills, fit for role.',
+    tags: ['recruitment', 'candidate', 'scoring', 'ai'],
+    alwaysLoaded: false,
+    parameterHints: 'application_id: string',
+  },
   category: 'analytics',
   description: "AI-score a candidate's resume against a job's requirements and return a match analysis.",
   parameters: {
@@ -170,7 +186,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_recruitment_metrics',
+  name: 'recruitment:get_recruitment_metrics',
+  metadata: {
+    namespace: 'recruitment',
+    name: 'get_recruitment_metrics',
+    summary: 'Recruitment metrics: time-to-hire, fill rate, conversion.',
+    tags: ['recruitment', 'metrics', 'analytics'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period?: string',
+  },
   category: 'analytics',
   description: 'Get recruitment metrics including time-to-hire, offer acceptance rate, source effectiveness, and pipeline conversion rates.',
   parameters: {
@@ -197,7 +221,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_cross_module_report',
+  name: 'recruitment:get_cross_module_report',
+  metadata: {
+    namespace: 'recruitment',
+    name: 'get_cross_module_report',
+    summary: 'Cross-module recruitment report: hiring + onboarding + performance.',
+    tags: ['recruitment', 'cross-module', 'report'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period?: string',
+  },
   category: 'analytics',
   description: 'Generate a cross-module analytics report showing correlations between marketing campaigns and revenue, support trends and product issues, project profitability, and hiring needs.',
   parameters: {

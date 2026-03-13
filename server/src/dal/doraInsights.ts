@@ -1,6 +1,12 @@
+import type { PoolClient } from 'pg';
 import { query } from '../db/index.js';
+import { withTenantQuery } from '../middleware/tenantContext.js';
 import type { CallerContext } from './types.js';
 import { emitBroadcast, emitToDepartment, emitToRole, emitToUser } from '../sockets/index.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export type DoraInsightSeverity = 'info' | 'warning' | 'critical' | 'success';
 
@@ -111,11 +117,6 @@ function buildBaseFilters(
   const params: unknown[] = [];
   let idx = startIndex;
 
-  if (ctx.organizationId) {
-    conditions.push(`${alias}.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-
   const audience = buildAudienceClause(ctx, idx, alias);
   conditions.push(audience.clause);
   params.push(...audience.params);
@@ -156,7 +157,11 @@ async function emitCountsRefresh(
 }
 
 export async function createInsight(data: CreateInsightInput): Promise<DoraInsight> {
-  const result = await query<DoraInsightRow>(
+  const tenantId = data.organizationId;
+  if (!tenantId) throw new Error('Organization context required for createInsight');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<DoraInsightRow>(
     `INSERT INTO dora_insights (
        organization_id,
        module,
@@ -209,33 +214,38 @@ export async function createInsight(data: CreateInsightInput): Promise<DoraInsig
     ],
   );
 
-  const insight = mapInsight(result.rows[0]!);
+    const insight = mapInsight(result.rows[0]!);
 
-  if (data.targetUserId) {
-    await emitToUser(data.targetUserId, 'dora:new-insight', insight);
-  }
-  if (data.targetRole) {
-    await emitToRole(data.targetRole, 'dora:new-insight', insight, data.organizationId);
-  }
-  if (data.targetDepartment) {
-    await emitToDepartment(data.targetDepartment, 'dora:new-insight', insight, data.organizationId);
-  }
-  if (!data.targetUserId && !data.targetRole && !data.targetDepartment) {
-    emitBroadcast('dora:new-insight', insight);
-  }
+    if (data.targetUserId) {
+      await emitToUser(data.targetUserId, 'dora:new-insight', insight);
+    }
+    if (data.targetRole) {
+      await emitToRole(data.targetRole, 'dora:new-insight', insight, data.organizationId);
+    }
+    if (data.targetDepartment) {
+      await emitToDepartment(data.targetDepartment, 'dora:new-insight', insight, data.organizationId);
+    }
+    if (!data.targetUserId && !data.targetRole && !data.targetDepartment) {
+      emitBroadcast('dora:new-insight', insight);
+    }
 
-  await emitCountsRefresh(data, insight.module);
-  return insight;
+    await emitCountsRefresh(data, insight.module);
+    return insight;
+  });
 }
 
 export async function getInsightsForUser(
   ctx: CallerContext,
   filters?: { module?: string; severity?: string; unreadOnly?: boolean; limit?: number },
 ): Promise<DoraInsight[]> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getInsightsForUser');
+
   const { whereSQL, params } = buildBaseFilters(ctx, filters, 'di');
   const limit = Math.min(Math.max(filters?.limit ?? 10, 1), 50);
 
-  const result = await query<DoraInsightRow>(
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<DoraInsightRow>(
     `SELECT
        di.id::text,
        di.module,
@@ -263,7 +273,8 @@ export async function getInsightsForUser(
     params,
   );
 
-  return result.rows.map(mapInsight);
+    return result.rows.map(mapInsight);
+  });
 }
 
 export async function getInsightsForModule(
@@ -275,64 +286,85 @@ export async function getInsightsForModule(
 }
 
 export async function markRead(ctx: CallerContext, insightId: string): Promise<void> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for markRead');
+
   const base = buildBaseFilters(ctx, undefined, 'di', 2);
-  await query(
-    `UPDATE dora_insights di
-     SET is_read = TRUE
-     WHERE di.id = $1::uuid
-       AND ${base.whereSQL}`,
-    [insightId, ...base.params],
-  );
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE dora_insights di
+       SET is_read = TRUE
+       WHERE di.id = $1::uuid
+         AND ${base.whereSQL}`,
+      [insightId, ...base.params],
+    );
+  });
   await emitToUser(ctx.userId, 'dora:insight-counts', { module: null, updatedAt: new Date().toISOString() });
 }
 
 export async function dismiss(ctx: CallerContext, insightId: string): Promise<void> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for dismiss');
+
   const base = buildBaseFilters(ctx, undefined, 'di', 2);
-  await query(
-    `UPDATE dora_insights di
-     SET is_dismissed = TRUE,
-         dismissed_at = NOW()
-     WHERE di.id = $1::uuid
-       AND ${base.whereSQL}`,
-    [insightId, ...base.params],
-  );
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE dora_insights di
+       SET is_dismissed = TRUE,
+           dismissed_at = NOW()
+       WHERE di.id = $1::uuid
+         AND ${base.whereSQL}`,
+      [insightId, ...base.params],
+    );
+  });
   await emitToUser(ctx.userId, 'dora:insight-counts', { module: null, updatedAt: new Date().toISOString() });
 }
 
 export async function dismissAll(ctx: CallerContext, module?: string): Promise<number> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for dismissAll');
+
   const base = buildBaseFilters(ctx, module ? { module } : undefined, 'di');
-  const result = await query<{ count: string }>(
-    `WITH updated AS (
-       UPDATE dora_insights di
-       SET is_dismissed = TRUE,
-           dismissed_at = NOW()
-       WHERE ${base.whereSQL}
-       RETURNING 1
-     )
-     SELECT COUNT(*)::text AS count FROM updated`,
-    base.params,
-  );
+  const count = await runInTenant(tenantId, async (client) => {
+    const result = await client.query<{ count: string }>(
+      `WITH updated AS (
+         UPDATE dora_insights di
+         SET is_dismissed = TRUE,
+             dismissed_at = NOW()
+         WHERE ${base.whereSQL}
+         RETURNING 1
+       )
+       SELECT COUNT(*)::text AS count FROM updated`,
+      base.params,
+    );
+    return parseInt(result.rows[0]?.count ?? '0', 10);
+  });
   await emitToUser(ctx.userId, 'dora:insight-counts', {
     module: module ?? null,
     updatedAt: new Date().toISOString(),
   });
-  return parseInt(result.rows[0]?.count ?? '0', 10);
+  return count;
 }
 
 export async function getUnreadCounts(ctx: CallerContext): Promise<Record<string, number>> {
-  const { whereSQL, params } = buildBaseFilters(ctx, { unreadOnly: true }, 'di');
-  const result = await query<{ module: string; count: string }>(
-    `SELECT di.module, COUNT(*)::text AS count
-     FROM dora_insights di
-     WHERE ${whereSQL}
-     GROUP BY di.module`,
-    params,
-  );
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getUnreadCounts');
 
-  return result.rows.reduce<Record<string, number>>((acc, row) => {
-    acc[row.module] = parseInt(row.count, 10);
-    return acc;
-  }, {});
+  const { whereSQL, params } = buildBaseFilters(ctx, { unreadOnly: true }, 'di');
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<{ module: string; count: string }>(
+      `SELECT di.module, COUNT(*)::text AS count
+       FROM dora_insights di
+       WHERE ${whereSQL}
+       GROUP BY di.module`,
+      params,
+    );
+
+    return result.rows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.module] = parseInt(row.count, 10);
+      return acc;
+    }, {});
+  });
 }
 
 export async function cleanupOldInsights(): Promise<number> {

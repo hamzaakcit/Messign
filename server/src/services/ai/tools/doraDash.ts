@@ -8,7 +8,15 @@ import { registerTool } from '../toolRegistry.js';
 import type { Tool } from '../types.js';
 
 const doraDashTool: Tool = {
-  name: 'play_dora_dash',
+  name: 'fun:play_dora_dash',
+  metadata: {
+    namespace: 'fun',
+    name: 'play_dora_dash',
+    summary: 'Easter egg: play Dora Dash mini-game. Fun widget.',
+    tags: ['fun', 'game', 'easter-egg'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'fun',
 
   description: `Launches the Dora Dash mini-game — a 2D dodging game where the player controls the Messign pilot plane and avoids falling bugs.

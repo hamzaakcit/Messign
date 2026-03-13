@@ -4,7 +4,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'create_task',
+      name: 'projects:create_task',
       description:
         '[ACTION] Create a new task in a project. Requires a title, project assignment, ' +
         'and priority. The task will be shown to the user for review before creation. ' +
@@ -50,7 +50,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'update_task_status',
+      name: 'projects:update_task_status',
       description:
         '[ACTION] Update the status of an existing task. Use when the user says: ' +
         '"Mark my task as done", "Move task to review", "Complete the X task".',
@@ -74,17 +74,17 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'update_task',
+      name: 'projects:update_task',
       description:
         '[ACTION] Update an existing task\'s due date, title, description, priority, or status. ' +
         'Use when the user says: "Extend deadline for [task]", "Change due date for [task]", ' +
-        '"Push the deadline", "Update the task [X] to...". You MUST call get_tasks_by_user first to get the task id, then call update_task with that task_id.',
+        '"Push the deadline", "Update the task [X] to...". You MUST call projects:get_tasks_by_user first to get the task id, then call projects:update_task with that task_id.',
       parameters: {
         type: 'object',
         properties: {
           task_id: {
             type: 'string',
-            description: 'The task id (from get_tasks_by_user result). Required.',
+            description: 'The task id (from projects:get_tasks_by_user result). Required.',
           },
           due_date: {
             type: 'string',
@@ -116,7 +116,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'draft_invoice',
+      name: 'finance:draft_invoice',
       description:
         '[ACTION] Draft a new invoice. Creates a draft that the user must review ' +
         'before it\'s finalized. Use when: "Draft an invoice for...", "Create an invoice...".',
@@ -147,7 +147,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'send_chat_message',
+      name: 'communication:send_chat_message',
       description:
         '[ACTION] Send a message to a chat channel. Use when: "Send a message to the ' +
         'general channel", "Post an update to engineering", "Tell the team about...".',
@@ -170,7 +170,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'send_reminder',
+      name: 'core:send_reminder',
       description:
         '[ACTION] Send a reminder notification to a team member. Use when: ' +
         '"Remind Emily about the deadline", "Send a nudge to...".',
@@ -197,7 +197,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'approve_expense',
+      name: 'finance:approve_expense',
       description:
         '[ACTION] Approve a reimbursement expense request. Moves the expense to the next approval stage. ' +
         'Only managers, finance, and admins can approve. Use when: ' +
@@ -221,7 +221,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'flag_expense',
+      name: 'finance:flag_expense',
       description:
         '[ACTION] Flag a suspicious or unusual expense for review. Adds a review flag and notifies the submitter\'s manager. ' +
         'Use when: "Flag this expense", "This expense looks suspicious", "Mark the receipt for review".',
@@ -244,7 +244,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'create_budget_alert',
+      name: 'finance:create_budget_alert',
       description:
         '[ACTION] Create a budget threshold alert for a department. Sends a notification when budget usage crosses the threshold. ' +
         'Use when: "Alert me when engineering hits 90% budget", "Set up a budget warning".',
@@ -271,7 +271,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'create_budget',
+      name: 'finance:create_budget',
       description:
         '[ACTION] Create a new department budget with allocated amount and date range. ' +
         'Only admins and finance can create budgets. Use when: ' +
@@ -311,7 +311,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'update_budget',
+      name: 'finance:update_budget',
       description:
         '[ACTION] Update an existing budget\'s amount, dates, or alert threshold. ' +
         'Use when: "Increase the engineering budget", "Change Q1 budget to...".',
@@ -346,7 +346,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'auto_approve_expense',
+      name: 'finance:auto_approve_expense',
       description:
         '[ACTION] Automatically approve an expense that meets all policy criteria. ' +
         'Only for expenses under the auto-approve threshold with high AI confidence.',
@@ -363,7 +363,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'flag_expense_for_review',
+      name: 'finance:flag_expense_for_review',
       description:
         '[ACTION] Flag an expense for manual review due to policy violations, anomalies, or risk factors.',
       parameters: {
@@ -380,7 +380,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'generate_invoice',
+      name: 'finance:generate_invoice',
       description:
         '[ACTION] Generate a draft invoice for a client. Specify the client name, line items, and payment terms.',
       parameters: {
@@ -398,7 +398,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'send_payment_reminder',
+      name: 'finance:send_payment_reminder',
       description:
         '[ACTION] Send a payment reminder for an overdue invoice. Creates a notification for the responsible party.',
       parameters: {
@@ -414,7 +414,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'suggest_budget_reallocation',
+      name: 'finance:suggest_budget_reallocation',
       description:
         '[ACTION] Suggest moving budget from an under-utilized category to an over-utilized one.',
       parameters: {
@@ -432,7 +432,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'create_deal',
+      name: 'crm:create_deal',
       description: '[ACTION] Create a new deal in the Sales CRM pipeline.',
       parameters: {
         type: 'object',
@@ -451,7 +451,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'create_ticket',
+      name: 'support:create_ticket',
       description: '[ACTION] Create a new support ticket.',
       parameters: {
         type: 'object',
@@ -469,7 +469,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'assign_asset',
+      name: 'assets:assign_asset',
       description: '[ACTION] Assign an asset or equipment to an employee.',
       parameters: {
         type: 'object',
@@ -484,7 +484,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'send_renewal_reminder',
+      name: 'contracts:send_renewal_reminder',
       description: '[ACTION] Send a renewal reminder for an expiring contract.',
       parameters: {
         type: 'object',
@@ -498,7 +498,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'create_campaign',
+      name: 'marketing:create_campaign',
       description: '[ACTION] Create a new marketing campaign.',
       parameters: {
         type: 'object',
@@ -516,7 +516,7 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'post_job',
+      name: 'recruitment:post_job',
       description: '[ACTION] Post a new job opening.',
       parameters: {
         type: 'object',
@@ -549,71 +549,71 @@ export function getToolsForRole(
   const allowedWriteTools = WRITE_TOOL_DEFINITIONS.filter((tool) => {
     const name = tool.function.name;
 
-    if (name === 'draft_invoice' && !['admin', 'cpo', 'finance', 'manager'].includes(userRole)) {
+    if (name === 'finance:draft_invoice' && !['admin', 'cpo', 'finance', 'manager'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'send_reminder' && !['admin', 'cpo', 'manager', 'hr'].includes(userRole)) {
+    if (name === 'core:send_reminder' && !['admin', 'cpo', 'manager', 'hr'].includes(userRole)) {
       return false;
     }
 
-    if ((name === 'create_budget' || name === 'update_budget') && !['admin', 'finance'].includes(userRole)) {
+    if ((name === 'finance:create_budget' || name === 'finance:update_budget') && !['admin', 'finance'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'approve_expense' && !['admin', 'finance', 'manager'].includes(userRole)) {
+    if (name === 'finance:approve_expense' && !['admin', 'finance', 'manager'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'flag_expense' && !['admin', 'finance', 'manager', 'hr'].includes(userRole)) {
+    if (name === 'finance:flag_expense' && !['admin', 'finance', 'manager', 'hr'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'create_budget_alert' && !['admin', 'finance', 'manager'].includes(userRole)) {
+    if (name === 'finance:create_budget_alert' && !['admin', 'finance', 'manager'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'auto_approve_expense' && !['admin', 'finance'].includes(userRole)) {
+    if (name === 'finance:auto_approve_expense' && !['admin', 'finance'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'flag_expense_for_review' && !['admin', 'finance', 'manager'].includes(userRole)) {
+    if (name === 'finance:flag_expense_for_review' && !['admin', 'finance', 'manager'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'generate_invoice' && !['admin', 'finance'].includes(userRole)) {
+    if (name === 'finance:generate_invoice' && !['admin', 'finance'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'send_payment_reminder' && !['admin', 'finance'].includes(userRole)) {
+    if (name === 'finance:send_payment_reminder' && !['admin', 'finance'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'suggest_budget_reallocation' && !['admin', 'finance'].includes(userRole)) {
+    if (name === 'finance:suggest_budget_reallocation' && !['admin', 'finance'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'create_deal' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+    if (name === 'crm:create_deal' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'create_ticket' && !['admin', 'manager', 'member', 'dept_head', 'system_admin'].includes(userRole)) {
+    if (name === 'support:create_ticket' && !['admin', 'manager', 'member', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'assign_asset' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+    if (name === 'assets:assign_asset' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'send_renewal_reminder' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+    if (name === 'contracts:send_renewal_reminder' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'create_campaign' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+    if (name === 'marketing:create_campaign' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 
-    if (name === 'post_job' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+    if (name === 'recruitment:post_job' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 

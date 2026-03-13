@@ -301,7 +301,7 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
     /\b(open\s+tasks|what\s+am\s+i\s+working\s+on)\b/i.test(q) ||
     /^(my\s+)?(open\s+)?tasks\b/i.test(q)
   ) {
-    return [{ name: 'get_tasks_by_user', args: { user_identifier: 'me', status_filter: 'active' } }];
+    return [{ name: 'projects:get_tasks_by_user', args: { user_identifier: 'me', status_filter: 'active' } }];
   }
 
   // "System-wide overview" / "System overview" / "Executive report" / "Company dashboard" → get_system_stats
@@ -471,21 +471,21 @@ export async function routeQuery(
         toolCalls = [{ name: 'get_available_questions', args: {} }];
       } else {
         console.log('[Intent Router] All routers failed. Falling back to knowledge base search.');
-        toolCalls = [{ name: 'search_knowledge_base', args: { query } }];
+        toolCalls = [{ name: 'knowledge:search_knowledge_base', args: { query } }];
       }
     }
   }
 
   if (!toolCalls || toolCalls.length === 0) {
     const kbStart = Date.now();
-    const kbResult = await executeTool('search_knowledge_base', { query }, context);
+    const kbResult = await executeTool('knowledge:search_knowledge_base', { query }, context);
     const kbElapsed = Date.now() - kbStart;
-    logToolExecution(null, 'search_knowledge_base', kbElapsed, kbResult.success, kbResult.metadata?.count ?? 0).catch(() => {});
+    logToolExecution(null, 'knowledge:search_knowledge_base', kbElapsed, kbResult.success, kbResult.metadata?.count ?? 0).catch(() => {});
     const hasKBResults = kbResult.success && Array.isArray(kbResult.data) && (kbResult.data as unknown[]).length > 0;
 
     return {
       toolResults: hasKBResults ? [kbResult] : [],
-      toolsUsed: hasKBResults ? ['search_knowledge_base'] : [],
+      toolsUsed: hasKBResults ? ['knowledge:search_knowledge_base'] : [],
       combinedContext: hasKBResults
         ? `[Background context from knowledge base]\n${kbResult.summary}`
         : '',
@@ -556,7 +556,7 @@ function formatCombinedContext(results: ToolResult[], toolNames: string[]): stri
       ? `(Source tables: ${result.metadata.source}${result.metadata.count ? `, ${result.metadata.count} records` : ''}${result.metadata.timeRange ? `, period: ${result.metadata.timeRange}` : ''})`
       : '';
 
-    const bodyLimit = toolName === 'search_knowledge_base' ? 3000 : 4000;
+    const bodyLimit = toolName?.includes('search_knowledge_base') ? 3000 : 4000;
     const body = truncateText(result.summary || JSON.stringify(result.data, null, 2), bodyLimit);
 
     sections.push(`${header}\n${meta}\n${body}`);

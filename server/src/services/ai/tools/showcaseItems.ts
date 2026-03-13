@@ -10,7 +10,15 @@ import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const showcaseItemsTool: Tool = {
-  name: 'get_showcase_items',
+  name: 'achievements:get_showcase_items',
+  metadata: {
+    namespace: 'achievements',
+    name: 'get_showcase_items',
+    summary: 'Showcase/portfolio items: featured work, projects.',
+    tags: ['achievements', 'showcase', 'portfolio'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'achievements',
 
   description: `Get showcase or portfolio items — work highlights, demos, and featured projects.

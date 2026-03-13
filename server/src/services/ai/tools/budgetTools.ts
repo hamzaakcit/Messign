@@ -35,7 +35,15 @@ function formatBudgetSummary(budgets: BudgetWithSpent[]): string {
 }
 
 const getBudgetStatusTool: Tool = {
-  name: 'get_budget_status',
+  name: 'finance:get_budget_status',
+  metadata: {
+    namespace: 'finance',
+    name: 'get_budget_status',
+    summary: 'Budget status: spent vs allocated, remaining, utilization.',
+    tags: ['finance', 'budget'],
+    alwaysLoaded: false,
+    parameterHints: 'budget_id?: string, department_id?: string',
+  },
   category: 'finance',
   description: `Get the current status of department budgets including spending, remaining amounts, and threshold alerts.
 

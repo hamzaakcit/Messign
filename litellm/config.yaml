@@ -1,0 +1,79 @@
+# LiteLLM Proxy — AI Gateway for Messign
+# Replaces hardcoded cascade in aiCascade.ts / taskRouter.ts
+# Run: litellm --config litellm/config.yaml
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+
+model_list:
+  # Tier 1: Fast + cheap (intent classification, simple extraction)
+  - model_name: "fast"
+    litellm_params:
+      model: "groq/llama-3.3-70b-versatile"
+      api_key: "os.environ/GROQ_API_KEY"
+    model_info:
+      max_tokens: 8192
+      input_cost_per_token: 0.00000059
+      output_cost_per_token: 0.00000079
+
+  # Tier 2: Balanced (summarization, drafting, moderate tasks)
+  - model_name: "balanced"
+    litellm_params:
+      model: "gemini/gemini-2.0-flash-lite"
+      api_key: "os.environ/GOOGLE_API_KEY"
+    model_info:
+      max_tokens: 8192
+      input_cost_per_token: 0.000000075
+      output_cost_per_token: 0.0000003
+
+  # Tier 3: Complex reasoning (multi-step, cross-module analysis)
+  - model_name: "complex"
+    litellm_params:
+      model: "anthropic/claude-sonnet-4-20250514"
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+    model_info:
+      max_tokens: 8192
+      input_cost_per_token: 0.000003
+      output_cost_per_token: 0.000015
+
+  # Tier 4: Frontier (hardest multi-agent orchestration)
+  - model_name: "frontier"
+    litellm_params:
+      model: "anthropic/claude-opus-4-20250514"
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+    model_info:
+      max_tokens: 8192
+      input_cost_per_token: 0.000015
+      output_cost_per_token: 0.000075
+
+  # Vision (receipt/invoice OCR)
+  - model_name: "vision"
+    litellm_params:
+      model: "anthropic/claude-sonnet-4-20250514"
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+    model_info:
+      max_tokens: 8192
+
+  # Embeddings
+  - model_name: "embeddings"
+    litellm_params:
+      model: "openai/text-embedding-3-small"
+      api_key: "os.environ/OPENAI_API_KEY"
+
+# Fallback chain: if primary fails, try secondary
+litellm_settings:
+  fallbacks:
+    - {"fast": ["balanced"]}
+    - {"balanced": ["complex"]}
+    - {"complex": ["frontier"]}
+
+  # Cost tracking (set LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY for full logging)
+  success_callback: ["langfuse"]
+
+  # Redis-backed cache (1 hour TTL for identical prompts)
+  # Set REDIS_HOST, REDIS_PORT, REDIS_PASSWORD in env (or REDIS_URL)
+  cache: true
+  cache_params:
+    type: "redis"
+    ttl: 3600
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"

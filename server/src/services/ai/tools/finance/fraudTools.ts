@@ -3,7 +3,15 @@ import { query } from '../../../../db/index.js';
 import type { ToolResult } from '../../types.js';
 
 registerTool({
-  name: 'detect_fraud_patterns',
+  name: 'finance:detect_fraud_patterns',
+  metadata: {
+    namespace: 'finance',
+    name: 'detect_fraud_patterns',
+    summary: 'Detect fraud patterns: anomalies, suspicious expenses.',
+    tags: ['finance', 'fraud', 'detection'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period?: string',
+  },
   category: 'finance',
   description: 'Analyze expense patterns for potential fraud indicators including duplicate submissions, unusual amounts, and suspicious timing.',
   parameters: {

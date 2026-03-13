@@ -20,6 +20,21 @@ import type { SourceDocument } from '../../services/ai/types.js';
 
 console.log(`[AI Route] Loaded with ${getToolCount()} AI tools available.`);
 
+/**
+ * A/B Test Phase 1.1: Route ~10% of requests to dynamic tool loop (5-tool payload).
+ * Uses deterministic hash of userId + organizationId for consistent per-user assignment.
+ */
+function routeToDynamicToolLoop(userId: string, organizationId: string | null): boolean {
+  const seed = `${userId}:${organizationId ?? 'no-org'}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+    hash = hash & hash; // Keep 32-bit
+  }
+  const bucket = Math.abs(hash) % 100;
+  return bucket < 10; // 10% to dynamic
+}
+
 export const aiRouter = Router();
 type AuthReq = Request & { userId: string; role?: string };
 
@@ -295,13 +310,21 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       content: m.content,
     }));
 
+    const isDynamicToolLoopEnabled = routeToDynamicToolLoop(
+      authReq.userId,
+      doraCtx.user.organizationId,
+    );
+
     const result = await orchestrate(
       userQuery,
       chatHistory,
       doraCtx,
       legacyContext,
       (chunk) => { send({ type: 'text', content: chunk }); },
-      provider !== 'auto' ? { provider } : {},
+      {
+        ...(provider !== 'auto' ? { provider } : {}),
+        isDynamicToolLoopEnabled,
+      },
     );
 
     const allToolResults = result.steps.flatMap((s) => s.observations);
@@ -311,12 +334,12 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     }
 
     const WIDGET_TOOL_MAP: Record<string, string> = {
-      get_system_stats: 'system_overview',
-      get_tasks_by_user: 'task_table',
-      get_project_status: 'project_status',
-      get_financial_summary: 'revenue_chart',
-      get_invoice_details: 'data_table',
-      play_dora_dash: 'dora_dash',
+      'analytics:get_system_stats': 'system_overview',
+      'projects:get_tasks_by_user': 'task_table',
+      'projects:get_project_status': 'project_status',
+      'finance:get_financial_summary': 'revenue_chart',
+      'finance:get_invoice_details': 'data_table',
+      'fun:play_dora_dash': 'dora_dash',
     };
     // Verify consistency with orchestrator's WIDGET_TOOL_NAMES at startup
     for (const key of Object.keys(WIDGET_TOOL_MAP)) {
@@ -341,6 +364,10 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     }
 
     const totalMs = Date.now() - startTime;
+
+    console.log(
+      `[A/B Test] Dynamic Loop: ${isDynamicToolLoopEnabled ? 'TRUE' : 'FALSE'} | Tokens: ${result.totalTokens.totalTokens} | Latency: ${totalMs}ms`,
+    );
 
     let telemetryId: string | null = null;
     try {
@@ -381,7 +408,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       dataPointsReturned: result.totalDataPoints,
       responseTimeMs: totalMs,
       success: result.success,
-      usedFallback: result.toolsUsed.length === 1 && result.toolsUsed[0] === 'search_knowledge_base',
+      usedFallback: result.toolsUsed.length === 1 && result.toolsUsed[0]?.includes('search_knowledge_base'),
       toolCallCount: result.steps.reduce((s, step) => s + step.toolCalls.length, 0),
       conciseMode: concise,
       synthesisProvider: 'orchestrator',

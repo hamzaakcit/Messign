@@ -1,7 +1,12 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import { paginationClause } from '../helpers.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface TimeEntry {
   id: string;
@@ -153,7 +158,7 @@ function visibilityClause(ctx: CallerContext, alias: string, indexStart: number)
 }
 
 async function resolveBillingRate(
-  ctx: CallerContext,
+  client: PoolClient,
   userId: string,
   projectId?: string,
   categoryId?: string,
@@ -161,27 +166,26 @@ async function resolveBillingRate(
 ): Promise<number | null> {
   if (explicitRate != null) return explicitRate;
   if (projectId) {
-    const rate = await query<RateLookup>(
+    const rate = await client.query<RateLookup>(
       `SELECT rate::float AS rate
        FROM time_billing_rates
-       WHERE organization_id = $1
-         AND user_id = $2
-         AND project_id = $3
+       WHERE user_id = $1
+         AND project_id = $2
          AND is_active = TRUE
          AND effective_from <= CURRENT_DATE
          AND (effective_to IS NULL OR effective_to >= CURRENT_DATE)
        ORDER BY effective_from DESC
        LIMIT 1`,
-      [ctx.organizationId, userId, projectId],
+      [userId, projectId],
     );
     if (rate.rows[0]?.rate != null) return n(rate.rows[0].rate);
   }
   if (categoryId) {
-    const categoryRate = await query<RateLookup>(
+    const categoryRate = await client.query<RateLookup>(
       `SELECT hourly_rate::float AS rate
        FROM time_categories
-       WHERE id = $1 AND organization_id = $2`,
-      [categoryId, ctx.organizationId],
+       WHERE id = $1`,
+      [categoryId],
     );
     if (categoryRate.rows[0]?.rate != null) return n(categoryRate.rows[0].rate);
   }
@@ -230,14 +234,12 @@ export async function listEntries(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<TimeEntry>> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listEntries');
+
   const where: string[] = [];
   const params: unknown[] = [];
   let idx = 1;
-
-  if (ctx.organizationId) {
-    where.push(`te.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
 
   const visibility = visibilityClause(ctx, 'te', idx);
   where.push(visibility.clause);
@@ -286,96 +288,113 @@ export async function listEntries(
   const sortField = allowedSortFields.has(sort.field) ? sort.field : 'te.date';
   const sortDir = sort.direction === 'asc' ? 'ASC' : 'DESC';
 
-  const countResult = await query<{ total: string }>(`SELECT COUNT(*)::int AS total FROM time_entries te LEFT JOIN tasks t ON t.id = te.task_id LEFT JOIN projects p ON p.id = te.project_id WHERE ${whereSql}`, params);
-  const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
+  return runInTenant(tenantId, async (client) => {
+    const countResult = await client.query<{ total: string }>(`SELECT COUNT(*)::int AS total FROM time_entries te LEFT JOIN tasks t ON t.id = te.task_id LEFT JOIN projects p ON p.id = te.project_id WHERE ${whereSql}`, params);
+    const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
 
-  const pagination = paginationClause(page, pageSize, idx);
-  const rows = await query<Record<string, unknown>>(
-    `${ENTRY_SELECT}
-     WHERE ${whereSql}
-     ORDER BY ${sortField} ${sortDir}
-     ${pagination.clause}`,
-    [...params, ...pagination.params],
-  );
+    const pagination = paginationClause(page, pageSize, idx);
+    const rows = await client.query<Record<string, unknown>>(
+      `${ENTRY_SELECT}
+       WHERE ${whereSql}
+       ORDER BY ${sortField} ${sortDir}
+       ${pagination.clause}`,
+      [...params, ...pagination.params],
+    );
 
-  return {
-    data: rows.rows.map(mapEntry),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+    return {
+      data: rows.rows.map(mapEntry),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  });
 }
 
 export async function getEntryById(ctx: CallerContext, entryId: string): Promise<TimeEntry | null> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getEntryById');
+
   const params: unknown[] = [entryId];
   const where: string[] = ['te.id = $1::uuid'];
   let idx = 2;
-
-  if (ctx.organizationId) {
-    where.push(`te.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
 
   const visibility = visibilityClause(ctx, 'te', idx);
   where.push(visibility.clause);
   params.push(...visibility.params);
 
-  const result = await query<Record<string, unknown>>(
-    `${ENTRY_SELECT}
-     WHERE ${where.join(' AND ')}
-     LIMIT 1`,
-    params,
-  );
-  return result.rows[0] ? mapEntry(result.rows[0]) : null;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `${ENTRY_SELECT}
+       WHERE ${where.join(' AND ')}
+       LIMIT 1`,
+      params,
+    );
+    return result.rows[0] ? mapEntry(result.rows[0]) : null;
+  });
 }
 
 export async function createEntry(ctx: CallerContext, data: CreateEntryInput): Promise<TimeEntry> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('organizationId is required');
+
   const userId = data.userId ?? ctx.userId;
-  if (!ctx.organizationId) throw new Error('organizationId is required');
   const isBillable = Boolean(data.isBillable);
-  const billingRate = await resolveBillingRate(ctx, userId, data.projectId, data.categoryId, data.billingRate);
 
-  const inserted = await query<Record<string, unknown>>(
-    `INSERT INTO time_entries (
-      organization_id, user_id, project_id, task_id, category_id, date, hours, description,
-      is_billable, billing_rate, client_id, source, timer_id, status
-    )
-    VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8, $9, $10, $11, $12, $13, 'draft')
-    RETURNING id::text AS id`,
-    [
-      ctx.organizationId,
-      userId,
-      data.projectId ?? null,
-      data.taskId ?? null,
-      data.categoryId ?? null,
-      data.date,
-      data.hours,
-      data.description ?? null,
-      isBillable,
-      isBillable ? billingRate : null,
-      data.clientId ?? null,
-      data.source ?? 'manual',
-      data.timerId ?? null,
-    ],
-  );
+  return runInTenant(tenantId, async (client) => {
+    const billingRate = await resolveBillingRate(client, userId, data.projectId, data.categoryId, data.billingRate);
 
-  const entry = await getEntryById(ctx, String(inserted.rows[0].id));
-  if (!entry) throw new Error('Failed to load created time entry');
+    const inserted = await client.query<Record<string, unknown>>(
+      `INSERT INTO time_entries (
+        organization_id, user_id, project_id, task_id, category_id, date, hours, description,
+        is_billable, billing_rate, client_id, source, timer_id, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8, $9, $10, $11, $12, $13, 'draft')
+      RETURNING id::text AS id`,
+      [
+        tenantId,
+        userId,
+        data.projectId ?? null,
+        data.taskId ?? null,
+        data.categoryId ?? null,
+        data.date,
+        data.hours,
+        data.description ?? null,
+        isBillable,
+        isBillable ? billingRate : null,
+        data.clientId ?? null,
+        data.source ?? 'manual',
+        data.timerId ?? null,
+      ],
+    );
 
-  eventBus.emit('time.entry.created', {
-    entryId: entry.id,
-    userId: entry.user_id,
-    projectId: entry.project_id ?? undefined,
-    taskId: entry.task_id ?? undefined,
-    hours: entry.hours,
-    billable: entry.is_billable,
-    date: entry.date,
+    const entryId = String(inserted.rows[0].id);
+    const result = await client.query<Record<string, unknown>>(
+      `${ENTRY_SELECT}
+       WHERE te.id = $1::uuid
+       LIMIT 1`,
+      [entryId],
+    );
+    const entry = result.rows[0] ? mapEntry(result.rows[0]) : null;
+    if (!entry) throw new Error('Failed to load created time entry');
+
+    eventBus.emit('time.entry.created', {
+      entryId: entry.id,
+      userId: entry.user_id,
+      projectId: entry.project_id ?? undefined,
+      taskId: entry.task_id ?? undefined,
+      hours: entry.hours,
+      billable: entry.is_billable,
+      date: entry.date,
+    });
+    return entry;
   });
-  return entry;
 }
 
 export async function updateEntry(ctx: CallerContext, entryId: string, data: UpdateEntryInput): Promise<TimeEntry> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateEntry');
+
   const existing = await getEntryById(ctx, entryId);
   if (!existing) throw new Error('Time entry not found');
   if (existing.user_id !== ctx.userId && ctx.role !== 'system_admin' && ctx.role !== 'finance_admin') {
@@ -386,56 +405,68 @@ export async function updateEntry(ctx: CallerContext, entryId: string, data: Upd
   }
 
   const isBillable = data.isBillable ?? existing.is_billable;
-  const billingRate = await resolveBillingRate(
-    ctx,
-    existing.user_id,
-    data.projectId ?? existing.project_id ?? undefined,
-    data.categoryId ?? existing.category_id ?? undefined,
-    data.billingRate ?? existing.billing_rate ?? undefined,
-  );
 
-  await query(
-    `UPDATE time_entries
-     SET project_id = COALESCE($2, project_id),
-         task_id = COALESCE($3, task_id),
-         category_id = COALESCE($4::uuid, category_id),
-         date = COALESCE($5::date, date),
-         hours = COALESCE($6, hours),
-         description = COALESCE($7, description),
-         is_billable = $8,
-         billing_rate = $9,
-         client_id = COALESCE($10::uuid, client_id),
-         status = COALESCE($11, status),
-         updated_at = NOW()
-     WHERE id = $1::uuid`,
-    [
-      entryId,
-      data.projectId ?? null,
-      data.taskId ?? null,
-      data.categoryId ?? null,
-      data.date ?? null,
-      data.hours ?? null,
-      data.description ?? null,
-      isBillable,
-      isBillable ? billingRate : null,
-      data.clientId ?? null,
-      data.status ?? null,
-    ],
-  );
+  return runInTenant(tenantId, async (client) => {
+    const billingRate = await resolveBillingRate(
+      client,
+      existing.user_id,
+      data.projectId ?? existing.project_id ?? undefined,
+      data.categoryId ?? existing.category_id ?? undefined,
+      data.billingRate ?? existing.billing_rate ?? undefined,
+    );
 
-  const updated = await getEntryById(ctx, entryId);
-  if (!updated) throw new Error('Time entry not found after update');
+    await client.query(
+      `UPDATE time_entries
+       SET project_id = COALESCE($2, project_id),
+           task_id = COALESCE($3, task_id),
+           category_id = COALESCE($4::uuid, category_id),
+           date = COALESCE($5::date, date),
+           hours = COALESCE($6, hours),
+           description = COALESCE($7, description),
+           is_billable = $8,
+           billing_rate = $9,
+           client_id = COALESCE($10::uuid, client_id),
+           status = COALESCE($11, status),
+           updated_at = NOW()
+       WHERE id = $1::uuid`,
+      [
+        entryId,
+        data.projectId ?? null,
+        data.taskId ?? null,
+        data.categoryId ?? null,
+        data.date ?? null,
+        data.hours ?? null,
+        data.description ?? null,
+        isBillable,
+        isBillable ? billingRate : null,
+        data.clientId ?? null,
+        data.status ?? null,
+      ],
+    );
 
-  eventBus.emit('time.entry.updated', {
-    entryId: updated.id,
-    userId: updated.user_id,
-    oldHours: existing.hours,
-    newHours: updated.hours,
+    const result = await client.query<Record<string, unknown>>(
+      `${ENTRY_SELECT}
+       WHERE te.id = $1::uuid
+       LIMIT 1`,
+      [entryId],
+    );
+    const updated = result.rows[0] ? mapEntry(result.rows[0]) : null;
+    if (!updated) throw new Error('Time entry not found after update');
+
+    eventBus.emit('time.entry.updated', {
+      entryId: updated.id,
+      userId: updated.user_id,
+      oldHours: existing.hours,
+      newHours: updated.hours,
+    });
+    return updated;
   });
-  return updated;
 }
 
 export async function deleteEntry(ctx: CallerContext, entryId: string): Promise<void> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for deleteEntry');
+
   const existing = await getEntryById(ctx, entryId);
   if (!existing) throw new Error('Time entry not found');
   if (existing.user_id !== ctx.userId && ctx.role !== 'system_admin' && ctx.role !== 'finance_admin') {
@@ -444,7 +475,9 @@ export async function deleteEntry(ctx: CallerContext, entryId: string): Promise<
   if (existing.status !== 'draft') {
     throw new Error('Only draft entries can be deleted');
   }
-  await query('DELETE FROM time_entries WHERE id = $1::uuid', [entryId]);
+  await runInTenant(tenantId, async (client) => {
+    await client.query('DELETE FROM time_entries WHERE id = $1::uuid', [entryId]);
+  });
   eventBus.emit('time.entry.deleted', {
     entryId,
     userId: existing.user_id,
@@ -457,16 +490,20 @@ export async function getEntriesForTimesheet(
   userId: string,
   weekStartDate: string,
 ): Promise<TimeEntry[]> {
-  const result = await query<Record<string, unknown>>(
-    `${ENTRY_SELECT}
-     WHERE te.organization_id = $1::uuid
-       AND te.user_id = $2::uuid
-       AND te.date >= $3::date
-       AND te.date < ($3::date + INTERVAL '7 days')
-     ORDER BY te.date ASC, te.created_at ASC`,
-    [ctx.organizationId, userId, weekStartDate],
-  );
-  return result.rows.map(mapEntry);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getEntriesForTimesheet');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `${ENTRY_SELECT}
+       WHERE te.user_id = $1::uuid
+         AND te.date >= $2::date
+         AND te.date < ($2::date + INTERVAL '7 days')
+       ORDER BY te.date ASC, te.created_at ASC`,
+      [userId, weekStartDate],
+    );
+    return result.rows.map(mapEntry);
+  });
 }
 
 export async function getWeeklyGrid(

@@ -295,7 +295,7 @@ export function buildDoraSynthesisPrompt(
 ): string {
   const { user, todayDate, conciseMode } = ctx;
 
-  if (hasKBContext && toolsUsed.length === 1 && toolsUsed[0] === 'search_knowledge_base') {
+  if (hasKBContext && toolsUsed.length === 1 && toolsUsed[0]?.includes('search_knowledge_base')) {
     let prompt = `You are Dora, the Messign Workspace AI assistant. You are answering ${user.userName} (${user.userRole}).
 Today is ${todayDate}.
 

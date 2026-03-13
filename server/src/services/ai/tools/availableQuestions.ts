@@ -41,7 +41,15 @@ const ADMIN_QUESTIONS = [
 ];
 
 const availableQuestionsTool: Tool = {
-  name: 'get_available_questions',
+  name: 'system:get_available_questions',
+  metadata: {
+    namespace: 'system',
+    name: 'get_available_questions',
+    summary: 'List example questions Dora can answer. For "what can you do" queries.',
+    tags: ['system', 'help', 'examples'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'system',
 
   description: `Return the list of questions the user can ask the AI Assistant, based on their role.

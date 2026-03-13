@@ -3,7 +3,15 @@ import { query } from '../../../../db/index.js';
 import type { ToolContext, ToolResult } from '../../types.js';
 
 registerTool({
-  name: 'check_budget_health',
+  name: 'finance:check_budget_health',
+  metadata: {
+    namespace: 'finance',
+    name: 'check_budget_health',
+    summary: 'Budget health: spent vs allocated, alerts, variance.',
+    tags: ['finance', 'budget', 'health'],
+    alwaysLoaded: false,
+    parameterHints: 'budget_id?: string',
+  },
   category: 'finance',
   description: 'Get current health status, utilization, and remaining amount for a budget. Can check by department name or budget ID.',
   parameters: {
@@ -61,7 +69,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'forecast_budget',
+  name: 'finance:forecast_budget',
+  metadata: {
+    namespace: 'finance',
+    name: 'forecast_budget',
+    summary: 'Budget forecast: projected spend, runway, recommendations.',
+    tags: ['finance', 'budget', 'forecast'],
+    alwaysLoaded: false,
+    parameterHints: 'budget_id?: string',
+  },
   category: 'finance',
   description: 'Forecast budget burn rate and projected exhaustion date based on historical spending patterns.',
   parameters: {

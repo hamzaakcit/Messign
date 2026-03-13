@@ -21,7 +21,15 @@ async function resolveOrgId(): Promise<string | undefined> {
 }
 
 registerTool({
-  name: 'get_campaign_performance',
+  name: 'marketing:get_campaign_performance',
+  metadata: {
+    namespace: 'marketing',
+    name: 'get_campaign_performance',
+    summary: 'Campaign performance: spend, ROI, conversions, channel metrics.',
+    tags: ['marketing', 'campaign', 'roi', 'performance'],
+    alwaysLoaded: false,
+    parameterHints: 'campaign_id?: string, time_period?: string',
+  },
   category: 'analytics',
   description: 'Get marketing campaign performance metrics including ROI, leads generated, and spend.',
   parameters: {
@@ -113,7 +121,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_marketing_roi',
+  name: 'marketing:get_marketing_roi',
+  metadata: {
+    namespace: 'marketing',
+    name: 'get_marketing_roi',
+    summary: 'Marketing ROI: CAC, CPL, MQL, revenue attribution.',
+    tags: ['marketing', 'roi', 'analytics'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period?: string',
+  },
   category: 'analytics',
   description: 'Get overall marketing ROI, channel performance comparison, and cost per lead analysis.',
   parameters: {
@@ -155,7 +171,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'suggest_content_topics',
+  name: 'marketing:suggest_content_topics',
+  metadata: {
+    namespace: 'marketing',
+    name: 'suggest_content_topics',
+    summary: 'Suggest content topics based on campaign performance and trends.',
+    tags: ['marketing', 'content', 'suggestions'],
+    alwaysLoaded: false,
+    parameterHints: 'campaign_id?: string',
+  },
   category: 'analytics',
   description: 'Suggest content topics based on trending support tickets, popular knowledge base articles, and sales conversation themes.',
   parameters: {

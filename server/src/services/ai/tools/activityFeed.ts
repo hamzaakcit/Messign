@@ -12,7 +12,15 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const activityFeedTool: Tool = {
-  name: 'get_recent_activity',
+  name: 'analytics:get_recent_activity',
+  metadata: {
+    namespace: 'analytics',
+    name: 'get_recent_activity',
+    summary: 'Recent activity feed: tasks, messages, docs, achievements.',
+    tags: ['analytics', 'activity', 'feed'],
+    alwaysLoaded: false,
+    parameterHints: 'scope: system|user|team, user_identifier?: string, limit?: number',
+  },
   category: 'analytics',
 
   description: `Get recent activity across the system — latest actions, changes, and events.

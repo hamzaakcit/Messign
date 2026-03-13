@@ -158,6 +158,7 @@ export function register(): void {
       aiScore.match_score,
       matchDetails,
       'ai',
+      meta.organization_id ?? undefined,
     );
 
     eventBus.emit('recruitment.candidate.screened', {

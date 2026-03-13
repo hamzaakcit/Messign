@@ -1,8 +1,13 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Campaign {
   id: string;
@@ -182,44 +187,48 @@ async function refreshRoiView(): Promise<void> {
 }
 
 async function getCampaignBase(ctx: CallerContext, campaignId: string): Promise<Campaign | null> {
-  const result = await query(
-    `SELECT
-       c.*,
-       ru.full_name AS owner_name,
-       COALESCE(sp.spend_count, 0)::int AS spend_count,
-       COALESCE(ld.lead_count, 0)::int AS lead_count,
-       COALESCE(ct.content_count, 0)::int AS content_count,
-       COALESCE(dv.deal_value, 0)::numeric AS deal_value
-     FROM marketing_campaigns c
-     LEFT JOIN reimbursement_users ru ON ru.id = c.owner_id
-     LEFT JOIN (
-       SELECT campaign_id, COUNT(*)::int AS spend_count
-       FROM marketing_campaign_spend
-       GROUP BY campaign_id
-     ) sp ON sp.campaign_id = c.id
-     LEFT JOIN (
-       SELECT campaign_id, COUNT(*)::int AS lead_count
-       FROM marketing_leads
-       GROUP BY campaign_id
-     ) ld ON ld.campaign_id = c.id
-     LEFT JOIN (
-       SELECT campaign_id, COUNT(*)::int AS content_count
-       FROM marketing_content
-       GROUP BY campaign_id
-     ) ct ON ct.campaign_id = c.id
-     LEFT JOIN (
-       SELECT l.campaign_id, COALESCE(SUM(d.amount_eur), 0)::numeric AS deal_value
-       FROM marketing_leads l
-       JOIN crm_deals d ON d.id = l.crm_deal_id
-       GROUP BY l.campaign_id
-     ) dv ON dv.campaign_id = c.id
-     WHERE c.id = $1
-       AND ($2::uuid IS NULL OR c.organization_id = $2::uuid)
-     LIMIT 1`,
-    [campaignId, ctx.organizationId ?? null],
-  );
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getCampaignBase');
 
-  return result.rows[0] ? mapCampaign(result.rows[0] as Record<string, unknown>) : null;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT
+         c.*,
+         ru.full_name AS owner_name,
+         COALESCE(sp.spend_count, 0)::int AS spend_count,
+         COALESCE(ld.lead_count, 0)::int AS lead_count,
+         COALESCE(ct.content_count, 0)::int AS content_count,
+         COALESCE(dv.deal_value, 0)::numeric AS deal_value
+       FROM marketing_campaigns c
+       LEFT JOIN reimbursement_users ru ON ru.id = c.owner_id
+       LEFT JOIN (
+         SELECT campaign_id, COUNT(*)::int AS spend_count
+         FROM marketing_campaign_spend
+         GROUP BY campaign_id
+       ) sp ON sp.campaign_id = c.id
+       LEFT JOIN (
+         SELECT campaign_id, COUNT(*)::int AS lead_count
+         FROM marketing_leads
+         GROUP BY campaign_id
+       ) ld ON ld.campaign_id = c.id
+       LEFT JOIN (
+         SELECT campaign_id, COUNT(*)::int AS content_count
+         FROM marketing_content
+         GROUP BY campaign_id
+       ) ct ON ct.campaign_id = c.id
+       LEFT JOIN (
+         SELECT l.campaign_id, COALESCE(SUM(d.amount_eur), 0)::numeric AS deal_value
+         FROM marketing_leads l
+         JOIN crm_deals d ON d.id = l.crm_deal_id
+         GROUP BY l.campaign_id
+       ) dv ON dv.campaign_id = c.id
+       WHERE c.id = $1
+       LIMIT 1`,
+      [campaignId],
+    );
+
+    return result.rows[0] ? mapCampaign(result.rows[0] as Record<string, unknown>) : null;
+  });
 }
 
 export async function listCampaigns(
@@ -229,101 +238,102 @@ export async function listCampaigns(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Campaign>> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listCampaigns');
 
-  if (ctx.organizationId) {
-    conditions.push(`c.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-  if (filters?.status) {
-    conditions.push(`c.status = $${idx++}`);
-    params.push(filters.status);
-  }
-  if (filters?.channel) {
-    conditions.push(`c.channel = $${idx++}`);
-    params.push(filters.channel);
-  }
-  if (filters?.ownerId) {
-    conditions.push(`c.owner_id = $${idx++}`);
-    params.push(filters.ownerId);
-  }
-  if (filters?.dateRange?.from) {
-    conditions.push(`COALESCE(c.start_date, c.created_at::date) >= $${idx++}::date`);
-    params.push(filters.dateRange.from);
-  }
-  if (filters?.dateRange?.to) {
-    conditions.push(`COALESCE(c.end_date, c.created_at::date) <= $${idx++}::date`);
-    params.push(filters.dateRange.to);
-  }
-  if (filters?.search) {
-    conditions.push(`(c.name ILIKE $${idx} OR COALESCE(c.description, '') ILIKE $${idx})`);
-    params.push(`%${filters.search}%`);
-    idx++;
-  }
+  return runInTenant(tenantId, async (client) => {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
 
-  const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
-  const sortColumns: Record<string, string> = {
-    name: 'c.name',
-    channel: 'c.channel',
-    status: 'c.status',
-    budget: 'c.budget_eur',
-    spend: 'c.actual_spend_eur',
-    leads: 'c.leads_generated',
-    roi: 'c.roi',
-    created: 'c.created_at',
-    start_date: 'c.start_date',
-  };
-  const orderBy = sortColumns[sort?.field ?? 'created'] ?? 'c.created_at';
-  const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+      if (filters?.status) {
+      conditions.push(`c.status = $${idx++}`);
+      params.push(filters.status);
+    }
+    if (filters?.channel) {
+      conditions.push(`c.channel = $${idx++}`);
+      params.push(filters.channel);
+    }
+    if (filters?.ownerId) {
+      conditions.push(`c.owner_id = $${idx++}`);
+      params.push(filters.ownerId);
+    }
+    if (filters?.dateRange?.from) {
+      conditions.push(`COALESCE(c.start_date, c.created_at::date) >= $${idx++}::date`);
+      params.push(filters.dateRange.from);
+    }
+    if (filters?.dateRange?.to) {
+      conditions.push(`COALESCE(c.end_date, c.created_at::date) <= $${idx++}::date`);
+      params.push(filters.dateRange.to);
+    }
+    if (filters?.search) {
+      conditions.push(`(c.name ILIKE $${idx} OR COALESCE(c.description, '') ILIKE $${idx})`);
+      params.push(`%${filters.search}%`);
+      idx++;
+    }
 
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*)::int AS count
-     FROM marketing_campaigns c
-     WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+    const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+    const sortColumns: Record<string, string> = {
+      name: 'c.name',
+      channel: 'c.channel',
+      status: 'c.status',
+      budget: 'c.budget_eur',
+      spend: 'c.actual_spend_eur',
+      leads: 'c.leads_generated',
+      roi: 'c.roi',
+      created: 'c.created_at',
+      start_date: 'c.start_date',
+    };
+    const orderBy = sortColumns[sort?.field ?? 'created'] ?? 'c.created_at';
+    const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
 
-  const pg = paginationClause(page, pageSize, idx);
-  const result = await query(
-    `SELECT
-       c.*,
-       ru.full_name AS owner_name,
-       COALESCE(sp.spend_count, 0)::int AS spend_count,
-       COALESCE(ld.lead_count, 0)::int AS lead_count,
-       COALESCE(ct.content_count, 0)::int AS content_count
-     FROM marketing_campaigns c
-     LEFT JOIN reimbursement_users ru ON ru.id = c.owner_id
-     LEFT JOIN (
-       SELECT campaign_id, COUNT(*)::int AS spend_count
-       FROM marketing_campaign_spend
-       GROUP BY campaign_id
-     ) sp ON sp.campaign_id = c.id
-     LEFT JOIN (
-       SELECT campaign_id, COUNT(*)::int AS lead_count
-       FROM marketing_leads
-       GROUP BY campaign_id
-     ) ld ON ld.campaign_id = c.id
-     LEFT JOIN (
-       SELECT campaign_id, COUNT(*)::int AS content_count
-       FROM marketing_content
-       GROUP BY campaign_id
-     ) ct ON ct.campaign_id = c.id
-     WHERE ${whereSQL}
-     ORDER BY ${orderBy} ${direction}
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count
+       FROM marketing_campaigns c
+       WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  return {
-    data: result.rows.map((row) => mapCampaign(row as Record<string, unknown>)),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    const pg = paginationClause(page, pageSize, idx);
+    const result = await client.query(
+      `SELECT
+         c.*,
+         ru.full_name AS owner_name,
+         COALESCE(sp.spend_count, 0)::int AS spend_count,
+         COALESCE(ld.lead_count, 0)::int AS lead_count,
+         COALESCE(ct.content_count, 0)::int AS content_count
+       FROM marketing_campaigns c
+       LEFT JOIN reimbursement_users ru ON ru.id = c.owner_id
+       LEFT JOIN (
+         SELECT campaign_id, COUNT(*)::int AS spend_count
+         FROM marketing_campaign_spend
+         GROUP BY campaign_id
+       ) sp ON sp.campaign_id = c.id
+       LEFT JOIN (
+         SELECT campaign_id, COUNT(*)::int AS lead_count
+         FROM marketing_leads
+         GROUP BY campaign_id
+       ) ld ON ld.campaign_id = c.id
+       LEFT JOIN (
+         SELECT campaign_id, COUNT(*)::int AS content_count
+         FROM marketing_content
+         GROUP BY campaign_id
+       ) ct ON ct.campaign_id = c.id
+       WHERE ${whereSQL}
+       ORDER BY ${orderBy} ${direction}
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+
+    return {
+      data: result.rows.map((row) => mapCampaign(row as Record<string, unknown>)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getCampaignById(ctx: CallerContext, campaignId: string): Promise<Campaign | null> {
@@ -340,8 +350,12 @@ export async function getCampaignById(ctx: CallerContext, campaignId: string): P
 }
 
 export async function createCampaign(ctx: CallerContext, data: CreateCampaignInput): Promise<Campaign> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createCampaign');
+
   const budget = toNumber(data.budget);
-  const result = await query(
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
     `INSERT INTO marketing_campaigns (
        organization_id, name, description, channel, status, budget, actual_spend,
        currency, budget_eur, actual_spend_eur, start_date, end_date, target_audience,
@@ -350,7 +364,7 @@ export async function createCampaign(ctx: CallerContext, data: CreateCampaignInp
      VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,0,$9,$10,$11,$12,$13,$14)
      RETURNING *`,
     [
-      ctx.organizationId ?? null,
+      tenantId,
       data.name,
       data.description ?? null,
       data.channel,
@@ -367,17 +381,18 @@ export async function createCampaign(ctx: CallerContext, data: CreateCampaignInp
     ],
   );
 
-  const campaign = mapCampaign(result.rows[0] as Record<string, unknown>);
-  eventBus.emit('marketing.campaign.created', {
-    campaignId: campaign.id,
-    name: campaign.name,
-    channel: campaign.channel,
-    budget: campaign.budget,
-    currency: campaign.currency,
-    createdBy: ctx.userId,
+    const campaign = mapCampaign(result.rows[0] as Record<string, unknown>);
+    eventBus.emit('marketing.campaign.created', {
+      campaignId: campaign.id,
+      name: campaign.name,
+      channel: campaign.channel,
+      budget: campaign.budget,
+      currency: campaign.currency,
+      createdBy: ctx.userId,
+    });
+    await refreshRoiView();
+    return (await getCampaignBase(ctx, campaign.id)) ?? campaign;
   });
-  await refreshRoiView();
-  return (await getCampaignBase(ctx, campaign.id)) ?? campaign;
 }
 
 export async function updateCampaign(
@@ -421,22 +436,26 @@ export async function updateCampaign(
     }
   }
   sets.push('updated_at = NOW()');
-  params.push(campaignId, ctx.organizationId ?? null);
+  params.push(campaignId);
 
-  const result = await query(
-    `UPDATE marketing_campaigns
-     SET ${sets.join(', ')}
-     WHERE id = $${idx++}
-       AND ($${idx}::uuid IS NULL OR organization_id = $${idx}::uuid)
-     RETURNING *`,
-    params,
-  );
-  if (!result.rows[0]) {
-    throw new Error('Campaign not found');
-  }
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateCampaign');
 
-  await refreshRoiView();
-  return (await getCampaignBase(ctx, campaignId)) ?? mapCampaign(result.rows[0] as Record<string, unknown>);
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE marketing_campaigns
+       SET ${sets.join(', ')}
+       WHERE id = $${idx}
+       RETURNING *`,
+      params,
+    );
+    if (!result.rows[0]) {
+      throw new Error('Campaign not found');
+    }
+
+    await refreshRoiView();
+    return (await getCampaignBase(ctx, campaignId)) ?? mapCampaign(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function launchCampaign(ctx: CallerContext, campaignId: string): Promise<Campaign> {
@@ -470,7 +489,11 @@ export async function completeCampaign(ctx: CallerContext, campaignId: string): 
     throw new Error('Campaign not found');
   }
 
-  const roiResult = await query<{ deal_value: string; deal_count: string }>(
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for completeCampaign');
+
+  const roiResult = await runInTenant(tenantId, async (client) =>
+    client.query<{ deal_value: string; deal_count: string }>(
     `SELECT
        COALESCE(SUM(d.amount_eur), 0)::numeric AS deal_value,
        COUNT(DISTINCT l.crm_deal_id)::int AS deal_count
@@ -478,7 +501,7 @@ export async function completeCampaign(ctx: CallerContext, campaignId: string): 
      LEFT JOIN crm_deals d ON d.id = l.crm_deal_id
      WHERE l.campaign_id = $1`,
     [campaignId],
-  );
+  ));
   const dealValue = toNumber(roiResult.rows[0]?.deal_value);
   const roi = base.actual_spend_eur > 0 ? Number((dealValue / base.actual_spend_eur).toFixed(2)) : 0;
   const campaign = await updateCampaign(ctx, campaignId, {
@@ -503,6 +526,9 @@ export async function recordSpend(
   campaignId: string,
   data: SpendInput,
 ): Promise<SpendEntry> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for recordSpend');
+
   const campaign = await getCampaignBase(ctx, campaignId);
   if (!campaign) {
     throw new Error('Campaign not found');
@@ -510,7 +536,8 @@ export async function recordSpend(
 
   const amount = toNumber(data.amount);
   const amountEur = data.amount_eur != null ? toNumber(data.amount_eur) : amount;
-  const result = await query(
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
     `INSERT INTO marketing_campaign_spend (
        campaign_id, amount, currency, amount_eur, category, description, date,
        vendor, receipt_url, created_by
@@ -531,109 +558,119 @@ export async function recordSpend(
     ],
   );
 
-  const actualSpend = campaign.actual_spend + amount;
-  const actualSpendEur = campaign.actual_spend_eur + amountEur;
-  const leadCount = campaign.leads_generated || 0;
+    const actualSpend = campaign.actual_spend + amount;
+    const actualSpendEur = campaign.actual_spend_eur + amountEur;
+    const leadCount = campaign.leads_generated || 0;
 
-  await updateCampaign(ctx, campaignId, {
-    actual_spend: actualSpend,
-    actual_spend_eur: actualSpendEur,
-    cost_per_lead: leadCount > 0 ? Number((actualSpendEur / leadCount).toFixed(2)) : 0,
-  });
-
-  eventBus.emit('marketing.spend.recorded', {
-    campaignId,
-    amount,
-    currency: (data.currency ?? campaign.currency ?? 'EUR').toUpperCase(),
-    category: data.category ?? 'other',
-    date: data.date,
-  });
-
-  if (campaign.budget_eur > 0 && actualSpendEur > campaign.budget_eur) {
-    eventBus.emit('marketing.campaign.budget_exceeded', {
-      campaignId,
-      name: campaign.name,
-      budget: campaign.budget_eur,
-      actualSpend: actualSpendEur,
-      percentOver: Number((((actualSpendEur - campaign.budget_eur) / campaign.budget_eur) * 100).toFixed(2)),
+    await updateCampaign(ctx, campaignId, {
+      actual_spend: actualSpend,
+      actual_spend_eur: actualSpendEur,
+      cost_per_lead: leadCount > 0 ? Number((actualSpendEur / leadCount).toFixed(2)) : 0,
     });
-  }
 
-  await refreshRoiView();
-  return mapSpendEntry(result.rows[0] as Record<string, unknown>);
+    eventBus.emit('marketing.spend.recorded', {
+      campaignId,
+      amount,
+      currency: (data.currency ?? campaign.currency ?? 'EUR').toUpperCase(),
+      category: data.category ?? 'other',
+      date: data.date,
+    });
+
+    if (campaign.budget_eur > 0 && actualSpendEur > campaign.budget_eur) {
+      eventBus.emit('marketing.campaign.budget_exceeded', {
+        campaignId,
+        name: campaign.name,
+        budget: campaign.budget_eur,
+        actualSpend: actualSpendEur,
+        percentOver: Number((((actualSpendEur - campaign.budget_eur) / campaign.budget_eur) * 100).toFixed(2)),
+      });
+    }
+
+    await refreshRoiView();
+    return mapSpendEntry(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function listSpendEntries(ctx: CallerContext, campaignId: string): Promise<SpendEntry[]> {
-  const result = await query(
-    `SELECT s.*, ru.full_name AS created_by_name
-     FROM marketing_campaign_spend s
-     JOIN marketing_campaigns c ON c.id = s.campaign_id
-     LEFT JOIN reimbursement_users ru ON ru.id = s.created_by
-     WHERE s.campaign_id = $1
-       AND ($2::uuid IS NULL OR c.organization_id = $2::uuid)
-     ORDER BY s.date DESC, s.created_at DESC`,
-    [campaignId, ctx.organizationId ?? null],
-  );
-  return result.rows.map((row) => mapSpendEntry(row as Record<string, unknown>));
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listSpendEntries');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT s.*, ru.full_name AS created_by_name
+       FROM marketing_campaign_spend s
+       JOIN marketing_campaigns c ON c.id = s.campaign_id
+       LEFT JOIN reimbursement_users ru ON ru.id = s.created_by
+       WHERE s.campaign_id = $1
+       ORDER BY s.date DESC, s.created_at DESC`,
+      [campaignId],
+    );
+    return result.rows.map((row) => mapSpendEntry(row as Record<string, unknown>));
+  });
 }
 
 export async function getCampaignMetrics(
   ctx: CallerContext,
   period?: string,
 ): Promise<CampaignMetricsSummary> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getCampaignMetrics');
+
   const interval =
     period === 'year' ? "INTERVAL '1 year'" : period === 'quarter' ? "INTERVAL '3 months'" : "INTERVAL '1 month'";
   const dateFilter = period ? `AND c.created_at >= NOW() - ${interval}` : '';
 
-  const [summaryResult, channelResult] = await Promise.all([
-    query<{
-      active_campaigns: string;
-      total_spend: string;
-      total_leads: string;
-      avg_cpl: string;
-      avg_roi: string;
-    }>(
-      `SELECT
-         COUNT(*) FILTER (WHERE c.status = 'active')::int AS active_campaigns,
-         COALESCE(SUM(c.actual_spend_eur), 0)::numeric AS total_spend,
-         COALESCE(SUM(c.leads_generated), 0)::int AS total_leads,
-         COALESCE(AVG(NULLIF(c.cost_per_lead, 0)), 0)::numeric AS avg_cpl,
-         COALESCE(AVG(NULLIF(c.roi, 0)), 0)::numeric AS avg_roi
-       FROM marketing_campaigns c
-       WHERE ($1::uuid IS NULL OR c.organization_id = $1::uuid)
-       ${dateFilter}`,
-      [ctx.organizationId ?? null],
-    ),
-    query<{ channel: string; campaigns: string; spend: string; leads: string; roi: string }>(
-      `SELECT
-         c.channel,
-         COUNT(*)::int AS campaigns,
-         COALESCE(SUM(c.actual_spend_eur), 0)::numeric AS spend,
-         COALESCE(SUM(c.leads_generated), 0)::int AS leads,
-         COALESCE(AVG(NULLIF(c.roi, 0)), 0)::numeric AS roi
-       FROM marketing_campaigns c
-       WHERE ($1::uuid IS NULL OR c.organization_id = $1::uuid)
-       ${dateFilter}
-       GROUP BY c.channel
-       ORDER BY spend DESC, c.channel ASC`,
-      [ctx.organizationId ?? null],
-    ),
-  ]);
+  return runInTenant(tenantId, async (client) => {
+    const [summaryResult, channelResult] = await Promise.all([
+      client.query<{
+        active_campaigns: string;
+        total_spend: string;
+        total_leads: string;
+        avg_cpl: string;
+        avg_roi: string;
+      }>(
+        `SELECT
+           COUNT(*) FILTER (WHERE c.status = 'active')::int AS active_campaigns,
+           COALESCE(SUM(c.actual_spend_eur), 0)::numeric AS total_spend,
+           COALESCE(SUM(c.leads_generated), 0)::int AS total_leads,
+           COALESCE(AVG(NULLIF(c.cost_per_lead, 0)), 0)::numeric AS avg_cpl,
+           COALESCE(AVG(NULLIF(c.roi, 0)), 0)::numeric AS avg_roi
+         FROM marketing_campaigns c
+         WHERE 1=1
+         ${dateFilter}`,
+        [],
+      ),
+      client.query<{ channel: string; campaigns: string; spend: string; leads: string; roi: string }>(
+        `SELECT
+           c.channel,
+           COUNT(*)::int AS campaigns,
+           COALESCE(SUM(c.actual_spend_eur), 0)::numeric AS spend,
+           COALESCE(SUM(c.leads_generated), 0)::int AS leads,
+           COALESCE(AVG(NULLIF(c.roi, 0)), 0)::numeric AS roi
+         FROM marketing_campaigns c
+         WHERE 1=1
+         ${dateFilter}
+         GROUP BY c.channel
+         ORDER BY spend DESC, c.channel ASC`,
+        [],
+      ),
+    ]);
 
-  const summary = summaryResult.rows[0];
-  return {
-    activeCampaigns: parseInt(summary?.active_campaigns ?? '0', 10),
-    totalSpend: toNumber(summary?.total_spend),
-    totalLeads: parseInt(summary?.total_leads ?? '0', 10),
-    avgCPL: toNumber(summary?.avg_cpl),
-    avgROI: toNumber(summary?.avg_roi),
-    byChannel: channelResult.rows.map((row) => ({
-      channel: row.channel,
-      campaigns: parseInt(row.campaigns, 10),
-      spend: toNumber(row.spend),
-      leads: parseInt(row.leads, 10),
-      cpl: parseInt(row.leads, 10) > 0 ? Number((toNumber(row.spend) / parseInt(row.leads, 10)).toFixed(2)) : 0,
-      roi: toNumber(row.roi),
-    })),
-  };
+    const summary = summaryResult.rows[0];
+    return {
+      activeCampaigns: parseInt(summary?.active_campaigns ?? '0', 10),
+      totalSpend: toNumber(summary?.total_spend),
+      totalLeads: parseInt(summary?.total_leads ?? '0', 10),
+      avgCPL: toNumber(summary?.avg_cpl),
+      avgROI: toNumber(summary?.avg_roi),
+      byChannel: channelResult.rows.map((row) => ({
+        channel: row.channel,
+        campaigns: parseInt(row.campaigns, 10),
+        spend: toNumber(row.spend),
+        leads: parseInt(row.leads, 10),
+        cpl: parseInt(row.leads, 10) > 0 ? Number((toNumber(row.spend) / parseInt(row.leads, 10)).toFixed(2)) : 0,
+        roi: toNumber(row.roi),
+      })),
+    };
+  });
 }

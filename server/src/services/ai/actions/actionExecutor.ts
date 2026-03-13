@@ -36,70 +36,70 @@ export async function executeConfirmedAction(
     let result: ActionExecutionResult;
 
     switch (actionType) {
-      case 'create_task':
+      case 'projects:create_task':
         result = await executeCreateTask(payload);
         break;
-      case 'update_task_status':
+      case 'projects:update_task_status':
         result = await executeUpdateTaskStatus(payload);
         break;
-      case 'update_task':
+      case 'projects:update_task':
         result = await executeUpdateTask(payload);
         break;
-      case 'draft_invoice':
+      case 'finance:draft_invoice':
         result = await executeDraftInvoice(payload);
         break;
-      case 'send_chat_message':
+      case 'communication:send_chat_message':
         result = await executeSendChatMessage(payload);
         break;
-      case 'send_reminder':
+      case 'core:send_reminder':
         result = await executeSendReminder(payload);
         break;
-      case 'approve_expense':
+      case 'finance:approve_expense':
         result = await executeApproveExpense(payload, context);
         break;
-      case 'flag_expense':
+      case 'finance:flag_expense':
         result = await executeFlagExpense(payload, context);
         break;
-      case 'create_budget_alert':
+      case 'finance:create_budget_alert':
         result = await executeCreateBudgetAlert(payload, context);
         break;
-      case 'create_budget':
+      case 'finance:create_budget':
         result = await executeCreateBudget(payload, context);
         break;
-      case 'update_budget':
+      case 'finance:update_budget':
         result = await executeUpdateBudget(payload, context);
         break;
-      case 'auto_approve_expense':
+      case 'finance:auto_approve_expense':
         result = await executeAutoApproveExpense(payload, context);
         break;
-      case 'flag_expense_for_review':
+      case 'finance:flag_expense_for_review':
         result = await executeFlagExpenseForReview(payload, context);
         break;
-      case 'generate_invoice':
+      case 'finance:generate_invoice':
         result = await executeGenerateInvoice(payload, context);
         break;
-      case 'send_payment_reminder':
+      case 'finance:send_payment_reminder':
         result = await executeSendPaymentReminder(payload, context);
         break;
-      case 'suggest_budget_reallocation':
+      case 'finance:suggest_budget_reallocation':
         result = await executeSuggestBudgetReallocation(payload, context);
         break;
-      case 'create_deal':
+      case 'crm:create_deal':
         result = await executeCreateDeal(payload, context);
         break;
-      case 'create_ticket':
+      case 'support:create_ticket':
         result = await executeCreateTicket(payload, context);
         break;
-      case 'assign_asset':
+      case 'assets:assign_asset':
         result = await executeAssignAsset(payload, context);
         break;
-      case 'send_renewal_reminder':
+      case 'contracts:send_renewal_reminder':
         result = await executeSendRenewalReminder(payload, context);
         break;
-      case 'create_campaign':
+      case 'marketing:create_campaign':
         result = await executeCreateCampaign(payload, context);
         break;
-      case 'post_job':
+      case 'recruitment:post_job':
         result = await executePostJob(payload, context);
         break;
       default:
@@ -132,22 +132,22 @@ export async function executeConfirmedAction(
 function checkWritePermission(actionType: WriteActionType, role: string): string | null {
   const normalizedRole = String(role || '').toLowerCase();
   const roleMap: Partial<Record<WriteActionType, string[]>> = {
-    create_budget: ['admin', 'finance'],
-    update_budget: ['admin', 'finance'],
-    create_budget_alert: ['admin', 'finance', 'manager'],
-    approve_expense: ['admin', 'finance', 'manager'],
-    flag_expense: ['admin', 'finance', 'manager', 'hr'],
-    auto_approve_expense: ['admin', 'finance'],
-    flag_expense_for_review: ['admin', 'finance', 'manager'],
-    generate_invoice: ['admin', 'finance'],
-    send_payment_reminder: ['admin', 'finance'],
-    suggest_budget_reallocation: ['admin', 'finance'],
-    create_deal: ['admin', 'manager', 'dept_head', 'system_admin'],
-    assign_asset: ['admin', 'manager', 'dept_head', 'system_admin'],
-    send_renewal_reminder: ['admin', 'manager', 'dept_head', 'system_admin'],
-    create_campaign: ['admin', 'manager', 'dept_head', 'system_admin'],
-    post_job: ['admin', 'manager', 'dept_head', 'system_admin'],
-    create_ticket: ['admin', 'manager', 'member', 'dept_head', 'system_admin'],
+    'finance:create_budget': ['admin', 'finance'],
+    'finance:update_budget': ['admin', 'finance'],
+    'finance:create_budget_alert': ['admin', 'finance', 'manager'],
+    'finance:approve_expense': ['admin', 'finance', 'manager'],
+    'finance:flag_expense': ['admin', 'finance', 'manager', 'hr'],
+    'finance:auto_approve_expense': ['admin', 'finance'],
+    'finance:flag_expense_for_review': ['admin', 'finance', 'manager'],
+    'finance:generate_invoice': ['admin', 'finance'],
+    'finance:send_payment_reminder': ['admin', 'finance'],
+    'finance:suggest_budget_reallocation': ['admin', 'finance'],
+    'crm:create_deal': ['admin', 'manager', 'dept_head', 'system_admin'],
+    'assets:assign_asset': ['admin', 'manager', 'dept_head', 'system_admin'],
+    'contracts:send_renewal_reminder': ['admin', 'manager', 'dept_head', 'system_admin'],
+    'marketing:create_campaign': ['admin', 'manager', 'dept_head', 'system_admin'],
+    'recruitment:post_job': ['admin', 'manager', 'dept_head', 'system_admin'],
+    'support:create_ticket': ['admin', 'manager', 'member', 'dept_head', 'system_admin'],
   };
   const allowedRoles = roleMap[actionType];
   if (!allowedRoles) return null;
@@ -166,7 +166,7 @@ async function executeCreateTask(
 
   return {
     success: true,
-    actionType: 'create_task',
+    actionType: 'projects:create_task',
     message: `Task "${payload.title}" created in ${payload.project_name} and assigned to ${payload.assignee}.`,
     result: {
       taskId: `task-${Date.now()}`,
@@ -183,7 +183,7 @@ async function executeUpdateTaskStatus(
 
   return {
     success: true,
-    actionType: 'update_task_status',
+    actionType: 'projects:update_task_status',
     message: `Task "${payload.task_title}" status updated to ${payload.new_status}.`,
     result: { taskTitle: payload.task_title, newStatus: payload.new_status },
   };
@@ -196,7 +196,7 @@ async function executeUpdateTask(
   if (!taskId) {
     return {
       success: false,
-      actionType: 'update_task',
+      actionType: 'projects:update_task',
       message: 'Task ID is required.',
       error: 'MISSING_TASK_ID',
     };
@@ -222,7 +222,7 @@ async function executeUpdateTask(
   if (Object.keys(updates).length === 0) {
     return {
       success: false,
-      actionType: 'update_task',
+      actionType: 'projects:update_task',
       message: 'No updates provided (due_date, title, description, priority, or status).',
       error: 'NO_UPDATES',
     };
@@ -233,7 +233,7 @@ async function executeUpdateTask(
     if (!task) {
       return {
         success: false,
-        actionType: 'update_task',
+        actionType: 'projects:update_task',
         message: 'Task not found.',
         error: 'TASK_NOT_FOUND',
       };
@@ -245,7 +245,7 @@ async function executeUpdateTask(
     if (updates.status) parts.push(`status to ${updates.status}`);
     return {
       success: true,
-      actionType: 'update_task',
+      actionType: 'projects:update_task',
       message: `Task "${task.title}" updated: ${parts.join(', ')}.`,
       result: { taskId: task.id, title: task.title, ...updates },
     };
@@ -254,7 +254,7 @@ async function executeUpdateTask(
     console.error('[ActionExecutor] update_task failed:', message);
     return {
       success: false,
-      actionType: 'update_task',
+      actionType: 'projects:update_task',
       message: `Failed to update task: ${message}`,
       error: message,
     };
@@ -270,7 +270,7 @@ async function executeDraftInvoice(
 
   return {
     success: true,
-    actionType: 'draft_invoice',
+    actionType: 'finance:draft_invoice',
     message: `Invoice ${invoiceId} drafted for ${payload.client_name}: $${(payload.amount as number).toLocaleString()}.`,
     result: { invoiceId, clientName: payload.client_name, amount: payload.amount },
   };
@@ -283,7 +283,7 @@ async function executeSendChatMessage(
 
   return {
     success: true,
-    actionType: 'send_chat_message',
+    actionType: 'communication:send_chat_message',
     message: `Message sent to #${payload.channel}.`,
     result: { channel: payload.channel },
   };
@@ -296,7 +296,7 @@ async function executeSendReminder(
 
   return {
     success: true,
-    actionType: 'send_reminder',
+    actionType: 'core:send_reminder',
     message: `Reminder sent to ${payload.recipient}.`,
     result: { recipient: payload.recipient },
   };
@@ -308,7 +308,7 @@ async function executeApproveExpense(
 ): Promise<ActionExecutionResult> {
   const reimbursementId = payload.reimbursement_id as string;
   if (!reimbursementId) {
-    return { success: false, actionType: 'approve_expense', message: 'Reimbursement ID required.', error: 'MISSING_ID' };
+    return { success: false, actionType: 'finance:approve_expense', message: 'Reimbursement ID required.', error: 'MISSING_ID' };
   }
 
   try {
@@ -321,7 +321,7 @@ async function executeApproveExpense(
     );
     const row = result.rows[0];
     if (!row) {
-      return { success: false, actionType: 'approve_expense', message: 'Expense not found.', error: 'NOT_FOUND' };
+      return { success: false, actionType: 'finance:approve_expense', message: 'Expense not found.', error: 'NOT_FOUND' };
     }
 
     const statusMap: Record<string, string> = {
@@ -331,7 +331,7 @@ async function executeApproveExpense(
     };
     const nextStatus = statusMap[row.status];
     if (!nextStatus) {
-      return { success: false, actionType: 'approve_expense', message: `Cannot approve expense in "${row.status}" status.`, error: 'INVALID_STATUS' };
+      return { success: false, actionType: 'finance:approve_expense', message: `Cannot approve expense in "${row.status}" status.`, error: 'INVALID_STATUS' };
     }
 
     await query(
@@ -350,7 +350,7 @@ async function executeApproveExpense(
     }
 
     await logFinancialAction({
-      actionType: 'approve_expense',
+      actionType: 'finance:approve_expense',
       relatedEntityType: 'reimbursement_request',
       relatedEntityId: reimbursementId,
       reasoning: `Dora AI approved expense "${row.title}" from ${row.status} → ${nextStatus}`,
@@ -358,14 +358,14 @@ async function executeApproveExpense(
 
     return {
       success: true,
-      actionType: 'approve_expense',
+      actionType: 'finance:approve_expense',
       message: `Expense "${row.title}" approved (${row.status} → ${nextStatus}).`,
       result: { reimbursementId, title: row.title, newStatus: nextStatus },
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[ActionExecutor] approve_expense failed:', message);
-    return { success: false, actionType: 'approve_expense', message: `Failed: ${message}`, error: message };
+    return { success: false, actionType: 'finance:approve_expense', message: `Failed: ${message}`, error: message };
   }
 }
 
@@ -376,7 +376,7 @@ async function executeFlagExpense(
   const reimbursementId = payload.reimbursement_id as string;
   const reason = payload.reason as string;
   if (!reimbursementId || !reason) {
-    return { success: false, actionType: 'flag_expense', message: 'Reimbursement ID and reason required.', error: 'MISSING_FIELDS' };
+    return { success: false, actionType: 'finance:flag_expense', message: 'Reimbursement ID and reason required.', error: 'MISSING_FIELDS' };
   }
 
   try {
@@ -389,7 +389,7 @@ async function executeFlagExpense(
     );
     const row = result.rows[0];
     if (!row) {
-      return { success: false, actionType: 'flag_expense', message: 'Expense not found.', error: 'NOT_FOUND' };
+      return { success: false, actionType: 'finance:flag_expense', message: 'Expense not found.', error: 'NOT_FOUND' };
     }
 
     await query(
@@ -404,7 +404,7 @@ async function executeFlagExpense(
     );
 
     await logFinancialAction({
-      actionType: 'flag_expense',
+      actionType: 'finance:flag_expense',
       relatedEntityType: 'reimbursement_request',
       relatedEntityId: reimbursementId,
       reasoning: `Dora AI flagged expense "${row.title}": ${reason}`,
@@ -412,14 +412,14 @@ async function executeFlagExpense(
 
     return {
       success: true,
-      actionType: 'flag_expense',
+      actionType: 'finance:flag_expense',
       message: `Expense "${row.title}" flagged for review: ${reason}`,
       result: { reimbursementId, title: row.title, reason },
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[ActionExecutor] flag_expense failed:', message);
-    return { success: false, actionType: 'flag_expense', message: `Failed: ${message}`, error: message };
+    return { success: false, actionType: 'finance:flag_expense', message: `Failed: ${message}`, error: message };
   }
 }
 
@@ -430,7 +430,7 @@ async function executeCreateBudgetAlert(
   const department = payload.department as string;
   const threshold = payload.threshold as number;
   if (!department || threshold == null) {
-    return { success: false, actionType: 'create_budget_alert', message: 'Department and threshold required.', error: 'MISSING_FIELDS' };
+    return { success: false, actionType: 'finance:create_budget_alert', message: 'Department and threshold required.', error: 'MISSING_FIELDS' };
   }
 
   try {
@@ -447,7 +447,7 @@ async function executeCreateBudgetAlert(
     }
 
     await logFinancialAction({
-      actionType: 'create_budget_alert',
+      actionType: 'finance:create_budget_alert',
       relatedEntityType: 'budget',
       relatedEntityId: budget?.id || 'no_active_budget',
       reasoning: `Dora AI set budget alert for ${department} at ${(threshold * 100).toFixed(0)}%`,
@@ -456,14 +456,14 @@ async function executeCreateBudgetAlert(
 
     return {
       success: true,
-      actionType: 'create_budget_alert',
+      actionType: 'finance:create_budget_alert',
       message: `Budget alert set for ${department} at ${(threshold * 100).toFixed(0)}% threshold.${budget ? '' : ' Note: No active budget found for this department.'}`,
       result: { department, threshold, budgetId: budget?.id },
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[ActionExecutor] create_budget_alert failed:', message);
-    return { success: false, actionType: 'create_budget_alert', message: `Failed: ${message}`, error: message };
+    return { success: false, actionType: 'finance:create_budget_alert', message: `Failed: ${message}`, error: message };
   }
 }
 
@@ -479,7 +479,7 @@ async function executeCreateBudget(
   if (!department || !allocatedAmount || !periodStart || !periodEnd) {
     return {
       success: false,
-      actionType: 'create_budget',
+      actionType: 'finance:create_budget',
       message: 'Missing required fields: department, allocated_amount, period_start, period_end.',
       error: 'MISSING_FIELDS',
     };
@@ -498,7 +498,7 @@ async function executeCreateBudget(
     });
 
     await logFinancialAction({
-      actionType: 'create_budget',
+      actionType: 'finance:create_budget',
       relatedEntityType: 'budget',
       relatedEntityId: budget.id,
       reasoning: `Dora AI created budget for ${department}: ${budget.currency} ${allocatedAmount}`,
@@ -506,7 +506,7 @@ async function executeCreateBudget(
 
     return {
       success: true,
-      actionType: 'create_budget',
+      actionType: 'finance:create_budget',
       message: `Budget created for ${department}: ${budget.currency} ${allocatedAmount.toLocaleString()} (${periodStart} → ${periodEnd}).`,
       result: { budgetId: budget.id, department, allocatedAmount },
     };
@@ -515,7 +515,7 @@ async function executeCreateBudget(
     console.error('[ActionExecutor] create_budget failed:', message);
     return {
       success: false,
-      actionType: 'create_budget',
+      actionType: 'finance:create_budget',
       message: `Failed to create budget: ${message}`,
       error: message,
     };
@@ -530,7 +530,7 @@ async function executeUpdateBudget(
   if (!budgetId) {
     return {
       success: false,
-      actionType: 'update_budget',
+      actionType: 'finance:update_budget',
       message: 'Budget ID is required.',
       error: 'MISSING_BUDGET_ID',
     };
@@ -549,14 +549,14 @@ async function executeUpdateBudget(
     if (!budget) {
       return {
         success: false,
-        actionType: 'update_budget',
+        actionType: 'finance:update_budget',
         message: 'Budget not found.',
         error: 'BUDGET_NOT_FOUND',
       };
     }
 
     await logFinancialAction({
-      actionType: 'update_budget',
+      actionType: 'finance:update_budget',
       relatedEntityType: 'budget',
       relatedEntityId: budget.id,
       reasoning: `Dora AI updated budget for ${budget.department}`,
@@ -564,7 +564,7 @@ async function executeUpdateBudget(
 
     return {
       success: true,
-      actionType: 'update_budget',
+      actionType: 'finance:update_budget',
       message: `Budget for ${budget.department} updated successfully.`,
       result: { budgetId: budget.id, department: budget.department },
     };
@@ -573,7 +573,7 @@ async function executeUpdateBudget(
     console.error('[ActionExecutor] update_budget failed:', message);
     return {
       success: false,
-      actionType: 'update_budget',
+      actionType: 'finance:update_budget',
       message: `Failed to update budget: ${message}`,
       error: message,
     };
@@ -596,12 +596,12 @@ async function executeAutoApproveExpense(payload: Record<string, unknown>, conte
 
     return {
       success: true,
-      actionType: 'auto_approve_expense',
+      actionType: 'finance:auto_approve_expense',
       message: `Expense auto-approved: ${reason}`,
       result: { expenseId },
     };
   } catch (err) {
-    return { success: false, actionType: 'auto_approve_expense', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'finance:auto_approve_expense', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -626,12 +626,12 @@ async function executeFlagExpenseForReview(payload: Record<string, unknown>, con
 
     return {
       success: true,
-      actionType: 'flag_expense_for_review',
+      actionType: 'finance:flag_expense_for_review',
       message: `Expense flagged for review: ${reason}`,
       result: { expenseId, riskLevel },
     };
   } catch (err) {
-    return { success: false, actionType: 'flag_expense_for_review', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'finance:flag_expense_for_review', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -654,12 +654,12 @@ async function executeGenerateInvoice(payload: Record<string, unknown>, context:
 
     return {
       success: true,
-      actionType: 'generate_invoice',
+      actionType: 'finance:generate_invoice',
       message: `Invoice ${invoice.invoice_number} generated for ${payload.client_name}.`,
       result: { invoiceId: invoice.id, invoiceNumber: invoice.invoice_number },
     };
   } catch (err) {
-    return { success: false, actionType: 'generate_invoice', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'finance:generate_invoice', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -691,12 +691,12 @@ async function executeSendPaymentReminder(payload: Record<string, unknown>, cont
 
     return {
       success: true,
-      actionType: 'send_payment_reminder',
+      actionType: 'finance:send_payment_reminder',
       message: `Payment reminder sent for invoice ${inv.rows[0].invoice_number ?? invoiceId.substring(0, 8)}.`,
       result: { invoiceId },
     };
   } catch (err) {
-    return { success: false, actionType: 'send_payment_reminder', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'finance:send_payment_reminder', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -726,12 +726,12 @@ async function executeSuggestBudgetReallocation(payload: Record<string, unknown>
 
     return {
       success: true,
-      actionType: 'suggest_budget_reallocation',
+      actionType: 'finance:suggest_budget_reallocation',
       message: `Budget reallocation suggestion logged: $${payload.amount} from ${payload.from_budget_id} to ${payload.to_budget_id}.`,
       result: payload,
     };
   } catch (err) {
-    return { success: false, actionType: 'suggest_budget_reallocation', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'finance:suggest_budget_reallocation', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -760,9 +760,9 @@ async function executeCreateDeal(payload: Record<string, unknown>, context: Acti
        RETURNING id::text`,
       [orgId, String(payload.title ?? 'New Deal'), Number(payload.amount ?? 0), company.rows[0]?.id ?? null, String(payload.description ?? '')],
     );
-    return { success: true, actionType: 'create_deal', message: 'Deal created successfully.', result: { dealId: deal.rows[0]?.id } };
+    return { success: true, actionType: 'crm:create_deal', message: 'Deal created successfully.', result: { dealId: deal.rows[0]?.id } };
   } catch (err) {
-    return { success: false, actionType: 'create_deal', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'crm:create_deal', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -782,9 +782,9 @@ async function executeCreateTicket(payload: Record<string, unknown>, context: Ac
         String(payload.category ?? 'general'),
       ],
     );
-    return { success: true, actionType: 'create_ticket', message: 'Ticket created successfully.', result: { ticketId: row.rows[0]?.id } };
+    return { success: true, actionType: 'support:create_ticket', message: 'Ticket created successfully.', result: { ticketId: row.rows[0]?.id } };
   } catch (err) {
-    return { success: false, actionType: 'create_ticket', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'support:create_ticket', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -815,9 +815,9 @@ async function executeAssignAsset(payload: Record<string, unknown>, context: Act
        WHERE id = $2::uuid`,
       [user.rows[0].id, asset.rows[0].id],
     );
-    return { success: true, actionType: 'assign_asset', message: 'Asset assigned successfully.', result: { assetId: asset.rows[0].id, assigneeId: user.rows[0].id } };
+    return { success: true, actionType: 'assets:assign_asset', message: 'Asset assigned successfully.', result: { assetId: asset.rows[0].id, assigneeId: user.rows[0].id } };
   } catch (err) {
-    return { success: false, actionType: 'assign_asset', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'assets:assign_asset', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -838,9 +838,9 @@ async function executeSendRenewalReminder(payload: Record<string, unknown>, cont
        VALUES ($1::uuid, 'manual_renewal_reminder', CURRENT_DATE, TRUE, NOW())`,
       [contract.rows[0].id],
     );
-    return { success: true, actionType: 'send_renewal_reminder', message: `Renewal reminder recorded for ${contract.rows[0].title}.`, result: { contractId: contract.rows[0].id } };
+    return { success: true, actionType: 'contracts:send_renewal_reminder', message: `Renewal reminder recorded for ${contract.rows[0].title}.`, result: { contractId: contract.rows[0].id } };
   } catch (err) {
-    return { success: false, actionType: 'send_renewal_reminder', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'contracts:send_renewal_reminder', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -860,9 +860,9 @@ async function executeCreateCampaign(payload: Record<string, unknown>, context: 
         String(payload.description ?? ''),
       ],
     );
-    return { success: true, actionType: 'create_campaign', message: 'Campaign created successfully.', result: { campaignId: row.rows[0]?.id } };
+    return { success: true, actionType: 'marketing:create_campaign', message: 'Campaign created successfully.', result: { campaignId: row.rows[0]?.id } };
   } catch (err) {
-    return { success: false, actionType: 'create_campaign', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'marketing:create_campaign', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -881,8 +881,8 @@ async function executePostJob(payload: Record<string, unknown>, context: ActionE
         String(payload.requirements ?? '').split(',').map((s) => s.trim()).filter(Boolean),
       ],
     );
-    return { success: true, actionType: 'post_job', message: 'Job posted successfully.', result: { jobId: row.rows[0]?.id } };
+    return { success: true, actionType: 'recruitment:post_job', message: 'Job posted successfully.', result: { jobId: row.rows[0]?.id } };
   } catch (err) {
-    return { success: false, actionType: 'post_job', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { success: false, actionType: 'recruitment:post_job', message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }

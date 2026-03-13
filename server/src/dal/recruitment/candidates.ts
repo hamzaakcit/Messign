@@ -1,6 +1,11 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import type { CallerContext, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface RecruitmentCandidate {
   id: string;
@@ -89,74 +94,83 @@ export async function listCandidates(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<RecruitmentCandidate>> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
-  if (ctx.organizationId) {
-    conditions.push(`c.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-  if (filters?.source) {
-    conditions.push(`c.source = $${idx++}`);
-    params.push(filters.source);
-  }
-  if (filters?.search) {
-    conditions.push(`(
-      c.first_name ILIKE $${idx}
-      OR COALESCE(c.last_name, '') ILIKE $${idx}
-      OR c.email ILIKE $${idx}
-      OR COALESCE(c.current_company, '') ILIKE $${idx}
-      OR COALESCE(c.resume_text, '') ILIKE $${idx}
-    )`);
-    params.push(`%${filters.search}%`);
-    idx++;
-  }
-  const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
-  const sortColumns: Record<string, string> = {
-    name: 'c.first_name',
-    email: 'c.email',
-    source: 'c.source',
-    created_at: 'c.created_at',
-  };
-  const orderBy = sortColumns[sort?.field ?? 'created_at'] ?? 'c.created_at';
-  const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listCandidates');
 
-  const countResult = await query<{ count: string }>(`SELECT COUNT(*)::int AS count FROM recruitment_candidates c WHERE ${whereSQL}`, params);
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
-  const pg = paginationClause(page, pageSize, idx);
-  const result = await query(
-    `SELECT c.*, ru.full_name AS referrer_name
-     FROM recruitment_candidates c
-     LEFT JOIN reimbursement_users ru ON ru.id = c.referrer_id
-     WHERE ${whereSQL}
-     ORDER BY ${orderBy} ${direction}
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
-  return {
-    data: result.rows.map((row) => mapCandidate(row as Record<string, unknown>)),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+  return runInTenant(tenantId, async (client) => {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+      if (filters?.source) {
+      conditions.push(`c.source = $${idx++}`);
+      params.push(filters.source);
+    }
+    if (filters?.search) {
+      conditions.push(`(
+        c.first_name ILIKE $${idx}
+        OR COALESCE(c.last_name, '') ILIKE $${idx}
+        OR c.email ILIKE $${idx}
+        OR COALESCE(c.current_company, '') ILIKE $${idx}
+        OR COALESCE(c.resume_text, '') ILIKE $${idx}
+      )`);
+      params.push(`%${filters.search}%`);
+      idx++;
+    }
+    const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+    const sortColumns: Record<string, string> = {
+      name: 'c.first_name',
+      email: 'c.email',
+      source: 'c.source',
+      created_at: 'c.created_at',
+    };
+    const orderBy = sortColumns[sort?.field ?? 'created_at'] ?? 'c.created_at';
+    const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+
+    const countResult = await client.query<{ count: string }>(`SELECT COUNT(*)::int AS count FROM recruitment_candidates c WHERE ${whereSQL}`, params);
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+    const pg = paginationClause(page, pageSize, idx);
+    const result = await client.query(
+      `SELECT c.*, ru.full_name AS referrer_name
+       FROM recruitment_candidates c
+       LEFT JOIN reimbursement_users ru ON ru.id = c.referrer_id
+       WHERE ${whereSQL}
+       ORDER BY ${orderBy} ${direction}
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+    return {
+      data: result.rows.map((row) => mapCandidate(row as Record<string, unknown>)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getCandidateById(ctx: CallerContext, candidateId: string): Promise<RecruitmentCandidate | null> {
-  const result = await query(
-    `SELECT c.*, ru.full_name AS referrer_name
-     FROM recruitment_candidates c
-     LEFT JOIN reimbursement_users ru ON ru.id = c.referrer_id
-     WHERE c.id = $1::uuid
-       AND ($2::uuid IS NULL OR c.organization_id = $2::uuid)
-     LIMIT 1`,
-    [candidateId, ctx.organizationId ?? null],
-  );
-  return result.rows[0] ? mapCandidate(result.rows[0] as Record<string, unknown>) : null;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getCandidateById');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT c.*, ru.full_name AS referrer_name
+       FROM recruitment_candidates c
+       LEFT JOIN reimbursement_users ru ON ru.id = c.referrer_id
+       WHERE c.id = $1::uuid
+       LIMIT 1`,
+      [candidateId],
+    );
+    return result.rows[0] ? mapCandidate(result.rows[0] as Record<string, unknown>) : null;
+  });
 }
 
 export async function createCandidate(ctx: CallerContext, data: CreateCandidateInput): Promise<RecruitmentCandidate> {
-  const result = await query(
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createCandidate');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
     `INSERT INTO recruitment_candidates (
        organization_id, first_name, last_name, email, phone, linkedin_url, portfolio_url,
        current_company, current_title, location, resume_url, resume_file_name, resume_text,
@@ -183,7 +197,7 @@ export async function createCandidate(ctx: CallerContext, data: CreateCandidateI
          updated_at = NOW()
      RETURNING *`,
     [
-      ctx.organizationId ?? null,
+      tenantId,
       data.first_name,
       data.last_name ?? null,
       data.email,
@@ -203,7 +217,8 @@ export async function createCandidate(ctx: CallerContext, data: CreateCandidateI
       JSON.stringify(data.tags ?? []),
     ],
   );
-  return (await getCandidateById(ctx, String(result.rows[0].id))) ?? mapCandidate(result.rows[0] as Record<string, unknown>);
+    return (await getCandidateById(ctx, String(result.rows[0].id))) ?? mapCandidate(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function updateCandidate(
@@ -241,18 +256,22 @@ export async function updateCandidate(
     }
   }
   sets.push('updated_at = NOW()');
-  params.push(candidateId, ctx.organizationId ?? null);
+  params.push(candidateId);
 
-  const result = await query(
-    `UPDATE recruitment_candidates
-     SET ${sets.join(', ')}
-     WHERE id = $${idx++}::uuid
-       AND ($${idx}::uuid IS NULL OR organization_id = $${idx}::uuid)
-     RETURNING *`,
-    params,
-  );
-  if (!result.rows[0]) throw new Error('Candidate not found');
-  return (await getCandidateById(ctx, candidateId)) ?? mapCandidate(result.rows[0] as Record<string, unknown>);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateCandidate');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE recruitment_candidates
+       SET ${sets.join(', ')}
+       WHERE id = $${idx}::uuid
+       RETURNING *`,
+      params,
+    );
+    if (!result.rows[0]) throw new Error('Candidate not found');
+    return (await getCandidateById(ctx, candidateId)) ?? mapCandidate(result.rows[0] as Record<string, unknown>);
+  });
 }
 
 export async function searchCandidates(

@@ -12,7 +12,15 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const userProfileTool: Tool = {
-  name: 'get_user_profile',
+  name: 'system:get_user_profile',
+  metadata: {
+    namespace: 'system',
+    name: 'get_user_profile',
+    summary: 'User profile: name, role, team, XP, level, recent activity.',
+    tags: ['system', 'user', 'profile'],
+    alwaysLoaded: false,
+    parameterHints: 'user_identifier: string',
+  },
   category: 'people',
 
   description: `Get profile information for a user — name, role, team, join date, email, and basic stats.

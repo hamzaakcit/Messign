@@ -5,7 +5,7 @@ import type { CallerContext } from '../../../../dal/types.js';
 import * as supportMetrics from '../../../../dal/support/metrics.js';
 import * as supportSla from '../../../../dal/support/sla.js';
 import * as supportHealth from '../../../../dal/support/customerHealth.js';
-import * as crmCompanies from '../../../../dal/crm/companies.js';
+import * as crmCompanies from '../../../../modules/crm/dal/companies.js';
 
 function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
   return {
@@ -24,7 +24,15 @@ async function resolveOrgId(): Promise<string | undefined> {
 }
 
 registerTool({
-  name: 'get_ticket_overview',
+  name: 'support:get_ticket_overview',
+  metadata: {
+    namespace: 'support',
+    name: 'get_ticket_overview',
+    summary: 'Support ticket overview: open, resolved, SLA, by priority.',
+    tags: ['support', 'tickets', 'sla'],
+    alwaysLoaded: false,
+    parameterHints: 'status_filter?: string',
+  },
   category: 'analytics',
   description: 'Get an overview of the current support ticket queue including open tickets, SLA status, and priority distribution.',
   parameters: {
@@ -59,7 +67,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_customer_health',
+  name: 'support:get_customer_health',
+  metadata: {
+    namespace: 'support',
+    name: 'get_customer_health',
+    summary: 'Customer health: CSAT, ticket volume, sentiment.',
+    tags: ['support', 'customer', 'health', 'csat'],
+    alwaysLoaded: false,
+    parameterHints: 'company_id?: string',
+  },
   category: 'analytics',
   description: 'Get the health score and support history for a specific customer or list at-risk customers.',
   parameters: {
@@ -119,7 +135,15 @@ registerTool({
 });
 
 registerTool({
-  name: 'get_support_metrics',
+  name: 'support:get_support_metrics',
+  metadata: {
+    namespace: 'support',
+    name: 'get_support_metrics',
+    summary: 'Support metrics: response time, resolution time, volume trends.',
+    tags: ['support', 'metrics', 'sla'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period?: string',
+  },
   category: 'analytics',
   description: 'Get support performance metrics including agent workload, ticket trends, and SLA performance.',
   parameters: {

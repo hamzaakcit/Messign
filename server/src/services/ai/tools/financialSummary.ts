@@ -26,8 +26,17 @@ function buildFinanceDateFilter(period: string): Date {
 }
 
 const financialSummaryTool: Tool = {
-  name: 'get_financial_summary',
+  name: 'finance:get_financial_summary',
   category: 'finance',
+
+  metadata: {
+    namespace: 'finance',
+    name: 'get_financial_summary',
+    summary: 'Financial summary: reimbursements, invoices, spending by category, pending approvals.',
+    tags: ['finance', 'budget', 'reimbursements', 'invoices', 'spending'],
+    alwaysLoaded: false,
+    parameterHints: 'time_period: this_month|last_month|this_quarter|this_year, scope?: company|my|team, category?: string',
+  },
 
   description: `Get a financial summary including reimbursement totals, invoice amounts, spending by category, and pending approvals.
 

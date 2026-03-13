@@ -10,6 +10,7 @@
 
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
+import { buildParameterHints } from './toolIndex.js';
 import { truncateText, extractRelevantExcerpt } from '../dataSanitizer.js';
 import { hybridSearchChunks, semanticSearchChunks, hybridSearch } from '../../knowledgeSearch.js';
 import { hybridSearch as ragHybridSearch, hasRAGData } from '../../rag/db.js';
@@ -104,8 +105,20 @@ async function searchDocuments(userQuery: string): Promise<DocRow[]> {
 }
 
 const searchKnowledgeBaseTool: Tool = {
-  name: 'search_knowledge_base',
+  name: 'knowledge:search_knowledge_base',
   category: 'knowledge',
+
+  metadata: {
+    namespace: 'knowledge',
+    name: 'search_knowledge_base',
+    summary: 'Search company docs, guides, policies, SOPs, FAQs. RAG + hybrid vector/BM25.',
+    tags: ['knowledge', 'search', 'rag', 'documents', 'policies'],
+    alwaysLoaded: false,
+    parameterHints: buildParameterHints({
+      properties: { query: { type: 'string' } },
+      required: ['query'],
+    }),
+  },
 
   description: `Search the company knowledge base for documents, guides, policies, SOPs, FAQs, meeting notes, announcements, and other written content.
 Use this tool when someone asks:

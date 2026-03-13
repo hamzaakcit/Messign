@@ -3,7 +3,15 @@ import { query } from '../../../../db/index.js';
 import type { ToolContext, ToolResult } from '../../types.js';
 
 registerTool({
-  name: 'invoice_status',
+  name: 'finance:invoice_status',
+  metadata: {
+    namespace: 'finance',
+    name: 'invoice_status',
+    summary: 'Invoice status: draft, sent, paid, overdue.',
+    tags: ['finance', 'invoice', 'status'],
+    alwaysLoaded: false,
+    parameterHints: 'invoice_id?: string',
+  },
   category: 'finance',
   description: 'Get status of invoices including outstanding amounts, overdue invoices, and payment history.',
   parameters: {

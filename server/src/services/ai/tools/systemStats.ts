@@ -11,8 +11,17 @@ import type { Tool, ToolContext, ToolResult } from '../types.js';
 const DEFAULT_ORG_SLUG = 'messign';
 
 const systemStatsTool: Tool = {
-  name: 'get_system_stats',
+  name: 'analytics:get_system_stats',
   category: 'analytics',
+
+  metadata: {
+    namespace: 'analytics',
+    name: 'get_system_stats',
+    summary: 'System-wide stats: users, documents, projects, tasks, activity, health.',
+    tags: ['analytics', 'dashboard', 'overview', 'stats'],
+    alwaysLoaded: false,
+    parameterHints: 'detail_level?: summary|detailed',
+  },
 
   description: `Get system-wide aggregated statistics — total users, documents, projects, tasks, activity counts, and general health metrics.
 

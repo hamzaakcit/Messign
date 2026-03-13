@@ -1,9 +1,14 @@
-import { getClient, query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { getCandidateById } from './candidates.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export type RecruitmentStage =
   | 'applied'
@@ -101,13 +106,13 @@ function extractSkills(text: string): string[] {
   );
 }
 
-async function scoreAgainstJob(jobId: string, candidateId: string): Promise<{ matchScore: number; details: Record<string, unknown> }> {
+async function scoreAgainstJob(client: PoolClient, jobId: string, candidateId: string): Promise<{ matchScore: number; details: Record<string, unknown> }> {
   const [jobResult, candidateResult] = await Promise.all([
-    query<{ requirements: unknown; nice_to_have: unknown; title: string }>(
+    client.query<{ requirements: unknown; nice_to_have: unknown; title: string }>(
       `SELECT requirements, nice_to_have, title FROM recruitment_jobs WHERE id = $1::uuid LIMIT 1`,
       [jobId],
     ),
-    query<{ resume_text: string | null; resume_parsed: Record<string, unknown> | null }>(
+    client.query<{ resume_text: string | null; resume_parsed: Record<string, unknown> | null }>(
       `SELECT resume_text, resume_parsed FROM recruitment_candidates WHERE id = $1::uuid LIMIT 1`,
       [candidateId],
     ),
@@ -147,138 +152,147 @@ export async function listApplications(
   page: number = 1,
   pageSize: number = 30,
 ): Promise<PaginatedResult<RecruitmentApplication>> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
-  if (ctx.organizationId) {
-    conditions.push(`j.organization_id = $${idx++}::uuid`);
-    params.push(ctx.organizationId);
-  }
-  if (filters?.jobId) {
-    conditions.push(`a.job_id = $${idx++}::uuid`);
-    params.push(filters.jobId);
-  }
-  if (filters?.stage) {
-    conditions.push(`a.stage = $${idx++}`);
-    params.push(filters.stage);
-  }
-  if (filters?.scoreMin != null) {
-    conditions.push(`COALESCE(a.match_score, 0) >= $${idx++}`);
-    params.push(filters.scoreMin);
-  }
-  if (filters?.scoreMax != null) {
-    conditions.push(`COALESCE(a.match_score, 0) <= $${idx++}`);
-    params.push(filters.scoreMax);
-  }
-  if (filters?.search) {
-    conditions.push(`(
-      c.first_name ILIKE $${idx}
-      OR COALESCE(c.last_name, '') ILIKE $${idx}
-      OR c.email ILIKE $${idx}
-      OR COALESCE(c.current_company, '') ILIKE $${idx}
-    )`);
-    params.push(`%${filters.search}%`);
-    idx++;
-  }
-  const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
-  const sortColumns: Record<string, string> = {
-    applied_at: 'a.applied_at',
-    stage: 'a.stage',
-    score: 'a.match_score',
-    created_at: 'a.created_at',
-  };
-  const orderBy = sortColumns[sort?.field ?? 'applied_at'] ?? 'a.applied_at';
-  const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*)::int AS count
-     FROM recruitment_applications a
-     JOIN recruitment_jobs j ON j.id = a.job_id
-     JOIN recruitment_candidates c ON c.id = a.candidate_id
-     WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
-  const pg = paginationClause(page, pageSize, idx);
-  const result = await query(
-    `SELECT
-       a.*,
-       c.first_name,
-       c.last_name,
-       c.email,
-       c.current_company,
-       c.current_title,
-       c.resume_url,
-       c.resume_text,
-       c.source AS candidate_source,
-       j.title AS job_title
-     FROM recruitment_applications a
-     JOIN recruitment_jobs j ON j.id = a.job_id
-     JOIN recruitment_candidates c ON c.id = a.candidate_id
-     WHERE ${whereSQL}
-     ORDER BY ${orderBy} ${direction} NULLS LAST
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
-  return {
-    data: result.rows.map((row) => {
-      const app = mapApplication(row as Record<string, unknown>);
-      app.candidate = {
-        id: app.candidate_id,
-        first_name: row.first_name,
-        last_name: row.last_name,
-        email: row.email,
-        current_company: row.current_company,
-        current_title: row.current_title,
-        resume_url: row.resume_url,
-        resume_text: row.resume_text,
-        source: row.candidate_source,
-      };
-      return app;
-    }),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listApplications');
+
+  return runInTenant(tenantId, async (client) => {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+      if (filters?.jobId) {
+      conditions.push(`a.job_id = $${idx++}::uuid`);
+      params.push(filters.jobId);
+    }
+    if (filters?.stage) {
+      conditions.push(`a.stage = $${idx++}`);
+      params.push(filters.stage);
+    }
+    if (filters?.scoreMin != null) {
+      conditions.push(`COALESCE(a.match_score, 0) >= $${idx++}`);
+      params.push(filters.scoreMin);
+    }
+    if (filters?.scoreMax != null) {
+      conditions.push(`COALESCE(a.match_score, 0) <= $${idx++}`);
+      params.push(filters.scoreMax);
+    }
+    if (filters?.search) {
+      conditions.push(`(
+        c.first_name ILIKE $${idx}
+        OR COALESCE(c.last_name, '') ILIKE $${idx}
+        OR c.email ILIKE $${idx}
+        OR COALESCE(c.current_company, '') ILIKE $${idx}
+      )`);
+      params.push(`%${filters.search}%`);
+      idx++;
+    }
+    const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+    const sortColumns: Record<string, string> = {
+      applied_at: 'a.applied_at',
+      stage: 'a.stage',
+      score: 'a.match_score',
+      created_at: 'a.created_at',
+    };
+    const orderBy = sortColumns[sort?.field ?? 'applied_at'] ?? 'a.applied_at';
+    const direction = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count
+       FROM recruitment_applications a
+       JOIN recruitment_jobs j ON j.id = a.job_id
+       JOIN recruitment_candidates c ON c.id = a.candidate_id
+       WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+    const pg = paginationClause(page, pageSize, idx);
+    const result = await client.query(
+      `SELECT
+         a.*,
+         c.first_name,
+         c.last_name,
+         c.email,
+         c.current_company,
+         c.current_title,
+         c.resume_url,
+         c.resume_text,
+         c.source AS candidate_source,
+         j.title AS job_title
+       FROM recruitment_applications a
+       JOIN recruitment_jobs j ON j.id = a.job_id
+       JOIN recruitment_candidates c ON c.id = a.candidate_id
+       WHERE ${whereSQL}
+       ORDER BY ${orderBy} ${direction} NULLS LAST
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+    return {
+      data: result.rows.map((row) => {
+        const app = mapApplication(row as Record<string, unknown>);
+        app.candidate = {
+          id: app.candidate_id,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          email: row.email,
+          current_company: row.current_company,
+          current_title: row.current_title,
+          resume_url: row.resume_url,
+          resume_text: row.resume_text,
+          source: row.candidate_source,
+        };
+        return app;
+      }),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getApplicationById(ctx: CallerContext, applicationId: string): Promise<RecruitmentApplication | null> {
-  const result = await query(
-    `SELECT a.*
-     FROM recruitment_applications a
-     JOIN recruitment_jobs j ON j.id = a.job_id
-     WHERE a.id = $1::uuid
-       AND ($2::uuid IS NULL OR j.organization_id = $2::uuid)
-     LIMIT 1`,
-    [applicationId, ctx.organizationId ?? null],
-  );
-  if (!result.rows[0]) return null;
-  const application = mapApplication(result.rows[0] as Record<string, unknown>);
-  const [candidate, interviews, offers, history] = await Promise.all([
-    getCandidateById(ctx, application.candidate_id),
-    query(`SELECT * FROM recruitment_interviews WHERE application_id = $1::uuid ORDER BY scheduled_at DESC`, [applicationId]),
-    query(`SELECT * FROM recruitment_offers WHERE application_id = $1::uuid ORDER BY created_at DESC`, [applicationId]),
-    query(
-      `SELECT h.*, ru.full_name AS moved_by_name
-       FROM recruitment_stage_history h
-       LEFT JOIN reimbursement_users ru ON ru.id = h.moved_by
-       WHERE application_id = $1::uuid
-       ORDER BY moved_at DESC`,
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getApplicationById');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `SELECT a.*
+       FROM recruitment_applications a
+       JOIN recruitment_jobs j ON j.id = a.job_id
+       WHERE a.id = $1::uuid
+       LIMIT 1`,
       [applicationId],
-    ),
-  ]);
-  return {
-    ...application,
-    candidate: candidate ? (candidate as unknown as Record<string, unknown>) : undefined,
-    interviews: interviews.rows as Record<string, unknown>[],
-    offers: offers.rows as Record<string, unknown>[],
-    stage_history: history.rows as Record<string, unknown>[],
-  };
+    );
+    if (!result.rows[0]) return null;
+    const application = mapApplication(result.rows[0] as Record<string, unknown>);
+    const [candidate, interviews, offers, history] = await Promise.all([
+      getCandidateById(ctx, application.candidate_id),
+      client.query(`SELECT * FROM recruitment_interviews WHERE application_id = $1::uuid ORDER BY scheduled_at DESC`, [applicationId]),
+      client.query(`SELECT * FROM recruitment_offers WHERE application_id = $1::uuid ORDER BY created_at DESC`, [applicationId]),
+      client.query(
+        `SELECT h.*, ru.full_name AS moved_by_name
+         FROM recruitment_stage_history h
+         LEFT JOIN reimbursement_users ru ON ru.id = h.moved_by
+         WHERE application_id = $1::uuid
+         ORDER BY moved_at DESC`,
+        [applicationId],
+      ),
+    ]);
+    return {
+      ...application,
+      candidate: candidate ? (candidate as unknown as Record<string, unknown>) : undefined,
+      interviews: interviews.rows as Record<string, unknown>[],
+      offers: offers.rows as Record<string, unknown>[],
+      stage_history: history.rows as Record<string, unknown>[],
+    };
+  });
 }
 
 export async function createApplication(ctx: CallerContext, data: CreateApplicationInput): Promise<RecruitmentApplication> {
-  const scoring = await scoreAgainstJob(data.job_id, data.candidate_id);
-  const result = await query(
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createApplication');
+
+  return runInTenant(tenantId, async (client) => {
+    const scoring = await scoreAgainstJob(client, data.job_id, data.candidate_id);
+    const result = await client.query(
     `INSERT INTO recruitment_applications (
        job_id, candidate_id, stage, match_score, match_details, screened_method, screened_at,
        cover_letter, source
@@ -295,27 +309,28 @@ export async function createApplication(ctx: CallerContext, data: CreateApplicat
       data.source ?? null,
     ],
   );
-  const applicationId = String(result.rows[0].id);
-  await query(
-    `INSERT INTO recruitment_stage_history (application_id, from_stage, to_stage, moved_by, notes)
-     VALUES ($1::uuid, NULL, $2, $3::uuid, 'Application created')`,
-    [applicationId, data.stage ?? 'applied', ctx.userId],
-  );
-  await refreshMaterializedViews([ANALYTICS_VIEWS.recruitmentFunnel]);
-  eventBus.emit('recruitment.application.received', {
-    applicationId,
-    jobId: data.job_id,
-    candidateId: data.candidate_id,
-    source: data.source ?? 'manual',
+    const applicationId = String(result.rows[0].id);
+    await client.query(
+      `INSERT INTO recruitment_stage_history (application_id, from_stage, to_stage, moved_by, notes)
+       VALUES ($1::uuid, NULL, $2, $3::uuid, 'Application created')`,
+      [applicationId, data.stage ?? 'applied', ctx.userId],
+    );
+    await refreshMaterializedViews([ANALYTICS_VIEWS.recruitmentFunnel]);
+    eventBus.emit('recruitment.application.received', {
+      applicationId,
+      jobId: data.job_id,
+      candidateId: data.candidate_id,
+      source: data.source ?? 'manual',
+    });
+    eventBus.emit('recruitment.candidate.screened', {
+      applicationId,
+      candidateId: data.candidate_id,
+      matchScore: scoring.matchScore,
+      screenedBy: ctx.userId,
+      method: 'manual',
+    });
+    return (await getApplicationById(ctx, applicationId)) ?? mapApplication(result.rows[0] as Record<string, unknown>);
   });
-  eventBus.emit('recruitment.candidate.screened', {
-    applicationId,
-    candidateId: data.candidate_id,
-    matchScore: scoring.matchScore,
-    screenedBy: ctx.userId,
-    method: 'manual',
-  });
-  return (await getApplicationById(ctx, applicationId)) ?? mapApplication(result.rows[0] as Record<string, unknown>);
 }
 
 export async function moveToStage(
@@ -324,11 +339,13 @@ export async function moveToStage(
   newStage: RecruitmentStage,
   notes?: string,
 ): Promise<RecruitmentApplication> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for moveToStage');
+
   const existing = await getApplicationById(ctx, applicationId);
   if (!existing) throw new Error('Application not found');
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+
+  await runInTenant(tenantId, async (client) => {
     const status =
       newStage === 'hired' ? 'hired' :
       newStage === 'rejected' ? 'rejected' :
@@ -349,13 +366,7 @@ export async function moveToStage(
        VALUES ($1::uuid, $2, $3, $4::uuid, $5)`,
       [applicationId, existing.stage, newStage, ctx.userId, notes ?? null],
     );
-    await client.query('COMMIT');
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
   const updated = await getApplicationById(ctx, applicationId);
   if (!updated) throw new Error('Application not found after update');
   await refreshMaterializedViews([ANALYTICS_VIEWS.recruitmentFunnel]);
@@ -378,18 +389,21 @@ export async function moveToStage(
     });
   }
   if (newStage === 'hired') {
-    const job = await query<{ department_id: string | null; department: string | null; organization_id: string | null }>(
-      `SELECT department_id::text, department, organization_id::text FROM recruitment_jobs WHERE id = $1::uuid`,
-      [updated.job_id],
-    );
-    const offer = await query<{ salary: string | number | null; start_date: string | null }>(
-      `SELECT salary, start_date::text
-       FROM recruitment_offers
-       WHERE application_id = $1::uuid AND status = 'accepted'
-       ORDER BY created_at DESC
-       LIMIT 1`,
-      [applicationId],
-    );
+    const [job, offer] = await runInTenant(tenantId, async (client) => {
+      const jobRes = await client.query<{ department_id: string | null; department: string | null; organization_id: string | null }>(
+        `SELECT department_id::text, department, organization_id::text FROM recruitment_jobs WHERE id = $1::uuid`,
+        [updated.job_id],
+      );
+      const offerRes = await client.query<{ salary: string | number | null; start_date: string | null }>(
+        `SELECT salary, start_date::text
+         FROM recruitment_offers
+         WHERE application_id = $1::uuid AND status = 'accepted'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [applicationId],
+      );
+      return [jobRes, offerRes] as const;
+    });
     eventBus.emit('recruitment.candidate.hired', {
       applicationId,
       candidateId: updated.candidate_id,
@@ -408,12 +422,17 @@ export async function rejectApplication(
   applicationId: string,
   reason: string,
 ): Promise<RecruitmentApplication> {
-  await query(
-    `UPDATE recruitment_applications
-     SET rejection_reason = $1, updated_at = NOW()
-     WHERE id = $2::uuid`,
-    [reason, applicationId],
-  );
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for rejectApplication');
+
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE recruitment_applications
+       SET rejection_reason = $1, updated_at = NOW()
+       WHERE id = $2::uuid`,
+      [reason, applicationId],
+    );
+  });
   return moveToStage(ctx, applicationId, 'rejected', reason);
 }
 
@@ -443,16 +462,21 @@ export async function updateApplicationScore(
   matchScore: number,
   matchDetails: Record<string, unknown>,
   method: 'ai' | 'manual' = 'ai',
+  tenantId?: string,
 ): Promise<void> {
-  await query(
-    `UPDATE recruitment_applications
-     SET match_score = $1,
-         match_details = $2,
-         screened_method = $3,
-         screened_at = NOW(),
-         updated_at = NOW()
-     WHERE id = $4::uuid`,
-    [matchScore, JSON.stringify(matchDetails), method, applicationId],
-  );
+  if (!tenantId) throw new Error('Tenant context required for updateApplicationScore');
+
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE recruitment_applications
+       SET match_score = $1,
+           match_details = $2,
+           screened_method = $3,
+           screened_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $4::uuid`,
+      [matchScore, JSON.stringify(matchDetails), method, applicationId],
+    );
+  });
   await refreshMaterializedViews([ANALYTICS_VIEWS.recruitmentFunnel]);
 }

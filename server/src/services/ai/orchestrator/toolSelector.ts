@@ -1,99 +1,100 @@
 import type { LLMToolDefinition } from '../types.js';
 import type { DoraModule } from '../dora/types.js';
 
+/** Namespaced tool names (module:action_noun). Used for tool selection and lookup. */
 const CORE_TOOLS = new Set([
-  'search_knowledge_base',
-  'get_user_profile',
-  'get_available_questions',
+  'knowledge:search_knowledge_base',
+  'system:get_user_profile',
+  'system:get_available_questions',
 ]);
 
 const MODULE_TOOLS: Record<string, string[]> = {
   dashboard: [
-    'get_financial_summary', 'get_team_overview', 'get_employee_performance',
-    'get_system_stats', 'get_department_report', 'get_recent_activity',
+    'finance:get_financial_summary', 'people:get_team_overview', 'people:get_employee_performance',
+    'analytics:get_system_stats', 'analytics:get_department_report', 'analytics:get_recent_activity',
   ],
   projects: [
-    'get_project_status', 'get_tasks_by_user', 'get_sprint_status',
-    'get_bounty_board',
+    'projects:get_project_status', 'projects:get_tasks_by_user', 'projects:get_sprint_status',
+    'achievements:get_bounty_board',
   ],
   'knowledge-hub': [
-    'get_knowledge_base_stats', 'get_meeting_decisions',
+    'knowledge:get_knowledge_base_stats', 'meeting:get_meeting_decisions',
   ],
   achievements: [
-    'get_achievements_leaderboard', 'get_showcase_items', 'get_bounty_board',
+    'achievements:get_achievements_leaderboard', 'achievements:get_showcase_items', 'achievements:get_bounty_board',
   ],
   'team-directory': [
-    'get_team_overview', 'get_employee_performance', 'compare_employees',
-    'get_team_sentiment', 'get_burnout_risk', 'get_culture_score',
+    'people:get_team_overview', 'people:get_employee_performance', 'people:compare_employees',
+    'heart:get_team_sentiment', 'heart:get_burnout_risk', 'heart:get_culture_score',
   ],
   invoices: [
-    'get_invoice_details', 'get_financial_summary',
+    'finance:get_invoice_details', 'finance:get_financial_summary',
   ],
   reimbursements: [
-    'get_reimbursement_details',
+    'finance:get_reimbursement_details',
   ],
   chat: [
-    'search_chat_messages',
+    'communication:search_chat_messages',
   ],
   crm: [
-    'get_pipeline_status', 'get_deal_details', 'get_sales_forecast', 'get_activity_gaps',
+    'crm:get_pipeline_status', 'crm:get_deal_details', 'crm:get_sales_forecast', 'crm:get_activity_gaps',
   ],
   marketing: [
-    'get_campaign_performance', 'get_marketing_roi', 'suggest_content_topics',
+    'marketing:get_campaign_performance', 'marketing:get_marketing_roi', 'marketing:suggest_content_topics',
   ],
   recruitment: [
-    'get_hiring_pipeline', 'score_candidate', 'get_recruitment_metrics', 'get_cross_module_report',
+    'recruitment:get_hiring_pipeline', 'recruitment:score_candidate', 'recruitment:get_recruitment_metrics', 'recruitment:get_cross_module_report',
   ],
   assets: [
-    'get_asset_summary', 'get_license_utilization',
+    'assets:get_asset_summary', 'assets:get_license_utilization',
   ],
   contracts: [
-    'get_contract_renewals', 'extract_contract_terms',
+    'contracts:get_contract_renewals', 'contracts:extract_contract_terms',
   ],
   support: [
-    'get_ticket_overview', 'get_customer_health', 'get_support_metrics',
+    'support:get_ticket_overview', 'support:get_customer_health', 'support:get_support_metrics',
   ],
   time: [
-    'get_time_summary', 'get_utilization_report', 'suggest_time_allocation',
+    'time:get_time_summary', 'time:get_utilization_report', 'time:suggest_time_allocation',
   ],
   culture: [
-    'get_team_sentiment', 'get_burnout_risk', 'get_culture_score',
-    'get_my_wellness', 'send_pulse_survey',
+    'heart:get_team_sentiment', 'heart:get_burnout_risk', 'heart:get_culture_score',
+    'heart:get_my_wellness', 'heart:send_pulse_survey',
   ],
   admin: [
-    'get_system_stats', 'get_approval_queue', 'get_department_report',
-    'get_team_overview', 'get_financial_summary',
+    'analytics:get_system_stats', 'analytics:get_approval_queue', 'analytics:get_department_report',
+    'people:get_team_overview', 'finance:get_financial_summary',
   ],
 };
 
 const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
-  { keywords: ['task', 'tasks', 'todo', 'to-do', 'assigned', 'open task', 'my task', 'extend', 'deadline', 'due date', 'push deadline'], tools: ['get_tasks_by_user'] },
-  { keywords: ['project', 'projects', 'sprint', 'milestone'], tools: ['get_project_status', 'get_sprint_status'] },
-  { keywords: ['performance', 'kpi', 'metrics', 'revenue', 'sales', 'numbers'], tools: ['get_employee_performance', 'get_financial_summary', 'get_team_overview'] },
-  { keywords: ['team', 'department', 'member', 'employee', 'who', 'people', 'staff'], tools: ['get_team_overview', 'get_employee_performance'] },
-  { keywords: ['invoice', 'billing', 'bill', 'payment'], tools: ['get_invoice_details', 'get_financial_summary'] },
-  { keywords: ['reimbursement', 'expense', 'claim'], tools: ['get_reimbursement_details'] },
-  { keywords: ['chat', 'message', 'channel', 'discussion'], tools: ['search_chat_messages'] },
-  { keywords: ['leaderboard', 'badge', 'achievement', 'ranking', 'mp', 'xp', 'points', 'gamification'], tools: ['get_achievements_leaderboard'] },
-  { keywords: ['bounty', 'bounties', 'reward'], tools: ['get_bounty_board'] },
-  { keywords: ['showcase', 'portfolio'], tools: ['get_showcase_items'] },
-  { keywords: ['approval', 'pending', 'approve', 'queue'], tools: ['get_approval_queue'] },
-  { keywords: ['system', 'health', 'stats', 'overview', 'status', 'dashboard', 'dashboard metrics'], tools: ['get_system_stats', 'get_department_report', 'get_financial_summary', 'get_team_overview'] },
-  { keywords: ['meeting', 'decision', 'minutes', 'notes'], tools: ['get_meeting_decisions'] },
-  { keywords: ['compare', 'comparison', 'versus', 'vs'], tools: ['compare_employees'] },
-  { keywords: ['document', 'knowledge', 'guide', 'policy', 'sop'], tools: ['search_knowledge_base', 'get_knowledge_base_stats'] },
-  { keywords: ['activity', 'recent', 'latest', 'feed'], tools: ['get_recent_activity'] },
-  { keywords: ["where's the fun stuff", 'fun stuff'], tools: ['play_dora_dash'] },
-  { keywords: ['financial', 'finance', 'money', 'budget', 'cost'], tools: ['get_financial_summary', 'get_invoice_details'] },
-  { keywords: ['deal', 'deals', 'pipeline', 'crm', 'prospect', 'lead', 'leads', 'close', 'won', 'lost', 'forecast', 'sales forecast'], tools: ['get_pipeline_status', 'get_deal_details', 'get_sales_forecast', 'get_activity_gaps'] },
-  { keywords: ['marketing', 'campaign', 'campaigns', 'roi', 'cpl', 'cac', 'mql', 'content', 'email campaign', 'channel performance'], tools: ['get_campaign_performance', 'get_marketing_roi', 'suggest_content_topics'] },
-  { keywords: ['recruitment', 'hiring', 'candidate', 'job', 'interview', 'applicant', 'resume', 'offer', 'ats'], tools: ['get_hiring_pipeline', 'score_candidate', 'get_recruitment_metrics', 'get_cross_module_report'] },
-  { keywords: ['asset', 'assets', 'equipment', 'license', 'licenses', 'software', 'warranty', 'utilization'], tools: ['get_asset_summary', 'get_license_utilization'] },
-  { keywords: ['contract', 'contracts', 'renewal', 'expiry', 'obligation', 'compliance', 'e-sign', 'esign', 'signature'], tools: ['get_contract_renewals', 'extract_contract_terms'] },
-  { keywords: ['ticket', 'tickets', 'support', 'help desk', 'helpdesk', 'sla', 'customer health', 'csat', 'agent'], tools: ['get_ticket_overview', 'get_customer_health', 'get_support_metrics'] },
-  { keywords: ['time', 'hours', 'timesheet', 'utilization', 'billable', 'timer'], tools: ['get_time_summary', 'get_utilization_report', 'suggest_time_allocation'] },
-  { keywords: ['report', 'summary', 'analysis'], tools: ['get_department_report', 'get_financial_summary'] },
-  { keywords: ['sentiment', 'burnout', 'wellness', 'culture', 'team health', 'engagement', 'pulse', 'morale', 'stress', 'work-life'], tools: ['get_team_sentiment', 'get_burnout_risk', 'get_culture_score', 'get_my_wellness', 'send_pulse_survey'] },
+  { keywords: ['task', 'tasks', 'todo', 'to-do', 'assigned', 'open task', 'my task', 'extend', 'deadline', 'due date', 'push deadline'], tools: ['projects:get_tasks_by_user'] },
+  { keywords: ['project', 'projects', 'sprint', 'milestone'], tools: ['projects:get_project_status', 'projects:get_sprint_status'] },
+  { keywords: ['performance', 'kpi', 'metrics', 'revenue', 'sales', 'numbers'], tools: ['people:get_employee_performance', 'finance:get_financial_summary', 'people:get_team_overview'] },
+  { keywords: ['team', 'department', 'member', 'employee', 'who', 'people', 'staff'], tools: ['people:get_team_overview', 'people:get_employee_performance'] },
+  { keywords: ['invoice', 'billing', 'bill', 'payment'], tools: ['finance:get_invoice_details', 'finance:get_financial_summary'] },
+  { keywords: ['reimbursement', 'expense', 'claim'], tools: ['finance:get_reimbursement_details'] },
+  { keywords: ['chat', 'message', 'channel', 'discussion'], tools: ['communication:search_chat_messages'] },
+  { keywords: ['leaderboard', 'badge', 'achievement', 'ranking', 'mp', 'xp', 'points', 'gamification'], tools: ['achievements:get_achievements_leaderboard'] },
+  { keywords: ['bounty', 'bounties', 'reward'], tools: ['achievements:get_bounty_board'] },
+  { keywords: ['showcase', 'portfolio'], tools: ['achievements:get_showcase_items'] },
+  { keywords: ['approval', 'pending', 'approve', 'queue'], tools: ['analytics:get_approval_queue'] },
+  { keywords: ['system', 'health', 'stats', 'overview', 'status', 'dashboard', 'dashboard metrics'], tools: ['analytics:get_system_stats', 'analytics:get_department_report', 'finance:get_financial_summary', 'people:get_team_overview'] },
+  { keywords: ['meeting', 'decision', 'minutes', 'notes'], tools: ['meeting:get_meeting_decisions'] },
+  { keywords: ['compare', 'comparison', 'versus', 'vs'], tools: ['people:compare_employees'] },
+  { keywords: ['document', 'knowledge', 'guide', 'policy', 'sop'], tools: ['knowledge:search_knowledge_base', 'knowledge:get_knowledge_base_stats'] },
+  { keywords: ['activity', 'recent', 'latest', 'feed'], tools: ['analytics:get_recent_activity'] },
+  { keywords: ["where's the fun stuff", 'fun stuff'], tools: ['fun:play_dora_dash'] },
+  { keywords: ['financial', 'finance', 'money', 'budget', 'cost'], tools: ['finance:get_financial_summary', 'finance:get_invoice_details'] },
+  { keywords: ['deal', 'deals', 'pipeline', 'crm', 'prospect', 'lead', 'leads', 'close', 'won', 'lost', 'forecast', 'sales forecast'], tools: ['crm:get_pipeline_status', 'crm:get_deal_details', 'crm:get_sales_forecast', 'crm:get_activity_gaps'] },
+  { keywords: ['marketing', 'campaign', 'campaigns', 'roi', 'cpl', 'cac', 'mql', 'content', 'email campaign', 'channel performance'], tools: ['marketing:get_campaign_performance', 'marketing:get_marketing_roi', 'marketing:suggest_content_topics'] },
+  { keywords: ['recruitment', 'hiring', 'candidate', 'job', 'interview', 'applicant', 'resume', 'offer', 'ats'], tools: ['recruitment:get_hiring_pipeline', 'recruitment:score_candidate', 'recruitment:get_recruitment_metrics', 'recruitment:get_cross_module_report'] },
+  { keywords: ['asset', 'assets', 'equipment', 'license', 'licenses', 'software', 'warranty', 'utilization'], tools: ['assets:get_asset_summary', 'assets:get_license_utilization'] },
+  { keywords: ['contract', 'contracts', 'renewal', 'expiry', 'obligation', 'compliance', 'e-sign', 'esign', 'signature'], tools: ['contracts:get_contract_renewals', 'contracts:extract_contract_terms'] },
+  { keywords: ['ticket', 'tickets', 'support', 'help desk', 'helpdesk', 'sla', 'customer health', 'csat', 'agent'], tools: ['support:get_ticket_overview', 'support:get_customer_health', 'support:get_support_metrics'] },
+  { keywords: ['time', 'hours', 'timesheet', 'utilization', 'billable', 'timer'], tools: ['time:get_time_summary', 'time:get_utilization_report', 'time:suggest_time_allocation'] },
+  { keywords: ['report', 'summary', 'analysis'], tools: ['analytics:get_department_report', 'finance:get_financial_summary'] },
+  { keywords: ['sentiment', 'burnout', 'wellness', 'culture', 'team health', 'engagement', 'pulse', 'morale', 'stress', 'work-life'], tools: ['heart:get_team_sentiment', 'heart:get_burnout_risk', 'heart:get_culture_score', 'heart:get_my_wellness', 'heart:send_pulse_survey'] },
 ];
 
 const MAX_TOOLS = 12;
@@ -127,8 +128,8 @@ export function selectToolsForQuery(
 
   if (selectedNames.size < 6) {
     for (const fallback of [
-      'get_team_overview', 'get_financial_summary', 'get_tasks_by_user',
-      'get_project_status', 'get_employee_performance', 'get_recent_activity',
+      'people:get_team_overview', 'finance:get_financial_summary', 'projects:get_tasks_by_user',
+      'projects:get_project_status', 'people:get_employee_performance', 'analytics:get_recent_activity',
     ]) {
       selectedNames.add(fallback);
       if (selectedNames.size >= 8) break;
@@ -139,7 +140,11 @@ export function selectToolsForQuery(
   const result: LLMToolDefinition[] = [];
 
   for (const name of selectedNames) {
-    const tool = toolMap.get(name);
+    let tool = toolMap.get(name);
+    if (!tool && name.includes(':')) {
+      const shortName = name.split(':')[1];
+      tool = toolMap.get(shortName);
+    }
     if (tool && result.length < MAX_TOOLS) {
       result.push(tool);
     }

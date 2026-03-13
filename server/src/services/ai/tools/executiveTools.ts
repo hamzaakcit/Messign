@@ -14,7 +14,15 @@ function toCallerContext(ctx: ToolContext): CallerContext {
 }
 
 const executiveDashboardTool: Tool = {
-  name: 'get_executive_dashboard',
+  name: 'executive:get_executive_dashboard',
+  metadata: {
+    namespace: 'executive',
+    name: 'get_executive_dashboard',
+    summary: 'Executive dashboard: KPIs, cross-module metrics, critical alerts.',
+    tags: ['executive', 'dashboard', 'kpis'],
+    alwaysLoaded: false,
+    parameterHints: '(none)',
+  },
   category: 'analytics',
   description:
     'Get a comprehensive overview of the entire company including revenue, support, marketing, hiring, and team metrics.',
@@ -43,7 +51,15 @@ const executiveDashboardTool: Tool = {
 };
 
 const dailyBriefingTool: Tool = {
-  name: 'generate_daily_briefing',
+  name: 'executive:generate_daily_briefing',
+  metadata: {
+    namespace: 'executive',
+    name: 'generate_daily_briefing',
+    summary: 'Generate daily briefing: actions, sales, support, finance summary.',
+    tags: ['executive', 'briefing', 'daily'],
+    alwaysLoaded: false,
+    parameterHints: 'date?: string',
+  },
   category: 'analytics',
   description: "Generate or retrieve today's personalized daily briefing.",
   parameters: {

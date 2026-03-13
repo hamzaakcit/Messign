@@ -1,8 +1,13 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import { paginationClause } from '../helpers.js';
 import type { CallerContext, DateRange, PaginatedResult } from '../types.js';
 import { getEntriesForTimesheet, type TimeEntry } from './entries.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Timesheet {
   id: string;
@@ -101,8 +106,8 @@ function weekEndFromStart(weekStartDate: string): string {
   return end.toISOString().slice(0, 10);
 }
 
-async function recomputeTotals(timesheetId: string): Promise<void> {
-  await query(
+async function recomputeTotals(client: PoolClient, timesheetId: string): Promise<void> {
+  await client.query(
     `UPDATE time_timesheets ts
      SET total_hours = COALESCE(agg.total_hours, 0),
          billable_hours = COALESCE(agg.billable_hours, 0),
@@ -125,7 +130,7 @@ async function recomputeTotals(timesheetId: string): Promise<void> {
     [timesheetId],
   );
 
-  await query(
+  await client.query(
     `UPDATE time_timesheets
      SET total_hours = 0,
          billable_hours = 0,
@@ -144,14 +149,12 @@ export async function listTimesheets(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Timesheet>> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listTimesheets');
+
   const params: unknown[] = [];
   const where: string[] = [];
   let idx = 1;
-
-  if (ctx.organizationId) {
-    where.push(`ts.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
 
   const visibility = timesheetVisibilityClause(ctx, 'ts', idx);
   where.push(visibility.clause);
@@ -180,147 +183,161 @@ export async function listTimesheets(
   }
   const whereSql = where.length ? where.join(' AND ') : '1=1';
 
-  const count = await query<{ total: string }>(`SELECT COUNT(*)::int AS total FROM time_timesheets ts WHERE ${whereSql}`, params);
-  const total = parseInt(count.rows[0]?.total ?? '0', 10);
-  const paging = paginationClause(page, pageSize, idx);
+  return runInTenant(tenantId, async (client) => {
+    const count = await client.query<{ total: string }>(`SELECT COUNT(*)::int AS total FROM time_timesheets ts WHERE ${whereSql}`, params);
+    const total = parseInt(count.rows[0]?.total ?? '0', 10);
+    const paging = paginationClause(page, pageSize, idx);
 
-  const result = await query<Record<string, unknown>>(
-    `SELECT
-       ts.id::text AS id,
-       ts.organization_id::text AS organization_id,
-       ts.user_id::text AS user_id,
-       ru.full_name AS user_name,
-       ts.week_start_date::text AS week_start_date,
-       ts.week_end_date::text AS week_end_date,
-       ts.total_hours::float AS total_hours,
-       ts.billable_hours::float AS billable_hours,
-       ts.non_billable_hours::float AS non_billable_hours,
-       ts.billable_amount::float AS billable_amount,
-       ts.status,
-       ts.submitted_at::text AS submitted_at,
-       ts.approved_at::text AS approved_at,
-       ts.approved_by::text AS approved_by,
-       ts.rejected_at::text AS rejected_at,
-       ts.rejected_by::text AS rejected_by,
-       ts.rejection_reason,
-       ts.notes,
-       ts.created_at::text AS created_at,
-       ts.updated_at::text AS updated_at
-     FROM time_timesheets ts
-     LEFT JOIN reimbursement_users ru ON ru.id = ts.user_id
-     WHERE ${whereSql}
-     ORDER BY ts.week_start_date DESC, ts.created_at DESC
-     ${paging.clause}`,
-    [...params, ...paging.params],
-  );
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT
+         ts.id::text AS id,
+         ts.organization_id::text AS organization_id,
+         ts.user_id::text AS user_id,
+         ru.full_name AS user_name,
+         ts.week_start_date::text AS week_start_date,
+         ts.week_end_date::text AS week_end_date,
+         ts.total_hours::float AS total_hours,
+         ts.billable_hours::float AS billable_hours,
+         ts.non_billable_hours::float AS non_billable_hours,
+         ts.billable_amount::float AS billable_amount,
+         ts.status,
+         ts.submitted_at::text AS submitted_at,
+         ts.approved_at::text AS approved_at,
+         ts.approved_by::text AS approved_by,
+         ts.rejected_at::text AS rejected_at,
+         ts.rejected_by::text AS rejected_by,
+         ts.rejection_reason,
+         ts.notes,
+         ts.created_at::text AS created_at,
+         ts.updated_at::text AS updated_at
+       FROM time_timesheets ts
+       LEFT JOIN reimbursement_users ru ON ru.id = ts.user_id
+       WHERE ${whereSql}
+       ORDER BY ts.week_start_date DESC, ts.created_at DESC
+       ${paging.clause}`,
+      [...params, ...paging.params],
+    );
 
-  return {
-    data: result.rows.map(mapTimesheet),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+    return {
+      data: result.rows.map(mapTimesheet),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  });
 }
 
 export async function getTimesheetById(ctx: CallerContext, timesheetId: string): Promise<Timesheet | null> {
-  const result = await query<Record<string, unknown>>(
-    `SELECT
-       ts.id::text AS id,
-       ts.organization_id::text AS organization_id,
-       ts.user_id::text AS user_id,
-       ru.full_name AS user_name,
-       ts.week_start_date::text AS week_start_date,
-       ts.week_end_date::text AS week_end_date,
-       ts.total_hours::float AS total_hours,
-       ts.billable_hours::float AS billable_hours,
-       ts.non_billable_hours::float AS non_billable_hours,
-       ts.billable_amount::float AS billable_amount,
-       ts.status,
-       ts.submitted_at::text AS submitted_at,
-       ts.approved_at::text AS approved_at,
-       ts.approved_by::text AS approved_by,
-       ts.rejected_at::text AS rejected_at,
-       ts.rejected_by::text AS rejected_by,
-       ts.rejection_reason,
-       ts.notes,
-       ts.created_at::text AS created_at,
-       ts.updated_at::text AS updated_at
-     FROM time_timesheets ts
-     LEFT JOIN reimbursement_users ru ON ru.id = ts.user_id
-     WHERE ts.id = $1::uuid
-       AND ts.organization_id = $2::uuid
-       AND (${timesheetVisibilityClause(ctx, 'ts', 3).clause})
-     LIMIT 1`,
-    [timesheetId, ctx.organizationId, ...timesheetVisibilityClause(ctx, 'ts', 3).params],
-  );
-  if (!result.rows[0]) return null;
-  const timesheet = mapTimesheet(result.rows[0]);
-  timesheet.entries = await getEntriesForTimesheet(ctx, timesheet.user_id, timesheet.week_start_date);
-  return timesheet;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getTimesheetById');
+
+  const vis = timesheetVisibilityClause(ctx, 'ts', 2);
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT
+         ts.id::text AS id,
+         ts.organization_id::text AS organization_id,
+         ts.user_id::text AS user_id,
+         ru.full_name AS user_name,
+         ts.week_start_date::text AS week_start_date,
+         ts.week_end_date::text AS week_end_date,
+         ts.total_hours::float AS total_hours,
+         ts.billable_hours::float AS billable_hours,
+         ts.non_billable_hours::float AS non_billable_hours,
+         ts.billable_amount::float AS billable_amount,
+         ts.status,
+         ts.submitted_at::text AS submitted_at,
+         ts.approved_at::text AS approved_at,
+         ts.approved_by::text AS approved_by,
+         ts.rejected_at::text AS rejected_at,
+         ts.rejected_by::text AS rejected_by,
+         ts.rejection_reason,
+         ts.notes,
+         ts.created_at::text AS created_at,
+         ts.updated_at::text AS updated_at
+       FROM time_timesheets ts
+       LEFT JOIN reimbursement_users ru ON ru.id = ts.user_id
+       WHERE ts.id = $1::uuid
+         AND (${vis.clause})
+       LIMIT 1`,
+      [timesheetId, ...vis.params],
+    );
+    if (!result.rows[0]) return null;
+    const timesheet = mapTimesheet(result.rows[0]);
+    timesheet.entries = await getEntriesForTimesheet(ctx, timesheet.user_id, timesheet.week_start_date);
+    return timesheet;
+  });
 }
 
 export async function getOrCreateTimesheet(ctx: CallerContext, userId: string, weekStartDate: string): Promise<Timesheet> {
-  if (!ctx.organizationId) throw new Error('organizationId is required');
-  const existing = await query<Record<string, unknown>>(
-    `SELECT
-       id::text AS id,
-       organization_id::text AS organization_id,
-       user_id::text AS user_id,
-       week_start_date::text AS week_start_date,
-       week_end_date::text AS week_end_date,
-       total_hours::float AS total_hours,
-       billable_hours::float AS billable_hours,
-       non_billable_hours::float AS non_billable_hours,
-       billable_amount::float AS billable_amount,
-       status,
-       submitted_at::text AS submitted_at,
-       approved_at::text AS approved_at,
-       approved_by::text AS approved_by,
-       rejected_at::text AS rejected_at,
-       rejected_by::text AS rejected_by,
-       rejection_reason,
-       notes,
-       created_at::text AS created_at,
-       updated_at::text AS updated_at
-     FROM time_timesheets
-     WHERE organization_id = $1::uuid AND user_id = $2::uuid AND week_start_date = $3::date
-     LIMIT 1`,
-    [ctx.organizationId, userId, weekStartDate],
-  );
-  if (existing.rows[0]) return mapTimesheet(existing.rows[0]);
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('organizationId is required');
 
-  const created = await query<Record<string, unknown>>(
-    `INSERT INTO time_timesheets (
-      organization_id, user_id, week_start_date, week_end_date, status
-    )
-    VALUES ($1::uuid, $2::uuid, $3::date, $4::date, 'draft')
-    RETURNING
-      id::text AS id,
-      organization_id::text AS organization_id,
-      user_id::text AS user_id,
-      week_start_date::text AS week_start_date,
-      week_end_date::text AS week_end_date,
-      total_hours::float AS total_hours,
-      billable_hours::float AS billable_hours,
-      non_billable_hours::float AS non_billable_hours,
-      billable_amount::float AS billable_amount,
-      status,
-      submitted_at::text AS submitted_at,
-      approved_at::text AS approved_at,
-      approved_by::text AS approved_by,
-      rejected_at::text AS rejected_at,
-      rejected_by::text AS rejected_by,
-      rejection_reason,
-      notes,
-      created_at::text AS created_at,
-      updated_at::text AS updated_at`,
-    [ctx.organizationId, userId, weekStartDate, weekEndFromStart(weekStartDate)],
-  );
-  return mapTimesheet(created.rows[0]);
+  return runInTenant(tenantId, async (client) => {
+    const existing = await client.query<Record<string, unknown>>(
+      `SELECT
+         id::text AS id,
+         organization_id::text AS organization_id,
+         user_id::text AS user_id,
+         week_start_date::text AS week_start_date,
+         week_end_date::text AS week_end_date,
+         total_hours::float AS total_hours,
+         billable_hours::float AS billable_hours,
+         non_billable_hours::float AS non_billable_hours,
+         billable_amount::float AS billable_amount,
+         status,
+         submitted_at::text AS submitted_at,
+         approved_at::text AS approved_at,
+         approved_by::text AS approved_by,
+         rejected_at::text AS rejected_at,
+         rejected_by::text AS rejected_by,
+         rejection_reason,
+         notes,
+         created_at::text AS created_at,
+         updated_at::text AS updated_at
+       FROM time_timesheets
+       WHERE user_id = $1::uuid AND week_start_date = $2::date
+       LIMIT 1`,
+      [userId, weekStartDate],
+    );
+    if (existing.rows[0]) return mapTimesheet(existing.rows[0]);
+
+    const created = await client.query<Record<string, unknown>>(
+      `INSERT INTO time_timesheets (
+        organization_id, user_id, week_start_date, week_end_date, status
+      )
+      VALUES ($1::uuid, $2::uuid, $3::date, $4::date, 'draft')
+      RETURNING
+        id::text AS id,
+        organization_id::text AS organization_id,
+        user_id::text AS user_id,
+        week_start_date::text AS week_start_date,
+        week_end_date::text AS week_end_date,
+        total_hours::float AS total_hours,
+        billable_hours::float AS billable_hours,
+        non_billable_hours::float AS non_billable_hours,
+        billable_amount::float AS billable_amount,
+        status,
+        submitted_at::text AS submitted_at,
+        approved_at::text AS approved_at,
+        approved_by::text AS approved_by,
+        rejected_at::text AS rejected_at,
+        rejected_by::text AS rejected_by,
+        rejection_reason,
+        notes,
+        created_at::text AS created_at,
+        updated_at::text AS updated_at`,
+      [tenantId, userId, weekStartDate, weekEndFromStart(weekStartDate)],
+    );
+    return mapTimesheet(created.rows[0]);
+  });
 }
 
 export async function submitTimesheet(ctx: CallerContext, timesheetId: string): Promise<Timesheet> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for submitTimesheet');
+
   const timesheet = await getTimesheetById(ctx, timesheetId);
   if (!timesheet) throw new Error('Timesheet not found');
   if (timesheet.user_id !== ctx.userId && ctx.role !== 'system_admin' && ctx.role !== 'finance_admin') {
@@ -330,28 +347,29 @@ export async function submitTimesheet(ctx: CallerContext, timesheetId: string): 
     throw new Error('Only draft or rejected timesheets can be submitted');
   }
 
-  await query(
-    `UPDATE time_entries
-     SET timesheet_id = $1::uuid,
-         status = 'submitted',
-         updated_at = NOW()
-     WHERE organization_id = $2::uuid
-       AND user_id = $3::uuid
-       AND date >= $4::date
-       AND date <= $5::date
-       AND status = 'draft'`,
-    [timesheetId, timesheet.organization_id, timesheet.user_id, timesheet.week_start_date, timesheet.week_end_date],
-  );
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE time_entries
+       SET timesheet_id = $1::uuid,
+           status = 'submitted',
+           updated_at = NOW()
+       WHERE user_id = $2::uuid
+         AND date >= $3::date
+         AND date <= $4::date
+         AND status = 'draft'`,
+      [timesheetId, timesheet.user_id, timesheet.week_start_date, timesheet.week_end_date],
+    );
 
-  await recomputeTotals(timesheetId);
-  await query(
-    `UPDATE time_timesheets
-     SET status = 'submitted',
-         submitted_at = NOW(),
-         updated_at = NOW()
-     WHERE id = $1::uuid`,
-    [timesheetId],
-  );
+    await recomputeTotals(client, timesheetId);
+    await client.query(
+      `UPDATE time_timesheets
+       SET status = 'submitted',
+           submitted_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1::uuid`,
+      [timesheetId],
+    );
+  });
 
   const updated = await getTimesheetById(ctx, timesheetId);
   if (!updated) throw new Error('Timesheet not found after submit');
@@ -366,6 +384,9 @@ export async function submitTimesheet(ctx: CallerContext, timesheetId: string): 
 }
 
 export async function approveTimesheet(ctx: CallerContext, timesheetId: string): Promise<Timesheet> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for approveTimesheet');
+
   if (!['manager', 'dept_head', 'finance_admin', 'system_admin', 'admin', 'finance'].includes(String(ctx.role))) {
     throw new Error('Only manager/admin can approve timesheets');
   }
@@ -373,24 +394,26 @@ export async function approveTimesheet(ctx: CallerContext, timesheetId: string):
   if (!timesheet) throw new Error('Timesheet not found');
   if (timesheet.status !== 'submitted') throw new Error('Only submitted timesheets can be approved');
 
-  await query(
-    `UPDATE time_entries
-     SET status = 'approved',
-         updated_at = NOW()
-     WHERE timesheet_id = $1::uuid`,
-    [timesheetId],
-  );
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE time_entries
+       SET status = 'approved',
+           updated_at = NOW()
+       WHERE timesheet_id = $1::uuid`,
+      [timesheetId],
+    );
 
-  await query(
-    `UPDATE time_timesheets
-     SET status = 'approved',
-         approved_at = NOW(),
-         approved_by = $2::uuid,
-         rejection_reason = NULL,
-         updated_at = NOW()
-     WHERE id = $1::uuid`,
-    [timesheetId, ctx.userId],
-  );
+    await client.query(
+      `UPDATE time_timesheets
+       SET status = 'approved',
+           approved_at = NOW(),
+           approved_by = $2::uuid,
+           rejection_reason = NULL,
+           updated_at = NOW()
+       WHERE id = $1::uuid`,
+      [timesheetId, ctx.userId],
+    );
+  });
 
   const updated = await getTimesheetById(ctx, timesheetId);
   if (!updated) throw new Error('Timesheet not found after approval');
@@ -405,6 +428,9 @@ export async function approveTimesheet(ctx: CallerContext, timesheetId: string):
 }
 
 export async function rejectTimesheet(ctx: CallerContext, timesheetId: string, reason: string): Promise<Timesheet> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for rejectTimesheet');
+
   if (!['manager', 'dept_head', 'finance_admin', 'system_admin', 'admin', 'finance'].includes(String(ctx.role))) {
     throw new Error('Only manager/admin can reject timesheets');
   }
@@ -412,27 +438,30 @@ export async function rejectTimesheet(ctx: CallerContext, timesheetId: string, r
   if (!timesheet) throw new Error('Timesheet not found');
   if (timesheet.status !== 'submitted') throw new Error('Only submitted timesheets can be rejected');
 
-  await query(
-    `UPDATE time_entries
-     SET status = 'draft',
-         timesheet_id = NULL,
-         updated_at = NOW()
-     WHERE timesheet_id = $1::uuid`,
-    [timesheetId],
-  );
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE time_entries
+       SET status = 'draft',
+           timesheet_id = NULL,
+           updated_at = NOW()
+       WHERE timesheet_id = $1::uuid`,
+      [timesheetId],
+    );
 
-  await query(
-    `UPDATE time_timesheets
-     SET status = 'rejected',
-         rejected_at = NOW(),
-         rejected_by = $2::uuid,
-         rejection_reason = $3,
-         updated_at = NOW()
-     WHERE id = $1::uuid`,
-    [timesheetId, ctx.userId, reason],
-  );
+    await client.query(
+      `UPDATE time_timesheets
+       SET status = 'rejected',
+           rejected_at = NOW(),
+           rejected_by = $2::uuid,
+           rejection_reason = $3,
+           updated_at = NOW()
+       WHERE id = $1::uuid`,
+      [timesheetId, ctx.userId, reason],
+    );
 
-  await recomputeTotals(timesheetId);
+    await recomputeTotals(client, timesheetId);
+  });
+
   const updated = await getTimesheetById(ctx, timesheetId);
   if (!updated) throw new Error('Timesheet not found after rejection');
   eventBus.emit('time.timesheet.rejected', {

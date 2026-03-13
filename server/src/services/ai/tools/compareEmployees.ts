@@ -34,7 +34,15 @@ function buildComparisonDateFilter(period: string): Date {
 }
 
 const compareEmployeesTool: Tool = {
-  name: 'compare_employees',
+  name: 'people:compare_employees',
+  metadata: {
+    namespace: 'people',
+    name: 'compare_employees',
+    summary: 'Compare two employees: performance, tasks, metrics side-by-side.',
+    tags: ['people', 'compare', 'performance'],
+    alwaysLoaded: false,
+    parameterHints: 'employee_a: string, employee_b: string',
+  },
   category: 'people',
 
   description: `Compare two or more employees side-by-side on all performance metrics.

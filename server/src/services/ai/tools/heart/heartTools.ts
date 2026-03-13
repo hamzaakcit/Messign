@@ -57,7 +57,15 @@ async function buildCallerContext(ctx: ToolContext): Promise<CallerContext | nul
 
 // ── Tool 1: get_team_sentiment ──
 registerTool({
-  name: 'get_team_sentiment',
+  name: 'heart:get_team_sentiment',
+  metadata: {
+    namespace: 'heart',
+    name: 'get_team_sentiment',
+    summary: 'Team sentiment: engagement, morale, trend over time.',
+    tags: ['heart', 'sentiment', 'engagement', 'morale'],
+    alwaysLoaded: false,
+    parameterHints: 'team_id?: string',
+  },
   category: 'people',
   description: `Get the current team or department sentiment and engagement metrics. Shows anonymized aggregate data only — no individual names. Use when the user asks about team sentiment, morale, engagement, or how the team is feeling.`,
   parameters: {
@@ -102,7 +110,15 @@ registerTool({
 
 // ── Tool 2: get_burnout_risk ──
 registerTool({
-  name: 'get_burnout_risk',
+  name: 'heart:get_burnout_risk',
+  metadata: {
+    namespace: 'heart',
+    name: 'get_burnout_risk',
+    summary: 'Burnout risk: signals, risk level, wellness indicators.',
+    tags: ['heart', 'burnout', 'wellness'],
+    alwaysLoaded: false,
+    parameterHints: 'user_identifier?: string',
+  },
   category: 'people',
   description: `Check burnout risk indicators for the team. Returns anonymized aggregate only — no individual names. Use when the user asks about burnout, stress, workload, or team exhaustion.`,
   parameters: {
@@ -156,7 +172,15 @@ registerTool({
 
 // ── Tool 3: get_culture_score ──
 registerTool({
-  name: 'get_culture_score',
+  name: 'heart:get_culture_score',
+  metadata: {
+    namespace: 'heart',
+    name: 'get_culture_score',
+    summary: 'Culture score: team health, engagement, pulse survey results.',
+    tags: ['heart', 'culture', 'team-health'],
+    alwaysLoaded: false,
+    parameterHints: 'department_id?: string',
+  },
   category: 'people',
   description: `Get the overall company culture score with department breakdown and trend data. Use when the user asks about culture, company health, or department comparison.`,
   parameters: {
@@ -190,7 +214,7 @@ registerTool({
 
 // ── Tool 4: get_my_wellness (personal tool) ──
 registerTool({
-  name: 'get_my_wellness',
+  name: 'heart:get_my_wellness',
   category: 'people',
   description: `Get your personal wellness insights including work-life balance, engagement, and sentiment trends. Only returns data for the asking user. Use when the user asks about their own wellness, work-life balance, burnout, or how they're doing.`,
   parameters: {
@@ -220,7 +244,15 @@ registerTool({
 
 // ── Tool 5: send_pulse_survey (write tool — HITL) ──
 registerTool({
-  name: 'send_pulse_survey',
+  name: 'heart:send_pulse_survey',
+  metadata: {
+    namespace: 'heart',
+    name: 'send_pulse_survey',
+    summary: 'Send pulse survey to team. Manager/admin only.',
+    tags: ['heart', 'pulse', 'survey'],
+    alwaysLoaded: false,
+    parameterHints: 'team_id?: string',
+  },
   category: 'people',
   description: `Send a wellness pulse survey to the team. Requires human confirmation before sending. Use when the user wants to send a pulse check, wellness survey, or quick team feedback.`,
   parameters: {

@@ -85,8 +85,17 @@ function formatPerformanceSummary(
 }
 
 const employeePerformanceTool: Tool = {
-  name: 'get_employee_performance',
+  name: 'people:get_employee_performance',
   category: 'people',
+
+  metadata: {
+    namespace: 'people',
+    name: 'get_employee_performance',
+    summary: 'Employee performance: tasks, XP, badges, activity, knowledge contributions.',
+    tags: ['people', 'performance', 'metrics', 'productivity'],
+    alwaysLoaded: false,
+    parameterHints: 'employee_identifier: string, time_period?: today|this_week|this_month|this_quarter|this_year|all_time, include_team_comparison?: yes|no',
+  },
 
   description: `Get performance metrics for a specific employee or the whole team.
 Returns: task completion stats (completed, active, total), XP/leaderboard rank,
