@@ -186,7 +186,7 @@ export async function executeTool(
   const resolvedName = resolveToolName(name);
   const tool = resolvedName ? registry.get(resolvedName) : undefined;
 
-  if (!tool) {
+  if (!tool || !resolvedName) {
     console.warn(`[AI Registry] Tool not found: "${name}"`);
     return {
       success: false,
@@ -195,8 +195,10 @@ export async function executeTool(
     };
   }
 
-  if (resolvedName !== name) {
-    console.log(`[AI Registry] Resolved "${name}" → "${resolvedName}"`);
+  const resolved = resolvedName as string;
+
+  if (resolved !== name) {
+    console.log(`[AI Registry] Resolved "${name}" → "${resolved}"`);
   }
 
   if (tool.requiredRoles && tool.requiredRoles.length > 0) {
@@ -211,9 +213,9 @@ export async function executeTool(
   }
 
   // Check cache first (use resolved name for cache key consistency)
-  const cached = getCached(resolvedName, args, context.userId) as ToolResult | null;
+  const cached = getCached(resolved, args, context.userId) as ToolResult | null;
   if (cached) {
-    console.log(`[AI Registry] Tool "${resolvedName}" cache HIT`);
+    console.log(`[AI Registry] Tool "${resolved}" cache HIT`);
     return cached;
   }
 
@@ -221,11 +223,11 @@ export async function executeTool(
   try {
     const result = await tool.execute(args, context);
     const elapsed = Date.now() - startTime;
-    console.log(`[AI Registry] Tool "${resolvedName}" executed in ${elapsed}ms (success: ${result.success}, records: ${result.metadata?.count ?? 'N/A'})`);
+    console.log(`[AI Registry] Tool "${resolved}" executed in ${elapsed}ms (success: ${result.success}, records: ${result.metadata?.count ?? 'N/A'})`);
 
     // Cache successful results (use resolved name for cache key consistency)
     if (result.success && result.data) {
-      setCache(resolvedName, tool.category, args, context.userId, result);
+      setCache(resolved, tool.category, args, context.userId, result);
     }
 
     return result;
