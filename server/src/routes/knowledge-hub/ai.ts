@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { getGroqApiKey, generateGroqCompletion } from '../../services/knowledgeGroq.js';
-import { getGeminiApiKey, generateGeminiAnswer } from '../../services/knowledgeGemini.js';
+import { getGroqApiKey, generateGroqCompletion, streamGroqAnswer } from '../../services/knowledgeGroq.js';
+import { getGeminiApiKey, generateGeminiAnswer, streamGeminiAnswer } from '../../services/knowledgeGemini.js';
 import { buildPptxBuffer } from '../../services/presentationPptx.js';
 import { routeQuery } from '../../services/ai/intentRouter.js';
 import '../../services/ai/tools/index.js';
@@ -315,17 +315,48 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       doraCtx.user.organizationId,
     );
 
-    const result = await orchestrate(
-      userQuery,
-      chatHistory,
-      doraCtx,
-      legacyContext,
-      (chunk) => { send({ type: 'text', content: chunk }); },
-      {
-        ...(provider !== 'auto' ? { provider } : {}),
-        isDynamicToolLoopEnabled,
-      },
-    );
+    let result;
+    try {
+      result = await orchestrate(
+        userQuery,
+        chatHistory,
+        doraCtx,
+        legacyContext,
+        (chunk) => { send({ type: 'text', content: chunk }); },
+        {
+          ...(provider !== 'auto' ? { provider } : {}),
+          isDynamicToolLoopEnabled,
+        },
+      );
+    } catch (orchErr) {
+      const errMsg = orchErr instanceof Error ? orchErr.message : String(orchErr);
+      console.warn('[kh-ai] Orchestrator (LiteLLM) failed, falling back to intent router + direct API:', errMsg);
+
+      const routerResult = await routeQuery(userQuery, chatHistory, legacyContext, doraCtx);
+      const context = routerResult.combinedContext || 'No data was retrieved.';
+
+      try {
+        if (getGroqApiKey()) {
+          await streamGroqAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }), chatHistory, { concise });
+        } else if (getGeminiApiKey()) {
+          await streamGeminiAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }));
+        } else {
+          send({ type: 'text', content: context.length > 2000 ? context.slice(0, 2000) + '…' : context });
+        }
+      } catch (synErr) {
+        console.error('[kh-ai] Fallback synthesis also failed:', synErr);
+        send({ type: 'text', content: "I'm having trouble connecting to AI services. Please ensure LiteLLM is running (npm run litellm) and API keys are set." });
+      }
+
+      const totalMs = Date.now() - startTime;
+      const sources = extractSources({ toolResults: routerResult.toolResults });
+      if (sources.length > 0) send({ type: 'sources', documents: sources });
+      send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
+      send({ type: 'done' });
+      res.end();
+      logQuery({ userId: legacyContext.userId, query: userQuery, toolsUsed: routerResult.toolsUsed, dataPointsReturned: routerResult.toolResults.filter((r) => r.success).length, responseTimeMs: totalMs, success: true, usedFallback: true, toolCallCount: routerResult.toolsUsed.length, conciseMode: concise, synthesisProvider: 'fallback' }).catch(() => {});
+      return;
+    }
 
     const allToolResults = result.steps.flatMap((s) => s.observations);
     const sources = extractSources({ toolResults: allToolResults });
@@ -414,9 +445,16 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       synthesisProvider: 'orchestrator',
     }).catch(() => {});
   } catch (e) {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    const isConnectionError = /ECONNREFUSED|fetch failed|ENOTFOUND|network|timeout/i.test(errMsg);
     console.error('[kh-ai] answer:', e);
+
+    const userMessage = isConnectionError
+      ? 'AI services are unreachable. Ensure LiteLLM is running (npm run litellm) and the server can reach it.'
+      : 'An error occurred while processing your question. Please try again.';
+
     const totalMs = Date.now() - startTime;
-    send({ type: 'error', message: 'An error occurred while processing your question. Please try again.' });
+    send({ type: 'error', message: userMessage });
     send({ type: 'done' });
     res.end();
 
@@ -427,7 +465,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       dataPointsReturned: 0,
       responseTimeMs: totalMs,
       success: false,
-      errorMessage: e instanceof Error ? e.message : String(e),
+      errorMessage: errMsg,
       usedFallback: false,
       toolCallCount: 0,
       conciseMode: concise,

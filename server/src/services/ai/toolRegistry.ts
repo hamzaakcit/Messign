@@ -162,6 +162,20 @@ export async function finalizeRegistry(): Promise<void> {
 // ============================================================
 
 /**
+ * Resolve a tool name to its registered form. Handles LLM sometimes returning
+ * short names (e.g. get_achievements_leaderboard) instead of namespaced
+ * (achievements:get_achievements_leaderboard).
+ */
+function resolveToolName(name: string): string | undefined {
+  if (registry.has(name)) return name;
+  // Try namespaced form: look for "namespace:name" where name matches
+  for (const key of registry.keys()) {
+    if (key.endsWith(`:${name}`)) return key;
+  }
+  return undefined;
+}
+
+/**
  * Execute a tool by name with the given arguments and auth context.
  */
 export async function executeTool(
@@ -169,7 +183,8 @@ export async function executeTool(
   args: Record<string, unknown>,
   context: ToolContext
 ): Promise<ToolResult> {
-  const tool = registry.get(name);
+  const resolvedName = resolveToolName(name);
+  const tool = resolvedName ? registry.get(resolvedName) : undefined;
 
   if (!tool) {
     console.warn(`[AI Registry] Tool not found: "${name}"`);
@@ -178,6 +193,10 @@ export async function executeTool(
       data: null,
       summary: `I tried to access a data source called "${name}" but it doesn't exist. Let me try answering with what I have.`,
     };
+  }
+
+  if (resolvedName !== name) {
+    console.log(`[AI Registry] Resolved "${name}" → "${resolvedName}"`);
   }
 
   if (tool.requiredRoles && tool.requiredRoles.length > 0) {
@@ -191,10 +210,10 @@ export async function executeTool(
     }
   }
 
-  // Check cache first
-  const cached = getCached(name, args, context.userId) as ToolResult | null;
+  // Check cache first (use resolved name for cache key consistency)
+  const cached = getCached(resolvedName, args, context.userId) as ToolResult | null;
   if (cached) {
-    console.log(`[AI Registry] Tool "${name}" cache HIT`);
+    console.log(`[AI Registry] Tool "${resolvedName}" cache HIT`);
     return cached;
   }
 
@@ -202,11 +221,11 @@ export async function executeTool(
   try {
     const result = await tool.execute(args, context);
     const elapsed = Date.now() - startTime;
-    console.log(`[AI Registry] Tool "${name}" executed in ${elapsed}ms (success: ${result.success}, records: ${result.metadata?.count ?? 'N/A'})`);
+    console.log(`[AI Registry] Tool "${resolvedName}" executed in ${elapsed}ms (success: ${result.success}, records: ${result.metadata?.count ?? 'N/A'})`);
 
-    // Cache successful results
+    // Cache successful results (use resolved name for cache key consistency)
     if (result.success && result.data) {
-      setCache(name, tool.category, args, context.userId, result);
+      setCache(resolvedName, tool.category, args, context.userId, result);
     }
 
     return result;

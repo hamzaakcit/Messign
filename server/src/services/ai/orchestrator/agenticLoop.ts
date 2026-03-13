@@ -454,9 +454,9 @@ export async function orchestrate(
       return buildResult(tracker, 'error', fallbackMsg, startTime, message, pendingActionEvents, isDynamicToolLoopEnabled);
     }
 
-    const errorMsg = `I'm having trouble accessing the data right now. Please try again in a moment.`;
-    onChunk(errorMsg);
-    return buildResult(tracker, 'error', errorMsg, startTime, message, pendingActionEvents, isDynamicToolLoopEnabled);
+    // No context collected (e.g. LiteLLM gateway failed). Rethrow so the route can run the
+    // intent-router fallback (direct Groq/Gemini) instead.
+    throw error;
   }
 }
 
@@ -517,6 +517,12 @@ async function synthesizeAndStream(
 
   // Last resort: raw context dump
   if (!finalAnswer.trim()) {
+    const context = tracker.buildFullContextForSynthesis();
+    if (context.length === 0) {
+      // No tool data (e.g. LiteLLM gateway failed). Throw so the route can run the
+      // intent-router fallback (direct Groq/Gemini) instead.
+      throw new Error('LITELLM_CASCADE_FAILURE');
+    }
     const fallback = buildFallbackAnswer(query, tracker, terminationReason);
     onChunk(fallback);
     finalAnswer = fallback;

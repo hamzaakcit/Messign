@@ -65,12 +65,11 @@ litellm_settings:
     - {"balanced": ["complex"]}
     - {"complex": ["frontier"]}
 
-  # Cost tracking (set LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY for full logging)
-  success_callback: ["langfuse"]
+  # Cost tracking (optional). Set success_callback: ["langfuse"] after: pip install langfuse
 
-  # Redis-backed cache (1 hour TTL for identical prompts)
-  # Set REDIS_HOST, REDIS_PORT, REDIS_PASSWORD in env (or REDIS_URL)
-  cache: true
+  # Redis-backed cache (1 hour TTL). Disabled by default so LiteLLM runs without Redis.
+  # To enable: set REDIS_HOST=localhost REDIS_PORT=6379, then switch cache to true.
+  cache: false
   cache_params:
     type: "redis"
     ttl: 3600

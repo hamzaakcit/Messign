@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "(npx kill-port 3000 3001 || true) && concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "litellm": "python3 -m litellm --config ./litellm/config.yaml",
+    "litellm": "(npx kill-port 4000 || true) && PATH=\"$HOME/Library/Python/3.12/bin:$HOME/Library/Python/3.11/bin:$HOME/Library/Python/3.10/bin:$HOME/Library/Python/3.9/bin:$HOME/.local/bin:$PATH\" litellm --config ./litellm/config.yaml --port 4000",
     "dev:client": "npm run dev --workspace=client",
     "dev:server": "npm run dev --workspace=server",
     "build": "npm run build --workspace=server",

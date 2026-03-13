@@ -89,6 +89,26 @@ curl --request POST \
 
 If you set `LITELLM_MASTER_KEY`, add: `-H "Authorization: Bearer sk-your-secret-key"`
 
+## Verification
+
+End-to-end verification steps:
+
+1. **Start LiteLLM:** `npm run litellm` — wait for `Uvicorn running on http://0.0.0.0:4000`
+
+2. **Test LiteLLM directly:**
+   ```bash
+   curl -s -X POST http://localhost:4000/v1/chat/completions \
+     -H "Content-Type: application/json" \
+     -d '{"model":"fast","messages":[{"role":"user","content":"hi"}]}'
+   ```
+   Expect a JSON response with `choices[0].message.content`, not an error.
+
+3. **Start server:** `npm run dev` (or `npm run dev:server`)
+
+4. **Test Dora:** Ask "What are my open tasks?" or "Show me the MP leaderboard" in the Dora UI. You should get a real answer (or tool-driven response), not "I wasn't able to retrieve the data."
+
+5. **Fallback test:** Stop LiteLLM (`Ctrl+C`), ask Dora again. The intent-router fallback (direct Groq/Gemini) should still answer when LiteLLM is down.
+
 ## Model Tiers
 
 | Tier      | Model                          | Use case                          |

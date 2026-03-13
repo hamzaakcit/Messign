@@ -208,7 +208,9 @@ function isLeaderboardQuery(query: string): boolean {
     /\b(leaderboard|achievements?|badges?)\b/i.test(q) ||
     /\bwho('s| is)\s+(on\s+top|top\s+of)\b/i.test(q) ||
     /\b(top\s+)?performers?\b/i.test(q) ||
-    /\b(my\s+)?(xp|points)\b/i.test(q)
+    /\b(my\s+)?(xp|points|mp)\b/i.test(q) ||
+    /\bmp\s+leaderboard\b/i.test(q) ||
+    /\bleaderboard\s+.*\bmp\b/i.test(q)
   );
 }
 
@@ -271,16 +273,16 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
 
   // "All teams' performance" / "Team comparison" / "Compare teams" → get_team_overview (MUST be before "my performance")
   if (isExecutiveDashboardQuery(query)) {
-    return [{ name: 'get_executive_dashboard', args: {} }];
+    return [{ name: 'executive:get_executive_dashboard', args: {} }];
   }
 
   if (isDailyBriefingQuery(query)) {
-    return [{ name: 'generate_daily_briefing', args: {} }];
+    return [{ name: 'executive:generate_daily_briefing', args: {} }];
   }
 
   if (isTeamOverviewQuery(query)) {
     const teamId = /\bmy\b.*\bteam|\bteam\b.*\bmy\b/i.test(q) && !/\ball\s+teams?\b/i.test(q) ? 'my' : 'all';
-    return [{ name: 'get_team_overview', args: { team_identifier: teamId } }];
+    return [{ name: 'people:get_team_overview', args: { team_identifier: teamId } }];
   }
 
   // "My performance" / "Show me my stats" / "How am I doing" → get_employee_performance (NOT team comparison)
@@ -291,7 +293,7 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
     /^(my|show\s+my)\s+performance/i.test(q)
   ) {
     const period = q.includes('week') ? 'this_week' : q.includes('year') ? 'this_year' : 'this_month';
-    return [{ name: 'get_employee_performance', args: { employee_identifier: 'me', time_period: period } }];
+    return [{ name: 'people:get_employee_performance', args: { employee_identifier: 'me', time_period: period } }];
   }
 
   // "My tasks" / "Open tasks" / "What am I working on" → get_tasks_by_user
@@ -307,26 +309,26 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
   // "System-wide overview" / "System overview" / "Executive report" / "Company dashboard" → get_system_stats
   if (isOverviewStyleQuery(query)) {
     const detailLevel = /\b(detailed|executive|full)\b/i.test(q) ? 'detailed' : 'summary';
-    return [{ name: 'get_system_stats', args: { detail_level: detailLevel } }];
+    return [{ name: 'analytics:get_system_stats', args: { detail_level: detailLevel } }];
   }
 
   // "Company-wide financial summary" / "Financial overview" / "Budget summary" → get_financial_summary
   if (isFinancialQuery(query)) {
     const period = q.includes('quarter') ? 'this_quarter' : q.includes('year') ? 'this_year' : 'this_month';
     const scope = /\b(company[- ]?wide|company|our|we)\b/i.test(q) ? 'company' : 'my';
-    return [{ name: 'get_financial_summary', args: { time_period: period, scope } }];
+    return [{ name: 'finance:get_financial_summary', args: { time_period: period, scope } }];
   }
 
   // "What items need approval?" / "Approval queue" / "Pending approvals" → get_approval_queue
   if (isApprovalQuery(query)) {
     const domain = q.includes('reimbursement') ? 'reimbursements' : q.includes('document') ? 'documents' : q.includes('invoice') ? 'invoices' : 'all';
-    return [{ name: 'get_approval_queue', args: { domain } }];
+    return [{ name: 'analytics:get_approval_queue', args: { domain } }];
   }
 
   // "Project status" / "How are projects" / "Active projects" → get_project_status
   if (isProjectStatusQuery(query)) {
     const projectName = /\bmy\b.*\bproject/i.test(q) ? 'my' : 'all';
-    return [{ name: 'get_project_status', args: { project_name: projectName } }];
+    return [{ name: 'projects:get_project_status', args: { project_name: projectName } }];
   }
 
   // "Recent activity" / "What happened today" / "Activity feed" → get_recent_activity
@@ -334,41 +336,41 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
     const scope = /\bmy\b|\b(user|person)\b/i.test(q) ? 'user' : 'system';
     const args: Record<string, unknown> = { scope };
     if (scope === 'user') args.user_identifier = 'me';
-    return [{ name: 'get_recent_activity', args }];
+    return [{ name: 'analytics:get_recent_activity', args }];
   }
 
   // "Sprint status" / "Sprint progress" → get_sprint_status
   if (isSprintQuery(query)) {
-    return [{ name: 'get_sprint_status', args: { project_name: 'all' } }];
+    return [{ name: 'projects:get_sprint_status', args: { project_name: 'all' } }];
   }
 
-  // "Leaderboard" / "Achievements" / "Badges" → get_achievements_leaderboard
+  // "Leaderboard" / "Achievements" / "Badges" / "MP leaderboard" → get_achievements_leaderboard
   if (isLeaderboardQuery(query)) {
     const queryType = q.includes('my') ? 'user_badges' : 'leaderboard';
     const args: Record<string, unknown> = { query_type: queryType };
     if (queryType === 'user_badges') args.user_identifier = 'me';
-    return [{ name: 'get_achievements_leaderboard', args }];
+    return [{ name: 'achievements:get_achievements_leaderboard', args }];
   }
 
   // "Outstanding invoices" / "Unpaid invoices" → get_invoice_details
   if (isInvoiceQuery(query)) {
     const statusFilter = q.includes('overdue') ? 'overdue' : 'pending';
-    return [{ name: 'get_invoice_details', args: { search_term: 'all', status_filter: statusFilter } }];
+    return [{ name: 'finance:get_invoice_details', args: { search_term: 'all', status_filter: statusFilter } }];
   }
 
   // "My reimbursements" / "Pending reimbursements" → get_reimbursement_details
   if (isReimbursementQuery(query)) {
-    return [{ name: 'get_reimbursement_details', args: { user_identifier: 'me' } }];
+    return [{ name: 'finance:get_reimbursement_details', args: { user_identifier: 'me' } }];
   }
 
   // "How many documents in the knowledge base?" / "How many are stale?" → get_knowledge_base_stats
   if (isKnowledgeBaseStatsQuery(query)) {
-    return [{ name: 'get_knowledge_base_stats', args: {} }];
+    return [{ name: 'knowledge:get_knowledge_base_stats', args: {} }];
   }
 
   // "What can I ask?" / "What questions are available?" → get_available_questions
   if (isAvailableQuestionsQuery(query)) {
-    return [{ name: 'get_available_questions', args: {} }];
+    return [{ name: 'system:get_available_questions', args: {} }];
   }
 
   return null;
@@ -435,40 +437,40 @@ export async function routeQuery(
       console.warn('[Intent Router] Gemini routing also failed:', geminiMsg);
       if (isOverviewStyleQuery(query)) {
         console.log('[Intent Router] All routers failed. Overview query → falling back to get_system_stats.');
-        toolCalls = [{ name: 'get_system_stats', args: { detail_level: 'summary' } }];
+        toolCalls = [{ name: 'analytics:get_system_stats', args: { detail_level: 'summary' } }];
       } else if (isFinancialQuery(query)) {
         console.log('[Intent Router] All routers failed. Financial query → falling back to get_financial_summary.');
-        toolCalls = [{ name: 'get_financial_summary', args: { time_period: 'this_month', scope: 'company' } }];
+        toolCalls = [{ name: 'finance:get_financial_summary', args: { time_period: 'this_month', scope: 'company' } }];
       } else if (isApprovalQuery(query)) {
         console.log('[Intent Router] All routers failed. Approval query → falling back to get_approval_queue.');
-        toolCalls = [{ name: 'get_approval_queue', args: { domain: 'all' } }];
+        toolCalls = [{ name: 'analytics:get_approval_queue', args: { domain: 'all' } }];
       } else if (isProjectStatusQuery(query)) {
         console.log('[Intent Router] All routers failed. Project query → falling back to get_project_status.');
-        toolCalls = [{ name: 'get_project_status', args: { project_name: 'all' } }];
+        toolCalls = [{ name: 'projects:get_project_status', args: { project_name: 'all' } }];
       } else if (isTeamOverviewQuery(query)) {
         console.log('[Intent Router] All routers failed. Team query → falling back to get_team_overview.');
-        toolCalls = [{ name: 'get_team_overview', args: { team_identifier: 'all' } }];
+        toolCalls = [{ name: 'people:get_team_overview', args: { team_identifier: 'all' } }];
       } else if (isActivityQuery(query)) {
         console.log('[Intent Router] All routers failed. Activity query → falling back to get_recent_activity.');
-        toolCalls = [{ name: 'get_recent_activity', args: { scope: 'system' } }];
+        toolCalls = [{ name: 'analytics:get_recent_activity', args: { scope: 'system' } }];
       } else if (isSprintQuery(query)) {
         console.log('[Intent Router] All routers failed. Sprint query → falling back to get_sprint_status.');
-        toolCalls = [{ name: 'get_sprint_status', args: { project_name: 'all' } }];
+        toolCalls = [{ name: 'projects:get_sprint_status', args: { project_name: 'all' } }];
       } else if (isLeaderboardQuery(query)) {
         console.log('[Intent Router] All routers failed. Leaderboard query → falling back to get_achievements_leaderboard.');
-        toolCalls = [{ name: 'get_achievements_leaderboard', args: { query_type: 'leaderboard' } }];
+        toolCalls = [{ name: 'achievements:get_achievements_leaderboard', args: { query_type: 'leaderboard' } }];
       } else if (isInvoiceQuery(query)) {
         console.log('[Intent Router] All routers failed. Invoice query → falling back to get_invoice_details.');
-        toolCalls = [{ name: 'get_invoice_details', args: { search_term: 'all', status_filter: 'pending' } }];
+        toolCalls = [{ name: 'finance:get_invoice_details', args: { search_term: 'all', status_filter: 'pending' } }];
       } else if (isReimbursementQuery(query)) {
         console.log('[Intent Router] All routers failed. Reimbursement query → falling back to get_reimbursement_details.');
-        toolCalls = [{ name: 'get_reimbursement_details', args: { user_identifier: 'me' } }];
+        toolCalls = [{ name: 'finance:get_reimbursement_details', args: { user_identifier: 'me' } }];
       } else if (isKnowledgeBaseStatsQuery(query)) {
         console.log('[Intent Router] All routers failed. Knowledge base stats query → falling back to get_knowledge_base_stats.');
-        toolCalls = [{ name: 'get_knowledge_base_stats', args: {} }];
+        toolCalls = [{ name: 'knowledge:get_knowledge_base_stats', args: {} }];
       } else if (isAvailableQuestionsQuery(query)) {
         console.log('[Intent Router] All routers failed. Available questions query → falling back to get_available_questions.');
-        toolCalls = [{ name: 'get_available_questions', args: {} }];
+        toolCalls = [{ name: 'system:get_available_questions', args: {} }];
       } else {
         console.log('[Intent Router] All routers failed. Falling back to knowledge base search.');
         toolCalls = [{ name: 'knowledge:search_knowledge_base', args: { query } }];
