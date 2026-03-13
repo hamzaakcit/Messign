@@ -81,14 +81,16 @@ export async function buildDoraContext(
   let level = 'L1';
   let mpPoints = 0;
 
+  let userUuid: string | undefined;
   if (orgId) {
     const userResult = await query<{
+      id: string;
       role: string;
       full_name: string;
       level: number;
       xp: number;
     }>(
-      `SELECT ru.role, ru.full_name, ru.level, ru.xp
+      `SELECT ru.id, ru.role, ru.full_name, ru.level, ru.xp
        FROM reimbursement_users ru
        WHERE ru.organization_id = $1 AND ru.auth_user_id = $2
        LIMIT 1`,
@@ -96,6 +98,7 @@ export async function buildDoraContext(
     );
     const u = userResult.rows[0];
     if (u) {
+      userUuid = u.id;
       userRole = u.role || userRole;
       userName = u.full_name || userName;
       level = `L${u.level ?? 1}`;
@@ -124,6 +127,7 @@ export async function buildDoraContext(
 
   const user: DoraUserContext = {
     userId,
+    userUuid,
     userName,
     userRole: userRole as DoraUserContext['userRole'],
     organizationId: orgId ?? null,

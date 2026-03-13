@@ -11,8 +11,16 @@ LiteLLM runs as a separate service alongside the Node.js backend. It exposes an 
 
 ### 1. Install LiteLLM
 
+**Python 3.10+ required** (guardrails crash on 3.9). From the workspace root:
+
 ```bash
-pip install "litellm[proxy]"
+npm run litellm:install
+```
+
+Or manually with Python 3.11:
+
+```bash
+python3.11 -m pip install "litellm[proxy]"
 ```
 
 Or with Docker:
@@ -47,9 +55,12 @@ export REDIS_HOST=localhost
 export REDIS_PORT=6379
 # Or: export REDIS_URL=redis://localhost:6379
 
-# Master key for proxy auth (optional for local testing; omit for no auth)
+# Master key for proxy auth (required — suppresses CRITICAL warning)
+# Must match gateway.ts; use sk-litellm for local dev
 export LITELLM_MASTER_KEY=sk-your-secret-key
 ```
+
+**Python 3.10+ required:** LiteLLM guardrails use `dict | None` syntax (Python 3.10+). If you see `unsupported operand type(s) for |`, install Python 3.11: `brew install python@3.11` (or use pyenv).
 
 ### 3. Run the proxy
 

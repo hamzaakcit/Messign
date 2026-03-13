@@ -406,7 +406,7 @@ export async function createComment(data: { documentId: string; authorId: string
 export async function listComments(documentId: string) {
   const res = await query<KhCommentRow & { author_name: string }>(
     `SELECT c.*, u.full_name AS author_name FROM knowledge_comments c
-     LEFT JOIN reimbursement_users u ON u.id = c.author_id
+     LEFT JOIN reimbursement_users u ON u.auth_user_id = c.author_id
      WHERE c.document_id = $1 ORDER BY c.created_at ASC`, [documentId]
   );
   const all = res.rows;
@@ -445,7 +445,7 @@ export async function createReviewAction(data: { documentId: string; reviewerId:
 export async function listReviewActions(documentId: string) {
   const res = await query(
     `SELECT ra.*, u.full_name AS reviewer_name FROM knowledge_review_actions ra
-     LEFT JOIN reimbursement_users u ON u.id = ra.reviewer_id
+     LEFT JOIN reimbursement_users u ON u.auth_user_id = ra.reviewer_id
      WHERE ra.document_id = $1 ORDER BY ra.created_at DESC`, [documentId]
   );
   return res.rows;

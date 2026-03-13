@@ -444,20 +444,43 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       conciseMode: concise,
       synthesisProvider: 'orchestrator',
     }).catch(() => {});
-  } catch (e) {
-    const errMsg = e instanceof Error ? e.message : String(e);
-    const isConnectionError = /ECONNREFUSED|fetch failed|ENOTFOUND|network|timeout/i.test(errMsg);
-    console.error('[kh-ai] answer:', e);
+  } catch (error) {
+    console.error('[kh-ai] answer route error:', error);
 
-    const userMessage = isConnectionError
-      ? 'AI services are unreachable. Ensure LiteLLM is running (npm run litellm) and the server can reach it.'
-      : 'An error occurred while processing your question. Please try again.';
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    const isConnectionError = /ECONNREFUSED|fetch failed|ENOTFOUND|network|timeout/i.test(errMsg);
 
     const totalMs = Date.now() - startTime;
-    send({ type: 'error', message: userMessage });
-    send({ type: 'done' });
-    res.end();
 
+    // 1. Check if we already started sending a stream to the client
+    if (res.headersSent) {
+      // If yes, we cannot change the status code to 500 anymore.
+      // Instead, send an SSE error event so the frontend knows it failed, then close the connection cleanly.
+      const userMessage = isConnectionError
+        ? 'AI services are unreachable. Ensure LiteLLM is running (npm run litellm) and the server can reach it.'
+        : 'An error occurred while processing your question. Please try again.';
+      res.write(
+        `event: error\ndata: ${JSON.stringify({
+          message: userMessage,
+          details: errMsg,
+        })}\n\n`,
+      );
+      logQuery({
+        userId: authReq.userId,
+        query: userQuery,
+        toolsUsed: [],
+        dataPointsReturned: 0,
+        responseTimeMs: totalMs,
+        success: false,
+        errorMessage: errMsg,
+        usedFallback: false,
+        toolCallCount: 0,
+        conciseMode: concise,
+      }).catch(() => {});
+      return res.end();
+    }
+
+    // 2. If headers haven't been sent yet, it's safe to return a standard 500 JSON response
     logQuery({
       userId: authReq.userId,
       query: userQuery,
@@ -470,5 +493,9 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       toolCallCount: 0,
       conciseMode: concise,
     }).catch(() => {});
+    return res.status(500).json({
+      error: 'An error occurred while processing the request',
+      details: errMsg,
+    });
   }
 });

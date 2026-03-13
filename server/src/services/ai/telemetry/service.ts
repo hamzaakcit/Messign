@@ -13,6 +13,14 @@ export async function logTelemetry(
   sessionId: string,
 ): Promise<string | null> {
   try {
+    // ai_query_telemetry.user_id expects UUID; ctx.user.userId may be auth_user_id (e.g. "user-1")
+    const userIdForTelemetry = ctx.user.userUuid ?? ctx.user.userId;
+    const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userIdForTelemetry);
+    if (!isValidUuid) {
+      console.warn(`[Telemetry] Skipping log: user_id "${userIdForTelemetry}" is not a valid UUID (resolve auth_user_id to reimbursement_users.id)`);
+      return null;
+    }
+
     let llmDuration = 0;
     let toolDuration = 0;
 
@@ -40,7 +48,7 @@ export async function logTelemetry(
       ) RETURNING id`,
       [
         sessionId,
-        ctx.user.userId,
+        userIdForTelemetry,
         ctx.user.userName,
         ctx.user.userRole,
         queryText.slice(0, 2000),

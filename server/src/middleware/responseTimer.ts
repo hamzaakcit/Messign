@@ -9,7 +9,9 @@ export function responseTimer(req: Request, res: Response, next: NextFunction) {
     if (duration > 500) {
       console.warn(`[SLOW] ${req.method} ${req.originalUrl}: ${duration}ms`);
     }
-    res.setHeader('X-Response-Time', `${duration}ms`);
+    if (!res.headersSent) {
+      res.setHeader('X-Response-Time', `${duration}ms`);
+    }
     return (originalEnd as Function).apply(res, args);
   };
   (res as { end: typeof wrappedEnd }).end = wrappedEnd;

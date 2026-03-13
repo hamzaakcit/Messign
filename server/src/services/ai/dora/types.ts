@@ -6,7 +6,10 @@
  */
 
 export interface DoraUserContext {
+  /** auth_user_id (e.g. "user-1") — use for tools, display */
   userId: string;
+  /** reimbursement_users.id UUID — use for telemetry/DB columns that require UUID */
+  userUuid?: string;
   userName: string;
   userRole: 'admin' | 'manager' | 'employee' | 'cpo' | 'hr' | 'finance';
   organizationId: string | null;

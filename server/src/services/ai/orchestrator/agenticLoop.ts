@@ -87,6 +87,16 @@ export async function orchestrate(
   const baseTools = isDynamicToolLoopEnabled
     ? getBaseToolsForLLM(userRoles)
     : getToolsForLLM();
+  // Sanity check: Dora's CRITICAL TOOL EXECUTION RULES require core:search_tools to be in request.tools
+  // when dynamic loop is enabled. Both core:search_tools and core:activate_tool have alwaysLoaded: true.
+  if (isDynamicToolLoopEnabled) {
+    const hasSearch = baseTools.some(
+      (t) => t.type === 'function' && t.function?.name === 'core:search_tools',
+    );
+    if (!hasSearch) {
+      console.warn('[Orchestrator] core:search_tools not in base tools — Dora may hallucinate tools');
+    }
+  }
   const pendingActionEvents: PendingActionSSEEvent[] = [];
 
   const buildCurrentTools = () => {

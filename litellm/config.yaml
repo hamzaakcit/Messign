@@ -59,9 +59,10 @@ model_list:
       api_key: "os.environ/OPENAI_API_KEY"
 
 # Fallback chain: if primary fails, try secondary
+# Prefer Anthropic (complex) over Gemini (balanced) when Groq fails to reduce Gemini 429 rate limits
 litellm_settings:
   fallbacks:
-    - {"fast": ["balanced"]}
+    - {"fast": ["complex", "balanced"]}
     - {"balanced": ["complex"]}
     - {"complex": ["frontier"]}
 
