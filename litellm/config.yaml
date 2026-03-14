@@ -68,13 +68,14 @@ litellm_settings:
 
   # Cost tracking (optional). Set success_callback: ["langfuse"] after: pip install langfuse
 
-  # Redis-backed semantic cache. Uses same Redis as BullMQ (REDIS_URL from .env).
+  # Redis-backed semantic cache. Uses same Redis as BullMQ.
+  # Set REDIS_URL in .env for production; default localhost for local dev.
   # Tier TTLs applied per-request from gateway: fast=1h, balanced=30m, complex/frontier=no cache.
   cache: true
   cache_params:
     type: "redis"
     ttl: 3600
-    # REDIS_URL, REDIS_HOST, REDIS_PORT read from env (npm run litellm loads .env)
+    url: "redis://localhost:6379"
 
 general_settings:
   master_key: "os.environ/LITELLM_MASTER_KEY"
