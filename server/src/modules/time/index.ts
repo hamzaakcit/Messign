@@ -1,11 +1,13 @@
 /**
- * Time Module — Platform plugin (stub)
- * Wraps existing time routes. Tools and prompts to be migrated.
+ * Time Module — Platform plugin
  */
-import { Router } from 'express';
+import type { Router } from 'express';
 import type { PlatformModule, ToolRegistration } from '../types.js';
 import type { EventBus } from '../../platform/eventBus.js';
-import timeRouter from '../../routes/time/index.js';
+import { timeTools } from './tools/index.js';
+import { registerTimeEventHandlers } from './events/subscribers.js';
+import { getTimeSystemPromptFragment } from './prompts/timeContext.js';
+import timeRouter from './routes/index.js';
 
 export const timeModule: PlatformModule = {
   namespace: 'time',
@@ -13,18 +15,18 @@ export const timeModule: PlatformModule = {
   requiredRoles: [],
 
   registerTools(): ToolRegistration[] {
-    return [];
+    return timeTools;
   },
 
   getRouter(): Router {
     return timeRouter;
   },
 
-  registerEventHandlers(_eventBus: EventBus): void {
-    // Event handlers for time.* events when ready
+  registerEventHandlers(eventBus: EventBus): void {
+    registerTimeEventHandlers(eventBus);
   },
 
   getSystemPromptFragment(userRole: string): string {
-    return `You are the Time specialist. Current role: ${userRole}. Capabilities: entries, timers, utilization.`;
+    return getTimeSystemPromptFragment(userRole);
   },
 };

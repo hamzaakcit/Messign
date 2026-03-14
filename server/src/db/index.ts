@@ -17,12 +17,16 @@ if (!connectionString) {
   throw new Error('DATABASE_URL is required in production. Set it in your environment.');
 }
 
-// Railway TCP proxy: use SSL but do not verify cert (self-signed). Do not add sslmode=require to URL —
-// current pg treats it as verify-full and rejects the cert; we force TLS via Pool's ssl option only.
+// Railway TCP proxy: use SSL but do not verify cert (self-signed). Strip sslmode from URL —
+// pg treats require/prefer as verify-full and rejects the cert; we force TLS via Pool's ssl option only.
 const useUnsafeSSL =
   connectionString.includes('rlwy.net') ||
   connectionString.includes('railway.app') ||
   connectionString.includes('railway.net');
+
+if (useUnsafeSSL) {
+  connectionString = connectionString.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '');
+}
 
 // With PgBouncer, keep Node-side pool small — PgBouncer handles the real pooling
 const usePgBouncer = !!process.env.PGBOUNCER_URL;
@@ -45,4 +49,31 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(tex
 
 export async function getClient(): Promise<pg.PoolClient> {
   return pool.connect();
+}
+
+/**
+ * Runs a function within a tenant-scoped transaction.
+ * Sets app.current_tenant so RLS policies enforce tenant isolation.
+ * Use this for all queries against RLS-enabled tables.
+ *
+ * @param tenantId - UUID of the tenant (organization_id)
+ * @param fn - Async function that receives the PoolClient and returns T
+ */
+export async function withTenantQuery<T>(
+  tenantId: string,
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SELECT set_config('app.current_tenant', $1, true)", [tenantId]);
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

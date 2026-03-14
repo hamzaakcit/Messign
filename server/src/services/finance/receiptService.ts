@@ -43,7 +43,7 @@ export const receiptService = {
 
     const duplicates = await this.checkDuplicate(fileHash, orgId);
 
-    const extraction = await extractReceiptData(imageBase64, mediaType);
+    const extraction = await extractReceiptData(imageBase64, mediaType, { tenantId: orgId });
 
     await query(
       `UPDATE reimbursement_documents SET

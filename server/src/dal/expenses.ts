@@ -270,6 +270,7 @@ export async function createExpense(
       expenseId: expense.id, userId: ctx.userId, amount: expense.original_amount,
       currency: expense.original_currency, category: expense.category_slug ?? '',
       departmentId: expense.team_id ?? undefined,
+      organizationId: tenantId,
     });
 
     return expense;

@@ -1,30 +1,34 @@
 /**
- * HR Module — Platform plugin (stub)
- * Recruitment routes live under /api/recruitment. HR-specific routes to be added.
+ * HR Module — Platform plugin
+ * Implements PlatformModule for HR & Recruitment (namespace 'hr').
+ * Includes recruitment DAL, employees, routes, tools, events.
  */
-import { Router } from 'express';
+import type { Router } from 'express';
 import type { PlatformModule, ToolRegistration } from '../types.js';
 import type { EventBus } from '../../platform/eventBus.js';
-import { recruitmentRouter } from '../../routes/recruitment/index.js';
+import { hrTools } from './tools/index.js';
+import { registerHrEventHandlers } from './events/subscribers.js';
+import { getHrSystemPromptFragment } from './prompts/hrContext.js';
+import hrRouter from './routes/index.js';
 
 export const hrModule: PlatformModule = {
-  namespace: 'recruitment',
+  namespace: 'hr',
   displayName: 'HR & Recruitment',
   requiredRoles: ['hr', 'manager', 'admin'],
 
   registerTools(): ToolRegistration[] {
-    return [];
+    return hrTools;
   },
 
   getRouter(): Router {
-    return recruitmentRouter;
+    return hrRouter;
   },
 
-  registerEventHandlers(_eventBus: EventBus): void {
-    // Event handlers for hr.* events when ready
+  registerEventHandlers(eventBus: EventBus): void {
+    registerHrEventHandlers(eventBus);
   },
 
   getSystemPromptFragment(userRole: string): string {
-    return `You are the HR specialist. Current role: ${userRole}. Capabilities: recruitment pipeline, candidates, jobs.`;
+    return getHrSystemPromptFragment(userRole);
   },
 };

@@ -2,15 +2,34 @@
  * Migration runner — applies unapplied SQL migrations in alphabetical order.
  * Uses schema_migrations table to track which migrations have been applied.
  * Run via: npx tsx server/src/migrations/runner.ts
+ *
+ * IMPORTANT: Migrations require postgres/superuser (CREATE TABLE, etc.).
+ * Uses DATABASE_ADMIN_URL or DATABASE_PUBLIC_URL if set; otherwise DATABASE_URL.
+ * The messign_app role typically cannot create tables — use admin URL for Railway.
  */
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { readdirSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { pool } from '../db/index.js';
+import pg from 'pg';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+// Load .env from server/ so migrations get DB vars when run from workspace root
+dotenv.config({ path: join(__dirname, '..', '..', '.env') });
 const MIGRATIONS_DIR = join(__dirname);
+
+let adminUrl = process.env.DATABASE_ADMIN_URL || process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL;
+if (!adminUrl) {
+  throw new Error('DATABASE_ADMIN_URL, DATABASE_PUBLIC_URL, or DATABASE_URL required for migrations.');
+}
+const isRailway = adminUrl.includes('rlwy.net') || adminUrl.includes('railway.app') || adminUrl.includes('railway.net');
+if (isRailway) {
+  adminUrl = adminUrl.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '');
+}
+const pool = new pg.Pool({
+  connectionString: adminUrl,
+  ...(isRailway ? { ssl: { rejectUnauthorized: false } } : {}),
+});
 
 const BOOTSTRAP_SQL = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -74,6 +93,7 @@ export async function runMigrations(): Promise<void> {
     }
   }
 
+  await pool.end();
   console.log('[Migration Runner] Done.');
 }
 

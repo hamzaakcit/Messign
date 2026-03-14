@@ -106,6 +106,7 @@ export const expenseService = {
     eventBus.emit('finance.expense.created', {
       expenseId: expense.id, userId, amount: expense.original_amount,
       currency: expense.currency, category: expense.category, departmentId: expense.department_id,
+      organizationId: orgId,
     });
 
     return expense;
@@ -829,40 +830,44 @@ export const expenseService = {
 
   async getDashboardMetrics(orgId: string, userId: string, userRole: string) {
     const level = { admin: 6, cfo: 5, finance_admin: 4, finance: 3, manager: 2, employee: 1 }[userRole] ?? 0;
-    const scopeClause = level >= 3 ? '' : `AND submitted_by = '${userId}'`;
+    const scopeClause = level >= 3 ? '' : ' AND submitted_by = $2';
+    const scopeParams = level >= 3 ? [orgId] : [orgId, userId];
+
+    const overdueClause = level >= 3 ? '' : ' AND employee_id = $2';
+    const overdueParams = level >= 3 ? [orgId] : [orgId, userId];
 
     const [pending, underReview, approvedMonth, totalPaid, overdue] = await Promise.all([
       query<{ count: string; total: string }>(
         `SELECT COUNT(*) as count, COALESCE(SUM(original_amount),0) as total
          FROM reimbursement_requests WHERE organization_id = $1 AND is_deleted = FALSE
-         AND status IN ('submitted','manager_review','finance_review','ai_reviewing') ${scopeClause}`,
-        [orgId],
+         AND status IN ('submitted','manager_review','finance_review','ai_reviewing')${scopeClause}`,
+        scopeParams,
       ),
       query<{ count: string; avg_days: string }>(
         `SELECT COUNT(*) as count,
                 COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - submitted_at))/86400),0) as avg_days
          FROM reimbursement_requests WHERE organization_id = $1 AND is_deleted = FALSE
-         AND status IN ('ai_reviewing','manager_review','finance_review') ${scopeClause}`,
-        [orgId],
+         AND status IN ('ai_reviewing','manager_review','finance_review')${scopeClause}`,
+        scopeParams,
       ),
       query<{ count: string; total: string }>(
         `SELECT COUNT(*) as count, COALESCE(SUM(original_amount),0) as total
          FROM reimbursement_requests WHERE organization_id = $1 AND is_deleted = FALSE
          AND status IN ('approved','manager_approved','finance_approved','ai_approved')
-         AND approved_at >= DATE_TRUNC('month', NOW()) ${scopeClause}`,
-        [orgId],
+         AND approved_at >= DATE_TRUNC('month', NOW())${scopeClause}`,
+        scopeParams,
       ),
       query<{ total: string }>(
         `SELECT COALESCE(SUM(original_amount),0) as total
          FROM reimbursement_requests WHERE organization_id = $1 AND is_deleted = FALSE
          AND status IN ('paid','reimbursed')
-         AND paid_at >= DATE_TRUNC('year', NOW()) ${scopeClause}`,
-        [orgId],
+         AND paid_at >= DATE_TRUNC('year', NOW())${scopeClause}`,
+        scopeParams,
       ),
       query<{ count: string; total: string }>(
         `SELECT COUNT(*) as count, COALESCE(SUM(grand_total),0) as total
-         FROM invoices WHERE organization_id = $1 AND status = 'overdue' ${level >= 3 ? '' : `AND employee_id = '${userId}'`}`,
-        [orgId],
+         FROM invoices WHERE organization_id = $1 AND status = 'overdue'${overdueClause}`,
+        overdueParams,
       ),
     ]);
 

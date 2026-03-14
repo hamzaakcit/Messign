@@ -125,6 +125,16 @@ export const doraBriefingAPI = {
     fetchWithUserId<DailyBriefing>(`/dora/daily/${date}`, userId),
 };
 
+export interface DoraUserStats {
+  queryCount: number;
+  specialistsUsed: { specialist: string; count: number }[];
+}
+
+export const doraAiStatsAPI = {
+  getUserStats: (userId: string, range = '7d') =>
+    fetchWithUserId<DoraUserStats>(`/knowledge-hub/ai/user-stats?range=${range}`, userId),
+};
+
 export interface ReportRequest {
   type: string;
   period?: { from: string; to: string };

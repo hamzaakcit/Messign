@@ -88,4 +88,15 @@ export const webhookQueue = new Queue('webhooks', {
 });
 webhookQueue.on('error', (err) => onQueueError('webhooks', err));
 
+export const embeddingsQueue = new Queue('embeddings', {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 2000 },
+    removeOnComplete: { count: 500 },
+    removeOnFail: { count: 1000 },
+  },
+});
+embeddingsQueue.on('error', (err) => onQueueError('embeddings', err));
+
 console.log('[Queues] All BullMQ queues initialized');

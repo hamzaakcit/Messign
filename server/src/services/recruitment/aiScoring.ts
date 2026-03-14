@@ -5,6 +5,8 @@ interface ScoreCandidateInput {
   jobId?: string;
   resumeText: string;
   requirements: string[];
+  /** Tenant ID for gateway cost attribution. Defaults to 'system' when not provided. */
+  tenantId?: string;
 }
 
 const SCORE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -51,8 +53,7 @@ export async function scoreCandidateResume(input: ScoreCandidateInput): Promise<
     }
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey || !input.resumeText.trim()) {
+  if (!input.resumeText.trim()) {
     const result = heuristicScore(input);
     if (key) {
       scoreCache.set(key, { result, expiresAt: Date.now() + SCORE_CACHE_TTL_MS });
@@ -60,44 +61,27 @@ export async function scoreCandidateResume(input: ScoreCandidateInput): Promise<
     return result;
   }
 
+  const tenantId = input.tenantId ?? 'system';
+
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You score job candidates against job requirements. Return strict JSON with keys: match_score, matched_skills, missing_skills, recommendation, reasoning.',
-          },
-          {
-            role: 'user',
-            content: JSON.stringify({
-              candidateName: input.candidateName ?? null,
-              jobTitle: input.jobTitle ?? null,
-              requirements: input.requirements,
-              resumeText: input.resumeText.slice(0, 12000),
-            }),
-          },
-        ],
-      }),
+    const { generateText } = await import('../ai/gateway.js');
+    const prompt = JSON.stringify({
+      candidateName: input.candidateName ?? null,
+      jobTitle: input.jobTitle ?? null,
+      requirements: input.requirements,
+      resumeText: input.resumeText.slice(0, 12000),
     });
-    if (!response.ok) {
-      throw new Error(`Groq request failed with ${response.status}`);
-    }
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = payload.choices?.[0]?.message?.content;
+    const content = await generateText({
+      tier: 'fast',
+      prompt,
+      systemPrompt:
+        'You score job candidates against job requirements. Return strict JSON with keys: match_score, matched_skills, missing_skills, recommendation, reasoning.',
+      tenantId,
+      temperature: 0.2,
+      maxTokens: 1024,
+    });
     if (!content) {
-      throw new Error('Empty Groq response');
+      throw new Error('Empty gateway response');
     }
     const parsed = JSON.parse(content) as Partial<ScoreCandidateResult>;
     const result: ScoreCandidateResult = {
@@ -105,14 +89,14 @@ export async function scoreCandidateResume(input: ScoreCandidateInput): Promise<
       matched_skills: Array.isArray(parsed.matched_skills) ? parsed.matched_skills.map(String) : [],
       missing_skills: Array.isArray(parsed.missing_skills) ? parsed.missing_skills.map(String) : [],
       recommendation: typeof parsed.recommendation === 'string' ? parsed.recommendation : 'neutral',
-      reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : 'Scored by Groq.',
+      reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : 'Scored by AI.',
     };
     if (key) {
       scoreCache.set(key, { result, expiresAt: Date.now() + SCORE_CACHE_TTL_MS });
     }
     return result;
   } catch (error) {
-    console.warn('[recruitment/aiScoring] Falling back to heuristic scoring:', error);
+    console.warn('[recruitment/aiScoring] Gateway failed, falling back to heuristic scoring:', error);
     const result = heuristicScore(input);
     if (key) {
       scoreCache.set(key, { result, expiresAt: Date.now() + SCORE_CACHE_TTL_MS });

@@ -82,7 +82,7 @@ authRouter.post('/logout', async (req, res) => {
   const refreshToken = req.cookies?.refreshToken as string | undefined;
   const { sessionId } = req.body as { sessionId?: string };
   try {
-    await authService.logout(refreshToken ?? null, sessionId ?? null);
+    await authService.logout(refreshToken ?? null, sessionId ?? null, req);
   } catch {
     // ignore
   }

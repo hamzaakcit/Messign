@@ -3,6 +3,8 @@
  *
  * Detects and redacts PII before sending to external LLM APIs.
  * Restore in the response so the user sees original values.
+ *
+ * TODO: Replace regex-only approach with a dedicated NER model for production.
  */
 
 export interface RedactionMap {
@@ -15,13 +17,31 @@ export interface RedactionResult {
   redactions: RedactionMap[];
 }
 
-const PII_PATTERNS: Array<{ name: string; regex: RegExp; prefix: string }> = [
+/** Extensible PII patterns. Add new patterns here for easy maintenance. */
+export const PII_PATTERNS: Array<{ name: string; regex: RegExp; prefix: string }> = [
+  // Email addresses
   { name: 'email', regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}\b/gi, prefix: 'EMAIL' },
-  { name: 'phone', regex: /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, prefix: 'PHONE' },
-  { name: 'ssn', regex: /\b\d{3}-\d{2}-\d{4}\b/g, prefix: 'SSN' },
+
+  // Phone numbers — international formats
+  { name: 'phone_intl', regex: /\+\d{1,4}[-.\s]?(?:\(?\d{1,4}\)?[-.\s]?){0,4}\d{1,9}\b/g, prefix: 'PHONE' },
+  // Turkish format: +90 5XX XXX XX XX
+  { name: 'phone_tr', regex: /\b\+90\s*5\d{2}\s*\d{3}\s*\d{2}\s*\d{2}\b/g, prefix: 'PHONE' },
+  // US/NA: (XXX) XXX-XXXX, XXX-XXX-XXXX
+  { name: 'phone_us', regex: /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, prefix: 'PHONE' },
+  // Generic: groups of 3–4 digits with separators
+  { name: 'phone_generic', regex: /\b\d{3,4}[-.\s]\d{3,4}[-.\s]\d{3,4}\b/g, prefix: 'PHONE' },
+
+  // Credit card numbers (with spaces/dashes)
   { name: 'credit_card', regex: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, prefix: 'CC' },
+
+  // IBAN (international format)
   { name: 'iban', regex: /\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/g, prefix: 'IBAN' },
-  { name: 'tc_kimlik', regex: /\b\d{11}\b/g, prefix: 'NATID' }, // Turkish ID (adjust per locale)
+
+  // Turkish TC Kimlik (11 digits, first digit 1–9)
+  { name: 'tc_kimlik', regex: /\b[1-9]\d{10}\b/g, prefix: 'NATID' },
+
+  // US Social Security Numbers (XXX-XX-XXXX)
+  { name: 'ssn', regex: /\b\d{3}-\d{2}-\d{4}\b/g, prefix: 'SSN' },
 ];
 
 export function redactPII(text: string): RedactionResult {

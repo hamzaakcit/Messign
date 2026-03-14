@@ -60,7 +60,7 @@ router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
 
 router.put('/stages/:id', async (req: ReimbursementRequest, res: Response) => {
   try {
-    const stage = await pipelinesDal.updateStage(req.params.id, req.body);
+    const stage = await pipelinesDal.updateStage(buildCtx(req), req.params.id, req.body);
     res.json(stage);
   } catch (err) {
     console.error('[crm/stages/:id PUT]', err);
@@ -87,7 +87,7 @@ router.put('/:id/reorder', async (req: ReimbursementRequest, res: Response) => {
 
 router.get('/:pipelineId/stages', async (req: ReimbursementRequest, res: Response) => {
   try {
-    const stages = await pipelinesDal.listStages(req.params.pipelineId);
+    const stages = await pipelinesDal.listStages(buildCtx(req), req.params.pipelineId);
     res.json(stages);
   } catch (err) {
     console.error('[crm/stages GET]', err);
@@ -99,7 +99,7 @@ router.post('/:pipelineId/stages', async (req: ReimbursementRequest, res: Respon
   try {
     const { name, position, probability_default, color, is_won, is_lost } = req.body;
     if (!name) { res.status(400).json({ error: 'Stage name is required' }); return; }
-    const stage = await pipelinesDal.createStage(req.params.pipelineId, { name, position, probability_default, color, is_won, is_lost });
+    const stage = await pipelinesDal.createStage(buildCtx(req), req.params.pipelineId, { name, position, probability_default, color, is_won, is_lost });
     res.status(201).json(stage);
   } catch (err) {
     console.error('[crm/stages POST]', err);
@@ -124,7 +124,7 @@ router.put('/:pipelineId/stages/reorder', async (req: ReimbursementRequest, res:
 
 router.put('/:pipelineId/stages/:stageId', async (req: ReimbursementRequest, res: Response) => {
   try {
-    const stage = await pipelinesDal.updateStage(req.params.stageId, req.body);
+    const stage = await pipelinesDal.updateStage(buildCtx(req), req.params.stageId, req.body);
     res.json(stage);
   } catch (err) {
     console.error('[crm/stages/:id PUT]', err);
@@ -134,7 +134,7 @@ router.put('/:pipelineId/stages/:stageId', async (req: ReimbursementRequest, res
 
 router.delete('/:pipelineId/stages/:stageId', async (req: ReimbursementRequest, res: Response) => {
   try {
-    await pipelinesDal.deleteStage(req.params.stageId);
+    await pipelinesDal.deleteStage(buildCtx(req), req.params.stageId);
     res.json({ success: true });
   } catch (err) {
     console.error('[crm/stages/:id DELETE]', err);

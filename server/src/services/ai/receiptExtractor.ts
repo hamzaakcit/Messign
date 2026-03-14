@@ -1,6 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../../db/index.js';
 import { logFinancialAction } from '../../db/budgetDb.js';
+import { generateVision } from './gateway.js';
 
 export interface ReceiptExtractionResult {
   vendor_name: string | null;
@@ -12,8 +12,6 @@ export interface ReceiptExtractionResult {
   confidence: number;
   raw_extraction: Record<string, unknown>;
 }
-
-const anthropicClient = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
 const EXTRACTION_PROMPT = `You are a financial document analysis AI. Extract structured data from this receipt/invoice image.
 
@@ -67,59 +65,23 @@ const emptyResult = (): ReceiptExtractionResult => ({
 export async function extractReceiptData(
   imageBase64: string,
   mediaType: string,
+  options?: { tenantId?: string },
 ): Promise<ReceiptExtractionResult> {
-  // Try Anthropic first
-  if (anthropicClient) {
-    try {
-      const response = await anthropicClient.messages.create({
-        model: 'claude-opus-4-5',
-        max_tokens: 2048,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: imageBase64 } },
-            { type: 'text', text: EXTRACTION_PROMPT },
-          ],
-        }],
-      });
-      const text = response.content?.[0]?.type === 'text' ? response.content[0].text : '';
-      try { return parseReceiptJson(text); } catch { return { ...emptyResult(), raw_extraction: { raw_text: text } }; }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isCreditsOrAuth = msg.includes('credit balance') || msg.includes('insufficient_quota') || msg.includes('authentication_error');
-      if (!isCreditsOrAuth) {
-        console.error('[receiptExtractor] Anthropic error:', msg);
-        return emptyResult();
-      }
-      console.warn('[receiptExtractor] Anthropic unavailable, falling back to Groq vision...');
-    }
-  }
-
-  // Groq fallback
-  const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) return emptyResult();
+  const tenantId = options?.tenantId ?? 'system';
 
   try {
-    const dataUrl = `data:${mediaType};base64,${imageBase64}`;
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens: 2048,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: dataUrl } },
-            { type: 'text', text: EXTRACTION_PROMPT },
-          ],
-        }],
-      }),
+    const text = await generateVision({
+      imageBase64,
+      mediaType,
+      prompt: EXTRACTION_PROMPT,
+      tenantId,
+      maxTokens: 2048,
     });
-    const json = await res.json() as { error?: { message?: string }; choices?: Array<{ message?: { content?: string } }> };
-    if (!res.ok || json.error) return emptyResult();
-    const text = json.choices?.[0]?.message?.content || '';
-    try { return parseReceiptJson(text); } catch { return emptyResult(); }
+    try {
+      return parseReceiptJson(text);
+    } catch {
+      return { ...emptyResult(), raw_extraction: { raw_text: text } };
+    }
   } catch {
     return emptyResult();
   }

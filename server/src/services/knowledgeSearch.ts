@@ -1,4 +1,5 @@
 import { query } from '../db/index.js';
+import { embedViaGateway } from './ai/gateway.js';
 
 interface SearchResult {
   id: string;
@@ -10,7 +11,7 @@ interface SearchResult {
   search_type: 'keyword' | 'semantic' | 'hybrid';
 }
 
-export async function hybridSearch(searchQuery: string, limit = 10): Promise<SearchResult[]> {
+export async function hybridSearch(searchQuery: string, limit = 10, tenantId: string = 'system'): Promise<SearchResult[]> {
   const keywordResults = await keywordSearch(searchQuery, limit);
 
   const hasVector = await query(`SELECT 1 FROM pg_extension WHERE extname = 'vector'`);
@@ -19,7 +20,7 @@ export async function hybridSearch(searchQuery: string, limit = 10): Promise<Sea
   const hasEmbeddings = await query(`SELECT 1 FROM knowledge_embeddings LIMIT 1`);
   if (!hasEmbeddings.rows.length) return keywordResults;
 
-  const semanticResults = await semanticSearch(searchQuery, limit);
+  const semanticResults = await semanticSearch(searchQuery, limit, tenantId);
 
   const merged = mergeResults(keywordResults, semanticResults, limit);
   return merged;
@@ -108,10 +109,11 @@ export async function bm25SearchChunks(
  */
 export async function hybridSearchChunks(
   searchQuery: string,
-  limit: number = 7
+  limit: number = 7,
+  tenantId: string = 'system',
 ): Promise<ChunkSearchResult[]> {
   const [vectorResults, bm25Results] = await Promise.all([
-    semanticSearchChunks(searchQuery, limit * 2),
+    semanticSearchChunks(searchQuery, limit * 2, tenantId),
     bm25SearchChunks(searchQuery, limit * 2),
   ]);
 
@@ -149,20 +151,12 @@ export async function hybridSearchChunks(
  */
 export async function semanticSearchChunks(
   searchQuery: string,
-  limit: number = 7
+  limit: number = 7,
+  tenantId: string = 'system',
 ): Promise<ChunkSearchResult[]> {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return [];
-
-    const embRes = await fetch('https://api.voyageai.com/v1/embeddings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ input: [searchQuery], model: 'voyage-large-2', input_type: 'query' }),
-    });
-    if (!embRes.ok) return [];
-    const embData = await embRes.json() as { data?: { embedding: number[] }[] };
-    const embedding = embData.data?.[0]?.embedding;
+    const embeddings = await embedViaGateway([searchQuery], tenantId);
+    const embedding = embeddings[0];
     if (!embedding) return [];
 
     const vectorStr = `[${embedding.join(',')}]`;
@@ -182,19 +176,10 @@ export async function semanticSearchChunks(
   }
 }
 
-async function semanticSearch(searchQuery: string, limit: number): Promise<SearchResult[]> {
+async function semanticSearch(searchQuery: string, limit: number, tenantId: string = 'system'): Promise<SearchResult[]> {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return [];
-
-    const embRes = await fetch('https://api.voyageai.com/v1/embeddings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ input: [searchQuery], model: 'voyage-large-2', input_type: 'query' }),
-    });
-    if (!embRes.ok) return [];
-    const embData = await embRes.json() as { data?: { embedding: number[] }[] };
-    const embedding = embData.data?.[0]?.embedding;
+    const embeddings = await embedViaGateway([searchQuery], tenantId);
+    const embedding = embeddings[0];
     if (!embedding) return [];
 
     const vectorStr = `[${embedding.join(',')}]`;

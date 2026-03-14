@@ -64,9 +64,11 @@ export async function runAgentLoop(
   const toolResults: ToolResult[] = [];
   let iterations = 0;
 
+  const tenantId = context.organizationId ?? 'system';
+
   while (iterations < MAX_TOOL_ITERATIONS) {
     iterations++;
-    const response = await callGroqWithToolsMultiTurn(messages, tools);
+    const response = await callGroqWithToolsMultiTurn(messages, tools, tenantId);
 
     if (response.toolCalls && response.toolCalls.length > 0) {
       const toolCallsWithIds = response.toolCalls.map((tc, idx) => ({
@@ -88,7 +90,7 @@ export async function runAgentLoop(
         const start = Date.now();
         const result = await executeTool(tc.name, tc.args as Record<string, unknown>, context);
         const elapsed = Date.now() - start;
-        logToolExecution(null, tc.name, elapsed, result.success, result.metadata?.count ?? 0).catch(() => {});
+        logToolExecution(null, tc.name, elapsed, result.success, result.metadata?.count ?? 0).catch((err) => console.error('[agentLoop] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }));
 
         toolsUsed.push(tc.name);
         const sanitized: ToolResult = {

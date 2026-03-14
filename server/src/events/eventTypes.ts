@@ -1,6 +1,6 @@
 export interface EventMap {
   // ── Finance ──
-  'finance.expense.created': { expenseId: string; userId: string; amount: number; currency: string; category: string; departmentId?: string };
+  'finance.expense.created': { expenseId: string; userId: string; amount: number; currency: string; category: string; departmentId?: string; organizationId?: string };
   'finance.expense.submitted': { expenseId: string; userId: string; amount: number };
   'finance.expense.approved': { expenseId: string; approverId: string; amount: number; organizationId?: string };
   'finance.expense.rejected': { expenseId: string; approverId: string; reason: string };
@@ -114,11 +114,11 @@ export interface EventMap {
   'contract.compliance_due': { contractId: string; obligationId: string; description: string; dueDate: string; daysRemaining: number };
 
   // ── Customer Support ──
-  'support.ticket.created': { ticketId: string; subject: string; reporterEmail: string; priority: 'critical' | 'high' | 'medium' | 'low'; category?: string; crmCompanyId?: string; crmContactId?: string; assigneeId?: string };
+  'support.ticket.created': { ticketId: string; subject: string; reporterEmail: string; priority: 'critical' | 'high' | 'medium' | 'low'; category?: string; crmCompanyId?: string; crmContactId?: string; assigneeId?: string; organizationId?: string; description?: string };
   'support.ticket.assigned': { ticketId: string; assigneeId: string; assignedBy: string; previousAssigneeId?: string };
   'support.ticket.status_changed': { ticketId: string; oldStatus: string; newStatus: string; changedBy: string };
   'support.ticket.escalated': { ticketId: string; escalatedTo: string; reason: string; slaBreached: boolean };
-  'support.ticket.resolved': { ticketId: string; resolvedBy: string; resolutionTimeHours: number; firstResponseTimeHours: number };
+  'support.ticket.resolved': { ticketId: string; resolvedBy: string; resolutionTimeHours: number; firstResponseTimeHours: number; organizationId?: string };
   'support.ticket.closed': { ticketId: string; closedBy: string; autoClose: boolean };
   'support.ticket.reopened': { ticketId: string; reopenedBy: string; reason?: string };
   'support.sla.warning': { ticketId: string; slaType: 'first_response' | 'resolution'; percentElapsed: number; hoursRemaining: number };
@@ -164,6 +164,20 @@ export interface EventMap {
 
   // ── Dora AI ──
   'dora.insight.generated': { insightId: string; module: string; severity: 'info' | 'warning' | 'critical'; message: string };
+  'dora.insight.created': {
+    insight: Record<string, unknown>;
+    targetUserId?: string;
+    targetRole?: string;
+    targetDepartment?: string;
+    organizationId?: string;
+  };
+  'dora.insight.counts-refresh': {
+    targetUserId?: string;
+    targetRole?: string;
+    targetDepartment?: string;
+    organizationId?: string;
+    module?: string | null;
+  };
   'dora.action.executed': { actionId: string; policyId?: string; actionType: string; result: 'success' | 'failure' };
   'dora.query.completed': { queryId: string; userId: string; toolsUsed: string[]; responseTimeMs: number };
 }

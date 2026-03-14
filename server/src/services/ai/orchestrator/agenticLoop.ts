@@ -2,6 +2,7 @@ import { getBaseToolsForLLM, getToolsForLLM, executeTool } from '../toolRegistry
 import { createToolSession, activateTool } from '../tools/core/activateTool.js';
 import { searchTools } from '../tools/core/searchTools.js';
 import { callModelSafe, streamModelSafe, classifyComplexity, type ModelTier } from '../gateway.js';
+import { redactPII, type RedactionMap } from '../safety/piiRedactor.js';
 import { sanitizeData } from '../dataSanitizer.js';
 import { logToolExecution } from '../queryLogger.js';
 import { buildDoraAgenticPrompt, buildForcedSynthesisPrompt } from '../dora/agenticPrompts.js';
@@ -118,6 +119,8 @@ export async function orchestrate(
   const tier = classifyComplexity(sanitizedQuery, toolsForTask.length);
   console.log(`[Orchestrator] ${isDynamicToolLoopEnabled ? 'Base' : 'Legacy'} ${toolsForTask.length} tools (tier: ${tier})`);
 
+  const toolRedactions: RedactionMap[] = [];
+
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history.slice(-6).filter((h) => h.role === 'user' || h.role === 'assistant')
@@ -141,7 +144,7 @@ export async function orchestrate(
 
       console.log(`[Orchestrator] Step ${stepIndex + 1}/${cfg.maxSteps} — calling gateway (tier: ${tier})...`);
 
-      type LlmResponseShape = { content?: string | null; toolCalls?: Array<{ name: string; args: Record<string, unknown>; callId?: string }> | null; rawToolCalls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; usage?: StepTokenUsage };
+      type LlmResponseShape = { content?: string | null; toolCalls?: Array<{ name: string; args: Record<string, unknown>; callId?: string }> | null; rawToolCalls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>; usage?: StepTokenUsage; _cacheHit?: boolean; _estimatedCostSavingsUsd?: number };
       let llmResponse: LlmResponseShape | undefined;
 
       const tools = buildCurrentTools();
@@ -155,6 +158,8 @@ export async function orchestrate(
           tenantId,
           maxTokens: 1500,
           temperature: cfg.reasoningTemperature,
+          initialRedactions: toolRedactions,
+          userQuery: query,
         });
 
         const choice = response.choices?.[0];
@@ -191,11 +196,14 @@ export async function orchestrate(
           });
         }
 
+        const gwResp = response as { _cacheHit?: boolean; _estimatedCostSavingsUsd?: number };
         llmResponse = {
           content: message.content ?? null,
           toolCalls,
           rawToolCalls,
           usage,
+          _cacheHit: gwResp._cacheHit,
+          _estimatedCostSavingsUsd: gwResp._estimatedCostSavingsUsd,
         };
         console.log(`[Orchestrator] Gateway succeeded at step ${stepIndex + 1}`);
       } catch (err) {
@@ -247,7 +255,7 @@ export async function orchestrate(
           });
 
           onChunk(thought);
-          return buildResult(tracker, terminationReason, thought, startTime, undefined, pendingActionEvents, isDynamicToolLoopEnabled);
+          return buildResult(tracker, terminationReason, thought, startTime, undefined, pendingActionEvents, isDynamicToolLoopEnabled, llmResponse._cacheHit, llmResponse._estimatedCostSavingsUsd);
         }
 
         terminationReason = 'complete';
@@ -298,11 +306,9 @@ export async function orchestrate(
           if ((toolName === 'knowledge:search_knowledge_base' || toolName?.endsWith('search_knowledge_base')) && cached.success && cached.summary?.includes('| Content:')) {
             toolContent = STRICT_RAG_PREAMBLE + cached.summary;
           }
-          messages.push({
-            role: 'tool',
-            tool_call_id: callId,
-            content: toolContent.slice(0, 8000),
-          });
+          const redacted = redactPII(toolContent.slice(0, 8000));
+          toolRedactions.push(...redacted.redactions);
+          messages.push({ role: 'tool', tool_call_id: callId, content: redacted.redactedText });
           continue;
         }
 
@@ -325,11 +331,9 @@ export async function orchestrate(
           observations.push({ ...toolResult, toolName, executionTimeMs: interceptElapsed });
 
           const toolContent = toolResult.summary || JSON.stringify(toolResult.data ?? {});
-          messages.push({
-            role: 'tool',
-            tool_call_id: callId,
-            content: toolContent.slice(0, 8000),
-          });
+          const redacted = redactPII(toolContent.slice(0, 8000));
+          toolRedactions.push(...redacted.redactions);
+          messages.push({ role: 'tool', tool_call_id: callId, content: redacted.redactedText });
           continue;
         }
 
@@ -353,11 +357,9 @@ export async function orchestrate(
           };
           tracker.cacheResult(toolName, parsedArgs, toolResult);
           observations.push({ ...toolResult, toolName, executionTimeMs: 0 });
-          messages.push({
-            role: 'tool',
-            tool_call_id: callId,
-            content: summary.slice(0, 8000),
-          });
+          const searchRedacted = redactPII(summary.slice(0, 8000));
+          toolRedactions.push(...searchRedacted.redactions);
+          messages.push({ role: 'tool', tool_call_id: callId, content: searchRedacted.redactedText });
           continue;
         }
 
@@ -375,11 +377,9 @@ export async function orchestrate(
           };
           tracker.cacheResult(toolName, parsedArgs, toolResult);
           observations.push({ ...toolResult, toolName, executionTimeMs: 0 });
-          messages.push({
-            role: 'tool',
-            tool_call_id: callId,
-            content: summary.slice(0, 8000),
-          });
+          const activateRedacted = redactPII(summary.slice(0, 8000));
+          toolRedactions.push(...activateRedacted.redactions);
+          messages.push({ role: 'tool', tool_call_id: callId, content: activateRedacted.redactedText });
           continue;
         }
 
@@ -387,7 +387,7 @@ export async function orchestrate(
         const result = await executeTool(toolName, parsedArgs, legacyContext);
         const toolElapsed = Date.now() - toolStart;
 
-        logToolExecution(null, toolName, toolElapsed, result.success, result.metadata?.count ?? 0).catch(() => {});
+        logToolExecution(null, toolName, toolElapsed, result.success, result.metadata?.count ?? 0).catch((err) => console.error('[agenticLoop] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }));
 
         const sanitized: ToolResult = {
           ...result,
@@ -409,11 +409,9 @@ export async function orchestrate(
           toolContent = STRICT_RAG_PREAMBLE + lowConfNote + sanitized.summary;
         }
 
-        messages.push({
-          role: 'tool',
-          tool_call_id: callId,
-          content: toolContent.slice(0, 8000),
-        });
+        const execRedacted = redactPII(toolContent.slice(0, 8000));
+        toolRedactions.push(...execRedacted.redactions);
+        messages.push({ role: 'tool', tool_call_id: callId, content: execRedacted.redactedText });
       }
 
       const successCount = observations.filter((o) => o.success).length;
@@ -445,7 +443,7 @@ export async function orchestrate(
       : onChunk;
 
     const finalAnswer = await synthesizeAndStream(
-      sanitizedQuery, history, ctx, tracker, terminationReason, piiRestoringChunk, cfg, provider
+      sanitizedQuery, history, ctx, tracker, terminationReason, piiRestoringChunk, cfg, provider, toolRedactions
     );
 
     const restoredAnswer = piiMappings.size > 0 ? restorePII(finalAnswer, piiMappings) : finalAnswer;
@@ -479,6 +477,7 @@ async function synthesizeAndStream(
   onChunk: (chunk: string) => void,
   cfg: OrchestratorConfig,
   provider?: string,
+  toolRedactions: RedactionMap[] = [],
 ): Promise<string> {
   const fullContext = tracker.buildFullContextForSynthesis();
   const toolsUsed = tracker.getUniqueToolsUsed();
@@ -510,6 +509,7 @@ async function synthesizeAndStream(
       tenantId,
       maxTokens: 2000,
       temperature: cfg.synthesisTemperature,
+      initialRedactions: toolRedactions,
     });
 
     for await (const chunk of stream) {
@@ -577,6 +577,8 @@ function buildResult(
   error?: string,
   pendingActions?: PendingActionSSEEvent[],
   isDynamicToolLoopEnabled?: boolean,
+  cacheHit?: boolean,
+  estimatedCostSavingsUsd?: number,
 ): OrchestrationResult {
   const totalDurationMs = Date.now() - startTime;
   const tokenUsage = tracker.getTokenUsage();
@@ -597,5 +599,7 @@ function buildResult(
     totalDurationMs,
     error,
     pendingActions: pendingActions && pendingActions.length > 0 ? pendingActions : undefined,
+    cacheHit,
+    estimatedCostSavingsUsd,
   };
 }

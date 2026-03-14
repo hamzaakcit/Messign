@@ -59,9 +59,9 @@ export async function setupRAGSchema(): Promise<void> {
   `);
 
   // Indexes (safe to re-run)
-  await query(`CREATE INDEX IF NOT EXISTS idx_dc_document_id ON document_chunks(document_id)`).catch(() => {});
-  await query(`CREATE INDEX IF NOT EXISTS idx_dc_content_tsv ON document_chunks USING GIN(content_tsv)`).catch(() => {});
-  await query(`CREATE INDEX IF NOT EXISTS idx_dc_metadata ON document_chunks USING GIN(metadata)`).catch(() => {});
+  await query(`CREATE INDEX IF NOT EXISTS idx_dc_document_id ON document_chunks(document_id)`).catch((err) => console.error('[RAG] Index creation failed', { error: err instanceof Error ? err.message : String(err) }));
+  await query(`CREATE INDEX IF NOT EXISTS idx_dc_content_tsv ON document_chunks USING GIN(content_tsv)`).catch((err) => console.error('[RAG] Index creation failed', { error: err instanceof Error ? err.message : String(err) }));
+  await query(`CREATE INDEX IF NOT EXISTS idx_dc_metadata ON document_chunks USING GIN(metadata)`).catch((err) => console.error('[RAG] Index creation failed', { error: err instanceof Error ? err.message : String(err) }));
 
   try {
     await query(`CREATE INDEX IF NOT EXISTS idx_dc_embedding_hnsw ON document_chunks USING hnsw(embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64)`);

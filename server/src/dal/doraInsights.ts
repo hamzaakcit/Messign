@@ -2,7 +2,7 @@ import type { PoolClient } from 'pg';
 import { query } from '../db/index.js';
 import { withTenantQuery } from '../middleware/tenantContext.js';
 import type { CallerContext } from './types.js';
-import { emitBroadcast, emitToDepartment, emitToRole, emitToUser } from '../sockets/index.js';
+import { eventBus } from '../events/index.js';
 
 async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   return withTenantQuery(tenantId, fn);
@@ -137,23 +137,17 @@ function buildBaseFilters(
   return { whereSQL: conditions.join(' AND '), params };
 }
 
-async function emitCountsRefresh(
+function emitCountsRefresh(
   input: Pick<CreateInsightInput, 'organizationId' | 'targetUserId' | 'targetRole' | 'targetDepartment'>,
   module?: string,
-): Promise<void> {
-  const payload = { module: module ?? null, updatedAt: new Date().toISOString() };
-  if (input.targetUserId) {
-    await emitToUser(input.targetUserId, 'dora:insight-counts', payload);
-  }
-  if (input.targetRole) {
-    await emitToRole(input.targetRole, 'dora:insight-counts', payload, input.organizationId);
-  }
-  if (input.targetDepartment) {
-    await emitToDepartment(input.targetDepartment, 'dora:insight-counts', payload, input.organizationId);
-  }
-  if (!input.targetUserId && !input.targetRole && !input.targetDepartment) {
-    emitBroadcast('dora:insight-counts', payload);
-  }
+): void {
+  eventBus.emit('dora.insight.counts-refresh', {
+    targetUserId: input.targetUserId,
+    targetRole: input.targetRole,
+    targetDepartment: input.targetDepartment,
+    organizationId: input.organizationId ?? undefined,
+    module: module ?? null,
+  });
 }
 
 export async function createInsight(data: CreateInsightInput): Promise<DoraInsight> {
@@ -216,20 +210,14 @@ export async function createInsight(data: CreateInsightInput): Promise<DoraInsig
 
     const insight = mapInsight(result.rows[0]!);
 
-    if (data.targetUserId) {
-      await emitToUser(data.targetUserId, 'dora:new-insight', insight);
-    }
-    if (data.targetRole) {
-      await emitToRole(data.targetRole, 'dora:new-insight', insight, data.organizationId);
-    }
-    if (data.targetDepartment) {
-      await emitToDepartment(data.targetDepartment, 'dora:new-insight', insight, data.organizationId);
-    }
-    if (!data.targetUserId && !data.targetRole && !data.targetDepartment) {
-      emitBroadcast('dora:new-insight', insight);
-    }
-
-    await emitCountsRefresh(data, insight.module);
+    eventBus.emit('dora.insight.created', {
+      insight: insight as unknown as Record<string, unknown>,
+      targetUserId: data.targetUserId,
+      targetRole: data.targetRole,
+      targetDepartment: data.targetDepartment,
+      organizationId: data.organizationId ?? undefined,
+    });
+    emitCountsRefresh(data, insight.module);
     return insight;
   });
 }
@@ -299,7 +287,10 @@ export async function markRead(ctx: CallerContext, insightId: string): Promise<v
       [insightId, ...base.params],
     );
   });
-  await emitToUser(ctx.userId, 'dora:insight-counts', { module: null, updatedAt: new Date().toISOString() });
+  eventBus.emit('dora.insight.counts-refresh', {
+    targetUserId: ctx.userId,
+    module: null,
+  });
 }
 
 export async function dismiss(ctx: CallerContext, insightId: string): Promise<void> {
@@ -317,7 +308,10 @@ export async function dismiss(ctx: CallerContext, insightId: string): Promise<vo
       [insightId, ...base.params],
     );
   });
-  await emitToUser(ctx.userId, 'dora:insight-counts', { module: null, updatedAt: new Date().toISOString() });
+  eventBus.emit('dora.insight.counts-refresh', {
+    targetUserId: ctx.userId,
+    module: null,
+  });
 }
 
 export async function dismissAll(ctx: CallerContext, module?: string): Promise<number> {
@@ -339,9 +333,9 @@ export async function dismissAll(ctx: CallerContext, module?: string): Promise<n
     );
     return parseInt(result.rows[0]?.count ?? '0', 10);
   });
-  await emitToUser(ctx.userId, 'dora:insight-counts', {
+  eventBus.emit('dora.insight.counts-refresh', {
+    targetUserId: ctx.userId,
     module: module ?? null,
-    updatedAt: new Date().toISOString(),
   });
   return count;
 }

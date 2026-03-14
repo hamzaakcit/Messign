@@ -1,45 +1,44 @@
 /**
- * Context Compressor — Pass compressed summaries between specialists
+ * Context Compressor — Compress conversation history when passing to specialists
  *
- * When the orchestrator routes between specialists, pass only a compressed
- * summary — not the full tool output history.
+ * Uses a fast tier model to summarize long conversations into max ~500 tokens.
+ * Only compresses when history exceeds 4000 characters.
  */
-import { callModelSafe } from '../gateway.js';
 
-const COMPACTION_PROMPT = `Compress the following conversation into a concise context summary.
-Preserve: key data points, decisions made, unresolved questions, specific numbers/IDs.
-Discard: tool call syntax, redundant data, intermediate reasoning.
-Format: bullet points, max 500 tokens.`;
+import { generateText } from '../gateway.js';
 
-export async function compactContext(
-  messages: Array<{ role: string; content: string }>,
+const COMPRESSION_THRESHOLD_CHARS = 4000;
+const MAX_SUMMARY_TOKENS = 500;
+
+/**
+ * Compress conversation history into a summary for specialist context.
+ * Returns the original text if under threshold.
+ */
+export async function compressConversationContext(
+  history: Array<{ role: string; content: string }>,
   tenantId: string,
 ): Promise<string> {
-  const totalChars = messages.reduce((sum, m) => sum + (typeof m.content === 'string' ? m.content.length : 0), 0);
+  const fullText = history
+    .map((m) => `${m.role}: ${m.content}`)
+    .join('\n\n');
 
-  if (totalChars < 4000) {
-    return messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => `[${m.role}]: ${typeof m.content === 'string' ? m.content : ''}`)
-      .join('\n')
-      .slice(0, 2000);
+  if (fullText.length <= COMPRESSION_THRESHOLD_CHARS) {
+    return fullText;
   }
 
-  const lastMessages = messages.slice(-10);
-  const payload = lastMessages.map((m) => ({
-    role: m.role,
-    content: typeof m.content === 'string' ? m.content.slice(0, 4000) : '',
-  }));
+  try {
+    const summary = await generateText({
+      tier: 'fast',
+      prompt: `Summarize this conversation between user and assistant in 2-4 sentences. Preserve: key questions asked, data requested, any specific entities (names, projects, amounts). Output ONLY the summary, no preamble.\n\n${fullText.slice(0, 8000)}`,
+      systemPrompt: 'You are a summarizer. Output concise, factual summaries. No markdown.',
+      tenantId,
+      maxTokens: MAX_SUMMARY_TOKENS,
+      temperature: 0.1,
+    });
 
-  const response = await callModelSafe({
-    tier: 'fast',
-    tenantId,
-    messages: [
-      { role: 'system', content: COMPACTION_PROMPT },
-      { role: 'user', content: JSON.stringify(payload) },
-    ],
-    maxTokens: 500,
-  });
-
-  return response.choices?.[0]?.message?.content ?? '';
+    return summary.trim() || fullText.slice(0, 2000);
+  } catch (err) {
+    console.warn('[ContextCompressor] Compression failed, using truncated history:', err);
+    return fullText.slice(0, 2000) + '\n\n[Truncated]';
+  }
 }

@@ -1,12 +1,13 @@
 /**
- * Executive Module — Platform plugin (stub)
- * Wraps existing executive routes. Tools and prompts to be migrated.
+ * Executive Module — Platform plugin (no specialist agent)
  */
-import { Router } from 'express';
+import type { Router } from 'express';
 import type { PlatformModule, ToolRegistration } from '../types.js';
 import type { EventBus } from '../../platform/eventBus.js';
-import executiveRouter from '../../routes/executive/index.js';
-import { crossModuleQuery } from './tools/crossModuleQuery.js';
+import { executiveTools } from './tools/index.js';
+import { registerExecutiveEventHandlers } from './events/subscribers.js';
+import { getExecutiveSystemPromptFragment } from './prompts/executiveContext.js';
+import executiveRouter from './routes/index.js';
 
 export const executiveModule: PlatformModule = {
   namespace: 'executive',
@@ -14,18 +15,18 @@ export const executiveModule: PlatformModule = {
   requiredRoles: ['admin', 'manager', 'executive'],
 
   registerTools(): ToolRegistration[] {
-    return [crossModuleQuery];
+    return executiveTools;
   },
 
   getRouter(): Router {
     return executiveRouter;
   },
 
-  registerEventHandlers(_eventBus: EventBus): void {
-    // Event handlers for executive.* events when ready
+  registerEventHandlers(eventBus: EventBus): void {
+    registerExecutiveEventHandlers(eventBus);
   },
 
   getSystemPromptFragment(userRole: string): string {
-    return `You are the Executive specialist. Current role: ${userRole}. Capabilities: KPIs, dashboard, reports, briefings.`;
+    return getExecutiveSystemPromptFragment(userRole);
   },
 };

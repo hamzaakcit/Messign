@@ -19,6 +19,8 @@ import { timeModule } from './time/index.js';
 import { okrModule } from './okr/index.js';
 import { heartModule } from './heart/index.js';
 import { executiveModule } from './executive/index.js';
+import { assetsModule } from './assets/index.js';
+import { contractsModule } from './contracts/index.js';
 
 const modules: PlatformModule[] = [
   crmModule,
@@ -31,6 +33,8 @@ const modules: PlatformModule[] = [
   okrModule,
   heartModule,
   executiveModule,
+  assetsModule,
+  contractsModule,
 ];
 
 const moduleMap: Map<string, PlatformModule> = new Map();
@@ -47,6 +51,8 @@ const namespaceToCategory: Record<string, Tool['category']> = {
   okr: 'analytics',
   heart: 'people',
   executive: 'analytics',
+  assets: 'analytics',
+  contracts: 'analytics',
 };
 
 /** Convert ToolRegistration to Tool and register with the global registry */

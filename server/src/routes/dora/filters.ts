@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { requireAuth } from '../../middleware/requireAuth.js';
 import { stripPII } from '../../services/ai/piiStripper.js';
+import { generateText } from '../../services/ai/gateway.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -13,7 +14,9 @@ interface AvailableField {
   values?: string[];
 }
 
-router.post('/parse-filters', async (req: Request, res: Response) => {
+type AuthRequest = Request & { organizationId?: string };
+
+router.post('/parse-filters', async (req: AuthRequest, res: Response) => {
   const { query: nlQuery, availableFields, module } = req.body as {
     query?: string;
     availableFields?: AvailableField[];
@@ -27,10 +30,7 @@ router.post('/parse-filters', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'availableFields is required' });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return res.json({ filters: {}, interpretation: 'AI filter parsing unavailable (no API key configured)' });
-  }
+  const tenantId = req.organizationId ?? 'system';
 
   const fieldsDescription = availableFields
     .map(f => {
@@ -66,37 +66,18 @@ Rules:
 - Return ONLY the JSON object, no markdown, no explanation.`;
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: 'You are a precise JSON filter parser. Respond with valid JSON only.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.1,
-        max_tokens: 500,
-        response_format: { type: 'json_object' },
-      }),
+    const content = await generateText({
+      tier: 'fast',
+      systemPrompt: 'You are a precise JSON filter parser. Respond with valid JSON only.',
+      prompt,
+      tenantId,
+      temperature: 0.1,
+      maxTokens: 500,
     });
-
-    if (!response.ok) {
-      console.error('[NLFilter] Groq API error:', response.status);
-      return res.json({ filters: {}, interpretation: 'Failed to parse filters — please try rephrasing' });
-    }
-
-    const data = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = data.choices?.[0]?.message?.content ?? '{}';
 
     let parsed: { filters?: Record<string, unknown>; interpretation?: string };
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(content || '{}');
     } catch {
       return res.json({ filters: {}, interpretation: 'Failed to parse AI response' });
     }

@@ -16,7 +16,11 @@
     "build:client": "npm run build --workspace=client",
     "start": "npm run start --workspace=server",
     "start:client": "npx serve client/dist -l $PORT",
-    "type-check": "npm run type-check --workspaces --if-present"
+    "type-check": "npm run type-check --workspaces --if-present",
+    "db:verify-rls": "npm run db:verify-rls --workspace=server",
+    "db:diagnose-rls": "npm run db:diagnose-rls --workspace=server",
+    "db:apply-rls": "npm run db:apply-rls --workspace=server",
+    "db:check-org-gaps": "npm run db:check-org-gaps --workspace=server"
   },
   "workspaces": [
     "client",

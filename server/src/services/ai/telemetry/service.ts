@@ -2,6 +2,75 @@ import { pool } from '../../../db/index.js';
 import type { OrchestrationResult } from '../orchestrator/types.js';
 import type { DoraRequestContext } from '../dora/types.js';
 
+export type AiRequestPath = 'orchestrator' | 'agenticLoop' | 'intentRouter' | 'web_search' | 'error';
+
+/**
+ * Fire-and-forget insert into ai_request_telemetry for observability dashboard.
+ * Tracks path, specialist, duration, fallback rate. Never blocks the response.
+ */
+export function insertRequestTelemetry(params: {
+  tenantId: string | null;
+  userId: string;
+  query: string;
+  path: AiRequestPath;
+  specialist?: string | null;
+  toolCallsUsed: number;
+  modelTier?: string | null;
+  durationMs: number;
+  success: boolean;
+  errorMessage?: string | null;
+  tokensInput?: number | null;
+  tokensOutput?: number | null;
+  cacheHit?: boolean;
+  estimatedCostSavingsUsd?: number;
+}): void {
+  const {
+    tenantId,
+    userId,
+    query,
+    path,
+    specialist,
+    toolCallsUsed,
+    modelTier,
+    durationMs,
+    success,
+    errorMessage,
+    tokensInput,
+    tokensOutput,
+    cacheHit,
+    estimatedCostSavingsUsd,
+  } = params;
+
+  pool
+    .query(
+      `INSERT INTO ai_request_telemetry (
+        tenant_id, user_id, query, path, specialist, tool_calls_used, model_tier,
+        duration_ms, success, error_message, tokens_input, tokens_output,
+        cache_hit, estimated_cost_savings_usd
+      ) VALUES (
+        COALESCE($1::uuid, (SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1)),
+        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+      )`,
+      [
+        tenantId,
+        userId,
+        query.substring(0, 500),
+        path,
+        specialist ?? null,
+        toolCallsUsed,
+        modelTier ?? null,
+        durationMs,
+        success,
+        errorMessage ?? null,
+        tokensInput ?? null,
+        tokensOutput ?? null,
+        cacheHit ?? false,
+        estimatedCostSavingsUsd ?? 0,
+      ],
+    )
+    .catch((err) => console.error('[telemetry] ai_request_telemetry insert failed', err instanceof Error ? err.message : String(err)));
+}
+
 /**
  * Logs a complete AI interaction to the ai_query_telemetry table.
  * Fire-and-forget: telemetry failures never break the user's experience.
@@ -225,4 +294,163 @@ export async function getNegativeFeedbackQueries(
     feedbackComment: string | null;
     createdAt: string;
   }>;
+}
+
+export interface AiRequestMetrics {
+  totalRequests: number;
+  requestsByDay: Array<{ date: string; count: number }>;
+  requestsByPath: Array<{ path: string; count: number; percent: number }>;
+  avgDurationBySpecialist: Array<{ specialist: string | null; avgDurationMs: number; count: number }>;
+  topErrors: Array<{ errorMessage: string; count: number }>;
+  fallbackRate: number;
+  p50DurationMs: number;
+  p95DurationMs: number;
+  /** Cache hit rate (0–100) — target 30%+ on fast tier */
+  cacheHitRate: number;
+  /** Estimated USD saved from cache hits */
+  estimatedCostSavingsUsd: number;
+}
+
+/**
+ * Gets AI request observability metrics from ai_request_telemetry.
+ * Used by executive:get_ai_metrics tool and GET /api/executive/ai-metrics.
+ */
+export async function getAiRequestMetrics(
+  tenantId: string,
+  rangeDays: number = 7,
+): Promise<AiRequestMetrics> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - rangeDays);
+  const startStr = startDate.toISOString().split('T')[0];
+  const endStr = endDate.toISOString().split('T')[0];
+
+  const [total, byDay, byPath, bySpecialist, topErrors, percentiles, cacheStats] = await Promise.all([
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM ai_request_telemetry
+       WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day'`,
+      [tenantId, startStr, endStr],
+    ),
+    pool.query<{ date: string; count: string }>(
+      `SELECT date_trunc('day', created_at)::date::text AS date, COUNT(*)::text AS count
+       FROM ai_request_telemetry
+       WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day'
+       GROUP BY date_trunc('day', created_at) ORDER BY date`,
+      [tenantId, startStr, endStr],
+    ),
+    pool.query<{ path: string; count: string }>(
+      `SELECT path, COUNT(*)::text AS count
+       FROM ai_request_telemetry
+       WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day'
+       GROUP BY path ORDER BY count DESC`,
+      [tenantId, startStr, endStr],
+    ),
+    pool.query<{ specialist: string | null; avg_duration_ms: string; count: string }>(
+      `SELECT specialist, AVG(duration_ms)::int::text AS avg_duration_ms, COUNT(*)::text AS count
+       FROM ai_request_telemetry
+       WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day' AND success = true
+       GROUP BY specialist ORDER BY count DESC`,
+      [tenantId, startStr, endStr],
+    ),
+    pool.query<{ error_message: string; count: string }>(
+      `SELECT COALESCE(error_message, 'unknown') AS error_message, COUNT(*)::text AS count
+       FROM ai_request_telemetry
+       WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day' AND success = false
+       GROUP BY error_message ORDER BY count DESC LIMIT 10`,
+      [tenantId, startStr, endStr],
+    ),
+    pool.query<{ p50: string; p95: string }>(
+      `SELECT
+         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms)::int::text AS p50,
+         PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)::int::text AS p95
+       FROM ai_request_telemetry
+       WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day'`,
+      [tenantId, startStr, endStr],
+    ),
+    pool.query<{ cache_hits: string; total_cached: string; cost_savings: string }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE cache_hit = true)::text AS cache_hits,
+         COUNT(*)::text AS total_cached,
+         COALESCE(SUM(estimated_cost_savings_usd), 0)::text AS cost_savings
+       FROM ai_request_telemetry
+       WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day'`,
+      [tenantId, startStr, endStr],
+    ),
+  ]);
+
+  const totalCount = parseInt(total.rows[0]?.count ?? '0', 10);
+  const orchestratorCount = byPath.rows.find((r) => r.path === 'orchestrator')?.count ?? '0';
+  const fallbackRate = totalCount > 0
+    ? ((totalCount - parseInt(orchestratorCount, 10)) / totalCount) * 100
+    : 0;
+
+  const pathTotal = byPath.rows.reduce((s, r) => s + parseInt(r.count, 10), 0);
+
+  const cacheHits = parseInt(cacheStats.rows[0]?.cache_hits ?? '0', 10);
+  const totalForCache = parseInt(cacheStats.rows[0]?.total_cached ?? '0', 10);
+  const costSavings = parseFloat(cacheStats.rows[0]?.cost_savings ?? '0');
+
+  return {
+    totalRequests: totalCount,
+    requestsByDay: byDay.rows.map((r) => ({
+      date: r.date,
+      count: parseInt(r.count, 10),
+    })),
+    requestsByPath: byPath.rows.map((r) => ({
+      path: r.path,
+      count: parseInt(r.count, 10),
+      percent: pathTotal > 0 ? (parseInt(r.count, 10) / pathTotal) * 100 : 0,
+    })),
+    avgDurationBySpecialist: bySpecialist.rows.map((r) => ({
+      specialist: r.specialist ?? 'none',
+      avgDurationMs: parseInt(r.avg_duration_ms, 10) || 0,
+      count: parseInt(r.count, 10),
+    })),
+    topErrors: topErrors.rows.map((r) => ({
+      errorMessage: r.error_message,
+      count: parseInt(r.count, 10),
+    })),
+    fallbackRate: Math.round(fallbackRate * 10) / 10,
+    p50DurationMs: parseInt(percentiles.rows[0]?.p50 ?? '0', 10),
+    p95DurationMs: parseInt(percentiles.rows[0]?.p95 ?? '0', 10),
+    cacheHitRate: totalForCache > 0 ? Math.round((cacheHits / totalForCache) * 1000) / 10 : 0,
+    estimatedCostSavingsUsd: Math.round(costSavings * 1_000_000) / 1_000_000,
+  };
+}
+
+/**
+ * User-level AI stats for "Powered by Dora" section (queries this week, specialists used).
+ */
+export async function getUserAiStats(
+  userId: string,
+  rangeDays: number = 7,
+): Promise<{ queryCount: number; specialistsUsed: { specialist: string; count: number }[] }> {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - rangeDays);
+  const startStr = startDate.toISOString().split('T')[0];
+  const endDate = new Date();
+  const endStr = endDate.toISOString().split('T')[0];
+
+  const [countRes, specialistsRes] = await Promise.all([
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM ai_request_telemetry
+       WHERE user_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day'`,
+      [userId, startStr, endStr],
+    ),
+    pool.query<{ specialist: string | null; count: string }>(
+      `SELECT COALESCE(specialist, 'general') AS specialist, COUNT(*)::text AS count
+       FROM ai_request_telemetry
+       WHERE user_id = $1 AND created_at >= $2 AND created_at < $3::date + interval '1 day' AND success = true
+       GROUP BY specialist ORDER BY count DESC LIMIT 10`,
+      [userId, startStr, endStr],
+    ),
+  ]);
+
+  const queryCount = parseInt(countRes.rows[0]?.count ?? '0', 10);
+  const specialistsUsed = specialistsRes.rows.map((r) => ({
+    specialist: r.specialist === 'general' ? 'General' : r.specialist ?? 'General',
+    count: parseInt(r.count, 10),
+  }));
+
+  return { queryCount, specialistsUsed };
 }

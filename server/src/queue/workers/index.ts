@@ -3,6 +3,7 @@ import notificationWorker from './notificationWorker.js';
 import doraInsightsWorker from './doraInsightsWorker.js';
 import doraSchedulerWorker from './doraSchedulerWorker.js';
 import webhookWorker from './webhookWorker.js';
+import embeddingWorker from './embeddingWorker.js';
 
 export function startAllWorkers() {
   console.log('[Workers] All BullMQ workers started');
@@ -11,6 +12,7 @@ export function startAllWorkers() {
   console.log('[Workers] - dora-insights (concurrency: 3)');
   console.log('[Workers] - dora-scheduler (concurrency: 1)');
   console.log('[Workers] - webhooks (concurrency: 10)');
+  console.log('[Workers] - embeddings (concurrency: 3)');
 }
 
-export { crossModuleWorker, notificationWorker, doraInsightsWorker, doraSchedulerWorker, webhookWorker };
+export { crossModuleWorker, notificationWorker, doraInsightsWorker, doraSchedulerWorker, webhookWorker, embeddingWorker };

@@ -7,4 +7,5 @@ export {
   doraSchedulerQueue,
   analyticsQueue,
   webhookQueue,
+  embeddingsQueue,
 } from './queues.js';

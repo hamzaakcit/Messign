@@ -24,14 +24,15 @@ registerTool({
   },
   requiredRoles: ['admin', 'finance'],
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
-    const days = (args.days as number) ?? 90;
+    const rawDays = (args.days as number) ?? 90;
+    const days = Math.max(1, Math.min(365, Math.floor(Number(rawDays)) || 90));
     const orgResult = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
     const orgId = orgResult.rows[0]?.id;
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
-    const conditions = [`r.organization_id = $1`, `r.is_deleted = FALSE`, `r.expense_date >= NOW() - INTERVAL '${days} days'`];
-    const params: unknown[] = [orgId];
-    let idx = 2;
+    const conditions = [`r.organization_id = $1`, `r.is_deleted = FALSE`, `r.expense_date >= NOW() - (INTERVAL '1 day' * $2)`];
+    const params: unknown[] = [orgId, days];
+    let idx = 3;
 
     if (args.user_id) {
       conditions.push(`r.submitted_by = $${idx++}`);

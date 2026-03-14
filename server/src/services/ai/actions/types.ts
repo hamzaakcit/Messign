@@ -55,6 +55,8 @@ export interface PendingActionSSEEvent {
     editableFields: string[];
     expiresAt: string;
     payload: Record<string, unknown>;
+    /** Risk level for HITL UI: write = yellow, irreversible = red */
+    riskLevel?: 'write' | 'irreversible';
   };
 }
 

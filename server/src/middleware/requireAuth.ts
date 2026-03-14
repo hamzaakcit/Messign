@@ -40,9 +40,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
     const role = userResult.rows[0].role || 'employee';
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string } }).userId = userId;
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string } }).role = role;
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string } }).user = { id: userId, role };
+    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).userId = userId;
+    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).role = role;
+    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).user = { id: userId, role };
+    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).tenantId = orgId;
+    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).organizationId = orgId;
     next();
   } catch (err) {
     console.error('requireAuth', err);

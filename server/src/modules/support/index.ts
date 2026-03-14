@@ -1,11 +1,14 @@
 /**
- * Support Module — Platform plugin (stub)
- * Wraps existing support routes. Tools and prompts to be migrated.
+ * Support Module — Platform plugin
+ * Implements PlatformModule for Customer Support.
  */
-import { Router } from 'express';
+import type { Router } from 'express';
 import type { PlatformModule, ToolRegistration } from '../types.js';
 import type { EventBus } from '../../platform/eventBus.js';
-import supportRouter from '../../routes/support/index.js';
+import { supportTools } from './tools/index.js';
+import { registerSupportEventHandlers } from './events/subscribers.js';
+import { getSupportSystemPromptFragment } from './prompts/supportContext.js';
+import supportRouter from './routes/index.js';
 
 export const supportModule: PlatformModule = {
   namespace: 'support',
@@ -13,18 +16,18 @@ export const supportModule: PlatformModule = {
   requiredRoles: ['manager', 'admin'],
 
   registerTools(): ToolRegistration[] {
-    return [];
+    return supportTools;
   },
 
   getRouter(): Router {
     return supportRouter;
   },
 
-  registerEventHandlers(_eventBus: EventBus): void {
-    // Event handlers migrated from supportSubscriber when ready
+  registerEventHandlers(eventBus: EventBus): void {
+    registerSupportEventHandlers(eventBus);
   },
 
   getSystemPromptFragment(userRole: string): string {
-    return `You are the Support specialist. Current role: ${userRole}. Capabilities: tickets, SLA, CSAT, customer health.`;
+    return getSupportSystemPromptFragment(userRole);
   },
 };

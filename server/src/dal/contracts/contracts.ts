@@ -471,54 +471,31 @@ export async function extractTermsWithAI(ctx: CallerContext, contractId: string)
   const docText = (contract.document_text ?? '').trim();
   if (!docText) throw new Error('No contract document_text to extract from');
 
-  const apiKey = process.env.GROQ_API_KEY;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for extractTermsWithAI');
+
   let extracted: Record<string, unknown>;
-  if (!apiKey) {
+  try {
+    const { sanitizedText } = stripPII(docText.slice(0, 15000));
+    const { generateText } = await import('../../services/ai/gateway.js');
+    const raw = await generateText({
+      tier: 'fast',
+      systemPrompt: 'Extract key terms from a contract. Return JSON with keys: total_value, start_date, end_date, termination_clause, renewal_terms, sla_commitments, key_obligations (array), confidence.',
+      prompt: JSON.stringify({
+        instruction:
+          'Extract key terms from this contract: total value, start/end dates, termination clause, renewal terms, SLA commitments, key obligations.',
+        contractText: sanitizedText,
+      }),
+      tenantId,
+      temperature: 0.1,
+      maxTokens: 2048,
+    });
+    extracted = raw ? JSON.parse(raw) as Record<string, unknown> : heuristicExtract(docText);
+  } catch {
     extracted = heuristicExtract(docText);
-  } else {
-    try {
-      const { sanitizedText } = stripPII(docText.slice(0, 15000));
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Extract key terms from a contract. Return JSON with keys: total_value, start_date, end_date, termination_clause, renewal_terms, sla_commitments, key_obligations (array), confidence.',
-            },
-            {
-              role: 'user',
-              content: JSON.stringify({
-                instruction:
-                  'Extract key terms from this contract: total value, start/end dates, termination clause, renewal terms, SLA commitments, key obligations.',
-                contractText: sanitizedText,
-              }),
-            },
-          ],
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`Groq request failed with ${response.status}`);
-      }
-      const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-      const raw = payload.choices?.[0]?.message?.content;
-      extracted = raw ? JSON.parse(raw) as Record<string, unknown> : heuristicExtract(docText);
-    } catch {
-      extracted = heuristicExtract(docText);
-    }
   }
 
   const confidence = toNum(extracted.confidence ?? 0.6);
-  const tenantId = ctx.organizationId;
-  if (!tenantId) throw new Error('Tenant context required for extractTermsWithAI');
 
   await runInTenant(tenantId, async (client) => {
     await client.query(

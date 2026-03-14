@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { API_ORIGIN } from './api';
+import { getAccessToken } from './authToken';
 
 let socket: Socket | null = null;
 
@@ -12,11 +13,12 @@ export function getSocket(): Socket {
   return socket;
 }
 
-export function connectSocket(userId: string) {
+export function connectSocket(_userId?: string) {
   const s = getSocket();
   if (!s.connected) {
+    s.auth = { token: getAccessToken() };
     s.connect();
-    s.emit('user:join', userId);
+    s.emit('user:join');
   }
   return s;
 }
@@ -38,7 +40,6 @@ export function offMessage(callback: (message: any) => void) {
 
 export function sendMessage(data: {
   channelId: string;
-  userId: string;
   content: string;
   attachments?: any[];
   mentions?: string[];
@@ -74,8 +75,8 @@ export function onTypingStop(callback: (data: { channelId: string; userId: strin
   getSocket().on('typing:stop', callback);
 }
 
-export function emitTyping(channelId: string, userId: string, isTyping: boolean) {
-  getSocket().emit(isTyping ? 'typing:start' : 'typing:stop', { channelId, userId });
+export function emitTyping(channelId: string, _userId: string, isTyping: boolean) {
+  getSocket().emit(isTyping ? 'typing:start' : 'typing:stop', { channelId });
 }
 
 export function joinChannel(channelId: string) {
@@ -86,8 +87,8 @@ export function leaveChannel(channelId: string) {
   getSocket().emit('channel:leave', channelId);
 }
 
-export function updateTaskStatus(taskId: string, status: string, userId: string) {
-  getSocket().emit('task:update', { taskId, status, userId });
+export function updateTaskStatus(taskId: string, status: string, _userId?: string) {
+  getSocket().emit('task:update', { taskId, status });
 }
 
 // Employee events (admin CRUD → real-time sync)

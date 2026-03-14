@@ -1,8 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doraBriefingAPI, type DailyBriefing } from '@/lib/api';
+import { doraBriefingAPI, doraAiStatsAPI, type DailyBriefing } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useDailyBriefingStore } from '@/stores/dailyBriefingStore';
+
+const SPECIALIST_DISPLAY_NAMES: Record<string, string> = {
+  crm: 'Sales & CRM',
+  support: 'Customer Support',
+  finance: 'Finance',
+  hr: 'People & HR',
+  marketing: 'Marketing',
+  knowledge: 'Knowledge',
+  time: 'Time & Projects',
+  okr: 'OKRs & Goals',
+  heart: 'Culture & Heart',
+  executive: 'Executive',
+  general: 'General',
+  General: 'General',
+};
 
 function fmtDate(dateIso: string): string {
   return new Date(`${dateIso}T12:00:00`).toLocaleDateString(undefined, {
@@ -28,6 +43,7 @@ export function DailyBriefingPage() {
   const [loading, setLoading] = useState(!cached);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [doraStats, setDoraStats] = useState<{ queryCount: number; specialistsUsed: { specialist: string; count: number }[] } | null>(null);
 
   useEffect(() => {
     if (cached) {
@@ -64,6 +80,11 @@ export function DailyBriefingPage() {
       });
     return () => { cancelled = true; };
   }, [userId, dateKey, cached, setBriefing]);
+
+  useEffect(() => {
+    if (!userId) return;
+    doraAiStatsAPI.getUserStats(userId, '7d').then(setDoraStats).catch(() => setDoraStats(null));
+  }, [userId]);
 
   const refresh = async () => {
     if (!userId) return;
@@ -143,17 +164,34 @@ export function DailyBriefingPage() {
         ))}
       </div>
 
-      <div className="rounded-lg border border-app bg-app-card p-4 flex items-center justify-between">
-        <div className="text-xs text-app-muted">
-          Powered by Dora — this briefing was generated at {fmtTime(briefing.generatedAt)}
+      <div className="rounded-lg border border-app bg-app-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-app-muted">
+            Powered by Dora — this briefing was generated at {fmtTime(briefing.generatedAt)}
+          </div>
+          <button
+            className="text-xs px-3 py-1.5 rounded border border-app text-app hover:bg-app-hover"
+            onClick={refresh}
+            disabled={refreshing}
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
-        <button
-          className="text-xs px-3 py-1.5 rounded border border-app text-app hover:bg-app-hover"
-          onClick={refresh}
-          disabled={refreshing}
-        >
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
+        {doraStats && (
+          <div className="pt-2 border-t border-app">
+            <p className="text-xs font-medium text-app mb-1.5">Your Dora activity this week</p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="px-2 py-0.5 rounded bg-primary-500/20 text-primary-400">
+                {doraStats.queryCount} {doraStats.queryCount === 1 ? 'query' : 'queries'}
+              </span>
+              {doraStats.specialistsUsed.slice(0, 5).map((s) => (
+                <span key={s.specialist} className="px-2 py-0.5 rounded bg-app text-app-muted">
+                  {(SPECIALIST_DISPLAY_NAMES as Record<string, string>)[s.specialist] ?? s.specialist}: {s.count}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

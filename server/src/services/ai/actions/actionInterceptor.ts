@@ -5,6 +5,7 @@ import type {
 } from './types.js';
 import type { ToolResult } from '../types.js';
 import type { DoraRequestContext } from '../dora/types.js';
+import type { ActionRiskLevel } from '../agents/governance.js';
 import { WRITE_TOOL_NAMES } from '../tools/writeDefinitions.js';
 import { createPendingAction } from './actionStore.js';
 
@@ -532,12 +533,14 @@ function buildActionPreview(
 /**
  * Intercepts a write tool call and creates a pending action instead of executing it.
  * Returns a ToolResult for the orchestrator and an SSE event for the frontend.
+ * @param riskLevel - From classifyActionRisk: 'write' (yellow badge) or 'irreversible' (red badge)
  */
 export async function interceptWriteAction(
   toolName: string,
   args: Record<string, unknown>,
   ctx: DoraRequestContext,
   originQuery: string,
+  riskLevel?: ActionRiskLevel,
 ): Promise<{
   toolResult: ToolResult;
   sseEvent: PendingActionSSEEvent;
@@ -570,6 +573,7 @@ export async function interceptWriteAction(
     },
   };
 
+  const sseRiskLevel = riskLevel === 'irreversible' ? 'irreversible' : 'write';
   const sseEvent: PendingActionSSEEvent = {
     type: 'pending_action',
     content: {
@@ -580,6 +584,7 @@ export async function interceptWriteAction(
       editableFields: pendingAction.editableFields,
       expiresAt: pendingAction.expiresAt,
       payload: pendingAction.payload,
+      riskLevel: sseRiskLevel,
     },
   };
 

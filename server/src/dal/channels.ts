@@ -1,4 +1,5 @@
-import { query } from '../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../middleware/tenantContext.js';
 import { eventBus } from '../events/index.js';
 import type { CallerContext, PaginatedResult } from './types.js';
 import { paginationClause } from './helpers.js';
@@ -27,6 +28,10 @@ export interface Message {
   timestamp: string;
 }
 
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
+
 // Resolve caller's chat user id (channel_members may store auth_user_id or reimbursement_users.id).
 async function getCallerChatUserId(ctx: CallerContext): Promise<string | null> {
   const canonical = await getCanonicalChatUserId(ctx.userId);
@@ -34,11 +39,11 @@ async function getCallerChatUserId(ctx: CallerContext): Promise<string | null> {
 }
 
 // Channel IDs the caller is a member of (using both id and auth_user_id for membership check).
-async function getMemberChannelIds(ctx: CallerContext): Promise<string[]> {
+async function getMemberChannelIds(client: PoolClient, ctx: CallerContext): Promise<string[]> {
   const chatUserId = await getCallerChatUserId(ctx);
   if (!chatUserId) return [];
 
-  const r = await query<{ channel_id: string }>(
+  const r = await client.query<{ channel_id: string }>(
     `SELECT channel_id::text AS channel_id FROM channel_members WHERE user_id = $1 OR user_id = $2`,
     [chatUserId, ctx.userId],
   );
@@ -52,35 +57,80 @@ function ensureChannelAccess(ctx: CallerContext, channelIds: string[], channelId
 // ── DAL Functions ──
 
 export async function listChannels(ctx: CallerContext): Promise<Channel[]> {
-  const channelIds = await getMemberChannelIds(ctx);
-  if (channelIds.length === 0) return [];
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listChannels');
 
-  const chatUserId = await getCallerChatUserId(ctx);
-  const result = await query<{
-    id: string;
-    name: string;
-    description: string | null;
-    type: string;
-    unread_count: number;
-    created_at: string;
-  }>(
-    `SELECT c.id::text AS id, c.name, c.description, c.type, c.created_at::text AS created_at,
+  return runInTenant(tenantId, async (client) => {
+    const channelIds = await getMemberChannelIds(client, ctx);
+    if (channelIds.length === 0) return [];
+
+    const chatUserId = await getCallerChatUserId(ctx);
+    const result = await client.query<{
+      id: string;
+      name: string;
+      description: string | null;
+      type: string;
+      unread_count: number;
+      created_at: string;
+    }>(
+      `SELECT c.id::text AS id, c.name, c.description, c.type, c.created_at::text AS created_at,
             (SELECT COUNT(*)::int FROM messages m
              WHERE m.channel_id = c.id
                AND m.created_at > COALESCE((SELECT last_read_at FROM channel_members WHERE channel_id = c.id AND (user_id = $1 OR user_id = $2) LIMIT 1), '1970-01-01'::timestamptz)) AS unread_count
      FROM channels c
      WHERE c.id = ANY($3::text[])
      ORDER BY c.name`,
-    [ctx.userId, chatUserId ?? '', channelIds],
-  );
-
-  const channels: Channel[] = [];
-  for (const row of result.rows) {
-    const membersResult = await query<{ user_id: string }>(
-      `SELECT user_id FROM channel_members WHERE channel_id = $1`,
-      [row.id],
+      [ctx.userId, chatUserId ?? '', channelIds],
     );
-    channels.push({
+
+    const channels: Channel[] = [];
+    for (const row of result.rows) {
+      const membersResult = await client.query<{ user_id: string }>(
+        `SELECT user_id FROM channel_members WHERE channel_id = $1`,
+        [row.id],
+      );
+      channels.push({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        type: row.type,
+        members: membersResult.rows.map((r) => r.user_id),
+        unreadCount: row.unread_count ?? 0,
+        createdAt: row.created_at,
+      });
+    }
+    return channels;
+  });
+}
+
+export async function getChannelById(ctx: CallerContext, channelId: string): Promise<Channel | null> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getChannelById');
+
+  return runInTenant(tenantId, async (client) => {
+    const channelIds = await getMemberChannelIds(client, ctx);
+    if (!ensureChannelAccess(ctx, channelIds, channelId)) return null;
+
+    const result = await client.query<{
+      id: string;
+      name: string;
+      description: string | null;
+      type: string;
+      unread_count: number;
+      created_at: string;
+    }>(
+      `SELECT id::text AS id, name, description, type, COALESCE(unread_count, 0)::int AS unread_count, created_at::text AS created_at
+     FROM channels WHERE id = $1 LIMIT 1`,
+      [channelId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+
+    const membersResult = await client.query<{ user_id: string }>(
+      `SELECT user_id FROM channel_members WHERE channel_id = $1`,
+      [channelId],
+    );
+    return {
       id: row.id,
       name: row.name,
       description: row.description,
@@ -88,43 +138,8 @@ export async function listChannels(ctx: CallerContext): Promise<Channel[]> {
       members: membersResult.rows.map((r) => r.user_id),
       unreadCount: row.unread_count ?? 0,
       createdAt: row.created_at,
-    });
-  }
-  return channels;
-}
-
-export async function getChannelById(ctx: CallerContext, channelId: string): Promise<Channel | null> {
-  const channelIds = await getMemberChannelIds(ctx);
-  if (!ensureChannelAccess(ctx, channelIds, channelId)) return null;
-
-  const result = await query<{
-    id: string;
-    name: string;
-    description: string | null;
-    type: string;
-    unread_count: number;
-    created_at: string;
-  }>(
-    `SELECT id::text AS id, name, description, type, COALESCE(unread_count, 0)::int AS unread_count, created_at::text AS created_at
-     FROM channels WHERE id = $1 LIMIT 1`,
-    [channelId],
-  );
-  const row = result.rows[0];
-  if (!row) return null;
-
-  const membersResult = await query<{ user_id: string }>(
-    `SELECT user_id FROM channel_members WHERE channel_id = $1`,
-    [channelId],
-  );
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    type: row.type,
-    members: membersResult.rows.map((r) => r.user_id),
-    unreadCount: row.unread_count ?? 0,
-    createdAt: row.created_at,
-  };
+    };
+  });
 }
 
 export async function getChannelMessages(
@@ -133,45 +148,50 @@ export async function getChannelMessages(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Message>> {
-  const channelIds = await getMemberChannelIds(ctx);
-  if (!ensureChannelAccess(ctx, channelIds, channelId)) {
-    return { data: [], total: 0, page, pageSize, totalPages: 0 };
-  }
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getChannelMessages');
 
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM messages WHERE channel_id = $1`,
-    [channelId],
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
-  const pg = paginationClause(page, pageSize, 2);
+  return runInTenant(tenantId, async (client) => {
+    const channelIds = await getMemberChannelIds(client, ctx);
+    if (!ensureChannelAccess(ctx, channelIds, channelId)) {
+      return { data: [], total: 0, page, pageSize, totalPages: 0 };
+    }
 
-  const dataResult = await query(
-    `SELECT id::text AS id, channel_id::text AS channel_id, user_id, content,
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM messages WHERE channel_id = $1`,
+      [channelId],
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+    const pg = paginationClause(page, pageSize, 2);
+
+    const dataResult = await client.query(
+      `SELECT id::text AS id, channel_id::text AS channel_id, user_id, content,
             COALESCE(attachments, '[]'::jsonb) AS attachments,
             COALESCE(mentions, '[]'::jsonb) AS mentions,
             COALESCE(xp_gained, 0)::int AS xp_gained, created_at::text AS created_at
      FROM messages WHERE channel_id = $1 ORDER BY created_at ASC ${pg.clause}`,
-    [channelId, ...pg.params],
-  );
+      [channelId, ...pg.params],
+    );
 
-  const data = dataResult.rows.map((r: Record<string, unknown>) => ({
-    id: r.id,
-    channelId: r.channel_id,
-    userId: r.user_id,
-    content: r.content,
-    attachments: (r.attachments as unknown[]) ?? [],
-    mentions: (r.mentions as unknown[]) ?? [],
-    xpGained: Number(r.xp_gained ?? 0),
-    timestamp: r.created_at,
-  })) as Message[];
+    const data = dataResult.rows.map((r: Record<string, unknown>) => ({
+      id: r.id,
+      channelId: r.channel_id,
+      userId: r.user_id,
+      content: r.content,
+      attachments: (r.attachments as unknown[]) ?? [],
+      mentions: (r.mentions as unknown[]) ?? [],
+      xpGained: Number(r.xp_gained ?? 0),
+      timestamp: r.created_at,
+    })) as Message[];
 
-  return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function sendMessage(
@@ -180,55 +200,60 @@ export async function sendMessage(
   content: string,
   attachments?: unknown[],
 ): Promise<Message> {
-  const channelIds = await getMemberChannelIds(ctx);
-  if (!ensureChannelAccess(ctx, channelIds, channelId)) {
-    throw new Error('Not a member of this channel');
-  }
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for sendMessage');
 
-  const chatUserId = await getCallerChatUserId(ctx);
-  const userId = chatUserId ?? ctx.userId;
+  return runInTenant(tenantId, async (client) => {
+    const channelIds = await getMemberChannelIds(client, ctx);
+    if (!ensureChannelAccess(ctx, channelIds, channelId)) {
+      throw new Error('Not a member of this channel');
+    }
 
-  const result = await query<{
-    id: string;
-    channel_id: string;
-    user_id: string;
-    content: string;
-    attachments: unknown;
-    mentions: unknown;
-    xp_gained: number;
-    created_at: string;
-  }>(
-    `INSERT INTO messages (channel_id, user_id, content, attachments, mentions, xp_gained)
+    const chatUserId = await getCallerChatUserId(ctx);
+    const userId = chatUserId ?? ctx.userId;
+
+    const result = await client.query<{
+      id: string;
+      channel_id: string;
+      user_id: string;
+      content: string;
+      attachments: unknown;
+      mentions: unknown;
+      xp_gained: number;
+      created_at: string;
+    }>(
+      `INSERT INTO messages (channel_id, user_id, content, attachments, mentions, xp_gained)
      VALUES ($1, $2, $3, $4::jsonb, '[]'::jsonb, 0)
      RETURNING id::text AS id, channel_id::text AS channel_id, user_id, content,
                COALESCE(attachments, '[]'::jsonb) AS attachments,
                COALESCE(mentions, '[]'::jsonb) AS mentions,
                xp_gained, created_at::text AS created_at`,
-    [channelId, userId, content, JSON.stringify(attachments ?? [])],
-  );
-  const r = result.rows[0];
-  if (!r) throw new Error('Failed to insert message');
+      [channelId, userId, content, JSON.stringify(attachments ?? [])],
+    );
+    const r = result.rows[0];
+    if (!r) throw new Error('Failed to insert message');
 
-  const message: Message = {
-    id: r.id,
-    channelId: r.channel_id,
-    userId: r.user_id,
-    content: r.content,
-    attachments: (r.attachments as unknown[]) ?? [],
-    mentions: (r.mentions as unknown[]) ?? [],
-    xpGained: r.xp_gained ?? 0,
-    timestamp: r.created_at,
-  };
+    const message: Message = {
+      id: r.id,
+      channelId: r.channel_id,
+      userId: r.user_id,
+      content: r.content,
+      attachments: (r.attachments as unknown[]) ?? [],
+      mentions: (r.mentions as unknown[]) ?? [],
+      xpGained: r.xp_gained ?? 0,
+      timestamp: r.created_at,
+    };
 
-  eventBus.emit('chat.message.sent', {
-    messageId: message.id,
-    channelId,
-    userId: message.userId,
-    hasAttachment: (attachments?.length ?? 0) > 0,
-    content: content ?? '',
+    eventBus.emit('chat.message.sent', {
+      messageId: message.id,
+      channelId,
+      userId: message.userId,
+      hasAttachment: (attachments?.length ?? 0) > 0,
+      content: content ?? '',
+    });
+
+    return message;
   });
-
-  return message;
 }
 
 export async function searchMessages(
@@ -236,19 +261,23 @@ export async function searchMessages(
   searchQuery: string,
   channelId?: string,
 ): Promise<Message[]> {
-  const channelIds = await getMemberChannelIds(ctx);
-  if (channelIds.length === 0) return [];
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for searchMessages');
 
-  const conditions = ['m.content ILIKE $1', 'm.channel_id = ANY($2::text[])'];
-  const params: unknown[] = [`%${searchQuery}%`, channelIds];
-  if (channelId) {
-    if (!channelIds.includes(channelId)) return [];
-    conditions.push('m.channel_id = $3');
-    params.push(channelId);
-  }
+  return runInTenant(tenantId, async (client) => {
+    const channelIds = await getMemberChannelIds(client, ctx);
+    if (channelIds.length === 0) return [];
 
-  const result = await query(
-    `SELECT m.id::text AS id, m.channel_id::text AS channel_id, m.user_id, m.content,
+    const conditions = ['m.content ILIKE $1', 'm.channel_id = ANY($2::text[])'];
+    const params: unknown[] = [`%${searchQuery}%`, channelIds];
+    if (channelId) {
+      if (!channelIds.includes(channelId)) return [];
+      conditions.push('m.channel_id = $3');
+      params.push(channelId);
+    }
+
+    const result = await client.query(
+      `SELECT m.id::text AS id, m.channel_id::text AS channel_id, m.user_id, m.content,
             COALESCE(m.attachments, '[]'::jsonb) AS attachments,
             COALESCE(m.mentions, '[]'::jsonb) AS mentions,
             COALESCE(m.xp_gained, 0)::int AS xp_gained, m.created_at::text AS created_at
@@ -256,17 +285,18 @@ export async function searchMessages(
      WHERE ${conditions.join(' AND ')}
      ORDER BY m.created_at DESC
      LIMIT 50`,
-    params,
-  );
+      params,
+    );
 
-  return result.rows.map((r: Record<string, unknown>) => ({
-    id: r.id,
-    channelId: r.channel_id,
-    userId: r.user_id,
-    content: r.content,
-    attachments: (r.attachments as unknown[]) ?? [],
-    mentions: (r.mentions as unknown[]) ?? [],
-    xpGained: Number(r.xp_gained ?? 0),
-    timestamp: r.created_at,
-  })) as Message[];
+    return result.rows.map((r: Record<string, unknown>) => ({
+      id: r.id,
+      channelId: r.channel_id,
+      userId: r.user_id,
+      content: r.content,
+      attachments: (r.attachments as unknown[]) ?? [],
+      mentions: (r.mentions as unknown[]) ?? [],
+      xpGained: Number(r.xp_gained ?? 0),
+      timestamp: r.created_at,
+    })) as Message[];
+  });
 }

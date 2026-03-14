@@ -75,6 +75,10 @@ export interface OrchestrationResult {
   totalDurationMs: number;
   error?: string;
   pendingActions?: PendingActionSSEEvent[];
+  /** True when LiteLLM returned a cached response (no inference cost) */
+  cacheHit?: boolean;
+  /** Estimated USD saved when cacheHit is true */
+  estimatedCostSavingsUsd?: number;
 }
 
 export interface CrossModuleLink {

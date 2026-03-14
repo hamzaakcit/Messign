@@ -1,7 +1,7 @@
 import { API_ORIGIN } from './api';
 import { getAccessToken } from './authToken';
 
-const RECRUITMENT_BASE = `${API_ORIGIN}/api/recruitment`;
+const RECRUITMENT_BASE = `${API_ORIGIN}/api/hr`;
 
 async function recruitmentRequest<T>(
   path: string,

@@ -9,6 +9,7 @@ import type { ConnectionOptions } from 'bullmq';
 import { redisConnection } from '../../../queue/connection.js';
 import { emitToUser } from '../../../sockets/index.js';
 import { executeTool } from '../toolRegistry.js';
+import { logAuditEvent } from '../../../platform/audit.js';
 import type { ActionApproval, AgentContext } from './types.js';
 
 const connection = redisConnection as unknown as ConnectionOptions;
@@ -54,7 +55,7 @@ export async function requestApproval(
     riskLevel: approval.riskLevel,
     description: approval.description,
     payload: approval.payload,
-    expiresAt: approval.expiresAt.toISOString(),
+    expiresAt: approval.expiresAt instanceof Date ? approval.expiresAt.toISOString() : String(approval.expiresAt),
   });
 
   await approvalQueue.add(
@@ -99,6 +100,19 @@ export async function handleApprovalDecision(
       toolCtx,
     );
 
+    logAuditEvent({
+      tenantId: pending.context.tenantId,
+      userId,
+      action: 'ai.approval.approved',
+      resourceType: pending.approval.actionType,
+      resourceId: approvalId,
+      details: {
+        approvalId,
+        actionType: pending.approval.actionType,
+        success: result.success,
+      },
+    });
+
     emitToUser(userId, 'dora:action_completed', {
       approvalId,
       actionType: pending.approval.actionType,
@@ -108,6 +122,15 @@ export async function handleApprovalDecision(
     pendingApprovals.delete(approvalId);
     return { success: true, result };
   }
+
+  logAuditEvent({
+    tenantId: pending.context.tenantId,
+    userId,
+    action: 'ai.approval.rejected',
+    resourceType: pending.approval.actionType,
+    resourceId: approvalId,
+    details: { approvalId, actionType: pending.approval.actionType },
+  });
 
   emitToUser(userId, 'dora:action_rejected', { approvalId });
   pendingApprovals.delete(approvalId);

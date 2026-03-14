@@ -70,7 +70,7 @@ router.put('/:id/complete', async (req: ReimbursementRequest, res: Response) => 
 
 router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
   try {
-    const activity = await activitiesDal.updateActivity(req.params.id, req.body);
+    const activity = await activitiesDal.updateActivity(buildCtx(req), req.params.id, req.body);
     res.json(activity);
   } catch (err) {
     console.error('[crm/activities/:id PUT]', err);
@@ -80,7 +80,7 @@ router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
 
 router.delete('/:id', async (req: ReimbursementRequest, res: Response) => {
   try {
-    await activitiesDal.deleteActivity(req.params.id);
+    await activitiesDal.deleteActivity(buildCtx(req), req.params.id);
     res.json({ success: true });
   } catch (err) {
     console.error('[crm/activities/:id DELETE]', err);

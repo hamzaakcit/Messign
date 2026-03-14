@@ -12,6 +12,8 @@ import {
 } from '../db/employeeAuthDb.js';
 import { getPasswordPolicy } from '../db/settingsDb.js';
 import { insert as insertAudit } from '../db/authAuditDb.js';
+import { query } from '../db/index.js';
+import { logAuditEvent } from '../platform/audit.js';
 import * as sessionService from './sessionService.js';
 import { signAccess, signRefresh, verifyRefresh, getAccessExpirySeconds } from '../utils/jwt.js';
 import * as authSessionsDb from '../db/authSessionsDb.js';
@@ -91,6 +93,13 @@ export async function login(
       status: 'failure',
       failure_reason: 'Account is locked',
       performed_by: 'system',
+    });
+    logAuditEvent({
+      userId: authUserId,
+      action: 'auth.login',
+      details: { success: false, reason: 'account_locked' },
+      ipAddress: ip ?? undefined,
+      userAgent: userAgent ?? undefined,
     });
     return {
       success: false,
@@ -198,6 +207,20 @@ export async function login(
     performed_by: 'self',
   });
 
+  const orgRow = await query<{ organization_id: string }>(
+    `SELECT organization_id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [authUserId],
+  );
+  const tenantId = orgRow.rows[0]?.organization_id ?? null;
+  logAuditEvent({
+    tenantId: tenantId ?? undefined,
+    userId: authUserId,
+    action: 'auth.login',
+    details: { sessionId, success: true },
+    ipAddress: ip ?? undefined,
+    userAgent: userAgent ?? undefined,
+  });
+
   const user = await getEmployeeByIdAsUser(authUserId);
   if (!user) {
     return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'User not found' } };
@@ -229,6 +252,15 @@ export async function refresh(
   const fp = computeFingerprint(ip, userAgent);
   const accessToken = signAccess({ sub: payload.sub, sessionId: payload.sessionId, fp });
   const newRefreshJwt = signRefresh({ sub: payload.sub, sessionId: payload.sessionId });
+
+  logAuditEvent({
+    userId: payload.sub,
+    action: 'auth.refresh',
+    details: { sessionId: payload.sessionId },
+    ipAddress: ip ?? undefined,
+    userAgent: userAgent ?? undefined,
+  });
+
   return {
     accessToken,
     refreshToken: newRefreshJwt,
@@ -236,16 +268,34 @@ export async function refresh(
   };
 }
 
-export async function logout(refreshToken: string | null, sessionId: string | null): Promise<void> {
+export async function logout(
+  refreshToken: string | null,
+  sessionId: string | null,
+  req?: { ip?: string; headers?: Record<string, string | string[] | undefined> },
+): Promise<void> {
+  let userId: string | null = null;
   if (refreshToken) {
     try {
       const payload = verifyRefresh(refreshToken);
+      userId = payload.sub;
       await sessionService.revokeSession(payload.sessionId);
     } catch {
       // Token invalid or expired - nothing to revoke
     }
   } else if (sessionId) {
     await sessionService.revokeSession(sessionId);
+  }
+
+  if (userId) {
+    const ip = req ? getClientIp(req) : null;
+    const userAgent = req ? getClientUserAgent(req) : null;
+    logAuditEvent({
+      userId,
+      action: 'auth.logout',
+      details: { sessionId: sessionId ?? undefined },
+      ipAddress: ip ?? undefined,
+      userAgent: userAgent ?? undefined,
+    });
   }
 }
 

@@ -1,30 +1,33 @@
 /**
- * Knowledge Module — Platform plugin (stub)
- * Wraps knowledge routes. Tools and prompts to be migrated.
+ * Knowledge Module — Platform plugin
+ * Wraps Knowledge Hub routes. Tools registered globally via services/ai/tools.
  */
 import { Router } from 'express';
-import type { PlatformModule, ToolRegistration } from '../types.js';
+import type { PlatformModule } from '../types.js';
 import type { EventBus } from '../../platform/eventBus.js';
-import { knowledgeHubRouter } from '../../routes/knowledge-hub/index.js';
+import { knowledgeHubRouter } from './routes/index.js';
+import { knowledgeTools } from './tools/index.js';
+import { registerKnowledgeEventHandlers } from './events/subscribers.js';
+import { getKnowledgeSystemPromptFragment } from './prompts/knowledgeContext.js';
 
 export const knowledgeModule: PlatformModule = {
   namespace: 'knowledge-hub',
   displayName: 'Knowledge Hub',
   requiredRoles: [],
 
-  registerTools(): ToolRegistration[] {
-    return [];
+  registerTools() {
+    return knowledgeTools;
   },
 
   getRouter(): Router {
     return knowledgeHubRouter;
   },
 
-  registerEventHandlers(_eventBus: EventBus): void {
-    // Event handlers for knowledge.* events when ready
+  registerEventHandlers(eventBus: EventBus): void {
+    registerKnowledgeEventHandlers(eventBus);
   },
 
   getSystemPromptFragment(userRole: string): string {
-    return `You are the Knowledge specialist. Current role: ${userRole}. Capabilities: search, documents, categories.`;
+    return getKnowledgeSystemPromptFragment(userRole);
   },
 };

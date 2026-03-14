@@ -1,6 +1,11 @@
-import { query } from '../../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../../middleware/tenantContext.js';
 import { eventBus } from '../../../events/index.js';
 import type { CallerContext } from '../../../dal/types.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 // ── Interfaces ──
 
@@ -30,87 +35,87 @@ export interface OwnerForecast {
 // ── Functions ──
 
 export async function getPipelineForecast(ctx: CallerContext, pipelineId: string): Promise<ForecastSummary> {
-  const pipelineResult = await query('SELECT name FROM crm_pipelines WHERE id = $1', [pipelineId]);
-  if (!pipelineResult.rows[0]) throw new Error('Pipeline not found');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getPipelineForecast');
 
-  const conditions = ['s.pipeline_id = $1', 's.is_won = false', 's.is_lost = false'];
-  const dealConditions = ['d.stage_id = s.id'];
-  const params: unknown[] = [pipelineId];
-  let idx = 2;
+  return runInTenant(tenantId, async (client) => {
+    const pipelineResult = await client.query('SELECT name FROM crm_pipelines WHERE id = $1', [pipelineId]);
+    if (!pipelineResult.rows[0]) throw new Error('Pipeline not found');
 
-  if (ctx.organizationId) {
-    dealConditions.push(`d.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
+    const conditions = ['s.pipeline_id = $1', 's.is_won = false', 's.is_lost = false'];
+    const dealConditions = ['d.stage_id = s.id'];
+    const params: unknown[] = [pipelineId];
 
-  const dealJoinCondition = dealConditions.join(' AND ');
+    const dealJoinCondition = dealConditions.join(' AND ');
 
-  const stagesResult = await query(
-    `SELECT s.id as stage_id, s.name as stage_name,
-            COUNT(d.id)::int as deal_count,
-            COALESCE(SUM(d.amount), 0)::numeric as total_value,
-            COALESCE(SUM(d.amount * d.probability / 100.0), 0)::numeric as weighted_value
-     FROM crm_deal_stages s
-     LEFT JOIN crm_deals d ON ${dealJoinCondition}
-     WHERE ${conditions.join(' AND ')}
-     GROUP BY s.id, s.name, s.position
-     ORDER BY s.position`,
-    params,
-  );
+    const stagesResult = await client.query(
+      `SELECT s.id as stage_id, s.name as stage_name,
+              COUNT(d.id)::int as deal_count,
+              COALESCE(SUM(d.amount), 0)::numeric as total_value,
+              COALESCE(SUM(d.amount * d.probability / 100.0), 0)::numeric as weighted_value
+       FROM crm_deal_stages s
+       LEFT JOIN crm_deals d ON ${dealJoinCondition}
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY s.id, s.name, s.position
+       ORDER BY s.position`,
+      params,
+    );
 
-  const stages = stagesResult.rows as ForecastSummary['stages'];
-  const totalDeals = stages.reduce((sum, s) => sum + s.deal_count, 0);
-  const totalValue = stages.reduce((sum, s) => sum + Number(s.total_value), 0);
-  const weightedValue = stages.reduce((sum, s) => sum + Number(s.weighted_value), 0);
+    const stages = stagesResult.rows as ForecastSummary['stages'];
+    const totalDeals = stages.reduce((sum, s) => sum + s.deal_count, 0);
+    const totalValue = stages.reduce((sum, s) => sum + Number(s.total_value), 0);
+    const weightedValue = stages.reduce((sum, s) => sum + Number(s.weighted_value), 0);
 
-  const forecast: ForecastSummary = {
-    pipeline_id: pipelineId,
-    pipeline_name: pipelineResult.rows[0].name,
-    total_deals: totalDeals,
-    total_value: totalValue,
-    weighted_value: weightedValue,
-    stages,
-  };
+    const forecast: ForecastSummary = {
+      pipeline_id: pipelineId,
+      pipeline_name: pipelineResult.rows[0].name,
+      total_deals: totalDeals,
+      total_value: totalValue,
+      weighted_value: weightedValue,
+      stages,
+    };
 
-  eventBus.emit('crm.forecast.updated', {
-    pipelineId, totalValue, weightedValue, period: new Date().toISOString().slice(0, 7),
+    eventBus.emit('crm.forecast.updated', {
+      pipelineId, totalValue, weightedValue, period: new Date().toISOString().slice(0, 7),
+    });
+
+    return forecast;
   });
-
-  return forecast;
 }
 
 export async function getForecastByOwner(
   ctx: CallerContext,
   pipelineId?: string,
 ): Promise<OwnerForecast[]> {
-  const conditions = ['s.is_won = false', 's.is_lost = false'];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getForecastByOwner');
 
-  if (ctx.organizationId) {
-    conditions.push(`d.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-  if (pipelineId) {
-    conditions.push(`d.pipeline_id = $${idx++}`);
-    params.push(pipelineId);
-  }
+  return runInTenant(tenantId, async (client) => {
+    const conditions = ['s.is_won = false', 's.is_lost = false'];
+    const params: unknown[] = [];
+    let idx = 1;
 
-  const result = await query(
-    `SELECT
-       d.owner_id,
-       u.full_name as owner_name,
-       COUNT(d.id)::int as deal_count,
-       COALESCE(SUM(d.amount), 0)::numeric as total_value,
-       COALESCE(SUM(d.amount * d.probability / 100.0), 0)::numeric as weighted_value
-     FROM crm_deals d
-     JOIN crm_deal_stages s ON s.id = d.stage_id
-     LEFT JOIN reimbursement_users u ON u.id = d.owner_id
-     WHERE ${conditions.join(' AND ')}
-     GROUP BY d.owner_id, u.full_name
-     ORDER BY total_value DESC`,
-    params,
-  );
+    if (pipelineId) {
+      conditions.push(`d.pipeline_id = $${idx++}`);
+      params.push(pipelineId);
+    }
 
-  return result.rows as OwnerForecast[];
+    const result = await client.query(
+      `SELECT
+         d.owner_id,
+         u.full_name as owner_name,
+         COUNT(d.id)::int as deal_count,
+         COALESCE(SUM(d.amount), 0)::numeric as total_value,
+         COALESCE(SUM(d.amount * d.probability / 100.0), 0)::numeric as weighted_value
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       LEFT JOIN reimbursement_users u ON u.id = d.owner_id
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY d.owner_id, u.full_name
+       ORDER BY total_value DESC`,
+      params,
+    );
+
+    return result.rows as OwnerForecast[];
+  });
 }

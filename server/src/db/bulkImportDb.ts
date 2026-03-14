@@ -205,7 +205,7 @@ export async function insertEmployees(
 
     await client.query('COMMIT');
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch((err) => console.error('[bulkImportDb] Rollback failed', { error: err instanceof Error ? err.message : String(err) }));
     throw err;
   } finally {
     client.release();

@@ -6,6 +6,7 @@ import { updateTaskStatus } from '../db/tasksDb.js';
 import { setupKnowledgeSocketHandlers } from './knowledgeHandlers.js';
 import { eventBus } from '../events/index.js';
 import { query } from '../db/index.js';
+import { verifyAccess } from '../utils/jwt.js';
 
 interface UserSocket {
   oderId: string;
@@ -91,15 +92,37 @@ export function emitBroadcast(event: string, data: unknown): void {
 
 export function setupSocketHandlers(io: Server) {
   socketServer = io;
+
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token ?? socket.handshake.headers?.authorization?.replace(/^Bearer\s+/i, '');
+
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+
+    try {
+      const payload = verifyAccess(token);
+      socket.data.userId = payload.sub;
+      socket.data.role = payload.role;
+      next();
+    } catch {
+      next(new Error('Invalid token'));
+    }
+  });
+
   setupKnowledgeSocketHandlers(io);
 
   io.on('connection', (socket: Socket) => {
     console.log('User connected:', socket.id);
 
-    // User joins with their ID
-    socket.on('user:join', async (userId: string) => {
+    socket.on('user:join', async () => {
+      const userId = socket.data.userId as string;
+      if (!userId) {
+        socket.emit('error', { message: 'Not authenticated', code: 'AUTH_REQUIRED' });
+        return;
+      }
+
       connectedUsers.set(userId, socket);
-      socket.data.userId = userId;
 
       const user = await getEmployeeByIdAsUser(userId);
       if (user) {
@@ -115,16 +138,20 @@ export function setupSocketHandlers(io: Server) {
       console.log(`User ${userId} joined`);
     });
 
-    // Handle new message
+    // Handle new message (userId from JWT, not client)
     socket.on('message:send', async (data: {
       channelId: string;
-      userId: string;
       content: string;
       attachments?: [];
       mentions?: string[];
     }) => {
       try {
-        const { channelId, userId, content, attachments = [], mentions = [] } = data;
+        const userId = socket.data.userId as string;
+        if (!userId) {
+          socket.emit('error', { message: 'Not authenticated', code: 'AUTH_REQUIRED' });
+          return;
+        }
+        const { channelId, content, attachments = [], mentions = [] } = data;
 
         const channel = await getChannelById(channelId);
         if (!channel) {
@@ -196,26 +223,31 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
-    // Handle typing indicator
-    socket.on('typing:start', (data: { channelId: string; userId: string }) => {
-      socket.to(data.channelId).emit('typing:start', data);
+    // Handle typing indicator (userId from JWT)
+    socket.on('typing:start', (data: { channelId: string }) => {
+      const userId = socket.data.userId as string;
+      if (userId) socket.to(data.channelId).emit('typing:start', { channelId: data.channelId, userId });
     });
 
-    socket.on('typing:stop', (data: { channelId: string; userId: string }) => {
-      socket.to(data.channelId).emit('typing:stop', data);
+    socket.on('typing:stop', (data: { channelId: string }) => {
+      const userId = socket.data.userId as string;
+      if (userId) socket.to(data.channelId).emit('typing:stop', { channelId: data.channelId, userId });
     });
 
-    // Handle task status change
-    socket.on('task:update', async (data: { taskId: string; status: string; userId: string }) => {
+    // Handle task status change (userId from JWT)
+    socket.on('task:update', async (data: { taskId: string; status: string }) => {
+      const userId = socket.data.userId as string;
+      if (!userId) return;
+
       const task = await updateTaskStatus(data.taskId, data.status as 'todo' | 'in_progress' | 'review' | 'done');
 
       if (task) {
         if (data.status === 'done') {
-          const row = await addEmployeeXP(data.userId, task.xpReward);
-          const updatedUser = row ? await getEmployeeByIdAsUser(data.userId) : null;
+          const row = await addEmployeeXP(userId, task.xpReward);
+          const updatedUser = row ? await getEmployeeByIdAsUser(userId) : null;
 
           const activity = await addActivity({
-            userId: data.userId,
+            userId,
             type: 'task_completed',
             message: `completed "${task.title}"`,
             xpGained: task.xpReward,
@@ -226,7 +258,7 @@ export function setupSocketHandlers(io: Server) {
           io.emit('activity:new', activity);
 
           eventBus.emit('project.task.completed', {
-            taskId: data.taskId, projectId: task.projectId, completedBy: data.userId, xpAwarded: task.xpReward,
+            taskId: data.taskId, projectId: task.projectId, completedBy: userId, xpAwarded: task.xpReward,
           });
         }
 
@@ -234,12 +266,15 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
-    // Handle user status change
-    socket.on('user:status', async (data: { userId: string; status: string }) => {
+    // Handle user status change (userId from JWT)
+    socket.on('user:status', async (data: { status: string }) => {
+      const userId = socket.data.userId as string;
+      if (!userId) return;
+
       const status = ['online', 'away', 'busy', 'offline'].includes(data.status) ? data.status as 'online' | 'away' | 'busy' | 'offline' : 'offline';
-      const row = await updateEmployeeStatus(data.userId, status);
+      const row = await updateEmployeeStatus(userId, status);
       if (row) {
-        io.emit('user:status', data);
+        io.emit('user:status', { userId, status });
       }
     });
 

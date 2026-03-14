@@ -1,35 +1,11 @@
-const GEMINI_MODEL = 'gemini-2.0-flash-lite';
+/**
+ * Knowledge Hub AI — Gemini-style synthesis via LiteLLM gateway.
+ * Uses generateText and streamModel for cost tracking and routing.
+ */
 
-interface GeminiCandidate {
-  content?: { parts?: { text?: string }[] };
-  finishReason?: string;
-}
+import { generateText, streamModel } from './ai/gateway.js';
 
-interface GeminiResponse {
-  candidates?: GeminiCandidate[];
-}
-
-export function getGeminiApiKey(): string | null {
-  return process.env.GOOGLE_GEMINI_API_KEY || null;
-}
-
-export interface StreamGeminiOptions {
-  /** Override system prompt (for synthesis with tool context) */
-  systemPrompt?: string;
-  /** Override user message (for synthesis with tool context) */
-  userMessage?: string;
-}
-
-export async function streamGeminiAnswer(
-  userQuery: string,
-  context: string,
-  onChunk: (text: string) => void,
-  options?: StreamGeminiOptions,
-): Promise<void> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) throw new Error('GOOGLE_GEMINI_API_KEY not configured');
-
-  const defaultSystemPrompt = `You are the Knowledge Hub AI assistant for Messign Workspace. Your job is to help employees find information and answer questions.
+const DEFAULT_SYSTEM_PROMPT = `You are the Knowledge Hub AI assistant for Messign Workspace. Your job is to help employees find information and answer questions.
 
 RULES:
 1. Use the provided knowledge base context as your PRIMARY source. Always cite the document titles when referencing them.
@@ -39,99 +15,73 @@ RULES:
 5. Be concise, professional, and helpful. Use bullet points or numbered lists when appropriate.
 6. Always respond in English.`;
 
+export interface StreamGeminiOptions {
+  /** Override system prompt (for synthesis with tool context) */
+  systemPrompt?: string;
+  /** Override user message (for synthesis with tool context) */
+  userMessage?: string;
+  tenantId?: string;
+}
+
+export async function streamGeminiAnswer(
+  userQuery: string,
+  context: string,
+  onChunk: (text: string) => void,
+  options?: StreamGeminiOptions,
+): Promise<void> {
+  const tenantId = options?.tenantId ?? 'system';
   const userContent = (options?.systemPrompt && options?.userMessage)
     ? `${options.systemPrompt}\n\n---\n\n${options.userMessage}`
-    : `${defaultSystemPrompt}\n\n---\nKNOWLEDGE BASE CONTEXT:\n${context}\n---\n\nEmployee question: ${userQuery}`;
+    : `${DEFAULT_SYSTEM_PROMPT}\n\n---\nKNOWLEDGE BASE CONTEXT:\n${context}\n---\n\nEmployee question: ${userQuery}`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const messages = [{ role: 'user' as const, content: userContent }];
 
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: userContent }],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 2048,
-          temperature: 0.4,
-        },
-      }),
-    });
-  } catch (fetchErr: unknown) {
-    const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-    console.error('[Gemini Synthesis] Fetch failed:', { error: msg, stack: fetchErr instanceof Error ? fetchErr.stack : undefined });
-    throw fetchErr;
-  }
-
-  if (!res.ok || !res.body) {
-    const errBody = await res.text().catch(() => '');
-    console.error('[Gemini Synthesis] API error:', { status: res.status, statusText: res.statusText, bodyPreview: errBody.slice(0, 500) });
-    throw new Error(`Gemini API error ${res.status}: ${errBody.slice(0, 200)}`);
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const payload = line.slice(6).trim();
-      if (payload === '[DONE]') return;
-      try {
-        const parsed: GeminiResponse = JSON.parse(payload);
-        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) onChunk(text);
-      } catch { /* skip parse errors */ }
+  const tiers = ['balanced', 'fast', 'complex'] as const;
+  for (const tier of tiers) {
+    try {
+      for await (const chunk of streamModel({
+        tier,
+        messages,
+        tenantId,
+        maxTokens: 2048,
+        temperature: 0.4,
+      })) {
+        const content = chunk.choices?.[0]?.delta?.content;
+        if (content) onChunk(content);
+      }
+      return;
+    } catch {
+      continue;
     }
   }
+
+  throw new Error('Knowledge synthesis failed: all gateway tiers unavailable.');
 }
 
 export async function generateGeminiAnswer(
   userQuery: string,
   context: string,
+  options?: { tenantId?: string },
 ): Promise<string> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) throw new Error('GOOGLE_GEMINI_API_KEY not configured');
-
+  const tenantId = options?.tenantId ?? 'system';
   const systemPrompt = `You are the Knowledge Hub AI assistant for Messign Workspace. Answer the employee's question using the provided knowledge base context. If the context doesn't fully answer the question, supplement with your general knowledge but clearly note when you're going beyond the knowledge base. Cite document titles. Always respond in English. Be concise and professional.`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const prompt = `${systemPrompt}\n\n---\nKNOWLEDGE BASE CONTEXT:\n${context}\n---\n\nEmployee question: ${userQuery}`;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `${systemPrompt}\n\n---\nKNOWLEDGE BASE CONTEXT:\n${context}\n---\n\nEmployee question: ${userQuery}` }],
-        },
-      ],
-      generationConfig: {
-        maxOutputTokens: 2048,
+  const tiers = ['balanced', 'fast', 'complex'] as const;
+  for (const tier of tiers) {
+    try {
+      return await generateText({
+        tier,
+        prompt,
+        tenantId,
+        maxTokens: 2048,
         temperature: 0.4,
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Gemini API error ${res.status}`);
+      });
+    } catch {
+      continue;
+    }
   }
 
-  const data = (await res.json()) as GeminiResponse;
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'I was unable to generate a response.';
+  return 'I was unable to generate a response.';
 }

@@ -1,4 +1,5 @@
 import { query } from '../db/index.js';
+import { embedViaGateway } from './ai/gateway.js';
 
 /** ~750 tokens at ~4 chars/token for English */
 const CHUNK_CHARS = 3000;
@@ -58,25 +59,20 @@ export function recursiveChunkText(
   return chunks;
 }
 
-async function getEmbedding(text: string): Promise<number[] | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-
+async function getEmbedding(text: string, tenantId: string = 'system'): Promise<number[] | null> {
   try {
-    const res = await fetch('https://api.voyageai.com/v1/embeddings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ input: [text], model: 'voyage-large-2', input_type: 'document' }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json() as { data?: { embedding: number[] }[] };
-    return data.data?.[0]?.embedding ?? null;
+    const embeddings = await embedViaGateway([text], tenantId);
+    return embeddings[0] ?? null;
   } catch {
     return null;
   }
 }
 
-export async function embedDocument(documentId: string, plainText: string | null) {
+export async function embedDocument(
+  documentId: string,
+  plainText: string | null,
+  options?: { tenantId?: string },
+) {
   if (!plainText?.trim()) return;
 
   const hasVector = await query(`SELECT 1 FROM pg_extension WHERE extname = 'vector'`);
@@ -87,9 +83,10 @@ export async function embedDocument(documentId: string, plainText: string | null
 
   await query(`DELETE FROM knowledge_embeddings WHERE document_id = $1`, [documentId]);
 
+  const tenantId = options?.tenantId ?? 'system';
   const chunks = recursiveChunkText(plainText);
   for (let i = 0; i < chunks.length; i++) {
-    const embedding = await getEmbedding(chunks[i]);
+    const embedding = await getEmbedding(chunks[i], tenantId);
     if (embedding) {
       const vectorStr = `[${embedding.join(',')}]`;
       await query(

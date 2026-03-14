@@ -26,7 +26,12 @@
     "kpi:validate": "tsx src/scripts/validateExecutiveKpis.ts",
     "audit:perf": "tsx src/scripts/performanceAudit.ts",
     "launch:check": "tsx src/scripts/launchChecklist.ts",
-    "litellm": "python3 -m litellm --config ../litellm/config.yaml"
+    "db:verify-rls": "tsx src/scripts/verifyRls.ts",
+    "db:diagnose-rls": "tsx src/scripts/diagnoseRls.ts",
+    "db:apply-rls": "tsx src/scripts/applyRlsMigrations.ts",
+    "db:check-org-gaps": "tsx src/scripts/checkOrganizationIdGaps.ts",
+    "litellm": "python3 -m litellm --config ../litellm/config.yaml",
+    "test:agents": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
@@ -68,6 +73,7 @@
     "@types/pg": "^8.10.9",
     "@types/uuid": "^9.0.8",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
   }
 }

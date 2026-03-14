@@ -1,6 +1,11 @@
-import { query } from '../../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext } from '../types.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 export interface Signatory {
   id: string;
@@ -39,13 +44,18 @@ export async function addSignatory(
   contractId: string,
   data: { name: string; email: string; role?: string; signing_order?: number },
 ): Promise<Signatory> {
-  const result = await query<Record<string, unknown>>(
-    `INSERT INTO contract_signatories (contract_id, name, email, role, signing_order)
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for addSignatory');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `INSERT INTO contract_signatories (contract_id, name, email, role, signing_order)
      VALUES ($1::uuid, $2, $3, $4, COALESCE($5, 1))
      RETURNING *`,
-    [contractId, data.name, data.email, data.role ?? null, data.signing_order ?? 1],
-  );
-  return mapSignatory(result.rows[0]);
+      [contractId, data.name, data.email, data.role ?? null, data.signing_order ?? 1],
+    );
+    return mapSignatory(result.rows[0]);
+  });
 }
 
 export async function recordSignature(
@@ -54,42 +64,52 @@ export async function recordSignature(
   signatureData: string,
   ipAddress?: string,
 ): Promise<Signatory> {
-  const result = await query<Record<string, unknown>>(
-    `UPDATE contract_signatories
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for recordSignature');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `UPDATE contract_signatories
      SET status = 'signed', signed_at = NOW(), signature_data = $2, ip_address = $3
      WHERE id = $1::uuid
      RETURNING *`,
-    [signatoryId, signatureData, ipAddress ?? null],
-  );
-  if (!result.rows[0]) throw new Error('Signatory not found');
-  const signatory = mapSignatory(result.rows[0]);
-  const contractResult = await query<Record<string, unknown>>(
-    `SELECT c.id, c.title, COUNT(cs.id) FILTER (WHERE cs.status = 'signed')::int AS signed_count, COUNT(cs.id)::int AS total_count
+      [signatoryId, signatureData, ipAddress ?? null],
+    );
+    if (!result.rows[0]) throw new Error('Signatory not found');
+    const signatory = mapSignatory(result.rows[0]);
+    const contractResult = await client.query<Record<string, unknown>>(
+      `SELECT c.id, c.title, COUNT(cs.id) FILTER (WHERE cs.status = 'signed')::int AS signed_count, COUNT(cs.id)::int AS total_count
      FROM contracts c
      JOIN contract_signatories cs ON cs.contract_id = c.id
      WHERE cs.contract_id = $1::uuid
      GROUP BY c.id, c.title`,
-    [signatory.contract_id],
-  );
-  const c = contractResult.rows[0];
-  if (c) {
-    const allPartiesSigned = Number(c.signed_count ?? 0) >= Number(c.total_count ?? 0) && Number(c.total_count ?? 0) > 0;
-    eventBus.emit('contract.signed', {
-      contractId: String(c.id),
-      signedBy: ctx.userId,
-      signedAt: new Date().toISOString(),
-      allPartiesSigned,
-    });
-    if (allPartiesSigned) {
-      await query(`UPDATE contracts SET status = 'active', signed_date = CURRENT_DATE, updated_at = NOW() WHERE id = $1::uuid`, [c.id]);
+      [signatory.contract_id],
+    );
+    const c = contractResult.rows[0];
+    if (c) {
+      const allPartiesSigned = Number(c.signed_count ?? 0) >= Number(c.total_count ?? 0) && Number(c.total_count ?? 0) > 0;
+      eventBus.emit('contract.signed', {
+        contractId: String(c.id),
+        signedBy: ctx.userId,
+        signedAt: new Date().toISOString(),
+        allPartiesSigned,
+      });
+      if (allPartiesSigned) {
+        await client.query(`UPDATE contracts SET status = 'active', signed_date = CURRENT_DATE, updated_at = NOW() WHERE id = $1::uuid`, [c.id]);
+      }
     }
-  }
-  return signatory;
+    return signatory;
+  });
 }
 
-export async function sendReminder(_ctx: CallerContext, signatoryId: string): Promise<void> {
-  await query(
-    `UPDATE contract_signatories SET reminder_sent_at = NOW() WHERE id = $1::uuid`,
-    [signatoryId],
-  );
+export async function sendReminder(ctx: CallerContext, signatoryId: string): Promise<void> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for sendReminder');
+
+  await runInTenant(tenantId, async (client) => {
+    await client.query(
+      `UPDATE contract_signatories SET reminder_sent_at = NOW() WHERE id = $1::uuid`,
+      [signatoryId],
+    );
+  });
 }

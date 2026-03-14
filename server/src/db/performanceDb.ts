@@ -448,18 +448,18 @@ export async function getDashboardTrends(
     '12m': '1 year',
     '3y': '3 years',
   };
-  const interval = intervalMap[range];
+  const interval = intervalMap[range] ?? '7 days';
   const dateFormat = range === '7d' ? 'Dy' : range === '90d' ? 'Mon DD' : 'Mon';
 
   try {
     const result = await query<{ period: string; value: string }>(
       `SELECT
-         TO_CHAR(metric_date, '${dateFormat}') AS period,
+         TO_CHAR(metric_date, $3) AS period,
          COALESCE(SUM(${metricColumn}), 0)::text AS value
        FROM performance_metrics
-       WHERE entity_type = $1 AND entity_id = $2 AND metric_date >= CURRENT_DATE - INTERVAL '${interval}'
+       WHERE entity_type = $1 AND entity_id = $2 AND metric_date >= CURRENT_DATE - $4::interval
        GROUP BY metric_date ORDER BY metric_date`,
-      [entityType, resolvedEntityId]
+      [entityType, resolvedEntityId, dateFormat, interval]
     );
 
     if (result.rows.length > 0) {

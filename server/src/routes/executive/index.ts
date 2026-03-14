@@ -7,6 +7,8 @@ import {
   getRecentActivity,
   getRevenueMetrics,
 } from '../../dal/executive/dashboard.js';
+import { getAuditLog } from '../../dal/executive/auditLog.js';
+import { getAiRequestMetrics } from '../../services/ai/telemetry/service.js';
 import { redisConnection } from '../../queue/connection.js';
 
 const executiveRouter = Router();
@@ -90,6 +92,41 @@ executiveRouter.get('/dashboard/activity', async (req: ReimbursementRequest, res
   } catch (error) {
     console.error('[executive/dashboard/activity]', error);
     res.status(500).json({ error: 'Failed to load recent activity' });
+  }
+});
+
+// SOC 2 Audit Log — admin/executive. Query params: range (30d|7d|24h), action (e.g. ai.tool.executed)
+executiveRouter.get('/audit-log', async (req: ReimbursementRequest, res) => {
+  try {
+    const orgId = req.organizationId;
+    if (!orgId) {
+      return res.status(400).json({ error: 'Missing organization context' });
+    }
+    const range = (req.query.range as string) || '30d';
+    const action = req.query.action as string | undefined;
+    const limit = Math.min(500, parseInt(String(req.query.limit || 200), 10) || 200);
+    const entries = await getAuditLog({ tenantId: orgId, range, action, limit });
+    res.json({ data: entries });
+  } catch (error) {
+    console.error('[executive/audit-log]', error);
+    res.status(500).json({ error: 'Failed to load audit log' });
+  }
+});
+
+// AI observability — admin only. Target: orchestrator >90%, P50 <5s, P95 <15s.
+executiveRouter.get('/ai-metrics', requireRole('admin'), async (req: ReimbursementRequest, res) => {
+  try {
+    const orgId = req.organizationId;
+    if (!orgId) {
+      return res.status(400).json({ error: 'Missing organization context' });
+    }
+    const rangeParam = (req.query.range as string) || '7d';
+    const rangeDays = rangeParam === '24h' ? 1 : parseInt(rangeParam.replace(/[^0-9]/g, ''), 10) || 7;
+    const data = await getAiRequestMetrics(orgId, Math.min(90, Math.max(1, rangeDays)));
+    res.json(data);
+  } catch (error) {
+    console.error('[executive/ai-metrics]', error);
+    res.status(500).json({ error: 'Failed to load AI metrics' });
   }
 });
 

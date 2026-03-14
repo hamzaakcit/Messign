@@ -1,8 +1,41 @@
 import { eventBus } from '../eventBus.js';
 import { doraInsightsQueue } from '../../queue/index.js';
 import { query } from '../../db/index.js';
+import { emitBroadcast, emitToDepartment, emitToRole, emitToUser } from '../../sockets/index.js';
 
 export function register(): void {
+  // Dora insight socket emission: DAL emits domain events; subscriber handles socket layer
+  eventBus.on('dora.insight.created', async (payload) => {
+    if (payload.targetUserId) {
+      await emitToUser(payload.targetUserId, 'dora:new-insight', payload.insight);
+    }
+    if (payload.targetRole) {
+      await emitToRole(payload.targetRole, 'dora:new-insight', payload.insight, payload.organizationId);
+    }
+    if (payload.targetDepartment) {
+      await emitToDepartment(payload.targetDepartment, 'dora:new-insight', payload.insight, payload.organizationId);
+    }
+    if (!payload.targetUserId && !payload.targetRole && !payload.targetDepartment) {
+      emitBroadcast('dora:new-insight', payload.insight);
+    }
+  });
+
+  eventBus.on('dora.insight.counts-refresh', async (payload) => {
+    const socketPayload = { module: payload.module ?? null, updatedAt: new Date().toISOString() };
+    if (payload.targetUserId) {
+      await emitToUser(payload.targetUserId, 'dora:insight-counts', socketPayload);
+    }
+    if (payload.targetRole) {
+      await emitToRole(payload.targetRole, 'dora:insight-counts', socketPayload, payload.organizationId);
+    }
+    if (payload.targetDepartment) {
+      await emitToDepartment(payload.targetDepartment, 'dora:insight-counts', socketPayload, payload.organizationId);
+    }
+    if (!payload.targetUserId && !payload.targetRole && !payload.targetDepartment) {
+      emitBroadcast('dora:insight-counts', socketPayload);
+    }
+  });
+
   eventBus.on('finance.expense.created', async (payload) => {
     await doraInsightsQueue.add('expense_created', {
       type: 'expense_created',

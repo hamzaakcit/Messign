@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { getGroqApiKey, generateGroqCompletion, streamGroqAnswer } from '../../services/knowledgeGroq.js';
-import { getGeminiApiKey, generateGeminiAnswer, streamGeminiAnswer } from '../../services/knowledgeGemini.js';
+import { generateGroqCompletion, streamGroqAnswer } from '../../services/knowledgeGroq.js';
+import { generateGeminiAnswer, streamGeminiAnswer } from '../../services/knowledgeGemini.js';
 import { buildPptxBuffer } from '../../services/presentationPptx.js';
 import { routeQuery } from '../../services/ai/intentRouter.js';
 import '../../services/ai/tools/index.js';
@@ -13,8 +13,9 @@ import { recordTiming } from '../../services/ai/performanceMonitor.js';
 import { trimHistory } from '../../services/ai/contextLimiter.js';
 import { buildDoraContext, toLegacyToolContext } from '../../services/ai/dora/context.js';
 import { orchestrate, WIDGET_TOOL_NAMES } from '../../services/ai/orchestrator/agenticLoop.js';
+import { runOrchestrator, buildAgentContextFromDora, NoSpecialistError } from '../../services/ai/agents/orchestrator.js';
 import { streamGroqWebSearch } from '../../services/ai/groqToolCalling.js';
-import { logTelemetry, attachFeedback } from '../../services/ai/telemetry/service.js';
+import { logTelemetry, attachFeedback, insertRequestTelemetry, getUserAiStats } from '../../services/ai/telemetry/service.js';
 import { query } from '../../db/index.js';
 import type { SourceDocument } from '../../services/ai/types.js';
 
@@ -83,7 +84,7 @@ aiRouter.post('/feedback', async (req: Request, res: Response) => {
       req.body.comment || null,
       userId,
       req.body.query,
-    ).catch(() => {});
+    ).catch((err) => console.error('[kh-ai] attachFeedback failed', { error: err instanceof Error ? err.message : String(err) }));
 
     res.json({ ok: true });
   } catch (e) {
@@ -123,22 +124,21 @@ RULES:
 
     const userMessage = `Data:\n${routerResult.combinedContext}\n\nCreate a ${slideCount}-slide presentation about: ${topic}`;
 
+    const tenantId = doraCtx.user.organizationId ?? 'system';
     let presentationJson: string | null = null;
 
-    if (getGroqApiKey()) {
-      try {
-        presentationJson = await generateGroqCompletion(
-          [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          { maxTokens: 2048 },
-        );
-      } catch (e) {
-        console.warn('[kh-ai] presentation Groq failed:', e);
-      }
+    try {
+      presentationJson = await generateGroqCompletion(
+        [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+        { maxTokens: 2048, tenantId },
+      );
+    } catch (e) {
+      console.warn('[kh-ai] presentation Groq failed:', e);
     }
 
-    if (!presentationJson && getGeminiApiKey()) {
+    if (!presentationJson) {
       try {
-        presentationJson = await generateGeminiAnswer(userMessage, systemPrompt);
+        presentationJson = await generateGeminiAnswer(userMessage, systemPrompt, { tenantId });
       } catch (e) {
         console.warn('[kh-ai] presentation Gemini failed:', e);
       }
@@ -209,6 +209,53 @@ const sendSSE = (res: Response) => (event: Record<string, unknown>) => {
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   } catch { /* client disconnected */ }
 };
+
+const MODULE_DISPLAY_NAMES: Record<string, string> = {
+  crm: 'Sales & CRM',
+  support: 'Customer Support',
+  finance: 'Finance',
+  hr: 'People & HR',
+  marketing: 'Marketing',
+  knowledge: 'Knowledge',
+  time: 'Time & Projects',
+  okr: 'OKRs & Goals',
+  heart: 'Culture & Heart',
+  executive: 'Executive',
+  assets: 'Assets',
+  contracts: 'Contracts',
+};
+
+const MODULE_ICONS: Record<string, string> = {
+  crm: '📊',
+  support: '🎧',
+  finance: '💰',
+  hr: '👥',
+  marketing: '📣',
+  knowledge: '📚',
+  time: '⏱️',
+  okr: '🎯',
+  heart: '❤️',
+  executive: '📈',
+  assets: '🏢',
+  contracts: '📄',
+};
+
+aiRouter.get('/user-stats', async (req: Request, res: Response) => {
+  const authReq = req as AuthReq;
+  if (!authReq.userId) {
+    res.status(401).json({ error: 'Authentication required.' });
+    return;
+  }
+  try {
+    const range = (req.query.range as string) || '7d';
+    const rangeDays = range === '24h' ? 1 : parseInt(range.replace(/[^0-9]/g, ''), 10) || 7;
+    const stats = await getUserAiStats(authReq.userId, Math.min(90, Math.max(1, rangeDays)));
+    res.json(stats);
+  } catch (e) {
+    console.error('[kh-ai] user-stats:', e);
+    res.status(500).json({ error: 'Failed to load user stats.' });
+  }
+});
 
 aiRouter.get('/answer/claude-status', async (req: Request, res: Response) => {
   const authReq = req as AuthReq;
@@ -291,7 +338,17 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
         userId: authReq.userId, query: userQuery, toolsUsed: ['web_search'],
         dataPointsReturned: 0, responseTimeMs: totalMs, success: true,
         usedFallback: false, toolCallCount: 0, conciseMode: concise, synthesisProvider: 'groq-compound',
-      }).catch(() => {});
+      }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
+      insertRequestTelemetry({
+        tenantId: doraCtx.user.organizationId,
+        userId: authReq.userId,
+        query: userQuery,
+        path: 'web_search',
+        specialist: null,
+        toolCallsUsed: 0,
+        durationMs: totalMs,
+        success: true,
+      });
       return;
     } catch (e) {
       console.error('[kh-ai] web search error:', e);
@@ -315,47 +372,110 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       doraCtx.user.organizationId,
     );
 
-    let result;
+    let result: Awaited<ReturnType<typeof runOrchestrator>> | Awaited<ReturnType<typeof orchestrate>>;
+    let pathTaken: 'orchestrator' | 'agenticLoop' | 'intentRouter' = 'orchestrator';
+    const agentContext = buildAgentContextFromDora(doraCtx, legacyContext, sessionId, currentPath);
+
     try {
-      result = await orchestrate(
+      result = await runOrchestrator(
         userQuery,
         chatHistory,
-        doraCtx,
-        legacyContext,
+        agentContext,
         (chunk) => { send({ type: 'text', content: chunk }); },
-        {
-          ...(provider !== 'auto' ? { provider } : {}),
-          isDynamicToolLoopEnabled,
+        (routing) => {
+          const module = routing.module?.toLowerCase() ?? '';
+          send({
+            type: 'specialist',
+            module,
+            displayName: MODULE_DISPLAY_NAMES[module] ?? module,
+            icon: MODULE_ICONS[module] ?? '✨',
+          });
         },
       );
     } catch (orchErr) {
       const errMsg = orchErr instanceof Error ? orchErr.message : String(orchErr);
-      console.warn('[kh-ai] Orchestrator (LiteLLM) failed, falling back to intent router + direct API:', errMsg);
-
-      const routerResult = await routeQuery(userQuery, chatHistory, legacyContext, doraCtx);
-      const context = routerResult.combinedContext || 'No data was retrieved.';
-
-      try {
-        if (getGroqApiKey()) {
-          await streamGroqAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }), chatHistory, { concise });
-        } else if (getGeminiApiKey()) {
-          await streamGeminiAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }));
-        } else {
-          send({ type: 'text', content: context.length > 2000 ? context.slice(0, 2000) + '…' : context });
-        }
-      } catch (synErr) {
-        console.error('[kh-ai] Fallback synthesis also failed:', synErr);
-        send({ type: 'text', content: "I'm having trouble connecting to AI services. Please ensure LiteLLM is running (npm run litellm) and API keys are set." });
+      const errStack = orchErr instanceof Error ? orchErr.stack?.split('\n').slice(0, 3).join('\n') : undefined;
+      if (orchErr instanceof NoSpecialistError) {
+        console.error('[Dora] Orchestrator failed (no specialist)', {
+          error: errMsg,
+          stack: errStack,
+          userId: legacyContext.userId,
+          query: userQuery.substring(0, 100),
+          fallbackTo: 'agenticLoop',
+          module: orchErr.module,
+        });
+      } else {
+        console.error('[Dora] Orchestrator failed', {
+          error: errMsg,
+          stack: errStack,
+          userId: legacyContext.userId,
+          query: userQuery.substring(0, 100),
+          fallbackTo: 'agenticLoop',
+        });
       }
-
-      const totalMs = Date.now() - startTime;
-      const sources = extractSources({ toolResults: routerResult.toolResults });
-      if (sources.length > 0) send({ type: 'sources', documents: sources });
-      send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
-      send({ type: 'done' });
-      res.end();
-      logQuery({ userId: legacyContext.userId, query: userQuery, toolsUsed: routerResult.toolsUsed, dataPointsReturned: routerResult.toolResults.filter((r) => r.success).length, responseTimeMs: totalMs, success: true, usedFallback: true, toolCallCount: routerResult.toolsUsed.length, conciseMode: concise, synthesisProvider: 'fallback' }).catch(() => {});
-      return;
+      try {
+        pathTaken = 'agenticLoop';
+        result = await orchestrate(
+          userQuery,
+          chatHistory,
+          doraCtx,
+          legacyContext,
+          (chunk) => { send({ type: 'text', content: chunk }); },
+          {
+            ...(provider !== 'auto' ? { provider } : {}),
+            isDynamicToolLoopEnabled,
+          },
+        );
+      } catch (fallbackErr) {
+        const errMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        const errStack = fallbackErr instanceof Error ? fallbackErr.stack?.split('\n').slice(0, 3).join('\n') : undefined;
+        console.error('[Dora] Agentic loop failed', {
+          error: errMsg,
+          stack: errStack,
+          userId: legacyContext.userId,
+          query: userQuery.substring(0, 100),
+          fallbackTo: 'intentRouter',
+        });
+        pathTaken = 'intentRouter';
+        const routerResult = await routeQuery(userQuery, chatHistory, legacyContext, doraCtx);
+        const context = routerResult.combinedContext || 'No data was retrieved.';
+        const tenantId = doraCtx.user.organizationId ?? 'system';
+        try {
+          try {
+            await streamGroqAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }), chatHistory, { concise, tenantId });
+          } catch {
+            await streamGeminiAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }), { tenantId });
+          }
+        } catch (synErr) {
+          console.error('[kh-ai] Fallback synthesis also failed:', synErr);
+          send({ type: 'text', content: "I'm having trouble connecting to AI services. Please ensure LiteLLM is running (npm run litellm) and API keys are set." });
+        }
+        const totalMs = Date.now() - startTime;
+        const sources = extractSources({ toolResults: routerResult.toolResults });
+        if (sources.length > 0) send({ type: 'sources', documents: sources });
+        send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
+        send({ type: 'done' });
+        res.end();
+        console.log('[Dora] Request completed', {
+          path: 'intentRouter',
+          duration: totalMs,
+          userId: legacyContext.userId,
+          specialist: 'none',
+          toolCalls: routerResult.toolsUsed.length,
+        });
+        logQuery({ userId: legacyContext.userId, query: userQuery, toolsUsed: routerResult.toolsUsed, dataPointsReturned: routerResult.toolResults.filter((r) => r.success).length, responseTimeMs: totalMs, success: true, usedFallback: true, toolCallCount: routerResult.toolsUsed.length, conciseMode: concise, synthesisProvider: 'fallback' }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
+        insertRequestTelemetry({
+          tenantId: doraCtx.user.organizationId,
+          userId: legacyContext.userId,
+          query: userQuery,
+          path: 'intentRouter',
+          specialist: null,
+          toolCallsUsed: routerResult.toolsUsed.length,
+          durationMs: totalMs,
+          success: true,
+        });
+        return;
+      }
     }
 
     const allToolResults = result.steps.flatMap((s) => s.observations);
@@ -395,7 +515,15 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     }
 
     const totalMs = Date.now() - startTime;
+    const toolCallsUsed = result.steps.reduce((s, step) => s + (step.toolCalls?.length ?? 0), 0);
 
+    console.log('[Dora] Request completed', {
+      path: pathTaken,
+      duration: totalMs,
+      userId: legacyContext.userId,
+      specialist: result.toolsUsed[0] ?? 'none',
+      toolCalls: toolCallsUsed,
+    });
     console.log(
       `[A/B Test] Dynamic Loop: ${isDynamicToolLoopEnabled ? 'TRUE' : 'FALSE'} | Tokens: ${result.totalTokens.totalTokens} | Latency: ${totalMs}ms`,
     );
@@ -405,6 +533,8 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       telemetryId = await logTelemetry(result, doraCtx, userQuery, sessionId);
     } catch { /* never block */ }
 
+    const primaryTool = result.toolsUsed[0];
+    const specialistModule = primaryTool?.split(':')[0] ?? null;
     send({
       type: 'metadata',
       content: {
@@ -414,6 +544,9 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
         steps: result.stepCount,
         terminationReason: result.terminationReason,
         telemetryId: telemetryId || undefined,
+        specialist: specialistModule,
+        specialistDisplayName: specialistModule ? MODULE_DISPLAY_NAMES[specialistModule] ?? specialistModule : null,
+        specialistIcon: specialistModule ? MODULE_ICONS[specialistModule] ?? '✨' : null,
       },
     });
 
@@ -421,7 +554,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     res.end();
 
     if (provider === 'claude' && result.success) {
-      incrementClaudeUsage(authReq.userId).catch(() => {});
+      incrementClaudeUsage(authReq.userId).catch((err) => console.error('[kh-ai] incrementClaudeUsage failed', { error: err instanceof Error ? err.message : String(err) }));
     }
 
     recordTiming({
@@ -440,10 +573,26 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       responseTimeMs: totalMs,
       success: result.success,
       usedFallback: result.toolsUsed.length === 1 && result.toolsUsed[0]?.includes('search_knowledge_base'),
-      toolCallCount: result.steps.reduce((s, step) => s + step.toolCalls.length, 0),
+      toolCallCount: result.steps.reduce((s, step) => s + (step.toolCalls?.length ?? 0), 0),
       conciseMode: concise,
       synthesisProvider: 'orchestrator',
-    }).catch(() => {});
+    }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
+
+    insertRequestTelemetry({
+      tenantId: doraCtx.user.organizationId,
+      userId: legacyContext.userId,
+      query: userQuery,
+      path: pathTaken,
+      specialist: result.toolsUsed[0] ?? null,
+      toolCallsUsed: result.steps.reduce((s, step) => s + (step.toolCalls?.length ?? 0), 0),
+      durationMs: totalMs,
+      success: result.success,
+      errorMessage: result.error ?? null,
+      tokensInput: result.totalTokens.promptTokens,
+      tokensOutput: result.totalTokens.completionTokens,
+      cacheHit: result.cacheHit,
+      estimatedCostSavingsUsd: result.estimatedCostSavingsUsd,
+    });
   } catch (error) {
     console.error('[kh-ai] answer route error:', error);
 
@@ -476,7 +625,18 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
         usedFallback: false,
         toolCallCount: 0,
         conciseMode: concise,
-      }).catch(() => {});
+      }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
+      insertRequestTelemetry({
+        tenantId: (authReq as { organizationId?: string }).organizationId ?? null,
+        userId: authReq.userId,
+        query: userQuery,
+        path: 'error',
+        specialist: null,
+        toolCallsUsed: 0,
+        durationMs: totalMs,
+        success: false,
+        errorMessage: errMsg,
+      });
       return res.end();
     }
 
@@ -492,7 +652,18 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       usedFallback: false,
       toolCallCount: 0,
       conciseMode: concise,
-    }).catch(() => {});
+    }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
+    insertRequestTelemetry({
+      tenantId: (authReq as { organizationId?: string }).organizationId ?? null,
+      userId: authReq.userId,
+      query: userQuery,
+      path: 'error',
+      specialist: null,
+      toolCallsUsed: 0,
+      durationMs: totalMs,
+      success: false,
+      errorMessage: errMsg,
+    });
     return res.status(500).json({
       error: 'An error occurred while processing the request',
       details: errMsg,

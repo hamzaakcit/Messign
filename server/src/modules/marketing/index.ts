@@ -1,11 +1,14 @@
 /**
- * Marketing Module — Platform plugin (stub)
- * Wraps existing marketing routes. Tools and prompts to be migrated.
+ * Marketing Module — Platform plugin
+ * Implements PlatformModule for Marketing.
  */
-import { Router } from 'express';
+import type { Router } from 'express';
 import type { PlatformModule, ToolRegistration } from '../types.js';
 import type { EventBus } from '../../platform/eventBus.js';
-import { marketingRouter } from '../../routes/marketing/index.js';
+import { marketingTools } from './tools/index.js';
+import { registerMarketingEventHandlers } from './events/subscribers.js';
+import { getMarketingSystemPromptFragment } from './prompts/marketingContext.js';
+import marketingRouter from './routes/index.js';
 
 export const marketingModule: PlatformModule = {
   namespace: 'marketing',
@@ -13,18 +16,18 @@ export const marketingModule: PlatformModule = {
   requiredRoles: ['manager', 'admin'],
 
   registerTools(): ToolRegistration[] {
-    return [];
+    return marketingTools;
   },
 
   getRouter(): Router {
     return marketingRouter;
   },
 
-  registerEventHandlers(_eventBus: EventBus): void {
-    // Event handlers migrated from marketingSubscriber when ready
+  registerEventHandlers(eventBus: EventBus): void {
+    registerMarketingEventHandlers(eventBus);
   },
 
   getSystemPromptFragment(userRole: string): string {
-    return `You are the Marketing specialist. Current role: ${userRole}. Capabilities: campaigns, leads, content, ROI.`;
+    return getMarketingSystemPromptFragment(userRole);
   },
 };

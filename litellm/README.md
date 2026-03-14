@@ -50,7 +50,8 @@ export GOOGLE_API_KEY=your-gemini-key
 export ANTHROPIC_API_KEY=your-anthropic-key
 export OPENAI_API_KEY=your-openai-key           # for embeddings
 
-# Redis (for cache) — use same Redis as Messign server
+# Redis (for semantic cache) — use same Redis as BullMQ
+# Set REDIS_URL (from .env) or REDIS_HOST+REDIS_PORT. Cache enables 30%+ hit rate on fast tier.
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
 # Or: export REDIS_URL=redis://localhost:6379

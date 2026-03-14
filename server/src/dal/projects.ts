@@ -1,4 +1,5 @@
-import { query } from '../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../middleware/tenantContext.js';
 import { eventBus } from '../events/index.js';
 import type { CallerContext, PaginatedResult, SortOptions } from './types.js';
 import { paginationClause } from './helpers.js';
@@ -7,6 +8,10 @@ import { addTask, getTaskById as dbGetTaskById, updateTaskStatus } from '../db/t
 import { getProjectById as dbGetProjectById } from '../db/projectsDb.js';
 import { getSprintRequestById, getSprintHelpers } from '../db/sprintsDb.js';
 import type { SprintRequestRow } from '../db/sprintsDb.js';
+
+async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withTenantQuery(tenantId, fn);
+}
 
 // ── Interfaces ──
 
@@ -52,9 +57,9 @@ export interface SprintStatus {
 }
 
 // Resolve caller's auth_user_id for task assignee checks (tasks.assignees stores auth_user_id).
-async function getCallerAuthUserId(ctx: CallerContext): Promise<string | null> {
+async function getCallerAuthUserId(client: PoolClient, ctx: CallerContext): Promise<string | null> {
   if (!ctx.organizationId) return null;
-  const r = await query<{ auth_user_id: string | null }>(
+  const r = await client.query<{ auth_user_id: string | null }>(
     `SELECT auth_user_id FROM reimbursement_users WHERE id = $1 AND organization_id = $2 LIMIT 1`,
     [ctx.userId, ctx.organizationId],
   );
@@ -98,98 +103,109 @@ export async function listProjects(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Project>> {
-  const authUserId = await getCallerAuthUserId(ctx);
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listProjects');
 
-  if (ctx.role === 'employee' || ctx.role === 'manager') {
-    if (!authUserId && ctx.role === 'employee') {
-      const countResult = await query<{ count: string }>(`SELECT COUNT(*) as count FROM projects WHERE 1=0`, []);
-      const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
-      return { data: [], total, page, pageSize, totalPages: 0 };
+  return runInTenant(tenantId, async (client) => {
+    const authUserId = await getCallerAuthUserId(client, ctx);
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (ctx.role === 'employee' || ctx.role === 'manager') {
+      if (!authUserId && ctx.role === 'employee') {
+        const countResult = await client.query<{ count: string }>(`SELECT COUNT(*) as count FROM projects WHERE 1=0`, []);
+        const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+        return { data: [], total, page, pageSize, totalPages: 0 };
+      }
+      conditions.push(
+        `(p.id IN (SELECT DISTINCT project_id FROM tasks t WHERE t.assignees @> jsonb_build_array($${idx}::text)) OR p.team @> jsonb_build_array($${idx}::text))`,
+      );
+      params.push(authUserId ?? ctx.userId);
+      idx++;
     }
-    conditions.push(
-      `(p.id IN (SELECT DISTINCT project_id FROM tasks t WHERE t.assignees @> jsonb_build_array($${idx}::text)) OR p.team @> jsonb_build_array($${idx}::text))`,
+
+    if (filters?.status) {
+      conditions.push(`p.status = $${idx++}`);
+      params.push(filters.status);
+    }
+    if (filters?.search) {
+      conditions.push(`(p.name ILIKE $${idx} OR p.description ILIKE $${idx})`);
+      params.push(`%${filters.search}%`);
+      idx++;
+    }
+
+    const whereSQL = conditions.length ? conditions.join(' AND ') : '1=1';
+    const sortCol: Record<string, string> = {
+      name: 'p.name',
+      status: 'p.status',
+      created_at: 'p.created_at',
+      due_date: 'p.due_date',
+    };
+    const orderBy = sortCol[sort?.field ?? 'created_at'] ?? 'p.created_at';
+    const orderDir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM projects p WHERE ${whereSQL}`,
+      params,
     );
-    params.push(authUserId ?? ctx.userId);
-    idx++;
-  }
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  if (filters?.status) {
-    conditions.push(`p.status = $${idx++}`);
-    params.push(filters.status);
-  }
-  if (filters?.search) {
-    conditions.push(`(p.name ILIKE $${idx} OR p.description ILIKE $${idx})`);
-    params.push(`%${filters.search}%`);
-    idx++;
-  }
+    const pg = paginationClause(page, pageSize, idx);
 
-  const whereSQL = conditions.length ? conditions.join(' AND ') : '1=1';
-  const sortCol: Record<string, string> = {
-    name: 'p.name',
-    status: 'p.status',
-    created_at: 'p.created_at',
-    due_date: 'p.due_date',
-  };
-  const orderBy = sortCol[sort?.field ?? 'created_at'] ?? 'p.created_at';
-  const orderDir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
-
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM projects p WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
-
-  const pg = paginationClause(page, pageSize, idx);
-
-  const dataResult = await query(
-    `SELECT p.id, p.name, p.description, p.type, COALESCE(p.progress, 0)::int AS progress,
+    const dataResult = await client.query(
+      `SELECT p.id, p.name, p.description, p.type, COALESCE(p.progress, 0)::int AS progress,
             COALESCE(p.team, '[]')::jsonb AS team, COALESCE(p.capacity, '{"current":0,"max":5}')::jsonb AS capacity,
             p.status, p.due_date::text AS due_date, p.created_at::text AS created_at
      FROM projects p
      WHERE ${whereSQL}
      ORDER BY ${orderBy} ${orderDir}
      ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+      [...params, ...pg.params],
+    );
 
-  const data = dataResult.rows.map((r: Record<string, unknown>) => ({
-    id: r.id,
-    name: r.name,
-    description: r.description ?? '',
-    type: r.type ?? 'product',
-    progress: Number(r.progress ?? 0),
-    team: Array.isArray(r.team) ? r.team : [],
-    capacity: r.capacity && typeof r.capacity === 'object' ? (r.capacity as { current: number; max: number }) : { current: 0, max: 5 },
-    status: r.status,
-    dueDate: r.due_date ?? undefined,
-    createdAt: r.created_at,
-  })) as Project[];
+    const data = dataResult.rows.map((r: Record<string, unknown>) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description ?? '',
+      type: r.type ?? 'product',
+      progress: Number(r.progress ?? 0),
+      team: Array.isArray(r.team) ? r.team : [],
+      capacity: r.capacity && typeof r.capacity === 'object' ? (r.capacity as { current: number; max: number }) : { current: 0, max: 5 },
+      status: r.status,
+      dueDate: r.due_date ?? undefined,
+      createdAt: r.created_at,
+    })) as Project[];
 
-  return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getProjectById(ctx: CallerContext, projectId: string): Promise<Project | null> {
   const project = await dbGetProjectById(projectId);
   if (!project) return null;
 
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getProjectById');
+
   if (ctx.role !== 'system_admin' && ctx.role !== 'finance_admin' && ctx.role !== 'dept_head') {
-    const authUserId = await getCallerAuthUserId(ctx);
-    const idForCheck = authUserId ?? ctx.userId;
-    const check = await query<{ n: string }>(
-      `SELECT COUNT(*)::text AS n FROM tasks t WHERE t.project_id = $1 AND t.assignees @> jsonb_build_array($2::text)`,
-      [projectId, idForCheck],
-    );
-    const inTeam = project.team?.includes(idForCheck);
-    if (parseInt(check.rows[0]?.n ?? '0', 10) === 0 && !inTeam) return null;
+    const allowed = await runInTenant(tenantId, async (client) => {
+      const authUserId = await getCallerAuthUserId(client, ctx);
+      const idForCheck = authUserId ?? ctx.userId;
+      const check = await client.query<{ n: string }>(
+        `SELECT COUNT(*)::text AS n FROM tasks t WHERE t.project_id = $1 AND t.assignees @> jsonb_build_array($2::text)`,
+        [projectId, idForCheck],
+      );
+      const inTeam = project.team?.includes(idForCheck);
+      return parseInt(check.rows[0]?.n ?? '0', 10) > 0 || inTeam;
+    });
+    if (!allowed) return null;
   }
 
   return project;
@@ -202,95 +218,107 @@ export async function listTasks(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Task>> {
-  const authUserId = await getCallerAuthUserId(ctx);
-  const taskRbac = taskWhereClause(ctx, authUserId, 1);
-  const conditions: string[] = [taskRbac.clause];
-  const params: unknown[] = [...taskRbac.params];
-  let idx = params.length + 1;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listTasks');
 
-  if (filters?.projectId) {
-    conditions.push(`t.project_id = $${idx++}`);
-    params.push(filters.projectId);
-  }
-  if (filters?.status) {
-    conditions.push(`t.status = $${idx++}`);
-    params.push(filters.status);
-  }
-  if (filters?.search) {
-    conditions.push(`(t.title ILIKE $${idx} OR t.description ILIKE $${idx})`);
-    params.push(`%${filters.search}%`);
-    idx++;
-  }
+  return runInTenant(tenantId, async (client) => {
+    const authUserId = await getCallerAuthUserId(client, ctx);
+    const taskRbac = taskWhereClause(ctx, authUserId, 1);
+    const conditions: string[] = [taskRbac.clause];
+    const params: unknown[] = [...taskRbac.params];
+    let idx = params.length + 1;
 
-  const whereSQL = conditions.join(' AND ');
-  const sortCol: Record<string, string> = {
-    title: 't.title',
-    status: 't.status',
-    due_date: 't.due_date',
-    created_at: 't.created_at',
-    completed_at: 't.completed_at',
-  };
-  const orderBy = sortCol[sort?.field ?? 'created_at'] ?? 't.created_at';
-  const orderDir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
+    if (filters?.projectId) {
+      conditions.push(`t.project_id = $${idx++}`);
+      params.push(filters.projectId);
+    }
+    if (filters?.status) {
+      conditions.push(`t.status = $${idx++}`);
+      params.push(filters.status);
+    }
+    if (filters?.search) {
+      conditions.push(`(t.title ILIKE $${idx} OR t.description ILIKE $${idx})`);
+      params.push(`%${filters.search}%`);
+      idx++;
+    }
 
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM tasks t WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+    const whereSQL = conditions.join(' AND ');
+    const sortCol: Record<string, string> = {
+      title: 't.title',
+      status: 't.status',
+      due_date: 't.due_date',
+      created_at: 't.created_at',
+      completed_at: 't.completed_at',
+    };
+    const orderBy = sortCol[sort?.field ?? 'created_at'] ?? 't.created_at';
+    const orderDir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
 
-  const pg = paginationClause(page, pageSize, idx);
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM tasks t WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  const dataResult = await query(
-    `SELECT t.id, t.project_id, t.title, t.description, t.status, COALESCE(t.assignees, '[]')::jsonb AS assignees,
+    const pg = paginationClause(page, pageSize, idx);
+
+    const dataResult = await client.query(
+      `SELECT t.id, t.project_id, t.title, t.description, t.status, COALESCE(t.assignees, '[]')::jsonb AS assignees,
             COALESCE(t.tags, '[]')::jsonb AS tags, t.due_date::text, COALESCE(t.xp_reward, 50)::int AS xp_reward,
             t.priority, t.created_at::text, t.completed_at::text
      FROM tasks t
      WHERE ${whereSQL}
      ORDER BY ${orderBy} ${orderDir}
      ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+      [...params, ...pg.params],
+    );
 
-  const data = dataResult.rows.map((r: Record<string, unknown>) => ({
-    id: r.id,
-    projectId: r.project_id,
-    title: r.title,
-    description: r.description ?? '',
-    status: r.status,
-    assignees: Array.isArray(r.assignees) ? r.assignees : [],
-    tags: Array.isArray(r.tags) ? r.tags : [],
-    dueDate: r.due_date ?? undefined,
-    xpReward: Number(r.xp_reward ?? 50),
-    priority: r.priority ?? 'medium',
-    createdAt: r.created_at,
-    completedAt: r.completed_at ?? undefined,
-  })) as Task[];
+    const data = dataResult.rows.map((r: Record<string, unknown>) => ({
+      id: r.id,
+      projectId: r.project_id,
+      title: r.title,
+      description: r.description ?? '',
+      status: r.status,
+      assignees: Array.isArray(r.assignees) ? r.assignees : [],
+      tags: Array.isArray(r.tags) ? r.tags : [],
+      dueDate: r.due_date ?? undefined,
+      xpReward: Number(r.xp_reward ?? 50),
+      priority: r.priority ?? 'medium',
+      createdAt: r.created_at,
+      completedAt: r.completed_at ?? undefined,
+    })) as Task[];
 
-  return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getTaskById(ctx: CallerContext, taskId: string): Promise<Task | null> {
   const task = await dbGetTaskById(taskId);
   if (!task) return null;
 
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getTaskById');
+
   if (ctx.role !== 'system_admin' && ctx.role !== 'finance_admin' && ctx.role !== 'dept_head') {
-    const authUserId = await getCallerAuthUserId(ctx);
-    const isAssigned = task.assignees?.includes(authUserId ?? '') || task.assignees?.includes(ctx.userId);
-    if (!isAssigned && ctx.role === 'employee') return null;
-    if (ctx.role === 'manager' && !isAssigned && (task.assignees?.length ?? 0) > 0) {
-      const isReport = await query<{ n: string }>(
-        `SELECT COUNT(*)::text AS n FROM reimbursement_users WHERE manager_id = $1 AND auth_user_id = ANY($2::text[])`,
-        [ctx.userId, task.assignees ?? []],
-      );
-      if (parseInt(isReport.rows[0]?.n ?? '0', 10) === 0) return null;
-    }
+    const allowed = await runInTenant(tenantId, async (client) => {
+      const authUserId = await getCallerAuthUserId(client, ctx);
+      const isAssigned = task.assignees?.includes(authUserId ?? '') || task.assignees?.includes(ctx.userId);
+      if (!isAssigned && ctx.role === 'employee') return false;
+      if (ctx.role === 'manager' && !isAssigned && (task.assignees?.length ?? 0) > 0) {
+        const isReport = await client.query<{ n: string }>(
+          `SELECT COUNT(*)::text AS n FROM reimbursement_users WHERE manager_id = $1 AND auth_user_id = ANY($2::text[])`,
+          [ctx.userId, task.assignees ?? []],
+        );
+        if (parseInt(isReport.rows[0]?.n ?? '0', 10) === 0) return false;
+      }
+      return true;
+    });
+    if (!allowed) return null;
   }
 
   return task;
@@ -347,11 +375,16 @@ export async function getSprintStatus(ctx: CallerContext, sprintId: string): Pro
   const helpers = await getSprintHelpers(sprintId);
   const project = await dbGetProjectById(sprint.project_id);
   if (ctx.role !== 'system_admin' && ctx.role !== 'finance_admin') {
-    const authUserId = await getCallerAuthUserId(ctx);
-    const inProject = project?.team?.includes(authUserId ?? ctx.userId) ?? false;
-    const isHelper = helpers.some((h) => h.user_id === authUserId || h.user_id === ctx.userId);
-    const isRequester = sprint.requester_id === authUserId || sprint.requester_id === ctx.userId;
-    if (!inProject && !isHelper && !isRequester) return null;
+    const tenantId = ctx.organizationId;
+    if (!tenantId) throw new Error('Tenant context required for getSprintStatus');
+    const allowed = await runInTenant(tenantId, async (client) => {
+      const authUserId = await getCallerAuthUserId(client, ctx);
+      const inProject = project?.team?.includes(authUserId ?? ctx.userId) ?? false;
+      const isHelper = helpers.some((h) => h.user_id === authUserId || h.user_id === ctx.userId);
+      const isRequester = sprint.requester_id === authUserId || sprint.requester_id === ctx.userId;
+      return inProject || isHelper || isRequester;
+    });
+    if (!allowed) return null;
   }
 
   const helperCount = helpers.length;

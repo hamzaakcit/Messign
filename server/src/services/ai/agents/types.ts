@@ -1,37 +1,60 @@
 /**
- * Orchestrator + Specialist Agent Architecture
- *
- * Types for the routing orchestrator ("traffic cop") and isolated
- * specialist agents per module.
+ * Orchestrator + Specialist Agent Architecture — Shared Types
  */
 
+/** Context passed to all agents (orchestrator and specialists) */
 export interface AgentContext {
   tenantId: string;
   userId: string;
   userRoles: string[];
+  userName: string;
+  userRole: string;
   conversationId: string;
-  currentPage?: string;
+  currentPage: string;
+  currentModule: string;
+  todayDate: string;
+  conciseMode: boolean;
+  organizationId: string | null;
+  department: string;
+  teamId: string | null;
+  /** Set by runOrchestrator for specialist execution */
+  doraCtx?: import('../dora/types.js').DoraRequestContext;
+  legacyContext?: import('../types.js').ToolContext;
 }
 
-export interface AgentResult {
-  type: 'final_answer' | 'delegate' | 'needs_approval';
-  content?: string;
-  delegateTo?: string;
-  delegateQuery?: string;
-  approvalRequest?: ActionApproval;
-  toolCallsUsed: number;
-  tokensUsed: { input: number; output: number };
-}
+/** Result from a specialist or orchestrator step */
+export type AgentResult =
+  | { type: 'final_answer'; content: string; pendingActions?: import('../actions/types.js').PendingActionSSEEvent[] }
+  | { type: 'delegate'; delegateTo: string; refinedQuery: string; priorContext?: string }
+  | { type: 'needs_approval'; content?: string; approvalRequest: { toolName: string; args: Record<string, unknown> } };
 
-export interface ActionApproval {
-  actionType: string;
-  riskLevel: 'read' | 'write' | 'irreversible' | 'cross_module';
-  description: string;
-  payload: Record<string, unknown>;
-  expiresAt: Date;
-}
-
+/** Specialist agent contract — one per module */
 export interface SpecialistAgent {
   namespace: string;
-  execute(query: string, context: AgentContext, priorContext?: string): Promise<AgentResult>;
+  execute(
+    query: string,
+    context: AgentContext,
+    priorContext?: string,
+  ): Promise<AgentResult>;
+}
+
+/** Orchestrator routing decision */
+export interface RoutingDecision {
+  action: 'respond_directly' | 'route_to_specialist';
+  primaryModule?: string;
+  refinedQuery?: string;
+  complexity?: 'simple' | 'moderate' | 'complex';
+  directResponse?: string;
+}
+
+/** HITL approval request (used by approvalFlow) */
+export interface ActionApproval {
+  toolName?: string;
+  actionType: string;
+  riskLevel?: string;
+  description?: string;
+  payload: Record<string, unknown>;
+  args?: Record<string, unknown>;
+  token?: string;
+  expiresAt: Date | string;
 }

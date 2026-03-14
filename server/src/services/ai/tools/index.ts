@@ -34,7 +34,6 @@ import './channelMessages.js';
 import './approvalQueue.js';
 import './systemStats.js';
 import './meetingDecisions.js';
-import './compareEmployees.js';
 import './departmentReport.js';
 import './availableQuestions.js';
 
@@ -49,23 +48,17 @@ import './finance/index.js';
 
 // Sales CRM: tools registered via modules/crm (registry)
 
-// Customer Support: 3 tools (ticket overview, customer health, support metrics)
-import './support/index.js';
+// Customer Support: tools registered via modules/support (registry)
 
-// Time Tracking: 3 tools (time summary, utilization report, time allocation)
-import './time/index.js';
+// Time Tracking: tools registered via modules/time (registry)
 
-// Marketing Hub: 3 tools (campaign performance, ROI, content suggestions)
-import './marketing/index.js';
+// Marketing: tools registered via modules/marketing (registry)
 
-// Recruitment ATS + cross-module analytics
-import './recruitment/index.js';
-import './assets/index.js';
-import './contracts/index.js';
-import './executiveTools.js';
+// Recruitment: tools registered via modules/hr (registry)
+// Assets, Contracts: tools registered via modules (registry)
+// Executive: tools registered via modules/executive (registry)
 
-// Dora Heart: team health, wellness, culture, pulse
-import './heart/index.js';
+// Dora Heart: tools registered via modules/heart (registry)
 
 // Core: search_tools + activate_tool (always loaded, enables tool discovery)
 import './core/activateTool.js';

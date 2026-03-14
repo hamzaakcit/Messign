@@ -1,7 +1,11 @@
-import { query, getClient } from '../db/index.js';
+import type { PoolClient } from 'pg';
+import { withTenantQuery } from '../db/index.js';
 import { eventBus } from '../events/index.js';
 import type { CallerContext, PaginatedResult, SortOptions } from './types.js';
 import { rbacWhereClause, paginationClause } from './helpers.js';
+
+const runInTenant = <T>(tenantId: string, fn: (client: PoolClient) => Promise<T>) =>
+  withTenantQuery(tenantId, fn);
 
 // ── Interfaces ──
 
@@ -94,6 +98,27 @@ export interface InvoiceFilters {
   search?: string;
 }
 
+// ── Helpers (internal, use client from runInTenant) ──
+
+async function fetchInvoiceById(client: PoolClient, invoiceId: string): Promise<Invoice | null> {
+  const result = await client.query(
+    `SELECT i.*,
+            COALESCE(
+              (SELECT json_agg(json_build_object(
+                'id', ili.id, 'description', ili.description,
+                'quantity', ili.quantity, 'unit_price', ili.unit_price,
+                'tax_rate', ili.tax_rate, 'line_total', ili.line_total
+              ) ORDER BY ili.sort_order)
+              FROM invoice_line_items ili WHERE ili.invoice_id = i.id),
+              '[]'::json
+            ) as line_items
+     FROM invoices i
+     WHERE i.id = $1`,
+    [invoiceId],
+  );
+  return (result.rows[0] as Invoice) ?? null;
+}
+
 // ── DAL Functions ──
 
 export async function listInvoices(
@@ -103,14 +128,12 @@ export async function listInvoices(
   page: number = 1,
   pageSize: number = 20,
 ): Promise<PaginatedResult<Invoice>> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listInvoices');
+
   const conditions = ['(i.is_deleted IS NULL OR i.is_deleted = FALSE)'];
   const params: unknown[] = [];
   let idx = 1;
-
-  if (ctx.organizationId) {
-    conditions.push(`i.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
 
   const rbac = rbacWhereClause(ctx, 'i.employee_id', 'i.organization_id', idx);
   if (rbac.clause !== '1=1') {
@@ -131,12 +154,6 @@ export async function listInvoices(
 
   const whereSQL = conditions.join(' AND ');
 
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM invoices i WHERE ${whereSQL}`,
-    params,
-  );
-  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
-
   const sortCol: Record<string, string> = {
     date: 'i.created_at', amount: 'i.grand_total',
     status: 'i.status', due_date: 'i.due_date',
@@ -146,74 +163,59 @@ export async function listInvoices(
 
   const pg = paginationClause(page, pageSize, idx);
 
-  const dataResult = await query(
-    `SELECT i.*,
-            COALESCE(
-              (SELECT json_agg(json_build_object(
-                'id', ili.id, 'description', ili.description,
-                'quantity', ili.quantity, 'unit_price', ili.unit_price,
-                'tax_rate', ili.tax_rate, 'line_total', ili.line_total
-              ) ORDER BY ili.sort_order)
-              FROM invoice_line_items ili WHERE ili.invoice_id = i.id),
-              '[]'::json
-            ) as line_items
-     FROM invoices i
-     WHERE ${whereSQL}
-     ORDER BY ${orderBy} ${orderDir}
-     ${pg.clause}`,
-    [...params, ...pg.params],
-  );
+  return runInTenant(tenantId, async (client) => {
+    const countResult = await client.query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM invoices i WHERE ${whereSQL}`,
+      params,
+    );
+    const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
-  return {
-    data: dataResult.rows as Invoice[],
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
+    const dataResult = await client.query(
+      `SELECT i.*,
+              COALESCE(
+                (SELECT json_agg(json_build_object(
+                  'id', ili.id, 'description', ili.description,
+                  'quantity', ili.quantity, 'unit_price', ili.unit_price,
+                  'tax_rate', ili.tax_rate, 'line_total', ili.line_total
+                ) ORDER BY ili.sort_order)
+                FROM invoice_line_items ili WHERE ili.invoice_id = i.id),
+                '[]'::json
+              ) as line_items
+       FROM invoices i
+       WHERE ${whereSQL}
+       ORDER BY ${orderBy} ${orderDir}
+       ${pg.clause}`,
+      [...params, ...pg.params],
+    );
+
+    return {
+      data: dataResult.rows as Invoice[],
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  });
 }
 
 export async function getInvoiceById(
   ctx: CallerContext,
   invoiceId: string,
 ): Promise<Invoice | null> {
-  const conditions = ['i.id = $1'];
-  const params: unknown[] = [invoiceId];
-  let idx = 2;
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getInvoiceById');
 
-  if (ctx.organizationId) {
-    conditions.push(`i.organization_id = $${idx++}`);
-    params.push(ctx.organizationId);
-  }
-
-  const result = await query(
-    `SELECT i.*,
-            COALESCE(
-              (SELECT json_agg(json_build_object(
-                'id', ili.id, 'description', ili.description,
-                'quantity', ili.quantity, 'unit_price', ili.unit_price,
-                'tax_rate', ili.tax_rate, 'line_total', ili.line_total
-              ) ORDER BY ili.sort_order)
-              FROM invoice_line_items ili WHERE ili.invoice_id = i.id),
-              '[]'::json
-            ) as line_items
-     FROM invoices i
-     WHERE ${conditions.join(' AND ')}`,
-    params,
-  );
-
-  return (result.rows[0] as Invoice) ?? null;
+  return runInTenant(tenantId, (client) => fetchInvoiceById(client, invoiceId));
 }
 
 export async function createInvoice(
   ctx: CallerContext,
   data: CreateInvoiceInput,
 ): Promise<Invoice> {
-  const orgId = ctx.organizationId ?? '';
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for createInvoice');
 
+  return runInTenant(tenantId, async (client) => {
     const subtotal = data.line_items.reduce((s, li) => s + li.quantity * li.unit_price, 0);
     const taxTotal = data.line_items.reduce(
       (s, li) => s + (li.tax_rate ? li.quantity * li.unit_price * li.tax_rate / 100 : 0), 0,
@@ -224,8 +226,7 @@ export async function createInvoice(
 
     const numResult = await client.query<{ next_num: string }>(
       `SELECT COALESCE(MAX(CAST(NULLIF(REGEXP_REPLACE(invoice_number, '[^0-9]', '', 'g'), '') AS INTEGER)), 0) + 1 as next_num
-       FROM invoices WHERE organization_id = $1`,
-      [orgId],
+       FROM invoices`,
     );
     const invNumber = `INV-${String(numResult.rows[0]?.next_num ?? 1).padStart(5, '0')}`;
 
@@ -248,7 +249,7 @@ export async function createInvoice(
                $24,$25,$26,$27,$28,$29)
        RETURNING *`,
       [
-        orgId, ctx.userId, invNumber, data.invoice_type ?? 'standard',
+        tenantId, ctx.userId, invNumber, data.invoice_type ?? 'standard',
         parseInt(dueDate.slice(0, 4), 10), parseInt(dueDate.slice(5, 7), 10),
         now.toISOString().slice(0, 10), dueDate, grandTotal,
         data.from_name, data.from_email ?? null, data.from_address ?? null,
@@ -274,19 +275,12 @@ export async function createInvoice(
       );
     }
 
-    await client.query('COMMIT');
-
     eventBus.emit('finance.invoice.created', {
       invoiceId: invoice.id, vendorId: data.to_name ?? '', amount: grandTotal, currency,
     });
 
     return invoice as Invoice;
-  } catch (e) {
-    await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function updateInvoice(
@@ -294,47 +288,47 @@ export async function updateInvoice(
   invoiceId: string,
   data: UpdateInvoiceInput,
 ): Promise<Invoice> {
-  const existing = await getInvoiceById(ctx, invoiceId);
-  if (!existing) throw new Error('Invoice not found');
-  if (existing.status !== 'draft') throw new Error('Only draft invoices can be updated');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for updateInvoice');
 
-  const fields: [string, unknown][] = [
-    ['from_name', data.from_name], ['from_email', data.from_email],
-    ['from_address', data.from_address], ['to_name', data.to_name],
-    ['to_email', data.to_email], ['to_address', data.to_address],
-    ['payment_terms', data.payment_terms], ['payment_instructions', data.payment_instructions],
-    ['notes', data.notes], ['internal_notes', data.internal_notes],
-    ['due_date', data.due_date], ['tags', data.tags],
-  ];
+  return runInTenant(tenantId, async (client) => {
+    const existing = await fetchInvoiceById(client, invoiceId);
+    if (!existing) throw new Error('Invoice not found');
+    if (existing.status !== 'draft') throw new Error('Only draft invoices can be updated');
 
-  const sets: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+    const fields: [string, unknown][] = [
+      ['from_name', data.from_name], ['from_email', data.from_email],
+      ['from_address', data.from_address], ['to_name', data.to_name],
+      ['to_email', data.to_email], ['to_address', data.to_address],
+      ['payment_terms', data.payment_terms], ['payment_instructions', data.payment_instructions],
+      ['notes', data.notes], ['internal_notes', data.internal_notes],
+      ['due_date', data.due_date], ['tags', data.tags],
+    ];
 
-  for (const [col, val] of fields) {
-    if (val !== undefined) {
-      sets.push(`${col} = $${idx++}`);
-      params.push(val);
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    for (const [col, val] of fields) {
+      if (val !== undefined) {
+        sets.push(`${col} = $${idx++}`);
+        params.push(val);
+      }
     }
-  }
 
-  if (data.line_items) {
-    const subtotal = data.line_items.reduce((s, li) => s + li.quantity * li.unit_price, 0);
-    const taxTotal = data.line_items.reduce(
-      (s, li) => s + (li.tax_rate ? li.quantity * li.unit_price * li.tax_rate / 100 : 0), 0,
-    );
-    const discountAmt = data.discount_amount ?? (data.discount_pct ? subtotal * data.discount_pct / 100 : 0);
-    const grandTotal = subtotal + taxTotal - discountAmt;
-    sets.push(`subtotal = $${idx++}`, `tax_amount = $${idx++}`, `discount_amount = $${idx++}`, `grand_total = $${idx++}`, `total_amount = $${idx++}`);
-    params.push(subtotal, taxTotal, discountAmt, grandTotal, grandTotal);
-  }
+    if (data.line_items) {
+      const subtotal = data.line_items.reduce((s, li) => s + li.quantity * li.unit_price, 0);
+      const taxTotal = data.line_items.reduce(
+        (s, li) => s + (li.tax_rate ? li.quantity * li.unit_price * li.tax_rate / 100 : 0), 0,
+      );
+      const discountAmt = data.discount_amount ?? (data.discount_pct ? subtotal * data.discount_pct / 100 : 0);
+      const grandTotal = subtotal + taxTotal - discountAmt;
+      sets.push(`subtotal = $${idx++}`, `tax_amount = $${idx++}`, `discount_amount = $${idx++}`, `grand_total = $${idx++}`, `total_amount = $${idx++}`);
+      params.push(subtotal, taxTotal, discountAmt, grandTotal, grandTotal);
+    }
 
-  sets.push(`updated_at = NOW()`);
-  params.push(invoiceId);
-
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+    sets.push(`updated_at = NOW()`);
+    params.push(invoiceId);
 
     if (sets.length > 1) {
       await client.query(
@@ -357,33 +351,30 @@ export async function updateInvoice(
       }
     }
 
-    await client.query('COMMIT');
-  } catch (e) {
-    await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    client.release();
-  }
-
-  const updated = await getInvoiceById(ctx, invoiceId);
-  return updated!;
+    const updated = await fetchInvoiceById(client, invoiceId);
+    return updated!;
+  });
 }
 
 export async function sendInvoice(
   ctx: CallerContext,
   invoiceId: string,
 ): Promise<Invoice> {
-  const orgId = ctx.organizationId ?? '';
-  const result = await query(
-    `UPDATE invoices SET status = 'sent', sent_at = NOW()
-     WHERE id = $1 AND organization_id = $2 AND status = 'draft' RETURNING *`,
-    [invoiceId, orgId],
-  );
-  if (!result.rows[0]) throw new Error('Invoice not found or not in draft status');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for sendInvoice');
 
-  eventBus.emit('finance.invoice.sent', { invoiceId, vendorId: result.rows[0].to_name ?? '' });
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE invoices SET status = 'sent', sent_at = NOW()
+       WHERE id = $1 AND status = 'draft' RETURNING *`,
+      [invoiceId],
+    );
+    if (!result.rows[0]) throw new Error('Invoice not found or not in draft status');
 
-  return result.rows[0] as Invoice;
+    eventBus.emit('finance.invoice.sent', { invoiceId, vendorId: result.rows[0].to_name ?? '' });
+
+    return result.rows[0] as Invoice;
+  });
 }
 
 export async function recordPayment(
@@ -391,14 +382,13 @@ export async function recordPayment(
   invoiceId: string,
   amount: number,
 ): Promise<Invoice> {
-  const orgId = ctx.organizationId ?? '';
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for recordPayment');
 
+  return runInTenant(tenantId, async (client) => {
     const inv = await client.query(
-      'SELECT * FROM invoices WHERE id = $1 AND organization_id = $2',
-      [invoiceId, orgId],
+      'SELECT * FROM invoices WHERE id = $1',
+      [invoiceId],
     );
     if (!inv.rows[0]) throw new Error('Invoice not found');
 
@@ -411,30 +401,27 @@ export async function recordPayment(
       [newPaid, newStatus, invoiceId],
     );
 
-    await client.query('COMMIT');
-
     eventBus.emit('finance.invoice.paid', { invoiceId, amount, paidAt: new Date().toISOString() });
 
-    const updated = await getInvoiceById(ctx, invoiceId);
+    const updated = await fetchInvoiceById(client, invoiceId);
     return updated!;
-  } catch (e) {
-    await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function voidInvoice(
   ctx: CallerContext,
   invoiceId: string,
 ): Promise<Invoice> {
-  const orgId = ctx.organizationId ?? '';
-  const result = await query(
-    `UPDATE invoices SET status = 'voided' WHERE id = $1 AND organization_id = $2 RETURNING *`,
-    [invoiceId, orgId],
-  );
-  if (!result.rows[0]) throw new Error('Invoice not found');
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for voidInvoice');
 
-  return result.rows[0] as Invoice;
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query(
+      `UPDATE invoices SET status = 'voided' WHERE id = $1 RETURNING *`,
+      [invoiceId],
+    );
+    if (!result.rows[0]) throw new Error('Invoice not found');
+
+    return result.rows[0] as Invoice;
+  });
 }

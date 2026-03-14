@@ -1,19 +1,51 @@
 /**
  * Messign AI Brain — Groq Tool Calling Service
  *
- * Handles the LLM call to Groq with function calling (tools) enabled.
- * Used by the Intent Router and Agent Loop.
- * Uses fetch (no groq-sdk dependency).
+ * PRIMARY: Uses LiteLLM gateway (callModel) for cost tracking and routing.
+ * FALLBACK: Direct Groq/Gemini/Claude when LiteLLM is unavailable.
  */
 
+import type OpenAI from 'openai';
 import type { ChatMessage, LLMRouterResponse, LLMToolDefinition, ParsedToolCall } from './types.js';
 import type { StepTokenUsage } from './orchestrator/types.js';
+import { callModelSafe } from './gateway.js';
 
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const GROQ_SYNTHESIS_MODEL = 'llama-3.3-70b-versatile';
 
+const FALLBACK_WARNING = '[AI Gateway] LiteLLM unavailable, using direct fallback. Cost tracking disabled for this request.';
+
 export function getGroqApiKey(): string | null {
   return process.env.GROQ_API_KEY || null;
+}
+
+function toOpenAITools(tools: LLMToolDefinition[]): OpenAI.ChatCompletionTool[] {
+  return tools.map((t) => ({
+    type: 'function' as const,
+    function: {
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters as unknown as OpenAI.FunctionParameters,
+    },
+  }));
+}
+
+function parseGatewayToolCalls(choices: { message?: { tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }> } }[]): ParsedToolCall[] | null {
+  const toolCalls = choices?.[0]?.message?.tool_calls;
+  if (!toolCalls?.length) return null;
+  return toolCalls.map((tc) => {
+    let args: Record<string, unknown> = {};
+    try {
+      args = JSON.parse(tc.function?.arguments || '{}') as Record<string, unknown>;
+    } catch {
+      // ignore
+    }
+    return {
+      name: tc.function?.name || 'unknown',
+      args,
+      callId: tc.id,
+    };
+  });
 }
 
 export interface GroqTrackedResponse extends LLMRouterResponse {
@@ -38,33 +70,53 @@ export interface GroqMessage {
 }
 
 /**
- * Send a query to Groq with tool definitions and get back either:
- * - Tool calls (the LLM wants to use specific tools)
- * - Direct content (conversational response)
+ * Send a query with tool definitions. Tries LiteLLM gateway first, then direct APIs.
  */
 export async function callGroqWithTools(
   systemPrompt: string,
   userQuery: string,
   history: ChatMessage[],
-  tools: LLMToolDefinition[]
+  tools: LLMToolDefinition[],
+  tenantId: string = 'system',
 ): Promise<LLMRouterResponse> {
-  const apiKey = getGroqApiKey();
-  if (!apiKey) {
-    throw new Error('Groq client not available (missing API key)');
-  }
-
-  const messages: { role: string; content: string }[] = [
+  const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
     { role: 'system', content: systemPrompt },
   ];
-
   const recentHistory = history.slice(-6);
   for (const msg of recentHistory) {
     if (msg.role === 'user' || msg.role === 'assistant') {
       messages.push({ role: msg.role, content: msg.content });
     }
   }
-
   messages.push({ role: 'user', content: userQuery });
+
+  const tiers: Array<'fast' | 'balanced' | 'complex'> = ['fast', 'balanced', 'complex'];
+  for (const tier of tiers) {
+    try {
+      const response = await callModelSafe({
+        tier,
+        messages,
+        tools: tools.length > 0 ? toOpenAITools(tools) : undefined,
+        tenantId,
+        maxTokens: 512,
+        temperature: 0.1,
+      });
+      const choice = response.choices?.[0]?.message;
+      const toolCalls = parseGatewayToolCalls(response.choices ?? []);
+      return {
+        content: choice?.content ?? null,
+        toolCalls: toolCalls ?? null,
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  console.warn(FALLBACK_WARNING);
+  const apiKey = getGroqApiKey();
+  if (!apiKey) {
+    throw new Error('Groq client not available (missing API key)');
+  }
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -121,13 +173,54 @@ export async function callGroqWithTools(
 }
 
 /**
- * Multi-turn Groq call with full message history (including assistant tool_calls and tool results).
- * Used by the agent loop for iterative tool calling.
+ * Multi-turn call with full message history. Tries LiteLLM gateway first.
  */
 export async function callGroqWithToolsMultiTurn(
   messages: GroqMessage[],
-  tools: LLMToolDefinition[]
+  tools: LLMToolDefinition[],
+  tenantId: string = 'system',
 ): Promise<LLMRouterResponse> {
+  const openAIMessages = messages.map((m) => {
+    if (m.role === 'tool' && m.tool_call_id) {
+      return { role: 'tool' as const, content: m.content ?? '', tool_call_id: m.tool_call_id };
+    }
+    if (m.role === 'assistant' && m.tool_calls) {
+      return {
+        role: 'assistant' as const,
+        content: m.content ?? null,
+        tool_calls: m.tool_calls.map((tc) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.function.name, arguments: tc.function.arguments },
+        })),
+      };
+    }
+    return { role: m.role, content: m.content ?? '' };
+  }) as OpenAI.ChatCompletionMessageParam[];
+
+  const tiers: Array<'fast' | 'balanced' | 'complex'> = ['fast', 'balanced', 'complex'];
+  for (const tier of tiers) {
+    try {
+      const response = await callModelSafe({
+        tier,
+        messages: openAIMessages,
+        tools: tools.length > 0 ? toOpenAITools(tools) : undefined,
+        tenantId,
+        maxTokens: 1024,
+        temperature: 0.2,
+      });
+      const choice = response.choices?.[0]?.message;
+      const toolCalls = parseGatewayToolCalls(response.choices ?? []);
+      return {
+        content: choice?.content ?? null,
+        toolCalls: toolCalls ?? null,
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  console.warn(FALLBACK_WARNING);
   const apiKey = getGroqApiKey();
   if (!apiKey) {
     throw new Error('Groq client not available (missing API key)');
@@ -188,14 +281,66 @@ export async function callGroqWithToolsMultiTurn(
 }
 
 /**
- * Multi-turn Groq call that also returns token usage for budget tracking.
- * Used by the Phase 3 agentic orchestrator.
+ * Multi-turn call with token usage. Tries LiteLLM gateway first.
  */
 export async function callGroqWithToolsMultiTurnTracked(
   messages: GroqMessage[],
   tools: LLMToolDefinition[],
-  options?: { model?: string; temperature?: number; maxTokens?: number }
+  options?: { model?: string; temperature?: number; maxTokens?: number; tenantId?: string },
 ): Promise<GroqTrackedResponse> {
+  const tenantId = options?.tenantId ?? 'system';
+  const openAIMessages = messages.map((m) => {
+    if (m.role === 'tool' && m.tool_call_id) {
+      return { role: 'tool' as const, content: m.content ?? '', tool_call_id: m.tool_call_id };
+    }
+    if (m.role === 'assistant' && m.tool_calls) {
+      return {
+        role: 'assistant' as const,
+        content: m.content ?? null,
+        tool_calls: m.tool_calls.map((tc) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.function.name, arguments: tc.function.arguments },
+        })),
+      };
+    }
+    return { role: m.role, content: m.content ?? '' };
+  }) as OpenAI.ChatCompletionMessageParam[];
+
+  const tiers: Array<'fast' | 'balanced' | 'complex'> = ['fast', 'balanced', 'complex'];
+  for (const tier of tiers) {
+    try {
+      const response = await callModelSafe({
+        tier,
+        messages: openAIMessages,
+        tools: tools.length > 0 ? toOpenAITools(tools) : undefined,
+        tenantId,
+        maxTokens: options?.maxTokens ?? 1500,
+        temperature: options?.temperature ?? 0.1,
+      });
+      const choice = response.choices?.[0]?.message;
+      const toolCalls = parseGatewayToolCalls(response.choices ?? []);
+      const usage = response.usage;
+      return {
+        content: choice?.content ?? null,
+        toolCalls: toolCalls ?? null,
+        usage: {
+          promptTokens: usage?.prompt_tokens ?? 0,
+          completionTokens: usage?.completion_tokens ?? 0,
+          totalTokens: (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0),
+        },
+        rawToolCalls: toolCalls?.map((tc) => ({
+          id: tc.callId ?? `call_${Date.now()}`,
+          type: 'function' as const,
+          function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+        })),
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  console.warn(FALLBACK_WARNING);
   const apiKey = getGroqApiKey();
   if (!apiKey) {
     throw new Error('Groq client not available (missing API key)');
@@ -205,6 +350,14 @@ export async function callGroqWithToolsMultiTurnTracked(
   const temperature = options?.temperature ?? 0.1;
   const maxTokens = options?.maxTokens ?? 1500;
 
+  const groqMessages = messages.map((m) => {
+    if (m.role === 'tool') return { role: 'tool', content: m.content, tool_call_id: m.tool_call_id };
+    if (m.role === 'assistant' && m.tool_calls) {
+      return { role: 'assistant', content: m.content, tool_calls: m.tool_calls };
+    }
+    return { role: m.role, content: m.content };
+  });
+
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -213,8 +366,8 @@ export async function callGroqWithToolsMultiTurnTracked(
     },
     body: JSON.stringify({
       model,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
+      messages: groqMessages,
+      tools: tools.length > 0 ? toOpenAITools(tools) : undefined,
       tool_choice: tools.length > 0 ? 'auto' : undefined,
       disable_tool_validation: tools.length > 0,
       temperature,
@@ -281,13 +434,36 @@ export async function callGroqWithToolsMultiTurnTracked(
 }
 
 /**
- * Streaming Groq completion for final synthesis (no tool calling).
- * Yields text chunks as they arrive via SSE.
+ * Streaming completion for final synthesis. Tries gateway streamModel first.
  */
 export async function* streamGroqCompletion(
   messages: GroqMessage[],
-  options?: { model?: string; temperature?: number; maxTokens?: number }
+  options?: { model?: string; temperature?: number; maxTokens?: number; tenantId?: string },
 ): AsyncGenerator<string> {
+  const tenantId = options?.tenantId ?? 'system';
+  const openAIMessages = messages.map((m) => ({ role: m.role, content: m.content ?? '' })) as OpenAI.ChatCompletionMessageParam[];
+
+  const tiers: Array<'fast' | 'balanced' | 'complex'> = ['fast', 'balanced', 'complex'];
+  for (const tier of tiers) {
+    try {
+      const { streamModel } = await import('./gateway.js');
+      for await (const chunk of streamModel({
+        tier,
+        messages: openAIMessages,
+        tenantId,
+        maxTokens: options?.maxTokens ?? 2000,
+        temperature: options?.temperature ?? 0.3,
+      })) {
+        const content = chunk.choices?.[0]?.delta?.content;
+        if (content) yield content;
+      }
+      return;
+    } catch {
+      continue;
+    }
+  }
+
+  console.warn(FALLBACK_WARNING);
   const apiKey = getGroqApiKey();
   if (!apiKey) {
     throw new Error('Groq client not available (missing API key)');

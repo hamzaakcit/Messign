@@ -7,6 +7,7 @@ import { markExecuted } from './actionStore.js';
 import { updateTask } from '../../../db/tasksDb.js';
 import { createBudget, updateBudget, logFinancialAction } from '../../../db/budgetDb.js';
 import { query } from '../../../db/index.js';
+import { logAuditEvent } from '../../../platform/audit.js';
 
 interface ActionExecutionContext {
   authUserId: string;
@@ -113,6 +114,18 @@ export async function executeConfirmedAction(
 
     if (result.success) {
       await markExecuted(token);
+      logAuditEvent({
+        tenantId: context.organizationId,
+        userId: context.authUserId,
+        action: 'data.write',
+        resourceType: actionType,
+        resourceId: (result.result && typeof result.result.id === 'string' ? result.result.id : undefined),
+        details: {
+          actionType,
+          payload: Object.keys(payload),
+          result: result.message,
+        },
+      });
     }
 
     return result;

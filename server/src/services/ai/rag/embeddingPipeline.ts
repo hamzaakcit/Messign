@@ -2,12 +2,10 @@
  * Cross-Module RAG — Embedding Ingestion Pipeline
  *
  * Ingests CRM notes, support messages, chat, HR data into entity_embeddings.
- * Uses LiteLLM for text-embedding-3-small; permission-aware similarity search.
+ * Uses LiteLLM (OpenAI text-embedding-3-small) via gateway; permission-aware similarity search.
  */
 import { withTenantQuery } from '../../../middleware/tenantContext.js';
-
-const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000/v1';
-const LITELLM_KEY = process.env.LITELLM_MASTER_KEY || 'sk-litellm';
+import { embedViaGateway } from '../gateway.js';
 
 export interface EmbeddingInput {
   tenantId: string;
@@ -20,7 +18,7 @@ export interface EmbeddingInput {
   sensitivity: 'normal' | 'confidential' | 'restricted';
 }
 
-/** Chunk text into ~500 token segments with overlap (~4 chars/token) */
+/** Chunk text: max 2000 chars with 200 char overlap */
 function chunkText(text: string, maxChars = 2000, overlapChars = 200): string[] {
   if (text.length <= maxChars) return [text];
 
@@ -34,32 +32,15 @@ function chunkText(text: string, maxChars = 2000, overlapChars = 200): string[] 
   return chunks;
 }
 
-async function getEmbedding(text: string): Promise<number[]> {
-  const res = await fetch(`${LITELLM_URL}/embeddings`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${LITELLM_KEY}`,
-    },
-    body: JSON.stringify({ model: 'embeddings', input: text }),
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => '');
-    throw new Error(`Embedding API error ${res.status}: ${errBody.slice(0, 200)}`);
-  }
-
-  const data = (await res.json()) as { data: Array<{ embedding: number[] }> };
-  const vec = data.data?.[0]?.embedding;
-  if (!vec) throw new Error('Embedding API returned empty data');
-  return vec;
-}
-
 export async function embedAndStore(input: EmbeddingInput): Promise<void> {
-  const chunks = chunkText(input.text);
+  const text = input.text?.trim();
+  if (!text) return;
+
+  const chunks = chunkText(text);
 
   for (const chunk of chunks) {
-    const vector = await getEmbedding(chunk);
+    const [vector] = await embedViaGateway([chunk], input.tenantId);
+    if (!vector) continue;
 
     await withTenantQuery(input.tenantId, async (client) => {
       await client.query(
@@ -99,7 +80,9 @@ export async function searchEmbeddings(
     minSimilarity?: number;
   } = {},
 ): Promise<SearchResult[]> {
-  const vector = await getEmbedding(query);
+  const [vector] = await embedViaGateway([query], tenantId);
+  if (!vector) return [];
+
   const limit = Math.min(options.limit ?? 10, 100);
   const minSim = options.minSimilarity ?? 0.7;
   const modules = options.modules;

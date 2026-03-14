@@ -20,6 +20,13 @@ interface PendingActionContent {
   editableFields: string[];
   expiresAt: string;
   payload: Record<string, unknown>;
+  riskLevel?: 'write' | 'irreversible';
+}
+
+interface SpecialistInfo {
+  module: string;
+  displayName: string;
+  icon: string;
 }
 
 interface WidgetMessage {
@@ -28,6 +35,7 @@ interface WidgetMessage {
   content: string;
   timestamp: number;
   isStreaming?: boolean;
+  specialist?: SpecialistInfo | null;
   pendingAction?: PendingActionContent | null;
   actionStatus?: 'pending' | 'confirmed' | 'cancelled' | 'executed';
   metadata?: {
@@ -35,6 +43,9 @@ interface WidgetMessage {
     dataPoints: number;
     responseTimeMs: number;
     steps?: number;
+    specialist?: string | null;
+    specialistDisplayName?: string | null;
+    specialistIcon?: string | null;
   };
 }
 
@@ -158,6 +169,23 @@ export function FloatingWidget() {
                 );
                 break;
 
+              case 'specialist':
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsg.id
+                      ? {
+                          ...m,
+                          specialist: {
+                            module: event.module ?? '',
+                            displayName: event.displayName ?? event.module ?? '',
+                            icon: event.icon ?? '✨',
+                          },
+                        }
+                      : m
+                  )
+                );
+                break;
+
               case 'pending_action':
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -169,11 +197,21 @@ export function FloatingWidget() {
                 break;
 
               case 'metadata':
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMsg.id ? { ...m, metadata: event.content } : m
-                  )
-                );
+                setMessages((prev) => {
+                  const meta = event.content as WidgetMessage['metadata'];
+                  const specialist = meta?.specialist
+                    ? {
+                        module: meta.specialist,
+                        displayName: meta.specialistDisplayName ?? meta.specialist,
+                        icon: meta.specialistIcon ?? '✨',
+                      }
+                    : null;
+                  return prev.map((m) =>
+                    m.id === assistantMsg.id
+                      ? { ...m, metadata: meta, specialist: specialist ?? m.specialist }
+                      : m
+                  );
+                });
                 break;
 
               case 'error':
@@ -408,6 +446,11 @@ export function FloatingWidget() {
                     : 'bg-gray-800 text-gray-200 rounded-bl-sm'
                 }`}
               >
+                {msg.role === 'assistant' && msg.specialist && (
+                  <div className="mb-1 text-[10px] text-gray-500">
+                    {msg.specialist.icon} {msg.specialist.displayName} Specialist
+                  </div>
+                )}
                 <div className="whitespace-pre-wrap break-words">
                   {msg.content}
                   {msg.isStreaming && (
@@ -529,6 +572,7 @@ function ActionConfirmationInline({
     () => ({ ...action.payload }),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [payloadExpanded, setPayloadExpanded] = useState(false);
 
   const handleFieldChange = (key: string, value: unknown) => {
     setEditedPayload((prev) => ({ ...prev, [key]: value }));
@@ -548,14 +592,41 @@ function ActionConfirmationInline({
     send_reminder: '🔔',
   };
 
+  const isIrreversible = action.riskLevel === 'irreversible';
+  const riskBadge = isIrreversible ? (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400 border border-red-500/40">
+      This action cannot be undone
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/40">
+      Dora wants to modify data
+    </span>
+  );
+
   return (
-    <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-      <div className="flex items-center gap-2 mb-2">
+    <div className={`mt-3 rounded-lg border p-3 ${isIrreversible ? 'border-red-500/30 bg-red-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+      <div className="flex flex-wrap items-center gap-2 mb-2">
         <span className="text-sm">{typeIcons[action.actionType] || '⚡'}</span>
         <span className="text-xs font-medium text-amber-400">Action: Review & Confirm</span>
+        {riskBadge}
       </div>
 
       <p className="text-xs text-gray-300 mb-2.5">{action.description}</p>
+
+      <div className="mb-2.5">
+        <button
+          type="button"
+          className="text-[10px] text-gray-500 hover:text-gray-400 cursor-pointer"
+          onClick={() => setPayloadExpanded((v) => !v)}
+        >
+          {payloadExpanded ? 'Hide' : 'Show'} full payload
+        </button>
+        {payloadExpanded && (
+          <pre className="mt-1 p-2 rounded bg-gray-900/80 text-[10px] text-gray-400 overflow-x-auto max-h-32 overflow-y-auto">
+            {JSON.stringify(action.payload, null, 2)}
+          </pre>
+        )}
+      </div>
 
       <div className="space-y-2">
         {action.displayFields.map((field) => (

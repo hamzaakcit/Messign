@@ -3,7 +3,9 @@ export type {
   AgentResult,
   ActionApproval,
   SpecialistAgent,
+  RoutingDecision,
 } from './types.js';
-export { runOrchestrator } from './orchestrator.js';
-export { getSpecialist, registerSpecialist } from './specialistRegistry.js';
-export { compactContext } from './contextCompressor.js';
+export { runOrchestrator, buildAgentContextFromDora, NoSpecialistError } from './orchestrator.js';
+export { getSpecialist, getRegisteredNamespaces } from './specialistRegistry.js';
+export { compressConversationContext } from './contextCompressor.js';
+export { classifyActionRisk } from './governance.js';

@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { query } from '../../db/index.js';
 import * as expensesDal from '../../dal/expenses.js';
-import * as support from '../../dal/support/index.js';
+import * as support from '../../modules/support/dal/index.js';
 import * as doraInsights from '../../dal/doraInsights.js';
 import type { CallerContext } from '../../dal/types.js';
 

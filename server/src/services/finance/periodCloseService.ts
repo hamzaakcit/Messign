@@ -156,7 +156,7 @@ export const periodCloseService = {
       entity_type: 'period_close',
       entity_id: periodCloseId,
       changes: { period, revenue: revTotal, expenses: expTotal, net: revTotal - expTotal },
-    }).catch(() => {});
+    }).catch((err) => console.error('[periodCloseService] auditService.log failed', { error: err instanceof Error ? err.message : String(err) }));
 
     return result.rows[0];
   },
@@ -179,7 +179,7 @@ export const periodCloseService = {
       actor_id: userId,
       entity_type: 'period_close',
       entity_id: periodCloseId,
-    }).catch(() => {});
+    }).catch((err) => console.error('[periodCloseService] auditService.log failed', { error: err instanceof Error ? err.message : String(err) }));
 
     return result.rows[0];
   },
@@ -209,7 +209,7 @@ export const periodCloseService = {
       actor_id: userId,
       entity_type: 'period_close',
       entity_id: periodCloseId,
-    }).catch(() => {});
+    }).catch((err) => console.error('[periodCloseService] auditService.log failed', { error: err instanceof Error ? err.message : String(err) }));
 
     return result.rows[0];
   },

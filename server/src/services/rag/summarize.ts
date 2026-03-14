@@ -87,12 +87,12 @@ function parseSummaryResponse(raw: string): ParsedSummary {
 }
 
 async function callGroq(messages: Array<{ role: 'system' | 'user'; content: string }>): Promise<string> {
-  return generateGroqCompletion(messages, { maxTokens: 800 });
+  return generateGroqCompletion(messages, { maxTokens: 800, tenantId: 'system' });
 }
 
 async function callGemini(document: KHDocument, plainText: string): Promise<string> {
   const context = `Document Title: ${document.title}\nDocument Type: ${document.documentType}\n\n${plainText.slice(0, 6000)}`;
-  return generateGeminiAnswer(SUMMARIZATION_PROMPT, context);
+  return generateGeminiAnswer(SUMMARIZATION_PROMPT, context, { tenantId: 'system' });
 }
 
 export async function summarizeDocument(document: KHDocument): Promise<DocumentSummary> {

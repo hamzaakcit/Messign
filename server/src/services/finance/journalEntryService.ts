@@ -173,7 +173,7 @@ export const journalEntryService = {
         entity_type: 'journal_entry',
         entity_id: entry.rows[0].id,
         changes: { source_type: data.source_type, total: totalDebit },
-      }).catch(() => {});
+      }).catch((err) => console.error('[journalEntryService] auditService.log failed', { error: err instanceof Error ? err.message : String(err) }));
 
       return entry.rows[0];
     } catch (e) {
@@ -296,7 +296,7 @@ export const journalEntryService = {
         entity_type: 'journal_entry',
         entity_id: id,
         changes: { reversal_id: reversal.rows[0].id },
-      }).catch(() => {});
+      }).catch((err) => console.error('[journalEntryService] auditService.log failed', { error: err instanceof Error ? err.message : String(err) }));
 
       return reversal.rows[0];
     } catch (e) {

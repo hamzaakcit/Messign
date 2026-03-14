@@ -165,10 +165,12 @@ export async function getBillingSummary(
   const tenantId = ctx.organizationId;
   if (!tenantId) throw new Error('Tenant context required for getBillingSummary');
 
+  const ALLOWED_INTERVALS = ['7 days', '30 days', '90 days'] as const;
   const interval = period === 'week' ? '7 days' : period === 'quarter' ? '90 days' : '30 days';
-  const filters: string[] = [`te.date >= CURRENT_DATE - INTERVAL '${interval}'`, 'te.is_billable = TRUE', `te.status != 'rejected'`];
-  const params: unknown[] = [];
-  let idx = 1;
+  if (!ALLOWED_INTERVALS.includes(interval)) throw new Error('Invalid interval');
+  const filters: string[] = ['te.date >= CURRENT_DATE - $1::interval', 'te.is_billable = TRUE', `te.status != 'rejected'`];
+  const params: unknown[] = [interval];
+  let idx = 2;
   const scope = teamScopeClause(ctx, 'te', idx);
   filters.push(scope.clause);
   params.push(...scope.params);

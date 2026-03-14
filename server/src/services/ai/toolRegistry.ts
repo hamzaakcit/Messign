@@ -16,6 +16,7 @@ import type {
   ToolResult,
   LLMToolDefinition,
 } from './types.js';
+import { logAuditEvent } from '../../platform/audit.js';
 
 // ============================================================
 // REGISTRY STATE
@@ -115,6 +116,33 @@ export function getToolsForLLM(): LLMToolDefinition[] {
       parameters: tool.parameters,
     },
   }));
+}
+
+/**
+ * Get all tools for a given namespace (for specialist agents).
+ * Includes both always-loaded and deferred tools. Filters by userRoles for RBAC.
+ */
+export function getToolsForNamespace(namespace: string, userRoles: string[]): LLMToolDefinition[] {
+  const tools: LLMToolDefinition[] = [];
+  for (const [name, metadata] of toolIndex) {
+    if (metadata.namespace !== namespace) continue;
+    const tool = registry.get(name);
+    if (!tool) continue;
+    const requiredRoles = metadata.requiredRoles ?? tool.requiredRoles ?? [];
+    if (requiredRoles.length > 0) {
+      const hasRole = requiredRoles.some((r) => userRoles.includes(r));
+      if (!hasRole) continue;
+    }
+    tools.push({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    });
+  }
+  return tools;
 }
 
 /**
@@ -220,10 +248,33 @@ export async function executeTool(
   }
 
   const startTime = Date.now();
+  const tenantId = context.organizationId ?? null;
+  const redactKeys = ['password', 'token', 'secret', 'apiKey', 'api_key'];
+  const redactedArgs = Object.fromEntries(
+    Object.entries(args).map(([k, v]) => [
+      k,
+      redactKeys.some((r) => k.toLowerCase().includes(r)) ? '[REDACTED]' : v,
+    ]),
+  );
+
   try {
     const result = await tool.execute(args, context);
     const elapsed = Date.now() - startTime;
     console.log(`[AI Registry] Tool "${resolved}" executed in ${elapsed}ms (success: ${result.success}, records: ${result.metadata?.count ?? 'N/A'})`);
+
+    logAuditEvent({
+      tenantId: tenantId ?? undefined,
+      userId: context.userId,
+      action: 'ai.tool.executed',
+      resourceType: resolved,
+      details: {
+        tool: resolved,
+        args: redactedArgs,
+        success: result.success,
+        elapsedMs: elapsed,
+        recordCount: result.metadata?.count,
+      },
+    });
 
     // Cache successful results (use resolved name for cache key consistency)
     if (result.success && result.data) {
@@ -235,6 +286,21 @@ export async function executeTool(
     const elapsed = Date.now() - startTime;
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[AI Registry] Tool "${name}" FAILED after ${elapsed}ms:`, message);
+
+    logAuditEvent({
+      tenantId: tenantId ?? undefined,
+      userId: context.userId,
+      action: 'ai.tool.executed',
+      resourceType: resolved,
+      details: {
+        tool: resolved,
+        args: redactedArgs,
+        success: false,
+        elapsedMs: elapsed,
+        error: message,
+      },
+    });
+
     return {
       success: false,
       data: null,

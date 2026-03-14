@@ -9,11 +9,19 @@
 // MESSAGE TYPES
 // ============================================================
 
+export interface SpecialistInfo {
+  module: string;
+  displayName: string;
+  icon: string;
+}
+
 export interface AIMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  /** Which specialist handled this response (orchestrator routing) */
+  specialist?: SpecialistInfo | null;
   /** Metadata about the AI response (only on assistant messages) */
   metadata?: AIResponseMetadata;
   /** Source documents referenced (only on assistant messages) */
@@ -47,6 +55,10 @@ export interface AIResponseMetadata {
   terminationReason?: string;
   /** Telemetry record ID for feedback linking (Phase 3) */
   telemetryId?: string;
+  /** Specialist module (from metadata when no specialist event) */
+  specialist?: string | null;
+  specialistDisplayName?: string | null;
+  specialistIcon?: string | null;
 }
 
 export interface AISourceDocument {

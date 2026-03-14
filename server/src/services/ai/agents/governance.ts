@@ -1,72 +1,105 @@
 /**
- * Action Governance — Risk classification for HITL
+ * Action Risk Classification — Governance for specialist agents
  *
- * Every write/delete/send action is risk-classified.
- * High-risk actions queue for human approval.
+ * Classifies tools as read, write, or irreversible.
+ * Irreversible actions route to HITL (actionInterceptor).
  */
-export type RiskLevel = 'read' | 'write' | 'irreversible' | 'cross_module';
 
-const TOOL_RISK_MAP: Record<string, RiskLevel> = {
-  // Reads — auto-approve
-  'crm:search_deals': 'read',
-  'crm:get_pipeline_status': 'read',
-  'crm:get_deal_details': 'read',
-  'crm:get_sales_forecast': 'read',
-  'crm:get_activity_gaps': 'read',
-  'support:get_ticket_overview': 'read',
-  'support:get_customer_health': 'read',
-  'support:get_support_metrics': 'read',
-  'finance:get_budget': 'read',
-  'knowledge:search_knowledge_base': 'read',
-  'hr:get_employee': 'read',
+export type ActionRiskLevel = 'read' | 'write' | 'irreversible';
 
-  // Writes — conditional approval
-  'crm:update_deal': 'write',
-  'crm:create_activity': 'write',
-  'crm:create_deal': 'write',
-  'crm:move_deal_to_stage': 'write',
-  'support:assign_ticket': 'write',
-  'support:update_ticket': 'write',
-  'support:create_ticket': 'write',
-  'time:log_entry': 'write',
-  'okr:update_key_result': 'write',
+const READ_PATTERNS = [
+  /search$/i,
+  /get_/i,
+  /list/i,
+  /find/i,
+  /fetch/i,
+  /read/i,
+  /:search_/i,
+  /:get_/i,
+];
 
-  // Irreversible — always require approval
-  'crm:delete_deal': 'irreversible',
-  'crm:lose_deal': 'irreversible',
-  'finance:create_expense': 'irreversible',
-  'finance:approve_expense': 'irreversible',
-  'support:close_ticket': 'irreversible',
-  'hr:reject_application': 'irreversible',
-  'marketing:launch_campaign': 'irreversible',
-};
+/** Write patterns: create, update, assign — auto-execute per spec */
+const WRITE_PATTERNS = [
+  /create/i,
+  /update/i,
+  /assign/i,
+  /draft/i,
+  /modify/i,
+];
 
-const CROSS_MODULE_TOOLS = new Set([
-  'marketing:route_lead_to_crm',
-  'finance:create_invoice_from_deal',
+/** Irreversible: route to HITL (actionInterceptor) */
+const IRREVERSIBLE_PATTERNS = [
+  /delete/i,
+  /approve/i,
+  /reject/i,
+  /send/i,
+  /launch/i,
+  /flag/i,
+  /generate/i,
+  /post/i,
+];
+
+/** Tools that must always go to HITL (matches actionInterceptor) */
+const ALWAYS_HITL_NAMES = new Set([
+  'projects:create_task', 'projects:update_task_status', 'projects:update_task',
+  'finance:draft_invoice', 'finance:approve_expense', 'finance:flag_expense',
+  'finance:create_budget_alert', 'finance:create_budget', 'finance:update_budget',
+  'finance:auto_approve_expense', 'finance:flag_expense_for_review', 'finance:generate_invoice',
+  'finance:send_payment_reminder', 'finance:suggest_budget_reallocation',
+  'communication:send_chat_message', 'core:send_reminder',
+  'crm:create_deal', 'support:create_ticket', 'assets:assign_asset',
+  'contracts:send_renewal_reminder', 'marketing:create_campaign', 'recruitment:post_job',
 ]);
 
-const WRITE_AUTO_APPROVE_THRESHOLD = 1000; // USD
+/** Default threshold for value/amount escalation to irreversible (e.g. 1000 EUR) */
+const VALUE_THRESHOLD = 1000;
 
+/**
+ * Classify the risk level of a tool invocation.
+ * - read: auto-execute
+ * - write: auto-execute (or could require confirmation in future)
+ * - irreversible: route to HITL (actionInterceptor)
+ */
 export function classifyActionRisk(
   toolName: string,
   args: Record<string, unknown>,
-): RiskLevel {
-  if (CROSS_MODULE_TOOLS.has(toolName)) {
-    return 'cross_module';
-  }
+  valueThreshold: number = VALUE_THRESHOLD,
+): ActionRiskLevel {
+  if (ALWAYS_HITL_NAMES.has(toolName)) return 'irreversible';
 
-  const staticRisk = TOOL_RISK_MAP[toolName] ?? 'write';
+  const name = toolName.toLowerCase();
 
-  if (staticRisk === 'read') return 'read';
-  if (staticRisk === 'irreversible') return 'irreversible';
-
-  if (staticRisk === 'write') {
-    const value = Number(args.value ?? args.amount ?? args.total ?? 0);
-    if (value > WRITE_AUTO_APPROVE_THRESHOLD) {
+  for (const p of IRREVERSIBLE_PATTERNS) {
+    if (p.test(name)) {
+      // Check for high-value escalation
+      const value = typeof args.value === 'number' ? args.value : typeof args.amount === 'number' ? args.amount : undefined;
+      const allocatedAmount = typeof args.allocated_amount === 'number' ? args.allocated_amount : undefined;
+      const budget = typeof args.budget === 'number' ? args.budget : undefined;
+      const num = value ?? allocatedAmount ?? budget;
+      if (num !== undefined && num >= valueThreshold) {
+        return 'irreversible';
+      }
       return 'irreversible';
     }
   }
 
-  return staticRisk;
+  for (const p of READ_PATTERNS) {
+    if (p.test(name)) return 'read';
+  }
+
+  for (const p of WRITE_PATTERNS) {
+    if (p.test(name)) {
+      const value = typeof args.value === 'number' ? args.value : typeof args.amount === 'number' ? args.amount : undefined;
+      const allocatedAmount = typeof args.allocated_amount === 'number' ? args.allocated_amount : undefined;
+      const budget = typeof args.budget === 'number' ? args.budget : undefined;
+      const num = value ?? allocatedAmount ?? budget;
+      if (num !== undefined && num >= valueThreshold) {
+        return 'irreversible';
+      }
+      return 'write';
+    }
+  }
+
+  // Default: treat unknown tools as read (safer)
+  return 'read';
 }

@@ -15,6 +15,7 @@ import { truncateText, extractRelevantExcerpt } from '../dataSanitizer.js';
 import { hybridSearchChunks, semanticSearchChunks, hybridSearch } from '../../knowledgeSearch.js';
 import { hybridSearch as ragHybridSearch, hasRAGData } from '../../rag/db.js';
 import { embedQuery } from '../../rag/embeddings.js';
+import { searchEmbeddings, type SearchResult as EntitySearchResult } from '../rag/embeddingPipeline.js';
 import type { SearchResult as RAGSearchResult } from '../../rag/types.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
@@ -50,12 +51,18 @@ function formatChunkContext(chunks: { title: string; chunk_text: string }[]): st
     .join('\n\n');
 }
 
-async function searchDocuments(userQuery: string): Promise<DocRow[]> {
+function formatEntityContext(results: EntitySearchResult[]): string {
+  return results
+    .map((r) => `### Source: ${r.source}\n${r.content}`)
+    .join('\n\n');
+}
+
+async function searchDocuments(userQuery: string, tenantId: string = 'system'): Promise<DocRow[]> {
   const words = userQuery.split(/\s+/).filter((w) => w.length > 0).map((w) => w.trim());
   const phrase = `%${userQuery.trim()}%`;
 
   try {
-    const hybridResults = await hybridSearch(userQuery, limit);
+    const hybridResults = await hybridSearch(userQuery, limit, tenantId);
     if (hybridResults.length > 0) {
       const enriched = await Promise.all(
         hybridResults.map(async (r) => {
@@ -152,14 +159,26 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
 
     try {
       // 1. Try new Phase 2 RAG pipeline (heading-aware chunks, OpenAI embeddings, 70/30 hybrid)
+      const tenantId = _context.organizationId ?? 'system';
+      const userRoles = [_context.userRole, 'employee', 'manager', 'admin'].filter(Boolean);
+
+      let entityResults: EntitySearchResult[] = [];
+      try {
+        entityResults = await searchEmbeddings(tenantId, q, userRoles, { limit: 5, minSimilarity: 0.7 });
+      } catch (entityErr) {
+        console.warn('[searchKnowledgeBase] entity_embeddings search failed:', entityErr instanceof Error ? entityErr.message : entityErr);
+      }
+
       const ragAvailable = await hasRAGData();
       if (ragAvailable) {
         try {
-          const queryEmbedding = await embedQuery(q);
+          const queryEmbedding = await embedQuery(q, tenantId);
           const ragResults = await ragHybridSearch(queryEmbedding, q, RAG_CHUNK_LIMIT);
 
-          if (ragResults.length > 0) {
-            const summary = formatRAGContext(ragResults);
+          if (ragResults.length > 0 || entityResults.length > 0) {
+            const ragSummary = formatRAGContext(ragResults);
+            const entitySummary = formatEntityContext(entityResults);
+            const summary = [ragSummary, entitySummary].filter(Boolean).join('\n\n');
             const seenIds = new Set<string>();
             const documents = ragResults
               .filter((r) => {
@@ -174,7 +193,9 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
                 document_type: r.metadata?.documentType ?? 'document',
               }));
 
-            const avgScore = ragResults.reduce((s, r) => s + r.score, 0) / ragResults.length;
+            const avgScore = ragResults.length > 0
+              ? ragResults.reduce((s, r) => s + r.score, 0) / ragResults.length
+              : entityResults.reduce((s, r) => s + r.similarity, 0) / entityResults.length;
             const confidence = Math.min(1, avgScore * 1.2);
 
             return {
@@ -186,8 +207,8 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
                 count: documents.length,
                 chunksReturned: ragResults.length,
                 confidence,
-                avgVectorScore: ragResults.reduce((s, r) => s + r.vectorScore, 0) / ragResults.length,
-                avgKeywordScore: ragResults.reduce((s, r) => s + r.keywordScore, 0) / ragResults.length,
+                avgVectorScore: ragResults.length > 0 ? ragResults.reduce((s, r) => s + r.vectorScore, 0) / ragResults.length : 0,
+                avgKeywordScore: ragResults.length > 0 ? ragResults.reduce((s, r) => s + r.keywordScore, 0) / ragResults.length : 0,
               },
             };
           }
@@ -196,16 +217,19 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
         }
       }
 
-      // 2. Fallback: legacy hybrid chunk search (Voyage AI, 70% vector + 30% BM25)
-      let chunks = await hybridSearchChunks(q, RAG_CHUNK_LIMIT);
+      // 2. Fallback: legacy hybrid chunk search (gateway embeddings, 70% vector + 30% BM25)
+      let chunks = await hybridSearchChunks(q, RAG_CHUNK_LIMIT, tenantId);
       if (chunks.length === 0) {
-        chunks = await semanticSearchChunks(q, RAG_CHUNK_LIMIT);
+        chunks = await semanticSearchChunks(q, RAG_CHUNK_LIMIT, tenantId);
       }
 
-      if (chunks.length > 0) {
-        const summary = formatChunkContext(
+      if (chunks.length > 0 || entityResults.length > 0) {
+        const chunkSummary = formatChunkContext(
           chunks.map((c) => ({ title: c.title, chunk_text: c.chunk_text }))
         );
+        const entitySummary = formatEntityContext(entityResults);
+        const summary = [chunkSummary, entitySummary].filter(Boolean).join('\n\n');
+
         const seenIds = new Set<string>();
         const documents = chunks
           .filter((c) => {
@@ -220,7 +244,11 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
             document_type: c.document_type ?? 'document',
           }));
 
-        const avgScore = chunks.reduce((s, c) => s + c.score, 0) / chunks.length;
+        const avgScore = chunks.length > 0
+          ? chunks.reduce((s, c) => s + c.score, 0) / chunks.length
+          : entityResults.length > 0
+            ? entityResults.reduce((s, r) => s + r.similarity, 0) / entityResults.length
+            : 0.7;
         const confidence = Math.min(1, avgScore * 1.2);
 
         return {
@@ -228,7 +256,7 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
           data: documents,
           summary,
           metadata: {
-            source: 'legacy_chunk_search',
+            source: chunks.length > 0 ? 'legacy_chunk_search' : 'entity_embeddings',
             count: documents.length,
             confidence,
           },
@@ -236,7 +264,7 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
       }
 
       // 3. Last resort: document-level search (hybrid or ILIKE)
-      const documents = await searchDocuments(q);
+      const documents = await searchDocuments(q, tenantId);
 
       if (documents.length === 0) {
         return {

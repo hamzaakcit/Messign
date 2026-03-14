@@ -46,14 +46,10 @@ import { documentsRouter } from './routes/documents.js';
 import { activitiesRouter } from './routes/activities.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { adminRouter } from './routes/admin/index.js';
-import { reimbursementsRouter } from './routes/reimbursements.js';
 import { categoriesRouter } from './routes/categories.js';
 import { exchangeRatesRouter } from './routes/exchangeRates.js';
 import { mileageRouter } from './routes/mileage.js';
-import { approvalsRouter } from './routes/approvals.js';
 import { reimbursementSettingsRouter } from './routes/reimbursement-settings.js';
-import { invoicesRouter } from './routes/invoices.js';
-import { bankDetailsRouter } from './routes/bankDetails.js';
 import { signaturesRouter } from './routes/signatures.js';
 import { performanceRouter } from './routes/performance.js';
 import { dashboardRouter } from './routes/dashboard.js';
@@ -70,9 +66,6 @@ import doraAutomationsRouter from './routes/dora/automations.js';
 import doraFiltersRouter from './routes/dora/filters.js';
 import doraBriefingRouter from './routes/dora/briefing.js';
 import doraApprovalsRouter from './routes/dora/approvals.js';
-import { budgetsRouter } from './routes/budgets.js';
-import { assetsRouter } from './routes/assets/index.js';
-import { contractsRouter } from './routes/contracts/index.js';
 import { seedRouter } from './routes/seed.js';
 import reportsRouter from './routes/reports/index.js';
 import { initializeModules } from './modules/registry.js';
@@ -130,6 +123,43 @@ app.use(express.json({ limit: '5mb', type: 'application/json' }));
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(responseTimer);
 
+// Health check — mounted before auth so monitoring tools can hit it without authentication
+app.get('/health', async (_req, res) => {
+  const checks: Record<string, 'ok' | 'error'> = {};
+
+  try {
+    const { pool } = await import('./db/index.js');
+    await pool.query('SELECT 1');
+    checks.database = 'ok';
+  } catch {
+    checks.database = 'error';
+  }
+
+  try {
+    const { redisConnection } = await import('./queue/connection.js');
+    await redisConnection.ping();
+    checks.redis = 'ok';
+  } catch {
+    checks.redis = 'error';
+  }
+
+  try {
+    const litellmUrl = process.env.LITELLM_URL || 'http://localhost:4000/v1';
+    const baseUrl = litellmUrl.replace(/\/v1.*$/, '');
+    const resp = await fetch(`${baseUrl}/health`);
+    checks.litellm = resp.ok ? 'ok' : 'error';
+  } catch {
+    checks.litellm = 'error';
+  }
+
+  const allOk = Object.values(checks).every((v) => v === 'ok');
+  res.status(allOk ? 200 : 503).json({
+    status: allOk ? 'healthy' : 'degraded',
+    checks,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Rate limiting (relaxed in development for E2E tests and local dev)
 const isDev = process.env.NODE_ENV !== 'production' || process.env.E2E_TEST === '1';
 const apiLimiter = rateLimit({
@@ -162,14 +192,10 @@ app.use('/api/documents', documentsRouter);
 app.use('/api/activities', activitiesRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/reimbursements', reimbursementsRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/exchange-rates', exchangeRatesRouter);
 app.use('/api/mileage', mileageRouter);
-app.use('/api/approvals', approvalsRouter);
 app.use('/api/settings/reimbursement', reimbursementSettingsRouter);
-app.use('/api/invoices', invoicesRouter);
-app.use('/api/bank-details', bankDetailsRouter);
 app.use('/api/signatures', signaturesRouter);
 app.use('/api/performance', requireAuth, performanceRouter);
 app.use('/api/dashboard', requireAuth, dashboardRouter);
@@ -186,9 +212,7 @@ app.use('/api/dora', doraFiltersRouter);
 app.use('/api/dora', doraBriefingRouter);
 app.use('/api/dora', doraApprovalsRouter);
 app.use('/api/dora', requireAuth, doraHistoryRouter);
-app.use('/api/budgets', budgetsRouter);
-app.use('/api/assets', assetsRouter);
-app.use('/api/contracts', contractsRouter);
+// Assets, Contracts: mounted via modules/registry at /api/assets, /api/contracts
 app.use('/api/seed', seedRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/webhooks', webhookRouter);

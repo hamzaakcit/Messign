@@ -1,18 +1,97 @@
 /**
+ * @deprecated This router is a legacy fallback. All new queries should go through
+ * the orchestrator agent system (agents/orchestrator.ts → specialists/).
+ * This file will be removed once the orchestrator handles all edge cases.
+ * Track remaining usages before deletion.
+ *
  * Messign AI Brain — Intent Router
  *
  * Orchestrator: routes user queries to tools, executes them,
  * formats results for the synthesis LLM.
  */
 
+import type OpenAI from 'openai';
 import { getToolsForLLM, executeTool, getAllTools } from './toolRegistry.js';
-import { callGroqWithTools, callGeminiWithTools } from './groqToolCalling.js';
+import { callModelSafe } from './gateway.js';
 import { sanitizeData, truncateText } from './dataSanitizer.js';
 import { logToolExecution } from './queryLogger.js';
 import { classifyQuery, type ClassificationResult, type QueryIntent } from './queryClassifier.js';
 import { buildDoraRouterPrompt } from './dora/prompts.js';
 import type { DoraRequestContext } from './dora/types.js';
-import type { ToolContext, ToolResult, RouterResult, ChatMessage, ParsedToolCall } from './types.js';
+import type { ToolContext, ToolResult, RouterResult, ChatMessage, ParsedToolCall, LLMToolDefinition } from './types.js';
+
+function toOpenAITools(tools: LLMToolDefinition[]): OpenAI.ChatCompletionTool[] {
+  return tools.map((t) => ({
+    type: 'function' as const,
+    function: {
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters as unknown as OpenAI.FunctionParameters,
+    },
+  }));
+}
+
+function parseGatewayToolCalls(choices: { message?: { tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }> } }[]): ParsedToolCall[] | null {
+  const toolCalls = choices?.[0]?.message?.tool_calls;
+  if (!toolCalls?.length) return null;
+  return toolCalls.map((tc) => {
+    let args: Record<string, unknown> = {};
+    try {
+      args = JSON.parse(tc.function?.arguments || '{}') as Record<string, unknown>;
+    } catch {
+      // ignore
+    }
+    return {
+      name: tc.function?.name || 'unknown',
+      args,
+      callId: tc.id,
+    };
+  });
+}
+
+/** Route via gateway only (no direct API fallback). */
+async function routeViaGateway(
+  systemPrompt: string,
+  userQuery: string,
+  history: ChatMessage[],
+  tools: LLMToolDefinition[],
+  tenantId: string,
+): Promise<{ content: string | null; toolCalls: ParsedToolCall[] | null }> {
+  const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+    { role: 'system', content: systemPrompt },
+  ];
+  const recentHistory = history.slice(-6);
+  for (const msg of recentHistory) {
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+  messages.push({ role: 'user', content: userQuery });
+
+  const tiers: Array<'fast' | 'balanced' | 'complex'> = ['fast', 'balanced', 'complex'];
+  for (const tier of tiers) {
+    try {
+      const response = await callModelSafe({
+        tier,
+        messages,
+        tools: tools.length > 0 ? toOpenAITools(tools) : undefined,
+        tenantId,
+        maxTokens: 512,
+        temperature: 0.1,
+        userQuery,
+      });
+      const choice = response.choices?.[0]?.message;
+      const toolCalls = parseGatewayToolCalls(response.choices ?? []);
+      return {
+        content: choice?.content ?? null,
+        toolCalls: toolCalls ?? null,
+      };
+    } catch {
+      continue;
+    }
+  }
+  throw new Error('Intent router: all gateway tiers failed');
+}
 
 function getIntentRoutingHint(intent: QueryIntent): string {
   switch (intent) {
@@ -393,7 +472,7 @@ export async function routeQuery(
       const start = Date.now();
       const result = await executeTool(call.name, call.args as Record<string, unknown>, context);
       const elapsed = Date.now() - start;
-      logToolExecution(null, call.name, elapsed, result.success, result.metadata?.count ?? 0).catch(() => {});
+      logToolExecution(null, call.name, elapsed, result.success, result.metadata?.count ?? 0).catch((err) => console.error('[intentRouter] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }));
       return { name: call.name, result, elapsed };
     });
     const results = await Promise.all(executions);
@@ -420,61 +499,54 @@ export async function routeQuery(
   let toolCalls: ParsedToolCall[] | null = null;
   let directContent: string | null = null;
 
-  try {
-    const groqResult = await callGroqWithTools(systemPrompt, query, history, tools);
-    toolCalls = groqResult.toolCalls;
-    directContent = groqResult.content;
-  } catch (groqError: unknown) {
-    const msg = groqError instanceof Error ? groqError.message : String(groqError);
-    console.warn('[Intent Router] Groq routing failed, trying Gemini:', msg);
+  const tenantId = context.organizationId ?? 'system';
 
-    try {
-      const geminiResult = await callGeminiWithTools(systemPrompt, query, history, tools);
-      toolCalls = geminiResult.toolCalls;
-      directContent = geminiResult.content;
-    } catch (geminiError: unknown) {
-      const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
-      console.warn('[Intent Router] Gemini routing also failed:', geminiMsg);
-      if (isOverviewStyleQuery(query)) {
-        console.log('[Intent Router] All routers failed. Overview query → falling back to get_system_stats.');
-        toolCalls = [{ name: 'analytics:get_system_stats', args: { detail_level: 'summary' } }];
-      } else if (isFinancialQuery(query)) {
-        console.log('[Intent Router] All routers failed. Financial query → falling back to get_financial_summary.');
-        toolCalls = [{ name: 'finance:get_financial_summary', args: { time_period: 'this_month', scope: 'company' } }];
-      } else if (isApprovalQuery(query)) {
-        console.log('[Intent Router] All routers failed. Approval query → falling back to get_approval_queue.');
-        toolCalls = [{ name: 'analytics:get_approval_queue', args: { domain: 'all' } }];
-      } else if (isProjectStatusQuery(query)) {
-        console.log('[Intent Router] All routers failed. Project query → falling back to get_project_status.');
-        toolCalls = [{ name: 'projects:get_project_status', args: { project_name: 'all' } }];
-      } else if (isTeamOverviewQuery(query)) {
-        console.log('[Intent Router] All routers failed. Team query → falling back to get_team_overview.');
-        toolCalls = [{ name: 'people:get_team_overview', args: { team_identifier: 'all' } }];
-      } else if (isActivityQuery(query)) {
-        console.log('[Intent Router] All routers failed. Activity query → falling back to get_recent_activity.');
-        toolCalls = [{ name: 'analytics:get_recent_activity', args: { scope: 'system' } }];
-      } else if (isSprintQuery(query)) {
-        console.log('[Intent Router] All routers failed. Sprint query → falling back to get_sprint_status.');
-        toolCalls = [{ name: 'projects:get_sprint_status', args: { project_name: 'all' } }];
-      } else if (isLeaderboardQuery(query)) {
-        console.log('[Intent Router] All routers failed. Leaderboard query → falling back to get_achievements_leaderboard.');
-        toolCalls = [{ name: 'achievements:get_achievements_leaderboard', args: { query_type: 'leaderboard' } }];
-      } else if (isInvoiceQuery(query)) {
-        console.log('[Intent Router] All routers failed. Invoice query → falling back to get_invoice_details.');
-        toolCalls = [{ name: 'finance:get_invoice_details', args: { search_term: 'all', status_filter: 'pending' } }];
-      } else if (isReimbursementQuery(query)) {
-        console.log('[Intent Router] All routers failed. Reimbursement query → falling back to get_reimbursement_details.');
-        toolCalls = [{ name: 'finance:get_reimbursement_details', args: { user_identifier: 'me' } }];
-      } else if (isKnowledgeBaseStatsQuery(query)) {
-        console.log('[Intent Router] All routers failed. Knowledge base stats query → falling back to get_knowledge_base_stats.');
-        toolCalls = [{ name: 'knowledge:get_knowledge_base_stats', args: {} }];
-      } else if (isAvailableQuestionsQuery(query)) {
-        console.log('[Intent Router] All routers failed. Available questions query → falling back to get_available_questions.');
-        toolCalls = [{ name: 'system:get_available_questions', args: {} }];
-      } else {
-        console.log('[Intent Router] All routers failed. Falling back to knowledge base search.');
-        toolCalls = [{ name: 'knowledge:search_knowledge_base', args: { query } }];
-      }
+  try {
+    const result = await routeViaGateway(systemPrompt, query, history, tools, tenantId);
+    toolCalls = result.toolCalls;
+    directContent = result.content;
+  } catch (gatewayError: unknown) {
+    const msg = gatewayError instanceof Error ? gatewayError.message : String(gatewayError);
+    console.warn('[Intent Router] Gateway routing failed, using keyword fallbacks:', msg);
+    if (isOverviewStyleQuery(query)) {
+      console.log('[Intent Router] All routers failed. Overview query → falling back to get_system_stats.');
+      toolCalls = [{ name: 'analytics:get_system_stats', args: { detail_level: 'summary' } }];
+    } else if (isFinancialQuery(query)) {
+      console.log('[Intent Router] All routers failed. Financial query → falling back to get_financial_summary.');
+      toolCalls = [{ name: 'finance:get_financial_summary', args: { time_period: 'this_month', scope: 'company' } }];
+    } else if (isApprovalQuery(query)) {
+      console.log('[Intent Router] All routers failed. Approval query → falling back to get_approval_queue.');
+      toolCalls = [{ name: 'analytics:get_approval_queue', args: { domain: 'all' } }];
+    } else if (isProjectStatusQuery(query)) {
+      console.log('[Intent Router] All routers failed. Project query → falling back to get_project_status.');
+      toolCalls = [{ name: 'projects:get_project_status', args: { project_name: 'all' } }];
+    } else if (isTeamOverviewQuery(query)) {
+      console.log('[Intent Router] All routers failed. Team query → falling back to get_team_overview.');
+      toolCalls = [{ name: 'people:get_team_overview', args: { team_identifier: 'all' } }];
+    } else if (isActivityQuery(query)) {
+      console.log('[Intent Router] All routers failed. Activity query → falling back to get_recent_activity.');
+      toolCalls = [{ name: 'analytics:get_recent_activity', args: { scope: 'system' } }];
+    } else if (isSprintQuery(query)) {
+      console.log('[Intent Router] All routers failed. Sprint query → falling back to get_sprint_status.');
+      toolCalls = [{ name: 'projects:get_sprint_status', args: { project_name: 'all' } }];
+    } else if (isLeaderboardQuery(query)) {
+      console.log('[Intent Router] All routers failed. Leaderboard query → falling back to get_achievements_leaderboard.');
+      toolCalls = [{ name: 'achievements:get_achievements_leaderboard', args: { query_type: 'leaderboard' } }];
+    } else if (isInvoiceQuery(query)) {
+      console.log('[Intent Router] All routers failed. Invoice query → falling back to get_invoice_details.');
+      toolCalls = [{ name: 'finance:get_invoice_details', args: { search_term: 'all', status_filter: 'pending' } }];
+    } else if (isReimbursementQuery(query)) {
+      console.log('[Intent Router] All routers failed. Reimbursement query → falling back to get_reimbursement_details.');
+      toolCalls = [{ name: 'finance:get_reimbursement_details', args: { user_identifier: 'me' } }];
+    } else if (isKnowledgeBaseStatsQuery(query)) {
+      console.log('[Intent Router] All routers failed. Knowledge base stats query → falling back to get_knowledge_base_stats.');
+      toolCalls = [{ name: 'knowledge:get_knowledge_base_stats', args: {} }];
+    } else if (isAvailableQuestionsQuery(query)) {
+      console.log('[Intent Router] All routers failed. Available questions query → falling back to get_available_questions.');
+      toolCalls = [{ name: 'system:get_available_questions', args: {} }];
+    } else {
+      console.log('[Intent Router] All routers failed. Falling back to knowledge base search.');
+      toolCalls = [{ name: 'knowledge:search_knowledge_base', args: { query } }];
     }
   }
 
@@ -482,7 +554,7 @@ export async function routeQuery(
     const kbStart = Date.now();
     const kbResult = await executeTool('knowledge:search_knowledge_base', { query }, context);
     const kbElapsed = Date.now() - kbStart;
-    logToolExecution(null, 'knowledge:search_knowledge_base', kbElapsed, kbResult.success, kbResult.metadata?.count ?? 0).catch(() => {});
+    logToolExecution(null, 'knowledge:search_knowledge_base', kbElapsed, kbResult.success, kbResult.metadata?.count ?? 0).catch((err) => console.error('[intentRouter] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }));
     const hasKBResults = kbResult.success && Array.isArray(kbResult.data) && (kbResult.data as unknown[]).length > 0;
 
     return {
@@ -514,7 +586,7 @@ export async function routeQuery(
       const { name: toolName, result, elapsed } = outcome.value;
       toolsUsed.push(toolName);
       // Fire-and-forget tool execution logging (query_log_id linked later in handler)
-      logToolExecution(null, toolName, elapsed, result.success, result.metadata?.count ?? 0).catch(() => {});
+      logToolExecution(null, toolName, elapsed, result.success, result.metadata?.count ?? 0).catch((err) => console.error('[intentRouter] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }));
       const sanitizedResult: ToolResult = {
         ...result,
         data: result.data

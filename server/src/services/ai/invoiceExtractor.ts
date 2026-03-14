@@ -2,7 +2,8 @@ import dotenv from 'dotenv';
 import { existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import Anthropic from '@anthropic-ai/sdk';
+
+import { generateVision } from './gateway.js';
 
 // Ensure .env is loaded (works when invoiceExtractor is imported before main index dotenv)
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -33,8 +34,6 @@ export interface InvoiceExtractionResult {
   confidence: number;
   raw_extraction: Record<string, unknown>;
 }
-
-const anthropicClient = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
 const INVOICE_EXTRACTION_PROMPT = `You are a financial document analysis AI specialized in invoice processing. Extract structured data from this invoice image.
 
@@ -132,115 +131,26 @@ function parseExtractionJson(text: string): InvoiceExtractionResult {
   };
 }
 
-async function extractWithAnthropic(
-  imageBase64: string,
-  mediaType: string,
-): Promise<InvoiceExtractionResult> {
-  if (!anthropicClient) {
-    throw new Error('Anthropic API key not configured');
-  }
-
-  const isPdf = mediaType === 'application/pdf';
-  const contentBlock = isPdf
-    ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: imageBase64 } }
-    : { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: imageBase64 } };
-
-  const content: Array<{ type: 'text'; text: string } | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } } | { type: 'document'; source: { type: 'base64'; media_type: string; data: string } }> = [
-    contentBlock,
-    { type: 'text', text: INVOICE_EXTRACTION_PROMPT },
-  ];
-  const response = await anthropicClient.messages.create({
-    model: 'claude-opus-4-5',
-    max_tokens: 4096,
-    messages: [{
-      role: 'user',
-      content: content as any,
-    }],
-  });
-
-  const text = response.content?.[0]?.type === 'text' ? response.content[0].text : '';
-  return parseExtractionJson(text);
-}
-
-async function extractWithGroq(
-  imageBase64: string,
-  mediaType: string,
-): Promise<InvoiceExtractionResult> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('Groq API key not configured');
-  if (mediaType === 'application/pdf') {
-    throw new Error(
-      'PDF scanning requires Anthropic API. Add ANTHROPIC_API_KEY to your server .env, or upload a JPG/PNG image instead.',
-    );
-  }
-
-  const dataUrl = `data:${mediaType};base64,${imageBase64}`;
-
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      max_tokens: 4096,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: dataUrl } },
-          { type: 'text', text: INVOICE_EXTRACTION_PROMPT },
-        ],
-      }],
-    }),
-  });
-
-  const json = await res.json() as { error?: { message?: string }; choices?: Array<{ message?: { content?: string } }> };
-  if (!res.ok || json.error) {
-    throw new Error(json.error?.message || `Groq API error: ${res.status}`);
-  }
-
-  const text = json.choices?.[0]?.message?.content || '';
-  return parseExtractionJson(text);
-}
-
 export async function extractInvoiceData(
   imageBase64: string,
   mediaType: string,
+  options?: { tenantId?: string },
 ): Promise<InvoiceExtractionResult> {
-  // Try Anthropic first (best quality, supports PDFs)
-  if (anthropicClient) {
-    try {
-      return await extractWithAnthropic(imageBase64, mediaType);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isCreditsError = msg.includes('credit balance is too low') || msg.includes('insufficient_quota') || msg.includes('billing');
-      const isAuthError = msg.includes('invalid x-api-key') || msg.includes('authentication_error');
+  const tenantId = options?.tenantId ?? 'system';
 
-      if (isCreditsError || isAuthError) {
-        console.warn(`[invoiceExtractor] Anthropic unavailable (${isCreditsError ? 'credits' : 'auth'}), falling back to Groq vision...`);
-        if (mediaType !== 'application/pdf') {
-          return await extractWithGroq(imageBase64, mediaType);
-        }
-        throw new Error(
-          isCreditsError
-            ? 'AI scanning requires active Anthropic API credits. PDF scanning needs Anthropic — please top up your account at console.anthropic.com, or upload a JPG/PNG image instead.'
-            : 'Anthropic API key is invalid. Please check server configuration.',
-        );
-      }
-
-      // Other API errors (model not found, overloaded, etc.) — try Groq fallback for images
-      if (mediaType !== 'application/pdf') {
-        console.warn(`[invoiceExtractor] Anthropic error: ${msg}. Trying Groq fallback...`);
-        try {
-          return await extractWithGroq(imageBase64, mediaType);
-        } catch (groqErr) {
-          console.error('[invoiceExtractor] Groq fallback also failed:', groqErr instanceof Error ? groqErr.message : groqErr);
-        }
-      }
-      throw new Error(`Invoice scanning failed: ${msg}`);
-    }
+  try {
+    const text = await generateVision({
+      imageBase64,
+      mediaType,
+      prompt: INVOICE_EXTRACTION_PROMPT,
+      tenantId,
+      maxTokens: 4096,
+    });
+    return parseExtractionJson(text);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Invoice scanning failed: ${msg}`);
   }
-
-  // No Anthropic client — go straight to Groq
-  return await extractWithGroq(imageBase64, mediaType);
 }
 
 function computeConfidence(signals: Record<string, unknown>): number {

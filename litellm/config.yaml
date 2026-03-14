@@ -68,12 +68,13 @@ litellm_settings:
 
   # Cost tracking (optional). Set success_callback: ["langfuse"] after: pip install langfuse
 
-  # Redis-backed cache (1 hour TTL). Disabled by default so LiteLLM runs without Redis.
-  # To enable: set REDIS_HOST=localhost REDIS_PORT=6379, then switch cache to true.
-  cache: false
+  # Redis-backed semantic cache. Uses same Redis as BullMQ (REDIS_URL from .env).
+  # Tier TTLs applied per-request from gateway: fast=1h, balanced=30m, complex/frontier=no cache.
+  cache: true
   cache_params:
     type: "redis"
     ttl: 3600
+    # REDIS_URL, REDIS_HOST, REDIS_PORT read from env (npm run litellm loads .env)
 
 general_settings:
   master_key: "os.environ/LITELLM_MASTER_KEY"

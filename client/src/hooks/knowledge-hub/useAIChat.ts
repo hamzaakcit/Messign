@@ -17,6 +17,7 @@ import type {
   AIChartPayload,
   AITablePayload,
   AIWidgetPayload,
+  SpecialistInfo,
 } from '@/types/knowledge-hub/ai';
 import { getAccessToken } from '@/lib/authToken';
 import { API_ORIGIN } from '@/lib/api';
@@ -158,6 +159,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       let accumulatedChartData: AIChartPayload | undefined;
       let accumulatedTableData: AITablePayload | undefined;
       let accumulatedWidgets: AIWidgetPayload[] = [];
+      let accumulatedSpecialist: SpecialistInfo | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -187,12 +189,37 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 );
                 break;
 
+              case 'specialist':
+                accumulatedSpecialist = {
+                  module: (event.module as string) ?? '',
+                  displayName: (event.displayName as string) ?? event.module ?? '',
+                  icon: (event.icon as string) ?? '✨',
+                };
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m
+                  )
+                );
+                break;
+
               case 'sources':
                 accumulatedSources = (event.documents ?? event.content ?? []) as AISourceDocument[];
                 break;
 
               case 'metadata':
                 accumulatedMetadata = event.content as AIResponseMetadata;
+                if (accumulatedMetadata?.specialist && !accumulatedSpecialist) {
+                  accumulatedSpecialist = {
+                    module: accumulatedMetadata.specialist,
+                    displayName: accumulatedMetadata.specialistDisplayName ?? accumulatedMetadata.specialist,
+                    icon: accumulatedMetadata.specialistIcon ?? '✨',
+                  };
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m
+                    )
+                  );
+                }
                 break;
 
               case 'chart_data':
@@ -226,6 +253,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                       ? {
                           ...m,
                           content: accumulatedText || m.content,
+                          specialist: accumulatedSpecialist ?? m.specialist,
                           sources:
                             accumulatedSources.length > 0 ? accumulatedSources : undefined,
                           metadata: accumulatedMetadata,

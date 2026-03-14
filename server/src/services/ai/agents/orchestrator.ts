@@ -1,146 +1,228 @@
 /**
- * Orchestrator Agent — Routing "traffic cop"
+ * Orchestrator Agent — Traffic cop that routes to specialists
  *
- * Classifies user intent and routes to the appropriate specialist agent.
- * Uses fast tier (Groq) for classification only.
+ * Classifies user intent and either responds directly (greetings, general)
+ * or delegates to the appropriate specialist via route_to_specialist.
  */
+
+import type OpenAI from 'openai';
 import { callModelSafe } from '../gateway.js';
 import { getAccessibleModules } from '../../../modules/registry.js';
 import { getSpecialist } from './specialistRegistry.js';
-import { requestApproval } from './approvalFlow.js';
-import type { AgentContext, ActionApproval } from './types.js';
+import { compressConversationContext } from './contextCompressor.js';
+import type { AgentContext } from './types.js';
+import type { DoraRequestContext } from '../dora/types.js';
+import type { ToolContext } from '../types.js';
+import type { OrchestrationResult } from '../orchestrator/types.js';
+import type { PendingActionSSEEvent } from '../actions/types.js';
 
-const ORCHESTRATOR_SYSTEM_PROMPT = `You are the Messign Workspace routing agent. Your job is to:
-1. Understand the user's intent
-2. Determine which department module(s) can handle it
-3. Route to the correct specialist agent
-
-You do NOT perform actions yourself. You classify and route.
-
-Available modules (route by returning a JSON tool call):
-{MODULE_LIST}
-
-For cross-module queries (e.g., "deals at risk because of PTO requests"),
-route to the PRIMARY module first, then indicate secondary modules needed.
-
-If the query is a simple greeting or general question not tied to any module,
-respond directly without routing.`;
-
-export async function runOrchestrator(
-  query: string,
-  context: AgentContext,
-): Promise<string> {
-  const accessibleModules = getAccessibleModules(context.userRoles);
-
-  const moduleList = accessibleModules
-    .map((m) => `- ${m.namespace}: ${m.displayName} (${m.requiredRoles.join(', ') || 'any'})`)
-    .join('\n');
-
-  const systemPrompt = ORCHESTRATOR_SYSTEM_PROMPT.replace('{MODULE_LIST}', moduleList);
-
-  const namespaces = accessibleModules.map((m) => m.namespace);
-  if (namespaces.length === 0) {
-    return "I don't have access to any modules. Please check your permissions.";
+export class NoSpecialistError extends Error {
+  constructor(public readonly module: string) {
+    super(`No specialist for module: ${module}`);
+    this.name = 'NoSpecialistError';
   }
-
-  // Step 1: Classify intent using fast model
-  const classificationResponse = await callModelSafe({
-    tier: 'fast',
-    tenantId: context.tenantId,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: query },
-    ],
-    tools: [
-      {
-        type: 'function',
-        function: {
-          name: 'route_to_specialist',
-          description: 'Route the user query to the appropriate specialist agent',
-          parameters: {
-            type: 'object',
-            properties: {
-              primary_module: {
-                type: 'string',
-                enum: namespaces,
-                description: 'The primary module to handle this query',
-              },
-              refined_query: {
-                type: 'string',
-                description: 'A refined, specific query for the specialist agent',
-              },
-              secondary_modules: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Additional modules needed for cross-module queries',
-              },
-              complexity: {
-                type: 'string',
-                enum: ['low', 'medium', 'high'],
-                description: 'Query complexity assessment',
-              },
-            },
-            required: ['primary_module', 'refined_query', 'complexity'],
-          },
-        },
-      },
-    ],
-  });
-
-  const choice = classificationResponse.choices?.[0];
-  if (!choice?.message) {
-    return "I couldn't process your request. Please try again.";
-  }
-
-  // If the orchestrator responds directly (greeting, general question)
-  if (choice.finish_reason !== 'tool_calls' || !choice.message.tool_calls?.length) {
-    return choice.message.content || "I'm here to help. What would you like to work on?";
-  }
-
-  // Step 2: Parse routing decision
-  const toolCall = choice.message.tool_calls[0];
-  const fn = toolCall.type === 'function' && 'function' in toolCall ? toolCall.function : null;
-  if (!fn?.arguments) {
-    return "I couldn't determine how to route your request. Please try rephrasing.";
-  }
-
-  let routing: {
-    primary_module: string;
-    refined_query: string;
-    secondary_modules?: string[];
-    complexity: 'low' | 'medium' | 'high';
-  };
-  try {
-    routing = JSON.parse(fn.arguments) as typeof routing;
-  } catch {
-    return "I encountered an error parsing the routing decision. Please try again.";
-  }
-
-  // Step 3: Execute specialist agent
-  const specialist = getSpecialist(routing.primary_module);
-  if (!specialist) {
-    return `I don't have access to the ${routing.primary_module} module. Please check your permissions.`;
-  }
-
-  const result = await specialist.execute(routing.refined_query, context);
-
-  // Step 4: Handle cross-module (Phase 3 concern — stub for now)
-  if (routing.secondary_modules && routing.secondary_modules.length > 0) {
-    const crossModuleNote = `\n\n_Note: This analysis could be enriched with data from ${routing.secondary_modules.join(', ')}. Cross-module queries coming soon._`;
-    return (result.content || '') + crossModuleNote;
-  }
-
-  // Step 5: Handle result type
-  if (result.type === 'needs_approval' && result.approvalRequest) {
-    return await handleApprovalRequest(result.approvalRequest, context);
-  }
-
-  return result.content || 'No response from specialist agent.';
 }
 
-async function handleApprovalRequest(
-  approval: ActionApproval,
-  context: AgentContext,
-): Promise<string> {
-  return requestApproval(approval, context);
+const ROUTE_TOOL = {
+  type: 'function' as const,
+  function: {
+    name: 'route_to_specialist',
+    description: 'Route the user\'s question to a specialist module. Use when the question requires data or actions from a specific module. Do NOT use for simple greetings, "hi", "thanks", or general chitchat.',
+    parameters: {
+      type: 'object' as const,
+      properties: {
+        primary_module: { type: 'string', description: 'Module namespace: crm, support, finance, hr, marketing, knowledge, time, okr, heart, executive' },
+        refined_query: { type: 'string', description: 'The user\'s question, possibly refined for the specialist' },
+        complexity: { type: 'string', enum: ['simple', 'moderate', 'complex'], description: 'Estimated complexity' },
+      },
+      required: ['primary_module', 'refined_query'],
+    },
+  },
+};
+
+function buildOrchestratorPrompt(moduleList: string[]): string {
+  return `You are the Messign routing agent. Your job is to classify the user's intent and route to the correct specialist.
+
+Available modules: ${moduleList.join(', ')}
+
+RULES:
+1. You do NOT execute actions or answer data questions yourself. You classify and route.
+2. For simple greetings ("hi", "hello", "thanks", "how are you"), general chitchat, or "what can you do?" — respond directly with a friendly, brief message. Do NOT call route_to_specialist.
+3. For any question that requires data (deals, tickets, metrics, invoices, etc.) or actions (create task, create deal, etc.) — call route_to_specialist with the correct primary_module and the user's question as refined_query.
+4. Pick the single best module. If the question spans multiple areas, pick the primary one.
+
+Examples:
+- "Hi!" → respond directly
+- "What's our pipeline value?" → route_to_specialist(primary_module: "crm", refined_query: "What is our total pipeline value?")
+- "Show me open support tickets" → route_to_specialist(primary_module: "support", refined_query: "Show me open support tickets")
+- "How many invoices are overdue?" → route_to_specialist(primary_module: "finance", refined_query: "How many invoices are overdue?")`;
+}
+
+export function buildAgentContextFromDora(
+  doraCtx: DoraRequestContext,
+  legacyContext: ToolContext,
+  conversationId: string,
+  currentPath: string,
+): AgentContext {
+  const userRoles = [
+    doraCtx.user.userRole,
+    'employee',
+    'manager',
+    'admin',
+    'cpo',
+    'hr',
+    'finance',
+    'finance_admin',
+    'system_admin',
+  ].filter(Boolean);
+
+  return {
+    tenantId: doraCtx.user.organizationId ?? 'no-tenant',
+    userId: doraCtx.user.userId,
+    userRoles,
+    userName: doraCtx.user.userName,
+    userRole: doraCtx.user.userRole,
+    conversationId,
+    currentPage: currentPath,
+    currentModule: doraCtx.page.currentModule,
+    todayDate: doraCtx.todayDate,
+    conciseMode: doraCtx.conciseMode,
+    organizationId: doraCtx.user.organizationId,
+    department: doraCtx.user.department,
+    teamId: doraCtx.user.teamId,
+    doraCtx,
+    legacyContext,
+  };
+}
+
+/**
+ * Run the orchestrator: classify intent, then either respond directly or delegate to specialist.
+ * @param onSpecialist - Optional callback fired when routing to a specialist (before streaming answer)
+ */
+export async function runOrchestrator(
+  query: string,
+  history: Array<{ role: string; content: string }>,
+  agentContext: AgentContext,
+  onChunk: (chunk: string) => void,
+  onSpecialist?: (info: { module: string }) => void,
+): Promise<OrchestrationResult> {
+  const modules = getAccessibleModules(agentContext.userRoles);
+  const moduleList = modules.map((m: { namespace: string }) => m.namespace);
+  const systemPrompt = buildOrchestratorPrompt(moduleList);
+
+  const messages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    ...history.slice(-4)
+      .filter((h) => h.role === 'user' || h.role === 'assistant')
+      .map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+    { role: 'user', content: query },
+  ];
+
+  const response = await callModelSafe({
+    tier: 'fast',
+    messages,
+    tools: [ROUTE_TOOL as unknown as OpenAI.ChatCompletionTool],
+    tenantId: agentContext.tenantId,
+    maxTokens: 500,
+    temperature: 0.1,
+  });
+
+  const choice = response.choices?.[0];
+  const message = choice?.message;
+  if (!message) {
+    throw new Error('No message in orchestrator response');
+  }
+
+  const directContent = message.content?.trim();
+  const toolCalls = message.tool_calls;
+
+  if (!toolCalls || toolCalls.length === 0) {
+    const answer = directContent || "How can I help you today?";
+    onChunk(answer);
+    return {
+      success: true,
+      finalAnswer: answer,
+      steps: [],
+      stepCount: 0,
+      terminationReason: 'complete',
+      toolsUsed: [],
+      totalDataPoints: 0,
+      totalTokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      totalDurationMs: 0,
+    };
+  }
+
+  const routeCall = toolCalls.find((tc) => tc.type === 'function' && tc.function?.name === 'route_to_specialist');
+  if (!routeCall || routeCall.type !== 'function' || !routeCall.function) {
+    const answer = directContent || "I'll route that to the right specialist. One moment.";
+    onChunk(answer);
+    return {
+      success: true,
+      finalAnswer: answer,
+      steps: [],
+      stepCount: 0,
+      terminationReason: 'complete',
+      toolsUsed: [],
+      totalDataPoints: 0,
+      totalTokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      totalDurationMs: 0,
+    };
+  }
+
+  let args: { primary_module?: string; refined_query?: string } = {};
+  try {
+    args = JSON.parse(routeCall.function.arguments || '{}') as typeof args;
+  } catch {
+    console.warn('[Orchestrator] Failed to parse route_to_specialist args');
+  }
+
+  const primaryModule = args.primary_module?.toLowerCase().trim();
+  const refinedQuery = args.refined_query?.trim() || query;
+
+  const specialist = primaryModule ? getSpecialist(primaryModule) : undefined;
+
+  if (!specialist) {
+    throw new NoSpecialistError(primaryModule ?? 'unknown');
+  }
+
+  onSpecialist?.({ module: primaryModule ?? 'unknown' });
+
+  let priorContext: string | undefined;
+  if (history.length > 0) {
+    priorContext = await compressConversationContext(history, agentContext.tenantId);
+  }
+
+  const result = await specialist.execute(refinedQuery, agentContext, priorContext);
+
+  if (result.type !== 'final_answer') {
+    const answer = ('content' in result ? result.content : null) ?? "I've routed your request. Please check the confirmation below.";
+    onChunk(answer);
+    return {
+      success: true,
+      finalAnswer: answer,
+      steps: [],
+      stepCount: 1,
+      terminationReason: 'complete',
+      toolsUsed: [primaryModule ?? 'unknown'],
+      totalDataPoints: 0,
+      totalTokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      totalDurationMs: 0,
+      pendingActions: [],
+    };
+  }
+
+  onChunk(result.content);
+
+  return {
+    success: true,
+    finalAnswer: result.content,
+    steps: [],
+    stepCount: 1,
+    terminationReason: 'complete',
+    toolsUsed: [primaryModule ?? 'unknown'],
+    totalDataPoints: 0,
+    totalTokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    totalDurationMs: 0,
+    pendingActions: result.pendingActions ?? [],
+  };
 }

@@ -8,6 +8,7 @@ const DEFAULT_ORG_SLUG = 'messign';
 export interface ReimbursementRequest extends Request {
   reimbursementUser?: ReimbursementUser;
   organizationId?: string;
+  tenantId?: string;
 }
 
 export async function reimbursementAuth(req: ReimbursementRequest, res: Response, next: NextFunction): Promise<void> {
@@ -41,6 +42,7 @@ export async function reimbursementAuth(req: ReimbursementRequest, res: Response
 
     req.reimbursementUser = mapReimbursementUser(row as any);
     req.organizationId = orgId;
+    req.tenantId = orgId;
     next();
   } catch (err) {
     console.error('reimbursementAuth', err);

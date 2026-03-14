@@ -3,9 +3,9 @@
  * Subscribes to crm.* domain events.
  */
 import type { EventBus } from '../../../platform/eventBus.js';
-import { crossModuleQueue, notificationQueue, gamificationQueue } from '../../../queue/index.js';
+import { crossModuleQueue, notificationQueue, gamificationQueue, embeddingsQueue } from '../../../queue/index.js';
 import { emitToUser } from '../../../sockets/index.js';
-import { embedAndStore } from '../../../services/ai/rag/embeddingPipeline.js';
+import type { EmbeddingInput } from '../../../services/ai/rag/embeddingPipeline.js';
 
 export function registerCrmEventHandlers(eventBus: EventBus): void {
   registerCrmEmbeddingHandlers(eventBus);
@@ -64,45 +64,37 @@ export function registerCrmEventHandlers(eventBus: EventBus): void {
   console.log('[Module] CRM event handlers registered');
 }
 
-/** Cross-module RAG: embed CRM activity notes and deal descriptions */
+const CRM_ACCESS_ROLES = ['sales', 'manager', 'admin'];
+
+/** Cross-module RAG: enqueue CRM activity notes and deal descriptions for embedding */
 function registerCrmEmbeddingHandlers(eventBus: EventBus): void {
   eventBus.on('crm.activity.logged', async (payload: { tenantId?: string; activityId?: string; dealId?: string; contactId?: string; type?: string; notes?: string }) => {
-    if (!payload.notes || !payload.tenantId) return;
-    try {
-      await embedAndStore({
-        tenantId: payload.tenantId,
-        sourceModule: 'crm',
-        sourceType: 'activity_note',
-        sourceId: payload.activityId!,
-        text: payload.notes,
-        metadata: {
-          deal_id: payload.dealId,
-          contact_id: payload.contactId,
-          activity_type: payload.type,
-        },
-        accessRoles: ['sales', 'manager', 'admin'],
-        sensitivity: 'normal',
-      });
-    } catch (err) {
-      console.error('[CRM Embedding] activity.logged', err);
-    }
+    if (!payload.notes || !payload.tenantId || !payload.activityId) return;
+    const input: EmbeddingInput = {
+      tenantId: payload.tenantId,
+      sourceModule: 'crm',
+      sourceType: 'activity_note',
+      sourceId: payload.activityId,
+      text: payload.notes,
+      metadata: { deal_id: payload.dealId, contact_id: payload.contactId, activity_type: payload.type },
+      accessRoles: CRM_ACCESS_ROLES,
+      sensitivity: 'normal',
+    };
+    await embeddingsQueue.add('embed', { type: 'embed', payload: input }).catch((err) => console.error('[CRM Embedding] activity.logged enqueue', err));
   });
 
-  eventBus.on('crm.deal.updated', async (payload: { tenantId?: string; dealId?: string; name?: string; value?: number; stage?: string; description?: string; changes?: string[] }) => {
+  eventBus.on('crm.deal.updated', async (payload: { tenantId?: string; dealId?: string; name?: string; value?: number; stage?: string; description?: string }) => {
     if (!payload.description || !payload.tenantId || !payload.dealId) return;
-    try {
-      await embedAndStore({
-        tenantId: payload.tenantId,
-        sourceModule: 'crm',
-        sourceType: 'deal_description',
-        sourceId: payload.dealId,
-        text: `Deal: ${payload.name ?? ''}. Value: ${payload.value ?? 0}. Stage: ${payload.stage ?? ''}. ${payload.description}`,
-        metadata: { deal_id: payload.dealId, value: payload.value, stage: payload.stage },
-        accessRoles: ['sales', 'manager', 'admin'],
-        sensitivity: 'normal',
-      });
-    } catch (err) {
-      console.error('[CRM Embedding] deal.updated', err);
-    }
+    const input: EmbeddingInput = {
+      tenantId: payload.tenantId,
+      sourceModule: 'crm',
+      sourceType: 'deal_description',
+      sourceId: payload.dealId,
+      text: `Deal: ${payload.name ?? ''}. Value: ${payload.value ?? 0}. Stage: ${payload.stage ?? ''}. ${payload.description}`,
+      metadata: { deal_id: payload.dealId, value: payload.value, stage: payload.stage },
+      accessRoles: CRM_ACCESS_ROLES,
+      sensitivity: 'normal',
+    };
+    await embeddingsQueue.add('embed', { type: 'embed', payload: input }).catch((err) => console.error('[CRM Embedding] deal.updated enqueue', err));
   });
 }

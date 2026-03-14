@@ -175,7 +175,7 @@ BEGIN
   -- dora_sessions: backfill from user (reimbursement_users)
   ALTER TABLE dora_sessions ADD COLUMN IF NOT EXISTS tenant_id UUID;
   UPDATE dora_sessions ds SET tenant_id = COALESCE(ru.organization_id, default_org_id)
-  FROM reimbursement_users ru WHERE ru.id::text = ds.user_id AND ds.tenant_id IS NULL;
+  FROM reimbursement_users ru WHERE ru.id::text = ds.user_id::text AND ds.tenant_id IS NULL;
   UPDATE dora_sessions SET tenant_id = default_org_id WHERE tenant_id IS NULL;
   ALTER TABLE dora_sessions ALTER COLUMN tenant_id SET NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_dora_sessions_tenant ON dora_sessions(tenant_id);

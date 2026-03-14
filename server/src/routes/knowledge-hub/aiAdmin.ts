@@ -138,10 +138,12 @@ router.get('/rate-limit/:userId', (req: any, res: any) => {
  * API key configuration status (never exposes keys).
  */
 router.get('/providers', (req: any, res: any) => {
+  // API keys are used only by gateway.ts and groqToolCalling.ts (fallback).
+  // LiteLLM proxy reads keys from env; we report gateway availability.
+  const gatewayUrl = process.env.LITELLM_URL || 'http://localhost:4000/v1';
   res.json({
-    groq: { configured: !!(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim()) },
-    gemini: { configured: !!(process.env.GOOGLE_GEMINI_API_KEY && process.env.GOOGLE_GEMINI_API_KEY.trim()) },
-    anthropic: { configured: !!(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY.trim()) },
+    gateway: { configured: true, url: gatewayUrl },
+    note: 'AI providers are configured via LiteLLM. Keys: GROQ_API_KEY, GOOGLE_GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY.',
   });
 });
 

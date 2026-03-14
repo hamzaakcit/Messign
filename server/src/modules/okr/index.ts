@@ -1,11 +1,13 @@
 /**
- * OKR Module — Platform plugin (stub)
- * Wraps existing OKR routes. Tools and prompts to be migrated.
+ * OKR Module — Platform plugin
  */
-import { Router } from 'express';
+import type { Router } from 'express';
 import type { PlatformModule, ToolRegistration } from '../types.js';
 import type { EventBus } from '../../platform/eventBus.js';
-import { okrRouter } from '../../routes/okr/index.js';
+import { okrTools } from './tools/index.js';
+import { registerOkrEventHandlers } from './events/subscribers.js';
+import { getOkrSystemPromptFragment } from './prompts/okrContext.js';
+import okrRouter from './routes/index.js';
 
 export const okrModule: PlatformModule = {
   namespace: 'okr',
@@ -13,18 +15,18 @@ export const okrModule: PlatformModule = {
   requiredRoles: ['manager', 'admin'],
 
   registerTools(): ToolRegistration[] {
-    return [];
+    return okrTools;
   },
 
   getRouter(): Router {
     return okrRouter;
   },
 
-  registerEventHandlers(_eventBus: EventBus): void {
-    // Event handlers for okr.* events when ready
+  registerEventHandlers(eventBus: EventBus): void {
+    registerOkrEventHandlers(eventBus);
   },
 
   getSystemPromptFragment(userRole: string): string {
-    return `You are the OKR specialist. Current role: ${userRole}. Capabilities: goals, key results, check-ins.`;
+    return getOkrSystemPromptFragment(userRole);
   },
 };

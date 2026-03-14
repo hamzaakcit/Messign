@@ -1,7 +1,7 @@
 import { query } from '../../db/index.js';
 import { doraSchedulerQueue } from '../../queue/index.js';
 import type { CallerContext } from '../../dal/types.js';
-import * as support from '../../dal/support/index.js';
+import * as support from '../../modules/support/dal/index.js';
 import { eventBus } from '../../events/index.js';
 import { slaService } from './slaService.js';
 import { notificationService } from './notificationService.js';

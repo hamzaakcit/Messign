@@ -24,32 +24,34 @@ registerTool({
   },
   async execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
     const period = (args.period as string) ?? 'month';
-    const interval = { month: '1 month', quarter: '3 months', year: '1 year' }[period] ?? '1 month';
+    const intervalMap: Record<string, string> = { month: '1 month', quarter: '3 months', year: '1 year' };
+    const interval = intervalMap[period] ?? '1 month';
 
     const orgResult = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
     const orgId = orgResult.rows[0]?.id;
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
+    const params = [orgId, interval];
     const [byCategory, topExpenses, summary] = await Promise.all([
       query(
         `SELECT category_slug, COUNT(*) as count, SUM(original_amount) as total, AVG(original_amount) as avg
          FROM reimbursement_requests
-         WHERE organization_id = $1 AND is_deleted = FALSE AND expense_date >= NOW() - INTERVAL '${interval}'
+         WHERE organization_id = $1 AND is_deleted = FALSE AND expense_date >= NOW() - $2::interval
          GROUP BY category_slug ORDER BY total DESC LIMIT 10`,
-        [orgId],
+        params,
       ),
       query(
         `SELECT title, original_amount, category_slug, expense_date, status
          FROM reimbursement_requests
-         WHERE organization_id = $1 AND is_deleted = FALSE AND expense_date >= NOW() - INTERVAL '${interval}'
+         WHERE organization_id = $1 AND is_deleted = FALSE AND expense_date >= NOW() - $2::interval
          ORDER BY original_amount DESC LIMIT 5`,
-        [orgId],
+        params,
       ),
       query<{ total: string; count: string; avg: string }>(
         `SELECT SUM(original_amount) as total, COUNT(*) as count, AVG(original_amount) as avg
          FROM reimbursement_requests
-         WHERE organization_id = $1 AND is_deleted = FALSE AND expense_date >= NOW() - INTERVAL '${interval}'`,
-        [orgId],
+         WHERE organization_id = $1 AND is_deleted = FALSE AND expense_date >= NOW() - $2::interval`,
+        params,
       ),
     ]);
 

@@ -84,7 +84,7 @@ router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
 
 router.delete('/:id', async (req: ReimbursementRequest, res: Response) => {
   try {
-    await contactsDal.deleteContact(req.params.id);
+    await contactsDal.deleteContact(buildCtx(req), req.params.id);
     res.json({ success: true });
   } catch (err) {
     console.error('[crm/contacts/:id DELETE]', err);
