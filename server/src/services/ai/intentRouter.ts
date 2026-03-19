@@ -19,6 +19,7 @@ import { classifyQuery, type ClassificationResult, type QueryIntent } from './qu
 import { buildDoraRouterPrompt } from './dora/prompts.js';
 import type { DoraRequestContext } from './dora/types.js';
 import type { ToolContext, ToolResult, RouterResult, ChatMessage, ParsedToolCall, LLMToolDefinition } from './types.js';
+import { getPresetCallsForIntentId } from './intentIdPresets.js';
 
 function toOpenAITools(tools: LLMToolDefinition[]): OpenAI.ChatCompletionTool[] {
   return tools.map((t) => ({
@@ -459,6 +460,34 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
   return null;
 }
 
+async function executeForcedToolCalls(
+  forcedCalls: ParsedToolCall[],
+  context: ToolContext,
+  logLabel: string,
+): Promise<RouterResult> {
+  console.log(`[Intent Router] ${logLabel}:`, forcedCalls.map((t) => t.name).join(', '));
+  const executions = forcedCalls.map(async (call) => {
+    const start = Date.now();
+    const result = await executeTool(call.name, call.args as Record<string, unknown>, context);
+    const elapsed = Date.now() - start;
+    logToolExecution(null, call.name, elapsed, result.success, result.metadata?.count ?? 0).catch((err) =>
+      console.error('[intentRouter] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }),
+    );
+    return { name: call.name, result, elapsed };
+  });
+  const results = await Promise.all(executions);
+  const toolResults = results.map((r) => ({
+    ...r.result,
+    data: r.result.data ? sanitizeData(r.result.data, context.userRole === 'admin') : null,
+  }));
+  return {
+    toolResults,
+    toolsUsed: results.map((r) => r.name),
+    combinedContext: formatCombinedContext(toolResults, results.map((r) => r.name)),
+    isConversational: false,
+  };
+}
+
 /**
  * Route a user's query to the appropriate tools.
  */
@@ -467,29 +496,19 @@ export async function routeQuery(
   history: ChatMessage[],
   context: ToolContext,
   doraCtx?: DoraRequestContext,
+  options?: { intentId?: string },
 ): Promise<RouterResult> {
+  if (options?.intentId) {
+    const preset = getPresetCallsForIntentId(options.intentId);
+    if (preset?.length) {
+      return executeForcedToolCalls(preset, context, `Intent-id preset (${options.intentId})`);
+    }
+  }
+
   // Pre-route: force correct tool for common personal-data queries
   const forcedCalls = getForcedToolCalls(query);
   if (forcedCalls) {
-    console.log('[Intent Router] Pre-routed to:', forcedCalls.map((t) => t.name).join(', '));
-    const executions = forcedCalls.map(async (call) => {
-      const start = Date.now();
-      const result = await executeTool(call.name, call.args as Record<string, unknown>, context);
-      const elapsed = Date.now() - start;
-      logToolExecution(null, call.name, elapsed, result.success, result.metadata?.count ?? 0).catch((err) => console.error('[intentRouter] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }));
-      return { name: call.name, result, elapsed };
-    });
-    const results = await Promise.all(executions);
-    const toolResults = results.map((r) => ({
-      ...r.result,
-      data: r.result.data ? sanitizeData(r.result.data, context.userRole === 'admin') : null,
-    }));
-    return {
-      toolResults,
-      toolsUsed: results.map((r) => r.name),
-      combinedContext: formatCombinedContext(toolResults, results.map((r) => r.name)),
-      isConversational: false,
-    };
+    return executeForcedToolCalls(forcedCalls, context, 'Pre-routed to');
   }
 
   const classification = classifyQuery(query);

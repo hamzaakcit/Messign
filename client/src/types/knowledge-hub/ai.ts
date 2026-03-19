@@ -15,11 +15,24 @@ export interface SpecialistInfo {
   icon: string;
 }
 
+/** Act mode: server asked for confirmation before executing a mutation */
+export interface DoraPendingConfirmation {
+  action: string;
+  params: Record<string, unknown>;
+  message: string;
+  sourceQuery: string;
+  sourceIntentId?: string;
+}
+
 export interface AIMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  /** Registry intent id when the user sent a chip suggestion */
+  intentId?: string;
+  /** Act mode — user must confirm before the assistant proceeds */
+  pendingConfirmation?: DoraPendingConfirmation;
   /** Which specialist handled this response (orchestrator routing) */
   specialist?: SpecialistInfo | null;
   /** Metadata about the AI response (only on assistant messages) */
@@ -55,6 +68,8 @@ export interface AIResponseMetadata {
   terminationReason?: string;
   /** Telemetry record ID for feedback linking (Phase 3) */
   telemetryId?: string;
+  /** Chip / direct-intent id when answer came from preset execution */
+  intentId?: string;
   /** Specialist module (from metadata when no specialist event) */
   specialist?: string | null;
   specialistDisplayName?: string | null;

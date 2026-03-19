@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useWidgetContext, type SuggestionChip } from '@/hooks/useWidgetContext';
+import { useWidgetContext } from '@/hooks/useWidgetContext';
+import { INTENT_ICON_MAP } from '@/components/knowledge-hub/ai/AISuggestionChips';
 import { useAuthStore } from '@/stores/authStore';
 import { getAccessToken } from '@/lib/authToken';
 import { API_ORIGIN } from '@/lib/api';
@@ -80,7 +81,7 @@ export function FloatingWidget() {
     }
   }, [widgetState]);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, intentId?: string) => {
     if (!text.trim() || isStreaming) return;
 
     const userMsg: WidgetMessage = {
@@ -121,6 +122,7 @@ export function FloatingWidget() {
         },
         body: JSON.stringify({
           query: text.trim(),
+          intent: intentId || undefined,
           history,
           concise: conciseMode,
           currentPath: widgetContext.currentPath,
@@ -136,6 +138,55 @@ export function FloatingWidget() {
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      if (response.headers.get('X-Response-Mode') === 'instant') {
+        const body = (await response.json()) as {
+          text: string;
+          metadata?: {
+            toolsUsed?: string[];
+            dataPoints?: number;
+            responseTimeMs?: number;
+            steps?: number;
+            specialist?: string | null;
+            specialistDisplayName?: string | null;
+            specialistIcon?: string | null;
+          };
+        };
+        const meta = body.metadata;
+        const specialist =
+          meta?.specialist && typeof meta.specialist === 'string'
+            ? {
+                module: meta.specialist,
+                displayName: meta.specialistDisplayName ?? meta.specialist,
+                icon: meta.specialistIcon ?? '✨',
+              }
+            : null;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsg.id
+              ? {
+                  ...m,
+                  content: body.text || '',
+                  specialist: specialist ?? m.specialist,
+                  metadata: meta
+                    ? {
+                        toolsUsed: meta.toolsUsed ?? [],
+                        dataPoints: meta.dataPoints ?? 0,
+                        responseTimeMs: meta.responseTimeMs ?? 0,
+                        steps: meta.steps,
+                        specialist: meta.specialist ?? null,
+                        specialistDisplayName: meta.specialistDisplayName ?? null,
+                        specialistIcon: meta.specialistIcon ?? null,
+                      }
+                    : m.metadata,
+                  isStreaming: false,
+                }
+              : m
+          )
+        );
+        return;
+      }
+
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
@@ -329,8 +380,8 @@ export function FloatingWidget() {
     }
   };
 
-  const handleSuggestionClick = (chip: SuggestionChip) => {
-    sendMessage(chip.query);
+  const handleSuggestionClick = (query: string, intentId?: string) => {
+    sendMessage(query, intentId);
   };
 
   const stopStreaming = () => {
@@ -422,19 +473,35 @@ export function FloatingWidget() {
             </p>
 
             <div className="flex flex-wrap gap-1.5 justify-center">
-              {suggestions.slice(0, 6).map((chip) => (
-                <button
-                  key={chip.query}
-                  onClick={() => handleSuggestionClick(chip)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-gray-700
-                           text-gray-300 hover:border-blue-500 hover:text-blue-400
-                           hover:bg-blue-500/5 transition-all duration-150"
-                >
-                  {chip.icon && <span className="mr-1">{chip.icon}</span>}
-                  {chip.label}
-                </button>
-              ))}
+              {suggestions.map((chip, i) => {
+                const Icon = chip.icon ? INTENT_ICON_MAP[chip.icon] : null;
+                return (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    title={chip.query}
+                    onClick={() => handleSuggestionClick(chip.query, chip.id)}
+                    style={{
+                      animation: 'dora-wchip-in 0.35s ease-out forwards',
+                      animationDelay: `${i * 50}ms`,
+                      opacity: 0,
+                    }}
+                    className="text-xs px-4 py-2 rounded-full border border-gray-700 inline-flex items-center gap-1
+                           text-gray-300 hover:border-blue-500 hover:text-blue-400 hover:scale-[1.02]
+                           hover:bg-blue-500/5 transition-all duration-200"
+                  >
+                    {Icon && <Icon size={12} className="opacity-70 shrink-0" />}
+                    {chip.label}
+                  </button>
+                );
+              })}
             </div>
+            <style>{`
+              @keyframes dora-wchip-in {
+                from { opacity: 0; transform: translateY(4px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+            `}</style>
           </div>
         ) : (
           messages.map((msg) => (
@@ -493,13 +560,15 @@ export function FloatingWidget() {
       {/* Suggestion chips (compact, when chat has messages) */}
       {messages.length > 0 && !isStreaming && (
         <div className="px-4 pb-1 flex gap-1 overflow-x-auto scrollbar-hide">
-          {suggestions.slice(0, 4).map((chip) => (
+          {suggestions.map((chip) => (
             <button
-              key={chip.query}
-              onClick={() => handleSuggestionClick(chip)}
-              className="text-[10px] px-2 py-1 rounded-full border border-gray-700/50
+              key={chip.id}
+              type="button"
+              title={chip.query}
+              onClick={() => handleSuggestionClick(chip.query, chip.id)}
+              className="text-[10px] px-3 py-1.5 rounded-full border border-gray-700/50
                        text-gray-400 hover:text-blue-400 hover:border-blue-500/50
-                       whitespace-nowrap transition-colors flex-shrink-0"
+                       whitespace-nowrap transition-all duration-200 flex-shrink-0 hover:scale-[1.02]"
             >
               {chip.label}
             </button>

@@ -34,13 +34,37 @@ vi.mock('@/stores/doraStore', () => ({
   }),
 }));
 
+vi.mock('@/stores/doraSessionStore', () => {
+  const mem = {
+    recentIntents: [] as string[],
+    frequentCategories: [] as string[],
+    preferredMode: 'concise' as const,
+    conversationContext: [] as string[],
+    visitedModulePrefixes: [] as string[],
+    addIntent: vi.fn(),
+    clearSession: vi.fn(),
+    setPreferredMode: vi.fn(),
+    setConversationContext: vi.fn(),
+    recordPath: vi.fn(),
+  };
+  const useStore = vi.fn((selector?: (s: unknown) => unknown) => (selector ? selector(mem) : mem));
+  return { useDoraSessionStore: Object.assign(useStore, { getState: () => mem }) };
+});
+
 vi.mock('@/hooks/knowledge-hub/useAIChat', () => ({
   useAIChat: vi.fn(() => ({
     messages: [],
+    isLoading: false,
     isStreaming: false,
+    error: null,
+    interactionMode: 'ask',
+    setInteractionMode: vi.fn(),
     sendMessage: vi.fn(),
-    stopStreaming: vi.fn(),
-    clearMessages: vi.fn(),
+    submitFeedback: vi.fn(),
+    clearPendingConfirmation: vi.fn(),
+    cancelActConfirmation: vi.fn(),
+    clearChat: vi.fn(),
+    abortStream: vi.fn(),
   })),
 }));
 

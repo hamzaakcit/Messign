@@ -27,6 +27,16 @@ function generateMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+export interface SendMessageOptions {
+  intentId?: string;
+  confirmed?: boolean;
+  confirmation?: { action: string; params: Record<string, unknown> };
+  /** Act confirm: POST without adding another user bubble */
+  skipUserMessage?: boolean;
+}
+
+export type InteractionMode = 'ask' | 'analyze' | 'act';
+
 interface UseAIChatOptions {
   /** Maximum messages to keep in history (default 50) */
   maxHistory?: number;
@@ -36,21 +46,24 @@ interface UseAIChatOptions {
   initialMessages?: AIMessage[];
   /** Called whenever the messages array changes */
   onMessagesChange?: (messages: AIMessage[]) => void;
+  /** Default Ask / Analyze / Act (Dora) */
+  initialInteractionMode?: InteractionMode;
 }
-
-export type ResponseMode = 'concise' | 'detailed' | 'search' | 'claude';
 
 interface UseAIChatReturn {
   messages: AIMessage[];
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
+  /** Knowledge Hub: concise ↔ maps to Ask vs Analyze */
   conciseMode: boolean;
   setConciseMode: (value: boolean) => void;
-  responseMode: ResponseMode;
-  setResponseMode: (mode: ResponseMode) => void;
-  sendMessage: (query: string) => Promise<void>;
+  interactionMode: InteractionMode;
+  setInteractionMode: (mode: InteractionMode) => void;
+  sendMessage: (query: string, options?: SendMessageOptions) => Promise<void>;
   submitFeedback: (messageId: string, isHelpful: boolean) => Promise<void>;
+  cancelActConfirmation: (assistantMessageId: string) => void;
+  clearPendingConfirmation: (assistantMessageId: string) => void;
   clearChat: () => void;
   abortStream: () => void;
 }
@@ -61,6 +74,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     apiBaseUrl = `${API_ORIGIN}/api/knowledge-hub`,
     initialMessages,
     onMessagesChange,
+    initialInteractionMode = 'ask',
   } = options;
 
   const onMessagesChangeRef = useRef(onMessagesChange);
@@ -70,8 +84,12 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conciseMode, setConciseMode] = useState(true);
-  const [responseMode, setResponseMode] = useState<ResponseMode>('concise');
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(initialInteractionMode);
+
+  const conciseMode = interactionMode === 'ask';
+  const setConciseMode = useCallback((value: boolean) => {
+    setInteractionMode(value ? 'ask' : 'analyze');
+  }, []);
 
   const sessionId = useMemo(() => crypto.randomUUID(), []);
 
@@ -84,7 +102,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const messagesRef = useRef<AIMessage[]>([]);
   messagesRef.current = messages;
 
-  const sendMessage = useCallback(async (query: string) => {
+  const sendMessage = useCallback(async (query: string, options?: SendMessageOptions) => {
     if (!query.trim() || isLoading) return;
 
     setError(null);
@@ -95,6 +113,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       role: 'user',
       content: query.trim(),
       timestamp: new Date(),
+      ...(options?.intentId ? { intentId: options.intentId } : {}),
     };
 
     const assistantMessage: AIMessage = {
@@ -108,8 +127,10 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
     const prevMessages = messagesRef.current;
     setMessages((prev) => {
-      const updated = [...prev, userMessage, assistantMessage];
-      return updated.slice(-maxHistory);
+      const next = options?.skipUserMessage
+        ? [...prev, assistantMessage]
+        : [...prev, userMessage, assistantMessage];
+      return next.slice(-maxHistory);
     });
 
     const history = prevMessages
@@ -129,18 +150,92 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         },
         body: JSON.stringify({
           query: query.trim(),
+          intent: options?.intentId || undefined,
           history,
-          concise: responseMode !== 'detailed',
+          mode: interactionMode,
+          concise: interactionMode === 'ask',
           currentPath: window.location.pathname,
           sessionId,
-          searchMode: responseMode === 'search',
-          ...(responseMode === 'claude' ? { provider: 'claude' } : {}),
+          searchMode: false,
+          ...(options?.confirmed === true && options?.confirmation
+            ? {
+                confirmed: true,
+                confirmation: {
+                  action: options.confirmation.action,
+                  params: options.confirmation.params,
+                },
+              }
+            : {}),
         }),
         signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
         throw new Error(`AI request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const responseModeHeader = response.headers.get('X-Response-Mode');
+      if (responseModeHeader === 'confirmation') {
+        const body = (await response.json()) as {
+          type?: string;
+          action: string;
+          params: Record<string, unknown>;
+          message: string;
+        };
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessage.id
+              ? {
+                  ...m,
+                  content: body.message || 'Please confirm this action.',
+                  pendingConfirmation: {
+                    action: body.action,
+                    params: body.params ?? {},
+                    message: body.message,
+                    sourceQuery: query.trim(),
+                    sourceIntentId: options?.intentId,
+                  },
+                  isStreaming: false,
+                }
+              : m
+          )
+        );
+        return;
+      }
+
+      if (responseModeHeader === 'instant') {
+        const body = (await response.json()) as {
+          text: string;
+          widgets?: AIWidgetPayload[];
+          sources?: AISourceDocument[];
+          metadata?: AIResponseMetadata;
+        };
+        const meta = body.metadata;
+        const specMod = meta?.specialist;
+        const accumulatedSpecialist: SpecialistInfo | null =
+          specMod && typeof specMod === 'string'
+            ? {
+                module: specMod,
+                displayName: meta?.specialistDisplayName ?? specMod,
+                icon: meta?.specialistIcon ?? '✨',
+              }
+            : null;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessage.id
+              ? {
+                  ...m,
+                  content: body.text || '',
+                  specialist: accumulatedSpecialist ?? m.specialist,
+                  sources: body.sources?.length ? body.sources : undefined,
+                  metadata: meta,
+                  widgets: body.widgets?.length ? body.widgets : undefined,
+                  isStreaming: false,
+                }
+              : m
+          )
+        );
+        return;
       }
 
       if (!response.body) {
@@ -305,7 +400,30 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  }, [isLoading, conciseMode, responseMode, maxHistory, apiBaseUrl, sessionId]);
+  }, [isLoading, interactionMode, maxHistory, apiBaseUrl, sessionId]);
+
+  const cancelActConfirmation = useCallback((assistantMessageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantMessageId
+          ? {
+              ...m,
+              pendingConfirmation: undefined,
+              content: m.content?.includes('?') ? `${m.content}\n\n_(Cancelled.)_` : 'Action cancelled.',
+              isStreaming: false,
+            }
+          : m
+      )
+    );
+  }, []);
+
+  const clearPendingConfirmation = useCallback((assistantMessageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantMessageId ? { ...m, pendingConfirmation: undefined } : m
+      )
+    );
+  }, []);
 
   const submitFeedback = useCallback(
     async (messageId: string, isHelpful: boolean) => {
@@ -359,10 +477,12 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     error,
     conciseMode,
     setConciseMode,
-    responseMode,
-    setResponseMode,
+    interactionMode,
+    setInteractionMode,
     sendMessage,
     submitFeedback,
+    cancelActConfirmation,
+    clearPendingConfirmation,
     clearChat,
     abortStream,
   };

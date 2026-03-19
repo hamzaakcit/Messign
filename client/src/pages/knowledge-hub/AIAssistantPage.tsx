@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Send,
   Trash2,
@@ -23,8 +24,10 @@ import { PresentationViewer } from '@/components/knowledge-hub/PresentationViewe
 const PRESENTATION_SUGGESTION = { label: 'Create a presentation about Messign', topic: 'Messign' };
 
 export function AIAssistantPage() {
+  const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const userRole = user?.role ?? 'member';
+  const [recentIntentIds, setRecentIntentIds] = useState<string[]>([]);
 
   const {
     messages,
@@ -73,10 +76,11 @@ export function AIAssistantPage() {
   };
 
   const handleSuggestion = useCallback(
-    (query: string) => {
-      sendMessage(query);
+    (query: string, intentId?: string) => {
+      if (intentId) setRecentIntentIds((prev) => [...prev, intentId].slice(-12));
+      void sendMessage(query, intentId ? { intentId } : undefined);
     },
-    [sendMessage]
+    [sendMessage],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -147,7 +151,10 @@ export function AIAssistantPage() {
                 </button>
                 {messages.length > 0 && (
                   <button
-                    onClick={clearChat}
+                    onClick={() => {
+                      clearChat();
+                      setRecentIntentIds([]);
+                    }}
                     className="p-1.5 rounded-lg hover:bg-dark-700 text-gray-500 hover:text-danger-500 transition-colors"
                     title="Clear chat"
                   >
@@ -176,6 +183,9 @@ export function AIAssistantPage() {
                   <AISuggestionChips
                     userRole={userRole}
                     onSuggestionClick={handleSuggestion}
+                    surface="knowledge-hub"
+                    currentPath={location.pathname}
+                    recentIntentIds={recentIntentIds}
                   />
                   <div className="mt-6 w-full max-w-md">
                     <button
@@ -202,13 +212,20 @@ export function AIAssistantPage() {
                 </div>
               )}
 
-              {messages.map((msg) => (
+              {messages.map((msg, i) => (
                 <AIMessageBubble
                   key={msg.id}
                   message={msg}
+                  priorUserMessage={i > 0 ? messages[i - 1] : undefined}
+                  userRole={userRole}
+                  currentPath={location.pathname}
                   onFeedback={
                     msg.role === 'assistant' ? submitFeedback : undefined
                   }
+                  onSendMessage={(text, intentId) => {
+                    if (intentId) setRecentIntentIds((prev) => [...prev, intentId].slice(-12));
+                    void sendMessage(text, intentId ? { intentId } : undefined);
+                  }}
                 />
               ))}
 
@@ -223,19 +240,6 @@ export function AIAssistantPage() {
               <div ref={chatEndRef} />
             </div>
           </div>
-
-          {/* Compact Suggestions */}
-          {!isEmpty && !isLoading && (
-            <div className="flex-shrink-0 px-4 py-2 border-t border-dark-700">
-              <div className="max-w-4xl mx-auto">
-                <AISuggestionChips
-                  userRole={userRole}
-                  onSuggestionClick={handleSuggestion}
-                  compact
-                />
-              </div>
-            </div>
-          )}
 
           {/* Input Area */}
           <div className="flex-shrink-0 px-4 py-3 border-t border-dark-700 bg-dark-900">

@@ -3,6 +3,8 @@ import { generateGroqCompletion, streamGroqAnswer } from '../../services/knowled
 import { generateGeminiAnswer, streamGeminiAnswer } from '../../services/knowledgeGemini.js';
 import { buildPptxBuffer } from '../../services/presentationPptx.js';
 import { routeQuery } from '../../services/ai/intentRouter.js';
+import { executeDirectIntent } from '../../services/ai/intent-router.js';
+import { AI_WIDGET_TOOL_MAP } from '../../services/ai/widgetToolMap.js';
 import '../../services/ai/tools/index.js';
 import { getToolCount } from '../../services/ai/tools/index.js';
 import { aiAnswerRateLimit, aiPresentationRateLimit } from '../../middleware/aiRateLimit.js';
@@ -17,6 +19,8 @@ import { runOrchestrator, buildAgentContextFromDora } from '../../services/ai/ag
 import { streamGroqWebSearch } from '../../services/ai/groqToolCalling.js';
 import { logTelemetry, attachFeedback, insertRequestTelemetry, getUserAiStats } from '../../services/ai/telemetry/service.js';
 import { query } from '../../db/index.js';
+import { getDoraBriefingSnapshot } from '../../services/ai/dora/briefingSnapshot.js';
+import { inferActConfirmation } from '../../services/ai/actConfirmation.js';
 import type { SourceDocument } from '../../services/ai/types.js';
 import type { OrchestrationResult, AgentStep } from '../../services/ai/orchestrator/types.js';
 
@@ -91,6 +95,17 @@ aiRouter.post('/feedback', async (req: Request, res: Response) => {
   } catch (e) {
     console.error('[kh-ai] feedback:', e);
     res.status(500).json({ error: 'Failed to save feedback' });
+  }
+});
+
+aiRouter.get('/briefing', async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthReq;
+    const snapshot = await getDoraBriefingSnapshot(authReq.userId, authReq.role);
+    res.json(snapshot);
+  } catch (e) {
+    console.error('[kh-ai] briefing:', e);
+    res.status(500).json({ error: 'Failed to load briefing' });
   }
 });
 
@@ -241,44 +256,6 @@ const MODULE_ICONS: Record<string, string> = {
   contracts: '📄',
 };
 
-const WIDGET_TOOL_MAP: Record<string, string> = {
-  // System
-  'analytics:get_system_stats': 'system_overview',
-
-  // Projects & Tasks
-  'projects:get_tasks_by_user': 'task_table',
-  'projects:get_project_status': 'project_status',
-
-  // Finance
-  'finance:get_financial_summary': 'financial_summary',
-  'finance:get_invoice_details': 'data_table',
-  'analytics:get_approval_queue': 'data_table',
-  'finance:get_reimbursement_details': 'data_table',
-
-  // People & HR
-  'people:get_employee_performance': 'performance_overview',
-  'people:get_team_overview': 'team_overview',
-  'hr:compare_employees': 'data_table',
-  'hr:get_hiring_pipeline': 'data_table',
-  'hr:get_recruitment_metrics': 'data_table',
-
-  // Support
-  'support:get_ticket_overview': 'data_table',
-  'support:get_support_metrics': 'data_table',
-  'support:get_customer_health': 'data_table',
-
-  // Time
-  'time:get_time_summary': 'data_table',
-  'time:get_utilization_report': 'data_table',
-
-  // OKR
-  'okr:get_okr_metrics': 'data_table',
-  'okr:list_goals': 'data_table',
-
-  // Fun
-  'fun:play_dora_dash': 'dora_dash',
-};
-
 type ToolResultForWidget = { toolName: string; success: boolean; data: unknown; summary?: string };
 
 function emitWidgetsFromToolResults(
@@ -305,7 +282,7 @@ function emitWidgetsFromToolResults(
   });
   const emittedWidgetTypes = new Set<string>();
   for (const obs of toolResultsForWidgets) {
-    const widgetType = WIDGET_TOOL_MAP[obs.toolName];
+    const widgetType = AI_WIDGET_TOOL_MAP[obs.toolName];
     if (widgetType && !emittedWidgetTypes.has(widgetType) && obs.success && obs.data) {
       emittedWidgetTypes.add(widgetType);
       console.log('[WIDGET DEBUG] Emitting widget_data SSE:', { widgetType, toolName: obs.toolName });
@@ -354,10 +331,90 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   const sessionId = (req.body.sessionId as string) || `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const searchMode = req.body.searchMode === true;
   const provider = (req.body.provider as string) || 'auto';
+  const clientIntent = typeof (req.body as { intent?: string }).intent === 'string'
+    ? String((req.body as { intent: string }).intent).trim()
+    : '';
+  const interactionMode = (req.body.mode as string) || 'ask';
+  const validMode = ['ask', 'analyze', 'act'].includes(interactionMode) ? interactionMode : 'ask';
+  const confirmedMutation = req.body.confirmed === true;
 
   const authReq = req as AuthReq;
+  const startTime = Date.now();
 
-  // Claude provider: enforce daily limit before opening SSE stream
+  // Act mode: confirmation gate for mutation-shaped requests (before tools run)
+  if (validMode === 'act' && !confirmedMutation && !searchMode) {
+    const offer = inferActConfirmation(userQuery, clientIntent);
+    if (offer) {
+      res.setHeader('X-Response-Mode', 'confirmation');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(offer);
+      return;
+    }
+  }
+
+  // Registered chip intents: direct tool execution + instant JSON (no orchestrator / no synthesis)
+  if (!searchMode && clientIntent) {
+    try {
+      const doraDirect = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise);
+      const legacyDirect = toLegacyToolContext(doraDirect);
+      const direct = await executeDirectIntent(clientIntent, legacyDirect);
+      if (direct) {
+        const totalMs = Date.now() - startTime;
+        res.setHeader('X-Response-Mode', 'instant');
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        const primaryTool = direct.toolsUsed[0];
+        const specialistModule = primaryTool?.split(':')[0] ?? null;
+        res.json({
+          mode: 'instant',
+          text: direct.text,
+          widgets: direct.widgets.length > 0 ? direct.widgets : undefined,
+          sources: direct.sources && direct.sources.length > 0 ? direct.sources : undefined,
+          metadata: {
+            toolsUsed: direct.toolsUsed,
+            dataPoints: direct.dataPoints,
+            responseTimeMs: totalMs,
+            steps: 1,
+            terminationReason: 'complete',
+            intentId: clientIntent,
+            specialist: specialistModule,
+            specialistDisplayName: specialistModule
+              ? (MODULE_DISPLAY_NAMES[specialistModule] ?? specialistModule)
+              : null,
+            specialistIcon: specialistModule ? (MODULE_ICONS[specialistModule] ?? '✨') : null,
+          },
+        });
+        logQuery({
+          userId: authReq.userId,
+          query: userQuery,
+          toolsUsed: direct.toolsUsed,
+          dataPointsReturned: direct.dataPoints,
+          responseTimeMs: totalMs,
+          success: true,
+          usedFallback: false,
+          toolCallCount: direct.toolsUsed.length,
+          conciseMode: concise,
+          synthesisProvider: 'direct-intent',
+        }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
+        insertRequestTelemetry({
+          tenantId: doraDirect.user.organizationId,
+          userId: authReq.userId,
+          query: userQuery,
+          path: 'direct_intent',
+          specialist: primaryTool ?? null,
+          toolCallsUsed: direct.toolsUsed.length,
+          durationMs: totalMs,
+          success: true,
+        });
+        return;
+      }
+    } catch (directErr) {
+      console.warn('[kh-ai] executeDirectIntent failed, falling through to stream:', directErr);
+    }
+  }
+
+  // Claude provider: enforce daily limit before streaming / orchestrator
   if (provider === 'claude') {
     try {
       const status = await getClaudeUsageStatus(authReq.userId, authReq.role ?? 'employee');
@@ -373,13 +430,13 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     } catch { /* allow through on DB error */ }
   }
 
+  res.setHeader('X-Response-Mode', 'stream');
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
 
   const send = sendSSE(res);
-  const startTime = Date.now();
 
   // Web Search mode: use Groq compound-beta for internet search
   if (searchMode) {
@@ -640,9 +697,9 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     }
 
     // Verify consistency with orchestrator's WIDGET_TOOL_NAMES at startup
-    for (const key of Object.keys(WIDGET_TOOL_MAP)) {
+    for (const key of Object.keys(AI_WIDGET_TOOL_MAP)) {
       if (!WIDGET_TOOL_NAMES.has(key)) {
-        console.warn(`[AI Route] WIDGET_TOOL_MAP key "${key}" not in WIDGET_TOOL_NAMES`);
+        console.warn(`[AI Route] AI_WIDGET_TOOL_MAP key "${key}" not in WIDGET_TOOL_NAMES`);
       }
     }
     const mainPathToolResults: ToolResultForWidget[] = toolResultsForWidgets as ToolResultForWidget[];

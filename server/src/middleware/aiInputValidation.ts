@@ -113,7 +113,8 @@ function sanitizeString(input: string): string {
  * Apply to: POST /ai/answer
  */
 export function validateAIAnswerInput(req: Request, res: Response, next: NextFunction): void {
-  const { query, history, concise } = req.body;
+  const rawBody = req.body as Record<string, unknown>;
+  const { query, history, concise } = rawBody;
 
   // ---- Validate query ----
   if (!query || typeof query !== 'string') {
@@ -169,8 +170,32 @@ export function validateAIAnswerInput(req: Request, res: Response, next: NextFun
       }));
   }
 
-  // ---- Validate concise flag (default true for backward compatibility) ----
-  const sanitizedConcise = concise === false || concise === 'false' ? false : true;
+  // ---- Interaction mode (Ask / Analyze / Act) ----
+  let interactionMode: 'ask' | 'analyze' | 'act' = 'ask';
+  if (typeof rawBody.mode === 'string') {
+    const m = sanitizeString(rawBody.mode).toLowerCase();
+    if (m === 'ask' || m === 'analyze' || m === 'act') interactionMode = m;
+  }
+
+  const confirmedMutation = rawBody.confirmed === true || rawBody.confirmed === 'true';
+
+  let confirmationPayload: Record<string, unknown> | undefined;
+  if (rawBody.confirmation && typeof rawBody.confirmation === 'object' && rawBody.confirmation !== null) {
+    try {
+      const s = JSON.stringify(rawBody.confirmation);
+      if (s.length <= 8000) {
+        confirmationPayload = JSON.parse(s) as Record<string, unknown>;
+      }
+    } catch {
+      /* ignore malformed confirmation */
+    }
+  }
+
+  // Analyze & Act → non-concise synthesis; Ask uses concise flag from client
+  const sanitizedConcise =
+    interactionMode === 'analyze' || interactionMode === 'act'
+      ? false
+      : !(concise === false || concise === 'false');
 
   // ---- Validate currentPath (optional, from Dora page-awareness) ----
   const MAX_PATH_LENGTH = 200;
@@ -183,12 +208,43 @@ export function validateAIAnswerInput(req: Request, res: Response, next: NextFun
     }
   }
 
-  // Replace request body with sanitized values
+  const extras: Record<string, unknown> = {};
+
+  if (typeof rawBody.sessionId === 'string') {
+    extras.sessionId = sanitizeString(rawBody.sessionId).slice(0, 120);
+  }
+  if (typeof rawBody.searchMode === 'boolean') {
+    extras.searchMode = rawBody.searchMode;
+  }
+  if (typeof rawBody.provider === 'string') {
+    const p = sanitizeString(rawBody.provider).slice(0, 24);
+    if (p === 'auto' || p === 'claude') extras.provider = p;
+  }
+  if (typeof rawBody.intent === 'string') {
+    const id = sanitizeString(rawBody.intent).replace(/[^\w.-]/g, '').slice(0, 120);
+    if (id) extras.intent = id;
+  }
+  if (rawBody.widgetContext && typeof rawBody.widgetContext === 'object' && rawBody.widgetContext !== null) {
+    try {
+      const s = JSON.stringify(rawBody.widgetContext);
+      if (s.length <= 12000) {
+        extras.widgetContext = JSON.parse(s) as unknown;
+      }
+    } catch {
+      /* ignore malformed widgetContext */
+    }
+  }
+
+  // Replace request body with sanitized values (preserve optional fields used by /ai/answer)
   req.body = {
     query: sanitizedQuery,
     history: sanitizedHistory,
     concise: sanitizedConcise,
     currentPath: sanitizedCurrentPath,
+    mode: interactionMode,
+    confirmed: confirmedMutation,
+    ...(confirmationPayload ? { confirmation: confirmationPayload } : {}),
+    ...extras,
   };
 
   next();

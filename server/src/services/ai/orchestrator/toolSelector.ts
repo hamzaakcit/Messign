@@ -18,7 +18,9 @@ const MODULE_TOOLS: Record<string, string[]> = {
     'achievements:get_bounty_board',
   ],
   'knowledge-hub': [
-    'knowledge:get_knowledge_base_stats', 'meeting:get_meeting_decisions',
+    'knowledge:get_knowledge_base_stats',
+    'knowledge:get_live_document_stats',
+    'meeting:get_meeting_decisions',
   ],
   achievements: [
     'achievements:get_achievements_leaderboard', 'achievements:get_showcase_items', 'achievements:get_bounty_board',
@@ -82,7 +84,10 @@ const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
   { keywords: ['system', 'health', 'stats', 'overview', 'status', 'dashboard', 'dashboard metrics'], tools: ['analytics:get_system_stats', 'analytics:get_department_report', 'finance:get_financial_summary', 'people:get_team_overview'] },
   { keywords: ['meeting', 'decision', 'minutes', 'notes'], tools: ['meeting:get_meeting_decisions'] },
   { keywords: ['compare', 'comparison', 'versus', 'vs'], tools: ['people:compare_employees'] },
-  { keywords: ['document', 'knowledge', 'guide', 'policy', 'sop'], tools: ['knowledge:search_knowledge_base', 'knowledge:get_knowledge_base_stats'] },
+  {
+    keywords: ['document', 'knowledge', 'guide', 'policy', 'sop', 'stale', 'staleness'],
+    tools: ['knowledge:search_knowledge_base', 'knowledge:get_knowledge_base_stats', 'knowledge:get_live_document_stats'],
+  },
   { keywords: ['activity', 'recent', 'latest', 'feed'], tools: ['analytics:get_recent_activity'] },
   { keywords: ["where's the fun stuff", 'fun stuff'], tools: ['fun:play_dora_dash'] },
   { keywords: ['financial', 'finance', 'money', 'budget', 'cost'], tools: ['finance:get_financial_summary', 'finance:get_invoice_details'] },

@@ -1,3 +1,4 @@
+import type { ElementType } from 'react';
 import {
   TrendingUp,
   FolderKanban,
@@ -10,10 +11,40 @@ import {
   BarChart3,
   Zap,
   HelpCircle,
+  Target,
+  LineChart,
+  Briefcase,
+  Headphones,
+  Clock,
+  CircleDot,
+  Package,
+  FileWarning,
+  Heart,
+  PieChart,
+  LayoutDashboard,
+  MessageSquare,
+  Receipt,
+  FileText,
+  Scale,
+  PlusCircle,
+  AlertCircle,
+  Send,
+  Activity,
+  Sparkles,
+  Megaphone,
+  Flame,
+  UserPlus,
+  Star,
+  AlertTriangle,
+  Cpu,
+  ListOrdered,
 } from 'lucide-react';
-import type { AISuggestion } from '@/types/knowledge-hub/ai';
+import type { IntentCategory } from '@/shared/intents/registry';
+import { getSuggestions } from '@/shared/intents/suggestion-engine';
+import type { Surface } from '@/shared/intents/registry';
+import { useDoraSessionStore } from '@/stores/doraSessionStore';
 
-const ICON_MAP: Record<string, React.ElementType> = {
+export const INTENT_ICON_MAP: Record<string, ElementType> = {
   TrendingUp,
   FolderKanban,
   CheckSquare,
@@ -25,97 +56,144 @@ const ICON_MAP: Record<string, React.ElementType> = {
   BarChart3,
   Zap,
   HelpCircle,
+  Target,
+  LineChart,
+  Briefcase,
+  Headphones,
+  Clock,
+  CircleDot,
+  Package,
+  FileWarning,
+  Heart,
+  PieChart,
+  LayoutDashboard,
+  MessageSquare,
+  Receipt,
+  FileText,
+  Scale,
+  PlusCircle,
+  AlertCircle,
+  Send,
+  Activity,
+  Sparkles,
+  Megaphone,
+  Flame,
+  UserPlus,
+  Star,
+  AlertTriangle,
+  Cpu,
+  ListOrdered,
 };
 
-const COMMON_SUGGESTIONS: AISuggestion[] = [
-  { label: 'What can I ask?', query: 'What questions can I ask the AI?', icon: 'HelpCircle', category: 'quick' },
-  { label: 'What are my open tasks?', query: 'What are my open tasks?', icon: 'CheckSquare', category: 'quick' },
-  { label: 'My performance this month', query: 'Show me my performance this month', icon: 'TrendingUp', category: 'performance' },
-];
-
-const EMPLOYEE_SUGGESTIONS: AISuggestion[] = [
-  ...COMMON_SUGGESTIONS,
-  { label: 'Available bounties', query: 'What bounties are available?', icon: 'Zap', category: 'quick' },
-  { label: 'My badges & achievements', query: 'What badges have I earned?', icon: 'Trophy', category: 'quick' },
-  { label: 'My reimbursements', query: 'Show me my pending reimbursements', icon: 'DollarSign', category: 'finance' },
-  { label: 'Find a guide', query: 'Search the knowledge base for onboarding guide', icon: 'BookOpen', category: 'knowledge' },
-];
-
-const MANAGER_SUGGESTIONS: AISuggestion[] = [
-  ...COMMON_SUGGESTIONS,
-  { label: 'Team performance', query: "Show me my team's performance this month", icon: 'Users', category: 'performance' },
-  { label: 'Project statuses', query: 'What is the status of all active projects?', icon: 'FolderKanban', category: 'projects' },
-  { label: 'Pending approvals', query: 'What needs my approval?', icon: 'ClipboardCheck', category: 'quick' },
-  { label: "Who's top performer?", query: 'Who are the top performers this quarter?', icon: 'Trophy', category: 'performance' },
-  { label: 'Sprint progress', query: 'What is the current sprint status?', icon: 'Zap', category: 'projects' },
-  { label: 'Team comparison', query: 'How do all teams compare this month?', icon: 'BarChart3', category: 'performance' },
-];
-
-const ADMIN_SUGGESTIONS: AISuggestion[] = [
-  ...COMMON_SUGGESTIONS,
-  { label: 'System overview', query: 'Give me a system-wide overview', icon: 'BarChart3', category: 'quick' },
-  { label: 'Executive report', query: 'Generate an executive summary for this quarter', icon: 'BarChart3', category: 'performance' },
-  { label: 'Financial summary', query: 'What is the company-wide financial summary this month?', icon: 'DollarSign', category: 'finance' },
-  { label: 'All team metrics', query: "Show me all teams' performance comparison", icon: 'Users', category: 'performance' },
-  { label: 'Pending approvals', query: 'What items need approval across the system?', icon: 'ClipboardCheck', category: 'quick' },
-  { label: 'Knowledge health', query: 'How many documents are in the knowledge base? How many are stale?', icon: 'BookOpen', category: 'knowledge' },
-];
-
-const TOPLEVEL_EXTRA_SUGGESTIONS: AISuggestion[] = [
-  { label: "What's our revenue this quarter?", query: "What's our revenue this quarter?", icon: 'DollarSign', category: 'finance' },
-  { label: 'Show dashboard metrics', query: 'Show me the dashboard metrics', icon: 'BarChart3', category: 'quick' },
-  { label: 'Active projects overview', query: 'Give me an overview of all active projects', icon: 'FolderKanban', category: 'projects' },
-  { label: 'Team leaderboard', query: 'Show me the MP leaderboard', icon: 'Trophy', category: 'performance' },
-];
+const CATEGORY_BORDER: Record<IntentCategory, string> = {
+  quick: 'border-l-sky-500/70',
+  dashboard: 'border-l-cyan-500/70',
+  performance: 'border-l-amber-500/70',
+  projects: 'border-l-violet-500/70',
+  finance: 'border-l-emerald-500/70',
+  knowledge: 'border-l-blue-500/70',
+  crm: 'border-l-indigo-500/70',
+  marketing: 'border-l-pink-500/70',
+  recruitment: 'border-l-teal-500/70',
+  support: 'border-l-green-500/70',
+  time: 'border-l-slate-500/70',
+  okr: 'border-l-orange-500/70',
+  assets: 'border-l-lime-500/70',
+  contracts: 'border-l-stone-500/70',
+  culture: 'border-l-rose-500/70',
+  hr: 'border-l-purple-500/70',
+  admin: 'border-l-red-500/60',
+  reports: 'border-l-fuchsia-500/70',
+};
 
 interface AISuggestionChipsProps {
   userRole: string;
-  onSuggestionClick: (query: string) => void;
-  compact?: boolean;
-  isTopLevel?: boolean;
+  onSuggestionClick: (query: string, intentId?: string) => void;
+  conversationActive?: boolean;
+  surface?: Surface;
+  currentPath?: string;
+  lastIntentId?: string;
+  recentIntentIds?: string[];
 }
 
-export function AISuggestionChips({ userRole, onSuggestionClick, compact = false, isTopLevel = false }: AISuggestionChipsProps) {
-  let suggestions: AISuggestion[];
-  if (userRole === 'admin') {
-    suggestions = ADMIN_SUGGESTIONS;
-  } else if (['manager', 'cpo', 'hr'].includes(userRole)) {
-    suggestions = MANAGER_SUGGESTIONS;
-  } else {
-    suggestions = EMPLOYEE_SUGGESTIONS;
+export function AISuggestionChips({
+  userRole,
+  onSuggestionClick,
+  conversationActive = false,
+  surface = 'dora',
+  currentPath,
+  lastIntentId,
+  recentIntentIds: recentIntentIdsProp,
+}: AISuggestionChipsProps) {
+  const path = currentPath ?? (typeof window !== 'undefined' ? window.location.pathname : '/');
+
+  const storeRecent = useDoraSessionStore((s) => s.recentIntents);
+  const frequentCategories = useDoraSessionStore((s) => s.frequentCategories);
+  const visitedModulePrefixes = useDoraSessionStore((s) => s.visitedModulePrefixes);
+  const recentIntentIds = recentIntentIdsProp ?? storeRecent;
+
+  if (conversationActive && surface !== 'followup') {
+    return null;
   }
 
-  if (isTopLevel) {
-    const existingQueries = new Set(suggestions.map((s) => s.query));
-    const extras = TOPLEVEL_EXTRA_SUGGESTIONS.filter((s) => !existingQueries.has(s.query));
-    suggestions = [...suggestions, ...extras];
-  }
+  const suggestions = getSuggestions({
+    role: userRole,
+    currentPath: path,
+    surface,
+    lastIntentId,
+    recentIntents: recentIntentIds,
+    frequentCategories,
+    visitedModulePrefixes,
+    conversationActive,
+  });
 
-  if (compact) suggestions = suggestions.slice(0, 4);
+  if (suggestions.length === 0) return null;
+
+  const isScrollRow = surface === 'dora' || surface === 'knowledge-hub';
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div
+      className={
+        isScrollRow
+          ? 'flex flex-nowrap gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-dark-600'
+          : 'flex flex-wrap gap-2'
+      }
+    >
       {suggestions.map((suggestion, i) => {
-        const IconComponent = suggestion.icon ? ICON_MAP[suggestion.icon] : null;
+        const IconComponent = suggestion.icon ? INTENT_ICON_MAP[suggestion.icon] : null;
+        const borderClass = CATEGORY_BORDER[suggestion.category] ?? 'border-l-white/20';
         return (
           <button
-            key={i}
-            onClick={() => onSuggestionClick(suggestion.query)}
-            className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-              bg-dark-800 border border-dark-700 text-sm text-gray-300
-              hover:border-primary-500/40 hover:bg-dark-800/80
-              hover:text-white transition-all duration-150 cursor-pointer"
+            key={suggestion.id}
+            type="button"
+            title={suggestion.query}
+            onClick={() => onSuggestionClick(suggestion.query, suggestion.id)}
+            style={{
+              animation: 'dora-chip-in 0.4s ease-out forwards',
+              animationDelay: `${i * 50}ms`,
+              opacity: 0,
+            }}
+            className={`group inline-flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-full
+              bg-dark-800 border border-dark-700 border-l-2 ${borderClass} text-sm text-gray-300
+              hover:border-primary-500/50 hover:bg-dark-800/80 hover:scale-[1.02]
+              hover:text-white transition-all duration-200 cursor-pointer`}
           >
             {IconComponent && (
               <IconComponent
                 size={14}
-                className="text-gray-500 group-hover:text-primary-400 transition-colors"
+                className="text-gray-500 group-hover:text-primary-400 transition-colors shrink-0"
               />
             )}
-            <span>{suggestion.label}</span>
+            <span className="whitespace-nowrap">{suggestion.label}</span>
           </button>
         );
       })}
+      <style>{`
+        @keyframes dora-chip-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,28 +1,27 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Send,
   Trash2,
   StopCircle,
   Loader2,
   Presentation,
-  AlignLeft,
-  FileText,
-  Globe,
-  Sparkles,
+  MessageSquare,
+  LineChart,
+  Zap,
 } from 'lucide-react';
-import { API_ORIGIN } from '@/lib/api';
-import { getAccessToken } from '@/lib/authToken';
 import { DoraChatAvatar, DoraWelcomeHero } from '@/components/dora/DoraPilot';
 import { DoraHistorySidebar } from '@/components/dora/DoraHistorySidebar';
 import { useAIChat } from '@/hooks/knowledge-hub/useAIChat';
-import {
-  AIMessageBubble,
-  AISuggestionChips,
-  AITypingIndicator,
-} from '@/components/knowledge-hub/ai';
+import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
+import { ProgressiveChips } from '@/components/dora/ProgressiveChips';
+import { SlashCommandPalette, filterSlashCommands } from '@/components/dora/SlashCommandPalette';
+import { DoraContextBar, buildConversationContextLabels } from '@/components/dora/DoraContextBar';
+import { DoraBriefingCard } from '@/components/dora/DoraBriefingCard';
+import type { IntentEntry } from '@/shared/intents/registry';
 import { useAuthStore } from '@/stores/authStore';
 import { useDoraStore, type DoraSession } from '@/stores/doraStore';
+import { useDoraSessionStore } from '@/stores/doraSessionStore';
 import { khPresentationAPI, type Presentation as PresentationData } from '@/lib/knowledge-hub/api';
 import { PresentationViewer } from '@/components/knowledge-hub/PresentationViewer';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
@@ -94,8 +93,15 @@ export function DoraPage() {
 
 // ─── Inner chat body — re-keyed on session switch ───────────────────────────
 function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; role?: string } | null; welcomeOnly?: boolean }) {
+  const location = useLocation();
   const userRole = user?.role ?? 'member';
   const { getActiveMessages, setActiveMessages, createSession, activeSessionId } = useDoraStore();
+  const addIntent = useDoraSessionStore((s) => s.addIntent);
+  const clearSessionMemory = useDoraSessionStore((s) => s.clearSession);
+  const setPreferredMode = useDoraSessionStore((s) => s.setPreferredMode);
+  const setConversationContext = useDoraSessionStore((s) => s.setConversationContext);
+  const recentIntents = useDoraSessionStore((s) => s.recentIntents);
+  const recordPath = useDoraSessionStore((s) => s.recordPath);
 
   const initialMessages = welcomeOnly ? [] : getActiveMessages();
 
@@ -104,38 +110,36 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
     isLoading,
     isStreaming,
     error,
-    responseMode,
-    setResponseMode,
+    interactionMode,
+    setInteractionMode,
     sendMessage,
     submitFeedback,
+    clearPendingConfirmation,
+    cancelActConfirmation,
     clearChat,
     abortStream,
   } = useAIChat({
     initialMessages,
+    initialInteractionMode:
+      useDoraSessionStore.getState().preferredMode === 'detailed' ? 'analyze' : 'ask',
     onMessagesChange: (msgs: AIMessage[]) => {
       if (msgs.length > 0) setActiveMessages(msgs);
     },
   });
 
   const [inputValue, setInputValue] = useState('');
+  const [slashActiveIndex, setSlashActiveIndex] = useState(0);
+  const slashFilter = inputValue.startsWith('/') ? inputValue.slice(1) : '';
+  const slashMatches = useMemo(() => filterSlashCommands(slashFilter), [slashFilter]);
+  const slashOpen = inputValue.startsWith('/');
   const [entranceDone, setEntranceDone] = useState(false);
   const [presentation, setPresentation] = useState<PresentationData | null>(null);
   const [presentationLoading, setPresentationLoading] = useState(false);
   const [presentationError, setPresentationError] = useState<string | null>(null);
-  const [claudeStatus, setClaudeStatus] = useState<{ used: number; limit: number; remaining: number } | null>(null);
 
   useEffect(() => {
-    const fetchClaudeStatus = async () => {
-      try {
-        const token = getAccessToken();
-        const res = await fetch(`${API_ORIGIN}/api/knowledge-hub/ai/answer/claude-status`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) setClaudeStatus(await res.json());
-      } catch { /* ignore */ }
-    };
-    fetchClaudeStatus();
-  }, []);
+    recordPath(location.pathname);
+  }, [location.pathname, recordPath]);
 
   // Ensure session exists if component mounts without one
   useEffect(() => {
@@ -153,37 +157,113 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    setSlashActiveIndex(0);
+  }, [slashFilter]);
+
+  const lastUserQuery = useMemo(() => {
+    const u = [...messages].reverse().find((m) => m.role === 'user');
+    return u?.content ?? '';
+  }, [messages]);
+
+  useEffect(() => {
+    setConversationContext(buildConversationContextLabels(recentIntents, lastUserQuery));
+  }, [recentIntents, lastUserQuery, setConversationContext]);
+
   const handleNewChat = useCallback(() => {
     clearChat();
+    clearSessionMemory();
     setInputValue('');
+    setSlashActiveIndex(0);
     setEntranceDone(false);
     // Parent handles actual session creation via sidebar "New" button
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [clearChat]);
+  }, [clearChat, clearSessionMemory]);
 
   const handleSend = useCallback(async () => {
     const query = inputValue.trim();
     if (!query || isLoading) return;
     setInputValue('');
     if (inputRef.current) inputRef.current.style.height = 'auto';
-    const wasClaudeMode = responseMode === 'claude';
     await sendMessage(query);
-    if (wasClaudeMode) {
-      try {
-        const token = getAccessToken();
-        const res = await fetch(`${API_ORIGIN}/api/knowledge-hub/ai/answer/claude-status`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) setClaudeStatus(await res.json());
-      } catch { /* ignore */ }
-    }
-  }, [inputValue, isLoading, sendMessage, responseMode]);
+  }, [inputValue, isLoading, sendMessage]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  const handleSuggestion = useCallback(
+    (query: string, intentId?: string) => {
+      if (intentId) addIntent(intentId);
+      void sendMessage(query, intentId ? { intentId } : undefined);
+    },
+    [sendMessage, addIntent],
+  );
+
+  const selectSlash = useCallback(
+    (entry: IntentEntry) => {
+      setInputValue('');
+      setSlashActiveIndex(0);
+      handleSuggestion(entry.query, entry.id);
+    },
+    [handleSuggestion],
+  );
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashOpen && slashMatches.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashActiveIndex((i) => Math.min(i + 1, slashMatches.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashActiveIndex((i) => Math.max(0, i - 1));
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const pick = slashMatches[slashActiveIndex] ?? slashMatches[0];
+        if (pick) selectSlash(pick);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setInputValue('');
+        setSlashActiveIndex(0);
+        return;
+      }
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
+    }
   };
 
-  const handleSuggestion = useCallback((query: string) => { sendMessage(query); }, [sendMessage]);
+  const handleContextResend = useCallback(
+    (intentId: string, query: string) => {
+      addIntent(intentId);
+      void sendMessage(query, { intentId });
+    },
+    [sendMessage, addIntent],
+  );
+
+  const handleContextClear = useCallback(() => {
+    clearChat();
+    clearSessionMemory();
+    setInputValue('');
+  }, [clearChat, clearSessionMemory]);
+
+  const handleConfirmAct = useCallback(
+    (msg: AIMessage) => {
+      const p = msg.pendingConfirmation;
+      if (!p) return;
+      clearPendingConfirmation(msg.id);
+      void sendMessage(p.sourceQuery, {
+        intentId: p.sourceIntentId,
+        confirmed: true,
+        confirmation: { action: p.action, params: p.params },
+        skipUserMessage: true,
+      });
+    },
+    [sendMessage, clearPendingConfirmation],
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
@@ -205,76 +285,57 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
 
   const isEmpty = messages.length === 0;
 
-  /* ───────────────────────── MODE TOGGLE ───────────────────────── */
-  const claudeExhausted = claudeStatus !== null && claudeStatus.remaining <= 0;
+  /* ───────────────────────── MODE: Ask / Analyze / Act ───────────────────────── */
   const ModeToggle = (
-    <div className="flex items-center bg-dark-800 rounded-full border border-dark-600 p-0.5">
+    <div className="flex items-center gap-0.5 rounded-full border border-dark-600 bg-dark-800 p-0.5">
       {([
-        { mode: 'concise' as const, icon: AlignLeft, label: 'Concise' },
-        { mode: 'detailed' as const, icon: FileText, label: 'Detailed' },
-        { mode: 'search' as const, icon: Globe, label: 'Search' },
-      ]).map(({ mode, icon: Icon, label }) => (
+        { mode: 'ask' as const, icon: MessageSquare, label: 'Ask', title: 'Q&A — concise answers & tools' },
+        { mode: 'analyze' as const, icon: LineChart, label: 'Analyze', title: 'Deeper insights, comparisons, charts' },
+        { mode: 'act' as const, icon: Zap, label: 'Act', title: 'Create or change data — confirm before running' },
+      ]).map(({ mode, icon: Icon, label, title }) => (
         <button
           key={mode}
-          onClick={() => setResponseMode(mode)}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-            responseMode === mode
-              ? mode === 'search'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                : 'bg-primary-500/20 text-primary-400 border border-primary-500/40'
-              : 'text-gray-500 hover:text-gray-300 border border-transparent'
+          type="button"
+          onClick={() => {
+            setInteractionMode(mode);
+            if (mode === 'ask') setPreferredMode('concise');
+            if (mode === 'analyze') setPreferredMode('detailed');
+          }}
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+            interactionMode === mode
+              ? mode === 'act'
+                ? 'border border-amber-500/40 bg-amber-500/15 text-amber-200'
+                : 'border border-primary-500/40 bg-primary-500/15 text-primary-300'
+              : 'border border-transparent text-gray-500 hover:text-gray-300'
           }`}
-          title={
-            mode === 'concise' ? 'Short, focused answers' :
-            mode === 'detailed' ? 'Thorough answers with context' :
-            'Search the internet via Groq'
-          }
+          title={title}
         >
           <Icon size={12} />
           {label}
         </button>
       ))}
-      <button
-        onClick={() => { if (!claudeExhausted) setResponseMode('claude'); }}
-        disabled={claudeExhausted}
-        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-          responseMode === 'claude'
-            ? 'bg-violet-500/20 text-violet-400 border border-violet-500/40'
-            : claudeExhausted
-              ? 'text-gray-600 border border-transparent cursor-not-allowed opacity-50'
-              : 'text-gray-500 hover:text-gray-300 border border-transparent'
-        }`}
-        title={
-          claudeExhausted
-            ? `Daily Claude limit reached (${claudeStatus?.used ?? 0}/${claudeStatus?.limit ?? 0}). Resets at midnight UTC.`
-            : claudeStatus
-              ? `Claude (${claudeStatus.remaining}/${claudeStatus.limit} uses left today)`
-              : 'Claude — premium AI synthesis'
-        }
-      >
-        <Sparkles size={12} />
-        Claude
-        {claudeStatus && !claudeExhausted && (
-          <span className="ml-0.5 text-[10px] text-violet-400/70">{claudeStatus.remaining}</span>
-        )}
-        {claudeExhausted && (
-          <span className="ml-0.5 text-[10px] text-gray-600">0</span>
-        )}
-      </button>
     </div>
   );
 
   /* ────────────────────────── INPUT BAR ────────────────────────── */
   const InputBar = (
     <div className="flex items-end gap-2">
-      <div className="flex-1 relative">
+      <div className="relative flex-1">
+        {slashOpen && (
+          <SlashCommandPalette
+            filter={slashFilter}
+            activeIndex={slashActiveIndex}
+            onActiveIndexChange={setSlashActiveIndex}
+            onSelect={selectSlash}
+          />
+        )}
         <textarea
           data-testid="dora-input"
           ref={inputRef}
           value={inputValue}
           onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask Dora about projects, performance, tasks, documents, finances..."
+          onKeyDown={handleInputKeyDown}
+          placeholder="Ask Dora anything..."
           className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-gray-600
             focus:outline-none resize-none overflow-hidden transition-all"
           style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(56,189,248,0.12)', backdropFilter: 'blur(12px)', boxShadow: '0 0 0 0 rgba(56,189,248,0)' }}
@@ -446,15 +507,53 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
                 width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
               }}>
                 {/* Glassy chips wrapper */}
-                <div style={{
-                  padding: '12px 16px', borderRadius: 14,
-                  background: 'rgba(15,23,42,0.5)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(56,189,248,0.1)',
-                  width: '100%',
-                  boxShadow: '0 0 30px rgba(56,189,248,0.04), inset 0 1px 0 rgba(255,255,255,0.04)',
-                }}>
-                  <AISuggestionChips userRole={userRole} onSuggestionClick={handleSuggestion} isTopLevel />
+                <div
+                  className="relative w-full overflow-hidden rounded-[14px] border border-sky-500/10"
+                  style={{
+                    padding: '12px 16px',
+                    background: 'rgba(15,23,42,0.5)',
+                    backdropFilter: 'blur(16px)',
+                    boxShadow: '0 0 30px rgba(56,189,248,0.04), inset 0 1px 0 rgba(255,255,255,0.04)',
+                  }}
+                >
+                  <div
+                    className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-[1]"
+                    style={{
+                      background: 'linear-gradient(to right, rgba(15,23,42,0.95), transparent)',
+                    }}
+                  />
+                  <div
+                    className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-[1]"
+                    style={{
+                      background: 'linear-gradient(to left, rgba(15,23,42,0.95), transparent)',
+                    }}
+                  />
+                  <div className="flex w-full flex-col gap-3">
+                    <DoraBriefingCard
+                      userFirstName={user?.name?.split(' ')[0]}
+                      onStartDay={() =>
+                        handleSuggestion(
+                          'Give me a comprehensive daily briefing across tasks, finance, projects, and time tracking.',
+                        )
+                      }
+                      onOpenTasks={() => handleSuggestion('What are my open tasks?', 'quick.open_tasks')}
+                      onOpenFinance={() =>
+                        handleSuggestion('Summarize unpaid invoices and total outstanding amount')
+                      }
+                      onOpenProjects={() =>
+                        handleSuggestion(
+                          'Which projects need attention from me — overdue work or blockers?',
+                          'projects.active_overview',
+                        )
+                      }
+                    />
+                    <ProgressiveChips
+                      userRole={userRole}
+                      onSuggestionClick={handleSuggestion}
+                      surface="dora"
+                      currentPath={location.pathname}
+                    />
+                  </div>
                 </div>
 
                 {/* Presentation button */}
@@ -493,7 +592,10 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
           }}>
             <div className="max-w-xl mx-auto">
               {InputBar}
-              <p style={{ fontSize: 11, color: '#334155', marginTop: 6, textAlign: 'center' }}>
+              <p style={{ fontSize: 11, color: '#334155', marginTop: 4, textAlign: 'center' }}>
+                Type / for commands · arrows & Enter to run
+              </p>
+              <p style={{ fontSize: 11, color: '#334155', marginTop: 2, textAlign: 'center' }}>
                 Live company data · Verify critical decisions · ⌘J from anywhere
               </p>
             </div>
@@ -522,8 +624,21 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
 
           <div className="flex-1 overflow-y-auto" style={{ background: 'linear-gradient(180deg, #020817 0%, #0a0f1e 100%)' }}>
             <div className="max-w-4xl mx-auto px-4 py-6">
-              {messages.map((msg) => (
-                <AIMessageBubble key={msg.id} message={msg} onFeedback={msg.role === 'assistant' ? submitFeedback : undefined} onSendMessage={sendMessage} />
+              {messages.map((msg, i) => (
+                <AIMessageBubble
+                  key={msg.id}
+                  message={msg}
+                  priorUserMessage={i > 0 ? messages[i - 1] : undefined}
+                  userRole={userRole}
+                  currentPath={location.pathname}
+                  onFeedback={msg.role === 'assistant' ? submitFeedback : undefined}
+                  onSendMessage={(text, intentId) => {
+                    if (intentId) addIntent(intentId);
+                    void sendMessage(text, intentId ? { intentId } : undefined);
+                  }}
+                  onConfirmAct={handleConfirmAct}
+                  onCancelAct={cancelActConfirmation}
+                />
               ))}
               {/* Don't show standalone indicator when a message bubble is already showing "Analyzing..." (avoids duplicate) */}
               {!messages.some((m) => m.role === 'assistant' && m.isStreaming && !m.content) && (
@@ -538,18 +653,19 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
             </div>
           </div>
 
-          {!isLoading && (
-              <div style={{ flexShrink: 0, padding: '8px 20px', borderTop: '1px solid rgba(56,189,248,0.06)', background: 'rgba(2,8,23,0.6)' }}>
-                <div className="max-w-4xl mx-auto">
-                  <AISuggestionChips userRole={userRole} onSuggestionClick={handleSuggestion} isTopLevel />
-                </div>
-              </div>
-            )}
-
           <div style={{ flexShrink: 0, padding: '12px 20px 14px', borderTop: '1px solid rgba(56,189,248,0.08)', background: 'linear-gradient(to top, rgba(2,8,23,0.98), rgba(2,8,23,0.7))', backdropFilter: 'blur(16px)' }}>
             <div className="max-w-4xl mx-auto">
+              <DoraContextBar
+                recentIntentIds={recentIntents}
+                lastUserQuery={lastUserQuery}
+                onResendIntent={handleContextResend}
+                onClear={handleContextClear}
+              />
               {InputBar}
-              <p style={{ fontSize: 11, color: '#334155', marginTop: 6, textAlign: 'center' }}>
+              <p style={{ fontSize: 11, color: '#334155', marginTop: 4, textAlign: 'center' }}>
+                Type / for commands · arrows & Enter to run
+              </p>
+              <p style={{ fontSize: 11, color: '#334155', marginTop: 2, textAlign: 'center' }}>
                 Dora answers are based on live company data. Always verify critical decisions.
               </p>
             </div>

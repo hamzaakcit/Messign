@@ -2,7 +2,13 @@ import { pool } from '../../../db/index.js';
 import type { OrchestrationResult } from '../orchestrator/types.js';
 import type { DoraRequestContext } from '../dora/types.js';
 
-export type AiRequestPath = 'orchestrator' | 'agenticLoop' | 'intentRouter' | 'web_search' | 'error';
+export type AiRequestPath =
+  | 'orchestrator'
+  | 'agenticLoop'
+  | 'intentRouter'
+  | 'direct_intent'
+  | 'web_search'
+  | 'error';
 
 /**
  * Fire-and-forget insert into ai_request_telemetry for observability dashboard.

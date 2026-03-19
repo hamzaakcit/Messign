@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { getSuggestions } from '@/shared/intents/suggestion-engine';
+import type { IntentEntry } from '@/shared/intents/registry';
+import { useDoraSessionStore } from '@/stores/doraSessionStore';
 
 interface ViewingEntity {
   type: 'project' | 'document' | 'invoice' | 'employee' | 'task';
@@ -13,13 +16,6 @@ export interface WidgetContext {
   currentModule: string;
   viewingEntity?: ViewingEntity;
   widgetMode: 'expanded' | 'mini' | 'collapsed';
-}
-
-export interface SuggestionChip {
-  label: string;
-  query: string;
-  icon?: string;
-  category: 'personal' | 'team' | 'company' | 'action';
 }
 
 interface RoutePattern {
@@ -53,6 +49,10 @@ const ROUTE_PATTERNS: RoutePattern[] = [
   },
   { pattern: /^\/admin/, module: 'admin' },
   { pattern: /^\/dashboard/, module: 'dashboard' },
+  { pattern: /^\/executive/, module: 'executive' },
+  { pattern: /^\/reports/, module: 'reports' },
+  { pattern: /^\/finance/, module: 'finance' },
+  { pattern: /^\/culture/, module: 'culture' },
   { pattern: /^\/chat/, module: 'chat' },
   { pattern: /^\/projects/, module: 'projects' },
   { pattern: /^\/achievements/, module: 'achievements' },
@@ -88,97 +88,28 @@ function resolveRoute(pathname: string): {
   return { module: 'unknown', params: {} };
 }
 
-const BASE_CHIPS: SuggestionChip[] = [
-  { label: 'My open tasks',    query: 'What are my open tasks?',           icon: '✅', category: 'personal' },
-  { label: 'My performance',   query: 'How is my performance this month?', icon: '📈', category: 'personal' },
-  { label: 'Company overview', query: 'Give me a company overview',        icon: '📊', category: 'company' },
-];
-
-const MANAGER_CHIPS: SuggestionChip[] = [
-  { label: 'Team performance',  query: 'How is my team performing?', icon: '👥', category: 'team' },
-  { label: 'Pending approvals', query: 'Show my pending approvals',  icon: '📋', category: 'team' },
-  { label: 'Create a task',     query: 'Create a task for my team',  icon: '➕', category: 'action' },
-];
-
-const ADMIN_CHIPS: SuggestionChip[] = [
-  { label: 'System health',     query: 'What is the system health status?', icon: '🔧', category: 'company' },
-  { label: 'Financial summary', query: 'Give me the financial summary',     icon: '💰', category: 'company' },
-  { label: 'Executive report',  query: 'Generate an executive report',      icon: '📑', category: 'company' },
-];
-
-function getPageChips(module: string, entityName?: string): SuggestionChip[] {
-  switch (module) {
-    case 'dashboard':
-      return [
-        { label: 'Explain revenue trend', query: 'Explain the revenue trend on my dashboard', icon: '📈', category: 'company' },
-        { label: 'Top performers',        query: 'Who are the top performers this quarter?',  icon: '🏆', category: 'company' },
-      ];
-    case 'projects':
-      return entityName
-        ? [
-            { label: `Status of ${entityName}`, query: `What is the status of ${entityName}?`, icon: '🏗️', category: 'team' },
-            { label: 'Create task here',         query: `Create a task for ${entityName}`,     icon: '➕', category: 'action' },
-          ]
-        : [
-            { label: 'Active projects', query: 'What projects are currently active?', icon: '🏗️', category: 'team' },
-            { label: 'Overdue tasks',   query: 'Are there any overdue tasks?',        icon: '⚠️', category: 'team' },
-          ];
-    case 'knowledge-hub':
-      return [
-        { label: 'Find a guide',     query: 'Find me a guide about',          icon: '📖', category: 'company' },
-        { label: 'Brand guidelines', query: 'What are our brand guidelines?', icon: '🎨', category: 'company' },
-      ];
-    case 'chat':
-      return [
-        { label: 'Recent decisions', query: 'What decisions were made recently in chat?',  icon: '💬', category: 'team' },
-        { label: 'Send a message',   query: 'Send a message to the general channel',       icon: '📤', category: 'action' },
-      ];
-    case 'crm':
-      return [
-        { label: 'Pipeline status', query: 'What is the current pipeline status?', icon: '🎯', category: 'company' },
-        { label: 'Stale deals', query: 'Which deals need attention?', icon: '⏳', category: 'team' },
-      ];
-    case 'marketing':
-      return [
-        { label: 'Campaign ROI', query: 'Which marketing campaigns are performing best?', icon: '📣', category: 'company' },
-        { label: 'Hot leads', query: 'Show the hottest marketing leads right now', icon: '🔥', category: 'team' },
-      ];
-    case 'recruitment':
-      return [
-        { label: 'Hiring pipeline', query: 'Show me the current hiring pipeline', icon: '🧑‍💼', category: 'team' },
-        { label: 'Strong candidates', query: 'Which candidates look strongest right now?', icon: '⭐', category: 'team' },
-      ];
-    case 'assets':
-      return [
-        { label: 'Asset summary', query: 'Give me an asset summary by category', icon: '🧰', category: 'company' },
-        { label: 'License usage', query: 'Show underutilized software licenses', icon: '🪪', category: 'company' },
-      ];
-    case 'contracts':
-      return [
-        { label: 'Renewals due', query: 'Which contracts need renewal soon?', icon: '📄', category: 'company' },
-        { label: 'Compliance due', query: 'Show contract compliance obligations due soon', icon: '⚖️', category: 'team' },
-      ];
-    case 'support':
-      return [
-        { label: 'Ticket overview', query: 'Give me the current support ticket overview', icon: '🎫', category: 'team' },
-        { label: 'At-risk customers', query: 'Show at-risk customers from support', icon: '⚠️', category: 'company' },
-      ];
-    case 'time':
-      return [
-        { label: 'My utilization', query: 'Show my current utilization', icon: '⏱️', category: 'personal' },
-        { label: 'Timesheet summary', query: 'Summarize my timesheet for this week', icon: '🧾', category: 'personal' },
-      ];
-    case 'invoices':
-      return [
-        { label: 'Pending invoices', query: 'Show me pending invoices', icon: '💰', category: 'company' },
-        { label: 'Draft invoice',    query: 'Draft a new invoice',      icon: '➕', category: 'action' },
-      ];
-    default:
-      return [];
-  }
+function normalizeWidgetRole(userRole: string): string {
+  if (userRole === 'employee') return 'member';
+  return userRole;
 }
 
-export function useWidgetContext(userRole: string = 'employee') {
+function customizeForEntity(
+  entries: IntentEntry[],
+  module: string,
+  entity?: ViewingEntity,
+): IntentEntry[] {
+  if (module !== 'projects' || entity?.type !== 'project' || !entity.name) return entries;
+  return entries.map((e) => {
+    if (e.id !== 'projects.widget_entity_status') return e;
+    return {
+      ...e,
+      label: `Status of ${entity.name}`,
+      query: `What is the status of ${entity.name}?`,
+    };
+  });
+}
+
+export function useWidgetContext(userRole: string = 'member') {
   const location = useLocation();
 
   const routeInfo = useMemo(
@@ -186,34 +117,35 @@ export function useWidgetContext(userRole: string = 'employee') {
     [location.pathname],
   );
 
-  const widgetContext: WidgetContext = useMemo(() => ({
-    currentPath: location.pathname,
-    routeParams: routeInfo.params,
-    currentModule: routeInfo.module,
-    viewingEntity: routeInfo.entity,
-    widgetMode: 'expanded',
-  }), [location.pathname, routeInfo]);
+  const widgetContext: WidgetContext = useMemo(
+    () => ({
+      currentPath: location.pathname,
+      routeParams: routeInfo.params,
+      currentModule: routeInfo.module,
+      viewingEntity: routeInfo.entity,
+      widgetMode: 'expanded',
+    }),
+    [location.pathname, routeInfo],
+  );
+
+  const role = normalizeWidgetRole(userRole);
+
+  const sessionRecent = useDoraSessionStore((s) => s.recentIntents);
+  const sessionFreq = useDoraSessionStore((s) => s.frequentCategories);
+  const sessionVisited = useDoraSessionStore((s) => s.visitedModulePrefixes);
 
   const suggestions = useMemo(() => {
-    const chips: SuggestionChip[] = [...BASE_CHIPS];
-
-    if (['manager', 'hr', 'cpo', 'admin'].includes(userRole)) {
-      chips.push(...MANAGER_CHIPS);
-    }
-    if (['admin', 'cpo'].includes(userRole)) {
-      chips.push(...ADMIN_CHIPS);
-    }
-
-    const pageChips = getPageChips(routeInfo.module, routeInfo.entity?.name);
-    chips.push(...pageChips);
-
-    const seen = new Set<string>();
-    return chips.filter((c) => {
-      if (seen.has(c.query)) return false;
-      seen.add(c.query);
-      return true;
+    const raw = getSuggestions({
+      role,
+      currentPath: location.pathname,
+      surface: 'widget',
+      conversationActive: false,
+      recentIntents: sessionRecent,
+      frequentCategories: sessionFreq,
+      visitedModulePrefixes: sessionVisited,
     });
-  }, [userRole, routeInfo]);
+    return customizeForEntity(raw, routeInfo.module, routeInfo.entity);
+  }, [role, location.pathname, routeInfo.module, routeInfo.entity, sessionRecent, sessionFreq, sessionVisited]);
 
   const entityLabel = useMemo(() => {
     if (routeInfo.entity) {
@@ -245,6 +177,10 @@ export function useWidgetContext(userRole: string = 'employee') {
       support: 'Support',
       time: 'Time Tracking',
       okr: 'OKRs & Goals',
+      executive: 'Executive',
+      reports: 'Reports',
+      finance: 'Finance',
+      culture: 'Culture',
     };
     return moduleLabels[routeInfo.module] || '';
   }, [routeInfo]);

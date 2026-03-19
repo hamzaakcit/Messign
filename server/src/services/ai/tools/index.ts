@@ -7,6 +7,7 @@
 // Phase 1: Foundation (4 tools)
 import './searchKnowledgeBase.js';
 import './knowledgeBaseStats.js';
+import './knowledgeLiveDocumentStats.js';
 import './employeePerformance.js';
 import './projectStatus.js';
 

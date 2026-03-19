@@ -12,11 +12,25 @@ import { DoraFollowUpChips } from './DoraFollowUpChips';
 
 interface AIMessageBubbleProps {
   message: AIMessage;
+  priorUserMessage?: AIMessage | null;
+  userRole?: string;
+  currentPath?: string;
   onFeedback?: (messageId: string, isHelpful: boolean) => void;
-  onSendMessage?: (msg: string) => void;
+  onSendMessage?: (msg: string, intentId?: string) => void;
+  onConfirmAct?: (message: AIMessage) => void;
+  onCancelAct?: (messageId: string) => void;
 }
 
-export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessageBubbleProps) {
+export function AIMessageBubble({
+  message,
+  priorUserMessage,
+  userRole,
+  currentPath,
+  onFeedback,
+  onSendMessage,
+  onConfirmAct,
+  onCancelAct,
+}: AIMessageBubbleProps) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
 
@@ -65,7 +79,7 @@ export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessag
             <ThinkingIndicator />
           ) : (
             <div className="dora-glass px-4 py-3 rounded-2xl rounded-tl-md">
-              <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap [&_strong]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_ul]:my-1 [&_li]:text-gray-300">
+              <div className="max-w-3xl text-sm text-gray-300 leading-relaxed whitespace-pre-wrap [&_strong]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_ul]:my-1 [&_li]:text-gray-300">
                 <MarkdownContent content={message.content} />
                 {message.isStreaming && (
                   <span
@@ -89,6 +103,25 @@ export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessag
                   aria-hidden
                 />
               )}
+              {message.pendingConfirmation && !message.isStreaming && onConfirmAct && onCancelAct && (
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-amber-500/20 pt-3">
+                  <span className="w-full text-[11px] uppercase tracking-wide text-amber-400/90">Act mode — confirm</span>
+                  <button
+                    type="button"
+                    onClick={() => onConfirmAct(message)}
+                    className="rounded-lg bg-amber-500/90 px-4 py-2 text-xs font-medium text-dark-900 hover:bg-amber-400"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCancelAct(message.id)}
+                    className="rounded-lg border border-dark-600 px-4 py-2 text-xs text-gray-300 hover:border-dark-500 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
               {message.widgets && message.widgets.map((widget, i) => (
                 <AIWidgetRenderer key={`${widget.widgetType}-${i}`} widget={widget} index={i} onSendMessage={onSendMessage} />
               ))}
@@ -98,11 +131,19 @@ export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessag
                 <AISourcesList sources={message.sources} />
               )}
               {message.metadata && <AIMetadataBar metadata={message.metadata} />}
-              <DoraFollowUpChips message={message} onSendMessage={onSendMessage} />
+              {!message.pendingConfirmation && (
+                <DoraFollowUpChips
+                  message={message}
+                  priorUserMessage={priorUserMessage}
+                  userRole={userRole}
+                  currentPath={currentPath}
+                  onSendMessage={onSendMessage}
+                />
+              )}
             </div>
           )}
 
-          {!message.isStreaming && message.content.length > 0 && (
+          {!message.isStreaming && message.content.length > 0 && !message.pendingConfirmation && (
             <div className="flex items-center gap-1 mt-1.5 ml-1">
               <button
                 onClick={handleCopy}
@@ -151,28 +192,37 @@ export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessag
   );
 }
 
-const MODULE_ACCENT: Record<string, string> = {
-  crm: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
-  support: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
-  finance: 'bg-violet-500/20 text-violet-400 border-violet-500/40',
-  hr: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
-  marketing: 'bg-pink-500/20 text-pink-400 border-pink-500/40',
-  knowledge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
-  time: 'bg-sky-500/20 text-sky-400 border-sky-500/40',
-  okr: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
-  heart: 'bg-rose-500/20 text-rose-400 border-rose-500/40',
-  executive: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40',
-  assets: 'bg-teal-500/20 text-teal-400 border-teal-500/40',
-  contracts: 'bg-slate-500/20 text-slate-400 border-slate-500/40',
+const MODULE_BADGE: Record<string, { emoji: string; className: string; short: string }> = {
+  crm: { emoji: '📊', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20', short: 'CRM' },
+  support: { emoji: '🎧', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', short: 'Support' },
+  finance: { emoji: '💰', className: 'bg-green-500/10 text-green-400 border-green-500/20', short: 'Finance' },
+  hr: { emoji: '👥', className: 'bg-purple-500/10 text-purple-400 border-purple-500/20', short: 'HR' },
+  marketing: { emoji: '📣', className: 'bg-pink-500/10 text-pink-400 border-pink-500/20', short: 'Marketing' },
+  knowledge: { emoji: '📚', className: 'bg-sky-500/10 text-sky-400 border-sky-500/20', short: 'Knowledge' },
+  time: { emoji: '⏱️', className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20', short: 'Time' },
+  okr: { emoji: '🎯', className: 'bg-orange-500/10 text-orange-400 border-orange-500/20', short: 'OKRs' },
+  heart: { emoji: '❤️', className: 'bg-rose-500/10 text-rose-400 border-rose-500/20', short: 'Culture' },
+  executive: { emoji: '📈', className: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', short: 'Executive' },
+  assets: { emoji: '🏢', className: 'bg-teal-500/10 text-teal-400 border-teal-500/20', short: 'Assets' },
+  contracts: { emoji: '📄', className: 'bg-slate-500/10 text-slate-300 border-slate-500/20', short: 'Contracts' },
+  projects: { emoji: '📁', className: 'bg-amber-500/10 text-amber-400 border-amber-500/20', short: 'Projects' },
+  people: { emoji: '👤', className: 'bg-violet-500/10 text-violet-400 border-violet-500/20', short: 'People' },
 };
 
 function SpecialistBadge({ specialist }: { specialist: SpecialistInfo }) {
-  const accent = MODULE_ACCENT[specialist.module] ?? 'bg-gray-500/20 text-gray-400 border-gray-500/40';
+  const mod = specialist.module?.toLowerCase() ?? '';
+  const cfg = MODULE_BADGE[mod] ?? {
+    emoji: specialist.icon || '✨',
+    className: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    short: specialist.displayName || mod || 'Dora',
+  };
   return (
-    <div className={`mb-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${accent}`}>
-      <span>{specialist.icon}</span>
-      <span>Answered by {specialist.displayName} Specialist</span>
-    </div>
+    <span
+      className={`mb-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cfg.className}`}
+    >
+      <span aria-hidden>{cfg.emoji}</span>
+      {cfg.short}
+    </span>
   );
 }
 

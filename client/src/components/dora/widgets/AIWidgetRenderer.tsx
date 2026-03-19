@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
-import type { AIWidgetPayload, SystemOverviewData, TaskRow } from '@/types/knowledge-hub/ai';
+import type { AIWidgetPayload, AIWidgetType, SystemOverviewData, TaskRow } from '@/types/knowledge-hub/ai';
+import { WIDGET_ACTIONS, exportWidget } from '@/shared/intents/widget-actions';
 import { SystemOverviewWidget } from './SystemOverviewWidget';
 import { TaskTableWidget } from './TaskTableWidget';
 import ProjectStatusWidget, { type ProjectData } from './ProjectStatusWidget';
@@ -59,7 +60,41 @@ class WidgetErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
 interface AIWidgetRendererProps {
   widget: AIWidgetPayload;
   index?: number;
-  onSendMessage?: (msg: string) => void;
+  onSendMessage?: (msg: string, intentId?: string) => void;
+}
+
+function WidgetActionButtons({
+  widgetType,
+  onSendMessage,
+}: {
+  widgetType: AIWidgetType;
+  onSendMessage?: (msg: string, intentId?: string) => void;
+}) {
+  const actions = WIDGET_ACTIONS[widgetType];
+  if (!actions?.length) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {actions.map((a) => (
+        <button
+          key={a.label}
+          type="button"
+          onClick={() => {
+            if (a.exportPdf) {
+              exportWidget(widgetType, 'pdf');
+              return;
+            }
+            if (a.message && onSendMessage) {
+              onSendMessage(a.message, a.intentId);
+            }
+          }}
+          className="rounded-lg border border-dark-600 bg-dark-800/80 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-sky-500/35 hover:text-white"
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function AIWidgetRenderer({ widget, index = 0, onSendMessage }: AIWidgetRendererProps) {
@@ -179,7 +214,10 @@ export function AIWidgetRenderer({ widget, index = 0, onSendMessage }: AIWidgetR
 
   return (
     <WidgetErrorBoundary fallbackTitle={title}>
-      {inner}
+      <div className="space-y-0">
+        {inner}
+        <WidgetActionButtons widgetType={widgetType} onSendMessage={onSendMessage} />
+      </div>
     </WidgetErrorBoundary>
   );
 }
