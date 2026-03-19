@@ -529,6 +529,69 @@ export async function* streamGroqCompletion(
 }
 
 /**
+ * Direct Gemini streaming (no LiteLLM). Used when gateway is unreachable.
+ */
+export async function* streamGeminiCompletion(
+  systemPrompt: string,
+  userContent: string,
+): AsyncGenerator<string> {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key not available');
+  }
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:streamGenerateContent?key=${apiKey}&alt=sse`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userContent }] }],
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.4 },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Gemini API error ${res.status}: ${errBody.slice(0, 300)}`);
+  }
+
+  if (!res.body) throw new Error('No response body for Gemini streaming');
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data: ')) continue;
+      const jsonStr = trimmed.slice(6);
+      if (jsonStr === '[DONE]' || jsonStr === '') continue;
+
+      try {
+        const parsed = JSON.parse(jsonStr) as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        };
+        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) yield text;
+      } catch {
+        // skip malformed chunks
+      }
+    }
+  }
+}
+
+/**
  * Web search using Groq's compound-beta model.
  * Streams text and includes web search context automatically.
  */

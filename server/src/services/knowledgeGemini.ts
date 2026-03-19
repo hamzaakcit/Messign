@@ -1,9 +1,11 @@
 /**
  * Knowledge Hub AI — Gemini-style synthesis via LiteLLM gateway.
  * Uses generateText and streamModel for cost tracking and routing.
+ * Falls back to direct Gemini API when LiteLLM is unreachable (e.g. production without LiteLLM).
  */
 
 import { generateText, streamModel } from './ai/gateway.js';
+import { streamGeminiCompletion } from './ai/groqToolCalling.js';
 
 const DEFAULT_SYSTEM_PROMPT = `You are the Knowledge Hub AI assistant for Messign Workspace. Your job is to help employees find information and answer questions.
 
@@ -55,7 +57,12 @@ export async function streamGeminiAnswer(
     }
   }
 
-  throw new Error('Knowledge synthesis failed: all gateway tiers unavailable.');
+  // Fallback: direct Gemini when LiteLLM unreachable (e.g. Railway production)
+  const fallbackSystemPrompt = options?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+  const fallbackUserContent = options?.userMessage ?? `KNOWLEDGE BASE CONTEXT:\n${context}\n---\n\nEmployee question: ${userQuery}`;
+  for await (const chunk of streamGeminiCompletion(fallbackSystemPrompt, fallbackUserContent)) {
+    onChunk(chunk);
+  }
 }
 
 export async function generateGeminiAnswer(

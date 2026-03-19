@@ -48,7 +48,11 @@ authRouter.post('/login', (req, res) => {
         res.cookie('refreshToken', refreshToken, getRefreshCookieOptions());
         return res.json({ success: true, data: responseData });
       }
-      return res.status(401).json({ success: false, error: result.error });
+      const err = result.error as { code?: string; message?: string; remainingAttempts?: number };
+      if (process.env.NODE_ENV !== 'production' && err?.code === 'INVALID_CREDENTIALS') {
+        err.message = (err.message || 'Invalid email or password') + ' Local dev: use alex.chen@messign.com / 030319941.Aa (run npm run db:seed in server if users do not exist).';
+      }
+      return res.status(401).json({ success: false, error: err });
     } catch (e) {
       console.error('[auth] login error:', e);
       const safeMessage = 'Login failed. Please try again.';

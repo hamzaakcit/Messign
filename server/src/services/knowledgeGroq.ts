@@ -1,9 +1,11 @@
 /**
  * Knowledge Hub AI — Groq-style synthesis via LiteLLM gateway.
  * Uses generateText and streamModel for cost tracking and routing.
+ * Falls back to direct Groq API when LiteLLM is unreachable (e.g. production without LiteLLM).
  */
 
 import { generateText, streamModel } from './ai/gateway.js';
+import { streamGroqCompletion } from './ai/groqToolCalling.js';
 
 const SYSTEM_BASE = `You are the Knowledge Hub AI assistant for Messign Workspace. You help employees get quick, accurate answers from the company knowledge base.
 
@@ -72,7 +74,11 @@ export async function streamGroqAnswer(
     }
   }
 
-  throw new Error('Knowledge synthesis failed: all gateway tiers unavailable.');
+  // Fallback: direct Groq when LiteLLM unreachable (e.g. Railway production)
+  const groqMessages = messages.map((m) => ({ role: m.role, content: m.content ?? '' }));
+  for await (const chunk of streamGroqCompletion(groqMessages, { maxTokens, temperature: 0.3, tenantId })) {
+    onChunk(chunk);
+  }
 }
 
 /** Non-streaming completion for structured output (e.g. presentation JSON). */
