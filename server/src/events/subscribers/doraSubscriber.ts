@@ -7,13 +7,31 @@ export function register(): void {
   // Dora insight socket emission: DAL emits domain events; subscriber handles socket layer
   eventBus.on('dora.insight.created', async (payload) => {
     if (payload.targetUserId) {
-      await emitToUser(payload.targetUserId, 'dora:new-insight', payload.insight);
+      try {
+        await emitToUser(payload.targetUserId, 'dora:new-insight', payload.insight);
+      } catch (err) {
+        console.error('[DoraSubscriber] emitToUser failed (dora.insight.created)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
     if (payload.targetRole) {
-      await emitToRole(payload.targetRole, 'dora:new-insight', payload.insight, payload.organizationId);
+      try {
+        await emitToRole(payload.targetRole, 'dora:new-insight', payload.insight, payload.organizationId);
+      } catch (err) {
+        console.error('[DoraSubscriber] emitToRole failed (dora.insight.created)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
     if (payload.targetDepartment) {
-      await emitToDepartment(payload.targetDepartment, 'dora:new-insight', payload.insight, payload.organizationId);
+      try {
+        await emitToDepartment(payload.targetDepartment, 'dora:new-insight', payload.insight, payload.organizationId);
+      } catch (err) {
+        console.error('[DoraSubscriber] emitToDepartment failed (dora.insight.created)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
     if (!payload.targetUserId && !payload.targetRole && !payload.targetDepartment) {
       emitBroadcast('dora:new-insight', payload.insight);
@@ -23,13 +41,31 @@ export function register(): void {
   eventBus.on('dora.insight.counts-refresh', async (payload) => {
     const socketPayload = { module: payload.module ?? null, updatedAt: new Date().toISOString() };
     if (payload.targetUserId) {
-      await emitToUser(payload.targetUserId, 'dora:insight-counts', socketPayload);
+      try {
+        await emitToUser(payload.targetUserId, 'dora:insight-counts', socketPayload);
+      } catch (err) {
+        console.error('[DoraSubscriber] emitToUser failed (dora.insight.counts-refresh)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
     if (payload.targetRole) {
-      await emitToRole(payload.targetRole, 'dora:insight-counts', socketPayload, payload.organizationId);
+      try {
+        await emitToRole(payload.targetRole, 'dora:insight-counts', socketPayload, payload.organizationId);
+      } catch (err) {
+        console.error('[DoraSubscriber] emitToRole failed (dora.insight.counts-refresh)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
     if (payload.targetDepartment) {
-      await emitToDepartment(payload.targetDepartment, 'dora:insight-counts', socketPayload, payload.organizationId);
+      try {
+        await emitToDepartment(payload.targetDepartment, 'dora:insight-counts', socketPayload, payload.organizationId);
+      } catch (err) {
+        console.error('[DoraSubscriber] emitToDepartment failed (dora.insight.counts-refresh)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
     if (!payload.targetUserId && !payload.targetRole && !payload.targetDepartment) {
       emitBroadcast('dora:insight-counts', socketPayload);

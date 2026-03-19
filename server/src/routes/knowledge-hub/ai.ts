@@ -241,6 +241,67 @@ const MODULE_ICONS: Record<string, string> = {
   contracts: '📄',
 };
 
+const WIDGET_TOOL_MAP: Record<string, string> = {
+  // System
+  'analytics:get_system_stats': 'system_overview',
+
+  // Projects & Tasks
+  'projects:get_tasks_by_user': 'task_table',
+  'projects:get_project_status': 'project_status',
+
+  // Finance
+  'finance:get_financial_summary': 'financial_summary',
+  'finance:get_invoice_details': 'data_table',
+  'analytics:get_approval_queue': 'data_table',
+  'finance:get_reimbursement_details': 'data_table',
+
+  // People & HR
+  'people:get_employee_performance': 'performance_overview',
+  'people:get_team_overview': 'team_overview',
+  'hr:compare_employees': 'data_table',
+  'hr:get_hiring_pipeline': 'data_table',
+  'hr:get_recruitment_metrics': 'data_table',
+
+  // Support
+  'support:get_ticket_overview': 'data_table',
+  'support:get_support_metrics': 'data_table',
+  'support:get_customer_health': 'data_table',
+
+  // Time
+  'time:get_time_summary': 'data_table',
+  'time:get_utilization_report': 'data_table',
+
+  // OKR
+  'okr:get_okr_metrics': 'data_table',
+  'okr:list_goals': 'data_table',
+
+  // Fun
+  'fun:play_dora_dash': 'dora_dash',
+};
+
+type ToolResultForWidget = { toolName: string; success: boolean; data: unknown; summary?: string };
+
+function emitWidgetsFromToolResults(
+  send: (event: Record<string, unknown>) => void,
+  toolResultsForWidgets: ToolResultForWidget[],
+  path: string,
+): void {
+  console.log('[Dora] Widget emission', {
+    path,
+    toolResultCount: toolResultsForWidgets.length,
+    toolNames: toolResultsForWidgets.map((o) => o.toolName),
+  });
+  const emittedWidgetTypes = new Set<string>();
+  for (const obs of toolResultsForWidgets) {
+    const widgetType = WIDGET_TOOL_MAP[obs.toolName];
+    if (widgetType && !emittedWidgetTypes.has(widgetType) && obs.success && obs.data) {
+      emittedWidgetTypes.add(widgetType);
+      console.log('[WIDGET DEBUG] Emitting widget_data SSE:', { widgetType, toolName: obs.toolName });
+      send({ type: 'widget_data', content: { widgetType, data: obs.data, title: obs.summary ?? '' } });
+    }
+  }
+}
+
 aiRouter.get('/user-stats', async (req: Request, res: Response) => {
   const authReq = req as AuthReq;
   if (!authReq.userId) {
@@ -443,6 +504,13 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
         const totalMs = Date.now() - startTime;
         const sources = extractSources({ toolResults: routerResult.toolResults });
         if (sources.length > 0) send({ type: 'sources', documents: sources });
+        const intentRouterToolResults1: ToolResultForWidget[] = routerResult.toolResults.map((r, i) => ({
+          toolName: routerResult.toolsUsed[i] ?? 'unknown',
+          success: r.success,
+          data: r.data,
+          summary: r.summary,
+        }));
+        emitWidgetsFromToolResults(send, intentRouterToolResults1, 'intentRouter');
         send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
         send({ type: 'done' });
         res.end();
@@ -510,6 +578,13 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
         const totalMs = Date.now() - startTime;
         const sources = extractSources({ toolResults: routerResult.toolResults });
         if (sources.length > 0) send({ type: 'sources', documents: sources });
+        const intentRouterToolResults2: ToolResultForWidget[] = routerResult.toolResults.map((r, i) => ({
+          toolName: routerResult.toolsUsed[i] ?? 'unknown',
+          success: r.success,
+          data: r.data,
+          summary: r.summary,
+        }));
+        emitWidgetsFromToolResults(send, intentRouterToolResults2, 'intentRouter');
         send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
         send({ type: 'done' });
         res.end();
@@ -552,57 +627,23 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       send({ type: 'sources', documents: sources });
     }
 
-    const WIDGET_TOOL_MAP: Record<string, string> = {
-      // System
-      'analytics:get_system_stats': 'system_overview',
-
-      // Projects & Tasks
-      'projects:get_tasks_by_user': 'task_table',
-      'projects:get_project_status': 'project_status',
-
-      // Finance
-      'finance:get_financial_summary': 'financial_summary',
-      'finance:get_invoice_details': 'data_table',
-      'analytics:get_approval_queue': 'data_table',
-      'finance:get_reimbursement_details': 'data_table',
-
-      // People & HR
-      'people:get_employee_performance': 'performance_overview',
-      'people:get_team_overview': 'team_overview',
-      'hr:compare_employees': 'data_table',
-      'hr:get_hiring_pipeline': 'data_table',
-      'hr:get_recruitment_metrics': 'data_table',
-
-      // Support
-      'support:get_ticket_overview': 'data_table',
-      'support:get_support_metrics': 'data_table',
-      'support:get_customer_health': 'data_table',
-
-      // Time
-      'time:get_time_summary': 'data_table',
-      'time:get_utilization_report': 'data_table',
-
-      // OKR
-      'okr:get_okr_metrics': 'data_table',
-      'okr:list_goals': 'data_table',
-
-      // Fun
-      'fun:play_dora_dash': 'dora_dash',
-    };
     // Verify consistency with orchestrator's WIDGET_TOOL_NAMES at startup
     for (const key of Object.keys(WIDGET_TOOL_MAP)) {
       if (!WIDGET_TOOL_NAMES.has(key)) {
         console.warn(`[AI Route] WIDGET_TOOL_MAP key "${key}" not in WIDGET_TOOL_NAMES`);
       }
     }
-    const emittedWidgetTypes = new Set<string>();
-    for (const obs of toolResultsForWidgets as Array<{ toolName: string; success: boolean; data: unknown; summary?: string }>) {
-      const widgetType = WIDGET_TOOL_MAP[obs.toolName];
-      if (widgetType && !emittedWidgetTypes.has(widgetType) && obs.success && obs.data) {
-        emittedWidgetTypes.add(widgetType);
-        send({ type: 'widget_data', content: { widgetType, data: obs.data, title: obs.summary ?? '' } });
-      }
-    }
+    const mainPathToolResults: ToolResultForWidget[] = toolResultsForWidgets as ToolResultForWidget[];
+    console.log('[WIDGET DEBUG] Tool results available (orchestrator/agentic path):', {
+      hasToolObservations: !!(orchResult.toolObservations && orchResult.toolObservations.length > 0),
+      toolObservationsCount: orchResult.toolObservations?.length ?? 0,
+      toolNamesFromObservations: orchResult.toolObservations?.map((o) => o.toolName) ?? [],
+      path: pathTaken,
+      stepsObservationsCount: allToolResults.length,
+      mergedForWidgetsCount: mainPathToolResults.length,
+      mergedToolNames: mainPathToolResults.map((o) => o.toolName),
+    });
+    emitWidgetsFromToolResults(send, mainPathToolResults, pathTaken);
 
     // Phase 4: emit pending action events for HITL confirmation cards
     if (orchResult.pendingActions && orchResult.pendingActions.length > 0) {

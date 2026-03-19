@@ -16,11 +16,21 @@ interface UserSocket {
 const connectedUsers: Map<string, Socket> = new Map();
 let socketServer: Server | null = null;
 
+/** PostgreSQL uuid — reimbursement_users.id / auth_user_id columns use this type. */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Emit an event to a specific user's socket (by Messign auth user id). */
 export async function emitToUser(userId: string, event: string, data: unknown): Promise<void> {
+  if (!userId) return;
+
   const socket = connectedUsers.get(userId);
   if (socket) {
     socket.emit(event, data);
+    return;
+  }
+
+  // Skip DB lookup for non-UUID ids (seed data like "user-2") — would error on uuid column
+  if (!UUID_REGEX.test(userId)) {
     return;
   }
 
@@ -60,7 +70,16 @@ export async function emitToRole(
   );
 
   await Promise.all(
-    result.rows.map((row) => emitToUser(row.auth_user_id, event, data)),
+    result.rows.map(async (row) => {
+      try {
+        await emitToUser(row.auth_user_id, event, data);
+      } catch (err) {
+        console.error('[Socket] emitToUser failed for role broadcast', {
+          userId: row.auth_user_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
   );
 }
 
@@ -82,7 +101,16 @@ export async function emitToDepartment(
   );
 
   await Promise.all(
-    result.rows.map((row) => emitToUser(row.auth_user_id, event, data)),
+    result.rows.map(async (row) => {
+      try {
+        await emitToUser(row.auth_user_id, event, data);
+      } catch (err) {
+        console.error('[Socket] emitToUser failed for department broadcast', {
+          userId: row.auth_user_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
   );
 }
 
