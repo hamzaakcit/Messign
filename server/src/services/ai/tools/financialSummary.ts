@@ -34,7 +34,7 @@ const financialSummaryTool: Tool = {
     name: 'get_financial_summary',
     summary: 'Financial summary: reimbursements, invoices, spending by category, pending approvals.',
     tags: ['finance', 'budget', 'reimbursements', 'invoices', 'spending'],
-    alwaysLoaded: false,
+    alwaysLoaded: true,
     parameterHints: 'time_period: this_month|last_month|this_quarter|this_year, scope?: company|my|team, category?: string',
   },
 

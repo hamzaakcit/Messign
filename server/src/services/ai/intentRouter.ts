@@ -204,12 +204,16 @@ function isOverviewStyleQuery(query: string): boolean {
 function isFinancialQuery(query: string): boolean {
   const q = query.toLowerCase().trim();
   return (
-    /\b(financial|finance|budget|spending|reimbursement|invoice|expense)\s+(summary|overview|report)\b/i.test(q) ||
-    /\b(company[- ]?wide|company)\s+financial\s+summary\b/i.test(q) ||
-    /\bwhat('s| is)\s+(our|the)\s+(total\s+)?(spending|budget|finance)\b/i.test(q) ||
+    /\b(financial|finance|budget|spending|reimbursement|invoice|expense)\s+(summary|overview|report|status)\b/i.test(q) ||
+    /\b(company[- ]?wide|company)\s+financial\s+(summary|status)\b/i.test(q) ||
+    /\bwhat('s| is)\s+(our|the)\s+(total\s+)?(spending|budget|finance|revenue)\b/i.test(q) ||
+    /\b(our|the)\s+revenue\s+(this\s+)?(quarter|month|year)\b/i.test(q) ||
+    /\brevenue\s+(this\s+)?(quarter|month|year)\b/i.test(q) ||
     /\bhow\s+much\s+(have\s+we\s+)?spent\b/i.test(q) ||
     /\b(total\s+)?reimbursements?\s+(this\s+)?(month|quarter|year)\b/i.test(q) ||
-    /\binvoice\s+summary\b/i.test(q)
+    /\binvoice\s+summary\b/i.test(q) ||
+    /\bfinance\s+page\b/i.test(q) ||
+    /\bcheck\s+(the\s+)?(company\s+)?financial\s+status\b/i.test(q)
   );
 }
 

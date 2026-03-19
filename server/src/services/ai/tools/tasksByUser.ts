@@ -21,7 +21,7 @@ const tasksByUserTool: Tool = {
     name: 'get_tasks_by_user',
     summary: 'Tasks assigned to a user. Status, priority, due date, project, overdue flag.',
     tags: ['projects', 'tasks', 'assignments', 'workload'],
-    alwaysLoaded: false,
+    alwaysLoaded: true,
     parameterHints: 'user_identifier: string, status_filter?: all|active|completed|overdue|blocked|in_progress|todo, time_scope?: all|today|this_week|upcoming|overdue',
   },
 

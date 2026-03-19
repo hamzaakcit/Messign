@@ -119,13 +119,35 @@ export function getToolsForLLM(): LLMToolDefinition[] {
 }
 
 /**
+ * Specialists can access tools from related namespaces.
+ * Fixes the mismatch where hr specialist needs people:* tools
+ * and time specialist needs projects:* tools.
+ */
+const NAMESPACE_ALIASES: Record<string, string[]> = {
+  hr: ['hr', 'people'],
+  time: ['time', 'projects'],
+  finance: ['finance'],
+  executive: ['executive', 'analytics'],
+  crm: ['crm'],
+  support: ['support'],
+  marketing: ['marketing'],
+  okr: ['okr'],
+  assets: ['assets'],
+  contracts: ['contracts'],
+  heart: ['heart'],
+};
+
+/**
  * Get all tools for a given namespace (for specialist agents).
- * Includes both always-loaded and deferred tools. Filters by userRoles for RBAC.
+ * Uses NAMESPACE_ALIASES so hr gets people:* and time gets projects:*.
+ * Filters by userRoles for RBAC.
  */
 export function getToolsForNamespace(namespace: string, userRoles: string[]): LLMToolDefinition[] {
+  const namespaces = NAMESPACE_ALIASES[namespace] ?? [namespace];
   const tools: LLMToolDefinition[] = [];
   for (const [name, metadata] of toolIndex) {
-    if (metadata.namespace !== namespace) continue;
+    const toolNs = metadata.namespace;
+    if (!namespaces.includes(toolNs)) continue;
     const tool = registry.get(name);
     if (!tool) continue;
     const requiredRoles = metadata.requiredRoles ?? tool.requiredRoles ?? [];

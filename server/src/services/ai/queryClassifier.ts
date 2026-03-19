@@ -54,10 +54,13 @@ function isProductIntent(query: string): boolean {
     /\b(all\s+)?teams?['\s]*\s*(performance|comparison)\b/i.test(q) ||
     /\bcompare\s+(all\s+)?(team|teams)\b/i.test(q) ||
     // Financial
-    /\b(financial|finance|budget|spending|reimbursement|invoice|expense)\s+(summary|overview|report)\b/i.test(q) ||
-    /\b(company[- ]?wide|company)\s+financial\s+summary\b/i.test(q) ||
-    /\bwhat('s| is)\s+(our|the)\s+(total\s+)?(spending|budget|finance)\b/i.test(q) ||
+    /\b(financial|finance|budget|spending|reimbursement|invoice|expense)\s+(summary|overview|report|status)\b/i.test(q) ||
+    /\b(company[- ]?wide|company)\s+financial\s+(summary|status)\b/i.test(q) ||
+    /\bwhat('s| is)\s+(our|the)\s+(total\s+)?(spending|budget|finance|revenue)\b/i.test(q) ||
+    /\b(our|the)\s+revenue\s+(this\s+)?(quarter|month|year)\b/i.test(q) ||
+    /\brevenue\s+(this\s+)?(quarter|month|year)\b/i.test(q) ||
     /\bhow\s+much\s+(have\s+we\s+)?spent\b/i.test(q) ||
+    /\bfinance\s+page\b/i.test(q) ||
     // Approvals
     /\b(items?|things?|what)\s+(need|needs|require|requires)\s+approval\b/i.test(q) ||
     /\bapproval\s+(queue|list|items?)\b/i.test(q) ||

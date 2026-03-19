@@ -120,7 +120,7 @@ const searchKnowledgeBaseTool: Tool = {
     name: 'search_knowledge_base',
     summary: 'Search company docs, guides, policies, SOPs, FAQs. RAG + hybrid vector/BM25.',
     tags: ['knowledge', 'search', 'rag', 'documents', 'policies'],
-    alwaysLoaded: false,
+    alwaysLoaded: true,
     parameterHints: buildParameterHints({
       properties: { query: { type: 'string' } },
       required: ['query'],

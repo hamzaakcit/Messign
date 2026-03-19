@@ -19,7 +19,7 @@ const systemStatsTool: Tool = {
     name: 'get_system_stats',
     summary: 'System-wide stats: users, documents, projects, tasks, activity, health.',
     tags: ['analytics', 'dashboard', 'overview', 'stats'],
-    alwaysLoaded: false,
+    alwaysLoaded: true,
     parameterHints: 'detail_level?: summary|detailed',
   },
 

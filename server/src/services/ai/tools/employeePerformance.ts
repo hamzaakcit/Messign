@@ -93,7 +93,7 @@ const employeePerformanceTool: Tool = {
     name: 'get_employee_performance',
     summary: 'Employee performance: tasks, XP, badges, activity, knowledge contributions.',
     tags: ['people', 'performance', 'metrics', 'productivity'],
-    alwaysLoaded: false,
+    alwaysLoaded: true,
     parameterHints: 'employee_identifier: string, time_period?: today|this_week|this_month|this_quarter|this_year|all_time, include_team_comparison?: yes|no',
   },
 

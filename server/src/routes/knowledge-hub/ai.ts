@@ -13,11 +13,12 @@ import { recordTiming } from '../../services/ai/performanceMonitor.js';
 import { trimHistory } from '../../services/ai/contextLimiter.js';
 import { buildDoraContext, toLegacyToolContext } from '../../services/ai/dora/context.js';
 import { orchestrate, WIDGET_TOOL_NAMES } from '../../services/ai/orchestrator/agenticLoop.js';
-import { runOrchestrator, buildAgentContextFromDora, NoSpecialistError } from '../../services/ai/agents/orchestrator.js';
+import { runOrchestrator, buildAgentContextFromDora } from '../../services/ai/agents/orchestrator.js';
 import { streamGroqWebSearch } from '../../services/ai/groqToolCalling.js';
 import { logTelemetry, attachFeedback, insertRequestTelemetry, getUserAiStats } from '../../services/ai/telemetry/service.js';
 import { query } from '../../db/index.js';
 import type { SourceDocument } from '../../services/ai/types.js';
+import type { OrchestrationResult, AgentStep } from '../../services/ai/orchestrator/types.js';
 
 console.log(`[AI Route] Loaded with ${getToolCount()} AI tools available.`);
 
@@ -395,24 +396,13 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     } catch (orchErr) {
       const errMsg = orchErr instanceof Error ? orchErr.message : String(orchErr);
       const errStack = orchErr instanceof Error ? orchErr.stack?.split('\n').slice(0, 3).join('\n') : undefined;
-      if (orchErr instanceof NoSpecialistError) {
-        console.error('[Dora] Orchestrator failed (no specialist)', {
-          error: errMsg,
-          stack: errStack,
-          userId: legacyContext.userId,
-          query: userQuery.substring(0, 100),
-          fallbackTo: 'agenticLoop',
-          module: orchErr.module,
-        });
-      } else {
-        console.error('[Dora] Orchestrator failed', {
-          error: errMsg,
-          stack: errStack,
-          userId: legacyContext.userId,
-          query: userQuery.substring(0, 100),
-          fallbackTo: 'agenticLoop',
-        });
-      }
+      console.error('[Dora] Orchestrator failed', {
+        error: errMsg,
+        stack: errStack,
+        userId: legacyContext.userId,
+        query: userQuery.substring(0, 100),
+        fallbackTo: 'agenticLoop',
+      });
       try {
         pathTaken = 'agenticLoop';
         result = await orchestrate(
@@ -478,8 +468,76 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       }
     }
 
-    const allToolResults = result.steps.flatMap((s) => s.observations);
-    const sources = extractSources({ toolResults: allToolResults });
+    if (result && 'type' in result && result.type === 'no_specialist') {
+      console.log('[Dora] No specialist, using agentic loop', { module: result.module });
+      pathTaken = 'agenticLoop';
+      try {
+        result = await orchestrate(
+          userQuery,
+          chatHistory,
+          doraCtx,
+          legacyContext,
+          (chunk) => { send({ type: 'text', content: chunk }); },
+          {
+            ...(provider !== 'auto' ? { provider } : {}),
+            isDynamicToolLoopEnabled,
+          },
+        );
+      } catch (fallbackErr) {
+        const errMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        const errStack = fallbackErr instanceof Error ? fallbackErr.stack?.split('\n').slice(0, 3).join('\n') : undefined;
+        console.error('[Dora] Agentic loop failed', {
+          error: errMsg,
+          stack: errStack,
+          userId: legacyContext.userId,
+          query: userQuery.substring(0, 100),
+          fallbackTo: 'intentRouter',
+        });
+        pathTaken = 'intentRouter';
+        const routerResult = await routeQuery(userQuery, chatHistory, legacyContext, doraCtx);
+        const context = routerResult.combinedContext || 'No data was retrieved.';
+        const tenantId = doraCtx.user.organizationId ?? 'system';
+        try {
+          try {
+            await streamGroqAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }), chatHistory, { concise, tenantId });
+          } catch {
+            await streamGeminiAnswer(userQuery, context, (chunk) => send({ type: 'text', content: chunk }), { tenantId });
+          }
+        } catch (synErr) {
+          console.error('[kh-ai] Fallback synthesis also failed:', synErr);
+          send({ type: 'text', content: "I'm having trouble connecting to AI services. Please ensure LiteLLM is running (npm run litellm) and API keys are set." });
+        }
+        const totalMs = Date.now() - startTime;
+        const sources = extractSources({ toolResults: routerResult.toolResults });
+        if (sources.length > 0) send({ type: 'sources', documents: sources });
+        send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
+        send({ type: 'done' });
+        res.end();
+        console.log('[Dora] Request completed', {
+          path: 'intentRouter',
+          duration: totalMs,
+          userId: legacyContext.userId,
+          specialist: 'none',
+          toolCalls: routerResult.toolsUsed.length,
+        });
+        logQuery({ userId: legacyContext.userId, query: userQuery, toolsUsed: routerResult.toolsUsed, dataPointsReturned: routerResult.toolResults.filter((r) => r.success).length, responseTimeMs: totalMs, success: true, usedFallback: true, toolCallCount: routerResult.toolsUsed.length, conciseMode: concise, synthesisProvider: 'fallback' }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
+        insertRequestTelemetry({
+          tenantId: doraCtx.user.organizationId,
+          userId: legacyContext.userId,
+          query: userQuery,
+          path: 'intentRouter',
+          specialist: null,
+          toolCallsUsed: routerResult.toolsUsed.length,
+          durationMs: totalMs,
+          success: true,
+        });
+        return;
+      }
+    }
+
+    const orchResult: OrchestrationResult = result as OrchestrationResult;
+    const allToolResults = orchResult.steps.flatMap((s: AgentStep) => s.observations);
+    const sources = extractSources({ toolResults: allToolResults as { success: boolean; data: unknown }[] });
     if (sources.length > 0) {
       send({ type: 'sources', documents: sources });
     }
@@ -499,7 +557,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       }
     }
     const emittedWidgetTypes = new Set<string>();
-    for (const obs of allToolResults) {
+    for (const obs of allToolResults as Array<{ toolName: string; success: boolean; data: unknown; summary?: string }>) {
       const widgetType = WIDGET_TOOL_MAP[obs.toolName];
       if (widgetType && !emittedWidgetTypes.has(widgetType) && obs.success && obs.data) {
         emittedWidgetTypes.add(widgetType);
@@ -508,41 +566,41 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     }
 
     // Phase 4: emit pending action events for HITL confirmation cards
-    if (result.pendingActions && result.pendingActions.length > 0) {
-      for (const actionEvent of result.pendingActions) {
+    if (orchResult.pendingActions && orchResult.pendingActions.length > 0) {
+      for (const actionEvent of orchResult.pendingActions) {
         send(actionEvent as unknown as Record<string, unknown>);
       }
     }
 
     const totalMs = Date.now() - startTime;
-    const toolCallsUsed = result.steps.reduce((s, step) => s + (step.toolCalls?.length ?? 0), 0);
+    const toolCallsUsed = orchResult.steps.reduce((s: number, step: { toolCalls?: unknown[] }) => s + (step.toolCalls?.length ?? 0), 0);
 
     console.log('[Dora] Request completed', {
       path: pathTaken,
       duration: totalMs,
       userId: legacyContext.userId,
-      specialist: result.toolsUsed[0] ?? 'none',
+      specialist: orchResult.toolsUsed[0] ?? 'none',
       toolCalls: toolCallsUsed,
     });
     console.log(
-      `[A/B Test] Dynamic Loop: ${isDynamicToolLoopEnabled ? 'TRUE' : 'FALSE'} | Tokens: ${result.totalTokens.totalTokens} | Latency: ${totalMs}ms`,
+      `[A/B Test] Dynamic Loop: ${isDynamicToolLoopEnabled ? 'TRUE' : 'FALSE'} | Tokens: ${orchResult.totalTokens.totalTokens} | Latency: ${totalMs}ms`,
     );
 
     let telemetryId: string | null = null;
     try {
-      telemetryId = await logTelemetry(result, doraCtx, userQuery, sessionId);
+      telemetryId = await logTelemetry(orchResult, doraCtx, userQuery, sessionId);
     } catch { /* never block */ }
 
-    const primaryTool = result.toolsUsed[0];
+    const primaryTool = orchResult.toolsUsed[0];
     const specialistModule = primaryTool?.split(':')[0] ?? null;
     send({
       type: 'metadata',
       content: {
-        toolsUsed: result.toolsUsed,
-        dataPoints: result.totalDataPoints,
+        toolsUsed: orchResult.toolsUsed,
+        dataPoints: orchResult.totalDataPoints,
         responseTimeMs: totalMs,
-        steps: result.stepCount,
-        terminationReason: result.terminationReason,
+        steps: orchResult.stepCount,
+        terminationReason: orchResult.terminationReason,
         telemetryId: telemetryId || undefined,
         specialist: specialistModule,
         specialistDisplayName: specialistModule ? MODULE_DISPLAY_NAMES[specialistModule] ?? specialistModule : null,
@@ -553,7 +611,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
     send({ type: 'done' });
     res.end();
 
-    if (provider === 'claude' && result.success) {
+    if (provider === 'claude' && orchResult.success) {
       incrementClaudeUsage(authReq.userId).catch((err) => console.error('[kh-ai] incrementClaudeUsage failed', { error: err instanceof Error ? err.message : String(err) }));
     }
 
@@ -562,18 +620,18 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       toolsMs: totalMs,
       synthesisMs: 0,
       totalMs,
-      toolCount: result.toolsUsed.length,
+      toolCount: orchResult.toolsUsed.length,
     });
 
     logQuery({
       userId: legacyContext.userId,
       query: userQuery,
-      toolsUsed: result.toolsUsed,
-      dataPointsReturned: result.totalDataPoints,
+      toolsUsed: orchResult.toolsUsed,
+      dataPointsReturned: orchResult.totalDataPoints,
       responseTimeMs: totalMs,
-      success: result.success,
-      usedFallback: result.toolsUsed.length === 1 && result.toolsUsed[0]?.includes('search_knowledge_base'),
-      toolCallCount: result.steps.reduce((s, step) => s + (step.toolCalls?.length ?? 0), 0),
+      success: orchResult.success,
+      usedFallback: orchResult.toolsUsed.length === 1 && orchResult.toolsUsed[0]?.includes('search_knowledge_base'),
+      toolCallCount: orchResult.steps.reduce((s: number, step: { toolCalls?: unknown[] }) => s + (step.toolCalls?.length ?? 0), 0),
       conciseMode: concise,
       synthesisProvider: 'orchestrator',
     }).catch((err) => console.error('[kh-ai] logQuery failed', { error: err instanceof Error ? err.message : String(err) }));
@@ -583,15 +641,15 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       userId: legacyContext.userId,
       query: userQuery,
       path: pathTaken,
-      specialist: result.toolsUsed[0] ?? null,
-      toolCallsUsed: result.steps.reduce((s, step) => s + (step.toolCalls?.length ?? 0), 0),
+      specialist: orchResult.toolsUsed[0] ?? null,
+      toolCallsUsed: orchResult.steps.reduce((s: number, step: { toolCalls?: unknown[] }) => s + (step.toolCalls?.length ?? 0), 0),
       durationMs: totalMs,
-      success: result.success,
-      errorMessage: result.error ?? null,
-      tokensInput: result.totalTokens.promptTokens,
-      tokensOutput: result.totalTokens.completionTokens,
-      cacheHit: result.cacheHit,
-      estimatedCostSavingsUsd: result.estimatedCostSavingsUsd,
+      success: orchResult.success,
+      errorMessage: orchResult.error ?? null,
+      tokensInput: orchResult.totalTokens.promptTokens,
+      tokensOutput: orchResult.totalTokens.completionTokens,
+      cacheHit: orchResult.cacheHit,
+      estimatedCostSavingsUsd: orchResult.estimatedCostSavingsUsd,
     });
   } catch (error) {
     console.error('[kh-ai] answer route error:', error);

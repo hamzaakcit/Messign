@@ -6,10 +6,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runOrchestrator, buildAgentContextFromDora } from '../../services/ai/agents/orchestrator.js';
 import * as gateway from '../../services/ai/gateway.js';
 import * as specialistRegistry from '../../services/ai/agents/specialistRegistry.js';
-import * as moduleRegistry from '../../modules/registry.js';
 import type { DoraRequestContext } from '../../services/ai/dora/types.js';
 import type { ToolContext } from '../../services/ai/types.js';
 import type { SpecialistAgent } from '../../services/ai/agents/types.js';
+import type { OrchestrationResult } from '../../services/ai/orchestrator/types.js';
 
 const mockDoraCtx: DoraRequestContext = {
   user: {
@@ -50,15 +50,8 @@ describe('orchestrator', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.spyOn(specialistRegistry, 'getSpecialist').mockImplementation((ns) =>
-      ns ? { ...mockSpecialist, namespace: ns } : undefined,
+      ns ? { ...mockSpecialist, namespace: ns } : null,
     );
-    vi.spyOn(moduleRegistry, 'getAccessibleModules').mockReturnValue([
-      { namespace: 'crm' },
-      { namespace: 'support' },
-      { namespace: 'finance' },
-      { namespace: 'hr' },
-      { namespace: 'marketing' },
-    ] as never);
   });
 
   it('"Show me my open deals" → routes to crm specialist', async () => {
@@ -94,10 +87,11 @@ describe('orchestrator', () => {
       buildContext(),
       (chunk) => chunks.push(chunk),
     );
-
-    expect(result.toolsUsed).toContain('crm');
-    expect(result.stepCount).toBe(1);
-    expect(result.terminationReason).toBe('complete');
+    expect(result).not.toHaveProperty('type', 'no_specialist');
+    const r = result as OrchestrationResult;
+    expect(r.toolsUsed).toContain('crm');
+    expect(r.stepCount).toBe(1);
+    expect(r.terminationReason).toBe('complete');
     expect(gateway.callModelSafe).toHaveBeenCalledWith(
       expect.objectContaining({
         tier: 'fast',
@@ -139,9 +133,10 @@ describe('orchestrator', () => {
       buildContext(),
       () => {},
     );
-
-    expect(result.toolsUsed).toContain('support');
-    expect(result.stepCount).toBe(1);
+    expect(result).not.toHaveProperty('type', 'no_specialist');
+    const r = result as OrchestrationResult;
+    expect(r.toolsUsed).toContain('support');
+    expect(r.stepCount).toBe(1);
   });
 
   it('"Create an expense report" → routes to finance specialist', async () => {
@@ -176,9 +171,10 @@ describe('orchestrator', () => {
       buildContext(),
       () => {},
     );
-
-    expect(result.toolsUsed).toContain('finance');
-    expect(result.stepCount).toBe(1);
+    expect(result).not.toHaveProperty('type', 'no_specialist');
+    const r = result as OrchestrationResult;
+    expect(r.toolsUsed).toContain('finance');
+    expect(r.stepCount).toBe(1);
   });
 
   it('"Hello, how are you?" → direct reply (no routing)', async () => {
@@ -201,10 +197,11 @@ describe('orchestrator', () => {
       buildContext(),
       (chunk) => chunks.push(chunk),
     );
-
-    expect(result.toolsUsed).toEqual([]);
-    expect(result.stepCount).toBe(0);
-    expect(result.finalAnswer).toContain('Hello');
+    expect(result).not.toHaveProperty('type', 'no_specialist');
+    const r = result as OrchestrationResult;
+    expect(r.toolsUsed).toEqual([]);
+    expect(r.stepCount).toBe(0);
+    expect(r.finalAnswer).toContain('Hello');
     expect(chunks.length).toBeGreaterThan(0);
   });
 
@@ -240,9 +237,10 @@ describe('orchestrator', () => {
       buildContext(),
       () => {},
     );
-
-    expect(result.toolsUsed).toContain('crm');
-    expect(result.stepCount).toBe(1);
+    expect(result).not.toHaveProperty('type', 'no_specialist');
+    const r = result as OrchestrationResult;
+    expect(r.toolsUsed).toContain('crm');
+    expect(r.stepCount).toBe(1);
   });
 
   it('uses fast tier for orchestrator call', async () => {

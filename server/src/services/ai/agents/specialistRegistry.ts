@@ -27,8 +27,8 @@ const specialists = new Map<string, SpecialistAgent>([
   ['heart', heartAgent],
 ]);
 
-export function getSpecialist(namespace: string): SpecialistAgent | undefined {
-  return specialists.get(namespace);
+export function getSpecialist(namespace: string): SpecialistAgent | null {
+  return specialists.get(namespace) ?? null;
 }
 
 export function getRegisteredNamespaces(): string[] {

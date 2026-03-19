@@ -53,6 +53,11 @@ const namespaceToCategory: Record<string, Tool['category']> = {
   executive: 'analytics',
   assets: 'analytics',
   contracts: 'analytics',
+  projects: 'analytics',
+  people: 'people',
+  analytics: 'analytics',
+  communication: 'analytics',
+  system: 'analytics',
 };
 
 /** Convert ToolRegistration to Tool and register with the global registry */

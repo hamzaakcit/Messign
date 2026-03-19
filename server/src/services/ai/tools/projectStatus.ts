@@ -16,7 +16,7 @@ const projectStatusTool: Tool = {
     name: 'get_project_status',
     summary: 'Project status: task breakdown, completion %, team members, recent activity.',
     tags: ['projects', 'status', 'tasks', 'progress'],
-    alwaysLoaded: false,
+    alwaysLoaded: true,
     parameterHints: 'project_name: string, include_task_list?: yes|no, include_members?: yes|no',
   },
   category: 'projects',
