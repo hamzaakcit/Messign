@@ -8,6 +8,7 @@ import { AISourcesList } from './AISourcesList';
 import { AIWidgetRenderer } from '@/components/dora/widgets/AIWidgetRenderer';
 import DoraAvatar from '@/components/dora/DoraAvatar';
 import { ThinkingIndicator } from '@/components/dora/ThinkingIndicator';
+import { DoraFollowUpChips } from './DoraFollowUpChips';
 
 interface AIMessageBubbleProps {
   message: AIMessage;
@@ -82,6 +83,12 @@ export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessag
                 )}
               </div>
 
+              {message.isStreaming && message.content && (
+                <div
+                  className="mt-3 h-20 rounded-xl bg-gradient-to-r from-white/[0.04] to-white/[0.02] animate-pulse border border-white/5"
+                  aria-hidden
+                />
+              )}
               {message.widgets && message.widgets.map((widget, i) => (
                 <AIWidgetRenderer key={`${widget.widgetType}-${i}`} widget={widget} index={i} onSendMessage={onSendMessage} />
               ))}
@@ -91,6 +98,7 @@ export function AIMessageBubble({ message, onFeedback, onSendMessage }: AIMessag
                 <AISourcesList sources={message.sources} />
               )}
               {message.metadata && <AIMetadataBar metadata={message.metadata} />}
+              <DoraFollowUpChips message={message} onSendMessage={onSendMessage} />
             </div>
           )}
 

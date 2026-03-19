@@ -7,6 +7,8 @@ import RevenueChartWidget from './RevenueChartWidget';
 import { FinancialSummaryWidget } from './FinancialSummaryWidget';
 import { DoraDashWidget } from './DoraDashWidget';
 import PerformanceOverviewWidget from './PerformanceOverviewWidget';
+import TeamComparisonWidget from './TeamComparisonWidget';
+import DataTableWidget from './DataTableWidget';
 
 // ============================================================
 // Error boundary — graceful degradation per widget
@@ -83,9 +85,18 @@ export function AIWidgetRenderer({ widget, index = 0, onSendMessage }: AIWidgetR
       inner = <FinancialSummaryWidget data={data as Record<string, unknown>} title={title} delay={staggerDelay} />;
       break;
 
-    case 'team_overview':
-      inner = <TaskTableWidget data={data as TaskRow[] | Record<string, unknown>} />;
+    case 'team_overview': {
+      const teamTitle =
+        title && title.length < 100 ? title : 'Team comparison';
+      inner = (
+        <TeamComparisonWidget
+          data={data}
+          title={teamTitle}
+          delay={staggerDelay}
+        />
+      );
       break;
+    }
 
     case 'project_status': {
       const rawData = data as Record<string, unknown> | Record<string, unknown>[];
@@ -146,9 +157,17 @@ export function AIWidgetRenderer({ widget, index = 0, onSendMessage }: AIWidgetR
       break;
     }
 
-    case 'data_table':
-      inner = <TaskTableWidget data={data as TaskRow[] | Record<string, unknown>} />;
+    case 'data_table': {
+      const tableTitle = title && title.length < 80 ? title : 'Results';
+      inner = (
+        <DataTableWidget
+          data={data}
+          title={tableTitle}
+          delay={staggerDelay}
+        />
+      );
       break;
+    }
 
     case 'dora_dash':
       inner = <DoraDashWidget />;

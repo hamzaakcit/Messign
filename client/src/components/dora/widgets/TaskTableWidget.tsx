@@ -4,6 +4,7 @@ import {
   CheckCircle, Clock, AlertTriangle, ArrowUpRight,
   Check, Pencil, Trash2, ChevronDown, Sparkles,
   X,
+  Download,
 } from 'lucide-react';
 import type { TaskRow } from '@/types/knowledge-hub/ai';
 import { useTaskActions } from '@/hooks/useTaskActions';
@@ -176,6 +177,30 @@ function formatDueDate(dateStr: string | null | undefined): { display: string; o
 // ============================================================
 // Normalizer
 // ============================================================
+
+function escapeCsvCell(v: string): string {
+  if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
+}
+
+function exportTasksCsv(tasks: TaskRow[]): void {
+  const cols = [
+    { key: 'title' as const, get: (t: TaskRow) => String(t.task_name ?? t.title ?? '') },
+    { key: 'project' as const, get: (t: TaskRow) => String(t.project_name ?? '') },
+    { key: 'status' as const, get: (t: TaskRow) => String(t.status ?? '') },
+    { key: 'priority' as const, get: (t: TaskRow) => String(t.priority ?? '') },
+    { key: 'due_date' as const, get: (t: TaskRow) => String(t.due_date ?? '') },
+  ];
+  const header = cols.map((c) => c.key).join(',');
+  const lines = tasks.map((t) => cols.map((c) => escapeCsvCell(c.get(t))).join(','));
+  const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dora-tasks-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function normalizeTasks(data: TaskRow[] | Record<string, unknown>): TaskRow[] {
   if (Array.isArray(data)) return data as TaskRow[];
@@ -507,10 +532,29 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
   if (tasks.length === 0) {
     return (
       <div
-        className="rounded-lg border border-white/10 bg-white/5 p-6 text-center"
+        className="rounded-lg border border-white/10 bg-white/5 p-6 text-center space-y-3"
         style={{ marginTop: 12 }}
       >
         <p className="text-white/50 text-sm">No tasks found matching your criteria.</p>
+        <p className="text-white/35 text-xs">Try a different status filter or ask about a specific project.</p>
+        {onSendMessage && (
+          <div className="flex flex-wrap justify-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => onSendMessage('What are my open tasks?')}
+              className="text-xs px-3 py-1.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/25 hover:bg-sky-500/25"
+            >
+              Show my open tasks
+            </button>
+            <button
+              type="button"
+              onClick={() => onSendMessage('Give me an overview of all active projects')}
+              className="text-xs px-3 py-1.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/25 hover:bg-violet-500/25"
+            >
+              Active projects overview
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -545,12 +589,34 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
       <div style={{ height: 3, background: 'linear-gradient(90deg, #38bdf8, #8b5cf6)', opacity: 0.5 }} />
 
       <div style={{ padding: '14px 16px 6px' }}>
-        <h3
-          className="dora-font"
-          style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', margin: '0 0 12px' }}
-        >
-          Tasks ({tasks.length})
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
+          <h3
+            className="dora-font"
+            style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', margin: 0 }}
+          >
+            Tasks ({tasks.length})
+          </h3>
+          <button
+            type="button"
+            onClick={() => exportTasksCsv(tasks)}
+            title="Download CSV"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 11,
+              padding: '4px 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(148,163,184,0.2)',
+              background: 'rgba(56,189,248,0.08)',
+              color: '#38bdf8',
+              cursor: 'pointer',
+            }}
+          >
+            <Download size={12} />
+            CSV
+          </button>
+        </div>
 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>

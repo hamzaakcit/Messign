@@ -189,6 +189,20 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 );
                 break;
 
+              case 'notice': {
+                const note = (event.content as string) ?? '';
+                if (note) {
+                  const prefix = accumulatedText ? '\n\n' : '';
+                  accumulatedText += `${prefix}⚠️ ${note}`;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m
+                    )
+                  );
+                }
+                break;
+              }
+
               case 'specialist':
                 accumulatedSpecialist = {
                   module: (event.module as string) ?? '',

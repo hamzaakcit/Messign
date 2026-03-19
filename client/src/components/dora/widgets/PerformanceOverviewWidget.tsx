@@ -1,3 +1,6 @@
+import { TrendingUp } from 'lucide-react';
+import { DoraWidgetShell } from './DoraWidgetShell';
+
 interface PerformanceEmployee {
   full_name: string;
   tasks_completed?: number;
@@ -14,11 +17,19 @@ interface PerformanceEmployee {
 interface PerformanceData {
   employees?: PerformanceEmployee[];
   teamAverage?: {
-    avg_tasks_completed?: number;
-    avg_activity_count?: number;
-    avg_xp?: number;
+    avg_tasks_completed?: number | string;
+    avg_activity_count?: number | string;
+    avg_xp?: number | string;
   };
   period?: string;
+}
+
+/** Postgres ROUND / numeric often arrives as string — safe for .toFixed / math */
+function num(v: unknown, fallback = 0): number {
+  if (v == null) return fallback;
+  if (typeof v === 'number' && !Number.isNaN(v)) return v;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function MetricCard({
@@ -47,19 +58,35 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
 
   if (!employees.length) {
     return (
-      <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/50">
-        No performance data available.
-      </div>
+      <DoraWidgetShell
+        title="Performance overview"
+        icon={<TrendingUp size={14} className="text-amber-400" />}
+        subtitle="No rows returned for this query"
+      >
+        <p className="text-sm text-white/50 mb-2">No performance data available for this view.</p>
+        <p className="text-xs text-white/35">
+          If you expected metrics, check the person exists and has tasks or activity in the chosen period.
+        </p>
+      </DoraWidgetShell>
     );
   }
 
+  const avgTasks = num(teamAvg?.avg_tasks_completed);
+  const avgXp = num(teamAvg?.avg_xp);
+
   return (
+    <DoraWidgetShell
+      title="Performance overview"
+      icon={<TrendingUp size={14} className="text-amber-400" />}
+      subtitle={data.period ? `Period: ${String(data.period).replace(/_/g, ' ')}` : undefined}
+    >
     <div className="space-y-3">
       {employees.map((emp, i) => {
-        const tasksCompleted = emp.tasks_completed ?? 0;
-        const tasksAssigned = emp.tasks_assigned_period ?? 0;
+        const tasksCompleted = num(emp.tasks_completed);
+        const tasksAssigned = num(emp.tasks_assigned_period);
         const completionRate =
           tasksAssigned > 0 ? Math.round((tasksCompleted / tasksAssigned) * 100) : 0;
+        const xpVal = num(emp.xp);
 
         return (
           <div
@@ -69,7 +96,7 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
             <div className="flex items-center justify-between">
               <h4 className="font-semibold text-white">{emp.full_name}</h4>
               <span className="text-xs px-2 py-1 rounded-full bg-primary-500/20 text-primary-300">
-                {(emp.xp ?? 0).toLocaleString()} XP
+                {xpVal.toLocaleString()} XP
               </span>
             </div>
 
@@ -81,19 +108,19 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
               />
               <MetricCard
                 label="Active"
-                value={emp.tasks_active ?? 0}
-                sub={`${emp.tasks_overdue ?? 0} overdue`}
-                alert={(emp.tasks_overdue ?? 0) > 0}
+                value={num(emp.tasks_active)}
+                sub={`${num(emp.tasks_overdue)} overdue`}
+                alert={num(emp.tasks_overdue) > 0}
               />
               <MetricCard
                 label="Badges"
-                value={emp.badges_earned_period ?? 0}
-                sub={`${emp.total_badges ?? 0} total`}
+                value={num(emp.badges_earned_period)}
+                sub={`${num(emp.total_badges)} total`}
               />
               <MetricCard
                 label="Activities"
-                value={emp.activity_count ?? 0}
-                sub={`${emp.docs_authored ?? 0} docs`}
+                value={num(emp.activity_count)}
+                sub={`${num(emp.docs_authored)} docs`}
               />
             </div>
 
@@ -110,13 +137,13 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
 
             {teamAvg && (
               <p className="text-xs text-white/40">
-                Team avg: {teamAvg.avg_tasks_completed?.toFixed(1)} tasks completed,{' '}
-                {teamAvg.avg_xp?.toLocaleString()} XP
+                Team avg: {avgTasks.toFixed(1)} tasks completed, {avgXp.toLocaleString()} XP
               </p>
             )}
           </div>
         );
       })}
     </div>
+    </DoraWidgetShell>
   );
 }

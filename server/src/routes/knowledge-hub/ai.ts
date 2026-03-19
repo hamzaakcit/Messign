@@ -286,6 +286,18 @@ function emitWidgetsFromToolResults(
   toolResultsForWidgets: ToolResultForWidget[],
   path: string,
 ): void {
+  const failures = toolResultsForWidgets.filter((o) => !o.success);
+  if (failures.length > 0) {
+    const names = failures.map((f) => f.toolName).join(', ');
+    const allFailed = failures.length === toolResultsForWidgets.length;
+    send({
+      type: 'notice',
+      content: allFailed
+        ? `Couldn't load data (${names}). Please try again in a moment.`
+        : `Note: ${names} did not return data; other results may still appear below.`,
+    });
+  }
+
   console.log('[Dora] Widget emission', {
     path,
     toolResultCount: toolResultsForWidgets.length,

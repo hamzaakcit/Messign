@@ -180,10 +180,39 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
   }
 
   // Final synthesis: ask LLM to summarize tool results into an answer
+  const outcomeHints = toolObservations
+    .map((o) => {
+      if (!o.success) {
+        return `- ${o.toolName}: FAILED — do not invent numbers; briefly say the lookup did not complete and suggest retry or checking permissions.`;
+      }
+      const d = o.data;
+      const emptyArray = Array.isArray(d) && d.length === 0;
+      const emptyObj =
+        d &&
+        typeof d === 'object' &&
+        !Array.isArray(d) &&
+        Object.keys(d as object).length === 0;
+      const emptyEmployees =
+        d &&
+        typeof d === 'object' &&
+        !Array.isArray(d) &&
+        Array.isArray((d as { employees?: unknown }).employees) &&
+        (d as { employees: unknown[] }).employees.length === 0;
+      if (d == null || emptyArray || emptyObj || emptyEmployees) {
+        return `- ${o.toolName}: OK but EMPTY — say clearly there is no data for this period (e.g. no tasks assigned), not a system error.`;
+      }
+      return `- ${o.toolName}: OK`;
+    })
+    .join('\n');
+
   const synthesisPrompt = `Based on the tool results above, provide a clear, concise answer to the user's question: "${query}".
 
-IMPORTANT: A visual widget (table or chart) will be displayed alongside your text automatically.
-Keep your answer to 2-3 sentences focusing on the key insight or takeaway. Do NOT list raw data — the widget handles that.`;
+TOOL OUTCOMES (follow strictly):
+${outcomeHints}
+
+IMPORTANT: A visual widget (table or chart) may appear alongside your text when data exists.
+Keep your answer to 2-4 sentences focusing on the key insight. Do NOT list raw data when a widget will show it.
+Never say "our data retrieval system encountered an issue" when the outcome says OK but EMPTY — that means simply no records yet.`;
   messages.push({ role: 'user', content: synthesisPrompt });
 
   const synthResponse = await withTimeout(
