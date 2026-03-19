@@ -317,5 +317,6 @@ export async function runOrchestrator(
     totalTokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     totalDurationMs: 0,
     pendingActions: result.pendingActions ?? [],
+    toolObservations: result.toolObservations,
   };
 }

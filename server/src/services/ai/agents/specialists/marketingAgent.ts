@@ -29,6 +29,7 @@ export const marketingAgent: SpecialistAgent = {
       type: 'final_answer',
       content: result.content,
       pendingActions: result.pendingActions.length > 0 ? result.pendingActions : undefined,
+      toolObservations: result.toolObservations,
     };
   },
 };

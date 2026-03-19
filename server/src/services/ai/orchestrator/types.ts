@@ -75,6 +75,8 @@ export interface OrchestrationResult {
   totalDurationMs: number;
   error?: string;
   pendingActions?: PendingActionSSEEvent[];
+  /** Tool observations from specialist path — used for widget emission when steps is empty */
+  toolObservations?: Array<{ toolName: string; success: boolean; data: unknown; summary?: string }>;
   /** True when LiteLLM returned a cached response (no inference cost) */
   cacheHit?: boolean;
   /** Estimated USD saved when cacheHit is true */

@@ -6,6 +6,7 @@ import ProjectStatusWidget, { type ProjectData } from './ProjectStatusWidget';
 import RevenueChartWidget from './RevenueChartWidget';
 import { FinancialSummaryWidget } from './FinancialSummaryWidget';
 import { DoraDashWidget } from './DoraDashWidget';
+import PerformanceOverviewWidget from './PerformanceOverviewWidget';
 
 // ============================================================
 // Error boundary — graceful degradation per widget
@@ -72,6 +73,18 @@ export function AIWidgetRenderer({ widget, index = 0, onSendMessage }: AIWidgetR
 
     case 'task_table':
       inner = <TaskTableWidget data={data as TaskRow[] | Record<string, unknown>} onSendMessage={onSendMessage} />;
+      break;
+
+    case 'performance_overview':
+      inner = <PerformanceOverviewWidget data={data as Record<string, unknown>} />;
+      break;
+
+    case 'financial_summary':
+      inner = <FinancialSummaryWidget data={data as Record<string, unknown>} title={title} delay={staggerDelay} />;
+      break;
+
+    case 'team_overview':
+      inner = <TaskTableWidget data={data as TaskRow[] | Record<string, unknown>} />;
       break;
 
     case 'project_status': {

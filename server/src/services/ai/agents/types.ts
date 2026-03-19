@@ -22,9 +22,17 @@ export interface AgentContext {
   legacyContext?: import('../types.js').ToolContext;
 }
 
+/** Tool observation from specialist execution — used for widget emission */
+export interface ToolObservation {
+  toolName: string;
+  success: boolean;
+  data: unknown;
+  summary?: string;
+}
+
 /** Result from a specialist or orchestrator step */
 export type AgentResult =
-  | { type: 'final_answer'; content: string; pendingActions?: import('../actions/types.js').PendingActionSSEEvent[] }
+  | { type: 'final_answer'; content: string; pendingActions?: import('../actions/types.js').PendingActionSSEEvent[]; toolObservations?: ToolObservation[] }
   | { type: 'delegate'; delegateTo: string; refinedQuery: string; priorContext?: string }
   | { type: 'needs_approval'; content?: string; approvalRequest: { toolName: string; args: Record<string, unknown> } };
 

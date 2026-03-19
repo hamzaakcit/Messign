@@ -507,16 +507,10 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
   if (tasks.length === 0) {
     return (
       <div
-        className="dora-glass"
-        style={{
-          marginTop: 12,
-          padding: '14px 16px',
-          borderRadius: 'var(--dora-r-widget, 16px)',
-          fontSize: 13,
-          color: 'var(--dora-text-3, #64748b)',
-        }}
+        className="rounded-lg border border-white/10 bg-white/5 p-6 text-center"
+        style={{ marginTop: 12 }}
       >
-        No tasks found.
+        <p className="text-white/50 text-sm">No tasks found matching your criteria.</p>
       </div>
     );
   }

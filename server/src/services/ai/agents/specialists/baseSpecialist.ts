@@ -13,7 +13,7 @@ import { isWriteTool, interceptWriteAction } from '../../actions/actionIntercept
 import { classifyActionRisk } from '../governance.js';
 import { redactPII } from '../../safety/piiRedactor.js';
 import { sanitizeData } from '../../dataSanitizer.js';
-import type { AgentContext, AgentResult } from '../types.js';
+import type { AgentContext, AgentResult, ToolObservation } from '../types.js';
 import type { DoraRequestContext } from '../../dora/types.js';
 import type { ToolContext, ToolResult } from '../../types.js';
 import type { PendingActionSSEEvent } from '../../actions/types.js';
@@ -36,6 +36,7 @@ export interface SpecialistLoopResult {
   content: string;
   toolsUsed: string[];
   pendingActions: PendingActionSSEEvent[];
+  toolObservations: ToolObservation[];
 }
 
 /**
@@ -58,6 +59,7 @@ export async function runSpecialistLoop(
       content: `I don't have access to ${namespace} tools for your role. Please contact an administrator.`,
       toolsUsed: [],
       pendingActions: [],
+      toolObservations: [],
     };
   }
 
@@ -76,6 +78,7 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
 
   const pendingActions: PendingActionSSEEvent[] = [];
   const toolsUsed: string[] = [];
+  const toolObservations: ToolObservation[] = [];
   let tier: 'balanced' | 'complex' = 'balanced';
 
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -106,6 +109,7 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
         content: answer,
         toolsUsed,
         pendingActions,
+        toolObservations,
       };
     }
 
@@ -157,6 +161,13 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
         };
       }
 
+      toolObservations.push({
+        toolName,
+        success: toolResult.success,
+        data: toolResult.data ?? toolResult,
+        summary: toolResult.summary,
+      });
+
       const content = toolResult.summary || JSON.stringify(toolResult.data ?? {});
       const redacted = redactPII(content.slice(0, 8000));
       messages.push({ role: 'tool', tool_call_id: tc.id!, content: redacted.redactedText });
@@ -164,7 +175,10 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
   }
 
   // Final synthesis: ask LLM to summarize tool results into an answer
-  const synthesisPrompt = `Based on the tool results above, provide a clear, concise answer to the user's question: "${query}". Synthesize the data. Do not repeat raw JSON.`;
+  const synthesisPrompt = `Based on the tool results above, provide a clear, concise answer to the user's question: "${query}".
+
+IMPORTANT: A visual widget (table or chart) will be displayed alongside your text automatically.
+Keep your answer to 2-3 sentences focusing on the key insight or takeaway. Do NOT list raw data — the widget handles that.`;
   messages.push({ role: 'user', content: synthesisPrompt });
 
   const synthResponse = await withTimeout(
@@ -186,6 +200,7 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
       content: synthContent,
       toolsUsed,
       pendingActions,
+      toolObservations,
     };
   }
 

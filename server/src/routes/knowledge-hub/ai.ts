@@ -537,17 +537,56 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
 
     const orchResult: OrchestrationResult = result as OrchestrationResult;
     const allToolResults = orchResult.steps.flatMap((s: AgentStep) => s.observations);
+    // Specialist path returns toolObservations instead of steps.observations
+    const toolResultsForWidgets =
+      allToolResults.length > 0
+        ? allToolResults
+        : (orchResult.toolObservations ?? []).map((o) => ({
+            toolName: o.toolName,
+            success: o.success,
+            data: o.data,
+            summary: o.summary,
+          }));
     const sources = extractSources({ toolResults: allToolResults as { success: boolean; data: unknown }[] });
     if (sources.length > 0) {
       send({ type: 'sources', documents: sources });
     }
 
     const WIDGET_TOOL_MAP: Record<string, string> = {
+      // System
       'analytics:get_system_stats': 'system_overview',
+
+      // Projects & Tasks
       'projects:get_tasks_by_user': 'task_table',
       'projects:get_project_status': 'project_status',
-      'finance:get_financial_summary': 'revenue_chart',
+
+      // Finance
+      'finance:get_financial_summary': 'financial_summary',
       'finance:get_invoice_details': 'data_table',
+      'analytics:get_approval_queue': 'data_table',
+      'finance:get_reimbursement_details': 'data_table',
+
+      // People & HR
+      'people:get_employee_performance': 'performance_overview',
+      'people:get_team_overview': 'team_overview',
+      'hr:compare_employees': 'data_table',
+      'hr:get_hiring_pipeline': 'data_table',
+      'hr:get_recruitment_metrics': 'data_table',
+
+      // Support
+      'support:get_ticket_overview': 'data_table',
+      'support:get_support_metrics': 'data_table',
+      'support:get_customer_health': 'data_table',
+
+      // Time
+      'time:get_time_summary': 'data_table',
+      'time:get_utilization_report': 'data_table',
+
+      // OKR
+      'okr:get_okr_metrics': 'data_table',
+      'okr:list_goals': 'data_table',
+
+      // Fun
       'fun:play_dora_dash': 'dora_dash',
     };
     // Verify consistency with orchestrator's WIDGET_TOOL_NAMES at startup
@@ -557,7 +596,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       }
     }
     const emittedWidgetTypes = new Set<string>();
-    for (const obs of allToolResults as Array<{ toolName: string; success: boolean; data: unknown; summary?: string }>) {
+    for (const obs of toolResultsForWidgets as Array<{ toolName: string; success: boolean; data: unknown; summary?: string }>) {
       const widgetType = WIDGET_TOOL_MAP[obs.toolName];
       if (widgetType && !emittedWidgetTypes.has(widgetType) && obs.success && obs.data) {
         emittedWidgetTypes.add(widgetType);
