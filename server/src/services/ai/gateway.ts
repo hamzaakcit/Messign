@@ -1,20 +1,76 @@
 /**
- * LiteLLM Gateway Client
- * Replaces: aiCascade.ts, taskRouter.ts
+ * AI Gateway — LiteLLM proxy when deployed, direct providers on Railway / no proxy.
  *
- * Calls the LiteLLM proxy (OpenAI-compatible API) for model routing,
- * fallbacks, semantic caching, and cost tracking.
+ * When LITELLM_URL points at localhost or is unset, skips the proxy and calls
+ * Groq + Gemini (OpenAI-compatible APIs) so orchestrator/specialists work without LiteLLM.
  */
 import OpenAI from 'openai';
 import { redactPII, restorePII, type RedactionMap } from './safety/piiRedactor.js';
 
-// LiteLLM exposes an OpenAI-compatible API
-const gateway = new OpenAI({
-  baseURL: process.env.LITELLM_URL || 'http://localhost:4000/v1',
-  apiKey: process.env.LITELLM_MASTER_KEY || 'sk-litellm',
+export type ModelTier = 'fast' | 'balanced' | 'complex' | 'frontier' | 'vision';
+
+/** LiteLLM only when URL is set and not local — avoids ECONNREFUSED on Railway. */
+function normalizeLiteLLMBaseUrl(url: string): string {
+  const u = url.replace(/\/$/, '');
+  return u.endsWith('/v1') ? u : `${u}/v1`;
+}
+
+const LITELLM_URL_RAW = process.env.LITELLM_URL?.trim();
+const useLiteLLM =
+  !!LITELLM_URL_RAW && !/localhost|127\.0\.0\.1/i.test(LITELLM_URL_RAW);
+
+const litellmClient = useLiteLLM
+  ? new OpenAI({
+      baseURL: normalizeLiteLLMBaseUrl(LITELLM_URL_RAW!),
+      apiKey: process.env.LITELLM_MASTER_KEY || 'sk-litellm',
+    })
+  : null;
+
+if (!useLiteLLM && LITELLM_URL_RAW) {
+  console.log('[Gateway] LITELLM_URL is local or unset — using direct Groq/Gemini (no LiteLLM proxy)');
+}
+
+const groqApiKey = process.env.GROQ_API_KEY ?? '';
+const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY ?? '';
+
+const groqClient = new OpenAI({
+  baseURL: 'https://api.groq.com/openai/v1',
+  apiKey: groqApiKey,
 });
 
-export type ModelTier = 'fast' | 'balanced' | 'complex' | 'frontier' | 'vision';
+const geminiClient = new OpenAI({
+  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  apiKey: geminiApiKey,
+});
+
+type DirectProvider = 'groq' | 'gemini';
+
+/** Direct routing: Groq for tool-heavy tiers (reliable OpenAI-style tools); Gemini for balanced/vision. */
+const TIER_DIRECT: Record<ModelTier, { provider: DirectProvider; model: string }> = {
+  fast: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  balanced: { provider: 'gemini', model: 'gemini-2.0-flash-lite' },
+  complex: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  frontier: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  vision: { provider: 'gemini', model: 'gemini-2.0-flash' },
+};
+
+const FALLBACK_CHAIN: Record<ModelTier, ModelTier[]> = {
+  fast: ['balanced', 'complex'],
+  balanced: ['complex', 'fast'],
+  complex: ['fast', 'balanced'],
+  frontier: ['complex', 'fast'],
+  vision: ['balanced', 'fast'],
+};
+
+function getDirectClient(provider: DirectProvider): OpenAI | null {
+  if (provider === 'groq') return groqApiKey ? groqClient : null;
+  if (provider === 'gemini') return geminiApiKey ? geminiClient : null;
+  return null;
+}
+
+function directClientForTier(tier: ModelTier): OpenAI | null {
+  return getDirectClient(TIER_DIRECT[tier].provider);
+}
 
 /** Real-time keywords that trigger cache bypass (fresh inference) */
 const REALTIME_CACHE_BUST_PATTERN = /\b(right now|current|latest|today|just happened)\b/i;
@@ -111,33 +167,86 @@ function buildCacheParams(options: GatewayCallOptions): Record<string, unknown> 
   return undefined;
 }
 
+async function callDirectProviders(
+  options: GatewayCallOptions,
+): Promise<GatewayResponseWithCache> {
+  const chain: ModelTier[] = [options.tier];
+  for (const t of FALLBACK_CHAIN[options.tier] ?? []) {
+    if (!chain.includes(t)) chain.push(t);
+  }
+
+  const maxTokens = options.maxTokens ?? 4096;
+  const temperature = options.temperature ?? 0.3;
+  const lastErrors: string[] = [];
+
+  for (const tier of chain) {
+    const client = directClientForTier(tier);
+    if (!client) {
+      lastErrors.push(`${tier}: no API key for ${TIER_DIRECT[tier].provider}`);
+      continue;
+    }
+    const { model } = TIER_DIRECT[tier];
+    try {
+      const completion = await client.chat.completions.create({
+        model,
+        messages: options.messages,
+        tools: options.tools?.length ? options.tools : undefined,
+        max_tokens: maxTokens,
+        temperature,
+        stream: false,
+      });
+      return {
+        ...completion,
+        _cacheHit: false,
+        _estimatedCostSavingsUsd: 0,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      lastErrors.push(`${tier} (${model}): ${msg}`);
+      console.warn(`[Gateway] Direct provider failed for tier ${tier}`, { model, error: msg });
+    }
+  }
+
+  throw new Error(`All direct LLM providers failed: ${lastErrors.join(' | ')}`);
+}
+
 export async function callModel(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
-  const cacheParams = buildCacheParams(options);
-  const body = {
-    model: options.tier,
-    messages: options.messages,
-    tools: options.tools,
-    stream: options.stream ?? false,
-    max_tokens: options.maxTokens ?? 4096,
-    temperature: options.temperature ?? 0.3,
-    metadata: {
-      tenant_id: options.tenantId,
-      trace_id: crypto.randomUUID(),
-    },
-    ...(cacheParams ? { cache: cacheParams } : {}),
-  } as OpenAI.ChatCompletionCreateParamsNonStreaming & { metadata?: Record<string, string>; cache?: Record<string, unknown> };
+  if (litellmClient) {
+    const cacheParams = buildCacheParams(options);
+    const body = {
+      model: options.tier,
+      messages: options.messages,
+      tools: options.tools,
+      stream: options.stream ?? false,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.3,
+      metadata: {
+        tenant_id: options.tenantId,
+        trace_id: crypto.randomUUID(),
+      },
+      ...(cacheParams ? { cache: cacheParams } : {}),
+    } as OpenAI.ChatCompletionCreateParamsNonStreaming & { metadata?: Record<string, string>; cache?: Record<string, unknown> };
 
-  const { data: completion, response } = await gateway.chat.completions.create(body).withResponse();
+    try {
+      const { data: completion, response } = await litellmClient.chat.completions.create(body).withResponse();
 
-  const cacheKeyHeader = response.headers?.get?.('x-litellm-cache-key');
-  const cacheHit = !!cacheKeyHeader;
-  const estimatedCostSavingsUsd = cacheHit ? TIER_ESTIMATED_COST_USD[options.tier] ?? 0 : 0;
+      const cacheKeyHeader = response.headers?.get?.('x-litellm-cache-key');
+      const cacheHit = !!cacheKeyHeader;
+      const estimatedCostSavingsUsd = cacheHit ? TIER_ESTIMATED_COST_USD[options.tier] ?? 0 : 0;
 
-  return {
-    ...completion,
-    _cacheHit: cacheHit,
-    _estimatedCostSavingsUsd: estimatedCostSavingsUsd,
-  };
+      return {
+        ...completion,
+        _cacheHit: cacheHit,
+        _estimatedCostSavingsUsd: estimatedCostSavingsUsd,
+      };
+    } catch (err) {
+      console.warn('[Gateway] LiteLLM failed, using direct providers', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return callDirectProviders(options);
 }
 
 export async function* streamModelSafe(options: GatewayCallOptions) {
@@ -160,18 +269,7 @@ export async function* streamModelSafe(options: GatewayCallOptions) {
   }) as OpenAI.ChatCompletionMessageParam[];
 
   let bufferedContent = '';
-  const stream = await gateway.chat.completions.create({
-    model: options.tier,
-    messages: sanitizedMessages,
-    tools: options.tools,
-    stream: true,
-    max_tokens: options.maxTokens ?? 4096,
-    temperature: options.temperature ?? 0.3,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    metadata: { tenant_id: options.tenantId },
-  } as OpenAI.ChatCompletionCreateParamsStreaming & { metadata?: Record<string, string> });
-
-  for await (const chunk of stream) {
+  for await (const chunk of streamModel({ ...options, messages: sanitizedMessages })) {
     const content = chunk.choices?.[0]?.delta?.content;
     if (content) bufferedContent += content;
   }
@@ -185,22 +283,71 @@ export async function* streamModelSafe(options: GatewayCallOptions) {
   }
 }
 
+async function* streamDirectProviders(
+  options: GatewayCallOptions,
+): AsyncGenerator<OpenAI.ChatCompletionChunk, void, unknown> {
+  const chain: ModelTier[] = [options.tier];
+  for (const t of FALLBACK_CHAIN[options.tier] ?? []) {
+    if (!chain.includes(t)) chain.push(t);
+  }
+
+  const maxTokens = options.maxTokens ?? 4096;
+  const temperature = options.temperature ?? 0.3;
+
+  for (const tier of chain) {
+    const client = directClientForTier(tier);
+    if (!client) continue;
+    const { model } = TIER_DIRECT[tier];
+    try {
+      const stream = await client.chat.completions.create({
+        model,
+        messages: options.messages,
+        tools: options.tools?.length ? options.tools : undefined,
+        max_tokens: maxTokens,
+        temperature,
+        stream: true,
+      });
+      for await (const chunk of stream) {
+        yield chunk;
+      }
+      return;
+    } catch (err) {
+      console.warn(`[Gateway] Direct stream failed for tier ${tier}`, {
+        model,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  throw new Error('[Gateway] All direct streaming providers failed');
+}
+
 // Streaming variant for SSE responses
 export async function* streamModel(options: GatewayCallOptions) {
-  const stream = await gateway.chat.completions.create({
-    model: options.tier,
-    messages: options.messages,
-    tools: options.tools,
-    stream: true,
-    max_tokens: options.maxTokens ?? 4096,
-    temperature: options.temperature ?? 0.3,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    metadata: { tenant_id: options.tenantId },
-  } as OpenAI.ChatCompletionCreateParamsStreaming & { metadata?: Record<string, string> });
+  if (litellmClient) {
+    try {
+      const stream = await litellmClient.chat.completions.create({
+        model: options.tier,
+        messages: options.messages,
+        tools: options.tools,
+        stream: true,
+        max_tokens: options.maxTokens ?? 4096,
+        temperature: options.temperature ?? 0.3,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        metadata: { tenant_id: options.tenantId },
+      } as OpenAI.ChatCompletionCreateParamsStreaming & { metadata?: Record<string, string> });
 
-  for await (const chunk of stream) {
-    yield chunk;
+      for await (const chunk of stream) {
+        yield chunk;
+      }
+      return;
+    } catch (err) {
+      console.warn('[Gateway] LiteLLM stream failed, using direct providers', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
+
+  yield* streamDirectProviders(options);
 }
 
 /** Simple text generation (non-chat, no tools). Use for extraction, classification, etc. */
@@ -239,7 +386,6 @@ export async function generateVision(options: {
 }): Promise<string> {
   const dataUrl = `data:${options.mediaType};base64,${options.imageBase64}`;
 
-  // LiteLLM supports both image_url (images) and file with file_data (PDF) via vision tier
   const contentParts: Array<{ type: 'image_url'; image_url: { url: string } } | { type: 'text'; text: string } | { type: 'file'; file: { file_data: string } }> = [];
 
   if (options.mediaType === 'application/pdf') {
@@ -267,19 +413,42 @@ export async function generateVision(options: {
   return response.choices?.[0]?.message?.content?.trim() ?? '';
 }
 
-/** Embeddings via LiteLLM (OpenAI-compatible). For semantic search, RAG, etc. */
+/** Embeddings — LiteLLM when configured; otherwise OpenAI text-embedding-3-small directly. */
 export async function embedViaGateway(
   texts: string[],
   tenantId: string,
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const response = await gateway.embeddings.create({
-    model: 'embeddings',
+  if (litellmClient) {
+    try {
+      const response = await litellmClient.embeddings.create({
+        model: 'embeddings',
+        input: texts,
+        dimensions: 1536,
+      });
+      const sorted = (response.data ?? []).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+      return sorted.map((d) => d.embedding);
+    } catch (err) {
+      console.warn('[Gateway] LiteLLM embeddings failed, trying OpenAI direct', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) {
+    throw new Error(
+      'OPENAI_API_KEY is required for embeddings when LiteLLM is unavailable. Set OPENAI_API_KEY or a reachable LITELLM_URL.',
+    );
+  }
+
+  const openai = new OpenAI({ apiKey: openaiKey });
+  const response = await openai.embeddings.create({
+    model: 'text-embedding-3-small',
     input: texts,
     dimensions: 1536,
   });
-
   const sorted = (response.data ?? []).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
   return sorted.map((d) => d.embedding);
 }
