@@ -18,7 +18,7 @@ model_list:
   - model_name: "balanced"
     litellm_params:
       model: "gemini/gemini-2.0-flash-lite"
-      api_key: "os.environ/GOOGLE_API_KEY"
+      api_key: "os.environ/GOOGLE_GEMINI_API_KEY"
     model_info:
       max_tokens: 8192
       input_cost_per_token: 0.000000075
