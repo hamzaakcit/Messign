@@ -15,7 +15,7 @@ import type {
   DoraPendingActionContent,
 } from '@/types/knowledge-hub/ai';
 import { getAccessToken } from '@/lib/authToken';
-import { API_ORIGIN } from '@/lib/api';
+import { API_ORIGIN, assertNotHtmlApiResponse } from '@/lib/api';
 import { khAIFeedbackAPI } from '@/lib/knowledge-hub/api';
 import { resolveIntent } from '@/shared/intents/resolver';
 import type { UseAIChatOptions, SendMessageOptions, UseAIChatReturn } from '@/hooks/knowledge-hub/useAIChat';
@@ -169,6 +169,8 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         if (!response.ok) {
           throw new Error(`AI request failed: ${response.status} ${response.statusText}`);
         }
+
+        assertNotHtmlApiResponse(response);
 
         if (!response.body) {
           throw new Error('No response body (SSE not supported)');

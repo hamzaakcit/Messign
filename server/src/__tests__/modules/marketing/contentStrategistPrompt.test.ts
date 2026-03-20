@@ -12,6 +12,7 @@ describe('buildMarketingContentStrategistPrompt', () => {
     expect(p).toContain('## Truth');
     expect(p).toContain('## Brand');
     expect(p).toContain('CONTENT_STRATEGIST');
+    expect(p).toContain('Golden examples');
     expect(p).toContain('marketing:product_truth_lookup');
     expect(p).toContain('marketing:validate_product_truth');
   });

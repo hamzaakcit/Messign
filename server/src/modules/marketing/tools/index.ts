@@ -6,6 +6,7 @@ import {
   productTruthLookup,
   validateProductTruth,
 } from './contentStrategistTools.js';
+import { generateImageBrief, checkBrandCompliance, repurposeContent } from './creativeTools.js';
 import type { ToolRegistration } from '../../types.js';
 
 export const marketingTools: ToolRegistration[] = [
@@ -17,4 +18,7 @@ export const marketingTools: ToolRegistration[] = [
   validateProductTruth,
   complianceScan,
   competitorContentScan,
+  generateImageBrief,
+  checkBrandCompliance,
+  repurposeContent,
 ];

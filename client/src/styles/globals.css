@@ -649,11 +649,3 @@
   transition: background-color 99999s ease-out 0s;
 }
 
-@keyframes loginPillTypewriter {
-  from {
-    width: 0;
-  }
-  to {
-    width: 100%;
-  }
-}

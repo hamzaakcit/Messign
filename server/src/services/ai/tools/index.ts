@@ -31,7 +31,12 @@ import './activityFeed.js';
 import './userProfile.js';
 import './channelMessages.js';
 
-// Phase 2: Analytics & Cross-Domain (6 tools)
+// Phase 2: Analytics & Cross-Domain (6 tools + marketing funnel / experiment)
+import './analyticsFunnelTools.js';
+import './seoConversionTools.js';
+import './memoryAutomationTools.js';
+import './competitorSocialListenTools.js';
+import './brandVoiceProposalTools.js';
 import './approvalQueue.js';
 import './systemStats.js';
 import './meetingDecisions.js';

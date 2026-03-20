@@ -132,7 +132,7 @@ const NAMESPACE_ALIASES: Record<string, string[]> = {
   executive: ['executive', 'analytics'],
   crm: ['crm'],
   support: ['support'],
-  marketing: ['marketing'],
+  marketing: ['marketing', 'creative', 'seo', 'conversion', 'automation'],
   okr: ['okr'],
   assets: ['assets'],
   contracts: ['contracts'],

@@ -1,20 +1,23 @@
-.grid {
+/* Stacked grid: invisible row sets width; visible row types on top — no flex-shrink truncation */
+.typewriterWrap {
   display: inline-grid;
-  vertical-align: bottom;
-  max-width: max-content;
+  flex-shrink: 0;
 }
 
-.measure {
+.typewriterMeasure,
+.typewriterVisible {
   grid-area: 1 / 1;
+  align-self: start;
+}
+
+.typewriterMeasure {
   visibility: hidden;
   white-space: nowrap;
+  font: inherit;
+  letter-spacing: inherit;
 }
 
-.clip {
-  grid-area: 1 / 1;
-  display: inline-block;
-  overflow: hidden;
+.typewriterVisible {
   white-space: nowrap;
-  width: 0;
   min-width: 0;
 }

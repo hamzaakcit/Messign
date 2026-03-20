@@ -1,8 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, ClipboardCheck, Mail, Megaphone, Sparkles, Users } from 'lucide-react';
+import { BarChart3, CalendarDays, ClipboardCheck, LayoutGrid, Mail, Megaphone, Sparkles, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
+  { id: 'command-center', label: 'Command Center', path: '/marketing/command-center', icon: LayoutGrid },
   { id: 'agent', label: 'Agent', path: '/marketing/agent', icon: Sparkles },
   { id: 'campaigns', label: 'Campaigns', path: '/marketing', icon: Megaphone },
   { id: 'approvals', label: 'Approvals', path: '/marketing/approvals', icon: ClipboardCheck },
@@ -18,7 +19,9 @@ export function MarketingNav() {
   const segment = location.pathname.split('/').filter(Boolean)[1];
 
   const activeTab =
-    segment === 'agent'
+    segment === 'command-center'
+      ? 'command-center'
+      : segment === 'agent'
       ? 'agent'
       : segment === 'approvals'
         ? 'approvals'

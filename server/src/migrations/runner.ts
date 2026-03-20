@@ -4,25 +4,62 @@
  * Run via: npx tsx server/src/migrations/runner.ts
  *
  * IMPORTANT: Migrations require postgres/superuser (CREATE TABLE, etc.).
- * Uses DATABASE_ADMIN_URL or DATABASE_PUBLIC_URL if set; otherwise DATABASE_URL.
- * The messign_app role typically cannot create tables — use admin URL for Railway.
+ * URL resolution (align with `db/index.ts` for local dev):
+ *   DATABASE_MIGRATE_URL (override) → DATABASE_ADMIN_URL → DATABASE_PUBLIC_URL → DATABASE_URL
+ *   → local fallback `postgresql://$USER@localhost:5432/messign` when NODE_ENV !== 'production'
+ * We intentionally do NOT use PgBouncer here — use a direct Postgres URL for DDL.
+ * The messign_app role typically cannot CREATE TABLE — use DATABASE_ADMIN_URL on Railway when needed.
  */
 import dotenv from 'dotenv';
 import { readdirSync, readFileSync } from 'fs';
+import os from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Load .env from server/ so migrations get DB vars when run from workspace root
+// Repo root .env then server/.env (later wins) — same as many dev setups
+dotenv.config({ path: join(__dirname, '..', '..', '..', '.env') });
 dotenv.config({ path: join(__dirname, '..', '..', '.env') });
 const MIGRATIONS_DIR = join(__dirname);
 
-let adminUrl = process.env.DATABASE_ADMIN_URL || process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL;
+const localUser = process.env.USER || os.userInfo().username || 'postgres';
+const localFallback = `postgresql://${localUser}@localhost:5432/messign`;
+
+let adminUrl =
+  process.env.DATABASE_MIGRATE_URL ||
+  process.env.DATABASE_ADMIN_URL ||
+  process.env.DATABASE_PUBLIC_URL ||
+  process.env.DATABASE_URL ||
+  (process.env.NODE_ENV !== 'production' ? localFallback : undefined);
 if (!adminUrl) {
-  throw new Error('DATABASE_ADMIN_URL, DATABASE_PUBLIC_URL, or DATABASE_URL required for migrations.');
+  throw new Error(
+    'Set DATABASE_URL (or DATABASE_PUBLIC_URL / DATABASE_ADMIN_URL / DATABASE_MIGRATE_URL) for migrations. For local Postgres, try: postgresql://USER@localhost:5432/messign',
+  );
 }
-const isRailway = adminUrl.includes('rlwy.net') || adminUrl.includes('railway.app') || adminUrl.includes('railway.net');
+
+let migrationHost = '';
+try {
+  migrationHost = new URL(adminUrl.replace(/^postgresql:/, 'http:')).hostname;
+} catch {
+  /* ignore */
+}
+if (migrationHost.endsWith('railway.internal')) {
+  console.error(
+    '[Migration Runner] `*.railway.internal` only resolves inside Railway’s private network (deployed services).',
+  );
+  console.error(
+    'From your laptop, use the public Postgres URL: Railway → Postgres → Variables → `DATABASE_PUBLIC_URL`, or the TCP proxy host (e.g. `*.proxy.rlwy.net`).',
+  );
+  console.error('Example: export DATABASE_ADMIN_URL="$DATABASE_PUBLIC_URL" && npm run db:migrate-runner');
+  process.exit(1);
+}
+
+console.log('[Migration Runner] Using database host:', migrationHost || '(unparsed)');
+const isRailway =
+  adminUrl.includes('rlwy.net') ||
+  adminUrl.includes('railway.app') ||
+  adminUrl.includes('railway.net');
 if (isRailway) {
   adminUrl = adminUrl.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '');
 }

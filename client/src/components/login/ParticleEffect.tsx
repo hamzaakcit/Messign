@@ -10,7 +10,7 @@ interface Particle {
   color: string;
 }
 
-const colors = ['#22c55e', '#16a34a', '#4ade80', '#15803d', '#86efac'];
+const colors = ['#3b82f6', '#2563eb', '#60a5fa', '#1d4ed8', '#93c5fd'];
 
 export function ParticleEffect() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,7 +105,7 @@ export function ParticleEffect() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 1, opacity: 0.38 }}
+      style={{ zIndex: 1, opacity: 0.48 }}
       aria-hidden
     />
   );

@@ -101,15 +101,17 @@ export function MatrixRain() {
         const y = drops[i] * fontSize;
         const alpha = brightness[i];
 
-        ctx.fillStyle = `rgba(74, 222, 128, ${Math.min(0.95, alpha + 0.35)})`;
+        /* Messign blue head */
+        ctx.fillStyle = `rgba(96, 165, 250, ${Math.min(0.95, alpha + 0.35)})`;
         ctx.fillText(headChar[i], x, y);
 
         for (let j = 1; j < 20; j++) {
           const trailY = y - j * fontSize;
           const trailAlpha = (alpha - j * 0.045) * 0.55;
           if (trailAlpha > 0) {
-            const g = 34 + j * 4;
-            ctx.fillStyle = `rgba(${g}, 197, 94, ${trailAlpha})`;
+            const g = Math.max(80, 165 - j * 5);
+            const b = Math.max(120, 250 - j * 6);
+            ctx.fillStyle = `rgba(37, ${g}, ${b}, ${trailAlpha})`;
             ctx.fillText(trailChar[i][j - 1] ?? randomChar(), x, trailY);
           }
         }
@@ -136,7 +138,7 @@ export function MatrixRain() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 0, opacity: 0.42 }}
+      style={{ zIndex: 0, opacity: 0.52 }}
       aria-hidden
     />
   );

@@ -46,6 +46,7 @@ const namespaceToCategory: Record<string, Tool['category']> = {
   finance: 'finance',
   hr: 'people',
   marketing: 'analytics',
+  creative: 'analytics',
   knowledge: 'knowledge',
   time: 'analytics',
   okr: 'analytics',
@@ -56,6 +57,10 @@ const namespaceToCategory: Record<string, Tool['category']> = {
   projects: 'analytics',
   people: 'people',
   analytics: 'analytics',
+  seo: 'analytics',
+  conversion: 'analytics',
+  memory: 'analytics',
+  automation: 'analytics',
   communication: 'analytics',
   system: 'analytics',
 };

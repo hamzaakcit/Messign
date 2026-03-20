@@ -6,12 +6,15 @@ import { MarketingDashboardPage } from './MarketingDashboardPage';
 import { MarketingEmailPage } from './MarketingEmailPage';
 import { MarketingAgentPage } from './MarketingAgentPage';
 import { MarketingApprovalQueuePage } from './MarketingApprovalQueuePage';
+import { MarketingCommandCenterPage } from './MarketingCommandCenterPage';
 
 export function MarketingLayout() {
   const location = useLocation();
   const segment = location.pathname.split('/').filter(Boolean)[1];
 
   switch (segment) {
+    case 'command-center':
+      return <MarketingCommandCenterPage />;
     case 'approvals':
       return <MarketingApprovalQueuePage />;
     case 'agent':

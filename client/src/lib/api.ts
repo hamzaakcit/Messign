@@ -1,10 +1,35 @@
 import { getAccessToken, setAccessToken } from './authToken';
 
-export const API_ORIGIN = import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD
-    ? 'https://server-production-7283.up.railway.app'
-    : '');
+function normalizeApiOrigin(v: string | undefined): string {
+  if (v == null || typeof v !== 'string') return '';
+  const t = v.trim();
+  if (!t) return '';
+  return t.replace(/\/$/, '');
+}
+
+/** Prefer `VITE_API_URL`; also accept `VITE_API_ORIGIN` (used in some env files). */
+const _explicitOrigin =
+  normalizeApiOrigin(import.meta.env.VITE_API_URL) ||
+  normalizeApiOrigin(import.meta.env.VITE_API_ORIGIN);
+
+export const API_ORIGIN =
+  _explicitOrigin ||
+  (import.meta.env.PROD ? 'https://server-production-7283.up.railway.app' : '');
+
 const API_BASE = `${API_ORIGIN}/api`;
+
+/**
+ * Chat/SSE endpoints must return `text/event-stream` (or JSON for special modes), not the SPA HTML.
+ * When `VITE_API_URL` points at the Vercel hostname, POST /api/... is rewritten to index.html.
+ */
+export function assertNotHtmlApiResponse(response: Response): void {
+  const ct = response.headers.get('content-type') || '';
+  if (ct.includes('text/html')) {
+    throw new Error(
+      'Received a web page instead of the API. In Vercel → Environment Variables, set VITE_API_URL to your backend root URL (e.g. https://….up.railway.app), not the Vercel site URL. Redeploy after changing it.',
+    );
+  }
+}
 
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(fn: () => void): void {

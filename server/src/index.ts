@@ -1,7 +1,5 @@
-import dotenv from 'dotenv';
-import { existsSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import './env.js';
+import { join } from 'path';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -10,26 +8,6 @@ import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
-// Load .env from server package root (works when running from workspace root or server/)
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const serverEnv = join(__dirname, '..', '.env');
-const rootServerEnv = join(process.cwd(), 'server', '.env');
-const cwdEnv = join(process.cwd(), '.env');
-if (existsSync(serverEnv)) {
-  dotenv.config({ path: serverEnv });
-}
-if (!process.env.GRAPHHOPPER_API_KEY && existsSync(rootServerEnv)) {
-  dotenv.config({ path: rootServerEnv });
-}
-if (!process.env.GRAPHHOPPER_API_KEY && existsSync(cwdEnv)) {
-  dotenv.config({ path: cwdEnv });
-}
-if (!process.env.GRAPHHOPPER_API_KEY) {
-  dotenv.config();
-}
-if (!process.env.GRAPHHOPPER_API_KEY) {
-  console.warn('[server] GRAPHHOPPER_API_KEY not set; mileage calculator will use fallback 10 km.');
-}
 import { setupSocketHandlers } from './sockets/index.js';
 import { registerAllSubscribers } from './events/subscribers/index.js';
 import { startAllWorkers } from './queue/workers/index.js';

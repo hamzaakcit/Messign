@@ -17,6 +17,7 @@ import {
   AtSign,
   Wifi,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import styles from './FloatingBadges.module.css';
 
 interface Badge {
@@ -28,23 +29,41 @@ interface Badge {
   size: 'sm' | 'md' | 'lg';
 }
 
-/** CSS `steps()` typewriter: 3–5s per full word, grid sizes column so width 0→100% matches text. */
-function StepsTypewriter({ text, delaySec }: { text: string; delaySec: number }) {
-  const n = Math.max(1, text.length);
-  const dur = Math.min(5, Math.max(3, 2.4 + n * 0.22));
+const iconClass = 'text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.45)]';
+
+/** Slow typewriter on labels; grid + hidden measure keeps full word width so ends never clip */
+function TypewriterLabel({ text, startDelaySec }: { text: string; startDelaySec: number }) {
+  const [started, setStarted] = useState(false);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setStarted(true), startDelaySec * 1000);
+    return () => clearTimeout(t);
+  }, [startDelaySec]);
+
+  useEffect(() => {
+    if (!started) return;
+    if (count < text.length) {
+      const delay = count === 0 ? 450 : 120 + Math.floor(Math.random() * 35);
+      const id = window.setTimeout(() => setCount((c) => c + 1), delay);
+      return () => clearTimeout(id);
+    }
+    const id = window.setTimeout(() => setCount(0), 2600);
+    return () => clearTimeout(id);
+  }, [started, count, text]);
+
+  const showCursor = started && count > 0 && count < text.length;
+
   return (
-    <span className={styles.grid}>
-      <span className={styles.measure} aria-hidden>
+    <span className={styles.typewriterWrap}>
+      <span className={styles.typewriterMeasure} aria-hidden>
         {text}
       </span>
       <span
-        className={`${styles.clip} text-green-400`}
-        style={{
-          animation: `loginPillTypewriter ${dur}s steps(${n}, end) infinite`,
-          animationDelay: `${delaySec}s`,
-        }}
+        className={`${styles.typewriterVisible} text-blue-300 drop-shadow-[0_0_6px_rgba(96,165,250,0.5)]`}
       >
-        {text}
+        {text.slice(0, count)}
+        {showCursor ? <span className="ml-px text-blue-400/90 animate-pulse">▍</span> : null}
       </span>
     </span>
   );
@@ -53,7 +72,7 @@ function StepsTypewriter({ text, delaySec }: { text: string; delaySec: number })
 const badges: Badge[] = [
   {
     label: 'SMS',
-    icon: <MessageSquare className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <MessageSquare className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '8%', left: '3%' },
     delay: 0,
     duration: 48,
@@ -61,7 +80,7 @@ const badges: Badge[] = [
   },
   {
     label: 'WhatsApp',
-    icon: <MessageCircle className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <MessageCircle className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '18%', left: '8%' },
     delay: 0.5,
     duration: 56,
@@ -69,7 +88,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Viber',
-    icon: <Phone className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Phone className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '30%', left: '2%' },
     delay: 1,
     duration: 50,
@@ -77,7 +96,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Telegram',
-    icon: <Send className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Send className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '42%', left: '6%' },
     delay: 1.5,
     duration: 54,
@@ -85,7 +104,7 @@ const badges: Badge[] = [
   },
   {
     label: 'API',
-    icon: <Zap className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <Zap className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '55%', left: '3%' },
     delay: 2,
     duration: 52,
@@ -93,7 +112,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Analytics',
-    icon: <BarChart3 className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <BarChart3 className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '68%', left: '7%' },
     delay: 2.5,
     duration: 58,
@@ -101,7 +120,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Push',
-    icon: <Bell className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <Bell className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '78%', left: '2%' },
     delay: 3,
     duration: 49,
@@ -109,7 +128,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Webhook',
-    icon: <Link className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Link className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '88%', left: '8%' },
     delay: 3.5,
     duration: 55,
@@ -117,7 +136,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Email',
-    icon: <Mail className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Mail className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '6%', right: '4%' },
     delay: 0.3,
     duration: 51,
@@ -125,7 +144,7 @@ const badges: Badge[] = [
   },
   {
     label: 'RCS',
-    icon: <Smartphone className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Smartphone className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '16%', right: '9%' },
     delay: 0.8,
     duration: 57,
@@ -133,7 +152,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Voice',
-    icon: <Phone className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Phone className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '28%', right: '3%' },
     delay: 1.3,
     duration: 53,
@@ -141,7 +160,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Video',
-    icon: <Video className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Video className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '40%', right: '7%' },
     delay: 1.8,
     duration: 48,
@@ -149,7 +168,7 @@ const badges: Badge[] = [
   },
   {
     label: 'OTP',
-    icon: <Shield className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <Shield className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '52%', right: '2%' },
     delay: 2.3,
     duration: 52,
@@ -157,7 +176,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Cloud',
-    icon: <Cloud className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Cloud className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '64%', right: '8%' },
     delay: 2.8,
     duration: 56,
@@ -165,7 +184,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Broadcast',
-    icon: <Radio className="w-4 h-4 text-green-400" aria-hidden />,
+    icon: <Radio className={`w-4 h-4 ${iconClass}`} aria-hidden />,
     position: { top: '75%', right: '3%' },
     delay: 3.3,
     duration: 54,
@@ -173,7 +192,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Chat',
-    icon: <MessageSquare className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <MessageSquare className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '85%', right: '6%' },
     delay: 3.8,
     duration: 50,
@@ -181,7 +200,7 @@ const badges: Badge[] = [
   },
   {
     label: 'LINE',
-    icon: <Hash className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <Hash className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '12%', left: '18%' },
     delay: 4,
     duration: 58,
@@ -189,7 +208,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Messenger',
-    icon: <MessageCircle className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <MessageCircle className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '22%', right: '18%' },
     delay: 4.5,
     duration: 55,
@@ -197,7 +216,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Instagram',
-    icon: <AtSign className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <AtSign className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '60%', left: '15%' },
     delay: 5,
     duration: 51,
@@ -205,7 +224,7 @@ const badges: Badge[] = [
   },
   {
     label: 'Signal',
-    icon: <Wifi className="w-3 h-3 text-green-400" aria-hidden />,
+    icon: <Wifi className={`w-3 h-3 ${iconClass}`} aria-hidden />,
     position: { top: '70%', right: '16%' },
     delay: 5.5,
     duration: 53,
@@ -226,12 +245,13 @@ export function FloatingBadges() {
         <div
           key={`${badge.label}-${index}`}
           className={`
-            absolute rounded-md
-            bg-green-950/30
-            border border-green-500/20
-            text-green-400 font-mono
+            absolute inline-flex max-w-none rounded-md
+            bg-blue-950/45
+            border border-blue-500/45
+            text-blue-300 font-mono shadow-[0_0_20px_rgba(59,130,246,0.15)]
             ${sizeClasses[badge.size]}
-            flex items-center opacity-80
+            flex items-center shrink-0
+            opacity-95
             animate-login-float
           `}
           style={{
@@ -241,7 +261,7 @@ export function FloatingBadges() {
           }}
         >
           {badge.icon}
-          <StepsTypewriter text={badge.label} delaySec={badge.delay} />
+          <TypewriterLabel text={badge.label} startDelaySec={badge.delay} />
         </div>
       ))}
     </div>

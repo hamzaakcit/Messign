@@ -516,6 +516,21 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'marketing:propose_brand_voice_patch',
+      description:
+        '[ACTION] Propose golden-example / brand voice updates for admin review. Does not apply changes until approved in the Marketing hub.',
+      parameters: {
+        type: 'object',
+        properties: {
+          rationale: { type: 'string', description: 'Why these changes are suggested.' },
+        },
+        required: ['rationale'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'recruitment:post_job',
       description: '[ACTION] Post a new job opening.',
       parameters: {
@@ -610,6 +625,10 @@ export function getToolsForRole(
     }
 
     if (name === 'marketing:create_campaign' && !['admin', 'manager', 'dept_head', 'system_admin'].includes(userRole)) {
+      return false;
+    }
+
+    if (name === 'marketing:propose_brand_voice_patch' && !['admin', 'manager', 'cpo', 'dept_head', 'system_admin'].includes(userRole)) {
       return false;
     }
 

@@ -23,6 +23,16 @@ import { buildMarketingContentStrategistPrompt } from '../../../modules/marketin
 import { buildMarketingCampaignManagerPrompt } from '../../../modules/marketing/prompts/marketingCampaignManagerPrompt.js';
 import { loadMarketingTruthBrandLayers } from '../../../dal/marketing/truthBrand.js';
 import { resolveOrgIdForTool } from '../tools/resolveOrgIdForTool.js';
+import {
+  mapStrategyPlanToParsedRoute,
+  plannerShouldFallbackToLegacyRouter,
+  runMarketingStrategyPlannerStep,
+} from './marketingStrategyPlanner.js';
+import type { MarketingStrategyExecutionPlan } from '../../../modules/marketing/prompts/v2/strategyExecutionPlan.js';
+import { planRequiresResearchPhase } from '../../../modules/marketing/prompts/v2/strategyExecutionPlan.js';
+import type { MarketingRouteKind, ParsedMarketingRoute } from './marketingRouteTypes.js';
+
+export type { MarketingRouteKind, ParsedMarketingRoute } from './marketingRouteTypes.js';
 
 const ROUTE_TOOL_NAME = 'route_marketing_subagent';
 
@@ -40,7 +50,29 @@ export const CONTENT_TOOL_NAMES = [
   'marketing:competitor_content_scan',
   'marketing:suggest_content_topics',
   'knowledge:search_knowledge_base',
+  'creative:generate_image_brief',
+  'creative:check_brand_compliance',
+  'creative:repurpose_content',
+  'seo:keyword_optimizer',
+  'marketing:competitor_social_listen',
 ] as const;
+
+/** Strategy-first research phase: read-only tools only (subset of content + campaign analytics). */
+export const RESEARCH_TOOL_NAMES = [
+  'knowledge:search_knowledge_base',
+  'marketing:product_truth_lookup',
+  'marketing:competitor_content_scan',
+  'marketing:suggest_content_topics',
+  'marketing:get_campaign_performance',
+  'marketing:get_marketing_roi',
+  'analytics:funnel_analysis',
+  'seo:keyword_optimizer',
+  'marketing:competitor_social_listen',
+] as const;
+
+const RESEARCH_PHASE_SYSTEM = `You are the Marketing Research phase (strategy-first). You do NOT draft final user-facing marketing copy.
+Use read-only tools to gather: ICP/product truth, competitor or topic signals, and relevant metrics or funnel context.
+After tools return, you will be asked to summarize findings in crisp bullets for the Content Strategist / Campaign Manager — no fluff.`;
 
 /** Exported for marketingAgentOrchestrator — Campaign Manager tool allowlist */
 export const CAMPAIGN_TOOL_NAMES = [
@@ -48,6 +80,11 @@ export const CAMPAIGN_TOOL_NAMES = [
   'marketing:get_marketing_roi',
   'marketing:suggest_content_topics',
   'marketing:create_campaign',
+  'analytics:funnel_analysis',
+  'analytics:experiment_design',
+  'conversion:rate_simulator',
+  'automation:manage_trigger',
+  'marketing:propose_brand_voice_patch',
 ] as const;
 
 const MAX_SUB_STEPS = 4;
@@ -64,20 +101,6 @@ const CAMPAIGN_METRICS_ONLY_TOOLS = new Set([
 ]);
 /** Routing + campaign + content can exceed 40s when tools run; content loop uses more rounds. */
 const TOTAL_MS = 90_000;
-
-export type MarketingRouteKind =
-  | 'CONTENT_STRATEGIST'
-  | 'CAMPAIGN_MANAGER'
-  | 'BOTH_CAMPAIGN_THEN_CONTENT'
-  | 'CLARIFY'
-  | 'NOT_MARKETING';
-
-export interface ParsedMarketingRoute {
-  route: MarketingRouteKind;
-  clarifyQuestion?: string;
-  notMarketingMessage?: string;
-  campaignContextNote?: string;
-}
 
 const ROUTE_MARKETING_TOOL: OpenAI.ChatCompletionTool = {
   type: 'function',
@@ -211,6 +234,38 @@ export async function runMarketingRouteDecision(
   return { route: 'CONTENT_STRATEGIST' };
 }
 
+/**
+ * Strategy Planner (complex) → parsed route, with legacy sub-orchestrator fallback on failure
+ * or low confidence (under 60, unless routing is CLARIFY).
+ */
+async function resolveMarketingRouteWithPlanner(
+  query: string,
+  history: Array<{ role: string; content: string }>,
+  priorContext: string | undefined,
+  agentContext: AgentContext,
+  doraCtx: DoraRequestContext,
+  legacyContext: ToolContext,
+  forceMarketingContext: boolean,
+): Promise<{ route: ParsedMarketingRoute; plan: MarketingStrategyExecutionPlan | null }> {
+  const step = await runMarketingStrategyPlannerStep(
+    query,
+    history,
+    priorContext,
+    agentContext,
+    doraCtx,
+    legacyContext,
+  );
+  if (!step.ok) {
+    const route = await runMarketingRouteDecision(query, history, priorContext, agentContext.tenantId, forceMarketingContext);
+    return { route, plan: null };
+  }
+  if (plannerShouldFallbackToLegacyRouter(step.plan)) {
+    const route = await runMarketingRouteDecision(query, history, priorContext, agentContext.tenantId, forceMarketingContext);
+    return { route, plan: null };
+  }
+  return { route: mapStrategyPlanToParsedRoute(step.plan), plan: step.plan };
+}
+
 /** Mini agent loop with tool execution + optional synthesis. Exported for marketingAgentOrchestrator. */
 export async function runMarketingMiniLoop(options: {
   role: 'content' | 'campaign';
@@ -225,24 +280,46 @@ export async function runMarketingMiniLoop(options: {
   contentStrategist?: boolean;
   /** Campaign Manager v1: complex-first planning; fast synthesis when only metrics tools ran. */
   campaignManager?: boolean;
+  /** Strategy-first: tool-only research summary, no final copy; caps rounds at 3 unless maxSteps set. */
+  researchMode?: boolean;
+  /** Override max tool-calling rounds (e.g. research phase = 3). */
+  maxSteps?: number;
 }): Promise<{
   content: string;
   pendingActions: PendingActionSSEEvent[];
   toolObservations: ToolObservation[];
   toolsUsed: string[];
 }> {
-  const { role, systemPrompt, toolNames, query, agentContext, doraCtx, legacyContext, priorBlock, contentStrategist, campaignManager } =
-    options;
-  const maxSubSteps = contentStrategist
-    ? CONTENT_STRATEGIST_MAX_STEPS
-    : campaignManager
-      ? CAMPAIGN_MANAGER_MAX_STEPS
-      : MAX_SUB_STEPS;
-  const stepTimeoutMs = contentStrategist
+  const {
+    role,
+    systemPrompt,
+    toolNames,
+    query,
+    agentContext,
+    doraCtx,
+    legacyContext,
+    priorBlock,
+    contentStrategist,
+    campaignManager,
+    researchMode,
+    maxSteps,
+  } = options;
+  const maxSubSteps =
+    maxSteps ??
+    (researchMode
+      ? 3
+      : contentStrategist
+        ? CONTENT_STRATEGIST_MAX_STEPS
+        : campaignManager
+          ? CAMPAIGN_MANAGER_MAX_STEPS
+          : MAX_SUB_STEPS);
+  const stepTimeoutMs = researchMode
     ? CONTENT_STRATEGIST_STEP_MS
-    : campaignManager
-      ? CAMPAIGN_MANAGER_STEP_MS
-      : STEP_MS;
+    : contentStrategist
+      ? CONTENT_STRATEGIST_STEP_MS
+      : campaignManager
+        ? CAMPAIGN_MANAGER_STEP_MS
+        : STEP_MS;
   const tools = getLLMToolsForExactNames([...toolNames], agentContext.userRoles);
   const fullSystem = `${systemPrompt}
 
@@ -257,11 +334,12 @@ ${priorBlock ? `\nContext from prior step:\n${priorBlock}\n` : ''}`;
   const pendingActions: PendingActionSSEEvent[] = [];
   const toolObservations: ToolObservation[] = [];
   const toolsUsed: string[] = [];
-  let tier: 'balanced' | 'complex' = contentStrategist || campaignManager ? 'complex' : 'balanced';
+  let tier: 'balanced' | 'complex' = researchMode || contentStrategist || campaignManager ? 'complex' : 'balanced';
 
   for (let step = 0; step < maxSubSteps; step++) {
-    const maxTokensThisStep =
-      role === 'content'
+    const maxTokensThisStep = researchMode
+      ? 2000
+      : role === 'content'
         ? contentStrategist
           ? 2200
           : 1800
@@ -289,7 +367,11 @@ ${priorBlock ? `\nContext from prior step:\n${priorBlock}\n` : ''}`;
     const toolCalls = message.tool_calls;
 
     if (!toolCalls || toolCalls.length === 0) {
-      const answer = thought || "I couldn't complete that with the available data. Try rephrasing or check the Marketing hub.";
+      const answer =
+        thought ||
+        (researchMode
+          ? 'No research tools were invoked; say what data is missing.'
+          : "I couldn't complete that with the available data. Try rephrasing or check the Marketing hub.");
       return { content: answer, pendingActions, toolObservations, toolsUsed };
     }
 
@@ -377,8 +459,14 @@ ${priorBlock ? `\nContext from prior step:\n${priorBlock}\n` : ''}`;
     })
     .join('\n');
 
-  const synthesisPrompt =
-    role === 'content'
+  const synthesisPrompt = researchMode
+    ? `Research phase only. User request: "${query}"
+
+Tool outcomes:
+${outcomeHints}
+
+Output a tight bullet summary (max 8 bullets) of findings **from tools only**. No draft copy, no invented metrics. If a tool failed, say what is missing.`
+    : role === 'content'
       ? `Using the tool results above, fulfill the user's content request: "${query}"
 
 Tool outcomes:
@@ -402,6 +490,7 @@ ${outcomeHints}
 Do not invent metrics. Note: calendar rearrangement uses the Marketing hub UI — there is no AI tool for that yet.`;
 
   const metricsOnlySynthesis =
+    !researchMode &&
     role === 'campaign' &&
     campaignManager &&
     toolObservations.length > 0 &&
@@ -412,7 +501,10 @@ Do not invent metrics. Note: calendar rearrangement uses the Marketing hub UI �
 
   let synthTier: 'balanced' | 'complex' | 'fast' = 'balanced';
   let synthMaxTokens = 1200;
-  if (contentStrategist) {
+  if (researchMode) {
+    synthTier = 'complex';
+    synthMaxTokens = 1200;
+  } else if (contentStrategist) {
     synthTier = 'complex';
     synthMaxTokens = 1600;
   } else if (role === 'campaign' && campaignManager) {
@@ -477,11 +569,13 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
 
   return withTimeout(
     (async () => {
-      const route = await runMarketingRouteDecision(
+      const { route, plan } = await resolveMarketingRouteWithPlanner(
         query,
         history,
         priorContext,
-        agentContext.tenantId,
+        agentContext,
+        doraCtx,
+        legacyContext,
         forceMarketingContext,
       );
 
@@ -499,11 +593,32 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         return { content: msg, pendingActions: [], toolObservations: [], toolsUsed: [] };
       }
 
-      const note = route.campaignContextNote ? `Note: ${route.campaignContextNote}\n\n` : '';
+      let note = route.campaignContextNote ? `Note: ${route.campaignContextNote}\n\n` : '';
       const allPending: PendingActionSSEEvent[] = [];
       const allObs: ToolObservation[] = [];
       const allTools: string[] = [];
       let combined = '';
+
+      if (plan && planRequiresResearchPhase(plan)) {
+        const mergedCtx: ToolContext = {
+          ...legacyContext,
+          organizationId: legacyContext.organizationId ?? agentContext.organizationId ?? undefined,
+        };
+        const research = await runMarketingMiniLoop({
+          role: 'content',
+          systemPrompt: RESEARCH_PHASE_SYSTEM,
+          toolNames: RESEARCH_TOOL_NAMES,
+          query: note + query,
+          agentContext,
+          doraCtx,
+          legacyContext: mergedCtx,
+          researchMode: true,
+        });
+        allPending.push(...research.pendingActions);
+        allObs.push(...research.toolObservations);
+        allTools.push(...research.toolsUsed);
+        note += `Research phase (strategy-first):\n${research.content}\n\n`;
+      }
 
       const runContent = async (userQuery: string, priorBlock?: string) => {
         const mergedCtx: ToolContext = {

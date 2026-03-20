@@ -21,7 +21,7 @@ import type {
   DoraPendingActionContent,
 } from '@/types/knowledge-hub/ai';
 import { getAccessToken } from '@/lib/authToken';
-import { API_ORIGIN } from '@/lib/api';
+import { API_ORIGIN, assertNotHtmlApiResponse } from '@/lib/api';
 import { khAIFeedbackAPI } from '@/lib/knowledge-hub/api';
 import { resolveIntent } from '@/shared/intents/resolver';
 
@@ -221,6 +221,8 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       if (!response.ok) {
         throw new Error(`AI request failed: ${response.status} ${response.statusText}`);
       }
+
+      assertNotHtmlApiResponse(response);
 
       const responseModeHeader = response.headers.get('X-Response-Mode');
       if (responseModeHeader === 'confirmation') {

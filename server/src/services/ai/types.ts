@@ -108,10 +108,12 @@ export interface ToolParameterSchema {
 }
 
 export interface ToolParameterProperty {
-  type: 'string' | 'number' | 'boolean' | 'array';
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
   description: string;
   enum?: string[];
-  items?: { type: string };
+  items?: { type: string; properties?: Record<string, ToolParameterProperty>; description?: string };
+  /** Nested properties when type is 'object' (OpenAI-style JSON Schema subset). */
+  properties?: Record<string, ToolParameterProperty>;
   default?: unknown;
 }
 

@@ -11,6 +11,7 @@ import { createExpense } from '../../dal/expenses.js';
 import type { CreateExpenseInput } from '../../dal/expenses.js';
 import { eventBus } from '../../events/index.js';
 import * as doraInsights from '../../dal/doraInsights.js';
+import { runMarketingAutomationCaseStudyDraft } from '../../services/marketing/marketingAutomationTriggerService.js';
 
 const connection = redisConnection as unknown as ConnectionOptions;
 
@@ -413,6 +414,9 @@ const worker = new Worker<CrossModuleJob>(
         break;
       case 'create_budget_from_contract':
         await createBudgetFromContract(payload);
+        break;
+      case 'marketing_automation_case_study_draft':
+        await runMarketingAutomationCaseStudyDraft(payload);
         break;
       default:
         console.log(`[CrossModule] Unknown job type: ${type}`);

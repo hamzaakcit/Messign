@@ -1,6 +1,7 @@
 import type { EventBus } from '../../../platform/eventBus.js';
 import { crossModuleQueue, gamificationQueue, notificationQueue } from '../../../queue/index.js';
 import { query } from '../../../db/index.js';
+import { enqueueMarketingAutomationForProjectTaskCompleted } from '../../../services/marketing/marketingAutomationTriggerService.js';
 import * as doraInsights from '../../../dal/doraInsights.js';
 import * as marketingLeads from '../../../dal/marketing/leads.js';
 
@@ -135,6 +136,19 @@ export function registerMarketingEventHandlers(eventBus: EventBus): void {
 
   eventBus.on('marketing.content.published', async (payload) => {
     await gamificationQueue.add('marketing_content_published_xp', { type: 'award_xp', userId: payload.publishedBy, amount: 5, reason: 'Published marketing content' });
+  });
+
+  eventBus.on('project.task.completed', async (payload) => {
+    try {
+      await enqueueMarketingAutomationForProjectTaskCompleted({
+        taskId: payload.taskId,
+        projectId: payload.projectId,
+        completedBy: payload.completedBy,
+        xpAwarded: payload.xpAwarded,
+      });
+    } catch (e) {
+      console.warn('[Marketing] project.task.completed automation hook failed', e);
+    }
   });
 
   console.log('[Marketing] Event handlers registered');
