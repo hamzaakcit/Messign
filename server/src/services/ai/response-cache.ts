@@ -1,11 +1,12 @@
 import NodeCache from 'node-cache';
 import type { SourceDocument } from './types.js';
+import type { WidgetPayload } from './widgetResolve.js';
 
 const cache = new NodeCache({ stdTTL: 60, checkperiod: 120 });
 
 export interface CachedDirectIntentPayload {
   text: string;
-  widgets: Array<{ widgetType: string; data: unknown; title: string }>;
+  widgets: WidgetPayload[];
   toolsUsed: string[];
   dataPoints: number;
   sources?: SourceDocument[];

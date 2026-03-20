@@ -10,6 +10,8 @@
 
 import { getCached, setCache } from './queryCache.js';
 import { toolIndex } from './tools/toolIndex.js';
+import { validateToolArgsForExecution } from './toolArgSchemas.js';
+import { isWriteTool } from './actions/actionInterceptor.js';
 import type {
   Tool,
   ToolContext,
@@ -225,6 +227,11 @@ function resolveToolName(name: string): string | undefined {
   return undefined;
 }
 
+/** Exported for argument validation / intercept paths that run before executeTool. */
+export function resolveRegisteredToolName(name: string): string | undefined {
+  return resolveToolName(name);
+}
+
 /**
  * Execute a tool by name with the given arguments and auth context.
  */
@@ -262,8 +269,23 @@ export async function executeTool(
     }
   }
 
+  const validated = validateToolArgsForExecution(resolved, args);
+  if (!validated.ok) {
+    if (context.traceId) {
+      console.warn(`[AI Registry] tool_args_invalid trace=${context.traceId} tool=${resolved}`);
+    }
+    return {
+      success: false,
+      data: null,
+      summary: validated.summary,
+      metadata: { source: 'tool_validation', validationError: true },
+    };
+  }
+  args = validated.args;
+
   // Check cache first (use resolved name for cache key consistency)
-  const cached = getCached(resolved, args, context.userId) as ToolResult | null;
+  const idem = context.idempotencyKey?.trim() || undefined;
+  const cached = getCached(resolved, args, context.userId, idem) as ToolResult | null;
   if (cached) {
     console.log(`[AI Registry] Tool "${resolved}" cache HIT`);
     return cached;
@@ -299,8 +321,8 @@ export async function executeTool(
     });
 
     // Cache successful results (use resolved name for cache key consistency)
-    if (result.success && result.data) {
-      setCache(resolved, tool.category, args, context.userId, result);
+    if (result.success && result.data && !isWriteTool(resolved)) {
+      setCache(resolved, tool.category, args, context.userId, result, idem);
     }
 
     return result;

@@ -85,11 +85,11 @@ export function AIMetadataBar({ metadata }: AIMetadataBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-dark-600">
       <div className="flex flex-wrap items-center gap-1.5">
-        <Database size={12} className="text-gray-500 flex-shrink-0" />
+        <Database size={12} className="dora-chat-text-tertiary flex-shrink-0" />
         {toolChips}
       </div>
 
-      <div className="flex items-center gap-3 ml-auto text-xs text-gray-500">
+      <div className="flex items-center gap-3 ml-auto text-xs dora-chat-text-tertiary">
         {metadata.dataPoints > 0 && (
           <span className="flex items-center gap-1">
             <BarChart3 size={11} />

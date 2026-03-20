@@ -61,7 +61,8 @@
     "socket.io": "^4.7.4",
     "speakeasy": "^2.0.0",
     "uuid": "^9.0.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

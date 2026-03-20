@@ -57,7 +57,12 @@ function ThinkingIndicatorShell({
 function ThinkingIndicatorStatic({ label }: { label: string }) {
   return (
     <ThinkingIndicatorShell>
-      <span style={{ fontSize: 13, color: '#94a3b8', whiteSpace: 'nowrap' }}>{label}</span>
+      <span
+        className="dora-font dora-chat-text-secondary"
+        style={{ fontSize: 13, whiteSpace: 'nowrap' }}
+      >
+        {label}
+      </span>
     </ThinkingIndicatorShell>
   );
 }
@@ -80,9 +85,9 @@ function ThinkingIndicatorCycling() {
   return (
     <ThinkingIndicatorShell>
       <span
+        className="dora-font dora-chat-text-secondary"
         style={{
           fontSize: 13,
-          color: '#94a3b8',
           opacity: visible ? 1 : 0,
           transition: 'opacity 0.25s ease',
           whiteSpace: 'nowrap',

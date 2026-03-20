@@ -277,6 +277,22 @@ try {
   console.warn('[Server] Async jobs will not be processed. Events will still fire synchronously.');
 }
 
+try {
+  const { setupActionSchema } = await import('./services/ai/actions/actionStore.js');
+  const { setupRagOutboxSchema, processRagOutboxBatch } = await import('./services/ai/sync/ragOutbox.js');
+  await setupActionSchema();
+  await setupRagOutboxSchema();
+  setInterval(() => {
+    void processRagOutboxBatch(8).catch((err: unknown) => {
+      const m = err instanceof Error ? err.message : String(err);
+      console.warn('[rag-outbox] batch:', m);
+    });
+  }, 20_000);
+  console.log('[Server] Agentic schema + RAG outbox worker scheduled');
+} catch (e) {
+  console.warn('[Server] Agentic/outbox init:', e);
+}
+
 // Start server
 const port = process.env.PORT || 3001;
 httpServer.listen(Number(port), '0.0.0.0', async () => {

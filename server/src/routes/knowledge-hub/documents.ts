@@ -8,6 +8,7 @@ import { generateDocumentPDF } from '../../services/knowledgePDF.js';
 import { embedDocument } from '../../services/knowledgeEmbeddings.js';
 import { extractTextFromAttachments } from '../../services/pdfTextExtractor.js';
 import { ingestDocument, batchIngest, removeDocumentFromRAG } from '../../services/rag/ingest.js';
+import { enqueueRagOutboxEvent } from '../../services/ai/sync/ragOutbox.js';
 import { setupRAGSchema } from '../../services/rag/db.js';
 import type { KHDocument } from '../../services/rag/types.js';
 import { eventBus } from '../../events/index.js';
@@ -44,6 +45,14 @@ function toKHDocument(doc: Record<string, unknown>): KHDocument {
 export const documentsRouter = Router();
 
 type AuthReq = Request & { userId: string };
+
+async function organizationIdForAuthUser(authUserId: string): Promise<string | null> {
+  const r = await query<{ oid: string | null }>(
+    `SELECT organization_id::text AS oid FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [authUserId],
+  );
+  return r.rows[0]?.oid ?? null;
+}
 
 documentsRouter.get('/', async (req: Request, res: Response) => {
   try {
@@ -108,6 +117,10 @@ documentsRouter.post('/', async (req: Request, res: Response) => {
     const doc = await db.createDocument(body);
     if (doc) {
       await logAudit({ userId, action: 'create', entityType: 'document', entityId: doc.id, details: { title: doc.title } });
+      const orgId = await organizationIdForAuthUser(userId);
+      void enqueueRagOutboxEvent(orgId, 'knowledge_document', doc.id, 'upsert').catch((e) =>
+        console.error('[rag-outbox] enqueue create:', e),
+      );
       if (doc.status === 'published' || doc.status === 'in_review') {
         ingestDocument(toKHDocument(doc as unknown as Record<string, unknown>)).catch((e) => console.error('[rag-ingest] create:', e));
       }
@@ -165,6 +178,10 @@ documentsRouter.put('/:id', async (req: Request, res: Response) => {
     const doc = await db.updateDocument(req.params.id, body);
     if (doc) {
       await logAudit({ userId, action: 'update', entityType: 'document', entityId: doc.id, details: { title: doc.title } });
+      const orgId = await organizationIdForAuthUser(userId);
+      void enqueueRagOutboxEvent(orgId, 'knowledge_document', doc.id, 'upsert').catch((e) =>
+        console.error('[rag-outbox] enqueue update:', e),
+      );
       if (doc.status === 'published' || doc.status === 'in_review') {
         ingestDocument(toKHDocument(doc as unknown as Record<string, unknown>)).catch((e) => console.error('[rag-ingest] update:', e));
       }
@@ -184,6 +201,10 @@ documentsRouter.put('/:id', async (req: Request, res: Response) => {
 documentsRouter.delete('/:id', async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthReq).userId;
+    const orgId = await organizationIdForAuthUser(userId);
+    void enqueueRagOutboxEvent(orgId, 'knowledge_document', req.params.id, 'delete').catch((e) =>
+      console.error('[rag-outbox] enqueue delete:', e),
+    );
     removeDocumentFromRAG(req.params.id).catch((e) => console.error('[rag-ingest] delete:', e));
     await db.deleteDocument(req.params.id);
     await logAudit({ userId, action: 'delete', entityType: 'document', entityId: req.params.id });

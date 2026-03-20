@@ -5,11 +5,14 @@ import { buildPptxBuffer } from '../../services/presentationPptx.js';
 import { routeQuery } from '../../services/ai/intentRouter.js';
 import { executeDirectIntent } from '../../services/ai/intent-router.js';
 import { AI_WIDGET_TOOL_MAP } from '../../services/ai/widgetToolMap.js';
+import { resolveWidgetPayloadsForTool } from '../../services/ai/widgetResolve.js';
 import '../../services/ai/tools/index.js';
 import { getToolCount } from '../../services/ai/tools/index.js';
 import { aiAnswerRateLimit, aiPresentationRateLimit } from '../../middleware/aiRateLimit.js';
 import { claudeRateLimit, incrementClaudeUsage, getClaudeUsageStatus } from '../../middleware/claudeRateLimit.js';
 import { validateAIAnswerInput, validateAIPresentationInput } from '../../middleware/aiInputValidation.js';
+import { agentTraceMiddleware } from '../../middleware/agentContext.js';
+import type { ActiveViewStateV1 } from '../../services/ai/agent/activeViewState.js';
 import { logQuery } from '../../services/ai/queryLogger.js';
 import { recordTiming } from '../../services/ai/performanceMonitor.js';
 import { trimHistory } from '../../services/ai/contextLimiter.js';
@@ -42,7 +45,26 @@ function routeToDynamicToolLoop(userId: string, organizationId: string | null): 
 }
 
 export const aiRouter = Router();
+aiRouter.use(agentTraceMiddleware);
 type AuthReq = Request & { userId: string; role?: string; organizationId?: string };
+
+function doraContextOptions(req: Request): {
+  activeViewState: ActiveViewStateV1 | null;
+  requestMeta: { traceId?: string; idempotencyKey?: string };
+} {
+  const b = req.body as {
+    activeViewState?: ActiveViewStateV1;
+    traceId?: string;
+    idempotencyKey?: string;
+  };
+  return {
+    activeViewState: b.activeViewState ?? null,
+    requestMeta: {
+      traceId: b.traceId ?? req.agentTraceId,
+      idempotencyKey: b.idempotencyKey,
+    },
+  };
+}
 
 function extractSources(routerResult: { toolResults: { success: boolean; data: unknown }[] }): SourceDocument[] {
   const sources: SourceDocument[] = [];
@@ -262,6 +284,7 @@ function emitWidgetsFromToolResults(
   send: (event: Record<string, unknown>) => void,
   toolResultsForWidgets: ToolResultForWidget[],
   path: string,
+  userRole: string,
 ): void {
   const failures = toolResultsForWidgets.filter((o) => !o.success);
   if (failures.length > 0) {
@@ -282,11 +305,13 @@ function emitWidgetsFromToolResults(
   });
   const emittedWidgetTypes = new Set<string>();
   for (const obs of toolResultsForWidgets) {
-    const widgetType = AI_WIDGET_TOOL_MAP[obs.toolName];
-    if (widgetType && !emittedWidgetTypes.has(widgetType) && obs.success && obs.data) {
-      emittedWidgetTypes.add(widgetType);
-      console.log('[WIDGET DEBUG] Emitting widget_data SSE:', { widgetType, toolName: obs.toolName });
-      send({ type: 'widget_data', content: { widgetType, data: obs.data, title: obs.summary ?? '' } });
+    if (!obs.success || !obs.data) continue;
+    const payloads = resolveWidgetPayloadsForTool(obs.toolName, obs, userRole);
+    for (const p of payloads) {
+      if (emittedWidgetTypes.has(p.widgetType)) continue;
+      emittedWidgetTypes.add(p.widgetType);
+      console.log('[WIDGET DEBUG] Emitting widget_data SSE:', { widgetType: p.widgetType, toolName: obs.toolName });
+      send({ type: 'widget_data', content: { widgetType: p.widgetType, data: p.data, title: p.title } });
     }
   }
 }
@@ -362,7 +387,14 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   // Registered chip intents: direct tool execution + instant JSON (no orchestrator / no synthesis)
   if (!searchMode && clientIntent) {
     try {
-      const doraDirect = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise, authReq.organizationId);
+      const doraDirect = await buildDoraContext(
+        authReq.userId,
+        authReq.role,
+        currentPath,
+        concise,
+        authReq.organizationId,
+        doraContextOptions(req),
+      );
       const legacyDirect = toLegacyToolContext(doraDirect);
       const direct = await executeDirectIntent(clientIntent, legacyDirect);
       if (direct) {
@@ -447,7 +479,14 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   // Web Search mode: use Groq compound-beta for internet search
   if (searchMode) {
     try {
-      const doraCtx = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise, authReq.organizationId);
+      const doraCtx = await buildDoraContext(
+        authReq.userId,
+        authReq.role,
+        currentPath,
+        concise,
+        authReq.organizationId,
+        doraContextOptions(req),
+      );
       const systemContext =
         `You are Dora, an AI assistant for ${doraCtx.user.userName} (${doraCtx.user.userRole}) at Messign Workspace. ` +
         `Today is ${doraCtx.todayDate}. ` +
@@ -497,7 +536,29 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   }
 
   try {
-    const doraCtx = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise, authReq.organizationId);
+    let retrievalCitations: string | null | undefined;
+    try {
+      const { buildHydrationRetrievalBlock } = await import('../../services/ai/agent/hydrationRetrieval.js');
+      retrievalCitations = await buildHydrationRetrievalBlock(
+        userQuery,
+        authReq.organizationId ?? null,
+        authReq.role ?? 'employee',
+      );
+    } catch (e) {
+      console.warn('[kh-ai] hydration retrieval skipped', e instanceof Error ? e.message : e);
+    }
+
+    const doraCtx = await buildDoraContext(
+      authReq.userId,
+      authReq.role,
+      currentPath,
+      concise,
+      authReq.organizationId,
+      {
+        ...doraContextOptions(req),
+        retrievalCitations: retrievalCitations ?? null,
+      },
+    );
     const legacyContext = toLegacyToolContext(doraCtx);
     const chatHistory = trimHistory(history, 1000).map((m) => ({
       role: m.role as 'user' | 'assistant',
@@ -585,7 +646,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
           data: r.data,
           summary: r.summary,
         }));
-        emitWidgetsFromToolResults(send, intentRouterToolResults1, 'intentRouter');
+        emitWidgetsFromToolResults(send, intentRouterToolResults1, 'intentRouter', legacyContext.userRole);
         send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
         send({ type: 'done' });
         res.end();
@@ -659,7 +720,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
           data: r.data,
           summary: r.summary,
         }));
-        emitWidgetsFromToolResults(send, intentRouterToolResults2, 'intentRouter');
+        emitWidgetsFromToolResults(send, intentRouterToolResults2, 'intentRouter', legacyContext.userRole);
         send({ type: 'metadata', content: { toolsUsed: routerResult.toolsUsed, dataPoints: routerResult.toolResults.filter((r) => r.success && r.data).length, responseTimeMs: totalMs, steps: 1, terminationReason: 'complete' } });
         send({ type: 'done' });
         res.end();
@@ -718,7 +779,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       mergedForWidgetsCount: mainPathToolResults.length,
       mergedToolNames: mainPathToolResults.map((o) => o.toolName),
     });
-    emitWidgetsFromToolResults(send, mainPathToolResults, pathTaken);
+    emitWidgetsFromToolResults(send, mainPathToolResults, pathTaken, legacyContext.userRole);
 
     // Phase 4: emit pending action events for HITL confirmation cards
     if (orchResult.pendingActions && orchResult.pendingActions.length > 0) {

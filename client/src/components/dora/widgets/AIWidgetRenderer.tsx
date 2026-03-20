@@ -1,15 +1,9 @@
-import { Component, type ReactNode } from 'react';
-import type { AIWidgetPayload, AIWidgetType, SystemOverviewData, TaskRow } from '@/types/knowledge-hub/ai';
-import { WIDGET_ACTIONS, exportWidget } from '@/shared/intents/widget-actions';
-import { SystemOverviewWidget } from './SystemOverviewWidget';
-import { TaskTableWidget } from './TaskTableWidget';
-import ProjectStatusWidget, { type ProjectData } from './ProjectStatusWidget';
-import RevenueChartWidget from './RevenueChartWidget';
-import { FinancialSummaryWidget } from './FinancialSummaryWidget';
-import { DoraDashWidget } from './DoraDashWidget';
-import PerformanceOverviewWidget from './PerformanceOverviewWidget';
-import TeamComparisonWidget from './TeamComparisonWidget';
-import DataTableWidget from './DataTableWidget';
+import { Component, useMemo, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { AIWidgetPayload, AIWidgetType } from '@/types/knowledge-hub/ai';
+import type { BlockHostAction, DoraBlockHost } from '@/types/dora/dynamic-blocks';
+import { exportWidget, WIDGET_ACTIONS } from '@/shared/intents/widget-actions';
+import { renderRegisteredBlock } from './blockRegistry';
 
 // ============================================================
 // Error boundary — graceful degradation per widget
@@ -41,7 +35,7 @@ class WidgetErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
             padding: '14px 16px',
             borderRadius: 'var(--dora-r-widget, 16px)',
             fontSize: 12,
-            color: 'var(--dora-text-3, #64748b)',
+            color: 'var(--dora-chat-text-tertiary, var(--dora-text-3, #94a3b8))',
             fontStyle: 'italic',
           }}
         >
@@ -54,6 +48,82 @@ class WidgetErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
 }
 
 // ============================================================
+// Merged toolbar (server actions + client registry)
+// ============================================================
+
+function mergeToolbarActions(
+  widget: AIWidgetPayload,
+  widgetType: AIWidgetType,
+): Array<{ id: string; label: string; action: BlockHostAction }> {
+  const fromPayload = (widget.actions ?? []).map((a) => {
+    if (a.kind === 'navigate') {
+      return {
+        id: a.id,
+        label: a.label,
+        action: { kind: 'navigate' as const, to: a.to, state: a.state },
+      };
+    }
+    return {
+      id: a.id,
+      label: a.label,
+      action: { kind: 'send_message' as const, text: a.text, intentId: a.intentId },
+    };
+  });
+
+  const serverFilledToolbar =
+    (widgetType === 'invoice_preview' || widgetType === 'leaderboard_list') &&
+    (widget.actions?.length ?? 0) > 0;
+
+  const fromClient: Array<{ id: string; label: string; action: BlockHostAction }> = [];
+  if (!serverFilledToolbar) {
+    (WIDGET_ACTIONS[widgetType] ?? []).forEach((d, i) => {
+      if (d.exportPdf) {
+        fromClient.push({
+          id: `client-export-${i}`,
+          label: d.label,
+          action: { kind: 'export_widget', widgetType, format: 'pdf' },
+        });
+        return;
+      }
+      if (d.message) {
+        fromClient.push({
+          id: `client-msg-${i}-${d.label}`,
+          label: d.label,
+          action: { kind: 'send_message', text: d.message, intentId: d.intentId },
+        });
+      }
+    });
+  }
+
+  return [...fromPayload, ...fromClient];
+}
+
+function BlockToolbar({
+  actions,
+  host,
+}: {
+  actions: Array<{ id: string; label: string; action: BlockHostAction }>;
+  host: DoraBlockHost;
+}) {
+  if (!actions.length) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {actions.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          onClick={() => void host.dispatch(a.action)}
+          className="rounded-lg border border-dark-600 bg-dark-800/80 px-3 py-1.5 text-xs dora-chat-text-secondary transition-colors hover:border-sky-500/35 hover:text-white dora-focus-ring"
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
 // Dispatcher
 // ============================================================
 
@@ -63,160 +133,51 @@ interface AIWidgetRendererProps {
   onSendMessage?: (msg: string, intentId?: string) => void;
 }
 
-function WidgetActionButtons({
-  widgetType,
-  onSendMessage,
-}: {
-  widgetType: AIWidgetType;
-  onSendMessage?: (msg: string, intentId?: string) => void;
-}) {
-  const actions = WIDGET_ACTIONS[widgetType];
-  if (!actions?.length) return null;
-
-  return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      {actions.map((a) => (
-        <button
-          key={a.label}
-          type="button"
-          onClick={() => {
-            if (a.exportPdf) {
-              exportWidget(widgetType, 'pdf');
-              return;
-            }
-            if (a.message && onSendMessage) {
-              onSendMessage(a.message, a.intentId);
-            }
-          }}
-          className="rounded-lg border border-dark-600 bg-dark-800/80 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-sky-500/35 hover:text-white"
-        >
-          {a.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function AIWidgetRenderer({ widget, index = 0, onSendMessage }: AIWidgetRendererProps) {
-  const { widgetType, data, title } = widget;
+  const navigate = useNavigate();
+  const { widgetType, title } = widget;
   const staggerDelay = 0.1 + index * 0.12;
 
-  let inner: ReactNode = null;
+  const host = useMemo<DoraBlockHost>(() => {
+    return {
+      dispatch(action: BlockHostAction) {
+        switch (action.kind) {
+          case 'send_message':
+            onSendMessage?.(action.text, action.intentId);
+            break;
+          case 'navigate':
+            navigate(action.to, action.state !== undefined ? { state: action.state } : undefined);
+            break;
+          case 'export_widget':
+            exportWidget(action.widgetType, action.format);
+            break;
+          case 'approve_action':
+          case 'reject_action':
+          case 'open_editor':
+          default:
+            break;
+        }
+      },
+    };
+  }, [navigate, onSendMessage]);
 
-  switch (widgetType) {
-    case 'system_overview':
-      inner = <SystemOverviewWidget data={data as SystemOverviewData} />;
-      break;
+  const toolbarActions = useMemo(
+    () => mergeToolbarActions(widget, widgetType),
+    [widget, widgetType],
+  );
 
-    case 'task_table':
-      inner = <TaskTableWidget data={data as TaskRow[] | Record<string, unknown>} onSendMessage={onSendMessage} />;
-      break;
-
-    case 'performance_overview':
-      inner = <PerformanceOverviewWidget data={data as Record<string, unknown>} />;
-      break;
-
-    case 'financial_summary':
-      inner = <FinancialSummaryWidget data={data as Record<string, unknown>} title={title} delay={staggerDelay} />;
-      break;
-
-    case 'team_overview': {
-      const teamTitle =
-        title && title.length < 100 ? title : 'Team comparison';
-      inner = (
-        <TeamComparisonWidget
-          data={data}
-          title={teamTitle}
-          delay={staggerDelay}
-        />
-      );
-      break;
-    }
-
-    case 'project_status': {
-      const rawData = data as Record<string, unknown> | Record<string, unknown>[];
-      const projects = Array.isArray(rawData) ? rawData : [rawData];
-
-      inner = (
-        <>
-          {projects.slice(0, 3).map((projectData, pi) => {
-            const taskStats = (projectData.taskStats as Record<string, number>) || {};
-            const members = projectData.members as Array<{ full_name?: string }> | null;
-
-            const shaped: ProjectData = {
-              name: (projectData.name as string) || 'Unknown Project',
-              lead: (projectData.lead as string) || (projectData.projectManager as string) || 'Unassigned',
-              dueDate: (projectData.dueDate as string) || (projectData.deadline as string) || 'TBD',
-              status: (projectData.status as ProjectData['status']) || 'active',
-              completion: (projectData.completionPercentage as number) || (projectData.completion as number) || (projectData.progress as number) || 0,
-              tasks: {
-                total: taskStats.total || (projectData.totalTasks as number) || 0,
-                done: taskStats.completed || (projectData.completedTasks as number) || 0,
-                inProgress: taskStats.in_progress || (projectData.inProgressTasks as number) || 0,
-                blocked: taskStats.blocked || (projectData.blockedTasks as number) || 0,
-              },
-              team: members?.map((m) => m.full_name || 'Unknown').filter(Boolean) as string[]
-                || (projectData.team as string[])
-                || [],
-            };
-            return <ProjectStatusWidget key={pi} project={shaped} delay={staggerDelay + pi * 0.1} />;
-          })}
-        </>
-      );
-      break;
-    }
-
-    case 'revenue_chart': {
-      const chartData = data as Record<string, unknown>;
-      const timeSeriesData = chartData.data as Array<{ month: string; revenue: number }> | undefined;
-
-      if (Array.isArray(timeSeriesData) && timeSeriesData.length > 0) {
-        inner = (
-          <RevenueChartWidget
-            data={timeSeriesData}
-            title={(chartData.title as string) || title}
-            subtitle={(chartData.subtitle as string) || undefined}
-            accent={(chartData.accent as string) || 'green-cyan'}
-            delay={staggerDelay}
-          />
-        );
-      } else {
-        inner = (
-          <FinancialSummaryWidget
-            data={chartData}
-            title={title}
-            delay={staggerDelay}
-          />
-        );
-      }
-      break;
-    }
-
-    case 'data_table': {
-      const tableTitle = title && title.length < 80 ? title : 'Results';
-      inner = (
-        <DataTableWidget
-          data={data}
-          title={tableTitle}
-          delay={staggerDelay}
-        />
-      );
-      break;
-    }
-
-    case 'dora_dash':
-      inner = <DoraDashWidget />;
-      break;
-
-    default:
-      return null;
-  }
+  const inner = renderRegisteredBlock({
+    widget,
+    staggerDelay,
+    host,
+    onSendMessage,
+  });
 
   return (
     <WidgetErrorBoundary fallbackTitle={title}>
       <div className="space-y-0">
         {inner}
-        <WidgetActionButtons widgetType={widgetType} onSendMessage={onSendMessage} />
+        <BlockToolbar actions={toolbarActions} host={host} />
       </div>
     </WidgetErrorBoundary>
   );

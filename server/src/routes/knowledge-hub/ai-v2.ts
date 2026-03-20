@@ -2,10 +2,12 @@ import { Router, type Request, type Response } from 'express';
 import { query } from '../../db/index.js';
 import { aiAnswerRateLimit } from '../../middleware/aiRateLimit.js';
 import { validateAIAnswerInput } from '../../middleware/aiInputValidation.js';
+import { agentTraceMiddleware } from '../../middleware/agentContext.js';
 import { attachFeedback } from '../../services/ai/telemetry/service.js';
 import { runPipelineHandler } from '../../services/ai/v2/pipeline.js';
 
 const router = Router();
+router.use(agentTraceMiddleware);
 
 type AuthReq = Request & { userId: string; role?: string };
 

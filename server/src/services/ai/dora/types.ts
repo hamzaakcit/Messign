@@ -20,6 +20,8 @@ export interface DoraUserContext {
   mpPoints: number;
 }
 
+import type { ActiveViewStateV1 } from '../agent/activeViewState.js';
+
 /**
  * Captures where the user is in the app when they ask a question.
  * Lets Dora give contextually relevant answers without being asked.
@@ -28,6 +30,10 @@ export interface DoraPageContext {
   currentPath: string;
   currentModule: DoraModule;
   activeFilters?: Record<string, string>;
+  /** Structured, Zod-validated client view (entity, filters, etc.). */
+  activeView?: ActiveViewStateV1 | null;
+  /** Hybrid RAG snippets injected during hydration (server-side). */
+  retrievalCitations?: string;
 }
 
 export type DoraModule =
@@ -62,4 +68,9 @@ export interface DoraRequestContext {
   timestamp: string;
   todayDate: string;
   conciseMode: boolean;
+  /** Optional request-scoped metadata (trace id, idempotency for HITL / tools). */
+  requestMeta?: {
+    traceId?: string;
+    idempotencyKey?: string;
+  };
 }

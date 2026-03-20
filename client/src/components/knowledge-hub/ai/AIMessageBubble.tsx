@@ -145,7 +145,7 @@ export function AIMessageBubble({
                   />
                 )}
               {message.actionStatus === 'cancelled' && (
-                <p className="mt-2 text-xs text-gray-500 italic">Action cancelled.</p>
+                <p className="mt-2 text-xs dora-chat-text-tertiary italic">Action cancelled.</p>
               )}
               {message.widgets && message.widgets.map((widget, i) => (
                 <AIWidgetRenderer key={`${widget.widgetType}-${i}`} widget={widget} index={i} onSendMessage={onSendMessage} />
@@ -175,7 +175,7 @@ export function AIMessageBubble({
             <div className="flex items-center gap-1 mt-1.5 ml-1">
               <button
                 onClick={handleCopy}
-                className="p-1 rounded hover:bg-dark-700 text-gray-500 hover:text-gray-300 transition-colors"
+                className="p-1 rounded hover:bg-dark-700 dora-chat-text-tertiary hover:text-gray-300 transition-colors"
                 title="Copy response"
               >
                 {copied ? (
@@ -191,7 +191,7 @@ export function AIMessageBubble({
                     className={`p-1 rounded transition-colors ${
                       message.feedback === 'up'
                         ? 'bg-success-500/20 text-success-500'
-                        : 'hover:bg-dark-700 text-gray-500 hover:text-success-500'
+                        : 'hover:bg-dark-700 dora-chat-text-tertiary hover:text-success-500'
                     }`}
                     title="Helpful"
                     disabled={message.feedback !== null}
@@ -203,7 +203,7 @@ export function AIMessageBubble({
                     className={`p-1 rounded transition-colors ${
                       message.feedback === 'down'
                         ? 'bg-danger-500/20 text-danger-500'
-                        : 'hover:bg-dark-700 text-gray-500 hover:text-danger-500'
+                        : 'hover:bg-dark-700 dora-chat-text-tertiary hover:text-danger-500'
                     }`}
                     title="Not helpful"
                     disabled={message.feedback !== null}

@@ -7,7 +7,8 @@
 
 import type OpenAI from 'openai';
 import { callModelSafe } from '../../gateway.js';
-import { getToolsForNamespace, executeTool } from '../../toolRegistry.js';
+import { getToolsForNamespace, executeTool, resolveRegisteredToolName } from '../../toolRegistry.js';
+import { validateToolArgsForExecution } from '../../toolArgSchemas.js';
 import { getModulePrompt } from '../../../../modules/registry.js';
 import { isWriteTool, interceptWriteAction } from '../../actions/actionInterceptor.js';
 import { classifyActionRisk } from '../governance.js';
@@ -150,16 +151,25 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
 
       toolsUsed.push(toolName);
 
-      const risk = classifyActionRisk(toolName, args);
-      const needsHITL = risk === 'irreversible' || isWriteTool(toolName);
+      const resolvedTn = resolveRegisteredToolName(toolName) ?? toolName;
+      const argVal = validateToolArgsForExecution(resolvedTn, args);
+      const risk = classifyActionRisk(resolvedTn, argVal.ok ? argVal.args : args);
+      const needsHITL = risk === 'irreversible' || isWriteTool(resolvedTn);
 
       let toolResult: ToolResult;
-      if (needsHITL) {
-        const { toolResult: tr, sseEvent } = await interceptWriteAction(toolName, args, doraCtx, query, risk);
+      if (!argVal.ok) {
+        toolResult = {
+          success: false,
+          data: null,
+          summary: argVal.summary,
+          metadata: { source: 'tool_validation', validationError: true },
+        };
+      } else if (needsHITL) {
+        const { toolResult: tr, sseEvent } = await interceptWriteAction(resolvedTn, argVal.args, doraCtx, query, risk);
         toolResult = tr;
         pendingActions.push(sseEvent);
       } else {
-        toolResult = await executeTool(toolName, args, legacyContext);
+        toolResult = await executeTool(resolvedTn, argVal.args, legacyContext);
         toolResult = {
           ...toolResult,
           data: toolResult.data ? sanitizeData(toolResult.data, legacyContext.userRole === 'admin') : null,

@@ -557,6 +557,10 @@ export async function interceptWriteAction(
     preview.displayFields,
     preview.editableFields,
     originQuery,
+    {
+      organizationId: ctx.user.organizationId,
+      idempotencyKey: ctx.requestMeta?.idempotencyKey ?? null,
+    },
   );
 
   const toolResult: ToolResult = {

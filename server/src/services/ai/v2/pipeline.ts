@@ -110,7 +110,27 @@ export async function runDoraPipeline(
       mode,
       concise: body.concise,
       bearerToken: bearerFromReq(req),
+      activeViewState: body.activeViewState ?? null,
+      traceId: body.traceId ?? req.agentTraceId,
+      idempotencyKey: body.idempotencyKey,
     });
+
+    try {
+      const { buildHydrationRetrievalBlock } = await import('../agent/hydrationRetrieval.js');
+      const block = await buildHydrationRetrievalBlock(
+        body.query,
+        auth.organizationId,
+        auth.role ?? 'employee',
+      );
+      if (block) {
+        ctx.doraRequest = {
+          ...ctx.doraRequest,
+          page: { ...ctx.doraRequest.page, retrievalCitations: block },
+        };
+      }
+    } catch (e) {
+      console.warn('[v2 pipeline] hydration retrieval skipped', e instanceof Error ? e.message : e);
+    }
 
     if (mode === 'act' && !body.confirmed && !body.searchMode) {
       const offer = inferActConfirmation(body.query, intent);

@@ -30,6 +30,9 @@ export interface PendingAction {
   displayFields: ActionDisplayField[];
   editableFields: string[];
   userId: string;
+  /** Organization UUID when scoped (tenant isolation). */
+  organizationId?: string | null;
+  idempotencyKey?: string | null;
   expiresAt: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'executed';
   createdAt: string;

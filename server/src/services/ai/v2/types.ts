@@ -4,6 +4,7 @@
 
 import type OpenAI from 'openai';
 import type { ModelTier } from '../gateway.js';
+import type { ActiveViewStateV1 } from '../agent/activeViewState.js';
 import type { DoraRequestContext } from '../dora/types.js';
 import type { ToolResult as V1ToolResult, ToolContext } from '../types.js';
 
@@ -125,6 +126,10 @@ export interface PipelineRequest {
   /** Sanitized from `confirmed` on the request body */
   confirmed?: boolean;
   confirmation?: { action?: string; params?: Record<string, unknown> };
+  /** Zod-validated client view state (optional). */
+  activeViewState?: ActiveViewStateV1;
+  traceId?: string;
+  idempotencyKey?: string;
 }
 
 export interface PipelineTelemetry {

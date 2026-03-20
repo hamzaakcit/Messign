@@ -1,4 +1,10 @@
-import { getBaseToolsForLLM, getToolsForLLM, executeTool } from '../toolRegistry.js';
+import {
+  getBaseToolsForLLM,
+  getToolsForLLM,
+  executeTool,
+  resolveRegisteredToolName,
+} from '../toolRegistry.js';
+import { validateToolArgsForExecution } from '../toolArgSchemas.js';
 import { createToolSession, activateTool } from '../tools/core/activateTool.js';
 import { searchTools } from '../tools/core/searchTools.js';
 import { callModelSafe, streamModelSafe, classifyComplexity, type ModelTier } from '../gateway.js';
@@ -31,6 +37,7 @@ export const WIDGET_TOOL_NAMES = new Set([
   'projects:get_project_status',
   'finance:get_financial_summary',
   'finance:get_invoice_details',
+  'achievements:get_achievements_leaderboard',
   'fun:play_dora_dash',
 ]);
 
@@ -322,8 +329,24 @@ export async function orchestrate(
 
         // Phase 4: intercept write tools instead of executing them directly
         if (isWriteTool(toolName)) {
+          const resolvedTn = resolveRegisteredToolName(toolName) ?? toolName;
+          const argVal = validateToolArgsForExecution(resolvedTn, parsedArgs);
+          if (!argVal.ok) {
+            const toolResult: ToolResult = {
+              success: false,
+              data: null,
+              summary: argVal.summary,
+              metadata: { source: 'tool_validation', validationError: true },
+            };
+            tracker.cacheResult(toolName, parsedArgs, toolResult);
+            observations.push({ ...toolResult, toolName, executionTimeMs: 0 });
+            const redacted = redactPII(toolResult.summary.slice(0, 8000));
+            toolRedactions.push(...redacted.redactions);
+            messages.push({ role: 'tool', tool_call_id: callId, content: redacted.redactedText });
+            continue;
+          }
           const interceptStart = Date.now();
-          const { toolResult, sseEvent } = await interceptWriteAction(toolName, parsedArgs, ctx, query);
+          const { toolResult, sseEvent } = await interceptWriteAction(resolvedTn, argVal.args, ctx, query);
           const interceptElapsed = Date.now() - interceptStart;
 
           pendingActionEvents.push(sseEvent);
@@ -339,8 +362,24 @@ export async function orchestrate(
 
         // Inline handling for core:search_tools and core:activate_tool (no executeTool)
         if (toolName === 'core:search_tools') {
-          const searchQuery = String(parsedArgs.query ?? '').trim();
-          const namespace = typeof parsedArgs.namespace === 'string' ? parsedArgs.namespace.trim() || undefined : undefined;
+          const stVal = validateToolArgsForExecution('core:search_tools', parsedArgs);
+          if (!stVal.ok) {
+            const toolResult: ToolResult = {
+              success: false,
+              data: null,
+              summary: stVal.summary,
+              metadata: { source: 'tool_validation', validationError: true },
+            };
+            tracker.cacheResult(toolName, parsedArgs, toolResult);
+            observations.push({ ...toolResult, toolName, executionTimeMs: 0 });
+            const redacted = redactPII(toolResult.summary.slice(0, 8000));
+            toolRedactions.push(...redacted.redactions);
+            messages.push({ role: 'tool', tool_call_id: callId, content: redacted.redactedText });
+            continue;
+          }
+          const searchQuery = String(stVal.args.query ?? '').trim();
+          const namespace =
+            typeof stVal.args.namespace === 'string' ? stVal.args.namespace.trim() || undefined : undefined;
           const matches = searchTools(searchQuery, userRoles, 5, namespace);
           const summary =
             matches.length === 0
@@ -364,7 +403,22 @@ export async function orchestrate(
         }
 
         if (toolName === 'core:activate_tool') {
-          const toolToActivate = String(parsedArgs.tool_name ?? '').trim();
+          const atVal = validateToolArgsForExecution('core:activate_tool', parsedArgs);
+          if (!atVal.ok) {
+            const toolResult: ToolResult = {
+              success: false,
+              data: null,
+              summary: atVal.summary,
+              metadata: { source: 'tool_validation', validationError: true },
+            };
+            tracker.cacheResult(toolName, parsedArgs, toolResult);
+            observations.push({ ...toolResult, toolName, executionTimeMs: 0 });
+            const redacted = redactPII(toolResult.summary.slice(0, 8000));
+            toolRedactions.push(...redacted.redactions);
+            messages.push({ role: 'tool', tool_call_id: callId, content: redacted.redactedText });
+            continue;
+          }
+          const toolToActivate = String(atVal.args.tool_name ?? '').trim();
           const activation = activateTool(toolToActivate, session, userRoles);
           const summary = activation.success
             ? `Tool "${toolToActivate}" is now available. You can call it with the appropriate parameters.`

@@ -36,6 +36,12 @@ export const WIDGET_ACTIONS: Partial<Record<AIWidgetType, WidgetActionDef[]>> = 
   ],
   data_table: [{ label: 'Export PDF', exportPdf: true }],
   dora_dash: [{ label: 'Refresh overview', message: 'Refresh the company overview dashboard' }],
+  invoice_preview: [
+    { label: 'Open invoices', message: 'Show outstanding invoices', intentId: 'finance.pending_invoices' },
+  ],
+  leaderboard_list: [
+    { label: 'Top performers', message: 'Who are the top performers this month?', intentId: 'dashboard.top_performers' },
+  ],
 };
 
 export function exportWidget(widgetType: AIWidgetType, format: 'pdf'): void {

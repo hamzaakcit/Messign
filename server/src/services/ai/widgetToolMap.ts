@@ -6,7 +6,7 @@ export const AI_WIDGET_TOOL_MAP: Record<string, string> = {
   'projects:get_tasks_by_user': 'task_table',
   'projects:get_project_status': 'project_status',
   'finance:get_financial_summary': 'financial_summary',
-  'finance:get_invoice_details': 'data_table',
+  /** invoice rows: resolved dynamically in widgetResolve (single → invoice_preview, many → data_table) */
   'analytics:get_approval_queue': 'data_table',
   'finance:get_reimbursement_details': 'data_table',
   'people:get_employee_performance': 'performance_overview',
@@ -22,6 +22,8 @@ export const AI_WIDGET_TOOL_MAP: Record<string, string> = {
   'okr:get_okr_metrics': 'data_table',
   'okr:list_goals': 'data_table',
   'fun:play_dora_dash': 'dora_dash',
+  /** Leaderboard rows vs badges/catalog: resolved in widgetResolve when shape matches */
+  'achievements:get_achievements_leaderboard': 'data_table',
 };
 
 export type ToolObservationForWidget = {

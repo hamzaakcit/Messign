@@ -25,11 +25,14 @@
   --dora-danger: #ef4444;
   --dora-pink: #ec4899;
 
-  /* Text */
+  /* Text — tuned for ≥4.5:1 on dark glass (#0f172a–ish) for secondary copy */
   --dora-text-1: #f1f5f9;
-  --dora-text-2: #94a3b8;
-  --dora-text-3: #64748b;
-  --dora-text-4: #475569;
+  --dora-text-2: #cbd5e1;
+  --dora-text-3: #a8b9ce;
+  --dora-text-4: #64748b;
+  /* Chat-specific aliases (use in bubbles / metadata for WCAG AA small text) */
+  --dora-chat-text-secondary: #cbd5e1;
+  --dora-chat-text-tertiary: #a8b9ce;
 
   /* Typography */
   --dora-font: 'DM Sans', system-ui, sans-serif;
@@ -464,6 +467,23 @@
 
 .dora-font, .dp-font { font-family: var(--dora-font); }
 .dora-mono, .dp-mono { font-family: var(--dora-mono); }
+
+.dora-chat-text-secondary {
+  color: var(--dora-chat-text-secondary, var(--dora-text-2));
+}
+
+.dora-chat-text-tertiary {
+  color: var(--dora-chat-text-tertiary, var(--dora-text-3));
+}
+
+/* WCAG 2.4.7 — keyboard focus; pair with rounded buttons/inputs in chat */
+.dora-focus-ring:focus {
+  outline: none;
+}
+.dora-focus-ring:focus-visible {
+  outline: 2px solid var(--dora-primary, #38bdf8);
+  outline-offset: 2px;
+}
 
 .dora-fade-up {
   animation: dora-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;

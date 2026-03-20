@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://messign.local/schemas/dora-dynamic-blocks.json",
+  "title": "DoraDynamicBlocksEnvelope",
+  "description": "Logical envelope for generative UI blocks (server-normalized; do not trust unvalidated LLM output).",
+  "type": "object",
+  "required": ["schemaVersion", "blocks"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "blocks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/block" }
+    }
+  },
+  "$defs": {
+    "block": {
+      "type": "object",
+      "required": ["id", "type", "title", "data"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "description": "Registry key mapped to a React block (e.g. invoice_preview, data_table)"
+        },
+        "title": { "type": "string" },
+        "data": { "type": "object" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/widgetAction" }
+        },
+        "risk": {
+          "type": "string",
+          "enum": ["none", "write", "irreversible"]
+        }
+      }
+    },
+    "widgetAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["id", "label", "kind", "to"],
+          "properties": {
+            "id": { "type": "string" },
+            "label": { "type": "string" },
+            "kind": { "const": "navigate" },
+            "to": { "type": "string" },
+            "state": {}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["id", "label", "kind", "text"],
+          "properties": {
+            "id": { "type": "string" },
+            "label": { "type": "string" },
+            "kind": { "const": "send_message" },
+            "text": { "type": "string" },
+            "intentId": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

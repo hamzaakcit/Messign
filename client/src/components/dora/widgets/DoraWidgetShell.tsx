@@ -46,7 +46,7 @@ export function DoraWidgetShell({
               {title}
             </h3>
             {subtitle && (
-              <p className="text-[11px] text-white/40 mt-0.5 mb-0">{subtitle}</p>
+              <p className="text-[11px] dora-chat-text-tertiary mt-0.5 mb-0">{subtitle}</p>
             )}
           </div>
           {actions}

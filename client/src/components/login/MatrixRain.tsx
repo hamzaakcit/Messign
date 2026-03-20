@@ -18,6 +18,10 @@ const matrixChars = [
   'カ', 'キ', 'ク', 'ケ', 'コ',
 ];
 
+const HEAD_REFRESH_MS = 200;
+const TRAIL_REFRESH_MS = 320;
+const BG = '18, 18, 18';
+
 export function MatrixRain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -29,63 +33,98 @@ export function MatrixRain() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const fontSize = 14;
+    let drops: number[] = [];
+    let speeds: number[] = [];
+    let brightness: number[] = [];
+    let headChar: string[] = [];
+    let lastHeadAt: number[] = [];
+    let trailChar: string[][] = [];
+    let lastTrailAt: number[] = [];
+
+    const randomChar = () => matrixChars[Math.floor(Math.random() * matrixChars.length)];
+
+    const syncColumnArrays = () => {
+      const columns = Math.max(1, Math.floor(canvas.width / fontSize));
+      const pickSpeed = () => 0.12 + Math.random() * 0.23;
+
+      while (drops.length < columns) {
+        drops.push(Math.random() * -100);
+        speeds.push(pickSpeed());
+        brightness.push(0.25 + Math.random() * 0.45);
+        headChar.push(randomChar());
+        lastHeadAt.push(0);
+        trailChar.push(Array.from({ length: 20 }, randomChar));
+        lastTrailAt.push(0);
+      }
+      if (drops.length > columns) {
+        drops = drops.slice(0, columns);
+        speeds = speeds.slice(0, columns);
+        brightness = brightness.slice(0, columns);
+        headChar = headChar.slice(0, columns);
+        lastHeadAt = lastHeadAt.slice(0, columns);
+        trailChar = trailChar.slice(0, columns);
+        lastTrailAt = lastTrailAt.slice(0, columns);
+      }
+    };
+
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      syncColumnArrays();
     };
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    const fontSize = 14;
-    const columns = Math.floor(canvas.width / fontSize);
-    const drops: number[] = Array(columns)
-      .fill(0)
-      .map(() => Math.random() * -100);
-    const speeds: number[] = Array(columns)
-      .fill(0)
-      .map(() => 0.5 + Math.random() * 1.5);
-    const brightness: number[] = Array(columns)
-      .fill(0)
-      .map(() => 0.3 + Math.random() * 0.7);
-
     const draw = () => {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      const now = performance.now();
+
+      ctx.fillStyle = `rgba(${BG}, 0.08)`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.font = `${fontSize}px "JetBrains Mono", "Courier New", monospace`;
 
       for (let i = 0; i < drops.length; i++) {
-        const char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+        if (now - lastHeadAt[i] > HEAD_REFRESH_MS) {
+          headChar[i] = randomChar();
+          lastHeadAt[i] = now;
+        }
+
+        if (now - lastTrailAt[i] > TRAIL_REFRESH_MS) {
+          for (let t = 0; t < trailChar[i].length; t++) {
+            trailChar[i][t] = randomChar();
+          }
+          lastTrailAt[i] = now;
+        }
+
         const x = i * fontSize;
         const y = drops[i] * fontSize;
         const alpha = brightness[i];
 
-        ctx.fillStyle = `rgba(59, 130, 246, ${alpha + 0.3})`;
-        ctx.fillText(char, x, y);
+        ctx.fillStyle = `rgba(74, 222, 128, ${Math.min(0.95, alpha + 0.35)})`;
+        ctx.fillText(headChar[i], x, y);
 
         for (let j = 1; j < 20; j++) {
           const trailY = y - j * fontSize;
-          const trailAlpha = (alpha - j * 0.05) * 0.8;
+          const trailAlpha = (alpha - j * 0.045) * 0.55;
           if (trailAlpha > 0) {
-            const trailChar = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-            const hue = 210 + Math.random() * 20;
-            const lightness = 50 + j * 2;
-            ctx.fillStyle = `hsla(${hue}, 90%, ${lightness}%, ${trailAlpha})`;
-            ctx.fillText(trailChar, x, trailY);
+            const g = 34 + j * 4;
+            ctx.fillStyle = `rgba(${g}, 197, 94, ${trailAlpha})`;
+            ctx.fillText(trailChar[i][j - 1] ?? randomChar(), x, trailY);
           }
         }
 
         drops[i] += speeds[i];
 
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.98) {
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.985) {
           drops[i] = 0;
-          brightness[i] = 0.3 + Math.random() * 0.7;
-          speeds[i] = 0.5 + Math.random() * 1.5;
+          brightness[i] = 0.25 + Math.random() * 0.45;
+          speeds[i] = 0.12 + Math.random() * 0.23;
         }
       }
     };
 
-    intervalRef.current = setInterval(draw, 33);
+    intervalRef.current = setInterval(draw, 70);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -97,7 +136,7 @@ export function MatrixRain() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 0, opacity: 0.85 }}
+      style={{ zIndex: 0, opacity: 0.42 }}
       aria-hidden
     />
   );

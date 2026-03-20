@@ -161,17 +161,67 @@ export type AIWidgetType =
   | 'project_status'
   | 'revenue_chart'
   | 'data_table'
-  | 'dora_dash';
+  | 'dora_dash'
+  | 'invoice_preview'
+  | 'leaderboard_list';
+
+/** Whitelisted actions emitted by the server for dynamic block toolbars (navigate / follow-up message). */
+export type WidgetBlockAction =
+  | { id: string; label: string; kind: 'navigate'; to: string; state?: unknown }
+  | { id: string; label: string; kind: 'send_message'; text: string; intentId?: string };
 
 export interface AIWidgetPayload {
+  /** Optional schema version for forward-compatible clients (default 1). */
+  schemaVersion?: number;
+  /** Stable id for React keys, analytics, and deep links */
+  id?: string;
   widgetType: AIWidgetType;
   /** Human-readable title for the widget (from tool summary) */
   title: string;
   /** Raw structured data from the tool result — typed in each widget component */
   data: unknown;
+  /** Server-declared toolbar actions (merged with client registry in AIWidgetRenderer) */
+  actions?: WidgetBlockAction[];
 }
 
 // Typed data shapes consumed by each widget:
+
+/** Rich widget: single invoice (from `finance:get_invoice_details` when one row). */
+export interface InvoicePreviewData {
+  invoiceId: string;
+  invoiceNumber: string;
+  clientName: string;
+  status: string;
+  currency: string;
+  amount: number;
+  issueDate: string;
+  dueDate: string | null;
+  lineItems?: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+  }>;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId?: string;
+  name: string;
+  subtitle?: string;
+  value: number | string;
+  trend?: 'up' | 'down' | 'flat';
+}
+
+/** Rich widget: XP / rankings (from `achievements:get_achievements_leaderboard`). */
+export interface LeaderboardData {
+  title: string;
+  metricLabel: string;
+  entries: LeaderboardEntry[];
+  maxRows?: number;
+  emptyMessage?: string;
+  variant?: 'compact' | 'full';
+}
 
 export interface SystemOverviewData {
   users: { total: number; active: number };

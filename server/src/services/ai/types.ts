@@ -41,6 +41,12 @@ export interface ToolContext {
   /** The user's full name (for display in responses) */
   userName?: string;
 
+  /** Correlates logs and SSE for this AI request. */
+  traceId?: string;
+
+  /** Client-supplied idempotency for tool/HITL deduplication. */
+  idempotencyKey?: string;
+
   /** Per-session activated tools (core:activate_tool). Set by agentic loop. */
   toolSession?: { activatedTools: Map<string, object> };
 }
@@ -84,6 +90,9 @@ export interface ToolResult {
     chunksReturned?: number;
     avgVectorScore?: number;
     avgKeywordScore?: number;
+    /** Tool argument validation (Zod) — model may retry with fixed args */
+    validationError?: boolean;
+    idempotentReplay?: boolean;
   };
 }
 

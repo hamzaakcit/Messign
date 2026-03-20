@@ -181,7 +181,7 @@ export function AISuggestionChips({
             {IconComponent && (
               <IconComponent
                 size={14}
-                className="text-gray-500 group-hover:text-primary-400 transition-colors shrink-0"
+                className="dora-chat-text-tertiary group-hover:text-primary-400 transition-colors shrink-0"
               />
             )}
             <span className="whitespace-nowrap">{suggestion.label}</span>

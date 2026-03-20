@@ -3,7 +3,7 @@ import type {
   ActionExecutionResult,
   PendingAction,
 } from './types.js';
-import { markExecuted } from './actionStore.js';
+import { getHitlIdempotencyResult, markExecuted, recordHitlIdempotencyResult } from './actionStore.js';
 import { updateTask } from '../../../db/tasksDb.js';
 import { createBudget, updateBudget, logFinancialAction } from '../../../db/budgetDb.js';
 import { query } from '../../../db/index.js';
@@ -34,6 +34,22 @@ export async function executeConfirmedAction(
   console.log(`[ActionExecutor] Executing ${actionType} (token: ${token.substring(0, 8)}...)`);
 
   try {
+    if (action.idempotencyKey && context.organizationId) {
+      const cached = await getHitlIdempotencyResult(
+        context.organizationId,
+        context.authUserId,
+        action.idempotencyKey,
+      );
+      if (cached?.success) {
+        return {
+          success: true,
+          actionType,
+          message: cached.message,
+          result: cached.result ?? undefined,
+        };
+      }
+    }
+
     let result: ActionExecutionResult;
 
     switch (actionType) {
@@ -126,6 +142,17 @@ export async function executeConfirmedAction(
           result: result.message,
         },
       });
+      if (action.idempotencyKey && context.organizationId) {
+        await recordHitlIdempotencyResult(
+          context.organizationId,
+          context.authUserId,
+          action.idempotencyKey,
+          actionType,
+          true,
+          result.message,
+          result.result ?? null,
+        );
+      }
     }
 
     return result;

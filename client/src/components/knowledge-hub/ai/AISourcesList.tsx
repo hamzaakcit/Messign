@@ -11,7 +11,7 @@ export function AISourcesList({ sources }: AISourcesListProps) {
 
   return (
     <div className="mt-3 pt-2 border-t border-dark-600">
-      <p className="text-xs font-medium text-gray-500 mb-1.5">
+      <p className="text-xs font-medium dora-chat-text-tertiary mb-1.5">
         Sources ({sources.length}):
       </p>
       <div className="flex flex-wrap gap-1.5">

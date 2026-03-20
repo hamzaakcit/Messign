@@ -14,6 +14,9 @@ export default defineConfig({
             '/api': {
                 target: 'http://127.0.0.1:3001',
                 changeOrigin: true,
+                // Avoid buffering SSE (Dora /api/.../ai/answer); default timeouts can stall streams.
+                timeout: 0,
+                proxyTimeout: 0,
             },
             '/uploads': {
                 target: 'http://127.0.0.1:3001',

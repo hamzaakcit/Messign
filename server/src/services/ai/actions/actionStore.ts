@@ -30,10 +30,84 @@ export async function setupActionSchema(): Promise<void> {
     )
   `);
 
+  await query(`ALTER TABLE pending_actions ADD COLUMN IF NOT EXISTS organization_id UUID`);
+  await query(`ALTER TABLE pending_actions ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+
   await query(`CREATE INDEX IF NOT EXISTS idx_pending_user ON pending_actions (user_id, status)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_pending_expiry ON pending_actions (expires_at) WHERE status = 'pending'`);
+  await query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_idem_pending ON pending_actions (organization_id, user_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND status = 'pending'`,
+  );
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS ai_hitl_idempotency (
+      organization_id UUID NOT NULL,
+      auth_user_id TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      success BOOLEAN NOT NULL,
+      message TEXT NOT NULL,
+      result_json JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (organization_id, auth_user_id, idempotency_key)
+    )
+  `);
 
   console.log('[ActionStore] Schema setup complete.');
+}
+
+function rowToPendingAction(row: Record<string, unknown>, statusOverride?: PendingAction['status']): PendingAction {
+  return {
+    token: String(row.token),
+    actionType: row.action_type as WriteActionType,
+    payload: (row.payload as Record<string, unknown>) ?? {},
+    description: String(row.description),
+    displayFields: (row.display_fields as ActionDisplayField[]) ?? [],
+    editableFields: Array.isArray(row.editable_fields) ? (row.editable_fields as string[]) : [],
+    userId: String(row.user_id),
+    organizationId: row.organization_id != null ? String(row.organization_id) : null,
+    idempotencyKey: row.idempotency_key != null ? String(row.idempotency_key) : null,
+    expiresAt: String(row.expires_at),
+    status: statusOverride ?? (row.status as PendingAction['status']),
+    createdAt: String(row.created_at),
+    originQuery: String(row.origin_query),
+  };
+}
+
+export async function getHitlIdempotencyResult(
+  organizationId: string,
+  authUserId: string,
+  idempotencyKey: string,
+): Promise<{ success: boolean; message: string; result: Record<string, unknown> | null } | null> {
+  const res = await query<{
+    success: boolean;
+    message: string;
+    result_json: Record<string, unknown> | null;
+  }>(
+    `SELECT success, message, result_json FROM ai_hitl_idempotency
+     WHERE organization_id = $1::uuid AND auth_user_id = $2 AND idempotency_key = $3`,
+    [organizationId, authUserId, idempotencyKey],
+  );
+  const row = res.rows[0];
+  if (!row) return null;
+  return { success: row.success, message: row.message, result: row.result_json };
+}
+
+export async function recordHitlIdempotencyResult(
+  organizationId: string,
+  authUserId: string,
+  idempotencyKey: string,
+  actionType: string,
+  success: boolean,
+  message: string,
+  result: Record<string, unknown> | null,
+): Promise<void> {
+  await query(
+    `INSERT INTO ai_hitl_idempotency (organization_id, auth_user_id, idempotency_key, action_type, success, message, result_json)
+     VALUES ($1::uuid, $2, $3, $4, $5, $6, $7::jsonb)
+     ON CONFLICT (organization_id, auth_user_id, idempotency_key) DO NOTHING`,
+    [organizationId, authUserId, idempotencyKey, actionType, success, message, result ? JSON.stringify(result) : null],
+  );
 }
 
 export async function createPendingAction(
@@ -44,7 +118,27 @@ export async function createPendingAction(
   displayFields: ActionDisplayField[],
   editableFields: string[],
   originQuery: string,
+  options?: { organizationId?: string | null; idempotencyKey?: string | null },
 ): Promise<PendingAction> {
+  const organizationId = options?.organizationId?.trim() || null;
+  const idempotencyKey = options?.idempotencyKey?.trim() || null;
+
+  if (organizationId && idempotencyKey) {
+    const existing = await query(
+      `SELECT * FROM pending_actions
+       WHERE organization_id = $1::uuid AND user_id = $2 AND idempotency_key = $3 AND status = 'pending'
+       ORDER BY created_at DESC LIMIT 1`,
+      [organizationId, userId, idempotencyKey],
+    );
+    const erow = existing.rows[0] as Record<string, unknown> | undefined;
+    if (erow) {
+      console.log(
+        `[ActionStore] Reusing pending action for idempotency key (token: ${String(erow.token).substring(0, 8)}...)`,
+      );
+      return rowToPendingAction(erow, 'pending');
+    }
+  }
+
   const countResult = await query(
     `SELECT COUNT(*) as count FROM pending_actions WHERE user_id = $1 AND status = 'pending'`,
     [userId],
@@ -68,24 +162,10 @@ export async function createPendingAction(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + ACTION_TTL_MS);
 
-  const action: PendingAction = {
-    token,
-    actionType,
-    payload,
-    description,
-    displayFields,
-    editableFields,
-    userId,
-    expiresAt: expiresAt.toISOString(),
-    status: 'pending',
-    createdAt: now.toISOString(),
-    originQuery,
-  };
-
   await query(
     `INSERT INTO pending_actions (token, action_type, payload, description, display_fields,
-       editable_fields, user_id, origin_query, status, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)`,
+       editable_fields, user_id, origin_query, status, expires_at, organization_id, idempotency_key)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10::uuid, $11)`,
     [
       token,
       actionType,
@@ -96,12 +176,30 @@ export async function createPendingAction(
       userId,
       originQuery,
       expiresAt.toISOString(),
+      organizationId,
+      idempotencyKey,
     ],
   );
 
+  const action: PendingAction = {
+    token,
+    actionType,
+    payload,
+    description,
+    displayFields,
+    editableFields,
+    userId,
+    organizationId,
+    idempotencyKey,
+    expiresAt: expiresAt.toISOString(),
+    status: 'pending',
+    createdAt: now.toISOString(),
+    originQuery,
+  };
+
   console.log(
     `[ActionStore] Created pending action: ${actionType} (token: ${token.substring(0, 8)}..., ` +
-    `user: ${userId}, expires: ${expiresAt.toISOString()})`,
+      `user: ${userId}, org: ${organizationId ?? '—'}, expires: ${expiresAt.toISOString()})`,
   );
 
   return action;
@@ -130,6 +228,15 @@ export async function validateAndConsume(
   if (row.user_id !== userId) {
     console.warn(`[ActionStore] Token ownership mismatch: token user=${row.user_id}, request user=${userId}`);
     return { valid: false, action: null, error: 'This action belongs to another user.' };
+  }
+
+  const userOrgRes = await query<{ organization_id: string | null }>(
+    `SELECT organization_id::text AS organization_id FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [userId],
+  );
+  const actorOrgId = userOrgRes.rows[0]?.organization_id ?? null;
+  if (row.organization_id != null && actorOrgId != null && String(row.organization_id) !== String(actorOrgId)) {
+    return { valid: false, action: null, error: 'This action belongs to another organization.' };
   }
 
   if (row.status !== 'pending') {
@@ -180,17 +287,8 @@ export async function validateAndConsume(
   return {
     valid: true,
     action: {
-      token: confirmedRow.token as string,
-      actionType: confirmedRow.action_type as WriteActionType,
+      ...rowToPendingAction(confirmedRow, 'confirmed'),
       payload: (confirmedRow.confirmed_payload || confirmedRow.payload) as Record<string, unknown>,
-      description: confirmedRow.description as string,
-      displayFields: confirmedRow.display_fields as ActionDisplayField[],
-      editableFields: confirmedRow.editable_fields as string[],
-      userId: confirmedRow.user_id as string,
-      expiresAt: String(confirmedRow.expires_at),
-      status: 'confirmed',
-      createdAt: String(confirmedRow.created_at),
-      originQuery: confirmedRow.origin_query as string,
     },
   };
 }
@@ -230,6 +328,22 @@ export async function markExecuted(token: string): Promise<void> {
 }
 
 export async function cancelAction(token: string, userId: string): Promise<boolean> {
+  const sel = await query(
+    `SELECT user_id, organization_id FROM pending_actions WHERE token = $1 AND status = 'pending'`,
+    [token],
+  );
+  const row = sel.rows[0] as { user_id: string; organization_id: string | null } | undefined;
+  if (!row || row.user_id !== userId) {
+    return false;
+  }
+  const userOrgRes = await query<{ organization_id: string | null }>(
+    `SELECT organization_id::text AS organization_id FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [userId],
+  );
+  const actorOrgId = userOrgRes.rows[0]?.organization_id ?? null;
+  if (row.organization_id != null && actorOrgId != null && String(row.organization_id) !== String(actorOrgId)) {
+    return false;
+  }
   const result = await query(
     `UPDATE pending_actions SET status = 'cancelled'
      WHERE token = $1 AND user_id = $2 AND status = 'pending'

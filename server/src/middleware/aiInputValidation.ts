@@ -11,7 +11,9 @@
  * This runs BEFORE the rate limiter and route handler.
  */
 
+import { randomUUID } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
+import { parseActiveViewState } from '../services/ai/agent/activeViewState.js';
 
 /**
  * Maximum query length in characters.
@@ -113,6 +115,10 @@ function sanitizeString(input: string): string {
  * Apply to: POST /ai/answer
  */
 export function validateAIAnswerInput(req: Request, res: Response, next: NextFunction): void {
+  const traceId = req.agentTraceId ?? randomUUID();
+  req.agentTraceId = traceId;
+  res.setHeader('X-Trace-Id', traceId);
+
   const rawBody = req.body as Record<string, unknown>;
   const { query, history, concise } = rawBody;
 
@@ -235,6 +241,25 @@ export function validateAIAnswerInput(req: Request, res: Response, next: NextFun
     }
   }
 
+  const idemHeader = req.get('x-idempotency-key')?.trim();
+  const idempotencyKey =
+    idemHeader && idemHeader.length <= 128 && /^[\w.-]+$/.test(idemHeader) ? idemHeader : undefined;
+
+  const explicitView = rawBody.viewState !== undefined && rawBody.viewState !== null;
+  let activeViewState: import('../services/ai/agent/activeViewState.js').ActiveViewStateV1 | undefined;
+  if (explicitView) {
+    const viewParsed = parseActiveViewState(rawBody.viewState);
+    if (!viewParsed.ok) {
+      res.status(400).json({
+        error: 'Invalid viewState.',
+        details: viewParsed.error,
+      });
+      return;
+    }
+    activeViewState = viewParsed.value;
+    req.activeViewState = viewParsed.value;
+  }
+
   // Replace request body with sanitized values (preserve optional fields used by /ai/answer)
   req.body = {
     query: sanitizedQuery,
@@ -243,6 +268,9 @@ export function validateAIAnswerInput(req: Request, res: Response, next: NextFun
     currentPath: sanitizedCurrentPath,
     mode: interactionMode,
     confirmed: confirmedMutation,
+    traceId,
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+    ...(activeViewState ? { activeViewState } : {}),
     ...(confirmationPayload ? { confirmation: confirmationPayload } : {}),
     ...extras,
   };

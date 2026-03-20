@@ -8,6 +8,7 @@ import { buildDoraContext, toLegacyToolContext as mapRequestToTool } from '../..
 import type { ToolContext } from '../../types.js';
 import { DoraPipelineError } from '../errors.js';
 import type { AIMode, DoraContext } from '../types.js';
+import type { ActiveViewStateV1 } from '../../agent/activeViewState.js';
 
 const contextCache = new Map<string, { context: DoraContext; expiresAt: number }>();
 const TTL_MS = 5 * 60 * 1000;
@@ -49,6 +50,9 @@ export async function resolveContext(params: {
   concise: boolean;
   timezone?: string;
   bearerToken?: string | null;
+  activeViewState?: ActiveViewStateV1 | null;
+  traceId?: string;
+  idempotencyKey?: string;
 }): Promise<DoraContext> {
   if (params.bearerToken) {
     const payload = decodeJWT(params.bearerToken);
@@ -60,7 +64,9 @@ export async function resolveContext(params: {
     }
   }
 
-  const cacheKey = `${params.userId}:${params.organizationId}:${params.sessionId}`;
+  const viewKey =
+    params.activeViewState != null ? JSON.stringify(params.activeViewState) : '';
+  const cacheKey = `${params.userId}:${params.organizationId}:${params.sessionId}:${params.pagePath}:${viewKey}`;
   const now = Date.now();
   const hit = contextCache.get(cacheKey);
   if (hit && hit.expiresAt > now) {
@@ -73,6 +79,13 @@ export async function resolveContext(params: {
     params.pagePath,
     params.concise,
     params.organizationId,
+    {
+      activeViewState: params.activeViewState ?? null,
+      requestMeta: {
+        traceId: params.traceId,
+        idempotencyKey: params.idempotencyKey,
+      },
+    },
   );
 
   if (!doraRequest.user.organizationId || doraRequest.user.organizationId !== params.organizationId) {

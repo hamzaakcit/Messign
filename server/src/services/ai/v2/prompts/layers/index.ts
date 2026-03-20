@@ -1,14 +1,22 @@
+import { trimTextToCharBudget } from '../../../../../middleware/contextBudget.js';
 import type { DoraContext } from '../../types.js';
+import { formatActiveViewHint } from '../../../agent/activeViewState.js';
 
 export function identityLayer(): string {
   return `You are Dora, Messign's in-app AI assistant. You help employees with finance, HR, CRM, projects, knowledge, and operations using approved tools and grounded data. Be concise, accurate, and professional.`;
 }
 
 export function sessionLayer(ctx: DoraContext): string {
+  const viewHint = formatActiveViewHint(ctx.doraRequest.page.activeView ?? undefined);
+  const rag =
+    ctx.doraRequest.page.retrievalCitations?.trim() &&
+    trimTextToCharBudget(ctx.doraRequest.page.retrievalCitations.trim(), 1400);
   return [
     `User: ${ctx.userName} (${ctx.userRole})`,
     ctx.knowledgeRole ? `Knowledge hub role: ${ctx.knowledgeRole}` : '',
     `Page: ${ctx.pagePath}`,
+    viewHint ? `Active view: ${viewHint}` : '',
+    rag ? `Retrieved doc snippets (cite [n] if used):\n${rag}` : '',
     `Mode: ${ctx.mode}`,
     `Today: ${ctx.today} (${ctx.timezone})`,
     ctx.concise ? 'Prefer short answers unless the user asks for detail.' : '',

@@ -14,6 +14,7 @@ import type {
   DoraPageContext,
   DoraModule,
 } from './types.js';
+import type { ActiveViewStateV1 } from '../agent/activeViewState.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
 
@@ -68,6 +69,11 @@ export async function buildDoraContext(
   conciseMode: boolean,
   /** When set (e.g. from auth), skip slug lookup — tenant-safe path */
   organizationIdOverride?: string | null,
+  options?: {
+    activeViewState?: ActiveViewStateV1 | null;
+    retrievalCitations?: string | null;
+    requestMeta?: { traceId?: string; idempotencyKey?: string };
+  },
 ): Promise<Readonly<DoraRequestContext>> {
   let orgId: string | null = organizationIdOverride?.trim() || null;
   if (!orgId) {
@@ -143,10 +149,27 @@ export async function buildDoraContext(
     mpPoints,
   };
 
+  const av = options?.activeViewState ?? undefined;
+  const pathForModule = (currentPath || av?.currentPath || '').split('?')[0]!.split('#')[0]!;
+
+  let activeFilters: Record<string, string> | undefined;
+  if (av?.filters && typeof av.filters === 'object') {
+    activeFilters = {};
+    for (const [k, v] of Object.entries(av.filters)) {
+      activeFilters[k] = typeof v === 'string' ? v : JSON.stringify(v);
+    }
+  }
+
   const page: DoraPageContext = {
-    currentPath: currentPath || '',
-    currentModule: resolveModule(currentPath || ''),
+    currentPath: pathForModule || '',
+    currentModule: resolveModule(pathForModule || ''),
+    activeView: av ?? undefined,
+    activeFilters,
   };
+
+  if (options?.retrievalCitations) {
+    page.retrievalCitations = options.retrievalCitations;
+  }
 
   const ctx: DoraRequestContext = {
     user,
@@ -154,6 +177,7 @@ export async function buildDoraContext(
     timestamp: new Date().toISOString(),
     todayDate: formatTodayDate(),
     conciseMode,
+    ...(options?.requestMeta ? { requestMeta: { ...options.requestMeta } } : {}),
   };
 
   return Object.freeze(ctx);
@@ -204,5 +228,7 @@ export function toLegacyToolContext(ctx: DoraRequestContext) {
     teamId: ctx.user.teamId ?? undefined,
     organizationId: ctx.user.organizationId ?? undefined,
     userName: ctx.user.userName,
+    traceId: ctx.requestMeta?.traceId,
+    idempotencyKey: ctx.requestMeta?.idempotencyKey,
   };
 }

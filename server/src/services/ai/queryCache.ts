@@ -71,9 +71,15 @@ const NO_CACHE_TOOLS: Set<string> = new Set([
  * Build a cache key from the tool name, arguments, and user context.
  * Keys are unique per tool + args + user (for permission-aware caching).
  */
-function buildCacheKey(toolName: string, args: Record<string, unknown>, userId: string | number): string {
+function buildCacheKey(
+  toolName: string,
+  args: Record<string, unknown>,
+  userId: string | number,
+  idempotencyKey?: string,
+): string {
   const argsStr = JSON.stringify(args, Object.keys(args).sort());
-  return `${toolName}:${userId}:${argsStr}`;
+  const idem = idempotencyKey ? `:idem:${idempotencyKey}` : '';
+  return `${toolName}:${userId}:${argsStr}${idem}`;
 }
 
 /**
@@ -84,12 +90,13 @@ function buildCacheKey(toolName: string, args: Record<string, unknown>, userId: 
 export function getCached(
   toolName: string,
   args: Record<string, unknown>,
-  userId: string | number
+  userId: string | number,
+  idempotencyKey?: string,
 ): unknown | null {
   // Skip cache for real-time tools
   if (NO_CACHE_TOOLS.has(toolName)) return null;
 
-  const key = buildCacheKey(toolName, args, userId);
+  const key = buildCacheKey(toolName, args, userId, idempotencyKey);
   const entry = cache.get(key);
 
   if (!entry) return null;
@@ -118,7 +125,8 @@ export function setCache(
   toolCategory: string,
   args: Record<string, unknown>,
   userId: string | number,
-  data: unknown
+  data: unknown,
+  idempotencyKey?: string,
 ): void {
   // Don't cache failed results
   if (!data) return;
@@ -126,7 +134,7 @@ export function setCache(
   // Skip cache for real-time tools
   if (NO_CACHE_TOOLS.has(toolName)) return;
 
-  const key = buildCacheKey(toolName, args, userId);
+  const key = buildCacheKey(toolName, args, userId, idempotencyKey);
   const ttlMs = TTL_BY_CATEGORY[toolCategory] || TTL_BY_CATEGORY.default;
 
   // Evict oldest entries if cache is full

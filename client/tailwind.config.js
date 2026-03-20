@@ -161,6 +161,8 @@ export default {
         'logo-float': 'logo-float 3s ease-in-out infinite',
         'gradient-shift': 'gradient-shift 5s ease infinite',
         'celebration-confetti': 'celebrationConfetti 2.5s ease-out forwards',
+        'login-float': 'loginFloat 52s ease-in-out infinite',
+        'login-pulse-ring': 'pulseRing 12s ease-out infinite',
       },
       keyframes: {
         'draw-stroke': {
@@ -234,6 +236,12 @@ export default {
           '25%': { transform: 'translateY(-10px) rotate(2deg)' },
           '50%': { transform: 'translateY(-5px) rotate(-1deg)' },
           '75%': { transform: 'translateY(-15px) rotate(1deg)' },
+        },
+        loginFloat: {
+          '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
+          '25%': { transform: 'translateY(-3px) rotate(0.35deg)' },
+          '50%': { transform: 'translateY(-1.5px) rotate(-0.25deg)' },
+          '75%': { transform: 'translateY(-4px) rotate(0.2deg)' },
         },
         pulseGlow: {
           '0%, 100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(99, 102, 241, 0.2)' },

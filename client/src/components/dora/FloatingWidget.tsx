@@ -7,7 +7,8 @@ import { API_ORIGIN } from '@/lib/api';
 import { DORA_V2 } from '@/lib/featureFlags';
 import { DoraSidebarLogo, DoraChatAvatar, PilotPlaneSVG } from './DoraPilot';
 import { ActionConfirmationInline } from '@/components/dora/ActionConfirmationInline';
-import type { DoraPendingActionContent } from '@/types/knowledge-hub/ai';
+import { AIWidgetRenderer } from '@/components/dora/widgets/AIWidgetRenderer';
+import type { AIWidgetPayload, DoraPendingActionContent } from '@/types/knowledge-hub/ai';
 
 interface SpecialistInfo {
   module: string;
@@ -24,6 +25,7 @@ interface WidgetMessage {
   specialist?: SpecialistInfo | null;
   pendingAction?: DoraPendingActionContent | null;
   actionStatus?: 'pending' | 'confirmed' | 'cancelled' | 'executed';
+  widgets?: AIWidgetPayload[];
   metadata?: {
     toolsUsed: string[];
     dataPoints: number;
@@ -136,6 +138,7 @@ export function FloatingWidget() {
       if (response.headers.get('X-Response-Mode') === 'instant') {
         const body = (await response.json()) as {
           text: string;
+          widgets?: AIWidgetPayload[];
           metadata?: {
             toolsUsed?: string[];
             dataPoints?: number;
@@ -161,6 +164,7 @@ export function FloatingWidget() {
               ? {
                   ...m,
                   content: body.text || '',
+                  widgets: body.widgets?.length ? body.widgets : m.widgets,
                   specialist: specialist ?? m.specialist,
                   metadata: meta
                     ? {
@@ -186,6 +190,7 @@ export function FloatingWidget() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      const accumulatedWidgets: AIWidgetPayload[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -266,6 +271,24 @@ export function FloatingWidget() {
                   );
                 });
                 break;
+
+              case 'widget_data': {
+                const pack = (event.data ?? event.content) as
+                  | AIWidgetPayload
+                  | { widgets?: AIWidgetPayload[] }
+                  | undefined;
+                if (pack && typeof pack === 'object' && 'widgets' in pack && pack.widgets?.length) {
+                  accumulatedWidgets.push(...pack.widgets);
+                } else if (pack && typeof pack === 'object' && 'widgetType' in pack) {
+                  accumulatedWidgets.push(pack as AIWidgetPayload);
+                }
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsg.id ? { ...m, widgets: [...accumulatedWidgets] } : m,
+                  ),
+                );
+                break;
+              }
 
               case 'error': {
                 const msg =
@@ -523,7 +546,7 @@ export function FloatingWidget() {
                 }`}
               >
                 {msg.role === 'assistant' && msg.specialist && (
-                  <div className="mb-1 text-[10px] text-gray-500">
+                  <div className="mb-1 text-[10px] dora-chat-text-tertiary">
                     {msg.specialist.icon} {msg.specialist.displayName} Specialist
                   </div>
                 )}
@@ -543,11 +566,21 @@ export function FloatingWidget() {
                 )}
 
                 {msg.actionStatus === 'cancelled' && (
-                  <p className="text-xs text-gray-500 mt-2 italic">Action cancelled.</p>
+                  <p className="text-xs dora-chat-text-tertiary mt-2 italic">Action cancelled.</p>
                 )}
 
+                {msg.widgets &&
+                  msg.widgets.map((widget, i) => (
+                    <AIWidgetRenderer
+                      key={`${widget.widgetType}-${i}`}
+                      widget={widget}
+                      index={i}
+                      onSendMessage={(text, intentId) => sendMessage(text, intentId)}
+                    />
+                  ))}
+
                 {msg.metadata && !msg.isStreaming && (
-                  <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-gray-700/50 text-[10px] text-gray-500">
+                  <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-gray-700/50 text-[10px] dora-chat-text-tertiary">
                     <span>{msg.metadata.responseTimeMs}ms</span>
                     <span>·</span>
                     <span>{msg.metadata.dataPoints} data points</span>

@@ -1,4 +1,5 @@
 import type { DoraRequestContext, DoraModule } from './types.js';
+import { formatActiveViewHint } from '../agent/activeViewState.js';
 import type { TerminationReason } from '../orchestrator/types.js';
 import { buildCorrelationPromptSection } from '../orchestrator/crossModule.js';
 
@@ -68,6 +69,11 @@ function getPermissionBoundaries(role: string): string {
 export function buildDoraAgenticPrompt(ctx: DoraRequestContext): string {
   const { user, page, todayDate, conciseMode } = ctx;
   const moduleHint = MODULE_CONTEXT_HINTS[page.currentModule] || '';
+  const viewHint = formatActiveViewHint(page.activeView ?? undefined);
+  const retrievalBlock =
+    page.retrievalCitations && page.retrievalCitations.trim().length > 0
+      ? `\n## Retrieved context (cite sources as [n] when you use them)\n${page.retrievalCitations.trim()}\n`
+      : '';
   const correlationSection = buildCorrelationPromptSection();
   const permBoundaries = getPermissionBoundaries(user.userRole);
 
@@ -101,7 +107,9 @@ ${TOOL_RULES}
 - **User**: ${user.userName} (${user.userRole}, ${user.department})
 - **Level**: ${user.level} | **MP**: ${user.mpPoints.toLocaleString()}
 - **Viewing**: ${page.currentPath || 'Dora (direct)'}
+${viewHint ? `- **Active view**: ${viewHint}` : ''}
 ${moduleHint ? `- **Page hint**: ${moduleHint}` : ''}
+${retrievalBlock}
 
 ## Permissions
 ${permBoundaries}

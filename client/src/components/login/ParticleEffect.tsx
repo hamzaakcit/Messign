@@ -10,7 +10,7 @@ interface Particle {
   color: string;
 }
 
-const colors = ['#3b82f6', '#6366f1', '#8b5cf6', '#06b6d4', '#10b981'];
+const colors = ['#22c55e', '#16a34a', '#4ade80', '#15803d', '#86efac'];
 
 export function ParticleEffect() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,15 +32,16 @@ export function ParticleEffect() {
 
     const particles: Particle[] = [];
     const particleCount = 50;
+    const vScale = 0.28;
 
     for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
+        vx: (Math.random() - 0.5) * 0.5 * vScale,
+        vy: (Math.random() - 0.5) * 0.5 * vScale,
         size: Math.random() * 3 + 1,
-        opacity: Math.random() * 0.5 + 0.2,
+        opacity: Math.random() * 0.35 + 0.12,
         color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
@@ -66,7 +67,7 @@ export function ParticleEffect() {
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size * 2, 0, Math.PI * 2);
         ctx.fillStyle = particle.color;
-        ctx.globalAlpha = particle.opacity * 0.3;
+        ctx.globalAlpha = particle.opacity * 0.25;
         ctx.fill();
 
         particles.forEach((other, j) => {
@@ -80,7 +81,7 @@ export function ParticleEffect() {
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(other.x, other.y);
             ctx.strokeStyle = particle.color;
-            ctx.globalAlpha = (1 - distance / 150) * 0.2;
+            ctx.globalAlpha = (1 - distance / 150) * 0.14;
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }
@@ -104,7 +105,7 @@ export function ParticleEffect() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 1, opacity: 0.6 }}
+      style={{ zIndex: 1, opacity: 0.38 }}
       aria-hidden
     />
   );
