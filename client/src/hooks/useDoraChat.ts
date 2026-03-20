@@ -136,6 +136,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({

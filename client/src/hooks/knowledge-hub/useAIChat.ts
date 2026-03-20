@@ -29,6 +29,18 @@ function generateMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** v2 SSE uses `{ type, data }`; v1 used `{ type, content }`. */
+function sseData(event: Record<string, unknown>): unknown {
+  return event.data !== undefined ? event.data : event.content;
+}
+
+function sseTextChunk(event: Record<string, unknown>): string {
+  const d = sseData(event);
+  if (typeof d === 'string') return d;
+  if (typeof event.content === 'string') return event.content;
+  return '';
+}
+
 export interface SendMessageOptions {
   intentId?: string;
   confirmed?: boolean;
@@ -169,8 +181,10 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       const token = getAccessToken();
       const response = await fetch(`${apiBaseUrl}/ai/answer`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
@@ -302,7 +316,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
             switch (event.type) {
               case 'text':
-                accumulatedText += (event.content as string) ?? '';
+                accumulatedText += sseTextChunk(event);
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m
@@ -311,7 +325,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 break;
 
               case 'notice': {
-                const note = (event.content as string) ?? '';
+                const note = sseTextChunk(event);
                 if (note) {
                   const prefix = accumulatedText ? '\n\n' : '';
                   accumulatedText += `${prefix}⚠️ ${note}`;
@@ -338,11 +352,11 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 break;
 
               case 'sources':
-                accumulatedSources = (event.documents ?? event.content ?? []) as AISourceDocument[];
+                accumulatedSources = (event.documents ?? sseData(event) ?? []) as AISourceDocument[];
                 break;
 
               case 'metadata':
-                accumulatedMetadata = event.content as AIResponseMetadata;
+                accumulatedMetadata = sseData(event) as AIResponseMetadata;
                 if (accumulatedMetadata?.specialist && !accumulatedSpecialist) {
                   accumulatedSpecialist = {
                     module: accumulatedMetadata.specialist,
@@ -358,19 +372,28 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 break;
 
               case 'chart_data':
-                accumulatedChartData = event.content as AIChartPayload;
+                accumulatedChartData = sseData(event) as AIChartPayload;
                 break;
 
               case 'table_data':
-                accumulatedTableData = event.content as AITablePayload;
+                accumulatedTableData = sseData(event) as AITablePayload;
                 break;
 
-              case 'widget_data':
-                accumulatedWidgets.push(event.content as AIWidgetPayload);
+              case 'widget_data': {
+                const pack = sseData(event) as
+                  | AIWidgetPayload
+                  | { widgets?: AIWidgetPayload[] }
+                  | undefined;
+                if (pack && typeof pack === 'object' && 'widgets' in pack && pack.widgets?.length) {
+                  accumulatedWidgets.push(...pack.widgets);
+                } else if (pack && typeof pack === 'object' && 'widgetType' in pack) {
+                  accumulatedWidgets.push(pack as AIWidgetPayload);
+                }
                 break;
+              }
 
               case 'pending_action': {
-                const pa = event.content as DoraPendingActionContent;
+                const pa = sseData(event) as DoraPendingActionContent;
                 accumulatedPendingAction = pa;
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -386,8 +409,14 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 break;
               }
 
-              case 'error':
-                const errMsg = (event.content ?? event.message ?? 'Unknown error') as string;
+              case 'error': {
+                const ed = event.data as { message?: string } | undefined;
+                const errMsg = (
+                  (ed && typeof ed.message === 'string' ? ed.message : null) ??
+                  (typeof event.content === 'string' ? event.content : null) ??
+                  (typeof event.message === 'string' ? event.message : null) ??
+                  'Unknown error'
+                ) as string;
                 setError(errMsg);
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -397,6 +426,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                   )
                 );
                 break;
+              }
 
               case 'done':
                 setMessages((prev) =>
