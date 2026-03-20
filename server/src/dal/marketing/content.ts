@@ -34,6 +34,12 @@ export interface Content {
   campaign_name?: string | null;
   author_name?: string | null;
   reviewer_name?: string | null;
+  truth_validation?: Record<string, unknown> | null;
+  truth_validated_at?: string | null;
+  brand_voice_check?: Record<string, unknown> | null;
+  brand_voice_checked_at?: string | null;
+  user_brief?: string | null;
+  revision_history?: unknown[];
 }
 
 export interface ContentFilters {
@@ -58,6 +64,14 @@ export interface CreateContentInput {
   author_id?: string;
   reviewer_id?: string;
   tags?: string[];
+  /** Stored JSON from Product Truth Validator when submitting for review */
+  truth_validation?: Record<string, unknown> | null;
+  truth_validated_at?: string | null;
+  /** Stored JSON from Brand Voice Checker when submitting for review (after truth PASS) */
+  brand_voice_check?: Record<string, unknown> | null;
+  brand_voice_checked_at?: string | null;
+  user_brief?: string | null;
+  revision_history?: unknown[];
 }
 
 export type UpdateContentInput = Partial<CreateContentInput> & {
@@ -76,6 +90,20 @@ export interface ContentCalendarDay {
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseRevisionHistory(raw: unknown): unknown[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw) as unknown;
+      return Array.isArray(p) ? p : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 function mapContent(row: Record<string, unknown>): Content {
@@ -105,6 +133,30 @@ function mapContent(row: Record<string, unknown>): Content {
     campaign_name: row.campaign_name ? String(row.campaign_name) : null,
     author_name: row.author_name ? String(row.author_name) : null,
     reviewer_name: row.reviewer_name ? String(row.reviewer_name) : null,
+    truth_validation: (() => {
+      const v = row.truth_validation;
+      if (v == null) return null;
+      if (typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>;
+      try {
+        return JSON.parse(String(v)) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })(),
+    truth_validated_at: row.truth_validated_at ? String(row.truth_validated_at) : null,
+    brand_voice_check: (() => {
+      const v = row.brand_voice_check;
+      if (v == null) return null;
+      if (typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>;
+      try {
+        return JSON.parse(String(v)) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })(),
+    brand_voice_checked_at: row.brand_voice_checked_at ? String(row.brand_voice_checked_at) : null,
+    user_brief: row.user_brief != null ? String(row.user_brief) : null,
+    revision_history: parseRevisionHistory(row.revision_history),
   };
 }
 
@@ -231,9 +283,11 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
     const result = await client.query(
       `INSERT INTO marketing_content (
          organization_id, campaign_id, title, content_type, channel, status, body,
-         body_html, scheduled_date, scheduled_time, author_id, reviewer_id, tags
+         body_html, scheduled_date, scheduled_time, author_id, reviewer_id, tags,
+         truth_validation, truth_validated_at, brand_voice_check, brand_voice_checked_at,
+         user_brief, revision_history
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [
         tenantId,
@@ -249,6 +303,12 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
         data.author_id ?? ctx.userId,
         data.reviewer_id ?? null,
         JSON.stringify(data.tags ?? []),
+        data.truth_validation ?? null,
+        data.truth_validated_at ?? null,
+        data.brand_voice_check ?? null,
+        data.brand_voice_checked_at ?? null,
+        data.user_brief ?? null,
+        data.revision_history != null ? JSON.stringify(data.revision_history) : '[]',
       ],
     );
     return (await getContentById(ctx, String(result.rows[0].id))) ?? mapContent(result.rows[0] as Record<string, unknown>);
@@ -280,6 +340,24 @@ export async function updateContent(
   ];
   if (data.tags !== undefined) {
     fields.push(['tags', JSON.stringify(data.tags)]);
+  }
+  if (data.truth_validation !== undefined) {
+    fields.push(['truth_validation', data.truth_validation ?? null]);
+  }
+  if (data.truth_validated_at !== undefined) {
+    fields.push(['truth_validated_at', data.truth_validated_at]);
+  }
+  if (data.brand_voice_check !== undefined) {
+    fields.push(['brand_voice_check', data.brand_voice_check ?? null]);
+  }
+  if (data.brand_voice_checked_at !== undefined) {
+    fields.push(['brand_voice_checked_at', data.brand_voice_checked_at]);
+  }
+  if (data.user_brief !== undefined) {
+    fields.push(['user_brief', data.user_brief ?? null]);
+  }
+  if (data.revision_history !== undefined) {
+    fields.push(['revision_history', JSON.stringify(data.revision_history ?? [])]);
   }
 
   const sets: string[] = [];

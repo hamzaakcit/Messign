@@ -1,22 +1,39 @@
 import { Router } from 'express';
 import type { Response } from 'express';
 import type { ReimbursementRequest } from '../../middleware/reimbursementAuth.js';
+import { requireRole } from '../../middleware/reimbursementAuth.js';
 import * as campaignDal from '../../dal/marketing/campaigns.js';
 import { buildCtx, parseDateRange, parsePositiveInt, parseSort } from './common.js';
+import { createCampaignToolSchema, campaignBudgetAllocateSchema } from '../../controllers/marketingToolsSchemas.js';
+import * as marketingToolsController from '../../controllers/marketingToolsController.js';
 
 const router = Router();
 
 router.post('/', async (req: ReimbursementRequest, res: Response) => {
   try {
-    if (!req.body?.name || !req.body?.channel) {
-      res.status(400).json({ error: 'Campaign name and channel are required' });
+    const parsed = createCampaignToolSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
+      });
       return;
     }
-    const campaign = await campaignDal.createCampaign(buildCtx(req), req.body);
-    res.status(201).json(campaign);
+    const result = await marketingToolsController.createCampaignTool(buildCtx(req), parsed.data);
+    if (!result.ok) {
+      res.status(400).json({ success: false, error: result.error });
+      return;
+    }
+    res.status(201).json({
+      success: true,
+      data: { campaign_id: result.data.campaign_id, campaign: result.data.campaign },
+    });
   } catch (err) {
     console.error('[marketing/campaigns POST]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to create campaign' });
+    res.status(400).json({
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to create campaign',
+    });
   }
 });
 
@@ -61,6 +78,39 @@ router.get('/metrics', async (req: ReimbursementRequest, res: Response) => {
   }
 });
 
+router.patch(
+  '/:id/budget',
+  requireRole('manager', 'admin'),
+  async (req: ReimbursementRequest, res: Response) => {
+    try {
+      const parsed = campaignBudgetAllocateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          success: false,
+          error: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
+        });
+        return;
+      }
+      const result = await marketingToolsController.campaignBudgetAllocate(
+        buildCtx(req),
+        req.params.id,
+        parsed.data,
+      );
+      if (!result.ok) {
+        res.status(result.error === 'Campaign not found' ? 404 : 400).json({ success: false, error: result.error });
+        return;
+      }
+      res.json({ success: true, data: result.data });
+    } catch (err) {
+      console.error('[marketing/campaigns/:id/budget PATCH]', err);
+      res.status(400).json({
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to allocate budget',
+      });
+    }
+  },
+);
+
 router.get('/:id', async (req: ReimbursementRequest, res: Response) => {
   try {
     const campaign = await campaignDal.getCampaignById(buildCtx(req), req.params.id);
@@ -97,11 +147,18 @@ router.post('/:id/launch', async (req: ReimbursementRequest, res: Response) => {
 
 router.post('/:id/pause', async (req: ReimbursementRequest, res: Response) => {
   try {
-    const campaign = await campaignDal.pauseCampaign(buildCtx(req), req.params.id, req.body?.reason);
-    res.json(campaign);
+    const result = await marketingToolsController.pauseCampaignTool(buildCtx(req), req.params.id, req.body?.reason);
+    if (!result.ok) {
+      res.status(result.error.includes('not found') ? 404 : 400).json({ success: false, error: result.error });
+      return;
+    }
+    res.json({ success: true, data: result.data });
   } catch (err) {
     console.error('[marketing/campaigns/:id/pause POST]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to pause campaign' });
+    res.status(400).json({
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to pause campaign',
+    });
   }
 });
 

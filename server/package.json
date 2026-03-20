@@ -31,7 +31,10 @@
     "db:apply-rls": "tsx src/scripts/applyRlsMigrations.ts",
     "db:check-org-gaps": "tsx src/scripts/checkOrganizationIdGaps.ts",
     "litellm": "python3 -m litellm --config ../litellm/config.yaml",
-    "test:agents": "vitest run"
+    "test:agents": "vitest run",
+    "test:red-team": "tsx src/scripts/redTeam/testMarketingGatekeepers.ts",
+    "test:red-team:mock": "RED_TEAM_MOCK_LLM=1 tsx src/scripts/redTeam/testMarketingGatekeepers.ts",
+    "marketing:print-context": "tsx src/scripts/printMarketingContext.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

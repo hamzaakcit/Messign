@@ -88,6 +88,8 @@ interface GatewayCallOptions {
   tier: ModelTier;
   messages: OpenAI.ChatCompletionMessageParam[];
   tools?: OpenAI.ChatCompletionTool[];
+  /** When set, forces a specific tool call (e.g. routing-only step). */
+  toolChoice?: OpenAI.ChatCompletionCreateParams['tool_choice'];
   stream?: boolean;
   tenantId: string;
   maxTokens?: number;
@@ -191,6 +193,7 @@ async function callDirectProviders(
         model,
         messages: options.messages,
         tools: options.tools?.length ? options.tools : undefined,
+        tool_choice: options.tools?.length ? options.toolChoice : undefined,
         max_tokens: maxTokens,
         temperature,
         stream: false,
@@ -217,6 +220,7 @@ export async function callModel(options: GatewayCallOptions): Promise<GatewayRes
       model: options.tier,
       messages: options.messages,
       tools: options.tools,
+      tool_choice: options.tools?.length ? options.toolChoice : undefined,
       stream: options.stream ?? false,
       max_tokens: options.maxTokens ?? 4096,
       temperature: options.temperature ?? 0.3,
@@ -454,6 +458,17 @@ export async function embedViaGateway(
 }
 
 // Complexity classifier: determines which tier to use
+/** Unified Anthropic + Groq client with retries/timeouts — see `llmGateway.ts` */
+export {
+  generateResponse,
+  LLMGatewayError,
+  LLM_TIER,
+  LLM_TIER_CONFIG,
+  type PromptConfig,
+  type LLMGatewayResult,
+  type LLMRoutingTier,
+} from './llmGateway.js';
+
 export function classifyComplexity(query: string, toolCount: number): ModelTier {
   const lowComplexityPatterns = [
     /^(what|who|when|where|how many|how much|show|list|get|find)\b/i,

@@ -130,3 +130,11 @@ Use this when moving from a local PostgreSQL database to Railway.
 4. Add a PostgreSQL database and set `DATABASE_URL`.
 5. Set the env vars above (at least `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`).
 6. Deploy. The frontend at https://messign.vercel.app must call this backend’s URL (set `VITE_API_URL` or your app’s API base URL to the deployed server URL).
+
+## Marketing module (Phase 4 + 5)
+
+Before production cutover for marketing operations, calendar, budget/finance sync, and the background publisher:
+
+1. Run migrations **075–078** on production Postgres (see [`docs/MARKETING_PRODUCTION_CHECKLIST.md`](docs/MARKETING_PRODUCTION_CHECKLIST.md)).
+2. Run server tests under `src/__tests__/modules/marketing/` and optionally `npm run launch:check` after DB + Redis are healthy.
+3. Publisher cron: `startMarketingPublisherCron()` runs every minute unless `MARKETING_PUBLISHER_ENABLED=0`.

@@ -1,9 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, Mail, Megaphone, Users } from 'lucide-react';
+import { BarChart3, CalendarDays, ClipboardCheck, Mail, Megaphone, Sparkles, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
+  { id: 'agent', label: 'Agent', path: '/marketing/agent', icon: Sparkles },
   { id: 'campaigns', label: 'Campaigns', path: '/marketing', icon: Megaphone },
+  { id: 'approvals', label: 'Approvals', path: '/marketing/approvals', icon: ClipboardCheck },
   { id: 'content', label: 'Content Calendar', path: '/marketing/content', icon: CalendarDays },
   { id: 'leads', label: 'Leads', path: '/marketing/leads', icon: Users },
   { id: 'email', label: 'Email', path: '/marketing/email', icon: Mail },
@@ -16,15 +18,19 @@ export function MarketingNav() {
   const segment = location.pathname.split('/').filter(Boolean)[1];
 
   const activeTab =
-    segment === 'content'
-      ? 'content'
-      : segment === 'leads'
-        ? 'leads'
-        : segment === 'email'
-          ? 'email'
-          : segment === 'dashboard'
-            ? 'dashboard'
-            : 'campaigns';
+    segment === 'agent'
+      ? 'agent'
+      : segment === 'approvals'
+        ? 'approvals'
+        : segment === 'content'
+          ? 'content'
+          : segment === 'leads'
+            ? 'leads'
+            : segment === 'email'
+              ? 'email'
+              : segment === 'dashboard'
+                ? 'dashboard'
+                : 'campaigns';
 
   return (
     <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1">

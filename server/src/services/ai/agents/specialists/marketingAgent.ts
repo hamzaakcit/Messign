@@ -1,9 +1,9 @@
 /**
- * Marketing Specialist Agent — Campaigns, ROI, leads, content
+ * Marketing Specialist Agent — Sub-orchestrator → content strategist / campaign manager
  */
 
 import type { SpecialistAgent, AgentContext, AgentResult } from '../types.js';
-import { runSpecialistLoop } from './baseSpecialist.js';
+import { runMarketingSubOrchestratorFlow } from '../../marketing/marketingAgentFlow.js';
 
 export const marketingAgent: SpecialistAgent = {
   namespace: 'marketing',
@@ -16,14 +16,19 @@ export const marketingAgent: SpecialistAgent = {
     const doraCtx = context.doraCtx!;
     const legacyContext = context.legacyContext!;
 
-    const result = await runSpecialistLoop(
-      'marketing',
+    const path = doraCtx.page.currentPath ?? '';
+    const forceMarketingContext =
+      typeof path === 'string' && path.startsWith('/marketing/agent');
+
+    const result = await runMarketingSubOrchestratorFlow({
       query,
-      context,
+      agentContext: context,
       doraCtx,
       legacyContext,
       priorContext,
-    );
+      history: [],
+      forceMarketingContext,
+    });
 
     return {
       type: 'final_answer',

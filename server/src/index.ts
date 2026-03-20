@@ -72,6 +72,7 @@ import { initializeModules } from './modules/registry.js';
 import webhookRouter from './routes/webhooks/index.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
+import { startMarketingPublisherCron } from './jobs/marketingPublisherCron.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
@@ -309,6 +310,7 @@ httpServer.listen(Number(port), '0.0.0.0', async () => {
     console.warn('[initAuth]', e);
   }
   startBudgetAlertJob();
+  startMarketingPublisherCron();
 });
 
 export { io };

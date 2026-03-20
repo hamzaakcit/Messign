@@ -75,6 +75,15 @@ export interface EventMap {
   'marketing.lead.routed_to_crm': { leadId: string; crmContactId: string; crmDealId: string; pipelineId: string };
   'marketing.content.published': { contentId: string; title: string; type: string; channel: string; publishedBy: string };
   'marketing.content.scheduled': { contentId: string; title: string; scheduledFor: string };
+  /** Human rejected draft — subscribers may notify Content Strategist / webhook for regeneration */
+  'marketing.content.revision_requested': {
+    organizationId: string;
+    contentId: string;
+    approvalId: string;
+    feedback: string;
+    rejectionReason: string;
+    requestedBy: string;
+  };
   'marketing.email.sent': { emailCampaignId: string; recipientCount: number; subject: string };
   'marketing.email.metrics_updated': { emailCampaignId: string; opens: number; clicks: number; bounces: number; unsubscribes: number };
   'marketing.spend.recorded': { campaignId: string; amount: number; currency: string; category: string; date: string };

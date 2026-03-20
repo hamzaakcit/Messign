@@ -2,6 +2,7 @@
  * Zod argument schemas for high-traffic tools (executeTool validates before handlers).
  */
 import { z } from 'zod';
+import { productTruthLookupFields } from '../marketing/productTruthSearchService.js';
 
 export const toolArgSchemas: Record<string, z.ZodType<Record<string, unknown>>> = {
   'knowledge:search_knowledge_base': z
@@ -29,6 +30,36 @@ export const toolArgSchemas: Record<string, z.ZodType<Record<string, unknown>>> 
       user_identifier: z.string().max(200).optional(),
       status_filter: z.string().max(64).optional(),
       project_name: z.string().max(200).optional(),
+    })
+    .strict() as z.ZodType<Record<string, unknown>>,
+
+  'marketing:product_truth_lookup': productTruthLookupFields.passthrough() as z.ZodType<Record<string, unknown>>,
+
+  'marketing:brand_voice_check': z
+    .object({
+      draft_text: z.string().min(1).max(20_000),
+    })
+    .strict() as z.ZodType<Record<string, unknown>>,
+
+  'marketing:competitor_content_scan': z
+    .object({
+      competitor_name: z.string().max(200).optional(),
+    })
+    .strict() as z.ZodType<Record<string, unknown>>,
+
+  'marketing:validate_product_truth': z
+    .object({
+      content: z.string().min(1).max(24_000),
+      topic: z.string().max(500).optional(),
+    })
+    .strict() as z.ZodType<Record<string, unknown>>,
+
+  'marketing:compliance_scan': z
+    .object({
+      content: z.string().min(1).max(20_000),
+      content_type: z.string().max(120).optional(),
+      target_channel: z.string().max(200).optional(),
+      topic: z.string().max(500).optional(),
     })
     .strict() as z.ZodType<Record<string, unknown>>,
 };

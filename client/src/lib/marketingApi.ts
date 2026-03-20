@@ -1,5 +1,6 @@
 import { API_ORIGIN } from './api';
 import { getAccessToken } from './authToken';
+import type { MarketingApprovalApiRow } from '../pages/marketing/approvalQueue/mapApiApprovalToUi';
 
 const MARKETING_BASE = `${API_ORIGIN}/api/marketing`;
 
@@ -25,6 +26,16 @@ async function marketingRequest<T>(
   }
 
   return res.json();
+}
+
+/** Handles `{ success, data: { campaign } }` from tool-style POST /campaigns and legacy raw campaign JSON. */
+function unwrapCreateCampaignResponse(body: unknown): Campaign {
+  if (body && typeof body === 'object' && 'success' in body) {
+    const r = body as { success: boolean; data?: { campaign?: Campaign }; error?: string };
+    if (!r.success) throw new Error(r.error || 'Failed to create campaign');
+    if (r.data?.campaign) return r.data.campaign;
+  }
+  return body as Campaign;
 }
 
 export interface PaginatedResult<T> {
@@ -230,6 +241,14 @@ export interface DashboardMetrics {
   }>;
 }
 
+export type SubmitApprovalReviewPayload = {
+  status: 'approved' | 'rejected';
+  feedback?: string;
+  rejection_reason?: 'off_brand' | 'factually_wrong' | 'wrong_audience' | 'needs_polish' | 'other';
+  /** Alias for rejection_reason */
+  reason?: 'off_brand' | 'factually_wrong' | 'wrong_audience' | 'needs_polish' | 'other';
+};
+
 export const marketingAPI = {
   listCampaigns: (userId: string, filters?: Record<string, string>) => {
     const params = new URLSearchParams(filters || {});
@@ -237,8 +256,10 @@ export const marketingAPI = {
   },
   getCampaign: (userId: string, campaignId: string) =>
     marketingRequest<Campaign>(`/campaigns/${campaignId}`, {}, userId),
-  createCampaign: (userId: string, data: Partial<Campaign>) =>
-    marketingRequest<Campaign>('/campaigns', { method: 'POST', body: JSON.stringify(data) }, userId),
+  createCampaign: async (userId: string, data: Partial<Campaign>) => {
+    const body = await marketingRequest<unknown>('/campaigns', { method: 'POST', body: JSON.stringify(data) }, userId);
+    return unwrapCreateCampaignResponse(body);
+  },
   updateCampaign: (userId: string, campaignId: string, data: Partial<Campaign>) =>
     marketingRequest<Campaign>(`/campaigns/${campaignId}`, { method: 'PUT', body: JSON.stringify(data) }, userId),
   launchCampaign: (userId: string, campaignId: string) =>
@@ -314,4 +335,24 @@ export const marketingAPI = {
     marketingRequest<DashboardMetrics['channelBreakdown']>(`/dashboard/channels${period ? `?period=${period}` : ''}`, {}, userId),
   getCampaignComparison: (userId: string, ids: string[]) =>
     marketingRequest<Campaign[]>(`/dashboard/comparison?ids=${encodeURIComponent(ids.join(','))}`, {}, userId),
+
+  /** Human approval queue */
+  listApprovals: async (userId: string, status: 'pending' | 'approved' | 'rejected' = 'pending') => {
+    const body = await marketingRequest<{ success: boolean; data: { items: MarketingApprovalApiRow[] } }>(
+      `/approvals?status=${encodeURIComponent(status)}`,
+      {},
+      userId,
+    );
+    if (!body.success) throw new Error('list_approvals failed');
+    return body.data.items;
+  },
+
+  submitApprovalReview: async (userId: string, approvalId: string, payload: SubmitApprovalReviewPayload) => {
+    const body = await marketingRequest<{
+      success: boolean;
+      data: { approval_id: string; content_id: string; content_status: string };
+    }>(`/approvals/${approvalId}/review`, { method: 'POST', body: JSON.stringify(payload) }, userId);
+    if (!body.success) throw new Error('submit_review failed');
+    return body.data;
+  },
 };

@@ -222,6 +222,9 @@ export function validateAIAnswerInput(req: Request, res: Response, next: NextFun
   if (typeof rawBody.searchMode === 'boolean') {
     extras.searchMode = rawBody.searchMode;
   }
+  if (rawBody.marketingAgentMode === true || rawBody.marketingAgentMode === 'true') {
+    extras.marketingAgentMode = true;
+  }
   if (typeof rawBody.provider === 'string') {
     const p = sanitizeString(rawBody.provider).slice(0, 24);
     if (p === 'auto' || p === 'claude') extras.provider = p;

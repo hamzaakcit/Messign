@@ -121,6 +121,8 @@ export interface PipelineRequest {
   currentPath: string;
   concise: boolean;
   mode: AIMode;
+  /** When true, always run Marketing Sub-Orchestrator flow (v2). */
+  marketingAgentMode?: boolean;
   intent?: string;
   searchMode?: boolean;
   /** Sanitized from `confirmed` on the request body */

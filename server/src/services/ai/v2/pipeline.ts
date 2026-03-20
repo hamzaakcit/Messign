@@ -17,6 +17,10 @@ import { streamGreeting } from './stream/streamGreeting.js';
 import { streamKBSynthesis } from './stream/streamKBSynthesis.js';
 import { streamSynthesis } from './stream/streamSynthesis.js';
 import type { ExecutionTrace, PipelineRequest, PipelineTelemetry } from './types.js';
+import {
+  runMarketingSubOrchestratorFlow,
+  buildAgentContextFromV2,
+} from '../marketing/marketingAgentFlow.js';
 
 function actOfferToTool(
   offer: ActConfirmationPayload,
@@ -282,6 +286,47 @@ export async function runDoraPipeline(
         controller.end();
         return;
       }
+    }
+
+    const pathForMarketing = typeof body.currentPath === 'string' ? body.currentPath : '';
+    const marketingHubAgent =
+      body.marketingAgentMode === true || pathForMarketing.startsWith('/marketing/agent');
+    const useMarketingSubOrchestrator =
+      !classified.directIntent &&
+      (marketingHubAgent || classified.domain === 'marketing');
+
+    if (useMarketingSubOrchestrator) {
+      telemetry.stages.push('marketing_sub_orchestrator');
+      const legacy = toLegacyToolContext(ctx);
+      const agentCtx = buildAgentContextFromV2(ctx, legacy);
+      const result = await runMarketingSubOrchestratorFlow({
+        query: body.query,
+        agentContext: agentCtx,
+        doraCtx: ctx.doraRequest,
+        legacyContext: legacy,
+        history: body.history,
+        forceMarketingContext: marketingHubAgent,
+        onStreamChunk: (t) => controller.emit('text', t),
+      });
+
+      for (const pa of result.pendingActions) {
+        controller.emit('pending_action', pa.content);
+      }
+
+      const dataPoints = result.toolObservations.filter((o) => o.success && o.data != null).length;
+      controller.emit('metadata', {
+        toolsUsed: result.toolsUsed,
+        dataPoints,
+        responseTimeMs: Date.now() - startedAt,
+        steps: 1,
+        terminationReason: 'complete',
+        specialist: 'marketing',
+        specialistDisplayName: 'Marketing',
+        specialistIcon: '📣',
+      });
+      controller.emit('done', null);
+      controller.end();
+      return;
     }
 
     telemetry.stages.push('engine');

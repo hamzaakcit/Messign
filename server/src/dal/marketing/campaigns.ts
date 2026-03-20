@@ -4,6 +4,7 @@ import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
+import { listAllocationsForCampaign, upsertBudgetAllocation } from './budgetAllocations.js';
 
 async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   return withTenantQuery(tenantId, fn);
@@ -13,6 +14,8 @@ export interface Campaign {
   id: string;
   organization_id: string | null;
   name: string;
+  /** High-level objective (075+); optional for older rows */
+  objective: string | null;
   description: string | null;
   channel: string;
   status: string;
@@ -70,6 +73,7 @@ export interface CampaignFilters {
 
 export interface CreateCampaignInput {
   name: string;
+  objective?: string;
   description?: string;
   channel: string;
   status?: string;
@@ -128,11 +132,12 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function mapCampaign(row: Record<string, unknown>): Campaign {
+export function mapCampaign(row: Record<string, unknown>): Campaign {
   return {
     id: String(row.id),
     organization_id: row.organization_id ? String(row.organization_id) : null,
     name: String(row.name),
+    objective: row.objective != null ? String(row.objective) : null,
     description: row.description ? String(row.description) : null,
     channel: String(row.channel),
     status: String(row.status),
@@ -357,15 +362,16 @@ export async function createCampaign(ctx: CallerContext, data: CreateCampaignInp
   return runInTenant(tenantId, async (client) => {
     const result = await client.query(
     `INSERT INTO marketing_campaigns (
-       organization_id, name, description, channel, status, budget, actual_spend,
+       organization_id, name, objective, description, channel, status, budget, actual_spend,
        currency, budget_eur, actual_spend_eur, start_date, end_date, target_audience,
        goals, owner_id, tags
      )
-     VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,0,$9,$10,$11,$12,$13,$14)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,0,$10,$11,$12,$13,$14,$15)
      RETURNING *`,
     [
       tenantId,
       data.name,
+      data.objective ?? null,
       data.description ?? null,
       data.channel,
       data.status ?? 'draft',
@@ -402,6 +408,7 @@ export async function updateCampaign(
 ): Promise<Campaign> {
   const fields: Array<[string, unknown]> = [
     ['name', data.name],
+    ['objective', data.objective],
     ['description', data.description],
     ['channel', data.channel],
     ['status', data.status],
@@ -481,6 +488,42 @@ export async function pauseCampaign(ctx: CallerContext, campaignId: string, reas
     reason,
   });
   return campaign;
+}
+
+/** Duplicate campaign + per-channel budget envelopes (spent reset to 0 on copies). */
+export async function cloneCampaign(ctx: CallerContext, campaignId: string): Promise<Campaign> {
+  const src = await getCampaignBase(ctx, campaignId);
+  if (!src) {
+    throw new Error('Campaign not found');
+  }
+  const allocs = await listAllocationsForCampaign(ctx, campaignId);
+
+  const newCamp = await createCampaign(ctx, {
+    name: `${src.name} (copy)`,
+    objective: src.objective ?? undefined,
+    description: src.description ?? undefined,
+    channel: src.channel,
+    status: 'draft',
+    budget: 0,
+    currency: src.currency,
+    start_date: undefined,
+    end_date: undefined,
+    target_audience: src.target_audience ?? undefined,
+    goals: src.goals ?? undefined,
+    tags: src.tags,
+    owner_id: ctx.userId,
+  });
+
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required');
+
+  await runInTenant(tenantId, async (client) => {
+    for (const a of allocs) {
+      await upsertBudgetAllocation(client, tenantId, newCamp.id, a.channel, a.allocated_amount, a.currency);
+    }
+  });
+
+  return (await getCampaignById(ctx, newCamp.id)) ?? newCamp;
 }
 
 export async function completeCampaign(ctx: CallerContext, campaignId: string): Promise<Campaign> {

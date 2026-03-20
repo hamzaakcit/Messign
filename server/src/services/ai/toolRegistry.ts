@@ -170,6 +170,33 @@ export function getToolsForNamespace(namespace: string, userRoles: string[]): LL
 }
 
 /**
+ * LLM schemas for an explicit allowlist of tool names (any namespace).
+ * Respects RBAC via each tool's requiredRoles / toolIndex metadata.
+ */
+export function getLLMToolsForExactNames(names: string[], userRoles: string[]): LLMToolDefinition[] {
+  const out: LLMToolDefinition[] = [];
+  for (const name of names) {
+    const tool = registry.get(name);
+    if (!tool) continue;
+    const metadata = toolIndex.get(name);
+    const requiredRoles = metadata?.requiredRoles ?? tool.requiredRoles ?? [];
+    if (requiredRoles.length > 0) {
+      const hasRole = requiredRoles.some((r) => userRoles.includes(r));
+      if (!hasRole) continue;
+    }
+    out.push({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    });
+  }
+  return out;
+}
+
+/**
  * Returns ONLY always-loaded tool schemas for the initial LLM call.
  * Use this for a reduced token payload; deferred tools are loaded via core:search_tools + core:activate_tool.
  * Filters by userRoles for RBAC.
