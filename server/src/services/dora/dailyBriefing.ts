@@ -223,25 +223,28 @@ async function getSalesBriefingItems(ctx: CallerContext): Promise<BriefingItem[]
   const [staleDeals, closingDeals, routedLeads] = await Promise.all([
     query(
       `SELECT COUNT(*)::int AS c
-       FROM crm_deals
-       WHERE owner_id = $1::uuid
-         AND status NOT IN ('won', 'lost')
-         AND updated_at < NOW() - INTERVAL '7 days'`,
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       WHERE d.owner_id = $1::uuid
+         AND NOT s.is_won AND NOT s.is_lost
+         AND d.updated_at < NOW() - INTERVAL '7 days'`,
       [ctx.userId],
     ),
     query(
       `SELECT COUNT(*)::int AS c
-       FROM crm_deals
-       WHERE owner_id = $1::uuid
-         AND status NOT IN ('won', 'lost')
-         AND expected_close_date <= CURRENT_DATE + INTERVAL '7 days'`,
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       WHERE d.owner_id = $1::uuid
+         AND NOT s.is_won AND NOT s.is_lost
+         AND d.expected_close_date <= CURRENT_DATE + INTERVAL '7 days'`,
       [ctx.userId],
     ),
     query(
       `SELECT COUNT(*)::int AS c
-       FROM marketing_leads
-       WHERE owner_id = $1::uuid
-         AND created_at >= NOW() - INTERVAL '7 days'`,
+       FROM marketing_leads l
+       INNER JOIN marketing_campaigns mc ON mc.id = l.campaign_id
+       WHERE mc.owner_id = $1::uuid
+         AND l.created_at >= NOW() - INTERVAL '7 days'`,
       [ctx.userId],
     ),
   ]);

@@ -273,7 +273,10 @@ export async function getSupportMetrics(ctx: CallerContext): Promise<ExecutiveDa
          FROM support_tickets`,
       ),
       client.query(
-        `SELECT COUNT(*) FILTER (WHERE health_status IN ('at_risk', 'critical'))::int AS at_risk
+        `SELECT COUNT(*) FILTER (
+           WHERE sch.trend IN ('declining', 'critical')
+             OR sch.health_score < 40
+         )::int AS at_risk
          FROM support_customer_health sch
          JOIN crm_companies c ON c.id = sch.crm_company_id`,
       ),
