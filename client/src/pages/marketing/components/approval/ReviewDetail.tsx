@@ -16,7 +16,7 @@ interface ReviewDetailProps {
 }
 
 function previewWidthClass(channel: ApprovalQueueItem['targetChannel']): string {
-  if (channel === 'linkedin' || channel === 'social') return 'max-w-md mx-auto';
+  if (channel === 'linkedin' || channel === 'social' || channel === 'instagram') return 'max-w-md mx-auto';
   if (channel === 'email') return 'max-w-2xl';
   return 'max-w-3xl';
 }

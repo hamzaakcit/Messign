@@ -9,6 +9,7 @@ import {
   getDefaultBrandVoiceFallback,
   getDefaultProductTruthFallback,
 } from '../../../dal/marketing/truthBrand.js';
+import { CHANNEL_SPECS_BLOCK } from './instagramChannelSpec.js';
 
 export interface MarketingContentStrategistPromptInput {
   userRole: string;
@@ -70,12 +71,7 @@ Assign a mental score 0–100. If below 70, **revise once** and then return the 
 - Blocked patterns and unapproved claims from the injected product-truth sheet override generic instructions.
 - No specific pricing in copy — point to pricing pages or a generic CTA.
 
-## Format rules
-- **LinkedIn**: Max 3000 characters. Hook in first 2 lines. CTA at end. Short paragraphs, line breaks for scanability.
-- **X (Twitter)**: Max 280 characters. Punchy. One idea per post; thread = numbered.
-- **Email (marketing)**: Subject line under 60 characters; preview text under 90 characters; one primary CTA; no fake RE:/Fwd.
-- **Blog**: H2/H3 structure; roughly 800–1500 words when long-form; internal links where appropriate; one primary keyword in title + first paragraph for SEO without stuffing.
-- **Ad copy**: Platform-specific character limits; benefit-led; only approved claims.
+${CHANNEL_SPECS_BLOCK}
 
 ## Scenarios
 - **Launch / feature**: Truth lookup → outline → draft → validate → optional brand check.

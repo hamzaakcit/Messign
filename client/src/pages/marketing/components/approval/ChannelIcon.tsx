@@ -1,4 +1,4 @@
-import { FileText, Linkedin, Mail, Megaphone, Share2, type LucideIcon } from 'lucide-react';
+import { FileText, Instagram, Linkedin, Mail, Megaphone, Share2, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TargetChannel } from '../../approvalQueue/types';
 
@@ -7,6 +7,7 @@ const iconMap: Record<TargetChannel, LucideIcon> = {
   email: Mail,
   social: Share2,
   linkedin: Linkedin,
+  instagram: Instagram,
   battlecard: Megaphone,
   other: FileText,
 };

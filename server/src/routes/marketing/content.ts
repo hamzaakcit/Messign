@@ -10,6 +10,7 @@ import {
   type ProductTruthValidationResult,
 } from '../../services/ai/marketing/productTruthValidator.js';
 import { runBrandVoiceCheck } from '../../services/ai/marketing/brandVoiceChecker.js';
+import { regenerateImageForContent } from '../../services/marketing/workflows/instagramContentWorkflow.js';
 
 const router = Router();
 
@@ -160,6 +161,31 @@ router.get('/calendar', async (req: ReimbursementRequest, res: Response) => {
   } catch (err) {
     console.error('[marketing/content/calendar GET]', err);
     res.status(500).json({ error: 'Failed to load content calendar' });
+  }
+});
+
+router.post('/:id/regenerate-image', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const ctx = buildCtx(req);
+    const imagePrompt = req.body?.image_prompt;
+    if (typeof imagePrompt !== 'string' || !imagePrompt.trim()) {
+      res.status(400).json({ error: 'image_prompt is required' });
+      return;
+    }
+    const stylePreset = typeof req.body?.style_preset === 'string' ? req.body.style_preset : undefined;
+    const result = await regenerateImageForContent(ctx, {
+      content_id: req.params.id,
+      new_prompt: imagePrompt.trim(),
+      style_preset: stylePreset as 'modern_noir' | 'vibrant_lifestyle' | 'minimal_flat' | 'editorial' | undefined,
+    });
+    res.json({
+      success: result.success,
+      image_url: result.image_url,
+      error: result.error ?? null,
+    });
+  } catch (err) {
+    console.error('[marketing/content/:id/regenerate-image POST]', err);
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to regenerate image' });
   }
 });
 

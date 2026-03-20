@@ -14,6 +14,7 @@ export function channelLabel(ch: string): string {
     email: 'Email',
     social: 'Social',
     linkedin: 'LinkedIn',
+    instagram: 'Instagram',
     battlecard: 'Battlecard',
     other: 'Other',
   };

@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 import { callModelSafe } from '../gateway.js';
 import { COMPLIANCE_SCANNER_SYSTEM_PROMPT } from '../../../modules/marketing/prompts/complianceScannerPrompt.js';
 import { loadProductTruthSheetMd } from '../../../dal/marketing/truthBrand.js';
+import { applyInstagramComplianceRules } from './instagramValidationPatches.js';
 
 export type ComplianceSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
 
@@ -158,6 +159,9 @@ export interface RunComplianceScanArgs {
   /** Red team: skip LLM and parse this string (deterministic CI) */
   redTeamRawResponseOverride?: string;
   onRawModelResponse?: (raw: string) => void;
+  /** Instagram: extracted image prompt / alt for deterministic rules */
+  imagePrompt?: string | null;
+  visualDescription?: string | null;
 }
 
 export async function runComplianceScan(args: RunComplianceScanArgs): Promise<ComplianceScanResult> {
@@ -172,6 +176,8 @@ export async function runComplianceScan(args: RunComplianceScanArgs): Promise<Co
     productTruthContextMdOverride,
     redTeamRawResponseOverride,
     onRawModelResponse,
+    imagePrompt,
+    visualDescription,
   } = args;
   const trimmed = contentText.trim();
   if (!trimmed) {
@@ -186,7 +192,14 @@ export async function runComplianceScan(args: RunComplianceScanArgs): Promise<Co
 
   if (redTeamRawResponseOverride !== undefined) {
     onRawModelResponse?.(redTeamRawResponseOverride);
-    return parseComplianceScanJson(redTeamRawResponseOverride);
+    let parsed = parseComplianceScanJson(redTeamRawResponseOverride);
+    parsed = applyInstagramComplianceRules(parsed, {
+      targetChannel,
+      contentText: trimmed,
+      visualDescription: visualDescription ?? null,
+      imagePrompt: imagePrompt ?? null,
+    });
+    return parsed;
   }
 
   const blockedMd =
@@ -234,7 +247,14 @@ ${blockedMd.slice(0, 24_000)}`;
 
   const raw = res.choices?.[0]?.message?.content?.trim() ?? '';
   onRawModelResponse?.(raw);
-  return parseComplianceScanJson(raw);
+  let parsed = parseComplianceScanJson(raw);
+  parsed = applyInstagramComplianceRules(parsed, {
+    targetChannel,
+    contentText: trimmed,
+    visualDescription: visualDescription ?? null,
+    imagePrompt: imagePrompt ?? null,
+  });
+  return parsed;
 }
 
 export function formatComplianceScanSummary(result: ComplianceScanResult): string {

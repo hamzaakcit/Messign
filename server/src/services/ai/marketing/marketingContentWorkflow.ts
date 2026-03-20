@@ -14,6 +14,12 @@ import * as contentDal from '../../../dal/marketing/content.js';
 import { getDefaultBrandVoiceFallback, getDefaultProductTruthFallback } from '../../../dal/marketing/truthBrand.js';
 import type { CallerContext } from '../../../dal/types.js';
 import { buildMarketingContentStrategistPrompt } from '../../../modules/marketing/prompts/marketingContentStrategistPrompt.js';
+import {
+  extractAltText,
+  extractCaption,
+  extractImagePrompts,
+} from '../../../modules/marketing/prompts/instagramChannelSpec.js';
+import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/imageService.js';
 import { runBrandVoiceCheck, type BrandVoiceCheckResult } from './brandVoiceChecker.js';
 import { runComplianceScan, type ComplianceScanResult } from './complianceScanner.js';
 import { runProductTruthValidation, type ProductTruthValidationResult } from './productTruthValidator.js';
@@ -159,7 +165,7 @@ export async function executeContentWorkflow(
       : brief.trim();
     contentRow = await createContent(caller, {
       title: (context.title ?? 'AI draft').slice(0, 500),
-      content_type: context.contentType ?? 'social_post',
+      content_type: context.contentType ?? 'social',
       channel: context.channel ?? 'linkedin',
       status: 'draft',
       body: '',
@@ -171,13 +177,25 @@ export async function executeContentWorkflow(
   let lastDraft = '';
   let lastTruth: ProductTruthValidationResult | undefined;
 
+  const normalizedChannel = (context.channel ?? contentRow.channel ?? '').toLowerCase().trim();
+  const isInstagram = normalizedChannel === 'instagram';
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const revisionBlock =
       attempt > 0 && lastTruth?.verdict === 'FAIL'
         ? `Your previous draft failed product truth validation for these reasons:\n${lastTruth.failed_reasons.map((r) => `- ${r}`).join('\n')}\n\nPlease revise the draft to fix these issues. Stay factual and aligned with product truth.`
         : undefined;
 
-    const draft = await generateDraft(brief, revisionBlock, context, gen);
+    const rawDraft = await generateDraft(brief, revisionBlock, context, gen);
+    let draft = rawDraft.trim();
+    let imagePrompt: string | null = null;
+    let visualDesc: string | null = null;
+    if (isInstagram) {
+      draft = extractCaption(rawDraft);
+      const prompts = extractImagePrompts(rawDraft);
+      imagePrompt = prompts[0]?.prompt ?? null;
+      visualDesc = extractAltText(rawDraft) ?? imagePrompt;
+    }
     lastDraft = draft;
     if (!draft) {
       return {
@@ -192,7 +210,13 @@ export async function executeContentWorkflow(
     await updateContent(caller, contentId, {
       body: draft,
       title: context.title ?? contentRow.title,
-      channel: context.channel ?? contentRow.channel ?? undefined,
+      channel: isInstagram ? 'instagram' : (context.channel ?? contentRow.channel ?? undefined),
+      ...(isInstagram
+        ? {
+            image_prompt: imagePrompt,
+            visual_description: visualDesc,
+          }
+        : {}),
     });
 
     const truthQuery = workflowQueryKey('truth', contentId);
@@ -213,15 +237,22 @@ export async function executeContentWorkflow(
         tenantId: context.tenantId,
         userQuery: brandQuery,
         brandVoiceContextMdOverride: context.brandVoiceContextMdOverride,
+        targetChannel: normalizedChannel || 'linkedin',
       }),
       runComp({
         organizationId: orgId,
         contentText: draft,
         tenantId: context.tenantId,
         userQuery: compQuery,
-        contentType: context.contentType ?? contentRow.content_type ?? 'social_post',
-        targetChannel: context.channel ?? contentRow.channel ?? 'linkedin',
+        contentType: context.contentType ?? contentRow.content_type ?? 'social',
+        targetChannel: normalizedChannel || 'linkedin',
         productTruthContextMdOverride: context.productTruthContextMdOverride,
+        ...(isInstagram
+          ? {
+              imagePrompt,
+              visualDescription: visualDesc,
+            }
+          : {}),
       }),
     ]);
 
@@ -239,6 +270,23 @@ export async function executeContentWorkflow(
         };
       }
       continue;
+    }
+
+    if (isInstagram && imagePrompt) {
+      const enhanced = enhanceImagePrompt(imagePrompt, 'modern_noir');
+      const genResult = await generateImage({
+        org_id: orgId,
+        content_id: contentId,
+        prompt: enhanced,
+        resolution: '1024x1024',
+        style_preset: 'modern_noir',
+      });
+      if (genResult.success && genResult.image_url) {
+        await updateContent(caller, contentId, {
+          image_url: genResult.image_url,
+          image_generation_metadata: genResult.metadata,
+        });
+      }
     }
 
     const assigned = await assign(caller, {

@@ -164,10 +164,15 @@ export const useAuthStore = create<AuthState>()(
         }
         return merged;
       },
-      onRehydrateStorage: () => (state) => {
-        if (state?.accessToken) setAccessToken(state.accessToken);
+      onRehydrateStorage: () => () => {
         useAuthStore.setState({ _hasHydrated: true });
       },
     }
   )
 );
+
+/** Keep in-memory Bearer (used by api.ts fetch) in sync with persisted store — avoids stale rehydrate overwriting a fresh login token. */
+setAccessToken(useAuthStore.getState().accessToken);
+useAuthStore.subscribe((state) => {
+  setAccessToken(state.accessToken);
+});

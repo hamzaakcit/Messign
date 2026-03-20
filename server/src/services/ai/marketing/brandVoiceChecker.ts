@@ -99,6 +99,8 @@ export interface RunBrandVoiceCheckArgs {
   /** Red team: skip LLM and parse this string (deterministic CI) */
   redTeamRawResponseOverride?: string;
   onRawModelResponse?: (raw: string) => void;
+  /** Publishing channel (e.g. instagram, linkedin) for channel-specific policies */
+  targetChannel?: string;
 }
 
 export async function runBrandVoiceCheck(args: RunBrandVoiceCheckArgs): Promise<BrandVoiceCheckResult> {
@@ -110,6 +112,7 @@ export async function runBrandVoiceCheck(args: RunBrandVoiceCheckArgs): Promise<
     brandVoiceContextMdOverride,
     redTeamRawResponseOverride,
     onRawModelResponse,
+    targetChannel,
   } = args;
 
   if (redTeamRawResponseOverride !== undefined) {
@@ -124,6 +127,12 @@ export async function runBrandVoiceCheck(args: RunBrandVoiceCheckArgs): Promise<
     '## CONTENT',
     '',
     contentText.slice(0, 14_000),
+    '',
+    '---',
+    '',
+    '## TARGET_CHANNEL',
+    '',
+    (targetChannel ?? 'linkedin').slice(0, 64),
     '',
     '---',
     '',

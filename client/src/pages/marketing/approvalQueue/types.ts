@@ -2,7 +2,7 @@
  * Approval queue types — aligned with server gatekeeper payloads (`truth_validation`, `brand_voice_check`, compliance).
  */
 
-export type TargetChannel = 'blog' | 'email' | 'social' | 'linkedin' | 'battlecard' | 'other';
+export type TargetChannel = 'blog' | 'email' | 'social' | 'linkedin' | 'instagram' | 'battlecard' | 'other';
 
 export type RejectionReason = 'off_brand' | 'factually_wrong' | 'wrong_audience' | 'needs_polish' | 'other';
 

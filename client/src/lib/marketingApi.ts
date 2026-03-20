@@ -123,6 +123,10 @@ export interface ContentItem {
   campaign_name?: string | null;
   author_name?: string | null;
   reviewer_name?: string | null;
+  image_prompt?: string | null;
+  image_url?: string | null;
+  visual_description?: string | null;
+  image_generation_metadata?: Record<string, unknown> | null;
 }
 
 export interface ContentCalendarDay {
@@ -292,6 +296,16 @@ export const marketingAPI = {
       method: 'POST',
       body: JSON.stringify({ date, time }),
     }, userId),
+  regenerateContentImage: (
+    userId: string,
+    contentId: string,
+    payload: { image_prompt: string; style_preset?: string },
+  ) =>
+    marketingRequest<{ success: boolean; image_url: string | null; error: string | null }>(
+      `/content/${contentId}/regenerate-image`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      userId,
+    ),
   getCalendarView: (userId: string, month: number, year: number) =>
     marketingRequest<ContentCalendarDay[]>(`/content/calendar?month=${month}&year=${year}`, {}, userId),
 

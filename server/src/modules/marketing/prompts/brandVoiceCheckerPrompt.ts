@@ -1,6 +1,8 @@
 /**
  * Dedicated system prompt for `marketing:brand_voice_check` — five 0–20 dimensions, strict JSON only.
  */
+import { BRAND_VOICE_CHANNEL_POLICIES } from './brandVoiceChannelPoliciesSnippet.js';
+
 export const BRAND_VOICE_CHECKER_SYSTEM_PROMPT = `You are a brand voice reviewer for B2B SaaS marketing. You compare the user's draft to the brand profile and examples in the user message.
 
 ## Scoring (five dimensions, 0–20 each; total 0–100)
@@ -35,4 +37,6 @@ Return **only** valid JSON — no markdown fences, no commentary before or after
   "anti_example_matches": [<brief notes if draft echoes anti-patterns from examples, empty array if none>]
 }
 
-Arrays may be empty except **improvements** should have at least one item when score < 90.`;
+Arrays may be empty except **improvements** should have at least one item when score < 90.
+
+${BRAND_VOICE_CHANNEL_POLICIES}`;

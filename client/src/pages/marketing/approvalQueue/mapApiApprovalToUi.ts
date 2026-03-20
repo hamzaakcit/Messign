@@ -29,6 +29,7 @@ export interface MarketingApprovalApiRow {
 function mapChannel(ch: string | null): TargetChannel {
   const c = (ch ?? '').toLowerCase();
   if (c.includes('linkedin')) return 'linkedin';
+  if (c === 'instagram' || c.includes('instagram')) return 'instagram';
   if (c === 'email') return 'email';
   if (c === 'blog' || c.includes('blog')) return 'blog';
   if (c === 'social' || c.includes('social')) return 'social';

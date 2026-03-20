@@ -3,6 +3,7 @@ import { Calendar, Globe, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
+import { InstagramCockpit } from './InstagramCockpit';
 
 interface ContentDetailPanelProps {
   contentId: string;
@@ -14,6 +15,8 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
   const userId = user?.authUserId || user?.id || '';
   const [content, setContent] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [imageGenProgress, setImageGenProgress] = useState('');
 
   const fetchContent = useCallback(async () => {
     if (!userId || !contentId) return;
@@ -34,6 +37,8 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
     return <div className="p-6 text-sm text-app-muted">Loading content…</div>;
   }
 
+  const isInstagram = (content.channel ?? '').toLowerCase() === 'instagram';
+
   return (
     <div className="p-6 space-y-5">
       <div>
@@ -51,10 +56,41 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
         <MetricCard icon={Send} label="Leads" value={content.leads_attributed.toLocaleString()} />
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <p className="text-xs uppercase tracking-wide text-app-muted mb-2">Body</p>
-        <div className="text-sm text-app-text whitespace-pre-wrap">{content.body || 'No body yet.'}</div>
-      </div>
+      {isInstagram ? (
+        <InstagramCockpit
+          caption={content.body ?? ''}
+          imageUrl={content.image_url ?? null}
+          imagePrompt={content.image_prompt ?? null}
+          altText={content.visual_description ?? null}
+          isGenerating={isGeneratingImage}
+          progressMessage={imageGenProgress}
+          contentId={content.id}
+          onRegenerateImage={async (newPrompt, stylePreset) => {
+            setIsGeneratingImage(true);
+            setImageGenProgress('Regenerating visual…');
+            try {
+              const r = await marketingAPI.regenerateContentImage(userId, content.id, {
+                image_prompt: newPrompt,
+                style_preset: stylePreset,
+              });
+              if (r.success && r.image_url) {
+                setContent((c) =>
+                  c ? { ...c, image_url: r.image_url, image_prompt: newPrompt, visual_description: newPrompt } : c,
+                );
+                onUpdated();
+              }
+            } finally {
+              setIsGeneratingImage(false);
+              setImageGenProgress('');
+            }
+          }}
+        />
+      ) : (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs uppercase tracking-wide text-app-muted mb-2">Body</p>
+          <div className="text-sm text-app-text whitespace-pre-wrap">{content.body || 'No body yet.'}</div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs uppercase tracking-wide text-app-muted mb-2">Tags</p>

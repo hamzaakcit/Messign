@@ -1,6 +1,28 @@
 import type { Request, Response, NextFunction } from 'express';
+import fs from 'node:fs';
 import { verifyAccess } from '../utils/jwt.js';
 import { computeFingerprint, getClientIp } from '../services/authService.js';
+
+const DEBUG_LOG = '/Users/hamzaakcit/.cursor/debug-2b9763.log';
+function dbgOptionalJwt(hypothesisId: string, message: string, data: Record<string, unknown>): void {
+  // #region agent log
+  try {
+    fs.appendFileSync(
+      DEBUG_LOG,
+      `${JSON.stringify({
+        sessionId: '2b9763',
+        hypothesisId,
+        message,
+        data,
+        timestamp: Date.now(),
+        location: 'authMiddleware.ts:optionalJwt',
+      })}\n`,
+    );
+  } catch {
+    /* ignore */
+  }
+  // #endregion
+}
 
 declare global {
   namespace Express {
@@ -54,12 +76,14 @@ export function optionalJwt(req: Request, res: Response, next: NextFunction): vo
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
+    dbgOptionalJwt('H1', 'optionalJwt_no_bearer', { path: req.path, method: req.method });
     next();
     return;
   }
   try {
     const payload = verifyAccess(token);
     if (!verifyFingerprint(req, payload.fp)) {
+      dbgOptionalJwt('H2', 'optionalJwt_fp_mismatch', { path: req.path, method: req.method });
       next();
       return;
     }
@@ -69,7 +93,12 @@ export function optionalJwt(req: Request, res: Response, next: NextFunction): vo
     if (payload.organizationId) {
       req.jwtOrganizationId = payload.organizationId;
     }
-  } catch {
+  } catch (e) {
+    dbgOptionalJwt('H3', 'optionalJwt_verify_fail', {
+      path: req.path,
+      method: req.method,
+      err: e instanceof Error ? e.message : String(e),
+    });
     // Invalid or expired token - leave req.userId unset
   }
   next();

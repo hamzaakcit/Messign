@@ -1,13 +1,34 @@
 import type { Request, Response, NextFunction } from 'express';
+import fs from 'node:fs';
 import { query } from '../db/index.js';
 import { ensureReimbursementUserForAuth } from '../db/ensureReimbursementUser.js';
 import { getByAuthUserId } from '../db/employeeAuthDb.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
 
+const DEBUG_LOG = '/Users/hamzaakcit/.cursor/debug-2b9763.log';
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const userId = (req as Request & { userId?: string }).userId ?? (req.headers['x-user-id'] as string | undefined);
   if (!userId) {
+    // #region agent log
+    try {
+      const hasAuth = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ');
+      fs.appendFileSync(
+        DEBUG_LOG,
+        `${JSON.stringify({
+          sessionId: '2b9763',
+          hypothesisId: 'H5',
+          message: 'requireAuth_no_userId',
+          data: { path: req.path, method: req.method, hasBearer: hasAuth },
+          timestamp: Date.now(),
+          location: 'requireAuth.ts',
+        })}\n`,
+      );
+    } catch {
+      /* ignore */
+    }
+    // #endregion
     res.status(401).json({ error: 'Authorization or X-User-Id required' });
     return;
   }

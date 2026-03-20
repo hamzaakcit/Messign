@@ -3,12 +3,13 @@ import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
 import { paginationClause } from '../helpers.js';
+import type { ImageGenerationFields, ImageGenerationMetadata } from './instagramTypes.js';
 
 async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   return withTenantQuery(tenantId, fn);
 }
 
-export interface Content {
+export interface Content extends ImageGenerationFields {
   id: string;
   organization_id: string | null;
   campaign_id: string | null;
@@ -40,6 +41,8 @@ export interface Content {
   brand_voice_checked_at?: string | null;
   user_brief?: string | null;
   revision_history?: unknown[];
+  /** Meta Graph media id after Instagram publish */
+  instagram_media_id?: string | null;
 }
 
 export interface ContentFilters {
@@ -72,6 +75,11 @@ export interface CreateContentInput {
   brand_voice_checked_at?: string | null;
   user_brief?: string | null;
   revision_history?: unknown[];
+  image_prompt?: string | null;
+  image_url?: string | null;
+  visual_description?: string | null;
+  image_generation_metadata?: ImageGenerationMetadata | null;
+  instagram_media_id?: string | null;
 }
 
 export type UpdateContentInput = Partial<CreateContentInput> & {
@@ -104,6 +112,20 @@ function parseRevisionHistory(raw: unknown): unknown[] {
     }
   }
   return [];
+}
+
+function parseImageGenerationMetadata(raw: unknown): ImageGenerationMetadata | null {
+  if (raw == null) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw as ImageGenerationMetadata;
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw) as unknown;
+      return typeof p === 'object' && p != null ? (p as ImageGenerationMetadata) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function mapContent(row: Record<string, unknown>): Content {
@@ -157,6 +179,11 @@ function mapContent(row: Record<string, unknown>): Content {
     brand_voice_checked_at: row.brand_voice_checked_at ? String(row.brand_voice_checked_at) : null,
     user_brief: row.user_brief != null ? String(row.user_brief) : null,
     revision_history: parseRevisionHistory(row.revision_history),
+    image_prompt: row.image_prompt != null ? String(row.image_prompt) : null,
+    image_url: row.image_url != null ? String(row.image_url) : null,
+    visual_description: row.visual_description != null ? String(row.visual_description) : null,
+    image_generation_metadata: parseImageGenerationMetadata(row.image_generation_metadata),
+    instagram_media_id: row.instagram_media_id != null ? String(row.instagram_media_id) : null,
   };
 }
 
@@ -285,9 +312,10 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
          organization_id, campaign_id, title, content_type, channel, status, body,
          body_html, scheduled_date, scheduled_time, author_id, reviewer_id, tags,
          truth_validation, truth_validated_at, brand_voice_check, brand_voice_checked_at,
-         user_brief, revision_history
+         user_brief, revision_history,
+         image_prompt, image_url, visual_description, image_generation_metadata, instagram_media_id
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
        RETURNING *`,
       [
         tenantId,
@@ -309,6 +337,11 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
         data.brand_voice_checked_at ?? null,
         data.user_brief ?? null,
         data.revision_history != null ? JSON.stringify(data.revision_history) : '[]',
+        data.image_prompt ?? null,
+        data.image_url ?? null,
+        data.visual_description ?? null,
+        data.image_generation_metadata ?? null,
+        data.instagram_media_id ?? null,
       ],
     );
     return (await getContentById(ctx, String(result.rows[0].id))) ?? mapContent(result.rows[0] as Record<string, unknown>);
@@ -358,6 +391,21 @@ export async function updateContent(
   }
   if (data.revision_history !== undefined) {
     fields.push(['revision_history', JSON.stringify(data.revision_history ?? [])]);
+  }
+  if (data.image_prompt !== undefined) {
+    fields.push(['image_prompt', data.image_prompt ?? null]);
+  }
+  if (data.image_url !== undefined) {
+    fields.push(['image_url', data.image_url ?? null]);
+  }
+  if (data.visual_description !== undefined) {
+    fields.push(['visual_description', data.visual_description ?? null]);
+  }
+  if (data.image_generation_metadata !== undefined) {
+    fields.push(['image_generation_metadata', data.image_generation_metadata ?? null]);
+  }
+  if (data.instagram_media_id !== undefined) {
+    fields.push(['instagram_media_id', data.instagram_media_id ?? null]);
   }
 
   const sets: string[] = [];

@@ -76,6 +76,7 @@ export function ApprovalList({
             <option value="blog">Blog</option>
             <option value="email">Email</option>
             <option value="linkedin">LinkedIn</option>
+            <option value="instagram">Instagram</option>
             <option value="social">Social</option>
             <option value="battlecard">Battlecard</option>
             <option value="other">Other</option>

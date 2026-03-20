@@ -1,4 +1,4 @@
-import { getAccessToken, setAccessToken } from './authToken';
+import { getAccessToken } from './authToken';
 
 function normalizeApiOrigin(v: string | undefined): string {
   if (v == null || typeof v !== 'string') return '';
@@ -300,7 +300,10 @@ async function tryRefreshToken(): Promise<boolean> {
       const body = await res.json();
       const data = (body as { data?: { accessToken: string; expiresIn: number } }).data;
       if (!data?.accessToken) return false;
-      setAccessToken(data.accessToken);
+      const expiresAt = Date.now() + (data.expiresIn ?? 900) * 1000;
+      // Update persisted auth store so the store→module subscriber does not overwrite a fresh token with a stale expired one from persist.
+      const { useAuthStore } = await import('@/stores/authStore');
+      useAuthStore.setState({ accessToken: data.accessToken, expiresAt });
       return true;
     } catch {
       return false;

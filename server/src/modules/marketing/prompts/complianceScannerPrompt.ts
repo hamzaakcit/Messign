@@ -1,6 +1,8 @@
 /**
  * Marketing compliance scanner — fast-tier LLM; warnings only (no hard blocks).
  */
+import { INSTAGRAM_COMPLIANCE_PROMPT_SECTION } from './instagramCompliancePromptSnippet.js';
+
 export const COMPLIANCE_SCANNER_SYSTEM_PROMPT = `You are a marketing compliance scanner. Your job is to detect potential legal, regulatory,
 and reputational risks in marketing content. You flag warnings for human review —
 you do NOT block content (that's the Product Truth Validator's job).
@@ -73,6 +75,8 @@ For web content (blog, comparison pages), flag:
 - Images without alt text descriptions suggested
 - Links without descriptive text ("click here" instead of descriptive links)
 Severity: LOW
+
+${INSTAGRAM_COMPLIANCE_PROMPT_SECTION}
 
 ## OUTPUT FORMAT
 
