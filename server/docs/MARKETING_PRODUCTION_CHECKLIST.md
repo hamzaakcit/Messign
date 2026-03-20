@@ -20,7 +20,7 @@ DATABASE_URL="postgresql://..." npx vitest run src/__tests__/modules/marketing/p
 
 ## 2. Database migrations (production)
 
-Apply migrations **through 078** on the **production** Postgres (Railway / Render / etc.):
+Apply migrations **through 080** on the **production** Postgres (Railway / Render / etc.):
 
 | Migration | Purpose |
 |-----------|---------|
@@ -28,6 +28,8 @@ Apply migrations **through 078** on the **production** Postgres (Railway / Rende
 | `076_marketing_publisher_calendar.sql` | Publisher columns: `published_url`, `last_error`, `external_post_id`; status includes `processing` |
 | `077_marketing_content_user_brief_revision.sql` | Content revision fields |
 | `078_marketing_calendar_paused_finance_stub.sql` | Calendar `paused` status; `finance_marketing_journal_stub` for budget ↔ finance sync |
+| `079_marketing_memory_automation.sql` | Marketing memory + automation triggers (V2) |
+| `080_marketing_brand_voice_proposals.sql` | Brand voice proposal queue for learner / HITL |
 
 From `server/` (with `DATABASE_URL` pointing at production):
 

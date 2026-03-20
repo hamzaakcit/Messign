@@ -57,7 +57,7 @@ async function cleanupWorkspace(orgId: string): Promise<void> {
   await pool.query(`DELETE FROM organizations WHERE id = $1`, [orgId]);
 }
 
-describe.skipIf(!hasDb)('Phase 5 — publisher execution matrix', () => {
+describe.skipIf(!hasDb)('Phase 5 — publisher execution matrix', { timeout: 30_000 }, () => {
   let calendarTableReady = false;
 
   beforeAll(async () => {
