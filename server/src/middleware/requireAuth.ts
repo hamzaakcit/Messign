@@ -33,7 +33,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       }
     }
     if (!userResult.rows[0]) {
-      res.status(401).json({ error: 'User not found' });
+      // 403: not a missing/invalid token — user is authenticated but not provisioned for API routes (avoid client logout loop)
+      res.status(403).json({
+        error: 'USER_NOT_PROVISIONED',
+        message: 'Workspace user record is missing. Run server seed or contact admin.',
+      });
       return;
     }
 

@@ -17,6 +17,7 @@ import { logAuditEvent } from '../platform/audit.js';
 import * as sessionService from './sessionService.js';
 import { signAccess, signRefresh, verifyRefresh, getAccessExpirySeconds } from '../utils/jwt.js';
 import * as authSessionsDb from '../db/authSessionsDb.js';
+import { ensureReimbursementUserForAuth } from '../db/ensureReimbursementUser.js';
 import type { User } from '../types/index.js';
 import { DEFAULT_PASSWORD } from '../types/auth.js';
 
@@ -229,6 +230,11 @@ export async function login(
   const user = await getEmployeeByIdAsUser(authUserId);
   if (!user) {
     return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'User not found' } };
+  }
+  try {
+    await ensureReimbursementUserForAuth(authUserId, user.email, user.name);
+  } catch (e) {
+    console.warn('[authService.login] ensureReimbursementUserForAuth:', e);
   }
   const badges = await getBadgesForUser(user.id);
   const userWithBadges = { ...user, badges };
