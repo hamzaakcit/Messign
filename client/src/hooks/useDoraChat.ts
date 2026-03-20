@@ -130,6 +130,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
       abortControllerRef.current = new AbortController();
 
+      let assistantFinalized = false;
       try {
         const token = getAccessToken();
         const response = await fetch(V2_ANSWER_URL, {
@@ -190,170 +191,188 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         /** Avoid double finalization: `done` already applies the same snapshot; post-loop is only for streams that close without `done`. */
         let sawDoneEvent = false;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        const handleSseEvent = (event: Record<string, unknown>) => {
+          switch (event.type) {
+            case 'text': {
+              accumulatedText += eventTextChunk(event);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
+                ),
+              );
+              break;
+            }
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const event = parseSseJsonLine(line);
-            if (!event || typeof event.type !== 'string') continue;
-
-            switch (event.type) {
-              case 'text': {
-                accumulatedText += eventTextChunk(event);
+            case 'notice': {
+              const note =
+                (typeof event.data === 'string' ? event.data : (event.content as string)) ?? '';
+              if (note) {
+                const prefix = accumulatedText ? '\n\n' : '';
+                accumulatedText += `${prefix}⚠️ ${note}`;
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
                   ),
                 );
-                break;
               }
+              break;
+            }
 
-              case 'notice': {
-                const note =
-                  (typeof event.data === 'string' ? event.data : (event.content as string)) ?? '';
-                if (note) {
-                  const prefix = accumulatedText ? '\n\n' : '';
-                  accumulatedText += `${prefix}⚠️ ${note}`;
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
-                    ),
-                  );
-                }
-                break;
-              }
+            case 'specialist':
+              accumulatedSpecialist = {
+                module: (event.module as string) ?? '',
+                displayName: (event.displayName as string) ?? (event.module as string) ?? '',
+                icon: (event.icon as string) ?? '✨',
+              };
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m,
+                ),
+              );
+              break;
 
-              case 'specialist':
+            case 'sources': {
+              const raw = event.data ?? event.documents ?? event.content;
+              accumulatedSources = (Array.isArray(raw) ? raw : []) as AISourceDocument[];
+              break;
+            }
+
+            case 'metadata': {
+              const meta = (event.data ?? event.content) as AIResponseMetadata;
+              accumulatedMetadata = meta;
+              if (meta?.specialist && !accumulatedSpecialist) {
                 accumulatedSpecialist = {
-                  module: (event.module as string) ?? '',
-                  displayName: (event.displayName as string) ?? (event.module as string) ?? '',
-                  icon: (event.icon as string) ?? '✨',
+                  module: meta.specialist,
+                  displayName: meta.specialistDisplayName ?? meta.specialist,
+                  icon: meta.specialistIcon ?? '✨',
                 };
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m,
                   ),
                 );
-                break;
-
-              case 'sources': {
-                const raw = event.data ?? event.documents ?? event.content;
-                accumulatedSources = (Array.isArray(raw) ? raw : []) as AISourceDocument[];
-                break;
               }
-
-              case 'metadata': {
-                const meta = (event.data ?? event.content) as AIResponseMetadata;
-                accumulatedMetadata = meta;
-                if (meta?.specialist && !accumulatedSpecialist) {
-                  accumulatedSpecialist = {
-                    module: meta.specialist,
-                    displayName: meta.specialistDisplayName ?? meta.specialist,
-                    icon: meta.specialistIcon ?? '✨',
-                  };
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m,
-                    ),
-                  );
-                }
-                break;
-              }
-
-              case 'chart_data':
-                accumulatedChartData = (event.data ?? event.content) as AIChartPayload;
-                break;
-
-              case 'table_data':
-                accumulatedTableData = (event.data ?? event.content) as AITablePayload;
-                break;
-
-              case 'widget_data': {
-                const pack = (event.data ?? event.content) as
-                  | AIWidgetPayload
-                  | { widgets?: AIWidgetPayload[] };
-                if (pack && typeof pack === 'object' && 'widgets' in pack && pack.widgets?.length) {
-                  accumulatedWidgets.push(...pack.widgets);
-                } else if (pack && typeof pack === 'object' && 'widgetType' in pack) {
-                  accumulatedWidgets.push(pack as AIWidgetPayload);
-                }
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? { ...m, widgets: [...accumulatedWidgets] }
-                      : m,
-                  ),
-                );
-                break;
-              }
-
-              case 'pending_action': {
-                const raw = (event.data ?? event.content) as DoraPendingActionContent;
-                accumulatedPendingAction = raw;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? { ...m, pendingAction: raw, actionStatus: 'pending' }
-                      : m,
-                  ),
-                );
-                break;
-              }
-
-              case 'error': {
-                const ed = event.data as { message?: string } | undefined;
-                const errMsg =
-                  (ed && typeof ed.message === 'string' && ed.message) ||
-                  (typeof event.message === 'string' ? event.message : null) ||
-                  (typeof event.content === 'string' ? event.content : null) ||
-                  'Unknown error';
-                setError(errMsg);
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id ? { ...m, content: errMsg, isStreaming: false } : m,
-                  ),
-                );
-                break;
-              }
-
-              case 'done':
-                sawDoneEvent = true;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? {
-                          ...m,
-                          content: accumulatedText || m.content,
-                          specialist: accumulatedSpecialist ?? m.specialist,
-                          sources: accumulatedSources.length > 0 ? accumulatedSources : undefined,
-                          metadata: accumulatedMetadata,
-                          chartData: accumulatedChartData,
-                          tableData: accumulatedTableData,
-                          widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : undefined,
-                          pendingAction: accumulatedPendingAction ?? m.pendingAction,
-                          actionStatus:
-                            accumulatedPendingAction ?? m.pendingAction
-                              ? (m.actionStatus ?? 'pending')
-                              : undefined,
-                          isStreaming: false,
-                        }
-                      : m,
-                  ),
-                );
-                break;
-
-              default:
-                break;
+              break;
             }
+
+            case 'chart_data':
+              accumulatedChartData = (event.data ?? event.content) as AIChartPayload;
+              break;
+
+            case 'table_data':
+              accumulatedTableData = (event.data ?? event.content) as AITablePayload;
+              break;
+
+            case 'widget_data': {
+              const pack = (event.data ?? event.content) as
+                | AIWidgetPayload
+                | { widgets?: AIWidgetPayload[] };
+              if (pack && typeof pack === 'object' && 'widgets' in pack && pack.widgets?.length) {
+                accumulatedWidgets.push(...pack.widgets);
+              } else if (pack && typeof pack === 'object' && 'widgetType' in pack) {
+                accumulatedWidgets.push(pack as AIWidgetPayload);
+              }
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, widgets: [...accumulatedWidgets] } : m,
+                ),
+              );
+              break;
+            }
+
+            case 'pending_action': {
+              const raw = (event.data ?? event.content) as DoraPendingActionContent;
+              accumulatedPendingAction = raw;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id
+                    ? { ...m, pendingAction: raw, actionStatus: 'pending' }
+                    : m,
+                ),
+              );
+              break;
+            }
+
+            case 'error': {
+              assistantFinalized = true;
+              const ed = event.data as { message?: string } | undefined;
+              const errMsg =
+                (ed && typeof ed.message === 'string' && ed.message) ||
+                (typeof event.message === 'string' ? event.message : null) ||
+                (typeof event.content === 'string' ? event.content : null) ||
+                'Unknown error';
+              setError(errMsg);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, content: errMsg, isStreaming: false } : m,
+                ),
+              );
+              break;
+            }
+
+            case 'done':
+              assistantFinalized = true;
+              sawDoneEvent = true;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id
+                    ? {
+                        ...m,
+                        content: accumulatedText || m.content,
+                        specialist: accumulatedSpecialist ?? m.specialist,
+                        sources: accumulatedSources.length > 0 ? accumulatedSources : undefined,
+                        metadata: accumulatedMetadata,
+                        chartData: accumulatedChartData,
+                        tableData: accumulatedTableData,
+                        widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : undefined,
+                        pendingAction: accumulatedPendingAction ?? m.pendingAction,
+                        actionStatus:
+                          accumulatedPendingAction ?? m.pendingAction
+                            ? (m.actionStatus ?? 'pending')
+                            : undefined,
+                        isStreaming: false,
+                      }
+                    : m,
+                ),
+              );
+              break;
+
+            default:
+              break;
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (value) {
+            buffer += decoder.decode(value, { stream: true });
+          }
+          if (done) {
+            buffer += decoder.decode(new Uint8Array(), { stream: false });
+          }
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const event = parseSseJsonLine(line);
+            if (!event || typeof event.type !== 'string') continue;
+            handleSseEvent(event);
+          }
+
+          if (done) {
+            if (buffer.trim()) {
+              const event = parseSseJsonLine(buffer);
+              if (event && typeof event.type === 'string') {
+                handleSseEvent(event);
+              }
+            }
+            break;
           }
         }
 
         if (!sawDoneEvent) {
+          assistantFinalized = true;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessage.id
@@ -375,6 +394,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
+          assistantFinalized = true;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessage.id
@@ -383,6 +403,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
             ),
           );
         } else {
+          assistantFinalized = true;
           console.error('[useDoraChat] Error:', err);
           setError(err instanceof Error ? err.message : 'Failed to get AI response');
           setMessages((prev) => prev.filter((m) => m.id !== assistantMessage.id));
@@ -392,6 +413,21 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         setIsLoading(false);
         setIsStreaming(false);
         abortControllerRef.current = null;
+        if (!assistantFinalized) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessage.id && m.isStreaming
+                ? {
+                    ...m,
+                    isStreaming: false,
+                    content:
+                      m.content?.trim() ||
+                      'No response was returned. Try again or check your connection.',
+                  }
+                : m,
+            ),
+          );
+        }
       }
     },
     [isLoading, interactionMode, maxHistory, sessionId, defaultMarketingAgentMode],

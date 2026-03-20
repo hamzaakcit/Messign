@@ -47,6 +47,8 @@ export interface SendMessageOptions {
   confirmation?: { action: string; params: Record<string, unknown> };
   /** Act confirm: POST without adding another user bubble */
   skipUserMessage?: boolean;
+  /** v2: one-shot Marketing Sub-Orchestrator flag */
+  marketingAgentMode?: boolean;
 }
 
 export type InteractionMode = 'ask' | 'analyze' | 'act';
@@ -64,6 +66,8 @@ export interface UseAIChatOptions {
   initialInteractionMode?: InteractionMode;
   /** When typed text auto-maps to a preset intent (same as chips), register for session memory */
   onIntentResolved?: (intentId: string) => void;
+  /** v2: POST marketingAgentMode so pipeline runs Marketing Sub-Orchestrator */
+  marketingAgentMode?: boolean;
 }
 
 export interface UseAIChatReturn {
@@ -100,6 +104,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     onMessagesChange,
     initialInteractionMode = 'ask',
     onIntentResolved,
+    marketingAgentMode: defaultMarketingAgentMode,
   } = options;
 
   const onMessagesChangeRef = useRef(onMessagesChange);
@@ -177,6 +182,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
     abortControllerRef.current = new AbortController();
 
+    let assistantFinalized = false;
     try {
       const token = getAccessToken();
       const response = await fetch(`${apiBaseUrl}/ai/answer`, {
@@ -196,6 +202,9 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           currentPath: window.location.pathname,
           sessionId,
           searchMode: false,
+          ...(defaultMarketingAgentMode === true || options?.marketingAgentMode === true
+            ? { marketingAgentMode: true }
+            : {}),
           ...(options?.confirmed === true && options?.confirmation
             ? {
                 confirmed: true,
@@ -239,6 +248,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               : m
           )
         );
+        assistantFinalized = true;
         return;
       }
 
@@ -274,6 +284,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               : m
           )
         );
+        assistantFinalized = true;
         return;
       }
 
@@ -296,171 +307,191 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       let accumulatedSpecialist: SpecialistInfo | null = null;
       let accumulatedPendingAction: DoraPendingActionContent | undefined;
 
+      const handleParsedEvent = (event: Record<string, unknown>) => {
+        switch (event.type) {
+          case 'text':
+            accumulatedText += sseTextChunk(event);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m
+              )
+            );
+            break;
+
+          case 'notice': {
+            const note = sseTextChunk(event);
+            if (note) {
+              const prefix = accumulatedText ? '\n\n' : '';
+              accumulatedText += `${prefix}⚠️ ${note}`;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m
+                )
+              );
+            }
+            break;
+          }
+
+          case 'specialist':
+            accumulatedSpecialist = {
+              module: (event.module as string) ?? '',
+              displayName: (event.displayName as string) ?? event.module ?? '',
+              icon: (event.icon as string) ?? '✨',
+            };
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m
+              )
+            );
+            break;
+
+          case 'sources':
+            accumulatedSources = (event.documents ?? sseData(event) ?? []) as AISourceDocument[];
+            break;
+
+          case 'metadata':
+            accumulatedMetadata = sseData(event) as AIResponseMetadata;
+            if (accumulatedMetadata?.specialist && !accumulatedSpecialist) {
+              accumulatedSpecialist = {
+                module: accumulatedMetadata.specialist,
+                displayName: accumulatedMetadata.specialistDisplayName ?? accumulatedMetadata.specialist,
+                icon: accumulatedMetadata.specialistIcon ?? '✨',
+              };
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m
+                )
+              );
+            }
+            break;
+
+          case 'chart_data':
+            accumulatedChartData = sseData(event) as AIChartPayload;
+            break;
+
+          case 'table_data':
+            accumulatedTableData = sseData(event) as AITablePayload;
+            break;
+
+          case 'widget_data': {
+            const pack = sseData(event) as
+              | AIWidgetPayload
+              | { widgets?: AIWidgetPayload[] }
+              | undefined;
+            if (pack && typeof pack === 'object' && 'widgets' in pack && pack.widgets?.length) {
+              accumulatedWidgets.push(...pack.widgets);
+            } else if (pack && typeof pack === 'object' && 'widgetType' in pack) {
+              accumulatedWidgets.push(pack as AIWidgetPayload);
+            }
+            break;
+          }
+
+          case 'pending_action': {
+            const pa = sseData(event) as DoraPendingActionContent;
+            accumulatedPendingAction = pa;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMessage.id
+                  ? {
+                      ...m,
+                      pendingAction: pa,
+                      actionStatus: 'pending',
+                    }
+                  : m
+              )
+            );
+            break;
+          }
+
+          case 'error': {
+            assistantFinalized = true;
+            const ed = event.data as { message?: string } | undefined;
+            const errMsg = (
+              (ed && typeof ed.message === 'string' ? ed.message : null) ??
+              (typeof event.content === 'string' ? event.content : null) ??
+              (typeof event.message === 'string' ? event.message : null) ??
+              'Unknown error'
+            ) as string;
+            setError(errMsg);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMessage.id
+                  ? { ...m, content: errMsg, isStreaming: false }
+                  : m
+              )
+            );
+            break;
+          }
+
+          case 'done':
+            assistantFinalized = true;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMessage.id
+                  ? {
+                      ...m,
+                      content: accumulatedText || m.content,
+                      specialist: accumulatedSpecialist ?? m.specialist,
+                      sources:
+                        accumulatedSources.length > 0 ? accumulatedSources : undefined,
+                      metadata: accumulatedMetadata,
+                      chartData: accumulatedChartData,
+                      tableData: accumulatedTableData,
+                      widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : undefined,
+                      pendingAction: accumulatedPendingAction ?? m.pendingAction,
+                      actionStatus:
+                        accumulatedPendingAction ?? m.pendingAction
+                          ? (m.actionStatus ?? 'pending')
+                          : undefined,
+                      isStreaming: false,
+                    }
+                  : m
+              )
+            );
+            break;
+        }
+      };
+
+      const processSseLine = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) return;
+
+        const jsonStr = trimmed.slice(6);
+
+        try {
+          const event = JSON.parse(jsonStr) as Record<string, unknown>;
+          handleParsedEvent(event);
+        } catch {
+          console.warn('[useAIChat] Failed to parse SSE event:', jsonStr);
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+        }
+        if (done) {
+          buffer += decoder.decode(new Uint8Array(), { stream: false });
+        }
 
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          processSseLine(line);
+        }
 
-          const jsonStr = trimmed.slice(6);
-
-          try {
-            const event = JSON.parse(jsonStr) as Record<string, unknown>;
-
-            switch (event.type) {
-              case 'text':
-                accumulatedText += sseTextChunk(event);
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m
-                  )
-                );
-                break;
-
-              case 'notice': {
-                const note = sseTextChunk(event);
-                if (note) {
-                  const prefix = accumulatedText ? '\n\n' : '';
-                  accumulatedText += `${prefix}⚠️ ${note}`;
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m
-                    )
-                  );
-                }
-                break;
-              }
-
-              case 'specialist':
-                accumulatedSpecialist = {
-                  module: (event.module as string) ?? '',
-                  displayName: (event.displayName as string) ?? event.module ?? '',
-                  icon: (event.icon as string) ?? '✨',
-                };
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m
-                  )
-                );
-                break;
-
-              case 'sources':
-                accumulatedSources = (event.documents ?? sseData(event) ?? []) as AISourceDocument[];
-                break;
-
-              case 'metadata':
-                accumulatedMetadata = sseData(event) as AIResponseMetadata;
-                if (accumulatedMetadata?.specialist && !accumulatedSpecialist) {
-                  accumulatedSpecialist = {
-                    module: accumulatedMetadata.specialist,
-                    displayName: accumulatedMetadata.specialistDisplayName ?? accumulatedMetadata.specialist,
-                    icon: accumulatedMetadata.specialistIcon ?? '✨',
-                  };
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m
-                    )
-                  );
-                }
-                break;
-
-              case 'chart_data':
-                accumulatedChartData = sseData(event) as AIChartPayload;
-                break;
-
-              case 'table_data':
-                accumulatedTableData = sseData(event) as AITablePayload;
-                break;
-
-              case 'widget_data': {
-                const pack = sseData(event) as
-                  | AIWidgetPayload
-                  | { widgets?: AIWidgetPayload[] }
-                  | undefined;
-                if (pack && typeof pack === 'object' && 'widgets' in pack && pack.widgets?.length) {
-                  accumulatedWidgets.push(...pack.widgets);
-                } else if (pack && typeof pack === 'object' && 'widgetType' in pack) {
-                  accumulatedWidgets.push(pack as AIWidgetPayload);
-                }
-                break;
-              }
-
-              case 'pending_action': {
-                const pa = sseData(event) as DoraPendingActionContent;
-                accumulatedPendingAction = pa;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? {
-                          ...m,
-                          pendingAction: pa,
-                          actionStatus: 'pending',
-                        }
-                      : m
-                  )
-                );
-                break;
-              }
-
-              case 'error': {
-                const ed = event.data as { message?: string } | undefined;
-                const errMsg = (
-                  (ed && typeof ed.message === 'string' ? ed.message : null) ??
-                  (typeof event.content === 'string' ? event.content : null) ??
-                  (typeof event.message === 'string' ? event.message : null) ??
-                  'Unknown error'
-                ) as string;
-                setError(errMsg);
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? { ...m, content: errMsg, isStreaming: false }
-                      : m
-                  )
-                );
-                break;
-              }
-
-              case 'done':
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? {
-                          ...m,
-                          content: accumulatedText || m.content,
-                          specialist: accumulatedSpecialist ?? m.specialist,
-                          sources:
-                            accumulatedSources.length > 0 ? accumulatedSources : undefined,
-                          metadata: accumulatedMetadata,
-                          chartData: accumulatedChartData,
-                          tableData: accumulatedTableData,
-                          widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : undefined,
-                          pendingAction: accumulatedPendingAction ?? m.pendingAction,
-                          actionStatus:
-                            accumulatedPendingAction ?? m.pendingAction
-                              ? (m.actionStatus ?? 'pending')
-                              : undefined,
-                          isStreaming: false,
-                        }
-                      : m
-                  )
-                );
-                break;
-            }
-          } catch {
-            console.warn('[useAIChat] Failed to parse SSE event:', jsonStr);
+        if (done) {
+          if (buffer.trim()) {
+            processSseLine(buffer);
           }
+          break;
         }
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
+        assistantFinalized = true;
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMessage.id
@@ -469,6 +500,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           )
         );
       } else {
+        assistantFinalized = true;
         console.error('[useAIChat] Error:', err);
         setError(err instanceof Error ? err.message : 'Failed to get AI response');
         setMessages((prev) => prev.filter((m) => m.id !== assistantMessage.id));
@@ -478,8 +510,23 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       setIsLoading(false);
       setIsStreaming(false);
       abortControllerRef.current = null;
+      if (!assistantFinalized) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessage.id && m.isStreaming
+              ? {
+                  ...m,
+                  isStreaming: false,
+                  content:
+                    m.content?.trim() ||
+                    'No response was returned. Try again or check your connection.',
+                }
+              : m
+          ),
+        );
+      }
     }
-  }, [isLoading, interactionMode, maxHistory, apiBaseUrl, sessionId]);
+  }, [isLoading, interactionMode, maxHistory, apiBaseUrl, sessionId, defaultMarketingAgentMode]);
 
   const cancelActConfirmation = useCallback((assistantMessageId: string) => {
     setMessages((prev) =>
