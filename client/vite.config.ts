@@ -10,7 +10,10 @@ export default defineConfig({
     },
   },
   server: {
+    // Listen on all interfaces so `localhost` (IPv4/IPv6) and `127.0.0.1` both work on macOS/Linux.
+    host: true,
     port: 3000,
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3001',
