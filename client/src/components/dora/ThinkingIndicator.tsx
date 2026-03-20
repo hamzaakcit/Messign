@@ -7,21 +7,23 @@ const CYCLING_MESSAGES = [
   'Synthesizing answer...',
 ];
 
-export const ThinkingIndicator: React.FC = () => {
-  const [messageIdx, setMessageIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
+export type ThinkingIndicatorVariant = 'static' | 'cycling';
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setMessageIdx((prev) => (prev + 1) % CYCLING_MESSAGES.length);
-        setVisible(true);
-      }, 250);
-    }, 2200);
-    return () => clearInterval(interval);
-  }, []);
+interface ThinkingIndicatorProps {
+  /**
+   * `static` — one line (default). Avoids rotating status copy while v2 / slow streams wait for first token.
+   * `cycling` — legacy rotating messages (~2.2s each).
+   */
+  variant?: ThinkingIndicatorVariant;
+  /** Override label when variant is `static` */
+  label?: string;
+}
 
+function ThinkingIndicatorShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div
       className="dora-fade-up"
@@ -37,18 +39,46 @@ export const ThinkingIndicator: React.FC = () => {
       }}
     >
       <DoraProcessingDual size={20} />
+      <div
+        style={{
+          width: 1,
+          height: 24,
+          background: 'rgba(56, 189, 248, 0.12)',
+          marginLeft: 4,
+          marginRight: 14,
+          flexShrink: 0,
+        }}
+      />
+      {children}
+    </div>
+  );
+}
 
-      {/* Divider */}
-      <div style={{
-        width: 1,
-        height: 24,
-        background: 'rgba(56, 189, 248, 0.12)',
-        marginLeft: 4,
-        marginRight: 14,
-        flexShrink: 0,
-      }} />
+function ThinkingIndicatorStatic({ label }: { label: string }) {
+  return (
+    <ThinkingIndicatorShell>
+      <span style={{ fontSize: 13, color: '#94a3b8', whiteSpace: 'nowrap' }}>{label}</span>
+    </ThinkingIndicatorShell>
+  );
+}
 
-      {/* Cycling status text */}
+function ThinkingIndicatorCycling() {
+  const [messageIdx, setMessageIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setMessageIdx((prev) => (prev + 1) % CYCLING_MESSAGES.length);
+        setVisible(true);
+      }, 250);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <ThinkingIndicatorShell>
       <span
         style={{
           fontSize: 13,
@@ -60,6 +90,16 @@ export const ThinkingIndicator: React.FC = () => {
       >
         {CYCLING_MESSAGES[messageIdx]}
       </span>
-    </div>
+    </ThinkingIndicatorShell>
   );
+}
+
+export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
+  variant = 'static',
+  label = 'Working on your answer…',
+}) => {
+  if (variant === 'cycling') {
+    return <ThinkingIndicatorCycling />;
+  }
+  return <ThinkingIndicatorStatic label={label} />;
 };
