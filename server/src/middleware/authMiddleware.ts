@@ -14,7 +14,13 @@ declare global {
   }
 }
 
+/** In production, bind access JWT to IP + User-Agent. In dev, Vite proxy / LAN hostnames make IP unstable → 401 + login loop. */
+function isFingerprintRelaxed(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.DISABLE_SESSION_FINGERPRINT === '1';
+}
+
 function verifyFingerprint(req: Request, fp?: string): boolean {
+  if (isFingerprintRelaxed()) return true;
   if (!fp) return true;
   const ip = getClientIp(req);
   const expected = computeFingerprint(ip, req.headers['user-agent']);
