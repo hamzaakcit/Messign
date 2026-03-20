@@ -30,8 +30,26 @@ import {
 import { runProductTruthValidation, type ProductTruthValidationResult } from './productTruthValidator.js';
 import { runBrandVoiceCheck, type BrandVoiceCheckResult } from './brandVoiceChecker.js';
 import { runComplianceScan, type ComplianceScanResult } from './complianceScanner.js';
+import {
+  extractAltText,
+  extractCaption,
+  extractImagePrompts,
+} from '../../../modules/marketing/prompts/instagramChannelSpec.js';
+import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/imageService.js';
 
 const LOG = '[marketingOrchestrator]';
+
+/** If the user asks for Instagram (or includes [IMAGE_PROMPT]), persist `channel: instagram` for cockpit + image gen. */
+export function inferChannelFromUserMessage(userMessage: string): string | undefined {
+  const raw = userMessage.trim();
+  if (!raw) return undefined;
+  if (/\[IMAGE_PROMPT/i.test(raw)) return 'instagram';
+  const lower = raw.toLowerCase();
+  if (/\binstagram\b/.test(lower)) return 'instagram';
+  if (/\binsta\b/.test(lower)) return 'instagram';
+  if (/\big\b/.test(lower) && /\b(post|feed|story|reel|caption|carousel)\b/.test(lower)) return 'instagram';
+  return undefined;
+}
 
 function log(step: string, detail?: Record<string, unknown>): void {
   if (detail) {
@@ -269,8 +287,8 @@ export async function executeContentWorkflow(
     log('content_create', { title: brief.title ?? 'AI draft' });
     contentRow = await contentDal.createContent(caller, {
       title: (brief.title ?? 'AI draft').slice(0, 500),
-      content_type: brief.contentType ?? 'social_post',
-      channel: brief.channel ?? 'email',
+      content_type: brief.contentType ?? 'social',
+      channel: brief.channel ?? 'linkedin',
       campaign_id: brief.campaignId,
       status: 'draft',
       body: '',
@@ -301,7 +319,6 @@ export async function executeContentWorkflow(
     combinedTools.push(...mini.toolsUsed);
 
     const draft = mini.content.trim();
-    lastDraft = draft;
     if (!draft) {
       log('content_generation_empty', { attempt });
       return {
@@ -314,33 +331,64 @@ export async function executeContentWorkflow(
       };
     }
 
+    const channelKey = (brief.channel ?? contentRow.channel ?? 'linkedin').toLowerCase().trim();
+    const isInstagram = channelKey === 'instagram';
+
+    let validationText = draft;
+    let imagePrompt: string | null = null;
+    let visualDesc: string | null = null;
+    if (isInstagram) {
+      validationText = extractCaption(draft);
+      if (!validationText.trim()) validationText = draft;
+      const prompts = extractImagePrompts(draft);
+      imagePrompt = prompts[0]?.prompt ?? null;
+      visualDesc = extractAltText(draft) ?? imagePrompt;
+    }
+
+    lastDraft = isInstagram ? validationText : draft;
+
     await contentDal.updateContent(caller, contentId, {
-      body: draft,
+      body: isInstagram ? validationText : draft,
       title: brief.title ?? contentRow.title,
-      channel: brief.channel ?? contentRow.channel ?? undefined,
+      channel: isInstagram ? 'instagram' : (brief.channel ?? contentRow.channel ?? undefined),
+      ...(isInstagram
+        ? {
+            image_prompt: imagePrompt,
+            visual_description: visualDesc,
+          }
+        : {}),
     });
 
-    log('run_gatekeepers_parallel', { contentId, attempt: attempt + 1 });
+    const targetChannel = brief.channel ?? contentRow.channel ?? 'linkedin';
+
+    log('run_gatekeepers_parallel', { contentId, attempt: attempt + 1, isInstagram });
     const [truthRaw, brandRaw, compRaw] = await Promise.all([
       runProductTruthValidation({
         organizationId: orgId,
-        contentText: draft,
+        contentText: validationText,
         tenantId,
         userQuery: `orchestrator_product_truth_${contentId}`,
       }),
       runBrandVoiceCheck({
         organizationId: orgId,
-        contentText: draft,
+        contentText: validationText,
         tenantId,
         userQuery: `orchestrator_brand_${contentId}`,
+        targetChannel,
       }),
       runComplianceScan({
         organizationId: orgId,
-        contentText: draft,
+        contentText: validationText,
         tenantId,
-        contentType: brief.contentType ?? contentRow.content_type ?? 'social_post',
-        targetChannel: brief.channel ?? contentRow.channel ?? 'email',
+        contentType: brief.contentType ?? contentRow.content_type ?? 'social',
+        targetChannel,
         userQuery: `orchestrator_compliance_${contentId}`,
+        ...(isInstagram
+          ? {
+              imagePrompt,
+              visualDescription: visualDesc,
+            }
+          : {}),
       }),
     ]);
 
@@ -382,6 +430,23 @@ export async function executeContentWorkflow(
     }
 
     log('product_truth_pass', { attempt: attempt + 1 });
+
+    if (isInstagram && imagePrompt) {
+      const genResult = await generateImage({
+        org_id: orgId,
+        content_id: contentId,
+        prompt: enhanceImagePrompt(imagePrompt, 'modern_noir'),
+        resolution: '1024x1024',
+        style_preset: 'modern_noir',
+      });
+      if (genResult.success && genResult.image_url) {
+        await contentDal.updateContent(caller, contentId, {
+          image_url: genResult.image_url,
+          image_generation_metadata: genResult.metadata,
+        });
+      }
+    }
+
     const approvalPayload = {
       content_id: contentId,
       validation_scores: {
@@ -405,10 +470,11 @@ export async function executeContentWorkflow(
     }
 
     log('assign_approval_ok', { approvalId: assigned.data.approval_id, contentId });
+    const draftOut = isInstagram ? validationText : draft;
     return {
       status: 'completed',
       contentId,
-      draft,
+      draft: draftOut,
       approvalId: assigned.data.approval_id,
       attempts: attempt + 1,
       truth: truthRaw,
@@ -482,9 +548,16 @@ export async function runMarketingOrchestration(
   }
 
   const note = route.campaignContextNote ? `Note: ${route.campaignContextNote}\n\n` : '';
+  const inferredChannel = inferChannelFromUserMessage(userMessage);
   const brief: ContentWorkflowBrief = {
     userQuery: note + userMessage,
     title: undefined,
+    ...(inferredChannel
+      ? {
+          channel: inferredChannel,
+          contentType: inferredChannel === 'instagram' ? 'social' : undefined,
+        }
+      : {}),
   };
 
   const order = marketingFlowSubagentOrder(route.route as MarketingRouteKind);

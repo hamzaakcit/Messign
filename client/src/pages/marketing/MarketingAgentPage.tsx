@@ -1,12 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Send, StopCircle, Trash2, Loader2 } from 'lucide-react';
+import { Send, StopCircle, Trash2, Loader2, Instagram } from 'lucide-react';
 import { MarketingNav } from './components/MarketingNav';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { DoraChatAvatar } from '@/components/dora/DoraPilot';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
+
+const QUICK_PROMPTS: { label: string; text: string; icon?: 'instagram' }[] = [
+  {
+    label: 'Instagram + image brief',
+    icon: 'instagram',
+    text:
+      'Draft an Instagram post for [topic]. Include: a strong hook (first line), short paragraphs with line breaks, a clear CTA, 10–15 relevant hashtags, and a separate block exactly in this format for the hero image (the app will use it to generate the visual):\n\n[IMAGE_PROMPT]\nDescribe subject, lighting, colors, mood, and style. Square 1:1, no text in the image unless I ask.\n[/IMAGE_PROMPT]',
+  },
+  {
+    label: 'LinkedIn post',
+    text:
+      'Draft a LinkedIn post for [topic]: hook in the first two lines, short paragraphs, minimal emoji (0–2), and a professional CTA.',
+  },
+  {
+    label: 'Email promo',
+    text:
+      'Draft a short marketing email: subject line (~55 chars), preview text, body with one primary CTA, plain-language tone.',
+  },
+];
 
 export function MarketingAgentPage() {
   const location = useLocation();
@@ -86,13 +105,23 @@ export function MarketingAgentPage() {
       <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-app-border bg-app-card overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && !isLoading && (
-            <div className="text-center py-12 text-app-muted text-sm max-w-md mx-auto">
+            <div className="text-center py-10 text-app-muted text-sm max-w-lg mx-auto space-y-3">
               <div className="flex justify-center mb-4">
                 <DoraChatAvatar size={56} />
               </div>
               <p>
-                Ask for social copy, email drafts, campaign performance, ROI summaries, or content topic ideas
-                grounded in your workspace data.
+                Ask for social copy, email drafts, campaign performance, ROI summaries, or content ideas grounded in
+                your workspace data.
+              </p>
+              <p className="text-xs text-app-muted/90 leading-relaxed">
+                <span className="text-app/90 font-medium">Instagram:</span> ask for an Instagram draft with an{' '}
+                <code className="text-[11px] px-1 py-0.5 rounded bg-white/5 border border-white/10">[IMAGE_PROMPT]</code>{' '}
+                block (see quick prompt below). After content is created with channel{' '}
+                <strong className="text-app/90">instagram</strong>, open{' '}
+                <Link to="/marketing/content" className="text-primary-400 hover:underline">
+                  Marketing → Content
+                </Link>{' '}
+                to preview the post and regenerate the image from the cockpit.
               </p>
             </div>
           )}
@@ -126,7 +155,28 @@ export function MarketingAgentPage() {
           <div ref={chatEndRef} />
         </div>
 
-        <div className="p-3 border-t border-app-border flex items-end gap-2 bg-app-sidebar/30">
+        <div className="p-3 border-t border-app-border space-y-2 bg-app-sidebar/30">
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-[10px] uppercase tracking-wide text-app-muted/80 w-full sm:w-auto sm:mr-1 py-1">
+              Quick start
+            </span>
+            {QUICK_PROMPTS.map((q) => (
+              <button
+                key={q.label}
+                type="button"
+                disabled={isLoading}
+                onClick={() => {
+                  setInputValue(q.text);
+                  inputRef.current?.focus();
+                }}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-white/10 bg-white/[0.04] text-app-muted hover:text-app hover:bg-white/[0.08] disabled:opacity-40"
+              >
+                {q.icon === 'instagram' ? <Instagram className="w-3 h-3 shrink-0" aria-hidden /> : null}
+                {q.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
             value={inputValue}
@@ -162,6 +212,7 @@ export function MarketingAgentPage() {
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send size={20} />}
             </button>
           )}
+          </div>
         </div>
       </div>
     </div>
