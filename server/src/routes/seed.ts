@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { seedFinanceData } from '../db/seeds/financeSeed.js';
 import { seedCrmOkrData } from '../db/seeds/crmOkrSeed.js';
+import { seedMarketingData } from '../db/seeds/marketingSeed.js';
 
 const router = Router();
 
@@ -57,6 +58,28 @@ router.all('/crm-okr', requireSeedSecret, async (_req: Request, res: Response) =
     });
   } catch (err) {
     console.error('[seed/crm-okr]', err);
+    res.status(500).json({
+      ok: false,
+      error: err instanceof Error ? err.message : 'Seed failed',
+    });
+  }
+});
+
+/**
+ * POST or GET /api/seed/marketing
+ * Inserts idempotent demo rows for campaigns, content, leads, email, approvals (sentinel campaign name).
+ * Auth: same as /api/seed/finance
+ */
+router.all('/marketing', requireSeedSecret, async (_req: Request, res: Response) => {
+  try {
+    const result = await seedMarketingData();
+    res.json({
+      ok: true,
+      message: result.seeded ? 'Marketing seed completed.' : 'Marketing seed skipped.',
+      ...result,
+    });
+  } catch (err) {
+    console.error('[seed/marketing]', err);
     res.status(500).json({
       ok: false,
       error: err instanceof Error ? err.message : 'Seed failed',
