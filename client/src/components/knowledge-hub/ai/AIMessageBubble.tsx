@@ -110,12 +110,6 @@ export function AIMessageBubble({
                 )}
               </div>
 
-              {message.isStreaming && message.content && (
-                <div
-                  className="mt-3 h-20 rounded-xl bg-gradient-to-r from-white/[0.04] to-white/[0.02] animate-pulse border border-white/5"
-                  aria-hidden
-                />
-              )}
               {message.pendingConfirmation && !message.isStreaming && onConfirmAct && onCancelAct && (
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-amber-500/20 pt-3">
                   <span className="w-full text-[11px] uppercase tracking-wide text-amber-400/90">Act mode — confirm</span>
