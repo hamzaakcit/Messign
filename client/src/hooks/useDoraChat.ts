@@ -52,6 +52,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     onMessagesChange,
     initialInteractionMode = 'ask',
     onIntentResolved,
+    marketingAgentMode: defaultMarketingAgentMode,
   } = options;
 
   const onMessagesChangeRef = useRef(onMessagesChange);
@@ -148,6 +149,9 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
             currentPath: typeof window !== 'undefined' ? window.location.pathname : '',
             sessionId,
             searchMode: false,
+            ...(defaultMarketingAgentMode === true || sendOpts?.marketingAgentMode === true
+              ? { marketingAgentMode: true }
+              : {}),
             ...(sendOpts?.confirmed === true && sendOpts?.confirmation
               ? {
                   confirmed: true,
@@ -183,6 +187,8 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         let accumulatedWidgets: AIWidgetPayload[] = [];
         let accumulatedSpecialist: SpecialistInfo | null = null;
         let accumulatedPendingAction: DoraPendingActionContent | undefined;
+        /** Avoid double finalization: `done` already applies the same snapshot; post-loop is only for streams that close without `done`. */
+        let sawDoneEvent = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -316,6 +322,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               }
 
               case 'done':
+                sawDoneEvent = true;
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessage.id
@@ -346,24 +353,26 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           }
         }
 
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMessage.id
-              ? {
-                  ...m,
-                  content: accumulatedText || m.content,
-                  specialist: accumulatedSpecialist ?? m.specialist,
-                  sources: accumulatedSources.length > 0 ? accumulatedSources : m.sources,
-                  metadata: accumulatedMetadata ?? m.metadata,
-                  chartData: accumulatedChartData ?? m.chartData,
-                  tableData: accumulatedTableData ?? m.tableData,
-                  widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : m.widgets,
-                  pendingAction: accumulatedPendingAction ?? m.pendingAction,
-                  isStreaming: false,
-                }
-              : m,
-          ),
-        );
+        if (!sawDoneEvent) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessage.id
+                ? {
+                    ...m,
+                    content: accumulatedText || m.content,
+                    specialist: accumulatedSpecialist ?? m.specialist,
+                    sources: accumulatedSources.length > 0 ? accumulatedSources : m.sources,
+                    metadata: accumulatedMetadata ?? m.metadata,
+                    chartData: accumulatedChartData ?? m.chartData,
+                    tableData: accumulatedTableData ?? m.tableData,
+                    widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : m.widgets,
+                    pendingAction: accumulatedPendingAction ?? m.pendingAction,
+                    isStreaming: false,
+                  }
+                : m,
+            ),
+          );
+        }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
           setMessages((prev) =>
@@ -385,7 +394,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         abortControllerRef.current = null;
       }
     },
-    [isLoading, interactionMode, maxHistory, sessionId],
+    [isLoading, interactionMode, maxHistory, sessionId, defaultMarketingAgentMode],
   );
 
   const cancelActConfirmation = useCallback((assistantMessageId: string) => {
