@@ -1,6 +1,6 @@
 import { getClient, query } from '../index.js';
 
-const DEFAULT_ORG_SLUG = 'messign';
+const DEFAULT_ORG_SLUG = process.env.MARKETING_SEED_ORG_SLUG || 'messign';
 const SENTINEL_CAMPAIGN = 'Demo Seed — Q2 Product Launch';
 
 export interface MarketingSeedResult {
