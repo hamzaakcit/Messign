@@ -2,8 +2,13 @@ import type { Response } from 'express';
 
 /**
  * v2 SSE: each event is one line of JSON `{ type, data }` after `data: ` (SSE standard).
+ *
+ * Always ends with a `done` event so clients can finalize streaming UI. If a code path
+ * forgot `emit('done')`, {@link end} still emits `done` once (idempotent).
  */
 export class StreamController {
+  private doneEmitted = false;
+
   constructor(private readonly res: Response) {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
@@ -15,11 +20,21 @@ export class StreamController {
   }
 
   emit(type: string, data: unknown): void {
+    if (type === 'done') {
+      this.doneEmitted = true;
+    }
     const payload = JSON.stringify({ type, data });
     this.res.write(`data: ${payload}\n\n`);
   }
 
   end(): void {
-    this.res.end();
+    if (!this.doneEmitted) {
+      this.doneEmitted = true;
+      const payload = JSON.stringify({ type: 'done', data: null });
+      this.res.write(`data: ${payload}\n\n`);
+    }
+    if (!this.res.writableEnded) {
+      this.res.end();
+    }
   }
 }

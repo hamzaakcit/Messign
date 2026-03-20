@@ -378,7 +378,10 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               m.id === assistantMessage.id
                 ? {
                     ...m,
-                    content: accumulatedText || m.content,
+                    content:
+                      accumulatedText?.trim() ||
+                      (typeof m.content === 'string' ? m.content.trim() : '') ||
+                      'No response was returned. Try again or check your connection.',
                     specialist: accumulatedSpecialist ?? m.specialist,
                     sources: accumulatedSources.length > 0 ? accumulatedSources : m.sources,
                     metadata: accumulatedMetadata ?? m.metadata,
