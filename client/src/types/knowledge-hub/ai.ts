@@ -102,6 +102,10 @@ export interface AIResponseMetadata {
   marketingContentId?: string | null;
   /** Public URL for generated image (omit or empty when unavailable) */
   marketingImageUrl?: string | null;
+  /** `marketing_content.status` after persisted workflow (e.g. `in_review`, `draft`) */
+  marketingContentStatus?: string | null;
+  /** Compact gatekeeper summary from agent pipeline */
+  marketingValidation?: Record<string, unknown>;
 }
 
 export interface AISourceDocument {

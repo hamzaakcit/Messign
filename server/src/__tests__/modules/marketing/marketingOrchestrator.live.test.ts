@@ -3,7 +3,7 @@
  * Requires ANTHROPIC_API_KEY. Not run in CI by default.
  */
 import { describe, it, expect } from 'vitest';
-import { routeMarketingRequest } from '../../../services/ai/marketing/marketingOrchestrator.js';
+import { routeMarketingRequest } from '../../../services/ai/marketing/marketingRouterJsonOrchestrator.js';
 
 const live = process.env.MARKETING_ORCHESTRATOR_LIVE === '1';
 

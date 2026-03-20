@@ -51,6 +51,31 @@ export function inferChannelFromUserMessage(userMessage: string): string | undef
   return undefined;
 }
 
+/**
+ * Infer publishing channel for persisted marketing content (agent + orchestration).
+ * Defaults to `linkedin` when the user does not specify a channel.
+ */
+export function inferMarketingContentChannel(userMessage: string): string {
+  const ig = inferChannelFromUserMessage(userMessage);
+  if (ig) return ig;
+  const lower = userMessage.toLowerCase();
+  if (/\blinkedin\b/.test(lower)) return 'linkedin';
+  if (/\b(twitter|tweet)\b/.test(lower) || /\bx\s+post\b/.test(lower) || /(^|\s)x\s*\/\s*x\s+post/.test(lower))
+    return 'x';
+  if (/\b(email|newsletter|e-mail)\b/.test(lower)) return 'email';
+  if (/\b(blog|article|blog post)\b/.test(lower)) return 'blog';
+  if (/\b(ad copy|advertisement|ppc|paid ad|display ad)\b/.test(lower)) return 'linkedin';
+  return 'linkedin';
+}
+
+/** Maps inferred channel to `marketing_content.content_type`. */
+export function contentTypeForMarketingChannel(channel: string): string {
+  const c = channel.trim().toLowerCase();
+  if (c === 'email') return 'email';
+  if (c === 'blog') return 'blog';
+  return 'social';
+}
+
 function log(step: string, detail?: Record<string, unknown>): void {
   if (detail) {
     console.log(`${LOG} ${step}`, detail);
@@ -150,6 +175,8 @@ export type ContentWorkflowResult =
     }
   | {
       status: 'failed';
+      /** Set when a `marketing_content` row exists but the workflow did not complete (e.g. validation or approval failure). */
+      contentId?: string;
       reason: string;
       attempts: number;
       lastDraft?: string;
@@ -323,6 +350,7 @@ export async function executeContentWorkflow(
       log('content_generation_empty', { attempt });
       return {
         status: 'failed',
+        contentId,
         reason: 'Content Strategist returned an empty draft',
         attempts: attempt + 1,
         lastDraft,
@@ -401,6 +429,7 @@ export async function executeContentWorkflow(
       log('gatekeeper_zod_failed', { err });
       return {
         status: 'failed',
+        contentId,
         reason: `Validator output failed schema check: ${err}`,
         attempts: attempt + 1,
         lastDraft,
@@ -419,6 +448,7 @@ export async function executeContentWorkflow(
       if (attempt + 1 >= maxAttempts) {
         return {
           status: 'failed',
+          contentId,
           reason: `Product truth still failing after ${maxAttempts} attempts: ${truthRaw.failed_reasons.join('; ')}`,
           attempts: attempt + 1,
           lastDraft,
@@ -461,6 +491,7 @@ export async function executeContentWorkflow(
       log('assign_approval_failed', { error: assigned.error });
       return {
         status: 'failed',
+        contentId,
         reason: assigned.error,
         attempts: attempt + 1,
         lastDraft,
@@ -548,16 +579,12 @@ export async function runMarketingOrchestration(
   }
 
   const note = route.campaignContextNote ? `Note: ${route.campaignContextNote}\n\n` : '';
-  const inferredChannel = inferChannelFromUserMessage(userMessage);
+  const inferredChannel = inferMarketingContentChannel(note + userMessage);
   const brief: ContentWorkflowBrief = {
     userQuery: note + userMessage,
     title: undefined,
-    ...(inferredChannel
-      ? {
-          channel: inferredChannel,
-          contentType: inferredChannel === 'instagram' ? 'social' : undefined,
-        }
-      : {}),
+    channel: inferredChannel,
+    contentType: contentTypeForMarketingChannel(inferredChannel),
   };
 
   const order = marketingFlowSubagentOrder(route.route as MarketingRouteKind);

@@ -18,6 +18,10 @@ export interface ContentPayloadForPublish {
   body_html: string | null;
   content_type: string;
   channel: string | null;
+  /** Required for Instagram feed posts (Graph API container flow). */
+  image_url?: string | null;
+  image_prompt?: string | null;
+  visual_description?: string | null;
 }
 
 /** Normalized adapter output — router persists URL + external id to calendar row */

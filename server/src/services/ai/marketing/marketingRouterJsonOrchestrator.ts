@@ -1,12 +1,17 @@
 /**
- * Phase 1 Marketing Sub-Orchestrator: LLM JSON routing → stub workflows.
- * Uses complex tier (Claude 3.5 Sonnet) via {@link generateResponse} with structured JSON output.
+ * Legacy JSON-router marketing orchestrator (tests + experiments only).
+ *
+ * Uses complex-tier LLM JSON output ({@link generateResponse}) then stub
+ * campaign/content workflows. **Production** marketing chat uses
+ * {@link runMarketingSubOrchestratorFlow} in `marketingAgentFlow.ts` and
+ * {@link runMarketingOrchestration} / {@link executeContentWorkflow} in
+ * `marketingAgentOrchestrator.ts` — not this module.
  */
 import { z } from 'zod';
 import { generateResponse, LLMGatewayError, LLM_TIER } from '../llmGateway.js';
 import { MARKETING_SUB_ORCHESTRATOR_JSON_SYSTEM_PROMPT } from '../../../modules/marketing/prompts/marketingSubOrchestratorJsonPrompt.js';
 
-const LOG = '[marketingOrchestrator]';
+const LOG = '[marketingJsonRouter]';
 
 /** Routes returned by the sub-orchestrator LLM (Zod + switchboard). */
 export const marketingRouteEnum = z.enum(['CONTENT_STRATEGIST', 'CAMPAIGN_MANAGER', 'BOTH', 'NONE']);
@@ -80,9 +85,7 @@ function parseRoutingJson(raw: string): unknown {
   }
 }
 
-/**
- * Phase 1 stub — replace with full {@link marketingAgentOrchestrator.executeCampaignWorkflow} integration.
- */
+/** Stub — real workflows live in {@link marketingAgentOrchestrator.executeCampaignWorkflow}. */
 export async function executeCampaignWorkflow(
   extractedParameters: Record<string, unknown>,
 ): Promise<CampaignWorkflowStubResult> {
@@ -92,13 +95,11 @@ export async function executeCampaignWorkflow(
       : 'campaign';
   return {
     campaignId: `stub-${name.replace(/\s+/g, '-').slice(0, 40)}-${Date.now().toString(36)}`,
-    contextSummary: 'Phase 1 stub: campaign planning context for downstream content.',
+    contextSummary: 'Stub: campaign planning context for downstream content (use marketingAgentOrchestrator in prod).',
   };
 }
 
-/**
- * Phase 1 stub — replace with full {@link marketingAgentOrchestrator.executeContentWorkflow} integration.
- */
+/** Stub — real workflows live in {@link marketingAgentOrchestrator.executeContentWorkflow}. */
 export async function executeContentWorkflow(
   extractedParameters: Record<string, unknown>,
   options?: { campaign?: CampaignWorkflowStubResult },
@@ -135,6 +136,7 @@ function safeFailure(
 
 /**
  * Route a user message via Claude (complex tier) JSON output, then run the switchboard (stub workflows).
+ * For production routing, use {@link marketingAgentFlow.runMarketingRouteDecision} / sub-orchestrator flow.
  *
  * @param deps - Optional workflow implementations (e.g. unit tests verifying BOTH ordering).
  */

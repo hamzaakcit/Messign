@@ -329,6 +329,12 @@ export async function runDoraPipeline(
         ...(result.marketingImageUrl != null && result.marketingImageUrl !== ''
           ? { marketingImageUrl: result.marketingImageUrl }
           : {}),
+        ...(result.marketingContentStatus != null && result.marketingContentStatus !== ''
+          ? { marketingContentStatus: result.marketingContentStatus }
+          : {}),
+        ...(result.marketingValidation != null && Object.keys(result.marketingValidation).length > 0
+          ? { marketingValidation: result.marketingValidation }
+          : {}),
       });
       controller.emit('done', null);
       controller.end();

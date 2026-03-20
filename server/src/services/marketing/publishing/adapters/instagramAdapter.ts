@@ -198,20 +198,4 @@ function stripHtml(text: string): string {
   return text.replace(/<[^>]+>/g, '').trim();
 }
 
-// ---------------------------------------------------------------------------
-// Publish router integration
-// ---------------------------------------------------------------------------
-//
-// In publishRouter.ts, add:
-//
-//   import { publishInstagramPost } from './adapters/instagramAdapter.js';
-//
-//   // In normalizeChannelKey():
-//   if (u === 'instagram' || u.startsWith('instagram')) return 'instagram';
-//
-//   // In the switch(key) block:
-//   case 'instagram':
-//     return publishInstagramPost({ calendar, content });
-// ---------------------------------------------------------------------------
-
 export default { publishInstagramPost };

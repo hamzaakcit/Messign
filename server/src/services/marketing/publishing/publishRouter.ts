@@ -6,6 +6,7 @@ import { publishLinkedInOrganicShare } from './adapters/linkedinAdapter.js';
 import { publishEmailCampaign } from './adapters/emailAdapter.js';
 import { publishXTweet } from './adapters/xAdapter.js';
 import { publishBlogOrCms } from './adapters/blogAdapter.js';
+import { publishInstagramPost } from './adapters/instagramAdapter.js';
 
 /** Normalize UI / LLM channel labels to internal adapter keys */
 export function normalizeChannelKey(channel: string): string {
@@ -13,6 +14,7 @@ export function normalizeChannelKey(channel: string): string {
   if (u === 'twitter' || u === 'x') return 'x';
   if (u === 'linkedin' || u.startsWith('linkedin')) return 'linkedin';
   if (u === 'email' || u === 'mail' || u === 'newsletter') return 'email';
+  if (u === 'instagram' || u.startsWith('instagram')) return 'instagram';
   if (['blog', 'webflow', 'wordpress', 'knowledge', 'cms', 'landing'].includes(u)) return 'blog';
   return u;
 }
@@ -35,6 +37,8 @@ export async function publishContent(
       return publishXTweet({ calendar, content });
     case 'blog':
       return publishBlogOrCms({ calendar, content });
+    case 'instagram':
+      return publishInstagramPost({ calendar, content });
     default:
       console.warn(`[publishRouter] Unrecognized channel "${calendar.channel}" — using blog/CMS adapter as safe default`);
       return publishBlogOrCms({ calendar, content });

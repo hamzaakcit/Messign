@@ -117,6 +117,12 @@ export interface ParsedImagePrompt {
  *   [IMAGE_PROMPT] ... [/IMAGE_PROMPT]
  *   [IMAGE_PROMPT:1] ... [/IMAGE_PROMPT:1]
  */
+/** First [IMAGE_PROMPT] block only — convenience for single-image flows. */
+export function extractImagePrompt(agentOutput: string): string | null {
+  const prompts = extractImagePrompts(agentOutput);
+  return prompts[0]?.prompt ?? null;
+}
+
 export function extractImagePrompts(agentOutput: string): ParsedImagePrompt[] {
   const results: ParsedImagePrompt[] = [];
 

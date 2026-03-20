@@ -19,12 +19,22 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useDora } from '@/hooks/useDora';
+import { useMarketingApprovalQueue } from '@/hooks/useMarketingApprovalQueue';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { DoraChatAvatar } from '@/components/dora/DoraPilot';
 import { useAuthStore } from '@/stores/authStore';
-import { marketingAPI, type Campaign } from '@/lib/marketingApi';
+import {
+  marketingAPI,
+  type Campaign,
+  type ContentItem,
+  type DashboardMetrics,
+  type Lead,
+} from '@/lib/marketingApi';
 import { cn } from '@/lib/utils';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
+import { CockpitApprovalsList } from './components/CockpitApprovalsList';
+import { CockpitContextPanel } from './components/cockpit/CockpitContextPanel';
+import type { SelectedItem } from './components/cockpit/cockpitTypes';
 
 const MODULE_LINKS = [
   { label: 'Campaigns', to: '/marketing/campaigns' },
@@ -36,34 +46,7 @@ const MODULE_LINKS = [
   { label: 'Dashboard', to: '/marketing/dashboard' },
 ] as const;
 
-type DraftModel = {
-  id: string;
-  title: string;
-  bodyA: string;
-  bodyB: string;
-};
-
-const SEED_DRAFTS: DraftModel[] = [
-  {
-    id: 'demo-1',
-    title: 'Launch post — Q2 analytics',
-    bodyA: 'Shipped: Executive dashboard v2, CRM pipeline sync, and one-click ROI exports. See it live in your workspace.',
-    bodyB: 'We just shipped analytics that finally connect pipeline to revenue. Here’s what changed — and why it matters for your Q2 review.',
-  },
-  {
-    id: 'demo-2',
-    title: 'Customer story teaser',
-    bodyA: 'How [Customer] cut time-to-close by 34% using Messign — read the 3 workflows they standardized first.',
-    bodyB: 'From chaos to clarity: one team’s playbook for aligning sales and marketing on a single pane of glass.',
-  },
-];
-
-function hashScores(id: string): { truth: number; brand: number; compliance: number } {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-  const u = (n: number) => 72 + Math.abs(n) % 25;
-  return { truth: u(h), brand: u(h >> 8), compliance: u(h >> 16) };
-}
+type CockpitTab = 'agent' | 'campaigns' | 'content' | 'leads' | 'approvals';
 
 export function MarketingCommandCenterPage() {
   const location = useLocation();
@@ -71,21 +54,22 @@ export function MarketingCommandCenterPage() {
   const userRole = user?.role ?? 'member';
   const [searchParams, setSearchParams] = useSearchParams();
   const campaignId = searchParams.get('campaignId') ?? '';
-  const contentId = searchParams.get('contentId') ?? '';
+  const cockpitTab = (searchParams.get('tab') as CockpitTab) || 'agent';
+
+  const userId = user?.authUserId || user?.id || '';
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [contentList, setContentList] = useState<ContentItem[]>([]);
+  const [leadsList, setLeadsList] = useState<Lead[]>([]);
+  const [cockpitLoading, setCockpitLoading] = useState(true);
+  const lastAgentContentIdRef = useRef<string | null>(null);
+
   const [vaultOpen, setVaultOpen] = useState(true);
   const [gateOpen, setGateOpen] = useState(true);
   const [mobilePane, setMobilePane] = useState<'vault' | 'canvas' | 'gate'>('canvas');
-
-  const [draftBodies, setDraftBodies] = useState<Record<string, { a: string; b: string; variant: 'A' | 'B' }>>(() => {
-    const o: Record<string, { a: string; b: string; variant: 'A' | 'B' }> = {};
-    for (const d of SEED_DRAFTS) {
-      o[d.id] = { a: d.bodyA, b: d.bodyB, variant: 'A' };
-    }
-    return o;
-  });
-  const [expandedDraftId, setExpandedDraftId] = useState<string | null>(SEED_DRAFTS[0]?.id ?? null);
+  const [expandedContentId, setExpandedContentId] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
 
   const {
     messages,
@@ -108,25 +92,18 @@ export function MarketingCommandCenterPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  const {
+    items: approvalQueueItems,
+    loading: approvalsLoading,
+    refetch: refetchApprovalQueue,
+  } = useMarketingApprovalQueue(userId || undefined);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    marketingAPI
-      .listCampaigns(user.id)
-      .then((r) => setCampaigns(r.data))
-      .catch(() => setCampaigns([]));
-  }, [user?.id]);
-
-  const setActiveContent = useCallback(
-    (id: string | null) => {
+  const setTab = useCallback(
+    (t: CockpitTab) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (id) next.set('contentId', id);
-          else next.delete('contentId');
+          next.set('tab', t);
           return next;
         },
         { replace: true },
@@ -135,18 +112,109 @@ export function MarketingCommandCenterPage() {
     [setSearchParams],
   );
 
-  useEffect(() => {
-    if (contentId) return;
-    const first = SEED_DRAFTS[0]?.id;
-    if (first) setActiveContent(first);
-  }, [contentId, setActiveContent]);
-
-  const activeDraft = useMemo(
-    () => SEED_DRAFTS.find((d) => d.id === contentId) ?? SEED_DRAFTS[0],
-    [contentId],
+  const applySelection = useCallback(
+    (item: SelectedItem) => {
+      setSelectedItem(item);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('contentId');
+          next.delete('approvalId');
+          next.delete('leadId');
+          if (!item) {
+            return next;
+          }
+          if (item.type === 'content') {
+            next.set('contentId', item.id);
+          } else if (item.type === 'approval') {
+            next.set('contentId', item.contentId);
+            next.set('approvalId', item.id);
+          } else if (item.type === 'lead') {
+            next.set('leadId', item.id);
+          } else if (item.type === 'campaign') {
+            next.set('campaignId', item.id);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
   );
 
-  const scores = useMemo(() => (contentId ? hashScores(contentId) : null), [contentId]);
+  const refreshCockpitData = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const [m, content, leads, camps] = await Promise.all([
+        marketingAPI.getDashboardMetrics(userId),
+        marketingAPI.listContent(userId, { pageSize: '50' }),
+        marketingAPI.listLeads(userId, { pageSize: '50' }),
+        marketingAPI.listCampaigns(userId),
+      ]);
+      setMetrics(m);
+      setContentList(content.data);
+      setLeadsList(leads.data);
+      setCampaigns(camps.data);
+      await refetchApprovalQueue();
+    } catch {
+      /* ignore */
+    } finally {
+      setCockpitLoading(false);
+    }
+  }, [userId, refetchApprovalQueue]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
+  const urlSelectionSynced = useRef(false);
+  useEffect(() => {
+    if (urlSelectionSynced.current) return;
+    urlSelectionSynced.current = true;
+    const aid = searchParams.get('approvalId');
+    const cid = searchParams.get('contentId');
+    const lid = searchParams.get('leadId');
+    if (aid && cid) setSelectedItem({ type: 'approval', id: aid, contentId: cid });
+    else if (lid) setSelectedItem({ type: 'lead', id: lid });
+    else if (cid) setSelectedItem({ type: 'content', id: cid });
+  }, [searchParams]);
+
+  useEffect(() => {
+    void refreshCockpitData();
+  }, [refreshCockpitData]);
+
+  useEffect(() => {
+    const last = messages.filter((m) => m.role === 'assistant').pop();
+    if (!last?.metadata?.marketingContentId || last.isStreaming) return;
+    const id = last.metadata.marketingContentId;
+    if (!id || lastAgentContentIdRef.current === id) return;
+    lastAgentContentIdRef.current = id;
+    void refreshCockpitData();
+    applySelection({ type: 'content', id });
+    setTab('content');
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+      setMobilePane('gate');
+    }
+  }, [messages, refreshCockpitData, applySelection, setTab]);
+
+  const approvalSnapshot = useMemo(() => {
+    if (selectedItem?.type !== 'approval') return null;
+    return approvalQueueItems.find((a) => a.id === selectedItem.id) ?? null;
+  }, [selectedItem, approvalQueueItems]);
+
+  const handleDataChanged = useCallback(async () => {
+    await refreshCockpitData();
+  }, [refreshCockpitData]);
+
+  const onAskDora = useCallback(
+    (prompt: string) => {
+      setTab('agent');
+      setInputValue(prompt);
+      setMobilePane('canvas');
+      requestAnimationFrame(() => inputRef.current?.focus());
+    },
+    [setTab],
+  );
 
   const selectedCampaign = useMemo(
     () => campaigns.find((c) => c.id === campaignId),
@@ -211,6 +279,62 @@ export function MarketingCommandCenterPage() {
               Full-screen agent
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* Live metrics + workspace tabs (?tab=agent|campaigns|content|leads|approvals) */}
+      <div className="shrink-0 border-b border-white/[0.08] bg-[#080a0e] px-4 py-2">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: 'Leads', value: metrics?.totalLeads },
+            { label: 'Active campaigns', value: metrics?.activeCampaigns },
+            { label: 'Content (loaded)', value: contentList.length },
+          ].map((k) => (
+            <div key={k.label} className="min-w-[108px] rounded-lg border border-white/[0.08] bg-[#0c0f14] px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-slate-500">{k.label}</div>
+              <div className="text-lg font-semibold tabular-nums text-slate-100">
+                {cockpitLoading ? '…' : k.value ?? '—'}
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setTab('approvals')}
+            className="min-w-[108px] rounded-lg border border-white/[0.08] bg-[#0c0f14] px-3 py-2 text-left transition-colors hover:bg-white/[0.06]"
+          >
+            <div className="text-[10px] uppercase tracking-wide text-slate-500">Pending approvals</div>
+            <div className="text-lg font-semibold tabular-nums text-slate-100">
+              {cockpitLoading || approvalsLoading ? '…' : approvalQueueItems.length}
+            </div>
+          </button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {(
+            [
+              ['agent', 'Agent'],
+              ['campaigns', 'Campaigns'],
+              ['content', 'Content'],
+              ['leads', 'Leads'],
+              ['approvals', 'Approvals'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={cn(
+                'inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                cockpitTab === id ? 'bg-cyan-600/40 text-cyan-100' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200',
+              )}
+            >
+              {label}
+              {id === 'approvals' && approvalQueueItems.length > 0 && (
+                <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-400">
+                  {approvalQueueItems.length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -346,12 +470,26 @@ export function MarketingCommandCenterPage() {
           )}
         >
           <div className="shrink-0 border-b border-white/[0.08] px-4 py-2">
-            <span className="text-xs font-medium text-slate-500">Creative Canvas</span>
-            {contentId && (
-              <span className="ml-2 font-mono text-[10px] text-cyan-400/80">active · {contentId}</span>
+            <span className="text-xs font-medium text-slate-500">
+              {cockpitTab === 'agent'
+                ? 'Creative Canvas'
+                : cockpitTab === 'campaigns'
+                  ? 'Campaigns'
+                  : cockpitTab === 'content'
+                    ? 'Content'
+                    : cockpitTab === 'leads'
+                      ? 'Leads'
+                      : 'Approvals'}
+            </span>
+            {(selectedItem?.type === 'content' || selectedItem?.type === 'approval') && (
+              <span className="ml-2 font-mono text-[10px] text-cyan-400/80">
+                panel ·{' '}
+                {selectedItem.type === 'content' ? selectedItem.id : selectedItem.contentId}
+              </span>
             )}
           </div>
 
+          {cockpitTab === 'agent' ? (
           <div className="flex min-h-0 flex-1 flex-col">
             {/* Omni-chat */}
             <div className="flex min-h-[42%] flex-1 flex-col border-b border-white/[0.08]">
@@ -429,24 +567,38 @@ export function MarketingCommandCenterPage() {
               </div>
             </div>
 
-            {/* Draft cards */}
+            {/* Recent content (API) */}
             <div className="flex max-h-[min(48vh,420px)] min-h-[180px] flex-col bg-[#080a0e]">
               <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Interactive drafts</span>
-                <button
-                  type="button"
-                  onClick={() => clearChat()}
-                  className="text-[10px] text-slate-500 hover:text-slate-300"
-                >
-                  Clear chat
-                </button>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Recent content</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void refreshCockpitData()}
+                    className="text-[10px] text-slate-500 hover:text-slate-300"
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => clearChat()}
+                    className="text-[10px] text-slate-500 hover:text-slate-300"
+                  >
+                    Clear chat
+                  </button>
+                </div>
               </div>
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-                {SEED_DRAFTS.map((d) => {
-                  const st = draftBodies[d.id] ?? { a: d.bodyA, b: d.bodyB, variant: 'A' as const };
-                  const expanded = expandedDraftId === d.id;
-                  const isActive = contentId === d.id;
-                  const body = st.variant === 'A' ? st.a : st.b;
+                {cockpitLoading && <p className="text-center text-xs text-slate-500">Loading content…</p>}
+                {!cockpitLoading && contentList.length === 0 && (
+                  <p className="text-center text-xs text-slate-500">
+                    No content rows yet. Ask the Agent to draft copy — items appear here after the server saves them.
+                  </p>
+                )}
+                {contentList.map((d) => {
+                  const expanded = expandedContentId === d.id;
+                  const isActive =
+                    selectedItem?.type === 'content' && selectedItem.id === d.id;
                   return (
                     <div
                       key={d.id}
@@ -458,59 +610,38 @@ export function MarketingCommandCenterPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setActiveContent(d.id);
-                          setExpandedDraftId((cur) => (cur === d.id ? null : d.id));
+                          applySelection({ type: 'content', id: d.id });
+                          setExpandedContentId((cur) => (cur === d.id ? null : d.id));
+                          if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+                            setMobilePane('gate');
+                          }
                         }}
-                        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                        className="flex w-full flex-col items-start gap-1 px-3 py-2.5 text-left"
                       >
                         <span className="text-sm font-medium text-slate-200">{d.title}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded border border-white/[0.1] px-1.5 text-[10px] text-slate-400">Var {st.variant}</span>
-                          {expanded ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+                        <span className="text-[10px] text-slate-500">
+                          {(d.channel ?? '—') + ' · ' + d.status}
+                        </span>
+                        <div className="flex w-full items-center justify-end">
+                          {expanded ? (
+                            <ChevronUp className="h-4 w-4 text-slate-500" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-slate-500" />
+                          )}
                         </div>
                       </button>
                       {expanded && (
                         <div className="border-t border-white/[0.06] px-3 pb-3 pt-2">
-                          <div className="mb-2 flex items-center gap-2">
-                            <span className="text-[10px] uppercase text-slate-500">Variant</span>
-                            <div className="inline-flex rounded-lg border border-white/[0.08] p-0.5">
-                              {(['A', 'B'] as const).map((v) => (
-                                <button
-                                  key={v}
-                                  type="button"
-                                  onClick={() =>
-                                    setDraftBodies((prev) => ({
-                                      ...prev,
-                                      [d.id]: { ...st, variant: v },
-                                    }))
-                                  }
-                                  className={cn(
-                                    'rounded px-2 py-0.5 text-[10px] font-medium',
-                                    st.variant === v ? 'bg-cyan-500/25 text-cyan-200' : 'text-slate-500 hover:text-slate-300',
-                                  )}
-                                >
-                                  {v}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <textarea
-                            value={body}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setDraftBodies((prev) => ({
-                                ...prev,
-                                [d.id]: {
-                                  ...st,
-                                  a: st.variant === 'A' ? val : st.a,
-                                  b: st.variant === 'B' ? val : st.b,
-                                },
-                              }));
-                            }}
-                            rows={5}
-                            className="w-full resize-y rounded-lg border border-white/[0.08] bg-[#06080b] px-2 py-2 text-xs leading-relaxed text-slate-300 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
-                          />
-                          <p className="mt-1 text-[10px] text-slate-500">Inline edit · selection syncs to Gatekeeper via URL contentId</p>
+                          <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-slate-300">
+                            {(d.body ?? '').slice(0, 4000)}
+                            {(d.body?.length ?? 0) > 4000 ? '…' : ''}
+                          </p>
+                          <Link
+                            to={`/marketing/content?contentId=${encodeURIComponent(d.id)}`}
+                            className="mt-2 inline-flex text-[11px] text-cyan-400/90 hover:text-cyan-300"
+                          >
+                            Open full page →
+                          </Link>
                         </div>
                       )}
                     </div>
@@ -519,6 +650,119 @@ export function MarketingCommandCenterPage() {
               </div>
             </div>
           </div>
+          ) : (
+            <div
+              className={cn(
+                'min-h-0 flex-1 p-4 text-xs text-slate-300',
+                cockpitTab === 'approvals' ? 'flex flex-col overflow-hidden' : 'overflow-auto',
+              )}
+            >
+              {cockpitTab === 'campaigns' && (
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-white/[0.08] text-[10px] uppercase text-slate-500">
+                      <th className="py-2 pr-2">Name</th>
+                      <th className="py-2 pr-2">Status</th>
+                      <th className="py-2 pr-2">Channel</th>
+                      <th className="py-2">ROI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaigns.map((c) => (
+                      <tr
+                        key={c.id}
+                        className="cursor-pointer border-b border-white/[0.05] hover:bg-white/[0.04]"
+                        onClick={() => {
+                          applySelection({ type: 'campaign', id: c.id });
+                          if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+                            setMobilePane('gate');
+                          }
+                        }}
+                      >
+                        <td className="py-2 pr-2 font-medium text-slate-200">{c.name}</td>
+                        <td className="py-2 pr-2">{c.status}</td>
+                        <td className="py-2 pr-2">{c.channel}</td>
+                        <td className="py-2">{c.roi != null ? `${c.roi.toFixed(1)}%` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {cockpitTab === 'content' && (
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-white/[0.08] text-[10px] uppercase text-slate-500">
+                      <th className="py-2 pr-2">Title</th>
+                      <th className="py-2 pr-2">Channel</th>
+                      <th className="py-2 pr-2">Status</th>
+                      <th className="py-2">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contentList.map((c) => (
+                      <tr
+                        key={c.id}
+                        className="cursor-pointer border-b border-white/[0.05] hover:bg-white/[0.04]"
+                        onClick={() => {
+                          applySelection({ type: 'content', id: c.id });
+                          if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+                            setMobilePane('gate');
+                          }
+                        }}
+                      >
+                        <td className="py-2 pr-2 font-medium text-slate-200">{c.title}</td>
+                        <td className="py-2 pr-2">{c.channel ?? '—'}</td>
+                        <td className="py-2 pr-2">{c.status}</td>
+                        <td className="py-2 text-slate-500">{c.updated_at?.slice(0, 10) ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {cockpitTab === 'leads' && (
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-white/[0.08] text-[10px] uppercase text-slate-500">
+                      <th className="py-2 pr-2">Email</th>
+                      <th className="py-2 pr-2">Status</th>
+                      <th className="py-2">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leadsList.map((l) => (
+                      <tr
+                        key={l.id}
+                        className="cursor-pointer border-b border-white/[0.05] hover:bg-white/[0.04]"
+                        onClick={() => {
+                          applySelection({ type: 'lead', id: l.id });
+                          if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+                            setMobilePane('gate');
+                          }
+                        }}
+                      >
+                        <td className="py-2 pr-2">{l.email}</td>
+                        <td className="py-2 pr-2">{l.status}</td>
+                        <td className="py-2">{l.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {cockpitTab === 'approvals' && (
+                <CockpitApprovalsList
+                  items={approvalQueueItems}
+                  loading={approvalsLoading}
+                  selectedApprovalId={selectedItem?.type === 'approval' ? selectedItem.id : null}
+                  onSelect={(item) => {
+                    applySelection(item);
+                    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+                      setMobilePane('gate');
+                    }
+                  }}
+                />
+              )}
+            </div>
+          )}
         </main>
 
         {/* Right — Gatekeeper */}
@@ -545,47 +789,29 @@ export function MarketingCommandCenterPage() {
               {gateOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
             </button>
           </div>
-          <div className={cn('min-h-0 flex-1 overflow-y-auto', gateOpen ? 'p-3' : 'flex items-start justify-center py-4')}>
+          <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', gateOpen ? '' : 'items-start justify-center py-4')}>
             {gateOpen ? (
-              !contentId ? (
-                <p className="text-xs text-slate-500">Select a draft card to load validation telemetry.</p>
-              ) : (
-                <>
-                  <div className="rounded-lg border border-white/[0.08] bg-[#0c0f14] p-3">
-                    <div className="text-[10px] font-medium uppercase text-slate-500">Live validation (mock)</div>
-                    <p className="mt-1 text-[10px] text-slate-500">Groq gatekeepers — Truth · Brand · Compliance</p>
-                    <ul className="mt-3 space-y-2 text-xs text-slate-400">
-                      <li className="flex items-center justify-between gap-2">
-                        <span>Product truth</span>
-                        <span className="font-mono text-emerald-400/90">{scores?.truth ?? '—'}%</span>
-                      </li>
-                      <li className="flex items-center justify-between gap-2">
-                        <span>Brand voice</span>
-                        <span className="font-mono text-emerald-400/90">{scores?.brand ?? '—'}%</span>
-                      </li>
-                      <li className="flex items-center justify-between gap-2">
-                        <span>Compliance</span>
-                        <span className="font-mono text-amber-300/90">{scores?.compliance ?? '—'}%</span>
-                      </li>
-                    </ul>
+              <>
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <CockpitContextPanel
+                    userId={userId}
+                    selectedItem={selectedItem}
+                    approvalSnapshot={approvalSnapshot}
+                    campaigns={campaigns}
+                    contentList={contentList}
+                    leadsList={leadsList}
+                    onClose={() => applySelection(null)}
+                    onDataChanged={handleDataChanged}
+                    onAskDora={onAskDora}
+                  />
+                </div>
+                {selectedCampaign && (
+                  <div className="shrink-0 border-t border-white/[0.06] bg-[#080a0e] p-2.5">
+                    <div className="text-[10px] font-medium uppercase text-slate-500">Finance preview</div>
+                    <p className="mt-1 text-[10px] leading-snug text-slate-400">{budgetHint}</p>
                   </div>
-                  <div className="sticky bottom-0 mt-4 space-y-2 border-t border-white/[0.06] bg-[#080a0e] pt-3">
-                    <button
-                      type="button"
-                      className="w-full rounded-lg bg-cyan-600/90 py-2.5 text-sm font-medium text-white hover:bg-cyan-500"
-                    >
-                      Approve &amp; queue
-                    </button>
-                    <div className="rounded-lg border border-white/[0.08] bg-[#0c0f14] p-3 text-[11px] leading-snug text-slate-500">
-                      <div className="text-[10px] font-medium uppercase text-slate-500">Finance preview</div>
-                      <p className="mt-1 text-slate-400">{budgetHint}</p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-[10px] text-slate-600">
-                    Active card: <span className="font-mono text-slate-500">{activeDraft?.title}</span>
-                  </p>
-                </>
-              )
+                )}
+              </>
             ) : (
               <ChevronLeft className="h-4 w-4 text-slate-600" aria-hidden />
             )}

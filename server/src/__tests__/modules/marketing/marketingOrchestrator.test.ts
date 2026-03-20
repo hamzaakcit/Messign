@@ -9,7 +9,7 @@ vi.mock('../../../services/ai/llmGateway.js', async (importOriginal) => {
 });
 
 import { generateResponse, LLMGatewayError } from '../../../services/ai/llmGateway.js';
-import * as orchestrator from '../../../services/ai/marketing/marketingOrchestrator.js';
+import * as orchestrator from '../../../services/ai/marketing/marketingRouterJsonOrchestrator.js';
 
 const ws = 'workspace-ws-1';
 const session = 'session-s1';

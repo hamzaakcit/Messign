@@ -127,6 +127,10 @@ export interface ContentItem {
   image_url?: string | null;
   visual_description?: string | null;
   image_generation_metadata?: Record<string, unknown> | null;
+  /** Persisted gatekeeper payloads (agent / review flows) */
+  truth_validation?: Record<string, unknown> | null;
+  brand_voice_check?: Record<string, unknown> | null;
+  user_brief?: string | null;
 }
 
 export interface ContentCalendarDay {
@@ -287,8 +291,11 @@ export const marketingAPI = {
     marketingRequest<ContentItem>(`/content/${contentId}`, {}, userId),
   createContent: (userId: string, data: Partial<ContentItem>) =>
     marketingRequest<ContentItem>('/content', { method: 'POST', body: JSON.stringify(data) }, userId),
-  updateContent: (userId: string, contentId: string, data: Partial<ContentItem>) =>
-    marketingRequest<ContentItem>(`/content/${contentId}`, { method: 'PUT', body: JSON.stringify(data) }, userId),
+  updateContent: (
+    userId: string,
+    contentId: string,
+    data: Partial<ContentItem> & { submit_for_review?: boolean },
+  ) => marketingRequest<ContentItem>(`/content/${contentId}`, { method: 'PUT', body: JSON.stringify(data) }, userId),
   publishContent: (userId: string, contentId: string) =>
     marketingRequest<ContentItem>(`/content/${contentId}/publish`, { method: 'POST' }, userId),
   scheduleContent: (userId: string, contentId: string, date: string, time?: string) =>

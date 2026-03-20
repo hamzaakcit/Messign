@@ -65,7 +65,8 @@ export async function claimDueCalendarRows(
 async function loadContentPayload(workspaceId: string, contentId: string): Promise<ContentPayloadForPublish | null> {
   return withTenantQuery(workspaceId, async (client) => {
     const r = await client.query<Record<string, unknown>>(
-      `SELECT title, body, body_html, content_type, channel
+      `SELECT title, body, body_html, content_type, channel,
+              image_url, image_prompt, visual_description
        FROM marketing_content
        WHERE id = $1 AND organization_id = $2
        LIMIT 1`,
@@ -79,6 +80,9 @@ async function loadContentPayload(workspaceId: string, contentId: string): Promi
       body_html: row.body_html ? String(row.body_html) : null,
       content_type: String(row.content_type),
       channel: row.channel ? String(row.channel) : null,
+      image_url: row.image_url != null ? String(row.image_url) : null,
+      image_prompt: row.image_prompt != null ? String(row.image_prompt) : null,
+      visual_description: row.visual_description != null ? String(row.visual_description) : null,
     };
   });
 }

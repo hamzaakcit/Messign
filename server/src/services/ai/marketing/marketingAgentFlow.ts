@@ -31,7 +31,7 @@ import {
 import type { MarketingStrategyExecutionPlan } from '../../../modules/marketing/prompts/v2/strategyExecutionPlan.js';
 import { planRequiresResearchPhase } from '../../../modules/marketing/prompts/v2/strategyExecutionPlan.js';
 import type { MarketingRouteKind, ParsedMarketingRoute } from './marketingRouteTypes.js';
-import type { MarketingOrchestrationContext } from './marketingAgentOrchestrator.js';
+import type { ContentWorkflowResult, MarketingOrchestrationContext } from './marketingAgentOrchestrator.js';
 import * as contentDal from '../../../dal/marketing/content.js';
 
 export type { MarketingRouteKind, ParsedMarketingRoute } from './marketingRouteTypes.js';
@@ -552,19 +552,70 @@ export interface MarketingFlowOptions {
   onStreamChunk?: (text: string) => void;
 }
 
+async function loadMarketingContentSnapshot(
+  legacyContext: ToolContext,
+  contentId: string,
+): Promise<{ image_url: string | null; status: string } | null> {
+  try {
+    const { legacyToolContextToCallerContext } = await import('./marketingAgentOrchestrator.js');
+    const caller = legacyToolContextToCallerContext(legacyContext);
+    const row = await contentDal.getContentById(caller, contentId);
+    if (!row) return null;
+    return { image_url: row.image_url ?? null, status: row.status };
+  } catch {
+    return null;
+  }
+}
+
 async function loadMarketingImageUrl(
   legacyContext: ToolContext,
   contentId: string | null | undefined,
 ): Promise<string | null> {
   if (!contentId) return null;
-  try {
-    const { legacyToolContextToCallerContext } = await import('./marketingAgentOrchestrator.js');
-    const caller = legacyToolContextToCallerContext(legacyContext);
-    const row = await contentDal.getContentById(caller, contentId);
-    return row?.image_url ?? null;
-  } catch {
-    return null;
+  const snap = await loadMarketingContentSnapshot(legacyContext, contentId);
+  return snap?.image_url ?? null;
+}
+
+async function persistedContentExtras(
+  legacyContext: ToolContext,
+  contentResult: ContentWorkflowResult,
+): Promise<{
+  marketingContentId?: string | null;
+  marketingImageUrl?: string | null;
+  marketingContentStatus?: string | null;
+  marketingValidation?: Record<string, unknown>;
+}> {
+  const id =
+    contentResult.status === 'completed'
+      ? contentResult.contentId
+      : contentResult.status === 'failed' && contentResult.contentId
+        ? contentResult.contentId
+        : null;
+  if (!id) return {};
+  const snap = await loadMarketingContentSnapshot(legacyContext, id);
+  let marketingValidation: Record<string, unknown> | undefined;
+  if (contentResult.status === 'completed') {
+    marketingValidation = {
+      productTruth: {
+        passed: contentResult.truth.verdict === 'PASS',
+        verdict: contentResult.truth.verdict,
+      },
+      brandVoice: {
+        passed: contentResult.brandVoice.passes,
+        score: contentResult.brandVoice.score,
+      },
+      compliance: {
+        passed: contentResult.compliance.verdict === 'PASS',
+        verdict: contentResult.compliance.verdict,
+      },
+    };
   }
+  return {
+    marketingContentId: id,
+    marketingImageUrl: snap?.image_url ?? null,
+    marketingContentStatus: snap?.status ?? null,
+    marketingValidation,
+  };
 }
 
 export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions): Promise<{
@@ -572,9 +623,13 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
   pendingActions: PendingActionSSEEvent[];
   toolObservations: ToolObservation[];
   toolsUsed: string[];
-  /** Set when Instagram persisted workflow creates a content row */
+  /** Set when persisted content workflow creates/updates a `marketing_content` row */
   marketingContentId?: string | null;
   marketingImageUrl?: string | null;
+  /** DB status after workflow (e.g. `in_review`, `draft`) */
+  marketingContentStatus?: string | null;
+  /** Compact gatekeeper summary when workflow completed */
+  marketingValidation?: Record<string, unknown>;
 }> {
   const {
     query,
@@ -690,52 +745,49 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
 
       if (route.route === 'CONTENT_STRATEGIST') {
         const mo = await import('./marketingAgentOrchestrator.js');
-        if (mo.inferChannelFromUserMessage(query) === 'instagram') {
-          const orchCtx: MarketingOrchestrationContext = {
-            agentContext,
-            doraCtx,
-            legacyContext,
-            priorContext,
-            history,
-            forceMarketingContext,
-            onStreamChunk,
-          };
-          const contentResult = await mo.executeContentWorkflow(
-            {
-              userQuery: note + query,
-              title: undefined,
-              channel: 'instagram',
-              contentType: 'social',
-            },
-            orchCtx,
-          );
-          allObs.push(...contentResult.toolObservations);
-          allTools.push(...contentResult.toolsUsed);
-          if (contentResult.status === 'completed') {
-            combined = contentResult.draft;
-            onStreamChunk?.(combined);
-            const marketingImageUrl = await loadMarketingImageUrl(legacyContext, contentResult.contentId);
-            return {
-              content: combined,
-              pendingActions: allPending,
-              toolObservations: allObs,
-              toolsUsed: allTools,
-              marketingContentId: contentResult.contentId,
-              marketingImageUrl,
-            };
-          }
-          combined = (contentResult.lastDraft?.trim() || contentResult.reason).trim();
+        const orchCtx: MarketingOrchestrationContext = {
+          agentContext,
+          doraCtx,
+          legacyContext,
+          priorContext,
+          history,
+          forceMarketingContext,
+          onStreamChunk,
+        };
+        const ch = mo.inferMarketingContentChannel(note + query);
+        const ct = mo.contentTypeForMarketingChannel(ch);
+        const contentResult = await mo.executeContentWorkflow(
+          {
+            userQuery: note + query,
+            title: undefined,
+            channel: ch,
+            contentType: ct,
+          },
+          orchCtx,
+        );
+        allObs.push(...contentResult.toolObservations);
+        allTools.push(...contentResult.toolsUsed);
+        const extras = await persistedContentExtras(legacyContext, contentResult);
+        if (contentResult.status === 'completed') {
+          combined = contentResult.draft;
           onStreamChunk?.(combined);
           return {
             content: combined,
             pendingActions: allPending,
             toolObservations: allObs,
             toolsUsed: allTools,
+            ...extras,
           };
         }
-        combined = await runContent(query);
+        combined = (contentResult.lastDraft?.trim() || contentResult.reason).trim();
         onStreamChunk?.(combined);
-        return { content: combined, pendingActions: allPending, toolObservations: allObs, toolsUsed: allTools };
+        return {
+          content: combined,
+          pendingActions: allPending,
+          toolObservations: allObs,
+          toolsUsed: allTools,
+          ...extras,
+        };
       }
 
       if (route.route === 'CAMPAIGN_MANAGER') {
@@ -749,55 +801,50 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       onStreamChunk?.(campaignPart);
 
       const moBoth = await import('./marketingAgentOrchestrator.js');
-      if (moBoth.inferChannelFromUserMessage(query) === 'instagram') {
-        const orchCtx: MarketingOrchestrationContext = {
-          agentContext,
-          doraCtx,
-          legacyContext,
-          priorContext,
-          history,
-          forceMarketingContext,
-          onStreamChunk,
-        };
-        const contentResult = await moBoth.executeContentWorkflow(
-          {
-            userQuery: `${note + query}\n\nContext from campaign planning:\n${campaignPart}`,
-            title: undefined,
-            channel: 'instagram',
-            contentType: 'social',
-          },
-          orchCtx,
-        );
-        allObs.push(...contentResult.toolObservations);
-        allTools.push(...contentResult.toolsUsed);
-        if (contentResult.status === 'completed') {
-          combined = `${campaignPart}\n\n${contentResult.draft}`;
-          onStreamChunk?.(`\n\n${contentResult.draft}`);
-          const marketingImageUrl = await loadMarketingImageUrl(legacyContext, contentResult.contentId);
-          return {
-            content: combined,
-            pendingActions: allPending,
-            toolObservations: allObs,
-            toolsUsed: allTools,
-            marketingContentId: contentResult.contentId,
-            marketingImageUrl,
-          };
-        }
-        const failPart = (contentResult.lastDraft?.trim() || contentResult.reason).trim();
-        combined = `${campaignPart}\n\n${failPart}`;
-        onStreamChunk?.(`\n\n${failPart}`);
+      const orchCtxBoth: MarketingOrchestrationContext = {
+        agentContext,
+        doraCtx,
+        legacyContext,
+        priorContext,
+        history,
+        forceMarketingContext,
+        onStreamChunk,
+      };
+      const chBoth = moBoth.inferMarketingContentChannel(note + query);
+      const ctBoth = moBoth.contentTypeForMarketingChannel(chBoth);
+      const contentResult = await moBoth.executeContentWorkflow(
+        {
+          userQuery: `${note + query}\n\nContext from campaign planning:\n${campaignPart}`,
+          title: undefined,
+          channel: chBoth,
+          contentType: ctBoth,
+        },
+        orchCtxBoth,
+      );
+      allObs.push(...contentResult.toolObservations);
+      allTools.push(...contentResult.toolsUsed);
+      const extrasBoth = await persistedContentExtras(legacyContext, contentResult);
+      if (contentResult.status === 'completed') {
+        combined = `${campaignPart}\n\n${contentResult.draft}`;
+        onStreamChunk?.(`\n\n${contentResult.draft}`);
         return {
           content: combined,
           pendingActions: allPending,
           toolObservations: allObs,
           toolsUsed: allTools,
+          ...extrasBoth,
         };
       }
-
-      const contentPart = await runContent(query, campaignPart);
-      onStreamChunk?.(`\n\n${contentPart}`);
-      combined = `${campaignPart}\n\n${contentPart}`;
-      return { content: combined, pendingActions: allPending, toolObservations: allObs, toolsUsed: allTools };
+      const failPart = (contentResult.lastDraft?.trim() || contentResult.reason).trim();
+      combined = `${campaignPart}\n\n${failPart}`;
+      onStreamChunk?.(`\n\n${failPart}`);
+      return {
+        content: combined,
+        pendingActions: allPending,
+        toolObservations: allObs,
+        toolsUsed: allTools,
+        ...extrasBoth,
+      };
     })(),
     TOTAL_MS,
     'Marketing flow',

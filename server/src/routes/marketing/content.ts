@@ -18,6 +18,12 @@ function mergeContentText(body: string | undefined, html: string | undefined, ti
   return (body ?? '').trim() || (html ?? '').trim() || title.trim();
 }
 
+/** Normalize publishing channel for brand voice / policy prompts (matches orchestrator defaults). */
+function resolveBrandVoiceChannel(channel: string | null | undefined): string {
+  const c = (channel ?? '').trim().toLowerCase();
+  return c || 'linkedin';
+}
+
 async function validateTruthForReview(
   ctx: CallerContext,
   text: string,
@@ -48,6 +54,8 @@ async function validateTruthForReview(
 async function brandVoiceAfterTruthPass(
   ctx: CallerContext,
   text: string,
+  /** From `marketing_content.channel` or request body — drives channel-specific brand rules */
+  targetChannel?: string | null,
 ): Promise<{ brand_voice_check: Record<string, unknown>; brand_voice_checked_at: string } | undefined> {
   const orgId = ctx.organizationId;
   if (!orgId || !text.trim()) return undefined;
@@ -57,6 +65,7 @@ async function brandVoiceAfterTruthPass(
       contentText: text,
       tenantId: orgId,
       userQuery: 'marketing_submit_review_brand_voice',
+      targetChannel: resolveBrandVoiceChannel(targetChannel),
     });
     return {
       brand_voice_check: bvc as unknown as Record<string, unknown>,
@@ -92,7 +101,9 @@ router.post('/', async (req: ReimbursementRequest, res: Response) => {
       }
       truthValidation = v.validation;
       truthValidatedAt = new Date().toISOString();
-      const bvc = await brandVoiceAfterTruthPass(ctx, text);
+      const channelForVoice =
+        typeof req.body.channel === 'string' && req.body.channel.trim() ? req.body.channel : undefined;
+      const bvc = await brandVoiceAfterTruthPass(ctx, text, channelForVoice);
       if (bvc) {
         brandVoiceCheck = bvc.brand_voice_check;
         brandVoiceCheckedAt = bvc.brand_voice_checked_at;
@@ -232,7 +243,11 @@ router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
       }
       truthValidation = v.validation;
       truthValidatedAt = new Date().toISOString();
-      const bvc = await brandVoiceAfterTruthPass(ctx, text);
+      const channelForVoice =
+        req.body.channel !== undefined && req.body.channel !== null
+          ? String(req.body.channel)
+          : existing.channel;
+      const bvc = await brandVoiceAfterTruthPass(ctx, text, channelForVoice);
       if (bvc) {
         brandVoiceCheck = bvc.brand_voice_check;
         brandVoiceCheckedAt = bvc.brand_voice_checked_at;

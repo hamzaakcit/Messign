@@ -77,7 +77,7 @@ export function MarketingAgentPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-xl font-semibold text-app">Marketing Agent</h1>
+          <h1 className="text-xl font-semibold text-app-text">Marketing Agent</h1>
           <p className="text-sm text-app-muted mt-1 max-w-2xl">
             Drafts, campaign insights, and ROI — routed through Dora&apos;s marketing specialists. For other
             modules, use{' '}
@@ -94,7 +94,7 @@ export function MarketingAgentPage() {
               clearChat();
               setInputValue('');
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-app-border text-app-muted hover:text-app hover:bg-app-hover"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-app-border text-app-muted hover:text-app-text hover:bg-app-hover"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Clear chat
@@ -114,10 +114,10 @@ export function MarketingAgentPage() {
                 your workspace data.
               </p>
               <p className="text-xs text-app-muted/90 leading-relaxed">
-                <span className="text-app/90 font-medium">Instagram:</span> ask for an Instagram draft with an{' '}
+                <span className="text-app-text/90 font-medium">Instagram:</span> ask for an Instagram draft with an{' '}
                 <code className="text-[11px] px-1 py-0.5 rounded bg-white/5 border border-white/10">[IMAGE_PROMPT]</code>{' '}
                 block (see quick prompt below). After content is created with channel{' '}
-                <strong className="text-app/90">instagram</strong>, open{' '}
+                <strong className="text-app-text/90">instagram</strong>, open{' '}
                 <Link to="/marketing/content" className="text-primary-400 hover:underline">
                   Marketing → Content
                 </Link>{' '}
@@ -169,7 +169,7 @@ export function MarketingAgentPage() {
                   setInputValue(q.text);
                   inputRef.current?.focus();
                 }}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-white/10 bg-white/[0.04] text-app-muted hover:text-app hover:bg-white/[0.08] disabled:opacity-40"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-white/10 bg-white/[0.04] text-app-muted hover:text-app-text hover:bg-white/[0.08] disabled:opacity-40"
               >
                 {q.icon === 'instagram' ? <Instagram className="w-3 h-3 shrink-0" aria-hidden /> : null}
                 {q.label}
@@ -190,7 +190,7 @@ export function MarketingAgentPage() {
             placeholder="Ask the Marketing Agent…"
             disabled={isLoading}
             rows={1}
-            className="flex-1 min-h-[44px] max-h-[120px] px-3 py-2.5 rounded-lg text-sm text-app bg-app border border-app-border resize-none focus:outline-none focus:ring-1 focus:ring-primary-500/40"
+            className="flex-1 min-h-[44px] max-h-[120px] px-3 py-2.5 rounded-lg text-sm resize-none bg-app-inputBg border border-app-inputBorder text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-1 focus:ring-primary-500/40"
           />
           {isStreaming ? (
             <button
