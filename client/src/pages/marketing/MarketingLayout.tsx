@@ -13,8 +13,11 @@ export function MarketingLayout() {
   const segment = location.pathname.split('/').filter(Boolean)[1];
 
   switch (segment) {
+    case undefined:
     case 'command-center':
       return <MarketingCommandCenterPage />;
+    case 'campaigns':
+      return <MarketingCampaignsPage />;
     case 'approvals':
       return <MarketingApprovalQueuePage />;
     case 'agent':

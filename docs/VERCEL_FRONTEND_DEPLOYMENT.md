@@ -40,8 +40,9 @@ If you have **uncommitted or unpushed** changes, `messign.vercel.app` will not s
 |-----|----------------|--------|
 | `/login`, `/signup` | Login / sign-up (no app shell) | [`App.tsx`](../client/src/App.tsx) |
 | `/` … (authenticated) | `AppShell` → `MainContent` | [`App.tsx`](../client/src/App.tsx) |
-| `/marketing` | Marketing **Campaigns** (default segment) | [`MarketingLayout.tsx`](../client/src/pages/marketing/MarketingLayout.tsx) |
-| `/marketing/command-center` | Command Center | same |
+| `/marketing` | **Command Center** (cockpit default) | [`MarketingLayout.tsx`](../client/src/pages/marketing/MarketingLayout.tsx) |
+| `/marketing/campaigns` | Campaigns list | same |
+| `/marketing/command-center` | Command Center (alias path) | same |
 | `/marketing/agent` | Marketing Agent | same |
 | `/marketing/approvals` | Approvals queue | same |
 | `/marketing/content` | Content calendar | same |

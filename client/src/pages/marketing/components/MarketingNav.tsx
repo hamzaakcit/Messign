@@ -3,9 +3,9 @@ import { BarChart3, CalendarDays, ClipboardCheck, LayoutGrid, Mail, Megaphone, S
 import { cn } from '@/lib/utils';
 
 const tabs = [
-  { id: 'command-center', label: 'Command Center', path: '/marketing/command-center', icon: LayoutGrid },
+  { id: 'command-center', label: 'Command Center', path: '/marketing', icon: LayoutGrid },
   { id: 'agent', label: 'Agent', path: '/marketing/agent', icon: Sparkles },
-  { id: 'campaigns', label: 'Campaigns', path: '/marketing', icon: Megaphone },
+  { id: 'campaigns', label: 'Campaigns', path: '/marketing/campaigns', icon: Megaphone },
   { id: 'approvals', label: 'Approvals', path: '/marketing/approvals', icon: ClipboardCheck },
   { id: 'content', label: 'Content Calendar', path: '/marketing/content', icon: CalendarDays },
   { id: 'leads', label: 'Leads', path: '/marketing/leads', icon: Users },
@@ -19,7 +19,7 @@ export function MarketingNav() {
   const segment = location.pathname.split('/').filter(Boolean)[1];
 
   const activeTab =
-    segment === 'command-center'
+    !segment || segment === 'command-center'
       ? 'command-center'
       : segment === 'agent'
       ? 'agent'
