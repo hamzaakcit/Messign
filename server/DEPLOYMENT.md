@@ -45,6 +45,22 @@ Set these in the Render/Railway dashboard (or in a `.env` file for local runs).
 | `ANTHROPIC_API_KEY` | Claude for OCR, knowledge search, embeddings |
 | `OPENAI_API_KEY` | OpenAI for RAG embeddings |
 
+### Marketing Agent — image generation & storage (Railway)
+
+The Marketing Instagram flow calls LiteLLM for image generation and uploads to Supabase Storage. If these are missing, generation can fail or the UI may show **placeholder URLs** that do not load in the browser.
+
+| Variable | Description | Default / note |
+|----------|-------------|----------------|
+| `LITELLM_GATEWAY_URL` | Base URL of your LiteLLM (or compatible) gateway | Often `http://localhost:4000` locally; **must** be set in production to a reachable URL |
+| `LITELLM_MASTER_KEY` | API key the server sends to the gateway (if required) | — |
+| `SUPABASE_URL` | Supabase project URL | Without this + service role, uploads fall back to mock storage |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for server-side uploads | — |
+| `MARKETING_IMAGE_BUCKET` | Storage bucket for marketing images | Optional; defaults apply when configured |
+
+**Mock storage:** If Supabase is not configured, the server may still “succeed” at storing a URL under `https://storage.mock.local/...`. That URL **will not render** in the app or browser—configure real Supabase (or another upload target) for visible previews and downloads.
+
+Optional model override: `IMAGE_GEN_MODEL` (e.g. if your LiteLLM alias differs from the default).
+
 ### Optional (invoices / company)
 
 | Variable | Description | Default |
@@ -78,6 +94,12 @@ GROQ_API_KEY
 GOOGLE_GEMINI_API_KEY
 ANTHROPIC_API_KEY
 OPENAI_API_KEY
+LITELLM_GATEWAY_URL
+LITELLM_MASTER_KEY
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+MARKETING_IMAGE_BUCKET
+IMAGE_GEN_MODEL
 COMPANY_NAME
 COMPANY_ADDRESS
 COMPANY_REG_NUMBER

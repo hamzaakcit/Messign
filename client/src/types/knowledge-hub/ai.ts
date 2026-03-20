@@ -98,6 +98,10 @@ export interface AIResponseMetadata {
   specialist?: string | null;
   specialistDisplayName?: string | null;
   specialistIcon?: string | null;
+  /** Marketing Agent: persisted content row after Instagram workflow */
+  marketingContentId?: string | null;
+  /** Public URL for generated image (omit or empty when unavailable) */
+  marketingImageUrl?: string | null;
 }
 
 export interface AISourceDocument {

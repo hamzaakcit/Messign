@@ -13,6 +13,7 @@ import DoraAvatar from '@/components/dora/DoraAvatar';
 import { ThinkingIndicator } from '@/components/dora/ThinkingIndicator';
 import { DoraFollowUpChips } from './DoraFollowUpChips';
 import { ActionConfirmationInline } from '@/components/dora/ActionConfirmationInline';
+import { Link } from 'react-router-dom';
 
 interface AIMessageBubbleProps {
   message: AIMessage;
@@ -155,6 +156,38 @@ export function AIMessageBubble({
               {message.sources && message.sources.length > 0 && (
                 <AISourcesList sources={message.sources} />
               )}
+              {message.metadata?.marketingContentId &&
+                message.metadata.marketingImageUrl &&
+                !String(message.metadata.marketingImageUrl).includes('storage.mock.local') && (
+                  <div className="mt-3 rounded-xl border border-dark-600/80 bg-dark-800/40 overflow-hidden">
+                    <img
+                      src={message.metadata.marketingImageUrl}
+                      alt="Generated marketing image"
+                      className="w-full max-h-48 object-contain bg-black/20"
+                    />
+                    <div className="px-3 py-2 flex flex-wrap items-center gap-2 border-t border-dark-600/60">
+                      <Link
+                        to={`/marketing/content?contentId=${encodeURIComponent(message.metadata.marketingContentId)}`}
+                        className="text-xs font-medium text-sky-400 hover:text-sky-300"
+                      >
+                        Open in Content
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              {message.metadata?.marketingContentId &&
+                (!message.metadata.marketingImageUrl ||
+                  String(message.metadata.marketingImageUrl).includes('storage.mock.local')) && (
+                  <p className="mt-3 text-xs text-amber-400/90">
+                    Draft saved — open in Content to view or generate the image when storage is configured.
+                    <Link
+                      to={`/marketing/content?contentId=${encodeURIComponent(message.metadata.marketingContentId)}`}
+                      className="ml-2 text-sky-400 hover:text-sky-300"
+                    >
+                      Open in Content
+                    </Link>
+                  </p>
+                )}
               {message.metadata && <AIMetadataBar metadata={message.metadata} />}
               {!message.pendingConfirmation && !message.pendingAction && (
                 <DoraFollowUpChips

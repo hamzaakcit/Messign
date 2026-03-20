@@ -323,6 +323,12 @@ export async function runDoraPipeline(
         specialist: 'marketing',
         specialistDisplayName: 'Marketing',
         specialistIcon: '📣',
+        ...(result.marketingContentId != null && result.marketingContentId !== ''
+          ? { marketingContentId: result.marketingContentId }
+          : {}),
+        ...(result.marketingImageUrl != null && result.marketingImageUrl !== ''
+          ? { marketingImageUrl: result.marketingImageUrl }
+          : {}),
       });
       controller.emit('done', null);
       controller.end();

@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { Download } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,6 +108,34 @@ export function InstagramCockpit({
       setPromptEditorOpen(false);
     }
   }, [editedPrompt, selectedStyle, onRegenerateImage]);
+
+  const handleDownloadImage = useCallback(async () => {
+    if (!imageUrl) return;
+    const base = contentId?.slice(0, 8) ?? 'instagram-image';
+    try {
+      const res = await fetch(imageUrl, { mode: 'cors' });
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      const ext = blob.type?.includes('png')
+        ? 'png'
+        : blob.type?.includes('jpeg') || blob.type?.includes('jpg')
+          ? 'jpg'
+          : blob.type?.includes('webp')
+            ? 'webp'
+            : 'png';
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `${base}.${ext}`;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(imageUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, [imageUrl, contentId]);
 
   // Split caption into body + hashtags for display
   const { body: captionBody, hashtags } = splitCaptionAndHashtags(caption);
@@ -252,6 +281,18 @@ export function InstagramCockpit({
         </button>
 
         {/* Approve */}
+        {imageUrl && !isGenerating && (
+          <button
+            type="button"
+            style={{ ...styles.controlBtn, ...styles.controlBtnSecondary }}
+            onClick={() => void handleDownloadImage()}
+            title="Download image"
+          >
+            <Download size={14} strokeWidth={2} />
+            Download
+          </button>
+        )}
+
         {onApprove && (
           <button
             style={{
@@ -584,6 +625,11 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(139,92,246,0.12)',
     borderColor: 'rgba(139,92,246,0.25)',
     color: '#c4b5fd',
+  },
+  controlBtnSecondary: {
+    background: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    color: '#e5e5e5',
   },
   controlBtnSuccess: {
     background: 'rgba(34,197,94,0.1)',

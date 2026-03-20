@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
@@ -28,6 +29,7 @@ function contentVariant(contentType: string): 'default' | 'blue' | 'purple' | 'g
 }
 
 export function MarketingContentPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
   const [anchorDate, setAnchorDate] = useState(() => new Date());
@@ -62,6 +64,13 @@ export function MarketingContentPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const contentIdFromUrl = searchParams.get('contentId');
+  useEffect(() => {
+    if (contentIdFromUrl) {
+      setSelectedContentId(contentIdFromUrl);
+    }
+  }, [contentIdFromUrl]);
 
   const calendarMap = useMemo(() => {
     const map = new Map<string, ContentItem[]>();
@@ -188,7 +197,19 @@ export function MarketingContentPage() {
         </div>
       </div>
 
-      <SlideOverPanel isOpen={!!selectedContentId} onClose={() => setSelectedContentId(null)} title="Content Detail" width={720}>
+      <SlideOverPanel
+        isOpen={!!selectedContentId}
+        onClose={() => {
+          setSelectedContentId(null);
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('contentId');
+            return next;
+          });
+        }}
+        title="Content Detail"
+        width={720}
+      >
         {selectedContentId && <ContentDetailPanel contentId={selectedContentId} onUpdated={fetchData} />}
       </SlideOverPanel>
 
