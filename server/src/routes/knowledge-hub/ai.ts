@@ -42,7 +42,7 @@ function routeToDynamicToolLoop(userId: string, organizationId: string | null): 
 }
 
 export const aiRouter = Router();
-type AuthReq = Request & { userId: string; role?: string };
+type AuthReq = Request & { userId: string; role?: string; organizationId?: string };
 
 function extractSources(routerResult: { toolResults: { success: boolean; data: unknown }[] }): SourceDocument[] {
   const sources: SourceDocument[] = [];
@@ -122,7 +122,7 @@ aiRouter.post('/presentation', validateAIPresentationInput, aiPresentationRateLi
     const slideCount = req.body.slideCount as number;
 
     const authReq = req as AuthReq;
-    const doraCtx = await buildDoraContext(authReq.userId, authReq.role, '', false);
+    const doraCtx = await buildDoraContext(authReq.userId, authReq.role, '', false, authReq.organizationId);
     const context = toLegacyToolContext(doraCtx);
     const routerResult = await routeQuery(topic, [], context);
 
@@ -324,6 +324,12 @@ aiRouter.get('/answer/claude-status', async (req: Request, res: Response) => {
 });
 
 aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: Request, res: Response) => {
+  if (process.env.DORA_V2_ENABLED === 'true') {
+    const { runPipelineHandler } = await import('../../services/ai/v2/pipeline.js');
+    await runPipelineHandler(req, res);
+    return;
+  }
+
   const userQuery = req.body.query as string;
   const history: { role: string; content: string }[] = req.body.history ?? [];
   const concise = req.body.concise !== false;
@@ -356,7 +362,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   // Registered chip intents: direct tool execution + instant JSON (no orchestrator / no synthesis)
   if (!searchMode && clientIntent) {
     try {
-      const doraDirect = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise);
+      const doraDirect = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise, authReq.organizationId);
       const legacyDirect = toLegacyToolContext(doraDirect);
       const direct = await executeDirectIntent(clientIntent, legacyDirect);
       if (direct) {
@@ -441,7 +447,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   // Web Search mode: use Groq compound-beta for internet search
   if (searchMode) {
     try {
-      const doraCtx = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise);
+      const doraCtx = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise, authReq.organizationId);
       const systemContext =
         `You are Dora, an AI assistant for ${doraCtx.user.userName} (${doraCtx.user.userRole}) at Messign Workspace. ` +
         `Today is ${doraCtx.todayDate}. ` +
@@ -491,7 +497,7 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
   }
 
   try {
-    const doraCtx = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise);
+    const doraCtx = await buildDoraContext(authReq.userId, authReq.role, currentPath, concise, authReq.organizationId);
     const legacyContext = toLegacyToolContext(doraCtx);
     const chatHistory = trimHistory(history, 1000).map((m) => ({
       role: m.role as 'user' | 'assistant',

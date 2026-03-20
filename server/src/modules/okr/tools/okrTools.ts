@@ -6,6 +6,7 @@ import type { ToolRegistration } from '../../types.js';
 import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
 import type { CallerContext } from '../../../dal/types.js';
 import * as okrsDal from '../../../dal/okrs.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
   return {
@@ -13,11 +14,6 @@ function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
     role: (ctx.userRole ?? 'employee') as CallerContext['role'],
     organizationId,
   };
-}
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const result = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1 LIMIT 1', ['messign']);
-  return result.rows[0]?.id;
 }
 
 export const getOKRMetrics: ToolRegistration = {
@@ -45,7 +41,7 @@ export const getOKRMetrics: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = buildCtx(ctx, organizationId);
     const metrics = await okrsDal.getOKRMetrics(callerCtx, args.periodId as string | undefined);
@@ -85,7 +81,7 @@ export const listOKRGoals: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = buildCtx(ctx, organizationId);
     const goals = await okrsDal.listGoals(
@@ -128,7 +124,7 @@ export const getOKRGoalTree: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const periodId = args.periodId as string;
     if (!periodId) return { success: false, data: null, summary: 'periodId is required.' };

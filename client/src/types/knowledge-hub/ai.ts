@@ -24,6 +24,27 @@ export interface DoraPendingConfirmation {
   sourceIntentId?: string;
 }
 
+/** Token-based pending action from SSE `pending_action` (action interceptor) */
+export interface DoraPendingActionDisplayField {
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'readonly';
+  value: unknown;
+  options?: Array<{ label: string; value: string }>;
+  editable: boolean;
+}
+
+export interface DoraPendingActionContent {
+  token: string;
+  actionType: string;
+  description: string;
+  displayFields: DoraPendingActionDisplayField[];
+  editableFields: string[];
+  expiresAt: string;
+  payload: Record<string, unknown>;
+  riskLevel?: 'write' | 'irreversible';
+}
+
 export interface AIMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -33,6 +54,9 @@ export interface AIMessage {
   intentId?: string;
   /** Act mode — user must confirm before the assistant proceeds */
   pendingConfirmation?: DoraPendingConfirmation;
+  /** SSE `pending_action` — server-held token for execute/cancel APIs */
+  pendingAction?: DoraPendingActionContent;
+  actionStatus?: 'pending' | 'confirmed' | 'cancelled' | 'executed';
   /** Which specialist handled this response (orchestrator routing) */
   specialist?: SpecialistInfo | null;
   /** Metadata about the AI response (only on assistant messages) */

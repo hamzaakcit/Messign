@@ -15,6 +15,7 @@ import {
   getSupportToProductCorrelation,
   getTimeToProjectProfitability,
 } from '../../../services/dora/crossModuleAnalytics.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
   return {
@@ -22,14 +23,6 @@ function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
     role: (ctx.userRole ?? 'employee') as CallerContext['role'],
     organizationId,
   };
-}
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const result = await query<{ id: string }>(
-    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-    ['messign'],
-  );
-  return result.rows[0]?.id;
 }
 
 function buildComparisonDateFilter(period: string): Date {
@@ -73,7 +66,7 @@ export const getHiringPipeline: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const conditions = ['j.organization_id = $1::uuid'];
     const params: unknown[] = [organizationId];
@@ -126,7 +119,7 @@ export const scoreCandidate: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const candidateResult = await query<{ id: string; first_name: string; last_name: string | null; email: string; resume_text: string | null }>(
       `SELECT id::text, first_name, last_name, email, resume_text FROM recruitment_candidates
@@ -180,7 +173,7 @@ export const getRecruitmentMetrics: ToolRegistration = {
   },
 
   handler: async (_args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const dashboard = await recruitmentMetrics.getDashboardMetrics(buildCtx(ctx, organizationId)) as { openPositions: number; activeApplicants: number; avgTimeToHire: number; offerAcceptanceRate: number };
     return {
@@ -218,7 +211,7 @@ export const getCrossModuleReport: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = buildCtx(ctx, organizationId);
     const focus = typeof args.focus === 'string' ? args.focus : 'executive';
@@ -273,8 +266,7 @@ export const compareEmployees: ToolRegistration = {
     const timePeriod = (args.time_period as string) || 'this_month';
     const names = employeeNames.split(',').map((n) => n.trim()).filter(Boolean);
     if (names.length < 2) return { success: false, data: null, summary: 'Please provide at least 2 employee names separated by commas.' };
-    const orgResult = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = $1 LIMIT 1`, ['messign']);
-    const orgId = orgResult.rows[0]?.id;
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not configured.' };
     const dateFilter = buildComparisonDateFilter(timePeriod);
     const users: { auth_user_id: string; full_name: string }[] = [];

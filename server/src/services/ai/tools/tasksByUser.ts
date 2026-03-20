@@ -9,8 +9,7 @@ import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import { limitRecords } from '../dataSanitizer.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
-
-const DEFAULT_ORG_SLUG = 'messign';
+import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
 
 const tasksByUserTool: Tool = {
   name: 'projects:get_tasks_by_user',
@@ -78,8 +77,7 @@ Use this tool when someone asks:
       targetAuthUserId = context.userId;
       targetUserName = context.userName || 'You';
     } else {
-      const orgResult = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = $1 LIMIT 1`, [DEFAULT_ORG_SLUG]);
-      const orgId = orgResult.rows[0]?.id;
+      const orgId = await resolveOrgIdForTool(context);
       if (!orgId) {
         return { success: false, data: null, summary: 'Organization not configured.' };
       }

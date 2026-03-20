@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { ThumbsUp, ThumbsDown, User as UserIcon, Copy, Check } from 'lucide-react';
 import type { AIMessage, SpecialistInfo } from '@/types/knowledge-hub/ai';
 import { AIMetadataBar } from './AIMetadataBar';
@@ -9,6 +12,7 @@ import { AIWidgetRenderer } from '@/components/dora/widgets/AIWidgetRenderer';
 import DoraAvatar from '@/components/dora/DoraAvatar';
 import { ThinkingIndicator } from '@/components/dora/ThinkingIndicator';
 import { DoraFollowUpChips } from './DoraFollowUpChips';
+import { ActionConfirmationInline } from '@/components/dora/ActionConfirmationInline';
 
 interface AIMessageBubbleProps {
   message: AIMessage;
@@ -19,6 +23,13 @@ interface AIMessageBubbleProps {
   onSendMessage?: (msg: string, intentId?: string) => void;
   onConfirmAct?: (message: AIMessage) => void;
   onCancelAct?: (messageId: string) => void;
+  /** SSE `pending_action` (token flow) */
+  onConfirmPendingAction?: (
+    messageId: string,
+    actionToken: string,
+    payload: Record<string, unknown>,
+  ) => void;
+  onCancelPendingAction?: (messageId: string, actionToken: string) => void;
 }
 
 export function AIMessageBubble({
@@ -30,6 +41,8 @@ export function AIMessageBubble({
   onSendMessage,
   onConfirmAct,
   onCancelAct,
+  onConfirmPendingAction,
+  onCancelPendingAction,
 }: AIMessageBubbleProps) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
@@ -80,7 +93,7 @@ export function AIMessageBubble({
           ) : (
             <div className="dora-glass px-4 py-3 rounded-2xl rounded-tl-md">
               <div className="max-w-3xl text-sm text-gray-300 leading-relaxed whitespace-pre-wrap [&_strong]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_ul]:my-1 [&_li]:text-gray-300">
-                <MarkdownContent content={message.content} />
+                <DoraReactMarkdown content={message.content} />
                 {message.isStreaming && (
                   <span
                     style={{
@@ -122,6 +135,24 @@ export function AIMessageBubble({
                   </button>
                 </div>
               )}
+              {message.pendingAction &&
+                message.actionStatus === 'pending' &&
+                !message.isStreaming &&
+                onConfirmPendingAction &&
+                onCancelPendingAction && (
+                  <ActionConfirmationInline
+                    action={message.pendingAction}
+                    onConfirm={(payload) =>
+                      onConfirmPendingAction(message.id, message.pendingAction!.token, payload)
+                    }
+                    onCancel={() =>
+                      onCancelPendingAction(message.id, message.pendingAction!.token)
+                    }
+                  />
+                )}
+              {message.actionStatus === 'cancelled' && (
+                <p className="mt-2 text-xs text-gray-500 italic">Action cancelled.</p>
+              )}
               {message.widgets && message.widgets.map((widget, i) => (
                 <AIWidgetRenderer key={`${widget.widgetType}-${i}`} widget={widget} index={i} onSendMessage={onSendMessage} />
               ))}
@@ -131,7 +162,7 @@ export function AIMessageBubble({
                 <AISourcesList sources={message.sources} />
               )}
               {message.metadata && <AIMetadataBar metadata={message.metadata} />}
-              {!message.pendingConfirmation && (
+              {!message.pendingConfirmation && !message.pendingAction && (
                 <DoraFollowUpChips
                   message={message}
                   priorUserMessage={priorUserMessage}
@@ -143,7 +174,10 @@ export function AIMessageBubble({
             </div>
           )}
 
-          {!message.isStreaming && message.content.length > 0 && !message.pendingConfirmation && (
+          {!message.isStreaming &&
+            message.content.length > 0 &&
+            !message.pendingConfirmation &&
+            !message.pendingAction && (
             <div className="flex items-center gap-1 mt-1.5 ml-1">
               <button
                 onClick={handleCopy}
@@ -226,124 +260,57 @@ function SpecialistBadge({ specialist }: { specialist: SpecialistInfo }) {
   );
 }
 
-function MarkdownContent({ content }: { content: string }) {
+function DoraReactMarkdown({ content }: { content: string }) {
   if (!content) return null;
-
-  const lines = content.split('\n');
-  const elements: React.ReactNode[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    if (line.startsWith('### ')) {
-      elements.push(
-        <h4 key={i} className="text-sm font-semibold text-white mt-3 mb-1">
-          {formatInline(line.slice(4))}
-        </h4>
-      );
-    } else if (line.startsWith('## ')) {
-      elements.push(
-        <h3 key={i} className="text-base font-semibold text-white mt-3 mb-1">
-          {formatInline(line.slice(3))}
-        </h3>
-      );
-    } else if (line.match(/^[\s]*[-•]\s/)) {
-      elements.push(
-        <div key={i} className="flex gap-2 ml-2 my-0.5">
-          <span className="text-gray-500 mt-0.5 flex-shrink-0">&bull;</span>
-          <span>{formatInline(line.replace(/^[\s]*[-•]\s/, ''))}</span>
-        </div>
-      );
-    } else if (line.match(/^\s*\d+\.\s/)) {
-      const num = line.match(/^\s*(\d+)\./)?.[1] ?? '';
-      elements.push(
-        <div key={i} className="flex gap-2 ml-2 my-0.5">
-          <span className="text-gray-500 font-medium flex-shrink-0 w-5 text-right">
-            {num}.
-          </span>
-          <span>{formatInline(line.replace(/^\s*\d+\.\s/, ''))}</span>
-        </div>
-      );
-    } else if (line.trim() === '---') {
-      elements.push(
-        <hr key={i} className="my-3 border-dark-600" />
-      );
-    } else if (line.includes('|') && line.trim().startsWith('|')) {
-      if (line.match(/^\|[\s-|]+\|$/)) continue;
-      const cells = line
-        .split('|')
-        .filter((c) => c.trim())
-        .map((c) => c.trim());
-      const isHeader =
-        i + 1 < lines.length && lines[i + 1]?.match(/^\|[\s-|]+\|$/);
-      elements.push(
-        <div
-          key={i}
-          className={`flex gap-4 py-1 px-2 text-xs ${
-            isHeader
-              ? 'font-semibold text-gray-500 border-b border-dark-600'
-              : ''
-          }`}
-        >
-          {cells.map((cell, ci) => (
-            <span key={ci} className="flex-1 min-w-0 truncate">
-              {formatInline(cell)}
-            </span>
-          ))}
-        </div>
-      );
-    } else if (line.trim() === '') {
-      elements.push(<div key={i} className="h-2" />);
-    } else {
-      elements.push(
-        <span key={i}>
-          {formatInline(line)}
-          {i < lines.length - 1 ? '\n' : ''}
-        </span>
-      );
-    }
-  }
-
-  return <>{elements}</>;
-}
-
-function formatInline(text: string): React.ReactNode {
-  const parts: React.ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
-    const codeMatch = remaining.match(/`(.+?)`/);
-    const boldIdx = boldMatch?.index ?? Infinity;
-    const codeIdx = codeMatch?.index ?? Infinity;
-
-    if (boldIdx === Infinity && codeIdx === Infinity) {
-      parts.push(remaining);
-      break;
-    }
-
-    if (boldIdx <= codeIdx && boldMatch) {
-      parts.push(remaining.slice(0, boldIdx));
-      parts.push(
-        <strong key={key++} className="font-semibold text-white">
-          {boldMatch[1]}
-        </strong>
-      );
-      remaining = remaining.slice(boldIdx + boldMatch[0].length);
-    } else if (codeMatch) {
-      parts.push(remaining.slice(0, codeIdx));
-      parts.push(
-        <code
-          key={key++}
-          className="px-1 py-0.5 bg-dark-700 rounded text-xs font-mono text-primary-300"
-        >
-          {codeMatch[1]}
-        </code>
-      );
-      remaining = remaining.slice(codeIdx + codeMatch[0].length);
-    }
-  }
-
-  return <>{parts}</>;
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeSanitize]}
+      components={{
+        h1: ({ children }) => <h3 className="text-base font-semibold text-white mt-3 mb-1">{children}</h3>,
+        h2: ({ children }) => <h3 className="text-base font-semibold text-white mt-3 mb-1">{children}</h3>,
+        h3: ({ children }) => <h4 className="text-sm font-semibold text-white mt-3 mb-1">{children}</h4>,
+        p: ({ children }) => <p className="my-1">{children}</p>,
+        ul: ({ children }) => <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-4 my-1 space-y-0.5">{children}</ol>,
+        li: ({ children }) => <li className="text-gray-300">{children}</li>,
+        a: ({ href, children }) => (
+          <a href={href} className="text-primary-400 underline" target="_blank" rel="noopener noreferrer">
+            {children}
+          </a>
+        ),
+        code: ({ className, children, ...props }) => {
+          const isBlock = /language-/.test(className ?? '') || String(children).includes('\n');
+          if (isBlock) {
+            return (
+              <pre className="my-2 p-2 rounded-lg bg-dark-800 overflow-x-auto text-xs">
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              </pre>
+            );
+          }
+          return (
+            <code className="px-1 py-0.5 bg-dark-700 rounded text-xs font-mono text-primary-300" {...props}>
+              {children}
+            </code>
+          );
+        },
+        table: ({ children }) => (
+          <div className="overflow-x-auto my-2">
+            <table className="min-w-full text-xs border-collapse border border-dark-600">{children}</table>
+          </div>
+        ),
+        th: ({ children }) => (
+          <th className="border border-dark-600 px-2 py-1 text-left text-gray-400 font-semibold">{children}</th>
+        ),
+        td: ({ children }) => (
+          <td className="border border-dark-600 px-2 py-1 text-gray-300">{children}</td>
+        ),
+        hr: () => <hr className="my-3 border-dark-600" />,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }

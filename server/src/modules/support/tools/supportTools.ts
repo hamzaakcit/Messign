@@ -9,6 +9,7 @@ import * as supportMetrics from '../dal/metrics.js';
 import * as supportSla from '../dal/sla.js';
 import * as supportHealth from '../dal/customerHealth.js';
 import * as crmCompanies from '../../crm/dal/companies.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
   return {
@@ -16,14 +17,6 @@ function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
     role: (ctx.userRole ?? 'employee') as CallerContext['role'],
     organizationId,
   };
-}
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const result = await query<{ id: string }>(
-    'SELECT id FROM organizations WHERE slug = $1 LIMIT 1',
-    ['messign'],
-  );
-  return result.rows[0]?.id;
 }
 
 export const getTicketOverview: ToolRegistration = {
@@ -45,7 +38,7 @@ export const getTicketOverview: ToolRegistration = {
   },
 
   handler: async (_args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) {
       return { success: false, data: null, summary: 'Organization not found.' };
     }
@@ -93,7 +86,7 @@ export const getCustomerHealth: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) {
       return { success: false, data: null, summary: 'Organization not found.' };
     }
@@ -163,7 +156,7 @@ export const getSupportMetrics: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) {
       return { success: false, data: null, summary: 'Organization not found.' };
     }

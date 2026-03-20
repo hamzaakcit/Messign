@@ -54,9 +54,17 @@ const TTL_BY_CATEGORY: Record<string, number> = {
  * Tools that should NEVER be cached.
  * These return real-time or user-specific contextual data.
  */
+/**
+ * Tools that should NEVER be cached.
+ * Keys must match what executeTool passes — the **resolved** namespaced name
+ * (e.g. analytics:get_recent_activity), not the bare OpenAI function name.
+ * Include legacy bare names so older call paths still skip cache.
+ */
 const NO_CACHE_TOOLS: Set<string> = new Set([
-  'get_recent_activity',     // Real-time
-  'get_approval_queue',      // Changes on every approval
+  'analytics:get_recent_activity',
+  'get_recent_activity',
+  'analytics:get_approval_queue',
+  'get_approval_queue',
 ]);
 
 /**

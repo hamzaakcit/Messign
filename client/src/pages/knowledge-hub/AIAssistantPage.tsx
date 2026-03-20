@@ -40,7 +40,11 @@ export function AIAssistantPage() {
     submitFeedback,
     clearChat,
     abortStream,
-  } = useAIChat();
+  } = useAIChat({
+    onIntentResolved: (id) => {
+      setRecentIntentIds((prev) => [...prev, id].slice(-12));
+    },
+  });
 
   const [inputValue, setInputValue] = useState('');
   const [presentation, setPresentation] = useState<PresentationData | null>(null);

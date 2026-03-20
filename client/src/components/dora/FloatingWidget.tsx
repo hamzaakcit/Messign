@@ -4,25 +4,10 @@ import { INTENT_ICON_MAP } from '@/components/knowledge-hub/ai/AISuggestionChips
 import { useAuthStore } from '@/stores/authStore';
 import { getAccessToken } from '@/lib/authToken';
 import { API_ORIGIN } from '@/lib/api';
+import { DORA_V2 } from '@/lib/featureFlags';
 import { DoraSidebarLogo, DoraChatAvatar, PilotPlaneSVG } from './DoraPilot';
-
-interface PendingActionContent {
-  token: string;
-  actionType: string;
-  description: string;
-  displayFields: Array<{
-    key: string;
-    label: string;
-    type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'readonly';
-    value: unknown;
-    options?: Array<{ label: string; value: string }>;
-    editable: boolean;
-  }>;
-  editableFields: string[];
-  expiresAt: string;
-  payload: Record<string, unknown>;
-  riskLevel?: 'write' | 'irreversible';
-}
+import { ActionConfirmationInline } from '@/components/dora/ActionConfirmationInline';
+import type { DoraPendingActionContent } from '@/types/knowledge-hub/ai';
 
 interface SpecialistInfo {
   module: string;
@@ -37,7 +22,7 @@ interface WidgetMessage {
   timestamp: number;
   isStreaming?: boolean;
   specialist?: SpecialistInfo | null;
-  pendingAction?: PendingActionContent | null;
+  pendingAction?: DoraPendingActionContent | null;
   actionStatus?: 'pending' | 'confirmed' | 'cancelled' | 'executed';
   metadata?: {
     toolsUsed: string[];
@@ -113,7 +98,11 @@ export function FloatingWidget() {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      const response = await fetch(`${API_ORIGIN}/api/knowledge-hub/ai/answer`, {
+      const answerUrl = DORA_V2
+        ? `${API_ORIGIN}/api/v2/ai/answer`
+        : `${API_ORIGIN}/api/knowledge-hub/ai/answer`;
+
+      const response = await fetch(answerUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -124,15 +113,20 @@ export function FloatingWidget() {
           query: text.trim(),
           intent: intentId || undefined,
           history,
+          mode: 'ask',
           concise: conciseMode,
           currentPath: widgetContext.currentPath,
           sessionId,
           searchMode: responseMode === 'search',
-          widgetContext: {
-            module: widgetContext.currentModule,
-            entity: widgetContext.viewingEntity,
-            routeParams: widgetContext.routeParams,
-          },
+          ...(!DORA_V2
+            ? {
+                widgetContext: {
+                  module: widgetContext.currentModule,
+                  entity: widgetContext.viewingEntity,
+                  routeParams: widgetContext.routeParams,
+                },
+              }
+            : {}),
         }),
         signal: controller.signal,
       });
@@ -210,15 +204,21 @@ export function FloatingWidget() {
             const event = JSON.parse(jsonStr);
 
             switch (event.type) {
-              case 'text':
+              case 'text': {
+                const chunk =
+                  typeof event.data === 'string'
+                    ? event.data
+                    : typeof event.content === 'string'
+                      ? event.content
+                      : '';
+                if (!chunk) break;
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === assistantMsg.id
-                      ? { ...m, content: m.content + event.content }
-                      : m
-                  )
+                    m.id === assistantMsg.id ? { ...m, content: m.content + chunk } : m,
+                  ),
                 );
                 break;
+              }
 
               case 'specialist':
                 setMessages((prev) =>
@@ -237,19 +237,21 @@ export function FloatingWidget() {
                 );
                 break;
 
-              case 'pending_action':
+              case 'pending_action': {
+                const pa = (event.data ?? event.content) as DoraPendingActionContent;
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMsg.id
-                      ? { ...m, pendingAction: event.content, actionStatus: 'pending' }
-                      : m
-                  )
+                      ? { ...m, pendingAction: pa, actionStatus: 'pending' }
+                      : m,
+                  ),
                 );
                 break;
+              }
 
               case 'metadata':
                 setMessages((prev) => {
-                  const meta = event.content as WidgetMessage['metadata'];
+                  const meta = (event.data ?? event.content) as WidgetMessage['metadata'];
                   const specialist = meta?.specialist
                     ? {
                         module: meta.specialist,
@@ -265,15 +267,22 @@ export function FloatingWidget() {
                 });
                 break;
 
-              case 'error':
+              case 'error': {
+                const msg =
+                  (event.data && typeof event.data === 'object' && 'message' in event.data
+                    ? String((event.data as { message?: string }).message)
+                    : null) ||
+                  (typeof event.message === 'string' ? event.message : null) ||
+                  'Something went wrong.';
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMsg.id
-                      ? { ...m, content: event.message || 'Something went wrong.', isStreaming: false }
-                      : m
-                  )
+                      ? { ...m, content: msg, isStreaming: false }
+                      : m,
+                  ),
                 );
                 break;
+              }
 
               case 'done':
                 setMessages((prev) =>
@@ -626,147 +635,3 @@ export function FloatingWidget() {
   );
 }
 
-interface ActionConfirmationInlineProps {
-  action: PendingActionContent;
-  onConfirm: (payload: Record<string, unknown>) => void;
-  onCancel: () => void;
-}
-
-function ActionConfirmationInline({
-  action,
-  onConfirm,
-  onCancel,
-}: ActionConfirmationInlineProps) {
-  const [editedPayload, setEditedPayload] = useState<Record<string, unknown>>(
-    () => ({ ...action.payload }),
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [payloadExpanded, setPayloadExpanded] = useState(false);
-
-  const handleFieldChange = (key: string, value: unknown) => {
-    setEditedPayload((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleConfirm = async () => {
-    setIsSubmitting(true);
-    await onConfirm(editedPayload);
-    setIsSubmitting(false);
-  };
-
-  const typeIcons: Record<string, string> = {
-    create_task: '✅',
-    update_task_status: '🔄',
-    draft_invoice: '💰',
-    send_chat_message: '💬',
-    send_reminder: '🔔',
-  };
-
-  const isIrreversible = action.riskLevel === 'irreversible';
-  const riskBadge = isIrreversible ? (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400 border border-red-500/40">
-      This action cannot be undone
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/40">
-      Dora wants to modify data
-    </span>
-  );
-
-  return (
-    <div className={`mt-3 rounded-lg border p-3 ${isIrreversible ? 'border-red-500/30 bg-red-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
-      <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className="text-sm">{typeIcons[action.actionType] || '⚡'}</span>
-        <span className="text-xs font-medium text-amber-400">Action: Review & Confirm</span>
-        {riskBadge}
-      </div>
-
-      <p className="text-xs text-gray-300 mb-2.5">{action.description}</p>
-
-      <div className="mb-2.5">
-        <button
-          type="button"
-          className="text-[10px] text-gray-500 hover:text-gray-400 cursor-pointer"
-          onClick={() => setPayloadExpanded((v) => !v)}
-        >
-          {payloadExpanded ? 'Hide' : 'Show'} full payload
-        </button>
-        {payloadExpanded && (
-          <pre className="mt-1 p-2 rounded bg-gray-900/80 text-[10px] text-gray-400 overflow-x-auto max-h-32 overflow-y-auto">
-            {JSON.stringify(action.payload, null, 2)}
-          </pre>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        {action.displayFields.map((field) => (
-          <div key={field.key}>
-            <label className="text-[10px] text-gray-500 block mb-0.5">{field.label}</label>
-
-            {field.type === 'readonly' ? (
-              <p className="text-xs text-gray-300">{String(field.value)}</p>
-            ) : field.type === 'textarea' ? (
-              <textarea
-                value={String(editedPayload[field.key] || '')}
-                onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                disabled={!field.editable}
-                className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2 py-1.5
-                         text-gray-200 resize-none outline-none focus:border-blue-500
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-                rows={2}
-              />
-            ) : field.type === 'select' ? (
-              <select
-                value={String(editedPayload[field.key] || '')}
-                onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                disabled={!field.editable}
-                className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2 py-1.5
-                         text-gray-200 outline-none focus:border-blue-500
-                         disabled:opacity-50"
-              >
-                {field.options?.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                value={String(editedPayload[field.key] || '')}
-                onChange={(e) => handleFieldChange(
-                  field.key,
-                  field.type === 'number' ? Number(e.target.value) : e.target.value,
-                )}
-                disabled={!field.editable}
-                className="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2 py-1.5
-                         text-gray-200 outline-none focus:border-blue-500
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex gap-2 mt-3">
-        <button
-          onClick={handleConfirm}
-          disabled={isSubmitting}
-          className="flex-1 text-xs py-1.5 rounded-lg bg-blue-600 text-white font-medium
-                   hover:bg-blue-500 disabled:opacity-50 transition-colors"
-        >
-          {isSubmitting ? 'Executing...' : 'Confirm'}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={isSubmitting}
-          className="flex-1 text-xs py-1.5 rounded-lg bg-gray-700 text-gray-300
-                   hover:bg-gray-600 disabled:opacity-50 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-
-      <p className="text-[9px] text-gray-600 mt-1.5 text-center">
-        This action expires in 15 minutes.
-      </p>
-    </div>
-  );
-}

@@ -12,26 +12,23 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     return;
   }
   try {
-    const orgResult = await query<{ id: string }>(
-      `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-      [DEFAULT_ORG_SLUG]
-    );
-    const orgId = orgResult.rows[0]?.id;
-    if (!orgId) {
-      res.status(503).json({ error: 'Organization not configured' });
-      return;
-    }
-    let userResult = await query<{ id: string; role?: string }>(
-      `SELECT id, role FROM reimbursement_users WHERE organization_id = $1 AND auth_user_id = $2 LIMIT 1`,
-      [orgId, userId]
+    let userResult = await query<{ id: string; role?: string; organization_id: string }>(
+      `SELECT id, role, organization_id::text AS organization_id
+       FROM reimbursement_users
+       WHERE auth_user_id = $1
+       LIMIT 1`,
+      [userId],
     );
     if (!userResult.rows[0]) {
       const auth = await getByAuthUserId(userId);
       if (auth) {
         await ensureReimbursementUserForAuth(userId, auth.email);
-        userResult = await query<{ id: string; role?: string }>(
-          `SELECT id, role FROM reimbursement_users WHERE organization_id = $1 AND auth_user_id = $2 LIMIT 1`,
-          [orgId, userId]
+        userResult = await query<{ id: string; role?: string; organization_id: string }>(
+          `SELECT id, role, organization_id::text AS organization_id
+           FROM reimbursement_users
+           WHERE auth_user_id = $1
+           LIMIT 1`,
+          [userId],
         );
       }
     }
@@ -39,6 +36,27 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       res.status(401).json({ error: 'User not found' });
       return;
     }
+
+    const jwtOrg = req.jwtOrganizationId;
+    const rowOrg = userResult.rows[0].organization_id;
+    if (jwtOrg && jwtOrg !== rowOrg) {
+      res.status(403).json({ error: 'Organization mismatch for this session' });
+      return;
+    }
+    let orgId = jwtOrg || rowOrg;
+
+    if (!orgId) {
+      const orgResult = await query<{ id: string }>(
+        `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+        [DEFAULT_ORG_SLUG],
+      );
+      orgId = orgResult.rows[0]?.id;
+    }
+    if (!orgId) {
+      res.status(503).json({ error: 'Organization not configured' });
+      return;
+    }
+
     const role = userResult.rows[0].role || 'employee';
     (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).userId = userId;
     (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).role = role;

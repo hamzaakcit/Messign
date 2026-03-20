@@ -7,6 +7,7 @@ import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
 import type { CallerContext } from '../../../dal/types.js';
 import * as timeUtil from '../../../dal/time/utilization.js';
 import * as doraReads from '../../../dal/doraReads.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
   return {
@@ -14,11 +15,6 @@ function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
     role: (ctx.userRole ?? 'employee') as CallerContext['role'],
     organizationId,
   };
-}
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const result = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1 LIMIT 1', ['messign']);
-  return result.rows[0]?.id;
 }
 
 export const getTimeSummary: ToolRegistration = {
@@ -47,7 +43,7 @@ export const getTimeSummary: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = buildCtx(ctx, organizationId);
     const period = args.period === 'week' ? 'week' : 'month';
@@ -79,7 +75,7 @@ export const getUtilizationReport: ToolRegistration = {
   },
 
   handler: async (_args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = buildCtx(ctx, organizationId);
     const report = await doraReads.getTimeUtilization(callerCtx);
@@ -107,7 +103,7 @@ export const suggestTimeAllocation: ToolRegistration = {
   },
 
   handler: async (_args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = buildCtx(ctx, organizationId);
     const [recentProjects, userUtil] = await Promise.all([

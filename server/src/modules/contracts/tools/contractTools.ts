@@ -6,6 +6,7 @@ import type { ToolRegistration } from '../../types.js';
 import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
 import type { CallerContext } from '../../../dal/types.js';
 import * as contractsDal from '../../../dal/contracts/contracts.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
   return {
@@ -13,11 +14,6 @@ function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
     role: (ctx.userRole ?? 'employee') as CallerContext['role'],
     organizationId,
   };
-}
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const result = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1 LIMIT 1', ['messign']);
-  return result.rows[0]?.id;
 }
 
 export const getContractRenewals: ToolRegistration = {
@@ -45,7 +41,7 @@ export const getContractRenewals: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
     const withinDays = Number(args.withinDays ?? 90);
     const result = await query<Record<string, unknown>>(
@@ -92,7 +88,7 @@ export const extractContractTerms: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
     const found = await query<{ id: string; title: string }>(
       `SELECT id::text, title

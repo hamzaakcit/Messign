@@ -1,4 +1,3 @@
-import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import {
@@ -7,13 +6,7 @@ import {
   getBudgetsExceedingThreshold,
   type BudgetWithSpent,
 } from '../../../db/budgetDb.js';
-
-const DEFAULT_ORG_SLUG = 'messign';
-
-async function resolveOrgId(): Promise<string | null> {
-  const result = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = $1 LIMIT 1`, [DEFAULT_ORG_SLUG]);
-  return result.rows[0]?.id ?? null;
-}
+import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
 
 function formatCurrency(amount: number, currency: string = 'EUR'): string {
   return `${currency} ${amount.toFixed(2)}`;
@@ -82,7 +75,7 @@ Use this tool when someone asks:
       };
     }
 
-    const orgId = await resolveOrgId();
+    const orgId = await resolveOrgIdForTool(context);
     if (!orgId) return { success: false, data: null, summary: 'Organization not configured.' };
 
     let budgets: BudgetWithSpent[];

@@ -18,10 +18,12 @@ import type {
   AITablePayload,
   AIWidgetPayload,
   SpecialistInfo,
+  DoraPendingActionContent,
 } from '@/types/knowledge-hub/ai';
 import { getAccessToken } from '@/lib/authToken';
 import { API_ORIGIN } from '@/lib/api';
 import { khAIFeedbackAPI } from '@/lib/knowledge-hub/api';
+import { resolveIntent } from '@/shared/intents/resolver';
 
 function generateMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -37,7 +39,7 @@ export interface SendMessageOptions {
 
 export type InteractionMode = 'ask' | 'analyze' | 'act';
 
-interface UseAIChatOptions {
+export interface UseAIChatOptions {
   /** Maximum messages to keep in history (default 50) */
   maxHistory?: number;
   /** API base URL (default /api/knowledge-hub) */
@@ -48,9 +50,11 @@ interface UseAIChatOptions {
   onMessagesChange?: (messages: AIMessage[]) => void;
   /** Default Ask / Analyze / Act (Dora) */
   initialInteractionMode?: InteractionMode;
+  /** When typed text auto-maps to a preset intent (same as chips), register for session memory */
+  onIntentResolved?: (intentId: string) => void;
 }
 
-interface UseAIChatReturn {
+export interface UseAIChatReturn {
   messages: AIMessage[];
   isLoading: boolean;
   isStreaming: boolean;
@@ -64,6 +68,14 @@ interface UseAIChatReturn {
   submitFeedback: (messageId: string, isHelpful: boolean) => Promise<void>;
   cancelActConfirmation: (assistantMessageId: string) => void;
   clearPendingConfirmation: (assistantMessageId: string) => void;
+  /** Token-based `pending_action` SSE — POST /api/ai/actions/confirm */
+  confirmPendingAction: (
+    messageId: string,
+    actionToken: string,
+    payload: Record<string, unknown>,
+  ) => Promise<void>;
+  /** Token-based `pending_action` SSE — POST /api/ai/actions/cancel */
+  cancelPendingAction: (messageId: string, actionToken: string) => Promise<void>;
   clearChat: () => void;
   abortStream: () => void;
 }
@@ -75,10 +87,13 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     initialMessages,
     onMessagesChange,
     initialInteractionMode = 'ask',
+    onIntentResolved,
   } = options;
 
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
+  const onIntentResolvedRef = useRef(onIntentResolved);
+  onIntentResolvedRef.current = onIntentResolved;
 
   const [messages, setMessages] = useState<AIMessage[]>(initialMessages ?? []);
   const [isLoading, setIsLoading] = useState(false);
@@ -101,19 +116,29 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesRef = useRef<AIMessage[]>([]);
   messagesRef.current = messages;
+  const sendInFlightRef = useRef(false);
 
   const sendMessage = useCallback(async (query: string, options?: SendMessageOptions) => {
-    if (!query.trim() || isLoading) return;
+    if (!query.trim() || isLoading || sendInFlightRef.current) return;
 
+    sendInFlightRef.current = true;
     setError(null);
     setIsLoading(true);
+
+    const trimmed = query.trim();
+    const resolved = !options?.intentId ? resolveIntent(trimmed) : null;
+    const effectiveIntentId =
+      options?.intentId ?? (resolved?.handler ? resolved.id : undefined);
+    if (effectiveIntentId && !options?.intentId) {
+      onIntentResolvedRef.current?.(effectiveIntentId);
+    }
 
     const userMessage: AIMessage = {
       id: generateMessageId(),
       role: 'user',
-      content: query.trim(),
+      content: trimmed,
       timestamp: new Date(),
-      ...(options?.intentId ? { intentId: options.intentId } : {}),
+      ...(effectiveIntentId ? { intentId: effectiveIntentId } : {}),
     };
 
     const assistantMessage: AIMessage = {
@@ -149,8 +174,8 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          query: query.trim(),
-          intent: options?.intentId || undefined,
+          query: trimmed,
+          intent: effectiveIntentId || undefined,
           history,
           mode: interactionMode,
           concise: interactionMode === 'ask',
@@ -192,8 +217,8 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                     action: body.action,
                     params: body.params ?? {},
                     message: body.message,
-                    sourceQuery: query.trim(),
-                    sourceIntentId: options?.intentId,
+                    sourceQuery: trimmed,
+                    sourceIntentId: effectiveIntentId,
                   },
                   isStreaming: false,
                 }
@@ -255,6 +280,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       let accumulatedTableData: AITablePayload | undefined;
       let accumulatedWidgets: AIWidgetPayload[] = [];
       let accumulatedSpecialist: SpecialistInfo | null = null;
+      let accumulatedPendingAction: DoraPendingActionContent | undefined;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -343,6 +369,23 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 accumulatedWidgets.push(event.content as AIWidgetPayload);
                 break;
 
+              case 'pending_action': {
+                const pa = event.content as DoraPendingActionContent;
+                accumulatedPendingAction = pa;
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMessage.id
+                      ? {
+                          ...m,
+                          pendingAction: pa,
+                          actionStatus: 'pending',
+                        }
+                      : m
+                  )
+                );
+                break;
+              }
+
               case 'error':
                 const errMsg = (event.content ?? event.message ?? 'Unknown error') as string;
                 setError(errMsg);
@@ -369,6 +412,11 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                           chartData: accumulatedChartData,
                           tableData: accumulatedTableData,
                           widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : undefined,
+                          pendingAction: accumulatedPendingAction ?? m.pendingAction,
+                          actionStatus:
+                            accumulatedPendingAction ?? m.pendingAction
+                              ? (m.actionStatus ?? 'pending')
+                              : undefined,
                           isStreaming: false,
                         }
                       : m
@@ -396,6 +444,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         setMessages((prev) => prev.filter((m) => m.id !== assistantMessage.id));
       }
     } finally {
+      sendInFlightRef.current = false;
       setIsLoading(false);
       setIsStreaming(false);
       abortControllerRef.current = null;
@@ -421,6 +470,76 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     setMessages((prev) =>
       prev.map((m) =>
         m.id === assistantMessageId ? { ...m, pendingConfirmation: undefined } : m
+      )
+    );
+  }, []);
+
+  const confirmPendingAction = useCallback(
+    async (messageId: string, actionToken: string, payload: Record<string, unknown>) => {
+      try {
+        const token = getAccessToken();
+        const response = await fetch(`${API_ORIGIN}/api/ai/actions/confirm`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ actionToken, payload }),
+        });
+        const result = (await response.json()) as { success?: boolean; message?: string };
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  actionStatus: result.success ? 'executed' : 'pending',
+                  content:
+                    m.content +
+                    (result.success
+                      ? `\n\n✅ ${result.message ?? 'Done.'}`
+                      : `\n\n❌ ${result.message || 'Action failed. Please try again.'}`),
+                  pendingAction: result.success ? undefined : m.pendingAction,
+                }
+              : m
+          )
+        );
+      } catch {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  content: m.content + '\n\n❌ Failed to execute action. Please try again.',
+                }
+              : m
+          )
+        );
+      }
+    },
+    [],
+  );
+
+  const cancelPendingAction = useCallback(async (messageId: string, actionToken: string) => {
+    try {
+      const token = getAccessToken();
+      await fetch(`${API_ORIGIN}/api/ai/actions/cancel`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ actionToken }),
+      });
+    } catch {
+      /* best-effort */
+    }
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, actionStatus: 'cancelled', pendingAction: undefined }
+          : m
       )
     );
   }, []);
@@ -483,6 +602,8 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     submitFeedback,
     cancelActConfirmation,
     clearPendingConfirmation,
+    confirmPendingAction,
+    cancelPendingAction,
     clearChat,
     abortStream,
   };

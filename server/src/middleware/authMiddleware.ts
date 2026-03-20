@@ -8,6 +8,8 @@ declare global {
       userId?: string;
       role?: string;
       sessionId?: string;
+      /** From access JWT claim `organizationId` when present */
+      jwtOrganizationId?: string;
     }
   }
 }
@@ -39,6 +41,9 @@ export function optionalJwt(req: Request, res: Response, next: NextFunction): vo
     req.userId = payload.sub;
     req.role = payload.role;
     req.sessionId = payload.sessionId;
+    if (payload.organizationId) {
+      req.jwtOrganizationId = payload.organizationId;
+    }
   } catch {
     // Invalid or expired token - leave req.userId unset
   }
@@ -65,6 +70,9 @@ export function requireJwt(req: Request, res: Response, next: NextFunction): voi
     req.userId = payload.sub;
     req.role = payload.role;
     req.sessionId = payload.sessionId;
+    if (payload.organizationId) {
+      req.jwtOrganizationId = payload.organizationId;
+    }
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });

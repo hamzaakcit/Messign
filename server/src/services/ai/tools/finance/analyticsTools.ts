@@ -1,6 +1,7 @@
 import { registerTool } from '../../toolRegistry.js';
 import { query } from '../../../../db/index.js';
 import type { ToolContext, ToolResult } from '../../types.js';
+import { resolveOrgIdForTool } from '../resolveOrgIdForTool.js';
 
 registerTool({
   name: 'finance:get_spending_insights',
@@ -27,8 +28,7 @@ registerTool({
     const intervalMap: Record<string, string> = { month: '1 month', quarter: '3 months', year: '1 year' };
     const interval = intervalMap[period] ?? '1 month';
 
-    const orgResult = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const params = [orgId, interval];
@@ -97,8 +97,7 @@ registerTool({
     required: [],
   },
   async execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-    const orgResult = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const conditions = ['organization_id = $1', 'is_deleted = FALSE', "expense_date >= NOW() - INTERVAL '3 months'"];
@@ -166,8 +165,7 @@ registerTool({
   },
   async execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
     const { analyticsService } = await import('../../../finance/analyticsService.js');
-    const orgResult = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const dashboard = await analyticsService.getDashboard(orgId);

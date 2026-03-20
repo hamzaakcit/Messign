@@ -8,8 +8,7 @@
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
-
-const DEFAULT_ORG_SLUG = 'messign';
+import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
 
 const userProfileTool: Tool = {
   name: 'system:get_user_profile',
@@ -47,8 +46,7 @@ Use this tool when someone asks:
   async execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
     const identifier = ((args.user_identifier as string) || '').toLowerCase().trim();
 
-    const orgResult = await query<{ id: string }>(`SELECT id FROM organizations WHERE slug = $1 LIMIT 1`, [DEFAULT_ORG_SLUG]);
-    const orgId = orgResult.rows[0]?.id;
+    const orgId = await resolveOrgIdForTool(context);
     if (!orgId) {
       return { success: false, data: null, summary: 'Organization not configured.' };
     }

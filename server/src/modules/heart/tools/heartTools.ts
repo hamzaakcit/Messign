@@ -6,8 +6,7 @@ import type { ToolRegistration } from '../../types.js';
 import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
 import type { CallerContext } from '../../../dal/types.js';
 import * as heart from '../../../dal/heart/index.js';
-
-const DEFAULT_ORG_SLUG = 'messign';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 async function resolveReimbursementUserId(authUserId: string): Promise<string | null> {
   const r = await query<{ id: string }>(
@@ -36,11 +35,7 @@ async function buildCallerContext(ctx: ToolContext): Promise<CallerContext | nul
     departmentId = teamRow.rows[0]?.team_name;
   }
 
-  const orgRow = await query<{ id: string }>(
-    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-    [DEFAULT_ORG_SLUG],
-  );
-  const organizationId = orgRow.rows[0]?.id;
+  const organizationId = (await resolveOrgIdForTool(ctx)) ?? undefined;
 
   return {
     userId: ruId,

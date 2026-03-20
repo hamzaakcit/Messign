@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { DoraChatAvatar, DoraWelcomeHero } from '@/components/dora/DoraPilot';
 import { DoraHistorySidebar } from '@/components/dora/DoraHistorySidebar';
-import { useAIChat } from '@/hooks/knowledge-hub/useAIChat';
+import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { ProgressiveChips } from '@/components/dora/ProgressiveChips';
 import { SlashCommandPalette, filterSlashCommands } from '@/components/dora/SlashCommandPalette';
@@ -116,15 +116,18 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
     submitFeedback,
     clearPendingConfirmation,
     cancelActConfirmation,
+    confirmPendingAction,
+    cancelPendingAction,
     clearChat,
     abortStream,
-  } = useAIChat({
+  } = useDora({
     initialMessages,
     initialInteractionMode:
       useDoraSessionStore.getState().preferredMode === 'detailed' ? 'analyze' : 'ask',
     onMessagesChange: (msgs: AIMessage[]) => {
       if (msgs.length > 0) setActiveMessages(msgs);
     },
+    onIntentResolved: addIntent,
   });
 
   const [inputValue, setInputValue] = useState('');
@@ -638,6 +641,8 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
                   }}
                   onConfirmAct={handleConfirmAct}
                   onCancelAct={cancelActConfirmation}
+                  onConfirmPendingAction={confirmPendingAction}
+                  onCancelPendingAction={cancelPendingAction}
                 />
               ))}
               {/* Don't show standalone indicator when a message bubble is already showing "Analyzing..." (avoids duplicate) */}

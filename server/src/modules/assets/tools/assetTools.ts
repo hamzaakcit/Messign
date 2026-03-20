@@ -3,12 +3,8 @@
  */
 import { query } from '../../../db/index.js';
 import type { ToolRegistration } from '../../types.js';
-import type { ToolResult } from '../../../services/ai/types.js';
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const result = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1 LIMIT 1', ['messign']);
-  return result.rows[0]?.id;
-}
+import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 export const getAssetSummary: ToolRegistration = {
   name: 'assets:get_asset_summary',
@@ -28,8 +24,8 @@ export const getAssetSummary: ToolRegistration = {
     },
   },
 
-  handler: async (): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+  handler: async (_args, ctx: ToolContext): Promise<ToolResult> => {
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
     const [summary, totals] = await Promise.all([
       query<Record<string, unknown>>(`SELECT * FROM mv_asset_summary ORDER BY total_current_value DESC`),
@@ -73,8 +69,8 @@ export const getLicenseUtilization: ToolRegistration = {
     },
   },
 
-  handler: async (): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+  handler: async (_args, ctx: ToolContext): Promise<ToolResult> => {
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
     const result = await query<Record<string, unknown>>(
       `SELECT mv.*

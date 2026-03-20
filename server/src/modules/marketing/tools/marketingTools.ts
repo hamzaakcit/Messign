@@ -6,6 +6,7 @@ import type { ToolRegistration } from '../../types.js';
 import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
 import type { CallerContext } from '../../../dal/types.js';
 import * as marketingMetrics from '../../../dal/marketing/metrics.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
   return {
@@ -13,11 +14,6 @@ function buildCtx(ctx: ToolContext, organizationId?: string): CallerContext {
     role: (ctx.userRole ?? 'employee') as CallerContext['role'],
     organizationId,
   };
-}
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const result = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1 LIMIT 1', ['messign']);
-  return result.rows[0]?.id;
 }
 
 export const getCampaignPerformance: ToolRegistration = {
@@ -46,8 +42,8 @@ export const getCampaignPerformance: ToolRegistration = {
     },
   },
 
-  handler: async (args): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+  handler: async (args, ctx): Promise<ToolResult> => {
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const conditions = ['c.organization_id = $1::uuid'];
     const params: unknown[] = [organizationId];
@@ -115,7 +111,7 @@ export const getMarketingRoi: ToolRegistration = {
   },
 
   handler: async (args, ctx): Promise<ToolResult> => {
-    const organizationId = await resolveOrgId();
+    const organizationId = await resolveOrgIdForTool(ctx);
     if (!organizationId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = buildCtx(ctx, organizationId);
     const period = typeof args.period === 'string' ? args.period : undefined;

@@ -66,12 +66,17 @@ export async function buildDoraContext(
   role: string | undefined,
   currentPath: string,
   conciseMode: boolean,
+  /** When set (e.g. from auth), skip slug lookup — tenant-safe path */
+  organizationIdOverride?: string | null,
 ): Promise<Readonly<DoraRequestContext>> {
-  const orgResult = await query<{ id: string }>(
-    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-    [DEFAULT_ORG_SLUG],
-  );
-  const orgId = orgResult.rows[0]?.id;
+  let orgId: string | null = organizationIdOverride?.trim() || null;
+  if (!orgId) {
+    const orgResult = await query<{ id: string }>(
+      `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+      [DEFAULT_ORG_SLUG],
+    );
+    orgId = orgResult.rows[0]?.id ?? null;
+  }
 
   let userRole = role ?? 'employee';
   let userName = 'Team Member';

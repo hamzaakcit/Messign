@@ -9,8 +9,7 @@ import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import { limitRecords } from '../dataSanitizer.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
-
-const DEFAULT_ORG_SLUG = 'messign';
+import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
 
 function buildDateFilter(period: string): Date {
   const now = new Date();
@@ -144,11 +143,7 @@ Use this tool when someone asks:
     let isOwnData = false;
     let orgId: string | null = null;
 
-    const orgResult = await query<{ id: string }>(
-      `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-      [DEFAULT_ORG_SLUG]
-    );
-    orgId = orgResult.rows[0]?.id ?? null;
+    orgId = await resolveOrgIdForTool(context);
     if (!orgId) {
       return { success: false, data: null, summary: 'Organization not configured.' };
     }

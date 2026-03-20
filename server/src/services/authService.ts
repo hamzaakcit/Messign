@@ -193,8 +193,19 @@ export async function login(
     location: null,
   });
 
+  const orgRow = await query<{ organization_id: string }>(
+    `SELECT organization_id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [authUserId],
+  );
+  const tenantId = orgRow.rows[0]?.organization_id ?? null;
+
   const fp = computeFingerprint(ip, userAgent);
-  const accessToken = signAccess({ sub: authUserId, sessionId, fp });
+  const accessToken = signAccess({
+    sub: authUserId,
+    sessionId,
+    fp,
+    organizationId: tenantId ?? undefined,
+  });
   const refreshJwt = signRefresh({ sub: authUserId, sessionId });
 
   await insertAudit({
@@ -206,12 +217,6 @@ export async function login(
     status: 'success',
     performed_by: 'self',
   });
-
-  const orgRow = await query<{ organization_id: string }>(
-    `SELECT organization_id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
-    [authUserId],
-  );
-  const tenantId = orgRow.rows[0]?.organization_id ?? null;
   logAuditEvent({
     tenantId: tenantId ?? undefined,
     userId: authUserId,
@@ -249,8 +254,17 @@ export async function refresh(
   if (!session || session.id !== payload.sessionId) return null;
   const ip = req ? getClientIp(req) : null;
   const userAgent = req ? getClientUserAgent(req) : null;
+  const orgRow = await query<{ organization_id: string }>(
+    `SELECT organization_id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [payload.sub],
+  );
   const fp = computeFingerprint(ip, userAgent);
-  const accessToken = signAccess({ sub: payload.sub, sessionId: payload.sessionId, fp });
+  const accessToken = signAccess({
+    sub: payload.sub,
+    sessionId: payload.sessionId,
+    fp,
+    organizationId: orgRow.rows[0]?.organization_id,
+  });
   const newRefreshJwt = signRefresh({ sub: payload.sub, sessionId: payload.sessionId });
 
   logAuditEvent({

@@ -8,6 +8,7 @@ import * as dealsDal from '../dal/deals.js';
 import * as forecastDal from '../dal/forecast.js';
 import * as activitiesDal from '../dal/activities.js';
 import type { CallerContext } from '../../../dal/types.js';
+import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
 
 function buildCtx(context: { userId: string; userRole?: string; organizationId?: string }): CallerContext {
   return {
@@ -15,11 +16,6 @@ function buildCtx(context: { userId: string; userRole?: string; organizationId?:
     role: (context.userRole ?? 'employee') as CallerContext['role'],
     organizationId: context.organizationId,
   };
-}
-
-async function resolveOrgId(): Promise<string | undefined> {
-  const res = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-  return res.rows[0]?.id;
 }
 
 async function getDefaultPipelineId(orgId: string): Promise<string | undefined> {
@@ -62,7 +58,7 @@ export const getPipelineStatus: ToolRegistration = {
   },
 
   handler: async (args, context): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+    const orgId = await resolveOrgIdForTool(context);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const pipelineId = await getDefaultPipelineId(orgId);
@@ -125,7 +121,7 @@ export const getDealDetails: ToolRegistration = {
   },
 
   handler: async (args, context): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+    const orgId = await resolveOrgIdForTool(context);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
     const callerCtx = { ...buildCtx(context), organizationId: orgId };
 
@@ -193,7 +189,7 @@ export const getSalesForecast: ToolRegistration = {
   },
 
   handler: async (args, context): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+    const orgId = await resolveOrgIdForTool(context);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const pipelineId = await getDefaultPipelineId(orgId);
@@ -253,7 +249,7 @@ export const getActivityGaps: ToolRegistration = {
   },
 
   handler: async (_args, context): Promise<ToolResult> => {
-    const orgId = await resolveOrgId();
+    const orgId = await resolveOrgIdForTool(context);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const callerCtx = { ...buildCtx(context), organizationId: orgId };

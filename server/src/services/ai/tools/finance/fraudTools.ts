@@ -1,6 +1,7 @@
 import { registerTool } from '../../toolRegistry.js';
 import { query } from '../../../../db/index.js';
-import type { ToolResult } from '../../types.js';
+import type { ToolContext, ToolResult } from '../../types.js';
+import { resolveOrgIdForTool } from '../resolveOrgIdForTool.js';
 
 registerTool({
   name: 'finance:detect_fraud_patterns',
@@ -23,11 +24,10 @@ registerTool({
     required: [],
   },
   requiredRoles: ['admin', 'finance'],
-  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
     const rawDays = (args.days as number) ?? 90;
     const days = Math.max(1, Math.min(365, Math.floor(Number(rawDays)) || 90));
-    const orgResult = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const conditions = [`r.organization_id = $1`, `r.is_deleted = FALSE`, `r.expense_date >= NOW() - (INTERVAL '1 day' * $2)`];

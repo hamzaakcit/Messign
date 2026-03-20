@@ -1,6 +1,7 @@
 import { registerTool } from '../../toolRegistry.js';
 import { query } from '../../../../db/index.js';
 import type { ToolContext, ToolResult } from '../../types.js';
+import { resolveOrgIdForTool } from '../resolveOrgIdForTool.js';
 
 registerTool({
   name: 'finance:invoice_status',
@@ -23,8 +24,7 @@ registerTool({
     required: [],
   },
   async execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-    const orgResult = await query<{ id: string }>('SELECT id FROM organizations WHERE slug = $1', ['messign']);
-    const orgId = orgResult.rows[0]?.id;
+    const orgId = await resolveOrgIdForTool(ctx);
     if (!orgId) return { success: false, data: null, summary: 'Organization not found.' };
 
     const conditions = ['(organization_id = $1 OR organization_id IS NULL)', '(is_deleted IS NULL OR is_deleted = FALSE)'];
