@@ -50,8 +50,9 @@ export interface TaskBoardProps {
 }
 
 export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject }: TaskBoardProps) {
-  const { tasks, updateTaskStatus } = useProjectStore();
-  const { user } = useAuthStore();
+  const tasks = useProjectStore((s) => s.tasks);
+  const updateTaskStatus = useProjectStore((s) => s.updateTaskStatus);
+  const user = useAuthStore((s) => s.user);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
   const launchedTasks = useMemo(() => {

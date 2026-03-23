@@ -111,6 +111,6 @@ async function awardBadge(userId: string, badgeId: string) {
     });
     await addEmployeeXP(userId, 100);
     eventBus.emit('gamification.badge.earned', { userId, badgeId, badgeName: badge.name });
-    void emitToUser(userId, 'celebration:badge-earned', { badgeId, badgeName: badge.name });
+    emitToUser(userId, 'celebration:badge-earned', { badgeId, badgeName: badge.name }).catch((err) => console.error('[Gamification] emitToUser badge error:', err));
   }
 }

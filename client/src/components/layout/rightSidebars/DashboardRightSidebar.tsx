@@ -7,9 +7,10 @@ import { formatNumber, formatRelativeTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 export function DashboardRightSidebar() {
-  const { leaderboard, activities } = useGameStore();
-  const { getUserById } = useUsersStore();
-  const { user: currentUser } = useAuthStore();
+  const leaderboard = useGameStore((s) => s.leaderboard);
+  const activities = useGameStore((s) => s.activities);
+  const getUserById = useUsersStore((s) => s.getUserById);
+  const currentUser = useAuthStore((s) => s.user);
 
   return (
     <div className="h-full bg-app-sidebar border-l border-app flex flex-col overflow-hidden transition-colors duration-200" role="complementary" aria-label="Champions leaderboard and activity">

@@ -37,12 +37,16 @@ export function NotificationBell() {
 
   const load = async () => {
     if (!userId) return;
-    const [list, count] = await Promise.all([
-      notificationsAPI.list(userId, { limit: 20 }),
-      notificationsAPI.unreadCount(userId),
-    ]);
-    setItems(list);
-    setUnreadCount(count.count);
+    try {
+      const [list, count] = await Promise.all([
+        notificationsAPI.list(userId, { limit: 20 }),
+        notificationsAPI.unreadCount(userId),
+      ]);
+      setItems(list);
+      setUnreadCount(count.count);
+    } catch {
+      /* network failure - keep existing state */
+    }
   };
 
   useEffect(() => {
@@ -86,9 +90,11 @@ export function NotificationBell() {
 
   const markOneRead = async (id: string) => {
     if (!userId) return;
-    await notificationsAPI.markRead(userId, id);
-    setItems((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
-    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await notificationsAPI.markRead(userId, id);
+      setItems((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch { /* best-effort */ }
   };
 
   const openItem = async (item: AppNotification) => {
@@ -101,9 +107,11 @@ export function NotificationBell() {
 
   const markAll = async () => {
     if (!userId) return;
-    await notificationsAPI.markAllRead(userId);
-    setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    setUnreadCount(0);
+    try {
+      await notificationsAPI.markAllRead(userId);
+      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch { /* best-effort */ }
   };
 
   return (

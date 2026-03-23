@@ -8,7 +8,7 @@ import {
   toggleShowcaseFeatured,
 } from '../db/showcaseDb.js';
 import { getProjectById } from '../db/projectsDb.js';
-import { getEmployeeByIdAsUser } from '../db/employeesDb.js';
+import { getEmployeesByIdsAsUsers } from '../db/employeesDb.js';
 import { requireJwt } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/adminAuth.js';
 
@@ -23,28 +23,38 @@ router.get('/', requireJwt, async (req, res) => {
   }
   try {
     const rows = await getShowcases();
-    const showcases = await Promise.all(
-      rows.map(async (s) => {
-        const project = await getProjectById(s.project_id);
-        const creatorId = project && Array.isArray(project.team) && project.team[0] ? project.team[0] : null;
-        const creator = creatorId ? await getEmployeeByIdAsUser(creatorId) : null;
-        const members = project && Array.isArray(project.team) ? await Promise.all(project.team.slice(0, 10).map((uid) => getEmployeeByIdAsUser(uid))) : [];
-        return {
-          ...s,
-          project: project
-            ? {
-                id: project.id,
-                title: project.name,
-                name: project.name,
-                xpReward: (project as { xp_reward?: number }).xp_reward ?? 0,
-                department: { name: project.type, color: '#888' },
-                creator: creator ? { id: creator.id, name: creator.name, avatar: creator.avatar } : null,
-                members: members.filter(Boolean).map((u) => ({ user: { id: u!.id, name: u!.name, avatar: u!.avatar, level: u!.level } })),
-              }
-            : { id: s.project_id, title: s.project_id, name: s.project_id, xpReward: 0, department: { name: '', color: '#888' }, creator: null, members: [] },
-        };
-      })
-    );
+    const projects = await Promise.all(rows.map((s) => getProjectById(s.project_id)));
+
+    const allUserIds = new Set<string>();
+    projects.forEach((project) => {
+      if (project && Array.isArray(project.team)) {
+        project.team.slice(0, 10).forEach((uid: string) => allUserIds.add(uid));
+      }
+    });
+    const usersMap = await getEmployeesByIdsAsUsers([...allUserIds]);
+
+    const showcases = rows.map((s, i) => {
+      const project = projects[i];
+      const creatorId = project && Array.isArray(project.team) && project.team[0] ? project.team[0] : null;
+      const creator = creatorId ? usersMap.get(creatorId) ?? null : null;
+      const members = project && Array.isArray(project.team)
+        ? project.team.slice(0, 10).map((uid: string) => usersMap.get(uid)).filter(Boolean).map((u) => ({ user: { id: u!.id, name: u!.name, avatar: u!.avatar, level: u!.level } }))
+        : [];
+      return {
+        ...s,
+        project: project
+          ? {
+              id: project.id,
+              title: project.name,
+              name: project.name,
+              xpReward: (project as { xp_reward?: number }).xp_reward ?? 0,
+              department: { name: project.type, color: '#888' },
+              creator: creator ? { id: creator.id, name: creator.name, avatar: creator.avatar } : null,
+              members,
+            }
+          : { id: s.project_id, title: s.project_id, name: s.project_id, xpReward: 0, department: { name: '', color: '#888' }, creator: null, members: [] },
+      };
+    });
     res.json({ showcases });
   } catch (e) {
     console.error('[showcase] list error:', e);

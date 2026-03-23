@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { marketingAPI, type Campaign } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
+import { BrandSelector } from './BrandSelector';
 
 interface ContentCreatePanelProps {
   onCreated: () => void;
@@ -21,6 +22,7 @@ export function ContentCreatePanel({ onCreated, onCancel, initialDate }: Content
     content_type: 'blog',
     channel: 'blog',
     campaign_id: '',
+    brand_profile_id: '',
     scheduled_date: initialDate ?? '',
     body: '',
     tags: '',
@@ -45,6 +47,7 @@ export function ContentCreatePanel({ onCreated, onCancel, initialDate }: Content
       await marketingAPI.createContent(userId, {
         ...form,
         campaign_id: form.campaign_id || undefined,
+        brand_profile_id: form.brand_profile_id || undefined,
         tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       });
       onCreated();
@@ -87,6 +90,13 @@ export function ContentCreatePanel({ onCreated, onCancel, initialDate }: Content
             <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
           ))}
         </select>
+      </div>
+      <div>
+        <label className="block text-sm text-app-muted mb-1">Brand</label>
+        <BrandSelector
+          selectedBrandId={form.brand_profile_id || null}
+          onBrandChange={(id) => setForm((current) => ({ ...current, brand_profile_id: id || '' }))}
+        />
       </div>
       <div>
         <label className="block text-sm text-app-muted mb-1">Scheduled Date</label>

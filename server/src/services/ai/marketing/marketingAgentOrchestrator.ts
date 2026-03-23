@@ -15,7 +15,10 @@ import * as contentDal from '../../../dal/marketing/content.js';
 import { assignApproval } from '../../../controllers/marketingToolsController.js';
 import { loadMarketingTruthBrandLayers } from '../../../dal/marketing/truthBrand.js';
 import { resolveOrgIdForTool } from '../tools/resolveOrgIdForTool.js';
+import { resolveCalibrationPrompt } from '../../marketing/calibrationResolver.js';
 import { buildMarketingContentStrategistPrompt } from '../../../modules/marketing/prompts/marketingContentStrategistPrompt.js';
+import { getBrandProfile, formatBrandProfileAsMd } from '../../marketing/brandProfileService.js';
+import { query as dbQuery } from '../../../db/index.js';
 import { buildMarketingCampaignManagerPrompt } from '../../../modules/marketing/prompts/marketingCampaignManagerPrompt.js';
 import {
   CAMPAIGN_TOOL_NAMES,
@@ -36,6 +39,8 @@ import {
   extractImagePrompts,
 } from '../../../modules/marketing/prompts/instagramChannelSpec.js';
 import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/imageService.js';
+import { parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
+import { runContentAtomizationAfterApproval } from './contentAtomizationBatch.js';
 
 const LOG = '[marketingOrchestrator]';
 
@@ -97,6 +102,7 @@ export function legacyToolContextToCallerContext(legacy: ToolContext): CallerCon
           : 'employee';
   return {
     userId: legacy.userId,
+    userUuid: legacy.userUuid,
     role,
     organizationId: legacy.organizationId,
   };
@@ -178,6 +184,8 @@ export type ContentWorkflowResult =
       /** Set when a `marketing_content` row exists but the workflow did not complete (e.g. validation or approval failure). */
       contentId?: string;
       reason: string;
+      /** When set, the DB insert (e.g. RLS) failed before any row was created; frontend can show a specific message. */
+      creationError?: string;
       attempts: number;
       lastDraft?: string;
       toolObservations: ToolObservation[];
@@ -234,17 +242,42 @@ async function buildContentStrategistLoopArgs(
   ctx: MarketingOrchestrationContext,
   userQuery: string,
   priorBlock?: string,
+  channelOverride?: string,
+  brandProfileId?: string,
 ) {
   const mergedCtx: ToolContext = {
     ...ctx.legacyContext,
     organizationId: ctx.legacyContext.organizationId ?? ctx.agentContext.organizationId ?? undefined,
   };
   const orgId = await resolveOrgIdForTool(mergedCtx);
-  const { productTruthMd, brandVoiceMd } = await loadMarketingTruthBrandLayers(orgId);
+  let { productTruthMd, brandVoiceMd } = await loadMarketingTruthBrandLayers(orgId);
+  const channel = channelOverride?.trim() || inferMarketingContentChannel(userQuery);
+
+  if (brandProfileId) {
+    try {
+      const bp = await getBrandProfile(brandProfileId, { query: dbQuery });
+      if (bp) brandVoiceMd = formatBrandProfileAsMd(bp);
+    } catch (err) {
+      console.warn('[brand-isolation] Failed to load brand profile, using org default', err);
+    }
+  }
+
+  let calibrationText = '';
+  if (orgId) {
+    try {
+      const calibration = await resolveCalibrationPrompt(orgId, channel, undefined);
+      calibrationText = calibration.text;
+    } catch (err) {
+      console.warn('[marketingOrchestrator] Calibration resolve failed, continuing without:', err);
+    }
+  }
+
   const systemPrompt = buildMarketingContentStrategistPrompt({
     userRole: ctx.agentContext.userRole,
     productTruthMd,
     brandVoiceMd,
+    channel,
+    calibrationText,
   });
   return {
     role: 'content' as const,
@@ -284,6 +317,12 @@ export async function executeContentWorkflow(
 ): Promise<ContentWorkflowResult> {
   const caller = legacyToolContextToCallerContext(ctx.legacyContext);
   const orgId = caller.organizationId;
+  const agentOutput = brief.userQuery;
+  console.log('[DIAG] executeContentWorkflow START', {
+    orgId,
+    channel: brief.channel,
+    hasAgentOutput: !!agentOutput,
+  });
   if (!orgId) {
     return {
       status: 'failed',
@@ -310,22 +349,71 @@ export async function executeContentWorkflow(
     };
   }
 
+  let contentRowCreated = false;
   if (!contentRow) {
     log('content_create', { title: brief.title ?? 'AI draft' });
-    contentRow = await contentDal.createContent(caller, {
-      title: (brief.title ?? 'AI draft').slice(0, 500),
-      content_type: brief.contentType ?? 'social',
-      channel: brief.channel ?? 'linkedin',
-      campaign_id: brief.campaignId,
-      status: 'draft',
-      body: '',
-    });
+    try {
+      contentRow = await contentDal.createContent(caller, {
+        title: (brief.title ?? 'AI draft').slice(0, 500),
+        content_type: brief.contentType ?? 'social',
+        channel: brief.channel ?? 'linkedin',
+        campaign_id: brief.campaignId,
+        status: 'draft',
+        body: '',
+      });
+      contentRowCreated = true;
+    } catch (createErr) {
+      const message = createErr instanceof Error ? createErr.message : String(createErr);
+      const isRls = /row-level security|RLS|policy|violates.*policy/i.test(message);
+      const creationError = isRls
+        ? 'Database policy violation (RLS) blocked saving content. Check dev RLS scripts or use BYPASSRLS for the server role.'
+        : message;
+      console.error('[marketingOrchestrator] content create failed:', message);
+      return {
+        status: 'failed',
+        reason: creationError,
+        creationError,
+        attempts: 0,
+        toolObservations: [],
+        toolsUsed: [],
+      };
+    }
   }
 
   const contentId = contentRow.id;
+  if (contentRowCreated) {
+    console.log('[FIX-1] [DIAG] Content row created:', {
+      contentId,
+      channel: brief.channel ?? contentRow.channel,
+      status: contentRow.status,
+    });
+  }
   const tenantId = ctx.agentContext.tenantId;
   const combinedToolObs: ToolObservation[] = [];
   const combinedTools: string[] = [];
+
+  const channelForEmailPrior = (brief.channel ?? contentRow.channel ?? '').toLowerCase().trim();
+  let emailPriorBlock: string | undefined;
+  if (channelForEmailPrior === 'email') {
+    try {
+      const refs = await contentDal.listRecentEmailContentWithVisuals(caller, {
+        limit: 8,
+        excludeContentId: contentId,
+      });
+      if (refs.length > 0) {
+        emailPriorBlock = [
+          '## Reference — saved email designs in this workspace',
+          'Match structure, tone, and CTA placement to the closest example when relevant. For full detail on a row, use tools `marketing:list_saved_email_designs` / `marketing:get_saved_email_design`.',
+          ...refs.map(
+            (r) =>
+              `- **${r.title.replace(/\*/g, '')}** (\`id=${r.id}\`, status: ${r.status})${r.has_design ? ' [Unlayer design]' : r.has_html ? ' [HTML]' : ''}${r.excerpt ? `\n  excerpt: ${r.excerpt}` : ''}`,
+          ),
+        ].join('\n');
+      }
+    } catch (e) {
+      console.warn('[marketingOrchestrator] email reference prefetch failed', e);
+    }
+  }
 
   let lastDraft = '';
   let lastTruth: ProductTruthValidationResult | null = null;
@@ -340,7 +428,7 @@ export async function executeContentWorkflow(
 
     log('content_generation_attempt', { attempt: attempt + 1, maxAttempts, contentId });
 
-    const loopArgs = await buildContentStrategistLoopArgs(ctx, userQuery);
+    const loopArgs = await buildContentStrategistLoopArgs(ctx, userQuery, emailPriorBlock, brief.channel ?? contentRow.channel ?? undefined, (contentRow as unknown as Record<string, unknown>).brand_profile_id as string | undefined);
     const mini = await runMarketingMiniLoop(loopArgs);
     combinedToolObs.push(...mini.toolObservations);
     combinedTools.push(...mini.toolsUsed);
@@ -366,11 +454,10 @@ export async function executeContentWorkflow(
     let imagePrompt: string | null = null;
     let visualDesc: string | null = null;
     if (isInstagram) {
-      validationText = extractCaption(draft);
-      if (!validationText.trim()) validationText = draft;
-      const prompts = extractImagePrompts(draft);
-      imagePrompt = prompts[0]?.prompt ?? null;
-      visualDesc = extractAltText(draft) ?? imagePrompt;
+      const parsed = parseInstagramDraft(draft);
+      validationText = parsed.caption || draft;
+      imagePrompt = parsed.imagePrompt;
+      visualDesc = parsed.visualDescription;
     }
 
     lastDraft = isInstagram ? validationText : draft;
@@ -424,6 +511,12 @@ export async function executeContentWorkflow(
     const bv = validateGatekeeperResult('brand_voice', brandRaw, brandVoiceParsedSchema);
     const cv = validateGatekeeperResult('compliance', compRaw, complianceParsedSchema);
 
+    console.log('[DIAG] Gatekeepers complete:', {
+      truthResult: truthRaw,
+      brandResult: brandRaw,
+      complianceResult: compRaw,
+    });
+
     if (!tv.ok || !bv.ok || !cv.ok) {
       const err = [!tv.ok ? tv.error : '', !bv.ok ? bv.error : '', !cv.ok ? cv.error : ''].filter(Boolean).join(' | ');
       log('gatekeeper_zod_failed', { err });
@@ -461,20 +554,20 @@ export async function executeContentWorkflow(
 
     log('product_truth_pass', { attempt: attempt + 1 });
 
-    if (isInstagram && imagePrompt) {
-      const genResult = await generateImage({
-        org_id: orgId,
-        content_id: contentId,
-        prompt: enhanceImagePrompt(imagePrompt, 'modern_noir'),
-        resolution: '1024x1024',
-        style_preset: 'modern_noir',
+    if (isInstagram) {
+      const igResult = await runInstagramImageGeneration({
+        orgId,
+        contentId,
+        rawDraft: draft,
+        caller,
+        stylePreset: 'modern_noir',
       });
-      if (genResult.success && genResult.image_url) {
-        await contentDal.updateContent(caller, contentId, {
-          image_url: genResult.image_url,
-          image_generation_metadata: genResult.metadata,
-        });
-      }
+      log('instagram_image_gen', {
+        success: igResult.success,
+        promptSource: igResult.promptSource,
+        imageUrl: igResult.imageUrl?.slice(0, 80),
+        error: igResult.error,
+      });
     }
 
     const approvalPayload = {
@@ -501,6 +594,19 @@ export async function executeContentWorkflow(
     }
 
     log('assign_approval_ok', { approvalId: assigned.data.approval_id, contentId });
+
+    try {
+      const latest = await contentDal.getContentById(caller, contentId);
+      void runContentAtomizationAfterApproval({
+        contentId,
+        organizationId: orgId,
+        channel: targetChannel,
+        heroImageUrl: latest?.image_url ?? null,
+      }).catch((err) => console.warn(`${LOG} content_atomization_batch`, err));
+    } catch (e) {
+      console.warn(`${LOG} atomization prefetch skipped`, e);
+    }
+
     const draftOut = isInstagram ? validationText : draft;
     return {
       status: 'completed',

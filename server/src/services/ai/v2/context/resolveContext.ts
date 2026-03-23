@@ -12,6 +12,22 @@ import type { ActiveViewStateV1 } from '../../agent/activeViewState.js';
 
 const contextCache = new Map<string, { context: DoraContext; expiresAt: number }>();
 const TTL_MS = 5 * 60 * 1000;
+const MAX_CONTEXT_CACHE_SIZE = 500;
+
+function pruneContextCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of contextCache) {
+    if (entry.expiresAt < now) contextCache.delete(key);
+  }
+  if (contextCache.size > MAX_CONTEXT_CACHE_SIZE) {
+    const excess = contextCache.size - MAX_CONTEXT_CACHE_SIZE;
+    const iter = contextCache.keys();
+    for (let i = 0; i < excess; i++) {
+      const next = iter.next();
+      if (!next.done) contextCache.delete(next.value);
+    }
+  }
+}
 
 export function decodeJWT(token: string) {
   try {
@@ -116,6 +132,7 @@ export async function resolveContext(params: {
     doraRequest,
   };
 
+  if (contextCache.size >= MAX_CONTEXT_CACHE_SIZE) pruneContextCache();
   contextCache.set(cacheKey, { context: ctx, expiresAt: now + TTL_MS });
   return ctx;
 }

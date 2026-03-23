@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
+import { select } from 'd3-selection';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
 
 export interface SankeyNodeData {
@@ -89,7 +89,7 @@ export function FinanceSankeyFlow({ data, loading }: FinanceSankeyFlowProps) {
       links,
     });
 
-    const svg = d3.select(svgRef.current);
+    const svg = select(svgRef.current);
     svg.selectAll('*').remove();
 
     const g = svg.attr('width', width).attr('height', height).append('g');

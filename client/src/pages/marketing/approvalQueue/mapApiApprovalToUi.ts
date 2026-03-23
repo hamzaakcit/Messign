@@ -7,24 +7,8 @@ import type {
   TargetChannel,
 } from './types';
 
-/** Row from GET /api/marketing/approvals */
-export interface MarketingApprovalApiRow {
-  id: string;
-  content_id: string;
-  status: string;
-  truth_validation: unknown;
-  brand_voice_check: unknown;
-  compliance_scan: unknown;
-  content_title: string;
-  content_body: string | null;
-  user_brief: string | null;
-  content_type: string;
-  content_channel: string | null;
-  campaign_id: string | null;
-  campaign_name: string | null;
-  submitted_at: string;
-  revision_history?: unknown;
-}
+import type { MarketingApprovalApiRow } from '@/lib/marketingApi';
+export type { MarketingApprovalApiRow };
 
 function mapChannel(ch: string | null): TargetChannel {
   const c = (ch ?? '').toLowerCase();

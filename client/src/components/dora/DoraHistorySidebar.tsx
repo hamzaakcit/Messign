@@ -32,7 +32,10 @@ function formatRelativeTime(iso: string): string {
 }
 
 export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSession }: DoraHistorySidebarProps) {
-  const { sessions, activeSessionId, deleteSession, setActiveSession } = useDoraStore();
+  const sessions = useDoraStore((s) => s.sessions);
+  const activeSessionId = useDoraStore((s) => s.activeSessionId);
+  const deleteSession = useDoraStore((s) => s.deleteSession);
+  const setActiveSession = useDoraStore((s) => s.setActiveSession);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -1,7 +1,8 @@
 import 'dotenv/config';
+import type { PoolClient } from 'pg';
 import bcrypt from 'bcrypt';
-import { pool } from './index.js';
-import { DEFAULT_PASSWORD } from '../types/auth.js';
+import { pool, DEV_HAMZA_ID } from './index.js';
+import { getDefaultSeedPassword } from '../types/auth.js';
 import { seedFinanceData } from './seeds/financeSeed.js';
 
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
@@ -29,7 +30,8 @@ const SEED_USERS: SeedUser[] = [
   { auth_user_id: 'user-10', email: 'rachel.lee@messign.com', full_name: 'Rachel Lee', role: 'employee', manager_auth_id: 'user-6' },
   { auth_user_id: 'user-11', email: 'onur@messign.com', full_name: 'Onur', role: 'employee', manager_auth_id: 'user-2' },
   { auth_user_id: 'user-12', email: 'yuka@messign.com', full_name: 'Yuka', role: 'employee', manager_auth_id: 'user-2' },
-  { auth_user_id: 'user-hamza', email: 'hamza@messign.com', full_name: 'Hamza Akcit', role: 'admin', manager_auth_id: null },
+  /** Canonical dev auth id (matches `sanitizeUuid('user-hamza')` / `pending_actions.user_id`). */
+  { auth_user_id: DEV_HAMZA_ID, email: 'hamza@messign.com', full_name: 'Hamza Akcit', role: 'admin', manager_auth_id: null },
 ];
 
 const CATEGORIES = [
@@ -42,10 +44,43 @@ const CATEGORIES = [
   { name: 'Mileage', icon: '🚗' },
 ];
 
+/** Railway / partial-migration DBs may lack tenant_id; core seed INSERTs require it (see db/migrations/001_add_tenant_id.sql). */
+async function ensureCoreSeedTenantColumns(client: PoolClient): Promise<void> {
+  const orgScoped = [
+    'expense_categories',
+    'reimbursement_settings',
+    'recruitment_jobs',
+    'recruitment_candidates',
+  ] as const;
+  for (const table of orgScoped) {
+    const ex = await client.query<{ ok: boolean }>(
+      `SELECT to_regclass($1) IS NOT NULL AS ok`,
+      [`public.${table}`],
+    );
+    if (!ex.rows[0]?.ok) continue;
+    await client.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS tenant_id UUID`);
+    await client.query(
+      `UPDATE ${table} SET tenant_id = organization_id WHERE tenant_id IS NULL AND organization_id IS NOT NULL`,
+    );
+  }
+  const appEx = await client.query<{ ok: boolean }>(
+    `SELECT to_regclass('public.recruitment_applications') IS NOT NULL AS ok`,
+  );
+  if (appEx.rows[0]?.ok) {
+    await client.query(`ALTER TABLE recruitment_applications ADD COLUMN IF NOT EXISTS tenant_id UUID`);
+    await client.query(`
+      UPDATE recruitment_applications ra SET tenant_id = rj.organization_id
+      FROM recruitment_jobs rj
+      WHERE ra.job_id = rj.id AND ra.tenant_id IS NULL AND rj.organization_id IS NOT NULL
+    `);
+  }
+}
+
 export async function seed(): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await ensureCoreSeedTenantColumns(client);
 
     const orgResult = await client.query(
       `INSERT INTO organizations (id, name, slug, base_currency)
@@ -80,8 +115,27 @@ export async function seed(): Promise<void> {
       }
     }
 
+    // Legacy dev login used `user-hamza`; canonical id is DEV_HAMZA_ID — migrate before employee_auth upserts
+    await client.query(`UPDATE employee_auth SET auth_user_id = $2 WHERE auth_user_id = $1`, [
+      'user-hamza',
+      DEV_HAMZA_ID,
+    ]);
+    await client.query(`UPDATE auth_sessions SET auth_user_id = $2 WHERE auth_user_id = $1`, [
+      'user-hamza',
+      DEV_HAMZA_ID,
+    ]);
+    await client.query(`UPDATE channel_members SET user_id = $2 WHERE user_id = $1`, [
+      'user-hamza',
+      DEV_HAMZA_ID,
+    ]);
+    await client.query(`UPDATE messages SET user_id = $2 WHERE user_id = $1`, ['user-hamza', DEV_HAMZA_ID]);
+    await client.query(`UPDATE performance_team_members SET employee_id = $2 WHERE employee_id = $1`, [
+      'user-hamza',
+      DEV_HAMZA_ID,
+    ]);
+
     // Employee auth: default password for all seed users so login works after db:seed
-    const defaultPasswordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+    const defaultPasswordHash = await bcrypt.hash(getDefaultSeedPassword(), SALT_ROUNDS);
     for (const u of SEED_USERS) {
       const email = u.email.trim().toLowerCase();
       await client.query(
@@ -95,22 +149,22 @@ export async function seed(): Promise<void> {
            account_status = EXCLUDED.account_status,
            updated_at = NOW(),
            updated_by = EXCLUDED.updated_by`,
-        [u.auth_user_id, email, defaultPasswordHash, DEFAULT_PASSWORD]
+        [u.auth_user_id, email, defaultPasswordHash, getDefaultSeedPassword()]
       );
     }
 
     for (const c of CATEGORIES) {
       await client.query(
-        `INSERT INTO expense_categories (organization_id, name, icon, is_active)
-         VALUES ($1, $2, $3, TRUE)
+        `INSERT INTO expense_categories (organization_id, tenant_id, name, icon, is_active)
+         VALUES ($1, $1, $2, $3, TRUE)
          ON CONFLICT (organization_id, name) DO NOTHING`,
         [orgId, c.name, c.icon]
       );
     }
 
     await client.query(
-      `INSERT INTO reimbursement_settings (organization_id, mileage_rate_per_km, mileage_currency, enable_ocr, enable_mileage, enable_currency_conversion)
-       VALUES ($1, 0.67, 'USD', TRUE, TRUE, TRUE)
+      `INSERT INTO reimbursement_settings (organization_id, tenant_id, mileage_rate_per_km, mileage_currency, enable_ocr, enable_mileage, enable_currency_conversion)
+       VALUES ($1, $1, 0.67, 'USD', TRUE, TRUE, TRUE)
        ON CONFLICT (organization_id) DO NOTHING`,
       [orgId]
     );
@@ -175,7 +229,7 @@ export async function seed(): Promise<void> {
       ['user-10', 'software'],
       ['user-11', 'marketing'],
       ['user-12', 'software'],
-      ['user-hamza', 'operations'],
+      [DEV_HAMZA_ID, 'operations'],
     ];
     for (const [authId, teamCode] of employeeToDept) {
       const teamId = teamIdByCode[teamCode];
@@ -197,24 +251,24 @@ export async function seed(): Promise<void> {
     const hiringManagerId = userIdByAuthId['user-1'];
     if (softwareTeamId && hiringManagerId) {
       await client.query(
-        `INSERT INTO recruitment_jobs (id, organization_id, title, department, department_id, status, hiring_manager_id, recruiter_id, positions_count, positions_filled)
-         VALUES ($1, $2, 'E2E Software Engineer', 'Software', $3, 'open', $4, $4, 2, 0)
+        `INSERT INTO recruitment_jobs (id, organization_id, tenant_id, title, department, department_id, status, hiring_manager_id, recruiter_id, positions_count, positions_filled)
+         VALUES ($1, $2, $2, 'E2E Software Engineer', 'Software', $3, 'open', $4, $4, 2, 0)
          ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, status = 'open'`,
         [recruitmentJobId, orgId, softwareTeamId, hiringManagerId]
       );
       const candRes = await client.query(
-        `INSERT INTO recruitment_candidates (id, organization_id, first_name, last_name, email, current_company, current_title, source)
-         VALUES ($1, $2, 'E2E', 'Candidate', 'e2e.candidate@example.com', 'Test Corp', 'Engineer', 'e2e')
+        `INSERT INTO recruitment_candidates (id, organization_id, tenant_id, first_name, last_name, email, current_company, current_title, source)
+         VALUES ($1, $2, $2, 'E2E', 'Candidate', 'e2e.candidate@example.com', 'Test Corp', 'Engineer', 'e2e')
          ON CONFLICT (organization_id, email) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name
          RETURNING id`,
         [recruitmentCandidateId, orgId]
       );
       const candId = candRes.rows[0]?.id ?? recruitmentCandidateId;
       await client.query(
-        `INSERT INTO recruitment_applications (id, job_id, candidate_id, stage, status, match_score, screened_method, source)
-         VALUES ($1, $2, $3, 'offer', 'active', 85, 'manual', 'e2e')
+        `INSERT INTO recruitment_applications (id, job_id, candidate_id, tenant_id, stage, status, match_score, screened_method, source)
+         VALUES ($1, $2, $3, $4, 'offer', 'active', 85, 'manual', 'e2e')
          ON CONFLICT (job_id, candidate_id) DO UPDATE SET stage = 'offer', status = 'active'`,
-        [recruitmentApplicationId, recruitmentJobId, candId]
+        [recruitmentApplicationId, recruitmentJobId, candId, orgId]
       );
     }
 
@@ -328,7 +382,7 @@ export async function seed(): Promise<void> {
       const row = r.rows[0];
       if (row) channelIdByName[row.name] = row.id;
     }
-    const allUserIds = ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8', 'user-9', 'user-10', 'user-hamza'];
+    const allUserIds = ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8', 'user-9', 'user-10', DEV_HAMZA_ID];
     const channelMembers: Record<string, string[]> = {
       general: allUserIds,
       engineering: ['user-1', 'user-4', 'user-5', 'user-7', 'user-8'],
@@ -336,7 +390,7 @@ export async function seed(): Promise<void> {
       product: ['user-2', 'user-1', 'user-3', 'user-9'],
       marketing: ['user-6', 'user-10', 'user-2'],
       random: allUserIds,
-      leadership: ['user-1', 'user-2', 'user-6', 'user-hamza'],
+      leadership: ['user-1', 'user-2', 'user-6', DEV_HAMZA_ID],
       'project-alpha': ['user-1', 'user-4', 'user-5', 'user-3'],
     };
     for (const [chName, userIds] of Object.entries(channelMembers)) {

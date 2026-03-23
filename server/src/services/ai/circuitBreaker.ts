@@ -25,6 +25,7 @@ interface ProviderCircuit {
   lastSuccessAt: number;
   totalFailures: number;
   totalSuccesses: number;
+  halfOpenProbeInFlight: boolean;
 }
 
 const FAILURE_THRESHOLD = 3;
@@ -45,6 +46,7 @@ function getCircuit(provider: string): ProviderCircuit {
       lastSuccessAt: 0,
       totalFailures: 0,
       totalSuccesses: 0,
+      halfOpenProbeInFlight: false,
     };
     circuits.set(provider, circuit);
   }
@@ -63,17 +65,21 @@ export function isProviderAvailable(provider: string): boolean {
       return true;
 
     case 'open': {
-      // Check if recovery timeout has elapsed
       if (Date.now() - circuit.lastFailureAt >= RECOVERY_TIMEOUT_MS) {
         circuit.state = 'half_open';
+        circuit.halfOpenProbeInFlight = true;
         console.log(`[Circuit Breaker] ${provider}: OPEN → HALF_OPEN (testing recovery)`);
-        return true; // Allow one request through
+        return true;
       }
       return false;
     }
 
     case 'half_open':
-      return true; // Already allowing a test request
+      if (circuit.halfOpenProbeInFlight) {
+        return false;
+      }
+      circuit.halfOpenProbeInFlight = true;
+      return true;
   }
 }
 
@@ -86,12 +92,11 @@ export function recordSuccess(provider: string): void {
   circuit.lastSuccessAt = Date.now();
 
   if (circuit.state === 'half_open') {
-    // Recovery confirmed!
     circuit.state = 'closed';
     circuit.failureCount = 0;
+    circuit.halfOpenProbeInFlight = false;
     console.log(`[Circuit Breaker] ${provider}: HALF_OPEN → CLOSED (recovered)`);
   } else {
-    // Reset failure count on success
     circuit.failureCount = 0;
   }
 }
@@ -106,8 +111,8 @@ export function recordFailure(provider: string, error?: string): void {
   circuit.lastFailureAt = Date.now();
 
   if (circuit.state === 'half_open') {
-    // Recovery failed — back to open
     circuit.state = 'open';
+    circuit.halfOpenProbeInFlight = false;
     console.log(`[Circuit Breaker] ${provider}: HALF_OPEN → OPEN (recovery failed: ${error})`);
   } else if (circuit.failureCount >= FAILURE_THRESHOLD) {
     // Too many failures — open the circuit

@@ -24,6 +24,7 @@ import { getAccessToken } from '@/lib/authToken';
 import { API_ORIGIN, assertNotHtmlApiResponse } from '@/lib/api';
 import { khAIFeedbackAPI } from '@/lib/knowledge-hub/api';
 import { resolveIntent } from '@/shared/intents/resolver';
+import { formatAiHttpError } from '@/utils/aiHttpError';
 
 function generateMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -219,7 +220,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       });
 
       if (!response.ok) {
-        throw new Error(`AI request failed: ${response.status} ${response.statusText}`);
+        throw new Error(await formatAiHttpError(response));
       }
 
       assertNotHtmlApiResponse(response);

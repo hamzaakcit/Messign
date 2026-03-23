@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
+import { reimbursementUsersPk } from '../reimbursementUsersPk.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
 import { listAllocationsForCampaign, upsertBudgetAllocation } from './budgetAllocations.js';
@@ -382,7 +383,7 @@ export async function createCampaign(ctx: CallerContext, data: CreateCampaignInp
       data.end_date ?? null,
       data.target_audience ?? null,
       data.goals ?? null,
-      data.owner_id ?? ctx.userId,
+      data.owner_id ?? reimbursementUsersPk(ctx),
       JSON.stringify(data.tags ?? []),
     ],
   );
@@ -394,7 +395,7 @@ export async function createCampaign(ctx: CallerContext, data: CreateCampaignInp
       channel: campaign.channel,
       budget: campaign.budget,
       currency: campaign.currency,
-      createdBy: ctx.userId,
+      createdBy: reimbursementUsersPk(ctx),
     });
     await refreshRoiView();
     return (await getCampaignBase(ctx, campaign.id)) ?? campaign;
@@ -484,7 +485,7 @@ export async function pauseCampaign(ctx: CallerContext, campaignId: string, reas
   const campaign = await updateCampaign(ctx, campaignId, { status: 'paused' });
   eventBus.emit('marketing.campaign.paused', {
     campaignId: campaign.id,
-    pausedBy: ctx.userId,
+    pausedBy: reimbursementUsersPk(ctx),
     reason,
   });
   return campaign;
@@ -511,7 +512,7 @@ export async function cloneCampaign(ctx: CallerContext, campaignId: string): Pro
     target_audience: src.target_audience ?? undefined,
     goals: src.goals ?? undefined,
     tags: src.tags,
-    owner_id: ctx.userId,
+    owner_id: reimbursementUsersPk(ctx),
   });
 
   const tenantId = ctx.organizationId;
@@ -597,7 +598,7 @@ export async function recordSpend(
       data.date,
       data.vendor ?? null,
       data.receipt_url ?? null,
-      ctx.userId,
+      reimbursementUsersPk(ctx),
     ],
   );
 

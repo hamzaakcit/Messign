@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import {
   getByAuthUserId,
@@ -8,7 +9,7 @@ import {
 import { getPasswordPolicy } from '../db/settingsDb.js';
 import { insert as insertAudit } from '../db/authAuditDb.js';
 import type { PasswordPolicy } from '../types/auth.js';
-import { DEFAULT_PASSWORD } from '../types/auth.js';
+import { getDefaultSeedPassword } from '../types/auth.js';
 
 const SALT_ROUNDS = 12;
 
@@ -70,20 +71,23 @@ export function generateStrongPassword(length: number = 16): string {
   const special = '!@#$%^&*()_+-=';
   const all = uppercase + lowercase + numbers + special;
 
-  let password = '';
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += special[Math.floor(Math.random() * special.length)];
+  const chars: string[] = [];
+  chars.push(uppercase[randomInt(uppercase.length)]);
+  chars.push(lowercase[randomInt(lowercase.length)]);
+  chars.push(numbers[randomInt(numbers.length)]);
+  chars.push(special[randomInt(special.length)]);
 
-  for (let i = password.length; i < length; i++) {
-    password += all[Math.floor(Math.random() * all.length)];
+  for (let i = chars.length; i < length; i++) {
+    chars.push(all[randomInt(all.length)]);
   }
 
-  return password
-    .split('')
-    .sort(() => Math.random() - 0.5)
-    .join('');
+  // Fisher-Yates shuffle with crypto randomness
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join('');
 }
 
 export async function setPasswordByAdmin(
@@ -133,7 +137,7 @@ export async function resetToDefaultPassword(
   adminId: string,
   opts?: { ipAddress?: string; userAgent?: string }
 ): Promise<void> {
-  await setPasswordByAdmin(oddrooId, DEFAULT_PASSWORD, true, adminId, opts);
+  await setPasswordByAdmin(oddrooId, getDefaultSeedPassword(), true, adminId, opts);
 
   await insertAudit({
     auth_user_id: adminId,

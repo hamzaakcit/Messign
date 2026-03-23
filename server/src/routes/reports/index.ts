@@ -14,6 +14,7 @@ import { redisConnection } from '../../queue/connection.js';
 const reportsRouter = Router();
 const REPORT_CACHE_TTL = 60;
 const reportHistoryByScope = new Map<string, ReportResult[]>();
+const MAX_REPORT_HISTORY_KEYS = 200;
 
 function buildCtx(req: ReimbursementRequest): CallerContext {
   const user = req.reimbursementUser!;
@@ -34,6 +35,11 @@ function pushReportHistory(req: ReimbursementRequest, report: ReportResult): voi
   current.unshift(report);
   if (current.length > 50) current.splice(50);
   reportHistoryByScope.set(key, current);
+
+  if (reportHistoryByScope.size > MAX_REPORT_HISTORY_KEYS) {
+    const oldest = reportHistoryByScope.keys().next();
+    if (!oldest.done) reportHistoryByScope.delete(oldest.value);
+  }
 }
 
 function toCsvRows(data: unknown[]): string {
@@ -52,6 +58,10 @@ function toCsvRows(data: unknown[]): string {
   return lines.join('\n');
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 async function makePdf(report: ReportResult): Promise<Buffer> {
   const browser = await puppeteer.launch({ headless: true });
   try {
@@ -59,10 +69,10 @@ async function makePdf(report: ReportResult): Promise<Buffer> {
     await page.setContent(`
       <html>
       <body style="font-family:Arial,sans-serif;padding:24px">
-        <h1>${report.title}</h1>
-        <p>${report.description}</p>
-        <p><strong>Generated:</strong> ${report.generatedAt}</p>
-        <pre style="white-space:pre-wrap">${JSON.stringify(report.data, null, 2)}</pre>
+        <h1>${escapeHtml(report.title)}</h1>
+        <p>${escapeHtml(report.description)}</p>
+        <p><strong>Generated:</strong> ${escapeHtml(report.generatedAt)}</p>
+        <pre style="white-space:pre-wrap">${escapeHtml(JSON.stringify(report.data, null, 2))}</pre>
       </body>
       </html>
     `);

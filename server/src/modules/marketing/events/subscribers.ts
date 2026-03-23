@@ -1,6 +1,7 @@
 import type { EventBus } from '../../../platform/eventBus.js';
 import { crossModuleQueue, gamificationQueue, notificationQueue } from '../../../queue/index.js';
 import { query } from '../../../db/index.js';
+import { invalidateMarketingDashboardMetrics } from '../../../services/cache/cacheInvalidation.js';
 import { enqueueMarketingAutomationForProjectTaskCompleted } from '../../../services/marketing/marketingAutomationTriggerService.js';
 import * as doraInsights from '../../../dal/doraInsights.js';
 import * as marketingLeads from '../../../dal/marketing/leads.js';
@@ -91,6 +92,7 @@ export function registerMarketingEventHandlers(eventBus: EventBus): void {
     if (lead.campaign_owner_id) {
       await gamificationQueue.add('marketing_campaign_owner_xp', { type: 'award_xp', userId: lead.campaign_owner_id, amount: 5, reason: 'Captured hot marketing lead' });
     }
+    void invalidateMarketingDashboardMetrics(lead.organization_id).catch(() => {});
   });
 
   eventBus.on('marketing.lead.routed_to_crm', async (payload) => {
@@ -117,6 +119,8 @@ export function registerMarketingEventHandlers(eventBus: EventBus): void {
   eventBus.on('marketing.spend.recorded', async (payload) => {
     const spendMeta = await getSpendMeta(payload.campaignId, payload.amount, payload.date, payload.category);
     await crossModuleQueue.add('create_expense_from_marketing_spend', { type: 'create_expense_from_marketing_spend', payload: { campaignId: payload.campaignId, amount: payload.amount, currency: payload.currency, category: payload.category, description: spendMeta?.description ?? null, date: payload.date }, sourceEvent: 'marketing.spend.recorded' });
+    const campaign = await getCampaignMeta(payload.campaignId);
+    if (campaign) void invalidateMarketingDashboardMetrics(campaign.organization_id).catch(() => {});
   });
 
   eventBus.on('marketing.campaign.budget_exceeded', async (payload) => {

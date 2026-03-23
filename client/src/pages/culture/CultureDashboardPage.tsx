@@ -75,7 +75,9 @@ export function CultureDashboardPage() {
   const [departments, setDepartments] = useState<Array<Record<string, unknown>>>([]);
   const [activeSurvey, setActiveSurvey] = useState<{ id?: string; title?: string; questions?: Array<{ id: string; text: string }>; responseCount?: number } | null>(null);
   const [surveyResults, setSurveyResults] = useState<Record<string, unknown> | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [wellnessLoading, setWellnessLoading] = useState(false);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const loading = wellnessLoading || teamLoading;
 
   const canSeeTab = useCallback(
     (t: Tab) => {
@@ -89,61 +91,77 @@ export function CultureDashboardPage() {
 
   useEffect(() => {
     if (!userId) return;
-    setLoading(true);
+    let cancelled = false;
+    setWellnessLoading(true);
     Promise.all([
       heartAPI.getMyWellness(userId),
       heartAPI.getMySentiment(userId, 30),
     ])
       .then(([w, s]) => {
+        if (cancelled) return;
         setWellness(w as typeof wellness);
         setSentimentHistory((s as { history: typeof sentimentHistory }).history ?? []);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setWellnessLoading(false); });
+    return () => { cancelled = true; };
   }, [userId]);
 
   useEffect(() => {
     if (!userId || !canSeeTab('team')) return;
-    setLoading(true);
+    let cancelled = false;
+    setTeamLoading(true);
     Promise.all([
       heartAPI.getTeam(userId, 'team'),
       heartAPI.getTeamHistory(userId, 'team', undefined, 12),
     ])
       .then(([t, h]) => {
+        if (cancelled) return;
         setTeamHealth(t as typeof teamHealth);
         setTeamHistory((h as { history: typeof teamHistory }).history ?? []);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setTeamLoading(false); });
+    return () => { cancelled = true; };
   }, [userId, canSeeTab]);
 
   useEffect(() => {
     if (!userId || !canSeeTab('department')) return;
+    let cancelled = false;
     heartAPI
       .getDepartments(userId)
-      .then((r) => setDepartments((r as { departments: typeof departments }).departments ?? []))
+      .then((r) => { if (!cancelled) setDepartments((r as { departments: typeof departments }).departments ?? []); })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [userId, canSeeTab]);
 
   useEffect(() => {
     if (!userId || !canSeeTab('organization')) return;
-    heartAPI.getTeam(userId, 'organization').then((t) => setOrgHealth(t as typeof orgHealth)).catch(() => {});
+    let cancelled = false;
+    heartAPI.getTeam(userId, 'organization')
+      .then((t) => { if (!cancelled) setOrgHealth(t as typeof orgHealth); })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [userId, canSeeTab]);
 
   useEffect(() => {
     if (!userId) return;
+    let cancelled = false;
     heartAPI
       .getActiveSurvey(userId)
-      .then((s) => setActiveSurvey(s && (s as { id?: string }).id ? (s as typeof activeSurvey) : null))
+      .then((s) => { if (!cancelled) setActiveSurvey(s && (s as { id?: string }).id ? (s as typeof activeSurvey) : null); })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [userId]);
 
   useEffect(() => {
     if (!userId || !activeSurvey?.id || !canSeeTab('team')) return;
+    let cancelled = false;
     heartAPI
       .getSurveyResults(userId, activeSurvey.id)
-      .then((r) => setSurveyResults(r as typeof surveyResults))
+      .then((r) => { if (!cancelled) setSurveyResults(r as typeof surveyResults); })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [userId, activeSurvey?.id, canSeeTab]);
 
   const sentimentChartData = sentimentHistory.map((h) => ({
@@ -169,7 +187,7 @@ export function CultureDashboardPage() {
   const COLORS = ['#22c55e', '#eab308', '#ef4444', '#3b82f6', '#8b5cf6'];
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto p-4 md:p-6 bg-app space-y-4">
+    <div className="h-[calc(100vh-48px)] overflow-y-auto p-4 md:p-6 bg-app space-y-4">
       <DoraInsightBar
         module="culture"
         fallback="Dora monitors team health and engagement patterns to help build a stronger culture."

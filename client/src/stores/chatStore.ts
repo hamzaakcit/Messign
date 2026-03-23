@@ -82,9 +82,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const messages = await chatAPI.getMessages(channelId, userId ?? undefined) as Message[];
       set((state) => ({
         messages: { ...state.messages, [channelId]: messages },
+        chatError: null,
       }));
     } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to fetch messages';
       console.error('Failed to fetch messages:', error);
+      set({ chatError: msg });
     }
   },
 

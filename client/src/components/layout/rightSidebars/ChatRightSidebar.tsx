@@ -5,8 +5,9 @@ import { Avatar } from '@/components/ui';
 import { pinnedMessages, channelThreads, filesShared } from '@/data/rightSidebar';
 
 export function ChatRightSidebar() {
-  const { channels, activeChannelId } = useChatStore();
-  const { getUserById } = useUsersStore();
+  const channels = useChatStore((s) => s.channels);
+  const activeChannelId = useChatStore((s) => s.activeChannelId);
+  const getUserById = useUsersStore((s) => s.getUserById);
   const activeChannel = channels.find((c) => c.id === activeChannelId);
 
   if (!activeChannel) {

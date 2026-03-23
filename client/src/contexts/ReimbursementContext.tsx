@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { reimbursementAPI, approvalsAPI } from '@/lib/api';
 
@@ -42,16 +42,16 @@ export function ReimbursementProvider({ children }: { children: ReactNode }) {
 
   const showApprovals = isAdmin || (user as { role?: string })?.role === 'manager';
 
+  const value = useMemo(() => ({
+    myPendingCount,
+    myPendingTotal,
+    pendingApprovalsCount,
+    refreshCounts,
+    showApprovals,
+  }), [myPendingCount, myPendingTotal, pendingApprovalsCount, refreshCounts, showApprovals]);
+
   return (
-    <ReimbursementContext.Provider
-      value={{
-        myPendingCount,
-        myPendingTotal,
-        pendingApprovalsCount,
-        refreshCounts,
-        showApprovals,
-      }}
-    >
+    <ReimbursementContext.Provider value={value}>
       {children}
     </ReimbursementContext.Provider>
   );

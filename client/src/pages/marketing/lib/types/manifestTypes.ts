@@ -1,0 +1,160 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Manifest Types — Visual Architect v2.0
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { ThemeName } from './designTokenTypes';
+
+export type SectionType =
+  | 'hero'
+  | 'value_prop'
+  | 'testimonial'
+  | 'social_proof'
+  | 'cta'
+  | 'divider'
+  | 'footer'
+  | 'text_block'
+  | 'image'
+  | 'preheader'
+  | 'product_grid';
+
+export interface ManifestSection {
+  type: SectionType;
+  order: number;
+  content: Record<string, unknown>;
+  variant?: string;
+  spacing?: string;
+}
+
+export interface HeroContent {
+  headline: string;
+  subheadline?: string;
+  ctaText?: string;
+  ctaUrl?: string;
+  imageUrl?: string;
+  imagePrompt?: string;
+  alignment?: 'left' | 'center' | 'right';
+  [key: string]: unknown;
+}
+
+export interface ValuePropItem {
+  icon?: string;
+  heading: string;
+  description: string;
+  [key: string]: unknown;
+}
+
+export interface ValuePropContent {
+  sectionTitle?: string;
+  columns: number;
+  items: ValuePropItem[];
+  [key: string]: unknown;
+}
+
+export interface CTAContent {
+  headline?: string;
+  description?: string;
+  buttonText: string;
+  buttonUrl: string;
+  variant?: 'pill' | 'ghost' | 'fullWidth';
+  [key: string]: unknown;
+}
+
+export interface TestimonialContent {
+  quote: string;
+  authorName: string;
+  authorRole?: string;
+  authorCompany?: string;
+  rating?: number;
+  [key: string]: unknown;
+}
+
+export interface SocialProofItem {
+  label: string;
+  value?: string;
+  logoUrl?: string;
+  [key: string]: unknown;
+}
+
+export interface SocialProofContent {
+  style: 'metrics' | 'logos' | 'mixed';
+  items: SocialProofItem[];
+  [key: string]: unknown;
+}
+
+export interface TextBlockContent {
+  body: string;
+  alignment?: 'left' | 'center' | 'right';
+  [key: string]: unknown;
+}
+
+export interface ImageContent {
+  imageUrl?: string;
+  imagePrompt?: string;
+  altText?: string;
+  caption?: string;
+  linkUrl?: string;
+  width?: 'full' | 'medium' | 'small';
+  [key: string]: unknown;
+}
+
+export interface ProductItem {
+  name: string;
+  description?: string;
+  price?: string;
+  originalPrice?: string;
+  imageUrl?: string;
+  imagePrompt?: string;
+  linkUrl?: string;
+  badge?: string;
+  [key: string]: unknown;
+}
+
+export interface ProductGridContent {
+  sectionTitle?: string;
+  columns: 2 | 3;
+  items: ProductItem[];
+  [key: string]: unknown;
+}
+
+export interface FooterContent {
+  companyName: string;
+  address: string;
+  links?: Array<{ text: string; url: string }>;
+  socialLinks?: Array<{ platform: string; url: string }>;
+  unsubscribeText?: string;
+  [key: string]: unknown;
+}
+
+export interface ManifestValidationError {
+  field: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+export interface ManifestValidationResult {
+  valid: boolean;
+  errors: ManifestValidationError[];
+  warnings: ManifestValidationError[];
+  normalizedManifest?: DesignManifest;
+}
+
+export interface DesignManifest {
+  version: string;
+  theme: ThemeName;
+  subject: string;
+  preheader: string;
+  sections: ManifestSection[];
+  metadata?: {
+    channel?: string;
+    tone?: string;
+    audience?: string;
+    campaign_id?: string;
+    brand_profile_id?: string;
+    ab_variant?: 'A' | 'B';
+  };
+  artDirection?: {
+    imageStyle?: string;
+    [key: string]: unknown;
+  };
+  easterEgg?: 'paper_plane' | 'none';
+}

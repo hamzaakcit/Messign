@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
+import { writeFile, readFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { query } from '../../../db/index.js';
@@ -12,9 +13,7 @@ import { getExchangeRate } from '../../../routes/exchangeRates.js';
 const router = Router();
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 
-if (!existsSync(UPLOAD_DIR)) {
-  mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+await mkdir(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -173,7 +172,8 @@ router.get('/admin/all-approved', async (req: ReimbursementRequest, res) => {
        JOIN expense_categories c ON c.id = r.category_id
        JOIN reimbursement_users u ON u.id = r.submitted_by
        WHERE r.organization_id = $1 AND r.status IN ('approved', 'paid')
-       ORDER BY r.expense_date DESC`,
+       ORDER BY r.expense_date DESC
+       LIMIT 500`,
       [orgId]
     );
     res.json(result.rows);
@@ -203,25 +203,27 @@ router.get('/:id', async (req: ReimbursementRequest, res) => {
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
-    const docs = await query(
-      `SELECT id, reimbursement_id, document_type, file_name, file_url, file_size_bytes, mime_type, ocr_processed, ocr_vendor_name, ocr_amount, ocr_currency, ocr_date, ocr_confidence_score, signature_status, uploaded_at
-       FROM reimbursement_documents WHERE reimbursement_id = $1 ORDER BY uploaded_at`,
-      [id]
-    );
-    const steps = await query(
-      `SELECT a.*, u.full_name AS assigned_to_name
-       FROM approval_steps a
-       LEFT JOIN reimbursement_users u ON u.id = a.assigned_to
-       WHERE a.reimbursement_id = $1 ORDER BY a.step_order`,
-      [id]
-    );
-    const activity = await query(
-      `SELECT al.id, al.reimbursement_id, al.user_id, al.action, al.action_details, al.created_at, u.full_name AS user_name
-       FROM reimbursement_activity_log al
-       LEFT JOIN reimbursement_users u ON u.id = al.user_id
-       WHERE al.reimbursement_id = $1 ORDER BY al.created_at DESC`,
-      [id]
-    );
+    const [docs, steps, activity] = await Promise.all([
+      query(
+        `SELECT id, reimbursement_id, document_type, file_name, file_url, file_size_bytes, mime_type, ocr_processed, ocr_vendor_name, ocr_amount, ocr_currency, ocr_date, ocr_confidence_score, signature_status, uploaded_at
+         FROM reimbursement_documents WHERE reimbursement_id = $1 ORDER BY uploaded_at`,
+        [id]
+      ),
+      query(
+        `SELECT a.*, u.full_name AS assigned_to_name
+         FROM approval_steps a
+         LEFT JOIN reimbursement_users u ON u.id = a.assigned_to
+         WHERE a.reimbursement_id = $1 ORDER BY a.step_order`,
+        [id]
+      ),
+      query(
+        `SELECT al.id, al.reimbursement_id, al.user_id, al.action, al.action_details, al.created_at, u.full_name AS user_name
+         FROM reimbursement_activity_log al
+         LEFT JOIN reimbursement_users u ON u.id = al.user_id
+         WHERE al.reimbursement_id = $1 ORDER BY al.created_at DESC`,
+        [id]
+      ),
+    ]);
     res.json({ ...row, documents: docs.rows, approval_steps: steps.rows, activity_log: activity.rows });
   } catch (e) {
     console.error(e);
@@ -416,7 +418,7 @@ router.post('/:id/documents', upload.single('file'), async (req: ReimbursementRe
     const ext = file.originalname?.split('.').pop() || 'bin';
     const filename = `${randomUUID()}.${ext}`;
     const filePath = join(UPLOAD_DIR, filename);
-    writeFileSync(filePath, file.buffer);
+    await writeFile(filePath, file.buffer);
     const fileUrl = `/uploads/${filename}`;
     const docResult = await query(
       `INSERT INTO reimbursement_documents (reimbursement_id, document_type, file_name, file_url, file_size_bytes, mime_type)
@@ -456,7 +458,7 @@ router.delete('/:id/documents/:docId', async (req: ReimbursementRequest, res) =>
       return;
     }
     const filePath = join(UPLOAD_DIR, doc.rows[0].file_url.replace('/uploads/', ''));
-    if (existsSync(filePath)) unlinkSync(filePath);
+    if (existsSync(filePath)) await unlink(filePath);
     await query(`DELETE FROM reimbursement_documents WHERE id = $1`, [docId]);
     res.status(204).send();
   } catch (e) {
@@ -496,7 +498,7 @@ router.post('/:id/documents/:docId/ocr', async (req: ReimbursementRequest, res) 
       res.status(404).json({ error: 'File not found on disk' });
       return;
     }
-    const buffer = readFileSync(filePath);
+    const buffer = await readFile(filePath);
     const base64 = buffer.toString('base64');
     const mediaType = mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
     const extraction = await extractReceiptData(base64, mediaType, { tenantId: orgId });

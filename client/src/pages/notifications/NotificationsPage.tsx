@@ -13,7 +13,7 @@ export function NotificationsPage() {
   }, [userId]);
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto p-4 md:p-6 bg-app">
+    <div className="h-[calc(100vh-48px)] overflow-y-auto p-4 md:p-6 bg-app">
       <div className="rounded-xl border border-app bg-app-card p-5 mb-4">
         <h1 className="text-2xl font-bold text-app">Notifications</h1>
       </div>

@@ -7,6 +7,8 @@ import {
   validateProductTruth,
 } from './contentStrategistTools.js';
 import { generateImageBrief, checkBrandCompliance, repurposeContent } from './creativeTools.js';
+import { getSavedEmailDesign, listSavedEmailDesigns } from './emailTemplateTools.js';
+import { competitorIntelligence } from './competitorIntelligenceTool.js';
 import type { ToolRegistration } from '../../types.js';
 
 export const marketingTools: ToolRegistration[] = [
@@ -21,4 +23,7 @@ export const marketingTools: ToolRegistration[] = [
   generateImageBrief,
   checkBrandCompliance,
   repurposeContent,
+  listSavedEmailDesigns,
+  getSavedEmailDesign,
+  competitorIntelligence,
 ];

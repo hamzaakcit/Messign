@@ -1,9 +1,24 @@
 import { Router } from 'express';
 import { query } from '../../db/index.js';
 import { reimbursementAuth, type ReimbursementRequest } from '../../middleware/reimbursementAuth.js';
+import { redisConnection } from '../../queue/connection.js';
 
 const notificationsRouter = Router();
 notificationsRouter.use(reimbursementAuth);
+
+const UNREAD_COUNT_TTL_SEC = 12;
+
+function unreadCountCacheKey(userId: string): string {
+  return `notif:unread:v1:${userId}`;
+}
+
+async function invalidateUnreadCountCache(userId: string): Promise<void> {
+  try {
+    await redisConnection.del(unreadCountCacheKey(userId));
+  } catch (e) {
+    if (e instanceof Error) console.warn('[Redis] notification unread cache invalidate:', e.message);
+  }
+}
 
 notificationsRouter.get('/', async (req: ReimbursementRequest, res) => {
   try {
@@ -31,14 +46,30 @@ notificationsRouter.get('/', async (req: ReimbursementRequest, res) => {
 
 notificationsRouter.get('/unread-count', async (req: ReimbursementRequest, res) => {
   try {
+    const uid = req.reimbursementUser!.id;
+    const key = unreadCountCacheKey(uid);
+    try {
+      const cached = await redisConnection.get(key);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] notification unread cache get:', e.message);
+    }
     const result = await query(
       `SELECT COUNT(*)::int AS count
        FROM notifications
        WHERE user_id = $1::uuid
          AND is_read = FALSE`,
-      [req.reimbursementUser!.id],
+      [uid],
     );
-    res.json({ count: Number(result.rows[0]?.count ?? 0) });
+    const payload = { count: Number(result.rows[0]?.count ?? 0) };
+    try {
+      await redisConnection.setex(key, UNREAD_COUNT_TTL_SEC, JSON.stringify(payload));
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] notification unread cache set:', e.message);
+    }
+    res.json(payload);
   } catch (error) {
     console.error('[notifications/unread-count]', error);
     res.status(500).json({ error: 'Failed to get unread count' });
@@ -54,6 +85,7 @@ notificationsRouter.put('/:id/read', async (req: ReimbursementRequest, res) => {
          AND user_id = $2::uuid`,
       [req.params.id, req.reimbursementUser!.id],
     );
+    await invalidateUnreadCountCache(req.reimbursementUser!.id);
     res.json({ ok: true });
   } catch (error) {
     console.error('[notifications/read]', error);
@@ -70,6 +102,7 @@ notificationsRouter.put('/read-all', async (req: ReimbursementRequest, res) => {
          AND is_read = FALSE`,
       [req.reimbursementUser!.id],
     );
+    await invalidateUnreadCountCache(req.reimbursementUser!.id);
     res.json({ ok: true });
   } catch (error) {
     console.error('[notifications/read-all]', error);
@@ -85,6 +118,7 @@ notificationsRouter.delete('/:id', async (req: ReimbursementRequest, res) => {
          AND user_id = $2::uuid`,
       [req.params.id, req.reimbursementUser!.id],
     );
+    await invalidateUnreadCountCache(req.reimbursementUser!.id);
     res.json({ ok: true });
   } catch (error) {
     console.error('[notifications/delete]', error);

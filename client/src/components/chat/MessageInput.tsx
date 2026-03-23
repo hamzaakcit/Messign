@@ -23,9 +23,9 @@ export function MessageInput({ channelName }: MessageInputProps) {
   const mentionPickerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
-  const { sendMessage } = useChatStore();
-  const { user } = useAuthStore();
-  const { users } = useUsersStore();
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const user = useAuthStore((s) => s.user);
+  const users = useUsersStore((s) => s.users);
   const otherUsers = users.filter((u) => u.id !== user?.id);
 
   const insertAtCursor = (text: string) => {
@@ -126,6 +126,7 @@ export function MessageInput({ channelName }: MessageInputProps) {
           className="hidden"
           accept="image/*,.pdf,.doc,.docx,.txt"
           onChange={handleFileChange}
+          aria-label="Attach files"
         />
         {/* Attachment Button */}
         <button
@@ -147,6 +148,7 @@ export function MessageInput({ channelName }: MessageInputProps) {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder={`Message #${channelName}`}
+          aria-label={`Message in channel ${channelName}`}
           rows={1}
           className="flex-1 bg-transparent text-app placeholder:text-app-muted resize-none focus:outline-none min-h-[24px] max-h-[120px]"
         />

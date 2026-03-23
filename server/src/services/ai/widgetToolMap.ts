@@ -24,6 +24,9 @@ export const AI_WIDGET_TOOL_MAP: Record<string, string> = {
   'fun:play_dora_dash': 'dora_dash',
   /** Leaderboard rows vs badges/catalog: resolved in widgetResolve when shape matches */
   'achievements:get_achievements_leaderboard': 'data_table',
+  /** Marketing hub: tabular metrics (no `instagram:create_post` — publishing is server-side, not an LLM tool). */
+  'marketing:get_campaign_performance': 'data_table',
+  'marketing:get_marketing_roi': 'data_table',
 };
 
 export type ToolObservationForWidget = {

@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import {
   ArrowLeft,
   Download,
@@ -66,7 +67,7 @@ export function DocumentDetailView({
   const renderContent = () => {
     if (doc.file_url) {
       const ft = (doc.file_type ?? doc.type ?? '').toLowerCase();
-      const origin = (import.meta as any).env?.VITE_API_ORIGIN || window.location.origin;
+      const origin = import.meta.env?.VITE_API_ORIGIN || window.location.origin;
       const fileUrl = doc.file_url.startsWith('http') ? doc.file_url : `${origin}${doc.file_url}`;
 
       if (ft === 'pdf') {
@@ -120,7 +121,7 @@ export function DocumentDetailView({
             'prose-pre:bg-dark-700 prose-pre:border prose-pre:border-app-border',
             'prose-li:text-gray-300 prose-hr:border-app-border prose-img:rounded-lg',
           )}
-          dangerouslySetInnerHTML={{ __html: doc.content }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(doc.content) }}
         />
       );
     }

@@ -71,13 +71,17 @@ Use this tool when someone asks:
           COUNT(*) FILTER (WHERE status IN ('todo', 'open'))::int as open,
           COUNT(*) FILTER (WHERE status = 'blocked')::int as blocked,
           COUNT(*) FILTER (WHERE due_date < NOW() AND status NOT IN ('completed', 'done', 'cancelled'))::int as overdue
-        FROM tasks`
+        FROM tasks
+        WHERE project_id IN (SELECT id FROM projects WHERE organization_id = $1)`,
+        [orgId]
       ),
       query(
         `SELECT
           COUNT(*)::int as total,
           COUNT(*) FILTER (WHERE status != 'archived')::int as active
-        FROM projects`
+        FROM projects
+        WHERE organization_id = $1`,
+        [orgId]
       ),
       query(
         `SELECT

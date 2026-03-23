@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
+import { select } from 'd3-selection';
+import { zoom } from 'd3-zoom';
+import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force';
+import type { SimulationNodeDatum } from 'd3-force';
+import { drag } from 'd3-drag';
+import type { D3DragEvent } from 'd3-drag';
+import type { Selection, BaseType } from 'd3-selection';
 import type { Goal, KeyResult } from '@/lib/okrApi';
 
 export interface GoalNode {
@@ -107,30 +113,28 @@ export function OKRGoalTree({ goals, periodId, onGoalClick }: OKRGoalTreeProps) 
     const width = containerRef.current.clientWidth;
     const height = Math.max(400, Math.min(600, nodes.length * 40));
 
-    d3.select(svgRef.current).selectAll('*').remove();
+    select(svgRef.current).selectAll('*').remove();
 
-    const svg = d3
-      .select(svgRef.current)
+    const svg = select(svgRef.current)
       .attr('width', width)
       .attr('height', height)
       .attr('viewBox', [0, 0, width, height]);
 
     const g = svg.append('g');
 
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 3]).on('zoom', (event: { transform: { toString: () => string } }) => {
+    const zoomBehavior = zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 3]).on('zoom', (event: { transform: { toString: () => string } }) => {
       g.attr('transform', event.transform.toString());
     });
-    svg.call(zoom);
+    svg.call(zoomBehavior);
 
-    const simulation = d3
-      .forceSimulation(nodes as d3.SimulationNodeDatum[])
+    const simulation = forceSimulation(nodes as SimulationNodeDatum[])
       .force(
         'link',
-        d3.forceLink(links).id((d: any) => d.id).distance(80),
+        forceLink(links).id((d: any) => d.id).distance(80),
       )
-      .force('charge', d3.forceManyBody().strength(-200))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(35));
+      .force('charge', forceManyBody().strength(-200))
+      .force('center', forceCenter(width / 2, height / 2))
+      .force('collision', forceCollide().radius(35));
 
     const link = g
       .append('g')
@@ -150,21 +154,21 @@ export function OKRGoalTree({ goals, periodId, onGoalClick }: OKRGoalTreeProps) 
       .join('g')
       .attr('cursor', 'pointer')
       .call(
-        d3.drag<SVGGElement, GoalNode, GoalNode>()
-          .on('start', (event: any, d: any) => {
+        drag<SVGGElement, GoalNode>()
+          .on('start', (event: D3DragEvent<SVGGElement, GoalNode, GoalNode>, d: GoalNode & SimulationNodeDatum) => {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
           })
-          .on('drag', (event: any, d: any) => {
+          .on('drag', (event: D3DragEvent<SVGGElement, GoalNode, GoalNode>, d: GoalNode & SimulationNodeDatum) => {
             d.fx = event.x;
             d.fy = event.y;
           })
-          .on('end', (event: any, d: any) => {
+          .on('end', (event: D3DragEvent<SVGGElement, GoalNode, GoalNode>, d: GoalNode & SimulationNodeDatum) => {
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
-          }) as any,
+          }) as unknown as (selection: Selection<SVGGElement | BaseType, GoalNode, SVGGElement, unknown>) => void,
       );
 
     nodeGroups
@@ -178,13 +182,13 @@ export function OKRGoalTree({ goals, periodId, onGoalClick }: OKRGoalTreeProps) 
       .attr('stroke', '#1e293b')
       .attr('stroke-width', 2);
 
-    nodeGroups.each(function (this: d3.BaseType, d: GoalNode) {
+    nodeGroups.each(function (this: BaseType, d: GoalNode) {
       const base = LEVEL_RADIUS[d.level] ?? 14;
       const scale = 0.5 + (d.progress / 100) * 0.5;
       const r = base * scale;
       const circ = 2 * Math.PI * r;
       const dash = (d.progress / 100) * circ;
-      d3.select(this)
+      select(this)
         .append('circle')
         .attr('r', r)
         .attr('fill', 'none')

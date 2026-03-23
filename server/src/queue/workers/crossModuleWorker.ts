@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Worker, Job } from 'bullmq';
 import type { ConnectionOptions } from 'bullmq';
 import { redisConnection } from '../connection.js';
@@ -303,7 +304,7 @@ async function createEmployeeFromHire(payload: Record<string, unknown>): Promise
   let userId = existingUser.rows[0]?.id;
   let teamMemberEmployeeId = existingUser.rows[0]?.auth_user_id ?? existingUser.rows[0]?.id;
   if (!userId) {
-    const authUserId = `user-${Date.now()}`;
+    const authUserId = `user-${randomUUID()}`;
     const insert = await query<{ id: string }>(
       `INSERT INTO reimbursement_users (
          organization_id, auth_user_id, email, full_name, role, manager_id, xp, level, status, job_title, phone, location

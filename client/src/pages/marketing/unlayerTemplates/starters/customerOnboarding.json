@@ -1,0 +1,70 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "subject": "Welcome Aboard — Let's Get You Started",
+  "preheader": "We are genuinely glad you are here. Over the next few minutes you will connect your workspace, invite teammates, and turn on the one automation that saves the most time—small steps, clear guidance, and help if you ever get stuck.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Welcome aboard",
+        "subheadline": "You are all set—let’s personalize your workspace, invite your team, and ship something small today. We will walk you through it at your pace.",
+        "ctaText": "Open your checklist",
+        "ctaUrl": "https://example.com/onboarding",
+        "imagePrompt": "Warm welcoming workspace scene, morning light through sheer curtains, plant on desk, laptop open with soft blur, cozy editorial photography, earth tones",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "content": {
+        "sectionTitle": "Your first three steps",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "link",
+            "heading": "Connect your tools",
+            "description": "Link email, calendar, and your repo—imports run in the background so you can keep exploring."
+          },
+          {
+            "icon": "users",
+            "heading": "Invite your team",
+            "description": "Send invites with suggested roles; they will land in a guided first-run that matches yours."
+          },
+          {
+            "icon": "sparkles",
+            "heading": "Turn on smart defaults",
+            "description": "Enable the weekly summary and one automation—we picked the ones new teams enable most."
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "Ready when you are",
+        "description": "Jump into the in-app checklist anytime—it saves your progress automatically.",
+        "buttonText": "Get started",
+        "buttonUrl": "https://example.com/app/start",
+        "variant": "ghost"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Messign",
+        "address": "1200 Harbor Way, Austin, TX 78701",
+        "unsubscribeText": "Onboarding tips are sent to help you succeed. You can turn off product tips in Settings → Notifications."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "",
+    "audience": ""
+  }
+}

@@ -1,18 +1,13 @@
 import crossModuleWorker from './crossModuleWorker.js';
 import notificationWorker from './notificationWorker.js';
+import gamificationWorker from './gamificationWorker.js';
 import doraInsightsWorker from './doraInsightsWorker.js';
 import doraSchedulerWorker from './doraSchedulerWorker.js';
 import webhookWorker from './webhookWorker.js';
 import embeddingWorker from './embeddingWorker.js';
 
 export function startAllWorkers() {
-  console.log('[Workers] All BullMQ workers started');
-  console.log('[Workers] - cross-module (concurrency: 5)');
-  console.log('[Workers] - notifications (concurrency: 10)');
-  console.log('[Workers] - dora-insights (concurrency: 3)');
-  console.log('[Workers] - dora-scheduler (concurrency: 1)');
-  console.log('[Workers] - webhooks (concurrency: 10)');
-  console.log('[Workers] - embeddings (concurrency: 3)');
+  console.log('[Workers] 7 BullMQ workers started (cross-module:5, notifications:10, gamification:5, dora-insights:3, dora-scheduler:1, webhooks:10, embeddings:3)');
 }
 
-export { crossModuleWorker, notificationWorker, doraInsightsWorker, doraSchedulerWorker, webhookWorker, embeddingWorker };
+export { crossModuleWorker, notificationWorker, gamificationWorker, doraInsightsWorker, doraSchedulerWorker, webhookWorker, embeddingWorker };

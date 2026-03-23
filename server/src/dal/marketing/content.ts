@@ -2,8 +2,9 @@ import type { PoolClient } from 'pg';
 import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
+import { reimbursementUsersPk } from '../reimbursementUsersPk.js';
 import { paginationClause } from '../helpers.js';
-import type { ImageGenerationFields, ImageGenerationMetadata } from './instagramTypes.js';
+import type { ImageGenerationFields, ImageGenerationMetadata, CarouselSlideImage, ImageVariant } from './instagramTypes.js';
 
 async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   return withTenantQuery(tenantId, fn);
@@ -19,6 +20,8 @@ export interface Content extends ImageGenerationFields {
   status: string;
   body: string | null;
   body_html: string | null;
+  /** Unlayer design JSON for email rows (round-trip with body_html) */
+  body_design: Record<string, unknown> | null;
   scheduled_date: string | null;
   scheduled_time: string | null;
   published_at: string | null;
@@ -43,6 +46,10 @@ export interface Content extends ImageGenerationFields {
   revision_history?: unknown[];
   /** Meta Graph media id after Instagram publish */
   instagram_media_id?: string | null;
+  /** Set when this row was generated via repurpose from another row */
+  parent_content_id?: string | null;
+  /** Title of parent row (joined in getContentById) */
+  parent_title?: string | null;
 }
 
 export interface ContentFilters {
@@ -52,6 +59,9 @@ export interface ContentFilters {
   campaignId?: string;
   scheduledDateRange?: DateRange;
   authorId?: string;
+  /** List rows where parent_content_id = this id */
+  parentContentId?: string;
+  brandProfileId?: string;
 }
 
 export interface CreateContentInput {
@@ -62,6 +72,7 @@ export interface CreateContentInput {
   status?: string;
   body?: string;
   body_html?: string;
+  body_design?: Record<string, unknown> | null;
   scheduled_date?: string;
   scheduled_time?: string;
   author_id?: string;
@@ -79,7 +90,10 @@ export interface CreateContentInput {
   image_url?: string | null;
   visual_description?: string | null;
   image_generation_metadata?: ImageGenerationMetadata | null;
+  carousel_images?: CarouselSlideImage[] | null;
+  image_variants?: ImageVariant[] | null;
   instagram_media_id?: string | null;
+  parent_content_id?: string | null;
 }
 
 export type UpdateContentInput = Partial<CreateContentInput> & {
@@ -139,6 +153,10 @@ function mapContent(row: Record<string, unknown>): Content {
     status: String(row.status),
     body: row.body ? String(row.body) : null,
     body_html: row.body_html ? String(row.body_html) : null,
+    body_design:
+      row.body_design != null && typeof row.body_design === 'object' && !Array.isArray(row.body_design)
+        ? (row.body_design as Record<string, unknown>)
+        : null,
     scheduled_date: row.scheduled_date ? String(row.scheduled_date) : null,
     scheduled_time: row.scheduled_time ? String(row.scheduled_time) : null,
     published_at: row.published_at ? String(row.published_at) : null,
@@ -184,6 +202,8 @@ function mapContent(row: Record<string, unknown>): Content {
     visual_description: row.visual_description != null ? String(row.visual_description) : null,
     image_generation_metadata: parseImageGenerationMetadata(row.image_generation_metadata),
     instagram_media_id: row.instagram_media_id != null ? String(row.instagram_media_id) : null,
+    parent_content_id: row.parent_content_id ? String(row.parent_content_id) : null,
+    parent_title: row.parent_title != null ? String(row.parent_title) : null,
   };
 }
 
@@ -229,6 +249,14 @@ export async function listContent(
     if (filters?.scheduledDateRange?.to) {
       conditions.push(`mc.scheduled_date <= $${idx++}::date`);
       params.push(filters.scheduledDateRange.to);
+    }
+    if (filters?.parentContentId) {
+      conditions.push(`mc.parent_content_id = $${idx++}`);
+      params.push(filters.parentContentId);
+    }
+    if (filters?.brandProfileId) {
+      conditions.push(`mc.brand_profile_id = $${idx++}`);
+      params.push(filters.brandProfileId);
     }
 
     const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
@@ -279,6 +307,95 @@ export async function listContent(
   });
 }
 
+/** Strip tags for short excerpts (email HTML preview for AI context). */
+export function excerptFromEmailContent(
+  body: string | null,
+  body_html: string | null,
+  maxLen = 400,
+): string {
+  const raw = (body?.trim() || stripHtmlSimple(body_html ?? '')).trim();
+  if (!raw) return '';
+  if (raw.length <= maxLen) return raw;
+  return `${raw.slice(0, maxLen - 1)}…`;
+}
+
+function stripHtmlSimple(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export interface EmailContentVisualRef {
+  id: string;
+  title: string;
+  status: string;
+  updated_at: string;
+  excerpt: string;
+  has_design: boolean;
+  has_html: boolean;
+}
+
+/**
+ * Recent email rows with saved visual (Unlayer design or HTML) for strategist prior context / template tools.
+ */
+export async function listRecentEmailContentWithVisuals(
+  ctx: CallerContext,
+  options: { limit?: number; excludeContentId?: string | null } = {},
+): Promise<EmailContentVisualRef[]> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for listRecentEmailContentWithVisuals');
+
+  const limit = Math.min(20, Math.max(1, options.limit ?? 8));
+  const excludeId = options.excludeContentId?.trim() || null;
+
+  return runInTenant(tenantId, async (client) => {
+    const params: unknown[] = [tenantId, limit];
+    let excludeSql = '';
+    if (excludeId) {
+      excludeSql = ' AND mc.id <> $3::uuid';
+      params.push(excludeId);
+    }
+    const result = await client.query(
+      `SELECT mc.id, mc.title, mc.status, mc.updated_at::text AS updated_at,
+              mc.body, mc.body_html, mc.body_design
+       FROM marketing_content mc
+       WHERE mc.organization_id = $1::uuid
+         AND LOWER(TRIM(COALESCE(mc.channel, ''))) = 'email'
+         AND (
+           (mc.body_design IS NOT NULL AND COALESCE(mc.body_design::text, '') NOT IN ('', '{}', 'null'))
+           OR (mc.body_html IS NOT NULL AND LENGTH(TRIM(mc.body_html)) > 0)
+         )
+         ${excludeSql}
+       ORDER BY mc.updated_at DESC NULLS LAST
+       LIMIT $2`,
+      params,
+    );
+    return result.rows.map((row) => {
+      const r = row as Record<string, unknown>;
+      const body = r.body != null ? String(r.body) : null;
+      const bodyHtml = r.body_html != null ? String(r.body_html) : null;
+      const bd = r.body_design;
+      const hasDesign =
+        bd != null &&
+        typeof bd === 'object' &&
+        !Array.isArray(bd) &&
+        Object.keys(bd as object).length > 0;
+      return {
+        id: String(r.id),
+        title: String(r.title ?? ''),
+        status: String(r.status ?? ''),
+        updated_at: String(r.updated_at ?? ''),
+        excerpt: excerptFromEmailContent(body, bodyHtml, 400),
+        has_design: hasDesign,
+        has_html: !!(bodyHtml && bodyHtml.trim().length > 0),
+      };
+    });
+  });
+}
+
 export async function getContentById(ctx: CallerContext, contentId: string): Promise<Content | null> {
   const tenantId = ctx.organizationId;
   if (!tenantId) throw new Error('Tenant context required for getContentById');
@@ -289,11 +406,13 @@ export async function getContentById(ctx: CallerContext, contentId: string): Pro
          mc.*,
          c.name AS campaign_name,
          au.full_name AS author_name,
-         rv.full_name AS reviewer_name
+         rv.full_name AS reviewer_name,
+         parent_mc.title AS parent_title
        FROM marketing_content mc
        LEFT JOIN marketing_campaigns c ON c.id = mc.campaign_id
        LEFT JOIN reimbursement_users au ON au.id = mc.author_id
        LEFT JOIN reimbursement_users rv ON rv.id = mc.reviewer_id
+       LEFT JOIN marketing_content parent_mc ON parent_mc.id = mc.parent_content_id
        WHERE mc.id = $1
        LIMIT 1`,
       [contentId],
@@ -310,12 +429,13 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
     const result = await client.query(
       `INSERT INTO marketing_content (
          organization_id, campaign_id, title, content_type, channel, status, body,
-         body_html, scheduled_date, scheduled_time, author_id, reviewer_id, tags,
+         body_html, body_design, scheduled_date, scheduled_time, author_id, reviewer_id, tags,
          truth_validation, truth_validated_at, brand_voice_check, brand_voice_checked_at,
          user_brief, revision_history,
-         image_prompt, image_url, visual_description, image_generation_metadata, instagram_media_id
+         image_prompt, image_url, visual_description, image_generation_metadata, instagram_media_id,
+         parent_content_id
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
        RETURNING *`,
       [
         tenantId,
@@ -326,9 +446,10 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
         data.status ?? 'idea',
         data.body ?? null,
         data.body_html ?? null,
+        data.body_design ?? null,
         data.scheduled_date ?? null,
         data.scheduled_time ?? null,
-        data.author_id ?? ctx.userId,
+        data.author_id ?? reimbursementUsersPk(ctx),
         data.reviewer_id ?? null,
         JSON.stringify(data.tags ?? []),
         data.truth_validation ?? null,
@@ -342,6 +463,7 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
         data.visual_description ?? null,
         data.image_generation_metadata ?? null,
         data.instagram_media_id ?? null,
+        data.parent_content_id ?? null,
       ],
     );
     return (await getContentById(ctx, String(result.rows[0].id))) ?? mapContent(result.rows[0] as Record<string, unknown>);
@@ -361,6 +483,7 @@ export async function updateContent(
     ['status', data.status],
     ['body', data.body],
     ['body_html', data.body_html],
+    ['body_design', data.body_design],
     ['scheduled_date', data.scheduled_date],
     ['scheduled_time', data.scheduled_time],
     ['author_id', data.author_id],
@@ -404,8 +527,17 @@ export async function updateContent(
   if (data.image_generation_metadata !== undefined) {
     fields.push(['image_generation_metadata', data.image_generation_metadata ?? null]);
   }
+  if (data.carousel_images !== undefined) {
+    fields.push(['carousel_images', data.carousel_images ? JSON.stringify(data.carousel_images) : null]);
+  }
+  if (data.image_variants !== undefined) {
+    fields.push(['image_variants', data.image_variants ? JSON.stringify(data.image_variants) : null]);
+  }
   if (data.instagram_media_id !== undefined) {
     fields.push(['instagram_media_id', data.instagram_media_id ?? null]);
+  }
+  if (data.parent_content_id !== undefined) {
+    fields.push(['parent_content_id', data.parent_content_id ?? null]);
   }
 
   const sets: string[] = [];
@@ -446,7 +578,7 @@ export async function publishContent(ctx: CallerContext, contentId: string): Pro
     title: content.title,
     type: content.content_type,
     channel: content.channel ?? 'unknown',
-    publishedBy: ctx.userId,
+    publishedBy: reimbursementUsersPk(ctx),
   });
   return content;
 }

@@ -1,6 +1,7 @@
 import './env.js';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -10,8 +11,8 @@ import { Server } from 'socket.io';
 
 import { setupSocketHandlers } from './sockets/index.js';
 import { registerAllSubscribers } from './events/subscribers/index.js';
-import { startAllWorkers } from './queue/workers/index.js';
-import { initDoraScheduler } from './services/finance/doraScheduler.js';
+import { registerMarketingAutomationListeners } from './services/ai/marketing/automationListener.js';
+import { stopJobQueue } from './services/jobQueue.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { channelsRouter } from './routes/channels.js';
@@ -91,7 +92,20 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 // Security headers
 app.use(helmet({
   hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://editor.unlayer.com", "https://*.unlayer.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://editor.unlayer.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:"],
+      frameSrc: ["'self'", "https://editor.unlayer.com"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+    },
+  },
   crossOriginEmbedderPolicy: false,
 }));
 
@@ -99,12 +113,37 @@ app.use(helmet({
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(cookieParser());
-app.use(express.json({ limit: '5mb', type: 'application/json' }));
-app.use('/uploads', express.static(UPLOAD_DIR));
+app.use(compression({ threshold: 1024 }));
+app.use(express.json({ limit: '1mb', type: 'application/json' }));
+if (process.env.NODE_ENV === 'production') {
+  const resolvedUploadDir = resolve(UPLOAD_DIR);
+  app.use('/uploads', optionalJwt, (req, res, next) => {
+    if (!(req as express.Request & { userId?: string }).userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+    const safePath = resolve(resolvedUploadDir, req.path.replace(/^\//, ''));
+    if (!safePath.startsWith(resolvedUploadDir)) {
+      res.status(403).end();
+      return;
+    }
+    res.sendFile(safePath, (err) => { if (err) next(err); });
+  });
+} else {
+  app.use('/uploads', express.static(UPLOAD_DIR));
+}
 app.use(responseTimer);
 
 // Health check — mounted before auth so monitoring tools can hit it without authentication
+let healthCache: { json: object; status: number; expiresAt: number } | null = null;
+const HEALTH_CACHE_MS = 5_000;
+
 app.get('/health', async (_req, res) => {
+  if (healthCache && Date.now() < healthCache.expiresAt) {
+    res.status(healthCache.status).json(healthCache.json);
+    return;
+  }
+
   const checks: Record<string, 'ok' | 'error'> = {};
 
   try {
@@ -132,12 +171,14 @@ app.get('/health', async (_req, res) => {
     checks.litellm = 'error';
   }
 
+  const coreOk = checks.database === 'ok' && checks.redis === 'ok';
   const allOk = Object.values(checks).every((v) => v === 'ok');
-  res.status(allOk ? 200 : 503).json({
-    status: allOk ? 'healthy' : 'degraded',
-    checks,
-    timestamp: new Date().toISOString(),
-  });
+  const statusLabel = !coreOk ? 'unhealthy' : allOk ? 'healthy' : 'degraded';
+  const statusCode = coreOk ? 200 : 503;
+  const json = { status: statusLabel, checks, timestamp: new Date().toISOString() };
+
+  healthCache = { json, status: statusCode, expiresAt: Date.now() + HEALTH_CACHE_MS };
+  res.status(statusCode).json(json);
 });
 
 // Rate limiting (relaxed in development for E2E tests and local dev)
@@ -166,23 +207,23 @@ app.use('/api/channels', requireAuth, channelsRouter);
 app.use('/api/messages', requireAuth, messagesRouter);
 app.use('/api/chat', requireAuth, chatRouter);
 app.use('/api/projects', requireAuth, projectsRouter);
-app.use('/api/tasks', tasksRouter);
-app.use('/api/badges', badgesRouter);
-app.use('/api/documents', documentsRouter);
-app.use('/api/activities', activitiesRouter);
-app.use('/api/leaderboard', leaderboardRouter);
+app.use('/api/tasks', requireAuth, tasksRouter);
+app.use('/api/badges', requireAuth, badgesRouter);
+app.use('/api/documents', requireAuth, documentsRouter);
+app.use('/api/activities', requireAuth, activitiesRouter);
+app.use('/api/leaderboard', requireAuth, leaderboardRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/categories', categoriesRouter);
-app.use('/api/exchange-rates', exchangeRatesRouter);
-app.use('/api/mileage', mileageRouter);
-app.use('/api/settings/reimbursement', reimbursementSettingsRouter);
-app.use('/api/signatures', signaturesRouter);
+app.use('/api/categories', requireAuth, categoriesRouter);
+app.use('/api/exchange-rates', requireAuth, exchangeRatesRouter);
+app.use('/api/mileage', requireAuth, mileageRouter);
+app.use('/api/settings/reimbursement', requireAuth, reimbursementSettingsRouter);
+app.use('/api/signatures', requireAuth, signaturesRouter);
 app.use('/api/performance', requireAuth, performanceRouter);
 app.use('/api/dashboard', requireAuth, dashboardRouter);
-app.use('/api/departments', departmentsRouter);
-app.use('/api/bounties', bountiesRouter);
-app.use('/api/sprints', sprintsRouter);
-app.use('/api/showcase', showcaseRouter);
+app.use('/api/departments', requireAuth, departmentsRouter);
+app.use('/api/bounties', requireAuth, bountiesRouter);
+app.use('/api/sprints', requireAuth, sprintsRouter);
+app.use('/api/showcase', requireAuth, showcaseRouter);
 app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/ai/actions', requireAuth, actionRoutes);
 app.use('/api/v2/ai', requireAuth, aiV2Router);
@@ -199,12 +240,34 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/notifications', notificationsRouter);
 
-// Module registry: mounts /api/{crm,support,finance,recruitment,marketing,knowledge-hub,time,okr,heart,executive}
+// Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,time,okr,heart,executive}
 await initializeModules(app);
 
-// Health check
-app.get('/api/health', (_, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (_req, res) => {
+  if (healthCache && Date.now() < healthCache.expiresAt) {
+    res.status(healthCache.status).json(healthCache.json);
+    return;
+  }
+  const checks: Record<string, 'ok' | 'error'> = {};
+  try { const { pool } = await import('./db/index.js'); await pool.query('SELECT 1'); checks.database = 'ok'; } catch { checks.database = 'error'; }
+  try { const { redisConnection } = await import('./queue/connection.js'); await redisConnection.ping(); checks.redis = 'ok'; } catch { checks.redis = 'error'; }
+  const coreOk = checks.database === 'ok' && checks.redis === 'ok';
+  const statusCode = coreOk ? 200 : 503;
+  const json = { status: coreOk ? 'ready' : 'not_ready', checks, timestamp: new Date().toISOString() };
+  healthCache = { json, status: statusCode, expiresAt: Date.now() + HEALTH_CACHE_MS };
+  res.status(statusCode).json(json);
+});
+
+app.get('/health/live', (_req, res) => {
+  res.json({ status: 'alive', timestamp: new Date().toISOString() });
+});
+
+app.get('/health/ready', async (_req, res) => {
+  const checks: Record<string, 'ok' | 'error'> = {};
+  try { const { pool } = await import('./db/index.js'); await pool.query('SELECT 1'); checks.database = 'ok'; } catch { checks.database = 'error'; }
+  try { const { redisConnection } = await import('./queue/connection.js'); await redisConnection.ping(); checks.redis = 'ok'; } catch { checks.redis = 'error'; }
+  const ready = checks.database === 'ok' && checks.redis === 'ok';
+  res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready', checks, timestamp: new Date().toISOString() });
 });
 
 // DB health check (helps debug "Internal Server Error" on login when DB is down)
@@ -218,7 +281,6 @@ app.get('/api/health/db', async (_req, res) => {
     res.status(503).json({
       status: 'error',
       database: 'disconnected',
-      message: e instanceof Error ? e.message : 'Database connection failed',
       timestamp: new Date().toISOString(),
     });
   }
@@ -226,12 +288,23 @@ app.get('/api/health/db', async (_req, res) => {
 
 // Global error handler: catch unhandled errors from async route handlers (Express 4 doesn't catch these)
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[server] Unhandled error:', err);
   if (res.headersSent) return;
-  const message = err instanceof Error ? err.message : 'Internal Server Error';
+
+  // AppError carries its own status code and error code
+  if (err && typeof err === 'object' && 'statusCode' in err && 'code' in err) {
+    const appErr = err as { statusCode: number; code: string; message: string };
+    res.status(appErr.statusCode).json({
+      success: false,
+      error: { code: appErr.code, message: appErr.message },
+    });
+    if (appErr.statusCode >= 500) console.error('[server] AppError:', appErr.message);
+    return;
+  }
+
+  console.error('[server] Unhandled error:', err);
   res.status(500).json({
     success: false,
-    error: { code: 'INTERNAL_ERROR', message: message || 'Something went wrong. Please try again.' },
+    error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.' },
   });
 });
 
@@ -239,29 +312,78 @@ app.set('io', io);
 setupSocketHandlers(io);
 
 registerAllSubscribers();
+registerMarketingAutomationListeners();
 console.log('[Server] Event bus subscribers registered');
 
-try {
-  startAllWorkers();
-  console.log('[Server] BullMQ workers started');
-  void initDoraScheduler()
-    .then(() => console.log('[Server] Dora scheduler repeatable jobs registered'))
-    .catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn('[Server] Dora scheduler failed to register (Redis unavailable?):', message);
-    });
-} catch (err) {
-  const message = err instanceof Error ? err.message : String(err);
-  console.warn('[Server] BullMQ workers failed to start (Redis unavailable?):', message);
-  console.warn('[Server] Async jobs will not be processed. Events will still fire synchronously.');
+const workersEnabled = process.env.ENABLE_WORKERS !== 'false';
+if (workersEnabled) {
+  try {
+    const { startAllWorkers } = await import('./queue/workers/index.js');
+    startAllWorkers();
+    console.log('[Server] BullMQ workers started');
+    const { initDoraScheduler } = await import('./services/finance/doraScheduler.js');
+    void initDoraScheduler()
+      .then(() => console.log('[Server] Dora scheduler repeatable jobs registered'))
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn('[Server] Dora scheduler failed to register (Redis unavailable?):', message);
+      });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn('[Server] BullMQ workers failed to start (Redis unavailable?):', message);
+    console.warn('[Server] Async jobs will not be processed. Events will still fire synchronously.');
+  }
+
+  try {
+    const pgBossUrl =
+      process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL ||
+      (process.env.NODE_ENV !== 'production' ? `postgresql://${process.env.USER}@localhost:5432/messign` : undefined);
+    if (pgBossUrl) {
+      const { startJobQueue } = await import('./services/jobQueue.js');
+      const { registerBatchJobHandler } = await import('./services/marketing/batchService.js');
+      await startJobQueue(pgBossUrl);
+      await registerBatchJobHandler();
+
+      try {
+        const { registerScrapeJobHandler } = await import('./services/marketing/competitorScraper.js');
+        const { callModelSafe } = await import('./services/ai/gateway.js');
+        const { query: dbQuery } = await import('./db/index.js');
+        const scraperLLM: Parameters<typeof registerScrapeJobHandler>[0] = async (params) => {
+          const res = await callModelSafe({
+            tier: 'fast',
+            messages: [
+              { role: 'system', content: params.systemPrompt },
+              { role: 'user', content: params.userPrompt },
+            ],
+            tenantId: 'system',
+            maxTokens: params.maxTokens ?? 250,
+            temperature: 0.15,
+          });
+          return res.choices?.[0]?.message?.content?.trim() ?? '';
+        };
+        await registerScrapeJobHandler(scraperLLM, { query: dbQuery });
+        console.log('[Server] Competitor scrape handler registered');
+      } catch (scrapeErr) {
+        console.warn('[Server] Competitor scrape handler failed (non-fatal):', scrapeErr instanceof Error ? scrapeErr.message : scrapeErr);
+      }
+
+      console.log('[Server] pg-boss job queue + batch handler initialized');
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn('[Server] pg-boss init failed (non-fatal):', message);
+  }
+} else {
+  console.log('[Server] Workers disabled (ENABLE_WORKERS=false). BullMQ, pg-boss, and Dora scheduler skipped.');
 }
 
+let ragInterval: ReturnType<typeof setInterval> | undefined;
 try {
   const { setupActionSchema } = await import('./services/ai/actions/actionStore.js');
   const { setupRagOutboxSchema, processRagOutboxBatch } = await import('./services/ai/sync/ragOutbox.js');
   await setupActionSchema();
   await setupRagOutboxSchema();
-  setInterval(() => {
+  ragInterval = setInterval(() => {
     void processRagOutboxBatch(8).catch((err: unknown) => {
       const m = err instanceof Error ? err.message : String(err);
       console.warn('[rag-outbox] batch:', m);
@@ -272,7 +394,7 @@ try {
   console.warn('[Server] Agentic/outbox init:', e);
 }
 
-// Start server
+// Start server (root `package.json` `dev` waits on http://127.0.0.1:3001/api/health before Vite)
 const port = process.env.PORT || 3001;
 httpServer.listen(Number(port), '0.0.0.0', async () => {
   console.log(`🚀 Messign server running on port ${port}`);
@@ -290,5 +412,29 @@ httpServer.listen(Number(port), '0.0.0.0', async () => {
   startBudgetAlertJob();
   startMarketingPublisherCron();
 });
+
+// Graceful shutdown
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, async () => {
+    console.info(`[Server] ${signal} received, shutting down…`);
+    if (ragInterval) clearInterval(ragInterval);
+
+    try { io.close(); } catch { /* best-effort */ }
+    try { await stopJobQueue(); } catch { /* best-effort */ }
+
+    try {
+      const { redisConnection } = await import('./queue/connection.js');
+      await redisConnection.quit();
+    } catch { /* best-effort */ }
+
+    try {
+      const { pool } = await import('./db/index.js');
+      await pool.end();
+    } catch { /* best-effort */ }
+
+    httpServer.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 15_000);
+  });
+}
 
 export { io };

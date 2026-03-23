@@ -25,6 +25,8 @@ import { logAuditEvent } from '../../platform/audit.js';
 // ============================================================
 
 const registry: Map<string, Tool> = new Map();
+const shortNameIndex: Map<string, string> = new Map();
+let cachedAllToolsLLM: LLMToolDefinition[] | null = null;
 
 // ============================================================
 // REGISTRATION
@@ -48,6 +50,15 @@ export function registerTool(tool: Tool): void {
   }
 
   registry.set(tool.name, tool);
+  cachedAllToolsLLM = null;
+
+  const colonIdx = tool.name.indexOf(':');
+  if (colonIdx > 0) {
+    const shortName = tool.name.slice(colonIdx + 1);
+    if (!shortNameIndex.has(shortName)) {
+      shortNameIndex.set(shortName, tool.name);
+    }
+  }
 
   if (tool.metadata) {
     const metadata = {
@@ -61,8 +72,6 @@ export function registerTool(tool: Tool): void {
     };
     toolIndex.set(tool.name, metadata);
   }
-
-  console.log(`[AI Registry] Registered tool: ${tool.name} (${tool.category})`);
 }
 
 // ============================================================
@@ -110,7 +119,8 @@ export function getToolCount(): number {
  * Format all registered tools for the LLM function calling schema.
  */
 export function getToolsForLLM(): LLMToolDefinition[] {
-  return Array.from(registry.values()).map((tool) => ({
+  if (cachedAllToolsLLM) return cachedAllToolsLLM;
+  cachedAllToolsLLM = Array.from(registry.values()).map((tool) => ({
     type: 'function' as const,
     function: {
       name: tool.name,
@@ -118,6 +128,7 @@ export function getToolsForLLM(): LLMToolDefinition[] {
       parameters: tool.parameters,
     },
   }));
+  return cachedAllToolsLLM;
 }
 
 /**
@@ -247,11 +258,7 @@ export async function finalizeRegistry(): Promise<void> {
  */
 function resolveToolName(name: string): string | undefined {
   if (registry.has(name)) return name;
-  // Try namespaced form: look for "namespace:name" where name matches
-  for (const key of registry.keys()) {
-    if (key.endsWith(`:${name}`)) return key;
-  }
-  return undefined;
+  return shortNameIndex.get(name);
 }
 
 /** Exported for argument validation / intercept paths that run before executeTool. */

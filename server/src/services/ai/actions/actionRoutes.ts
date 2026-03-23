@@ -70,8 +70,7 @@ router.post('/confirm', async (req: Request, res: Response) => {
       res.status(500).json({
         success: false,
         actionType: result.actionType,
-        message: result.message,
-        error: result.error,
+        message: 'Action execution failed. Please try again.',
       });
     }
   } catch (error) {
@@ -108,7 +107,7 @@ router.post('/cancel', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('[ActionRoutes] /cancel error:', error);
-    res.json({ success: true, cancelled: false, message: 'Cancellation noted.' });
+    res.status(500).json({ success: false, cancelled: false, message: 'Failed to cancel action.' });
   }
 });
 

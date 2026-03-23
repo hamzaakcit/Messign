@@ -17,7 +17,7 @@ model_list:
   # Tier 2: Balanced (summarization, drafting, moderate tasks)
   - model_name: "balanced"
     litellm_params:
-      model: "gemini/gemini-2.0-flash-lite"
+      model: "gemini/gemini-2.0-flash"
       api_key: "os.environ/GOOGLE_GEMINI_API_KEY"
     model_info:
       max_tokens: 8192

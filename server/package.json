@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "(npx kill-port 3001 || true) && tsx watch src/index.ts",
+    "dev": "(npx kill-port 3001 || true) && tsx watch --ignore './uploads/**' --ignore './**/*.test.ts' --ignore './src/db/seeds/**' --ignore './src/scripts/**' --ignore './src/migrations/**' src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "start": "node dist/index.js",
@@ -36,7 +36,8 @@
     "test:agents": "vitest run",
     "test:red-team": "tsx src/scripts/redTeam/testMarketingGatekeepers.ts",
     "test:red-team:mock": "RED_TEAM_MOCK_LLM=1 tsx src/scripts/redTeam/testMarketingGatekeepers.ts",
-    "marketing:print-context": "tsx src/scripts/printMarketingContext.ts"
+    "marketing:print-context": "tsx src/scripts/printMarketingContext.ts",
+    "db:force-fix": "tsx src/force-db-fix.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
@@ -44,6 +45,7 @@
     "adm-zip": "^0.5.16",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.70.4",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -61,6 +63,7 @@
     "openai": "^6.22.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
+    "pg-boss": "^12.14.0",
     "pptxgenjs": "^4.0.1",
     "puppeteer": "^24.37.2",
     "socket.io": "^4.7.4",
@@ -71,6 +74,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",

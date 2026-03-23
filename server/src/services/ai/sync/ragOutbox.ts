@@ -6,7 +6,8 @@ import { ingestDocument, removeDocumentFromRAG } from '../../rag/ingest.js';
 import type { KHDocument } from '../../rag/types.js';
 
 export async function setupRagOutboxSchema(): Promise<void> {
-  await query(`
+  try {
+    await query(`
     CREATE TABLE IF NOT EXISTS rag_outbox_events (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organization_id UUID,
@@ -20,9 +21,14 @@ export async function setupRagOutboxSchema(): Promise<void> {
       last_error TEXT
     )
   `);
-  await query(
-    `CREATE INDEX IF NOT EXISTS idx_rag_outbox_pending ON rag_outbox_events (created_at) WHERE processed_at IS NULL`,
-  );
+    await query(
+      `CREATE INDEX IF NOT EXISTS idx_rag_outbox_pending ON rag_outbox_events (created_at) WHERE processed_at IS NULL`,
+    );
+    console.log('[FIX-2] [ragOutbox] Schema setup complete.');
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[FIX-2] [ragOutbox] Skipped schema setup (permission issue):', msg);
+  }
 }
 
 export async function enqueueRagOutboxEvent(

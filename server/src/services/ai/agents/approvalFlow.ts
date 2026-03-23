@@ -23,11 +23,42 @@ export const approvalQueue = new Queue('dora-approvals', {
   },
 });
 
-/** In production, use Redis or DB for persistence across restarts */
-const pendingApprovals = new Map<
-  string,
-  { approval: ActionApproval; context: AgentContext }
->();
+const REDIS_APPROVAL_PREFIX = 'dora:approval:';
+const APPROVAL_TTL_SECONDS = 3600; // 1 hour
+
+const fallbackMap = new Map<string, { approval: ActionApproval; context: AgentContext }>();
+
+async function setPending(id: string, value: { approval: ActionApproval; context: AgentContext }): Promise<void> {
+  try {
+    await redisConnection.set(
+      REDIS_APPROVAL_PREFIX + id,
+      JSON.stringify(value),
+      'EX',
+      APPROVAL_TTL_SECONDS,
+    );
+  } catch {
+    fallbackMap.set(id, value);
+  }
+}
+
+async function getPending(id: string): Promise<{ approval: ActionApproval; context: AgentContext } | undefined> {
+  try {
+    const raw = await redisConnection.get(REDIS_APPROVAL_PREFIX + id);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* fall through to in-memory */
+  }
+  return fallbackMap.get(id);
+}
+
+async function deletePending(id: string): Promise<void> {
+  try {
+    await redisConnection.del(REDIS_APPROVAL_PREFIX + id);
+  } catch {
+    /* ignore */
+  }
+  fallbackMap.delete(id);
+}
 
 function buildToolContext(context: AgentContext) {
   return {
@@ -47,7 +78,7 @@ export async function requestApproval(
 ): Promise<string> {
   const approvalId = crypto.randomUUID();
 
-  pendingApprovals.set(approvalId, { approval, context });
+  await setPending(approvalId, { approval, context });
 
   emitToUser(context.userId, 'dora:approval_required', {
     approvalId,
@@ -87,8 +118,13 @@ export async function handleApprovalDecision(
   approved: boolean,
   userId: string,
 ): Promise<{ success: boolean; result?: unknown }> {
-  const pending = pendingApprovals.get(approvalId);
+  const pending = await getPending(approvalId);
   if (!pending) {
+    return { success: false };
+  }
+
+  if (pending.context.userId !== userId) {
+    console.warn('[approvalFlow] IDOR attempt: caller %s tried to act on approval owned by %s', userId, pending.context.userId);
     return { success: false };
   }
 
@@ -119,7 +155,7 @@ export async function handleApprovalDecision(
       result,
     });
 
-    pendingApprovals.delete(approvalId);
+    await deletePending(approvalId);
     return { success: true, result };
   }
 
@@ -133,6 +169,6 @@ export async function handleApprovalDecision(
   });
 
   emitToUser(userId, 'dora:action_rejected', { approvalId });
-  pendingApprovals.delete(approvalId);
+  await deletePending(approvalId);
   return { success: true };
 }

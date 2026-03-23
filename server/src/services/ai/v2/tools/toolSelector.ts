@@ -45,6 +45,8 @@ export const DOMAIN_TOOL_MAP: Record<Domain, string[]> = {
     'marketing:get_campaign_performance',
     'marketing:get_marketing_roi',
     'marketing:suggest_content_topics',
+    'marketing:list_saved_email_designs',
+    'marketing:get_saved_email_design',
     'creative:generate_image_brief',
     'creative:check_brand_compliance',
     'creative:repurpose_content',

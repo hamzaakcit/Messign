@@ -39,6 +39,19 @@ export const pool = new Pool({
   ...(useUnsafeSSL ? { ssl: { rejectUnauthorized: false } } : {}),
 });
 
+/** Stable UUID for dev when JWT sub is a slug (e.g. pending_actions.user_id UUID column). */
+export const DEV_HAMZA_ID = '00000000-0000-0000-0000-000000000001';
+
+/**
+ * Map known auth slugs to a UUID before binding to UUID-typed columns.
+ * Legacy JWTs may still use `user-hamza`; seed Hamza uses `DEV_HAMZA_ID` directly.
+ * Do not use for TEXT columns that intentionally store slugs (unless migrating to UUID).
+ */
+export function sanitizeUuid(id: string): string {
+  if (id === 'user-hamza') return DEV_HAMZA_ID;
+  return id;
+}
+
 // RLS compatibility: We use set_config('app.current_tenant', $1, true) inside BEGIN...COMMIT.
 // That is transaction-scoped (like SET LOCAL). PgBouncer transaction mode resets session between
 // transactions, so it works. Never use SET (without LOCAL) — that leaks state across transactions.

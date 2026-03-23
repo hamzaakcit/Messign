@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../../../db/index.js';
+import { query, getClient } from '../../../db/index.js';
 import { reimbursementAuth, requireRole, type ReimbursementRequest } from '../../../middleware/reimbursementAuth.js';
 import { emitToUser } from '../../../sockets/index.js';
 
@@ -21,7 +21,8 @@ router.get('/', async (req: ReimbursementRequest, res) => {
          JOIN reimbursement_users u ON u.id = r.submitted_by
          LEFT JOIN expense_categories c ON c.id = r.category_id
          WHERE r.organization_id = $1 AND a.status = 'pending'
-         ORDER BY a.created_at`,
+         ORDER BY a.created_at
+         LIMIT 200`,
         [orgId]
       );
       return res.json(result.rows);
@@ -37,7 +38,8 @@ router.get('/', async (req: ReimbursementRequest, res) => {
          JOIN reimbursement_users u ON u.id = r.submitted_by
          LEFT JOIN expense_categories c ON c.id = r.category_id
          WHERE r.organization_id = $1 AND a.status = 'pending' AND (a.assigned_to = $2 OR a.step_type = 'manager_approval')
-         ORDER BY a.created_at`,
+         ORDER BY a.created_at
+         LIMIT 200`,
         [orgId, user.id]
       );
       return res.json(result.rows);
@@ -85,12 +87,13 @@ router.post('/:stepId/approve', requireRole('manager', 'finance', 'admin'), asyn
   const { stepId } = req.params;
   const { decision_notes } = req.body || {};
   try {
+    const orgId = req.organizationId!;
     const stepResult = await query(
       `SELECT a.id, a.reimbursement_id, a.step_order, a.step_type, a.assigned_to, a.status, r.status AS request_status, r.organization_id
        FROM approval_steps a
        JOIN reimbursement_requests r ON r.id = a.reimbursement_id
-       WHERE a.id = $1`,
-      [stepId]
+       WHERE a.id = $1 AND r.organization_id = $2`,
+      [stepId, orgId]
     );
     const step = stepResult.rows[0];
     if (!step) {
@@ -106,24 +109,34 @@ router.post('/:stepId/approve', requireRole('manager', 'finance', 'admin'), asyn
       res.status(403).json({ error: 'Not assigned to this step' });
       return;
     }
-    await query(
-      `UPDATE approval_steps SET status = 'approved', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
-      [decision_notes || null, stepId]
-    );
     let nextStatus = 'finance_review';
     if (step.step_type === 'manager_approval') {
       nextStatus = 'finance_review';
     } else if (step.step_type === 'finance_approval') {
       nextStatus = 'approved';
     }
-    await query(
-      `UPDATE reimbursement_requests SET status = $1, updated_at = NOW() WHERE id = $2`,
-      [nextStatus, step.reimbursement_id]
-    );
-    await query(
-      `INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action, action_details) VALUES ($1, $2, 'approved', $3)`,
-      [step.reimbursement_id, user.id, JSON.stringify({ step_type: step.step_type, step_id: stepId })]
-    );
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE approval_steps SET status = 'approved', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
+        [decision_notes || null, stepId]
+      );
+      await client.query(
+        `UPDATE reimbursement_requests SET status = $1, updated_at = NOW() WHERE id = $2`,
+        [nextStatus, step.reimbursement_id]
+      );
+      await client.query(
+        `INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action, action_details) VALUES ($1, $2, 'approved', $3)`,
+        [step.reimbursement_id, user.id, JSON.stringify({ step_type: step.step_type, step_id: stepId })]
+      );
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
     const submitterResult = await query(
       `SELECT u.auth_user_id, r.title FROM reimbursement_requests r JOIN reimbursement_users u ON u.id = r.submitted_by WHERE r.id = $1`,
       [step.reimbursement_id]
@@ -152,12 +165,13 @@ router.post('/:stepId/reject', requireRole('manager', 'finance', 'admin'), async
   const { stepId } = req.params;
   const { decision_notes } = req.body || {};
   try {
+    const orgId = req.organizationId!;
     const stepResult = await query(
       `SELECT a.id, a.reimbursement_id, a.step_order, a.step_type, a.assigned_to, a.status
        FROM approval_steps a
        JOIN reimbursement_requests r ON r.id = a.reimbursement_id
-       WHERE a.id = $1`,
-      [stepId]
+       WHERE a.id = $1 AND r.organization_id = $2`,
+      [stepId, orgId]
     );
     const step = stepResult.rows[0];
     if (!step) {
@@ -173,18 +187,28 @@ router.post('/:stepId/reject', requireRole('manager', 'finance', 'admin'), async
       res.status(403).json({ error: 'Not assigned to this step' });
       return;
     }
-    await query(
-      `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
-      [decision_notes || null, stepId]
-    );
-    await query(
-      `UPDATE reimbursement_requests SET status = 'rejected', updated_at = NOW() WHERE id = $1`,
-      [step.reimbursement_id]
-    );
-    await query(
-      `INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action, action_details) VALUES ($1, $2, 'rejected', $3)`,
-      [step.reimbursement_id, user.id, JSON.stringify({ step_type: step.step_type, step_id: stepId, notes: decision_notes })]
-    );
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
+        [decision_notes || null, stepId]
+      );
+      await client.query(
+        `UPDATE reimbursement_requests SET status = 'rejected', updated_at = NOW() WHERE id = $1`,
+        [step.reimbursement_id]
+      );
+      await client.query(
+        `INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action, action_details) VALUES ($1, $2, 'rejected', $3)`,
+        [step.reimbursement_id, user.id, JSON.stringify({ step_type: step.step_type, step_id: stepId, notes: decision_notes })]
+      );
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
     const submitterResult = await query(
       `SELECT u.auth_user_id, r.title FROM reimbursement_requests r JOIN reimbursement_users u ON u.id = r.submitted_by WHERE r.id = $1`,
       [step.reimbursement_id]
@@ -215,12 +239,16 @@ router.post('/bulk', requireRole('manager', 'finance', 'admin'), async (req: Rei
     res.status(400).json({ error: 'step_ids (array) and action (approve|reject) required' });
     return;
   }
+  const orgId = req.organizationId!;
   const results: { stepId: string; success: boolean; error?: string }[] = [];
   for (const stepId of step_ids) {
     try {
       const stepResult = await query(
-        `SELECT a.id, a.reimbursement_id, a.step_type, a.assigned_to, a.status FROM approval_steps a WHERE a.id = $1`,
-        [stepId]
+        `SELECT a.id, a.reimbursement_id, a.step_type, a.assigned_to, a.status
+         FROM approval_steps a
+         JOIN reimbursement_requests r ON r.id = a.reimbursement_id
+         WHERE a.id = $1 AND r.organization_id = $2`,
+        [stepId, orgId]
       );
       const step = stepResult.rows[0];
       if (!step || step.status !== 'pending') {
@@ -232,15 +260,25 @@ router.post('/bulk', requireRole('manager', 'finance', 'admin'), async (req: Rei
         results.push({ stepId, success: false, error: 'Not assigned' });
         continue;
       }
-      if (action === 'approve') {
-        await query(`UPDATE approval_steps SET status = 'approved', decision_at = NOW() WHERE id = $1`, [stepId]);
-        const nextStatus = step.step_type === 'finance_approval' ? 'approved' : 'finance_review';
-        await query(`UPDATE reimbursement_requests SET status = $1, updated_at = NOW() WHERE id = $2`, [nextStatus, step.reimbursement_id]);
-        await query(`INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action) VALUES ($1, $2, 'approved')`, [step.reimbursement_id, user.id]);
-      } else {
-        await query(`UPDATE approval_steps SET status = 'rejected', decision_at = NOW() WHERE id = $1`, [stepId]);
-        await query(`UPDATE reimbursement_requests SET status = 'rejected', updated_at = NOW() WHERE id = $1`, [step.reimbursement_id]);
-        await query(`INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action) VALUES ($1, $2, 'rejected')`, [step.reimbursement_id, user.id]);
+      const bulkClient = await getClient();
+      try {
+        await bulkClient.query('BEGIN');
+        if (action === 'approve') {
+          await bulkClient.query(`UPDATE approval_steps SET status = 'approved', decision_at = NOW() WHERE id = $1`, [stepId]);
+          const nextStatus = step.step_type === 'finance_approval' ? 'approved' : 'finance_review';
+          await bulkClient.query(`UPDATE reimbursement_requests SET status = $1, updated_at = NOW() WHERE id = $2`, [nextStatus, step.reimbursement_id]);
+          await bulkClient.query(`INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action) VALUES ($1, $2, 'approved')`, [step.reimbursement_id, user.id]);
+        } else {
+          await bulkClient.query(`UPDATE approval_steps SET status = 'rejected', decision_at = NOW() WHERE id = $1`, [stepId]);
+          await bulkClient.query(`UPDATE reimbursement_requests SET status = 'rejected', updated_at = NOW() WHERE id = $1`, [step.reimbursement_id]);
+          await bulkClient.query(`INSERT INTO reimbursement_activity_log (reimbursement_id, user_id, action) VALUES ($1, $2, 'rejected')`, [step.reimbursement_id, user.id]);
+        }
+        await bulkClient.query('COMMIT');
+      } catch (txErr) {
+        await bulkClient.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        bulkClient.release();
       }
       const submitterResult = await query(
         `SELECT u.auth_user_id, r.title FROM reimbursement_requests r JOIN reimbursement_users u ON u.id = r.submitted_by WHERE r.id = $1`,

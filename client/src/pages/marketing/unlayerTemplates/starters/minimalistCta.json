@@ -1,0 +1,46 @@
+{
+  "version": "2.0",
+  "theme": "minimal",
+  "subject": "Quick Action Required",
+  "preheader": "One short step keeps your account current—open this message, confirm the action below, and you are done; it takes under a minute and avoids any interruption to your access.",
+  "sections": [
+    {
+      "type": "preheader",
+      "order": 1,
+      "content": {
+        "text": "One short step keeps your account current—open this message, confirm the action below, and you are done; it takes under a minute and avoids any interruption to your access."
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "content": {
+        "body": "We need you to confirm this address so we can keep sending you important account notices. Tap the button—no forms, no extras.",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "buttonText": "Confirm email",
+        "buttonUrl": "https://example.com/confirm",
+        "variant": "ghost"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Northline Studio",
+        "address": "9 Pearl Street, Brooklyn, NY 11201",
+        "unsubscribeText": "Unsubscribe"
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "neutral, concise",
+    "audience": "users who must complete a single required action"
+  }
+}

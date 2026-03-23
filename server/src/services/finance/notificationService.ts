@@ -3,6 +3,8 @@ import { emitToUser } from '../../sockets/index.js';
 
 export interface CreateNotificationInput {
   organization_id: string;
+  /** Defaults to organization_id when omitted (matches multi-tenant column on finance_notifications). */
+  tenant_id?: string;
   recipient_id: string;
   type: string;
   title: string;
@@ -16,14 +18,16 @@ export interface CreateNotificationInput {
 
 export const notificationService = {
   async create(input: CreateNotificationInput) {
+    const tenantId = input.tenant_id ?? input.organization_id;
     const result = await query(
       `INSERT INTO finance_notifications
-       (organization_id, recipient_id, type, title, message, entity_type, entity_id,
+       (organization_id, tenant_id, recipient_id, type, title, message, entity_type, entity_id,
         action_url, priority, ai_generated)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
       [
         input.organization_id,
+        tenantId,
         input.recipient_id,
         input.type,
         input.title,

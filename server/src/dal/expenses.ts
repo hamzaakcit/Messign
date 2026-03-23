@@ -336,44 +336,36 @@ export async function submitExpense(
 
   let existingAmount = 0;
   await runInTenant(tenantId, async (client) => {
-    await client.query('BEGIN');
-    try {
-      const existing = await client.query(
-        'SELECT * FROM reimbursement_requests WHERE id = $1 AND submitted_by = $2 AND is_deleted = FALSE',
-        [expenseId, ctx.userId],
-      );
-      if (!existing.rows[0]) throw new Error('Expense not found');
-      if (existing.rows[0].status !== 'draft') throw new Error('Only draft expenses can be submitted');
-      existingAmount = existing.rows[0].original_amount;
+    const existing = await client.query(
+      'SELECT * FROM reimbursement_requests WHERE id = $1 AND submitted_by = $2 AND is_deleted = FALSE',
+      [expenseId, ctx.userId],
+    );
+    if (!existing.rows[0]) throw new Error('Expense not found');
+    if (existing.rows[0].status !== 'draft') throw new Error('Only draft expenses can be submitted');
+    existingAmount = existing.rows[0].original_amount;
 
+    await client.query(
+      `UPDATE reimbursement_requests SET status = 'submitted', submitted_at = NOW(), updated_at = NOW(), updated_by = $1 WHERE id = $2`,
+      [ctx.userId, expenseId],
+    );
+
+    const userRow = await client.query(
+      'SELECT manager_id FROM reimbursement_users WHERE id = $1',
+      [ctx.userId],
+    );
+    const approverId = userRow.rows[0]?.manager_id ?? null;
+
+    if (approverId) {
       await client.query(
-        `UPDATE reimbursement_requests SET status = 'submitted', submitted_at = NOW(), updated_at = NOW(), updated_by = $1 WHERE id = $2`,
-        [ctx.userId, expenseId],
+        `INSERT INTO approval_steps
+         (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name)
+         VALUES ($1::UUID, 1, 'manager_approval', $2::UUID, 'pending', 'expense', $3::UUID, 'Manager Approval')`,
+        [expenseId, approverId, expenseId],
       );
-
-      const userRow = await client.query(
-        'SELECT manager_id FROM reimbursement_users WHERE id = $1',
-        [ctx.userId],
+      await client.query(
+        `UPDATE reimbursement_requests SET status = 'manager_review', current_approver_id = $1 WHERE id = $2`,
+        [approverId, expenseId],
       );
-      const approverId = userRow.rows[0]?.manager_id ?? null;
-
-      if (approverId) {
-        await client.query(
-          `INSERT INTO approval_steps
-           (reimbursement_id, step_order, step_type, assigned_to, status, entity_type, entity_id, step_name)
-           VALUES ($1::UUID, 1, 'manager_approval', $2::UUID, 'pending', 'expense', $3::UUID, 'Manager Approval')`,
-          [expenseId, approverId, expenseId],
-        );
-        await client.query(
-          `UPDATE reimbursement_requests SET status = 'manager_review', current_approver_id = $1 WHERE id = $2`,
-          [approverId, expenseId],
-        );
-      }
-
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
     }
   });
 
@@ -396,47 +388,39 @@ export async function approveExpense(
 
   let approvedAmount = 0;
   await runInTenant(tenantId, async (client) => {
-    await client.query('BEGIN');
-    try {
-      const expense = await client.query(
-        'SELECT * FROM reimbursement_requests WHERE id = $1 AND is_deleted = FALSE',
-        [expenseId],
-      );
-      if (!expense.rows[0]) throw new Error('Expense not found');
-      approvedAmount = expense.rows[0].original_amount;
+    const expense = await client.query(
+      'SELECT * FROM reimbursement_requests WHERE id = $1 AND is_deleted = FALSE',
+      [expenseId],
+    );
+    if (!expense.rows[0]) throw new Error('Expense not found');
+    approvedAmount = expense.rows[0].original_amount;
 
-      const step = await client.query(
-        `SELECT * FROM approval_steps
-         WHERE reimbursement_id = $1 AND status = 'pending'
-         ORDER BY step_order LIMIT 1`,
-        [expenseId],
-      );
+    const step = await client.query(
+      `SELECT * FROM approval_steps
+       WHERE reimbursement_id = $1 AND status = 'pending'
+       ORDER BY step_order LIMIT 1`,
+      [expenseId],
+    );
 
-      if (step.rows[0]) {
-        await client.query(
-          `UPDATE approval_steps SET status = 'approved', decision_at = NOW() WHERE id = $1`,
-          [step.rows[0].id],
-        );
-      }
-
+    if (step.rows[0]) {
       await client.query(
-        `UPDATE reimbursement_requests
-         SET status = 'approved', approved_at = NOW(), updated_at = NOW(), updated_by = $1, current_approver_id = NULL
-         WHERE id = $2`,
-        [ctx.userId, expenseId],
+        `UPDATE approval_steps SET status = 'approved', decision_at = NOW() WHERE id = $1`,
+        [step.rows[0].id],
       );
+    }
 
-      if (expense.rows[0].budget_id) {
-        await client.query(
-          `UPDATE finance_budgets SET spent_amount = spent_amount + $1 WHERE id = $2`,
-          [expense.rows[0].original_amount, expense.rows[0].budget_id],
-        );
-      }
+    await client.query(
+      `UPDATE reimbursement_requests
+       SET status = 'approved', approved_at = NOW(), updated_at = NOW(), updated_by = $1, current_approver_id = NULL
+       WHERE id = $2`,
+      [ctx.userId, expenseId],
+    );
 
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
+    if (expense.rows[0].budget_id) {
+      await client.query(
+        `UPDATE finance_budgets SET spent_amount = spent_amount + $1 WHERE id = $2`,
+        [expense.rows[0].original_amount, expense.rows[0].budget_id],
+      );
     }
   });
 
@@ -460,40 +444,32 @@ export async function rejectExpense(
   if (!tenantId) throw new Error('Tenant context required for rejectExpense');
 
   await runInTenant(tenantId, async (client) => {
-    await client.query('BEGIN');
-    try {
-      const expense = await client.query(
-        'SELECT * FROM reimbursement_requests WHERE id = $1 AND is_deleted = FALSE',
-        [expenseId],
-      );
-      if (!expense.rows[0]) throw new Error('Expense not found');
+    const expense = await client.query(
+      'SELECT * FROM reimbursement_requests WHERE id = $1 AND is_deleted = FALSE',
+      [expenseId],
+    );
+    if (!expense.rows[0]) throw new Error('Expense not found');
 
-      const step = await client.query(
-        `SELECT * FROM approval_steps
-         WHERE reimbursement_id = $1 AND status = 'pending'
-         ORDER BY step_order LIMIT 1`,
-        [expenseId],
-      );
+    const step = await client.query(
+      `SELECT * FROM approval_steps
+       WHERE reimbursement_id = $1 AND status = 'pending'
+       ORDER BY step_order LIMIT 1`,
+      [expenseId],
+    );
 
-      if (step.rows[0]) {
-        await client.query(
-          `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
-          [reason, step.rows[0].id],
-        );
-      }
-
+    if (step.rows[0]) {
       await client.query(
-        `UPDATE reimbursement_requests
-         SET status = 'rejected', rejection_reason = $1, updated_at = NOW(), updated_by = $2
-         WHERE id = $3`,
-        [reason, ctx.userId, expenseId],
+        `UPDATE approval_steps SET status = 'rejected', decision_at = NOW(), decision_notes = $1 WHERE id = $2`,
+        [reason, step.rows[0].id],
       );
-
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
     }
+
+    await client.query(
+      `UPDATE reimbursement_requests
+       SET status = 'rejected', rejection_reason = $1, updated_at = NOW(), updated_by = $2
+       WHERE id = $3`,
+      [reason, ctx.userId, expenseId],
+    );
   });
 
   eventBus.emit('finance.expense.rejected', { expenseId, approverId: ctx.userId, reason });

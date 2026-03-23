@@ -73,7 +73,7 @@ export function DataTable<T>({
   selectable = false,
   selectedIds,
   onSelectionChange,
-  getRowId = (row: T) => (row as any).id,
+  getRowId = (row: T) => (row as Record<string, unknown>).id as string,
   onRowClick,
   rowClassName,
   exportable = false,

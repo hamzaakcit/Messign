@@ -4,7 +4,7 @@
  * Call this whenever employee_auth is created/upserted so new accounts don't get 401.
  */
 
-import { query } from './index.js';
+import { query, sanitizeUuid, withTenantQuery } from './index.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
 
@@ -26,6 +26,13 @@ export async function ensureReimbursementUserForAuth(
   email: string,
   fullName?: string
 ): Promise<void> {
+  const authKey = sanitizeUuid(authUserId);
+  const already = await query<{ one: number }>(
+    `SELECT 1 AS one FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [authKey],
+  );
+  if (already.rows.length > 0) return;
+
   const orgResult = await query<{ id: string }>(
     `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
     [DEFAULT_ORG_SLUG]
@@ -36,13 +43,18 @@ export async function ensureReimbursementUserForAuth(
   const normalizedEmail = email.trim().toLowerCase();
   const name = (fullName && fullName.trim()) || nameFromEmail(normalizedEmail);
 
-  await query(
-    `INSERT INTO reimbursement_users (organization_id, auth_user_id, email, full_name, role, job_title, xp, level, status)
-     VALUES ($1, $2, $3, $4, 'employee', 'employee', 0, 1, 'offline')
-     ON CONFLICT (organization_id, email) DO UPDATE SET
-       auth_user_id = EXCLUDED.auth_user_id,
-       full_name = COALESCE(NULLIF(TRIM(EXCLUDED.full_name), ''), reimbursement_users.full_name),
-       updated_at = NOW()`,
-    [orgId, authUserId, normalizedEmail, name]
-  );
+  await withTenantQuery(orgId, async (client) => {
+    await client.query(
+      `INSERT INTO reimbursement_users (organization_id, auth_user_id, email, full_name, role, job_title, xp, level, status)
+       VALUES ($1, $2, $3, $4, 'employee', 'employee', 0, 1, 'offline')
+       ON CONFLICT (organization_id, email) DO UPDATE SET
+         auth_user_id = EXCLUDED.auth_user_id,
+         full_name = COALESCE(NULLIF(TRIM(EXCLUDED.full_name), ''), reimbursement_users.full_name),
+         updated_at = NOW()`,
+      [orgId, authKey, normalizedEmail, name],
+    );
+  });
+  console.log('[FIX-0] ensureReimbursementUserForAuth: upsert ok (tenant context set; no tenant_id column on INSERT)', {
+    email: normalizedEmail,
+  });
 }

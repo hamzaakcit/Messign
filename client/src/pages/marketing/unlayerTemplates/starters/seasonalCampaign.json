@@ -1,0 +1,87 @@
+{
+  "version": "2.0",
+  "theme": "nature",
+  "subject": "Spring Collection — Fresh Arrivals Just for You",
+  "preheader": "Soft light, botanical textures, and new seasonal pieces designed for warmer days—explore the edit, shop limited drops, and enjoy gentle styling ideas inside.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Spring is here—meet the fresh edit",
+        "subheadline": "Natural fibers, airy palettes, and pieces made for sunlit mornings and slow evenings outdoors.",
+        "ctaText": "Shop the collection",
+        "ctaUrl": "https://example.com/spring",
+        "imagePrompt": "Bright spring lifestyle flat lay with linen apparel, eucalyptus sprigs, sunlight through a window, soft sage and cream palette, editorial product photography",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "content": {
+        "body": "We drew inspiration from early blooms and morning dew—think breathable layers you can dress up or wind down in. Each piece is chosen to pair easily so you can build a capsule that feels renewed without starting from scratch.",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 3,
+      "content": {
+        "sectionTitle": "Featured this season",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Meadow Linen Shirt",
+            "description": "Lightweight weave with a relaxed drape for warm afternoons.",
+            "price": "$78",
+            "originalPrice": "$98",
+            "imagePrompt": "Folded oatmeal linen shirt on weathered wood with small wildflowers, soft natural light",
+            "linkUrl": "https://example.com/products/meadow-linen-shirt",
+            "badge": "New"
+          },
+          {
+            "name": "Creek Trail Jacket",
+            "description": "Packable layer for breezy evenings and weekend hikes.",
+            "price": "$124",
+            "imagePrompt": "Sage green lightweight jacket on a hook beside a wicker basket, spring outdoor porch setting",
+            "linkUrl": "https://example.com/products/creek-trail-jacket",
+            "badge": "Limited"
+          },
+          {
+            "name": "Sunrise Tote",
+            "description": "Roomy canvas carryall with botanical-print lining.",
+            "price": "$56",
+            "imagePrompt": "Natural canvas tote with leather handles on grass, dappled sunlight, minimalist styling",
+            "linkUrl": "https://example.com/products/sunrise-tote"
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 4,
+      "content": {
+        "headline": "Step into spring with us",
+        "description": "Browse new arrivals and find your favorites before sizes turn over.",
+        "buttonText": "Explore spring arrivals",
+        "buttonUrl": "https://example.com/spring",
+        "variant": "fullWidth"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 5,
+      "content": {
+        "companyName": "Verdant Goods Co.",
+        "address": "218 River Road, Portland, OR 97209",
+        "unsubscribeText": "Prefer fewer notes from us? You can update preferences or unsubscribe in one click."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm, seasonal, inviting",
+    "audience": "lifestyle and apparel shoppers who value nature-inspired design"
+  }
+}

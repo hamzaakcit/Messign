@@ -51,6 +51,7 @@ export const approvalService = {
 
               if (matched) {
                 if (rule.action === 'auto_approve') {
+                  await client.query('ROLLBACK');
                   return;
                 }
                 if (rule.action === 'manager_approval') {
@@ -179,12 +180,18 @@ export const approvalService = {
 
   async delegate(stepId: string, delegateToId: string, orgId: string, delegatorId: string) {
     const result = await query(
-      `UPDATE approval_steps SET delegated_to_id = $1, assigned_to = $1
-       WHERE id = $2 AND status = 'pending' RETURNING *`,
-      [delegateToId, stepId],
+      `UPDATE approval_steps a SET delegated_to_id = $1, assigned_to = $1
+       FROM reimbursement_requests r
+       WHERE a.reimbursement_id = r.id
+         AND a.id = $2
+         AND a.status = 'pending'
+         AND r.organization_id = $3
+         AND a.assigned_to = $4
+       RETURNING a.*`,
+      [delegateToId, stepId, orgId, delegatorId],
     );
 
-    if (!result.rows[0]) throw new Error('Step not found or already processed');
+    if (!result.rows[0]) throw new Error('Step not found, already processed, or unauthorized');
 
     await auditService.log({
       organization_id: orgId,
@@ -201,8 +208,13 @@ export const approvalService = {
   },
 
   async escalate(stepId: string, orgId: string) {
-    const step = await query('SELECT * FROM approval_steps WHERE id = $1 AND status = $2', [stepId, 'pending']);
-    if (!step.rows[0]) throw new Error('Step not found');
+    const step = await query(
+      `SELECT a.* FROM approval_steps a
+       JOIN reimbursement_requests r ON r.id = a.reimbursement_id
+       WHERE a.id = $1 AND a.status = $2 AND r.organization_id = $3`,
+      [stepId, 'pending', orgId],
+    );
+    if (!step.rows[0]) throw new Error('Step not found or unauthorized');
 
     const admin = await query(
       `SELECT id FROM reimbursement_users WHERE organization_id = $1 AND role = 'admin' LIMIT 1`,
@@ -211,7 +223,8 @@ export const approvalService = {
     if (!admin.rows[0]) throw new Error('No admin found for escalation');
 
     await query(
-      `UPDATE approval_steps SET assigned_to = $1, escalated_at = NOW() WHERE id = $2`,
+      `UPDATE approval_steps SET assigned_to = $1, escalated_at = NOW()
+       WHERE id = $2`,
       [admin.rows[0].id, stepId],
     );
 
@@ -233,15 +246,16 @@ export const approvalService = {
     return submitterId !== approverId;
   },
 
-  async getChain(entityType: string, entityId: string) {
+  async getChain(entityType: string, entityId: string, orgId: string) {
     const result = await query(
       `SELECT a.*, u.full_name as approver_name, d.full_name as delegated_to_name
        FROM approval_steps a
+       JOIN reimbursement_requests r ON r.id = a.reimbursement_id
        LEFT JOIN reimbursement_users u ON u.id = a.assigned_to
        LEFT JOIN reimbursement_users d ON d.id = a.delegated_to_id
-       WHERE a.entity_type = $1 AND a.entity_id = $2
+       WHERE a.entity_type = $1 AND a.entity_id = $2 AND r.organization_id = $3
        ORDER BY a.step_order`,
-      [entityType, entityId],
+      [entityType, entityId, orgId],
     );
     return result.rows;
   },

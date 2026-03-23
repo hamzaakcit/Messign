@@ -1,4 +1,5 @@
-import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
+import { useState } from 'react';
+import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function splitCaptionAndHashtags(body: string): { main: string; hashtags: string[] } {
@@ -26,21 +27,36 @@ function foldCaption(text: string, foldAt = 125): { visible: string; more: boole
   return { visible: safe.trim(), more: true };
 }
 
+export interface CarouselSlide {
+  index: number;
+  image_url: string;
+  prompt: string;
+}
+
 export function InstagramPreview({
   caption,
   imageUrl,
   imagePrompt,
   isGenerating,
+  carouselImages,
   username = 'your_brand',
 }: {
   caption: string;
   imageUrl: string | null | undefined;
   imagePrompt: string | null | undefined;
   isGenerating?: boolean;
+  carouselImages?: CarouselSlide[] | null;
   username?: string;
 }) {
+  const [slideIndex, setSlideIndex] = useState(0);
   const { main, hashtags } = splitCaptionAndHashtags(caption);
   const { visible, more } = foldCaption(main);
+
+  const isCarousel = carouselImages && carouselImages.length > 1;
+  const currentImage = isCarousel
+    ? carouselImages[slideIndex]?.image_url
+    : imageUrl;
+  const totalSlides = isCarousel ? carouselImages.length : 1;
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0f14] shadow-lg">
@@ -58,12 +74,50 @@ export function InstagramPreview({
             <div className="h-10 w-10 animate-pulse rounded-full bg-white/[0.08]" />
             <p className="text-[11px] text-slate-500">Generating visuals…</p>
           </div>
-        ) : imageUrl ? (
-          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : currentImage ? (
+          <>
+            <img src={currentImage} alt="" className="h-full w-full object-cover" />
+            {isCarousel && (
+              <>
+                {slideIndex > 0 && (
+                  <button
+                    type="button"
+                    title="Previous slide"
+                    onClick={() => setSlideIndex((i) => i - 1)}
+                    className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white/80 hover:bg-black/70"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                )}
+                {slideIndex < totalSlides - 1 && (
+                  <button
+                    type="button"
+                    title="Next slide"
+                    onClick={() => setSlideIndex((i) => i + 1)}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white/80 hover:bg-black/70"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                )}
+                <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
+                  {carouselImages.map((_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full transition-colors',
+                        i === slideIndex ? 'bg-cyan-400' : 'bg-white/30',
+                      )}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         ) : (
           <div className="flex h-full flex-col justify-end p-3">
             <p className="text-[10px] leading-relaxed text-slate-500 line-clamp-[12]">
-              {imagePrompt?.trim() || 'No image yet — prompt will appear here for reference.'}
+              {imagePrompt?.trim() ||
+                'No image — add a prompt and generate, or wait for the pipeline to produce a visual.'}
             </p>
           </div>
         )}

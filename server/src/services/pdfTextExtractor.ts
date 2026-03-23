@@ -1,10 +1,16 @@
-import { readFileSync, existsSync } from 'fs';
-import { join, extname } from 'path';
+import { existsSync } from 'fs';
+import { readFile } from 'fs/promises';
+import { resolve, extname } from 'path';
 
-const UPLOAD_BASE = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
+const UPLOAD_BASE = resolve(process.env.UPLOAD_DIR || resolve(process.cwd(), 'uploads'));
 
 function resolveFilePath(uploadUrl: string): string {
-  return join(UPLOAD_BASE, uploadUrl.replace(/^\/uploads\//, ''));
+  const cleaned = uploadUrl.replace(/^\/uploads\//, '');
+  const resolved = resolve(UPLOAD_BASE, cleaned);
+  if (!resolved.startsWith(UPLOAD_BASE)) {
+    throw new Error('Path traversal detected');
+  }
+  return resolved;
 }
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -81,7 +87,7 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
   try {
     switch (ext) {
       case '.pdf':
-        return await extractPdf(readFileSync(filePath));
+        return await extractPdf(await readFile(filePath));
       case '.pptx':
         return await extractPptx(filePath);
       case '.docx':
@@ -90,10 +96,10 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
         return await extractXlsx(filePath);
       case '.html':
       case '.htm':
-        return stripHtml(readFileSync(filePath, 'utf-8'));
+        return stripHtml(await readFile(filePath, 'utf-8'));
       case '.txt': case '.csv': case '.md': case '.json':
       case '.xml': case '.log': case '.rtf':
-        return extractPlainText(readFileSync(filePath));
+        return extractPlainText(await readFile(filePath));
       default:
         console.warn('[extract] Unsupported format:', ext);
         return '';

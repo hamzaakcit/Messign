@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { withTenantQuery } from '../../middleware/tenantContext.js';
 import type { CallerContext } from '../types.js';
+import { reimbursementUsersPk } from '../reimbursementUsersPk.js';
 
 export interface ApprovalQueueRow {
   id: string;
@@ -180,7 +181,7 @@ export async function updateApprovalReview(
         input.status,
         input.reviewer_feedback ?? null,
         input.rejection_reason ?? null,
-        ctx.userId,
+        reimbursementUsersPk(ctx),
       ],
     );
     return result.rows[0] ? mapRow(result.rows[0] as Record<string, unknown>) : null;

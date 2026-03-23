@@ -637,6 +637,10 @@
   100% { transform: translate(-50%, -50%) translateY(-100vh) rotate(720deg); opacity: 0; }
 }
 
+/* Hide scrollbar but keep scroll functionality */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Login page: keep autofill from flashing white on dark inputs */
 .login-page-autofill input:-webkit-autofill,
 .login-page-autofill input:-webkit-autofill:hover,

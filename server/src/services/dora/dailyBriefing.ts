@@ -1,6 +1,12 @@
 import crypto from 'crypto';
 import { query } from '../../db/index.js';
 import type { CallerContext } from '../../dal/types.js';
+import { reimbursementUsersPk } from '../../dal/reimbursementUsersPk.js';
+
+/** reimbursement_users.id for $1::uuid queries; use ctx.userId where values are auth slugs (e.g. task assignees JSON). */
+function ruId(ctx: CallerContext): string {
+  return reimbursementUsersPk(ctx);
+}
 
 export interface DailyBriefing {
   id: string;
@@ -38,13 +44,13 @@ function today(): string {
 }
 
 export async function getOrGenerateBriefing(ctx: CallerContext, date = today()): Promise<DailyBriefing> {
-  const cached = await getCachedBriefing(ctx.userId, date);
+  const cached = await getCachedBriefing(ruId(ctx), date);
   if (cached) return cached;
   return generateBriefing(ctx, date);
 }
 
 export async function getBriefingByDate(ctx: CallerContext, date: string): Promise<DailyBriefing | null> {
-  return getCachedBriefing(ctx.userId, date);
+  return getCachedBriefing(ruId(ctx), date);
 }
 
 export async function generateBriefing(ctx: CallerContext, targetDate = today()): Promise<DailyBriefing> {
@@ -115,7 +121,7 @@ export async function generateBriefing(ctx: CallerContext, targetDate = today())
 
   const briefing: DailyBriefing = {
     id: crypto.randomUUID(),
-    userId: ctx.userId,
+    userId: ruId(ctx),
     date: targetDate,
     greeting: `${greeting}, ${await getUserFirstName(ctx)}`,
     summary,
@@ -154,7 +160,7 @@ async function getPendingActionsForUser(ctx: CallerContext): Promise<BriefingIte
          FROM approval_steps
          WHERE status = 'pending'
            AND (assigned_to = $1::uuid OR assigned_to IS NULL)`,
-        [ctx.userId],
+        [ruId(ctx)],
       ),
       query(
         `SELECT COUNT(*)::int AS c
@@ -197,7 +203,7 @@ async function getPendingActionsForUser(ctx: CallerContext): Promise<BriefingIte
        AND status NOT IN ('resolved', 'closed')
        AND sla_resolution_due IS NOT NULL
        AND sla_resolution_due < NOW()`,
-    [ctx.userId],
+    [ruId(ctx)],
   );
   const breached = Number(slaBreaches.rows[0]?.c ?? 0);
   if (breached > 0) {
@@ -209,7 +215,7 @@ async function getPendingActionsForUser(ctx: CallerContext): Promise<BriefingIte
      FROM pending_actions
      WHERE user_id = $1::uuid
        AND status = 'pending'`,
-    [ctx.userId],
+    [ruId(ctx)],
   );
   const hitlCount = Number(hitl.rows[0]?.c ?? 0);
   if (hitlCount > 0) {
@@ -228,7 +234,7 @@ async function getSalesBriefingItems(ctx: CallerContext): Promise<BriefingItem[]
        WHERE d.owner_id = $1::uuid
          AND NOT s.is_won AND NOT s.is_lost
          AND d.updated_at < NOW() - INTERVAL '7 days'`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
     query(
       `SELECT COUNT(*)::int AS c
@@ -237,7 +243,7 @@ async function getSalesBriefingItems(ctx: CallerContext): Promise<BriefingItem[]
        WHERE d.owner_id = $1::uuid
          AND NOT s.is_won AND NOT s.is_lost
          AND d.expected_close_date <= CURRENT_DATE + INTERVAL '7 days'`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
     query(
       `SELECT COUNT(*)::int AS c
@@ -245,7 +251,7 @@ async function getSalesBriefingItems(ctx: CallerContext): Promise<BriefingItem[]
        INNER JOIN marketing_campaigns mc ON mc.id = l.campaign_id
        WHERE mc.owner_id = $1::uuid
          AND l.created_at >= NOW() - INTERVAL '7 days'`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
   ]);
 
@@ -266,7 +272,7 @@ async function getSupportBriefingItems(ctx: CallerContext): Promise<BriefingItem
        FROM support_tickets
        WHERE assignee_id = $1::uuid
          AND status NOT IN ('resolved', 'closed')`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
     query(
       `SELECT COUNT(*)::int AS c
@@ -275,27 +281,27 @@ async function getSupportBriefingItems(ctx: CallerContext): Promise<BriefingItem
          AND status NOT IN ('resolved', 'closed')
          AND sla_resolution_due IS NOT NULL
          AND sla_resolution_due <= NOW() + INTERVAL '4 hours'`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
     query(
-      `WITH this_week AS (
+      `       WITH this_week AS (
          SELECT AVG(r.rating)::numeric AS score
          FROM support_csat_ratings r
          JOIN support_tickets t ON t.id = r.ticket_id
          WHERE t.assignee_id = $1::uuid
-           AND r.created_at >= NOW() - INTERVAL '7 days'
+           AND r.submitted_at >= NOW() - INTERVAL '7 days'
        ),
        prev_week AS (
          SELECT AVG(r.rating)::numeric AS score
          FROM support_csat_ratings r
          JOIN support_tickets t ON t.id = r.ticket_id
          WHERE t.assignee_id = $1::uuid
-           AND r.created_at >= NOW() - INTERVAL '14 days'
-           AND r.created_at < NOW() - INTERVAL '7 days'
+           AND r.submitted_at >= NOW() - INTERVAL '14 days'
+           AND r.submitted_at < NOW() - INTERVAL '7 days'
        )
        SELECT COALESCE((SELECT score FROM this_week), 0)::numeric AS current_score,
               COALESCE((SELECT score FROM prev_week), 0)::numeric AS prev_score`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
   ]);
 
@@ -310,9 +316,25 @@ async function getSupportBriefingItems(ctx: CallerContext): Promise<BriefingItem
   return items.slice(0, 4);
 }
 
+/** Finance MVs may be missing on DBs that skipped materialized-view migrations; skip counts instead of failing the whole briefing. */
+async function relationExists(qualifiedName: string): Promise<boolean> {
+  const r = await query<{ ok: boolean }>(
+    `SELECT to_regclass($1::text) IS NOT NULL AS ok`,
+    [qualifiedName],
+  );
+  return Boolean(r.rows[0]?.ok);
+}
+
 async function getFinanceBriefingItems(ctx: CallerContext): Promise<BriefingItem[]> {
+  const [hasApprovalMv, hasBudgetMv] = await Promise.all([
+    relationExists('public.mv_approval_pipeline'),
+    relationExists('public.mv_budget_health'),
+  ]);
+
   const [pendingApprovals, overdueInvoices, budgetWarnings] = await Promise.all([
-    query(`SELECT COUNT(*)::int AS c FROM mv_approval_pipeline`),
+    hasApprovalMv
+      ? query(`SELECT COUNT(*)::int AS c FROM mv_approval_pipeline`)
+      : Promise.resolve({ rows: [{ c: 0 }] }),
     query(
       `SELECT COUNT(*)::int AS c, COALESCE(SUM(grand_total), 0)::numeric AS total
        FROM invoices
@@ -321,11 +343,13 @@ async function getFinanceBriefingItems(ctx: CallerContext): Promise<BriefingItem
          AND (is_deleted IS NULL OR is_deleted = FALSE)`,
       [ctx.organizationId ?? null],
     ),
-    query(
-      `SELECT COUNT(*)::int AS c
-       FROM mv_budget_health
-       WHERE health_status IN ('warning', 'critical')`,
-    ),
+    hasBudgetMv
+      ? query(
+          `SELECT COUNT(*)::int AS c
+           FROM mv_budget_health
+           WHERE health_status IN ('warning', 'critical')`,
+        )
+      : Promise.resolve({ rows: [{ c: 0 }] }),
   ]);
 
   const items: BriefingItem[] = [];
@@ -390,21 +414,26 @@ async function getProjectBriefingItems(ctx: CallerContext): Promise<BriefingItem
 }
 
 async function getOKRBriefingItems(ctx: CallerContext): Promise<BriefingItem[]> {
+  const owner = ruId(ctx);
   const [atRisk, dueCheckins] = await Promise.all([
     query(
       `SELECT COUNT(*)::int AS c
-       FROM okr_goals
-       WHERE owner_id = $1::uuid
-         AND status IN ('at_risk', 'behind', 'off_track')
-         AND is_archived = FALSE`,
-      [ctx.userId],
+       FROM okr_goals g
+       WHERE g.owner_id = $1::uuid
+         AND g.status IN ('at_risk', 'behind')`,
+      [owner],
     ),
     query(
       `SELECT COUNT(*)::int AS c
-       FROM okr_key_results
-       WHERE owner_id = $1::uuid
-         AND (last_check_in_at IS NULL OR last_check_in_at < NOW() - INTERVAL '14 days')`,
-      [ctx.userId],
+       FROM okr_key_results kr
+       INNER JOIN okr_goals g ON g.id = kr.goal_id
+       WHERE g.owner_id = $1::uuid
+         AND NOT EXISTS (
+           SELECT 1 FROM okr_check_ins ci
+           WHERE ci.key_result_id = kr.id
+             AND ci.created_at >= NOW() - INTERVAL '14 days'
+         )`,
+      [owner],
     ),
   ]);
   const items: BriefingItem[] = [];
@@ -423,7 +452,7 @@ async function getRecruitmentBriefingItems(ctx: CallerContext): Promise<Briefing
        AND scheduled_at >= date_trunc('day', NOW())
        AND scheduled_at < date_trunc('day', NOW()) + INTERVAL '2 days'
        AND status IN ('scheduled', 'confirmed')`,
-    [ctx.userId],
+    [ruId(ctx)],
   );
   const highMatches = await query(
     `SELECT COUNT(*)::int AS c
@@ -449,7 +478,7 @@ async function getTimeBriefingItems(ctx: CallerContext): Promise<BriefingItem[]>
        FROM time_entries
        WHERE user_id = $1::uuid
          AND date >= date_trunc('week', CURRENT_DATE)::date`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
     query(
       `SELECT COUNT(*)::int AS c
@@ -457,7 +486,7 @@ async function getTimeBriefingItems(ctx: CallerContext): Promise<BriefingItem[]>
        WHERE user_id = $1::uuid
          AND status IN ('draft', 'rejected')
          AND week_start_date >= date_trunc('week', CURRENT_DATE)::date - INTERVAL '7 days'`,
-      [ctx.userId],
+      [ruId(ctx)],
     ),
   ]);
   const total = Number(weekHours.rows[0]?.total ?? 0);
@@ -481,7 +510,7 @@ async function getInsightBriefingItems(ctx: CallerContext): Promise<BriefingItem
        AND ($2::uuid IS NULL OR organization_id = $2::uuid)
      ORDER BY CASE severity WHEN 'critical' THEN 0 ELSE 1 END, created_at DESC
      LIMIT 5`,
-    [ctx.userId, ctx.organizationId ?? null],
+    [ruId(ctx), ctx.organizationId ?? null],
   );
   return result.rows.map((r) => ({
     text: `${String(r.title)}: ${String(r.message)}`,
@@ -500,7 +529,7 @@ async function generateAISummary(_ctx: CallerContext, sections: BriefingSection[
 }
 
 async function getUserFirstName(ctx: CallerContext): Promise<string> {
-  const result = await query('SELECT full_name FROM reimbursement_users WHERE id = $1::uuid', [ctx.userId]);
+  const result = await query('SELECT full_name FROM reimbursement_users WHERE id = $1::uuid', [ruId(ctx)]);
   return String(result.rows[0]?.full_name ?? 'there').split(' ')[0] || 'there';
 }
 
@@ -519,11 +548,11 @@ async function cacheBriefing(briefing: DailyBriefing): Promise<void> {
 }
 
 async function userHasDeals(ctx: CallerContext): Promise<boolean> {
-  const r = await query('SELECT 1 FROM crm_deals WHERE owner_id = $1::uuid LIMIT 1', [ctx.userId]);
+  const r = await query('SELECT 1 FROM crm_deals WHERE owner_id = $1::uuid LIMIT 1', [ruId(ctx)]);
   return r.rows.length > 0;
 }
 
 async function userHasTickets(ctx: CallerContext): Promise<boolean> {
-  const r = await query('SELECT 1 FROM support_tickets WHERE assignee_id = $1::uuid LIMIT 1', [ctx.userId]);
+  const r = await query('SELECT 1 FROM support_tickets WHERE assignee_id = $1::uuid LIMIT 1', [ruId(ctx)]);
   return r.rows.length > 0;
 }

@@ -1,69 +1,106 @@
 import type { Request, Response, NextFunction } from 'express';
-import fs from 'node:fs';
-import { query } from '../db/index.js';
+import { query, sanitizeUuid } from '../db/index.js';
 import { ensureReimbursementUserForAuth } from '../db/ensureReimbursementUser.js';
 import { getByAuthUserId } from '../db/employeeAuthDb.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
+const isDev = process.env.NODE_ENV !== 'production';
 
-const DEBUG_LOG = '/Users/hamzaakcit/.cursor/debug-2b9763.log';
+export interface AuthenticatedRequest extends Request {
+  userId: string;
+  role: string;
+  user: { id: string; role: string };
+  tenantId: string;
+  organizationId: string;
+}
+
+interface CachedUser { id: string; role: string; organization_id: string; cachedAt: number }
+const userCache = new Map<string, CachedUser>();
+const USER_CACHE_TTL_MS = 60_000;
+const USER_CACHE_MAX = 500;
+
+let cachedDefaultOrgId: string | undefined;
+
+function getCachedUser(authKey: string): CachedUser | undefined {
+  const entry = userCache.get(authKey);
+  if (!entry) return undefined;
+  if (Date.now() - entry.cachedAt > USER_CACHE_TTL_MS) {
+    userCache.delete(authKey);
+    return undefined;
+  }
+  return entry;
+}
+
+function setCachedUser(authKey: string, row: { id: string; role?: string; organization_id: string }): void {
+  if (userCache.size >= USER_CACHE_MAX) {
+    const oldest = userCache.keys().next().value;
+    if (oldest) userCache.delete(oldest);
+  }
+  userCache.set(authKey, {
+    id: row.id,
+    role: row.role || 'employee',
+    organization_id: row.organization_id,
+    cachedAt: Date.now(),
+  });
+}
+
+/** Clear cache for a specific user (call on role change / profile update). */
+export function invalidateAuthCache(authUserId: string): void {
+  userCache.delete(authUserId);
+}
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const userId = (req as Request & { userId?: string }).userId ?? (req.headers['x-user-id'] as string | undefined);
+  let userId = (req as Request & { userId?: string }).userId;
+
+  if (!userId && isDev) {
+    userId = req.headers['x-user-id'] as string | undefined;
+  }
+
   if (!userId) {
-    // #region agent log
-    try {
-      const hasAuth = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ');
-      fs.appendFileSync(
-        DEBUG_LOG,
-        `${JSON.stringify({
-          sessionId: '2b9763',
-          hypothesisId: 'H5',
-          message: 'requireAuth_no_userId',
-          data: { path: req.path, method: req.method, hasBearer: hasAuth },
-          timestamp: Date.now(),
-          location: 'requireAuth.ts',
-        })}\n`,
-      );
-    } catch {
-      /* ignore */
-    }
-    // #endregion
-    res.status(401).json({ error: 'Authorization or X-User-Id required' });
+    res.status(401).json({ error: 'Authorization required' });
     return;
   }
+  const authKey = sanitizeUuid(userId);
   try {
-    let userResult = await query<{ id: string; role?: string; organization_id: string }>(
-      `SELECT id, role, organization_id::text AS organization_id
-       FROM reimbursement_users
-       WHERE auth_user_id = $1
-       LIMIT 1`,
-      [userId],
-    );
-    if (!userResult.rows[0]) {
-      const auth = await getByAuthUserId(userId);
-      if (auth) {
-        await ensureReimbursementUserForAuth(userId, auth.email);
-        userResult = await query<{ id: string; role?: string; organization_id: string }>(
-          `SELECT id, role, organization_id::text AS organization_id
-           FROM reimbursement_users
-           WHERE auth_user_id = $1
-           LIMIT 1`,
-          [userId],
-        );
+    const cached = getCachedUser(authKey);
+    let userRow: { id: string; role?: string; organization_id: string } | undefined = cached
+      ? { id: cached.id, role: cached.role, organization_id: cached.organization_id }
+      : undefined;
+
+    if (!userRow) {
+      let userResult = await query<{ id: string; role?: string; organization_id: string }>(
+        `SELECT id, role, organization_id::text AS organization_id
+         FROM reimbursement_users
+         WHERE auth_user_id = $1
+         LIMIT 1`,
+        [authKey],
+      );
+      if (!userResult.rows[0]) {
+        const auth = await getByAuthUserId(authKey);
+        if (auth) {
+          await ensureReimbursementUserForAuth(userId, auth.email);
+          userResult = await query<{ id: string; role?: string; organization_id: string }>(
+            `SELECT id, role, organization_id::text AS organization_id
+             FROM reimbursement_users
+             WHERE auth_user_id = $1
+             LIMIT 1`,
+            [authKey],
+          );
+        }
       }
-    }
-    if (!userResult.rows[0]) {
-      // 403: not a missing/invalid token — user is authenticated but not provisioned for API routes (avoid client logout loop)
-      res.status(403).json({
-        error: 'USER_NOT_PROVISIONED',
-        message: 'Workspace user record is missing. Run server seed or contact admin.',
-      });
-      return;
+      if (!userResult.rows[0]) {
+        res.status(403).json({
+          error: 'USER_NOT_PROVISIONED',
+          message: 'Workspace user record is missing. Run server seed or contact admin.',
+        });
+        return;
+      }
+      userRow = userResult.rows[0];
+      setCachedUser(authKey, userRow);
     }
 
-    const jwtOrg = req.jwtOrganizationId;
-    const rowOrg = userResult.rows[0].organization_id;
+    const jwtOrg = (req as Request & { jwtOrganizationId?: string }).jwtOrganizationId;
+    const rowOrg = userRow.organization_id;
     if (jwtOrg && jwtOrg !== rowOrg) {
       res.status(403).json({ error: 'Organization mismatch for this session' });
       return;
@@ -71,26 +108,32 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     let orgId = jwtOrg || rowOrg;
 
     if (!orgId) {
-      const orgResult = await query<{ id: string }>(
-        `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-        [DEFAULT_ORG_SLUG],
-      );
-      orgId = orgResult.rows[0]?.id;
+      if (cachedDefaultOrgId) {
+        orgId = cachedDefaultOrgId;
+      } else {
+        const orgResult = await query<{ id: string }>(
+          `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+          [DEFAULT_ORG_SLUG],
+        );
+        orgId = orgResult.rows[0]?.id;
+        if (orgId) cachedDefaultOrgId = orgId;
+      }
     }
     if (!orgId) {
       res.status(503).json({ error: 'Organization not configured' });
       return;
     }
 
-    const role = userResult.rows[0].role || 'employee';
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).userId = userId;
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).role = role;
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).user = { id: userId, role };
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).tenantId = orgId;
-    (req as Request & { userId: string; role?: string; user?: { id: string; role: string }; tenantId?: string; organizationId?: string }).organizationId = orgId;
+    const role = userRow.role || 'employee';
+    const authReq = req as AuthenticatedRequest;
+    authReq.userId = userId;
+    authReq.role = role;
+    authReq.user = { id: userId, role };
+    authReq.tenantId = orgId;
+    authReq.organizationId = orgId;
     next();
   } catch (err) {
-    console.error('requireAuth', err);
-    res.status(500).json({ error: 'Auth failed' });
+    console.error('[requireAuth] Unexpected error:', err instanceof Error ? err.message : err);
+    res.status(500).json({ error: 'Authentication failed' });
   }
 }

@@ -5,6 +5,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ApprovalQueueItem, RiskLevel, TargetChannel } from '../../approvalQueue/types';
 import { channelLabel } from '../../approvalQueue/approvalQueueUtils';
 import { ChannelIcon } from './ChannelIcon';
+import { ComplianceBadge } from '../ComplianceBadge';
 
 export type SortMode = 'newest' | 'oldest';
 export type RiskFilter = 'all' | RiskLevel;
@@ -135,6 +136,9 @@ export function ApprovalList({
                       <Badge variant="blue" size="sm">
                         BV {item.brandVoiceScore}/100
                       </Badge>
+                      {item.contentId && (
+                        <ComplianceBadge contentId={item.contentId} size="sm" />
+                      )}
                       {risk !== 'none' && (
                         <span className="inline-flex items-center gap-0.5" title="Compliance risk">
                           <AlertTriangle className={cn('w-3.5 h-3.5', risk === 'high' ? 'text-red-400' : risk === 'medium' ? 'text-amber-400' : 'text-blue-400')} />

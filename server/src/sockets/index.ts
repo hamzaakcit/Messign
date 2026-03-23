@@ -7,32 +7,74 @@ import { setupKnowledgeSocketHandlers } from './knowledgeHandlers.js';
 import { eventBus } from '../events/index.js';
 import { query } from '../db/index.js';
 import { verifyAccess } from '../utils/jwt.js';
+import { computeFingerprint, getClientIp } from '../services/authService.js';
+import { blacklistSession } from '../middleware/authMiddleware.js';
 
-interface UserSocket {
-  oderId: string;
-  socket: Socket;
+const connectedUsers: Map<string, Set<Socket>> = new Map();
+
+/** Reverse map: internal DB user id -> auth user id, to avoid per-emit DB lookups. */
+const internalToAuthId: Map<string, string> = new Map();
+const MAX_ID_CACHE = 5000;
+
+function cacheIdMapping(internalId: string, authId: string): void {
+  if (internalToAuthId.size >= MAX_ID_CACHE) {
+    const firstKey = internalToAuthId.keys().next().value;
+    if (firstKey) internalToAuthId.delete(firstKey);
+  }
+  internalToAuthId.set(internalId, authId);
 }
 
-const connectedUsers: Map<string, Socket> = new Map();
+function addUserSocket(userId: string, socket: Socket): void {
+  let sockets = connectedUsers.get(userId);
+  if (!sockets) {
+    sockets = new Set();
+    connectedUsers.set(userId, sockets);
+  }
+  sockets.add(socket);
+}
+
+function removeUserSocket(userId: string, socket: Socket): boolean {
+  const sockets = connectedUsers.get(userId);
+  if (!sockets) return false;
+  sockets.delete(socket);
+  if (sockets.size === 0) {
+    connectedUsers.delete(userId);
+    return true; // last socket removed
+  }
+  return false;
+}
+
+function emitToSockets(sockets: Set<Socket>, event: string, data: unknown): void {
+  for (const s of sockets) {
+    s.emit(event, data);
+  }
+}
+
 let socketServer: Server | null = null;
 
 /** PostgreSQL uuid — reimbursement_users.id / auth_user_id columns use this type. */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Emit an event to a specific user's socket (by Messign auth user id). */
+/** Emit an event to a specific user's socket(s) (by Messign auth user id OR internal user id). */
 export async function emitToUser(userId: string, event: string, data: unknown): Promise<void> {
   if (!userId) return;
 
-  const socket = connectedUsers.get(userId);
-  if (socket) {
-    socket.emit(event, data);
+  const sockets = connectedUsers.get(userId);
+  if (sockets && sockets.size > 0) {
+    emitToSockets(sockets, event, data);
     return;
   }
 
-  // Skip DB lookup for non-UUID ids (seed data like "user-2") — would error on uuid column
-  if (!UUID_REGEX.test(userId)) {
-    return;
+  const mappedAuthId = internalToAuthId.get(userId);
+  if (mappedAuthId) {
+    const mappedSockets = connectedUsers.get(mappedAuthId);
+    if (mappedSockets && mappedSockets.size > 0) {
+      emitToSockets(mappedSockets, event, data);
+      return;
+    }
   }
+
+  if (!UUID_REGEX.test(userId)) return;
 
   const result = await query<{ auth_user_id: string | null }>(
     `SELECT auth_user_id
@@ -42,9 +84,12 @@ export async function emitToUser(userId: string, event: string, data: unknown): 
     [userId],
   );
   const authUserId = result.rows[0]?.auth_user_id;
-  const fallbackSocket = authUserId ? connectedUsers.get(authUserId) : null;
-  if (fallbackSocket) {
-    fallbackSocket.emit(event, data);
+  if (authUserId) {
+    cacheIdMapping(userId, authUserId);
+    const fallbackSockets = connectedUsers.get(authUserId);
+    if (fallbackSockets && fallbackSockets.size > 0) {
+      emitToSockets(fallbackSockets, event, data);
+    }
   }
 }
 
@@ -121,7 +166,7 @@ export function emitBroadcast(event: string, data: unknown): void {
 export function setupSocketHandlers(io: Server) {
   socketServer = io;
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token ?? socket.handshake.headers?.authorization?.replace(/^Bearer\s+/i, '');
 
     if (!token) {
@@ -130,8 +175,31 @@ export function setupSocketHandlers(io: Server) {
 
     try {
       const payload = verifyAccess(token);
+
+      if (payload.fp && process.env.NODE_ENV === 'production') {
+        const ip = socket.handshake.headers['x-forwarded-for']
+          ? String(socket.handshake.headers['x-forwarded-for']).split(',')[0]?.trim()
+          : socket.handshake.address;
+        const ua = socket.handshake.headers['user-agent'] ?? null;
+        const expected = computeFingerprint(ip ?? null, ua);
+        if (payload.fp !== expected) {
+          return next(new Error('Session fingerprint mismatch'));
+        }
+      }
+
+      if (payload.sessionId) {
+        try {
+          const { redisConnection } = await import('../queue/connection.js');
+          const val = await redisConnection.get(`sess:blacklist:${payload.sessionId}`);
+          if (val !== null) {
+            return next(new Error('Session has been revoked'));
+          }
+        } catch { /* Redis unavailable — allow through */ }
+      }
+
       socket.data.userId = payload.sub;
       socket.data.role = payload.role;
+      socket.data.sessionId = payload.sessionId;
       next();
     } catch {
       next(new Error('Invalid token'));
@@ -144,26 +212,32 @@ export function setupSocketHandlers(io: Server) {
     console.log('User connected:', socket.id);
 
     socket.on('user:join', async () => {
-      const userId = socket.data.userId as string;
-      if (!userId) {
-        socket.emit('error', { message: 'Not authenticated', code: 'AUTH_REQUIRED' });
-        return;
+      try {
+        const userId = socket.data.userId as string;
+        if (!userId) {
+          socket.emit('error', { message: 'Not authenticated', code: 'AUTH_REQUIRED' });
+          return;
+        }
+
+        addUserSocket(userId, socket);
+        socket.join(`user:${userId}`);
+
+        const user = await getEmployeeByIdAsUser(userId);
+        if (user) {
+          await updateEmployeeStatus(userId, 'online');
+          socket.broadcast.emit('user:status', { userId, status: 'online' });
+        }
+
+        const channelIds = await getChannelIdsForUser(userId);
+        channelIds.forEach((channelId) => {
+          socket.join(channelId);
+        });
+
+        console.log(`User ${userId} joined`);
+      } catch (err) {
+        console.error('[socket] user:join error:', err);
+        socket.emit('error', { message: 'Failed to join', code: 'JOIN_FAILED' });
       }
-
-      connectedUsers.set(userId, socket);
-
-      const user = await getEmployeeByIdAsUser(userId);
-      if (user) {
-        await updateEmployeeStatus(userId, 'online');
-        io.emit('user:status', { userId, status: 'online' });
-      }
-
-      const channelIds = await getChannelIdsForUser(userId);
-      channelIds.forEach((channelId) => {
-        socket.join(channelId);
-      });
-
-      console.log(`User ${userId} joined`);
     });
 
     // Handle new message (userId from JWT, not client)
@@ -221,24 +295,21 @@ export function setupSocketHandlers(io: Server) {
         }
         socket.emit('xp:gained', { amount: xpGained, total: updatedUser?.xp });
 
-        const channelUpdated = await getChannelById(channelId);
-        if (channelUpdated) {
-          io.to(channelId).emit('channel:updated', {
-            id: channelUpdated.id,
-            name: channelUpdated.name,
-            description: channelUpdated.description ?? undefined,
-            type: channelUpdated.type,
-            members: channelUpdated.members,
-            unreadCount: channelUpdated.unread_count,
-            createdAt: channelUpdated.created_at,
-            lastMessage: message,
-          });
-        }
+        io.to(channelId).emit('channel:updated', {
+          id: channel.id,
+          name: channel.name,
+          description: channel.description ?? undefined,
+          type: channel.type,
+          members: channel.members,
+          unreadCount: channel.unread_count,
+          createdAt: channel.created_at,
+          lastMessage: message,
+        });
 
         mentions.forEach((mentionedUserId: string) => {
-          const mentionedSocket = connectedUsers.get(mentionedUserId);
-          if (mentionedSocket) {
-            mentionedSocket.emit('notification:mention', {
+          const mentionedSockets = connectedUsers.get(mentionedUserId);
+          if (mentionedSockets) {
+            emitToSockets(mentionedSockets, 'notification:mention', {
               channelId,
               messageId: message.id,
               fromUser: userId,
@@ -262,53 +333,73 @@ export function setupSocketHandlers(io: Server) {
       if (userId) socket.to(data.channelId).emit('typing:stop', { channelId: data.channelId, userId });
     });
 
-    // Handle task status change (userId from JWT)
     socket.on('task:update', async (data: { taskId: string; status: string }) => {
-      const userId = socket.data.userId as string;
-      if (!userId) return;
+      try {
+        const userId = socket.data.userId as string;
+        if (!userId) return;
 
-      const task = await updateTaskStatus(data.taskId, data.status as 'todo' | 'in_progress' | 'review' | 'done');
+        const task = await updateTaskStatus(data.taskId, data.status as 'todo' | 'in_progress' | 'review' | 'done');
 
-      if (task) {
-        if (data.status === 'done') {
-          const row = await addEmployeeXP(userId, task.xpReward);
-          const updatedUser = row ? await getEmployeeByIdAsUser(userId) : null;
+        if (task) {
+          if (data.status === 'done') {
+            const row = await addEmployeeXP(userId, task.xpReward);
+            const updatedUser = row ? await getEmployeeByIdAsUser(userId) : null;
 
-          const activity = await addActivity({
-            userId,
-            type: 'task_completed',
-            message: `completed "${task.title}"`,
-            xpGained: task.xpReward,
-            timestamp: new Date().toISOString(),
-          });
+            const activity = await addActivity({
+              userId,
+              type: 'task_completed',
+              message: `completed "${task.title}"`,
+              xpGained: task.xpReward,
+              timestamp: new Date().toISOString(),
+            });
 
-          socket.emit('xp:gained', { amount: task.xpReward, total: updatedUser?.xp });
-          io.emit('activity:new', activity);
+            socket.emit('xp:gained', { amount: task.xpReward, total: updatedUser?.xp });
+            socket.broadcast.emit('activity:new', activity);
 
-          eventBus.emit('project.task.completed', {
-            taskId: data.taskId, projectId: task.projectId, completedBy: userId, xpAwarded: task.xpReward,
-          });
+            eventBus.emit('project.task.completed', {
+              taskId: data.taskId, projectId: task.projectId, completedBy: userId, xpAwarded: task.xpReward,
+            });
+          }
+
+          socket.broadcast.emit('task:updated', task);
+          socket.emit('task:updated', task);
         }
-
-        io.emit('task:updated', task);
+      } catch (err) {
+        console.error('[socket] task:update error:', err);
+        socket.emit('error', { message: 'Failed to update task', code: 'TASK_UPDATE_FAILED' });
       }
     });
 
-    // Handle user status change (userId from JWT)
     socket.on('user:status', async (data: { status: string }) => {
-      const userId = socket.data.userId as string;
-      if (!userId) return;
+      try {
+        const userId = socket.data.userId as string;
+        if (!userId) return;
 
-      const status = ['online', 'away', 'busy', 'offline'].includes(data.status) ? data.status as 'online' | 'away' | 'busy' | 'offline' : 'offline';
-      const row = await updateEmployeeStatus(userId, status);
-      if (row) {
-        io.emit('user:status', { userId, status });
+        const status = ['online', 'away', 'busy', 'offline'].includes(data.status) ? data.status as 'online' | 'away' | 'busy' | 'offline' : 'offline';
+        const row = await updateEmployeeStatus(userId, status);
+        if (row) {
+          socket.broadcast.emit('user:status', { userId, status });
+        }
+      } catch (err) {
+        console.error('[socket] user:status error:', err);
+        socket.emit('error', { message: 'Failed to update status', code: 'STATUS_UPDATE_FAILED' });
       }
     });
 
-    // Join a channel
-    socket.on('channel:join', (channelId: string) => {
-      socket.join(channelId);
+    socket.on('channel:join', async (channelId: string) => {
+      try {
+        const userId = socket.data.userId as string;
+        if (!userId) return;
+        const channel = await getChannelById(channelId);
+        if (!channel || !channel.members.includes(userId)) {
+          socket.emit('error', { message: 'Not a member of this channel', code: 'NOT_MEMBER', channelId });
+          return;
+        }
+        socket.join(channelId);
+      } catch (err) {
+        console.error('[socket] channel:join error:', err);
+        socket.emit('error', { message: 'Failed to join channel', code: 'CHANNEL_JOIN_FAILED' });
+      }
     });
 
     // Leave a channel
@@ -316,15 +407,20 @@ export function setupSocketHandlers(io: Server) {
       socket.leave(channelId);
     });
 
-    // Handle disconnect
     socket.on('disconnect', async () => {
-      const userId = socket.data.userId as string | undefined;
-      if (userId) {
-        connectedUsers.delete(userId);
-        await updateEmployeeStatus(userId, 'offline');
-        io.emit('user:status', { userId, status: 'offline' });
+      try {
+        const userId = socket.data.userId as string | undefined;
+        if (userId) {
+          const wasLast = removeUserSocket(userId, socket);
+          if (wasLast) {
+            await updateEmployeeStatus(userId, 'offline');
+            socket.broadcast.emit('user:status', { userId, status: 'offline' });
+          }
+        }
+        console.log('User disconnected:', socket.id);
+      } catch (err) {
+        console.error('[socket] disconnect error:', err);
       }
-      console.log('User disconnected:', socket.id);
     });
   });
 }

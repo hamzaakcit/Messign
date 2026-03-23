@@ -3,7 +3,10 @@
  * Returns plain results; HTTP layer wraps in `{ success, data?, error? }`.
  */
 import { eventBus } from '../events/index.js';
+import { withTenantQuery, query as dbQuery } from '../db/index.js';
+import { triggerBrandComplianceScan } from '../services/marketing/complianceScanner.js';
 import type { CallerContext } from '../dal/types.js';
+import * as calendarDal from '../dal/marketing/contentCalendar.js';
 import * as campaignDal from '../dal/marketing/campaigns.js';
 import * as contentDal from '../dal/marketing/content.js';
 import * as approvalsDal from '../dal/marketing/approvalsQueue.js';
@@ -127,6 +130,10 @@ export async function assignApproval(
       status: 'in_review',
     });
 
+    if (ctx.organizationId) {
+      triggerBrandComplianceScan(payload.content_id, ctx.organizationId, { query: dbQuery });
+    }
+
     return { ok: true, data: { approval_id: row.id, content_id: row.content_id } };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'assign_approval failed' };
@@ -167,6 +174,32 @@ export async function submitReview(
 
     if (payload.status === 'approved') {
       const c = await contentDal.updateContent(ctx, row.content_id, { status: 'approved' });
+      const orgId = ctx.organizationId;
+      if (orgId) {
+        try {
+          const full = await contentDal.getContentById(ctx, row.content_id);
+          if (full) {
+            const channel = (full.channel ?? 'linkedin').toLowerCase();
+            await withTenantQuery(orgId, async (client) => {
+              await calendarDal.upsertContentCalendar(
+                client,
+                orgId,
+                row.content_id,
+                full.campaign_id ?? null,
+                new Date().toISOString(),
+                channel,
+                'scheduled',
+              );
+            });
+            console.log('[SPRINT2] Auto-scheduled calendar row on approval', {
+              contentId: row.content_id,
+              channel,
+            });
+          }
+        } catch (calendarErr) {
+          console.error('[submitReview] Auto-schedule calendar on approval failed', calendarErr);
+        }
+      }
       return {
         ok: true,
         data: { approval_id: updated.id, content_id: row.content_id, content_status: c.status },

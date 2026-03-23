@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 import { X, Download, Link2, Pin, FileText, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -51,7 +52,7 @@ export function QuickViewModal({ document: doc, onClose, onDownload, onPin, onAc
     if (doc.content && doc.content.trim()) {
       return (
         <div className="prose prose-sm max-w-none bg-gray-50 rounded-lg p-6 max-h-[50vh] overflow-auto text-gray-900">
-          <div dangerouslySetInnerHTML={{ __html: doc.content.replace(/\n/g, '<br/>') }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(doc.content.replace(/\n/g, '<br/>')) }} />
         </div>
       );
     }

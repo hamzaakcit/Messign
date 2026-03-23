@@ -59,6 +59,16 @@ The Marketing Instagram flow calls LiteLLM for image generation and uploads to S
 
 **Mock storage:** If Supabase is not configured, the server may still “succeed” at storing a URL under `https://storage.mock.local/...`. That URL **will not render** in the app or browser—configure real Supabase (or another upload target) for visible previews and downloads.
 
+**Enable real URLs (local or production):**
+
+1. **Supabase project** — In the dashboard: **Project Settings → API**. Copy **Project URL** → `SUPABASE_URL` and **service_role** → `SUPABASE_SERVICE_ROLE_KEY` (server-side only; never commit to git or put in Vite env).
+2. **Storage bucket** — Either:
+   - **Storage → New bucket**: name `marketing-images` (or set `MARKETING_IMAGE_BUCKET` to match), enable **Public** so `/object/public/...` URLs load in the browser; or  
+   - **Supabase CLI** (from repo root): `supabase link --project-ref <YOUR_REF>` then `supabase db push` to apply [`supabase/migrations/`](../supabase/migrations/) (see [`supabase/README.md`](../supabase/README.md)); or  
+   - Run [`db/supabase-marketing-images-bucket.sql`](db/supabase-marketing-images-bucket.sql) in **SQL Editor** (same SQL as the migration).
+3. **Server env** — Add the variables to `server/.env` locally or to your host’s secrets (Railway/Vercel **server** runtime). See commented blocks in `server/.env.example`. Restart the API after changing env.
+4. **Verify** — Regenerate a marketing image; logs should not show `No Supabase config — returning mock URL`, and the returned `image_url` should start with your `SUPABASE_URL` and include `/storage/v1/object/public/`.
+
 Optional model override: `IMAGE_GEN_MODEL` (e.g. if your LiteLLM alias differs from the default).
 
 ### Optional (invoices / company)
@@ -152,6 +162,33 @@ Use this when moving from a local PostgreSQL database to Railway.
 4. Add a PostgreSQL database and set `DATABASE_URL`.
 5. Set the env vars above (at least `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`).
 6. Deploy. The frontend at https://messign.vercel.app must call this backend’s URL (set `VITE_API_URL` or your app’s API base URL to the deployed server URL).
+
+### Production checklist — Supabase + marketing images
+
+Before or after each backend deploy, confirm the **Railway (or Render) server service** has:
+
+| Variable | Value |
+|----------|--------|
+| `SUPABASE_URL` | **HTTPS** project URL only, e.g. `https://<project-ref>.supabase.co` — not a `postgresql://` string (`imageService` uses this for Storage REST). |
+| `SUPABASE_SERVICE_ROLE_KEY` | **service_role** JWT from Supabase **Project Settings → API** (same secret as local; rotate if leaked). Never expose to Vite/client. |
+| `MARKETING_IMAGE_BUCKET` | Optional; default `marketing-images` if the bucket migration was applied (`supabase db push` or SQL). |
+
+The Storage bucket and migration apply to the **Supabase** project; Railway still uses **`DATABASE_URL`** pointing at **Railway Postgres** (or your primary app DB). Do not point `DATABASE_URL` at Supabase unless you intentionally migrated the app DB there.
+
+**Redeploy backend:** push to the connected Git branch, or **Railway → service → Deploy → Redeploy**, so new env vars are picked up.
+
+**Verify:** Regenerate a marketing image; logs must not show `No Supabase config — returning mock URL`, and `image_url` must start with your `SUPABASE_URL` host and `/storage/v1/object/public/`.
+
+**CLI (optional)** — from your **actual** repo root (e.g. `~/messign-workspace`), one command per line; do not paste `#` comments on the same line as `railway` (the CLI treats `#` as an argument).
+
+```bash
+cd ~/messign-workspace
+npx @railway/cli@latest login
+npx @railway/cli@latest link
+npx @railway/cli@latest up
+```
+
+If `link` is already configured for this folder, skip `link`. Install globally with `npm i -g @railway/cli` if you prefer `railway` instead of `npx`.
 
 ## Marketing module (Phase 4 + 5)
 

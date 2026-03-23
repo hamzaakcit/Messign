@@ -38,6 +38,11 @@ export async function getSessionsForUser(authUserId: string) {
   return authSessionsDb.getByAuthUserId(authUserId);
 }
 
+export async function updateRefreshTokenHash(sessionId: string, newToken: string): Promise<void> {
+  const hash = authSessionsDb.hashToken(newToken);
+  await authSessionsDb.updateRefreshTokenHash(sessionId, hash);
+}
+
 export async function findSessionByRefreshToken(refreshToken: string) {
   const hash = authSessionsDb.hashToken(refreshToken);
   return authSessionsDb.getByRefreshTokenHash(hash);

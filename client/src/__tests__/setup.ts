@@ -35,7 +35,7 @@ window.IntersectionObserver = IntersectionObserverStub as unknown as typeof Inte
 
 // ── Network stubs ──────────────────────────────────────────────────────────
 // Prevent any real HTTP calls in tests; all fetch calls resolve to {}
-global.fetch = vi.fn().mockResolvedValue({
+globalThis.fetch = vi.fn().mockResolvedValue({
   ok: true,
   status: 200,
   json: async () => ({}),

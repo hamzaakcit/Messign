@@ -1,27 +1,40 @@
 import type { Request, Response, NextFunction } from 'express';
-import fs from 'node:fs';
-import { verifyAccess } from '../utils/jwt.js';
+import { verifyAccess, getAccessExpirySeconds } from '../utils/jwt.js';
 import { computeFingerprint, getClientIp } from '../services/authService.js';
 
-const DEBUG_LOG = '/Users/hamzaakcit/.cursor/debug-2b9763.log';
-function dbgOptionalJwt(hypothesisId: string, message: string, data: Record<string, unknown>): void {
-  // #region agent log
+const BLACKLIST_PREFIX = 'sess:blacklist:';
+const accessTtl = getAccessExpirySeconds();
+
+let _redis: import('ioredis').default | null = null;
+async function getRedis(): Promise<import('ioredis').default | null> {
+  if (_redis) return _redis;
   try {
-    fs.appendFileSync(
-      DEBUG_LOG,
-      `${JSON.stringify({
-        sessionId: '2b9763',
-        hypothesisId,
-        message,
-        data,
-        timestamp: Date.now(),
-        location: 'authMiddleware.ts:optionalJwt',
-      })}\n`,
-    );
+    const mod = await import('../queue/connection.js');
+    _redis = mod.redisConnection;
+    return _redis;
   } catch {
-    /* ignore */
+    return null;
   }
-  // #endregion
+}
+
+export async function blacklistSession(sessionId: string): Promise<void> {
+  const redis = await getRedis();
+  if (!redis) return;
+  try {
+    await redis.setex(`${BLACKLIST_PREFIX}${sessionId}`, accessTtl, '1');
+  } catch { /* best-effort */ }
+}
+
+async function isSessionBlacklisted(sessionId: string | undefined): Promise<boolean> {
+  if (!sessionId) return false;
+  const redis = await getRedis();
+  if (!redis) return false;
+  try {
+    const val = await redis.get(`${BLACKLIST_PREFIX}${sessionId}`);
+    return val !== null;
+  } catch {
+    return false;
+  }
 }
 
 declare global {
@@ -72,18 +85,20 @@ function verifyFingerprint(req: Request, fp?: string): boolean {
  * Optional JWT auth: if Authorization Bearer is present, verify and set req.userId (and req.role, req.sessionId).
  * If no Bearer token, does nothing (caller may fall back to X-User-Id or return 401).
  */
-export function optionalJwt(req: Request, res: Response, next: NextFunction): void {
+export async function optionalJwt(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
-    dbgOptionalJwt('H1', 'optionalJwt_no_bearer', { path: req.path, method: req.method });
     next();
     return;
   }
   try {
     const payload = verifyAccess(token);
     if (!verifyFingerprint(req, payload.fp)) {
-      dbgOptionalJwt('H2', 'optionalJwt_fp_mismatch', { path: req.path, method: req.method });
+      next();
+      return;
+    }
+    if (await isSessionBlacklisted(payload.sessionId)) {
       next();
       return;
     }
@@ -93,13 +108,8 @@ export function optionalJwt(req: Request, res: Response, next: NextFunction): vo
     if (payload.organizationId) {
       req.jwtOrganizationId = payload.organizationId;
     }
-  } catch (e) {
-    dbgOptionalJwt('H3', 'optionalJwt_verify_fail', {
-      path: req.path,
-      method: req.method,
-      err: e instanceof Error ? e.message : String(e),
-    });
-    // Invalid or expired token - leave req.userId unset
+  } catch {
+    // Invalid or expired token — leave req.userId unset
   }
   next();
 }
@@ -108,7 +118,7 @@ export function optionalJwt(req: Request, res: Response, next: NextFunction): vo
  * Require JWT: if Authorization Bearer is present, verify and set req.userId. Otherwise 401.
  * Does not fall back to X-User-Id.
  */
-export function requireJwt(req: Request, res: Response, next: NextFunction): void {
+export async function requireJwt(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
@@ -119,6 +129,10 @@ export function requireJwt(req: Request, res: Response, next: NextFunction): voi
     const payload = verifyAccess(token);
     if (!verifyFingerprint(req, payload.fp)) {
       res.status(401).json({ error: 'Session fingerprint mismatch — please log in again' });
+      return;
+    }
+    if (await isSessionBlacklisted(payload.sessionId)) {
+      res.status(401).json({ error: 'Session has been revoked' });
       return;
     }
     req.userId = payload.sub;

@@ -5,6 +5,7 @@ import {
   resolveRegisteredToolName,
 } from '../toolRegistry.js';
 import { validateToolArgsForExecution } from '../toolArgSchemas.js';
+import { parseToolCallArgumentsJson } from '../parseToolArguments.js';
 import { createToolSession, activateTool } from '../tools/core/activateTool.js';
 import { searchTools } from '../tools/core/searchTools.js';
 import { callModelSafe, streamModelSafe, classifyComplexity, type ModelTier } from '../gateway.js';
@@ -39,6 +40,8 @@ export const WIDGET_TOOL_NAMES = new Set([
   'finance:get_invoice_details',
   'achievements:get_achievements_leaderboard',
   'fun:play_dora_dash',
+  'marketing:get_campaign_performance',
+  'marketing:get_marketing_roi',
 ]);
 
 const STRICT_RAG_PREAMBLE = `STRICT RAG DIRECTIVES (you must follow these for the knowledge base context below):
@@ -70,7 +73,7 @@ export async function orchestrate(
   onChunk: (chunk: string) => void,
   config: Partial<OrchestratorConfig> & { provider?: string } = {},
 ): Promise<OrchestrationResult> {
-  const { provider, isDynamicToolLoopEnabled = false, ...restConfig } = config;
+  const { provider, isDynamicToolLoopEnabled = true, ...restConfig } = config;
   const cfg = { ...DEFAULT_ORCHESTRATOR_CONFIG, ...restConfig };
   const tracker = new StepTracker(cfg);
   const startTime = Date.now();
@@ -193,12 +196,7 @@ export async function orchestrate(
             function: { name: tc.function.name, arguments: tc.function.arguments },
           }));
           toolCalls = standardToolCalls.map((tc) => {
-            let args: Record<string, unknown> = {};
-            try {
-              args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-            } catch {
-              console.warn(`[Orchestrator] Failed to parse tool args for ${tc.function.name}`);
-            }
+            const args = parseToolCallArgumentsJson(tc.function.arguments);
             return { name: tc.function.name, args, callId: tc.id };
           });
         }

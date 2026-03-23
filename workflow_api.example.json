@@ -1,0 +1,22 @@
+{
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "positive prompt",
+      "clip": ["1", 0]
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "negative prompt",
+      "clip": ["1", 1]
+    }
+  },
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "example.png"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect, useId, useRef, useCallback } from 'react';
 import styles from './MessignLogoAnimated.module.css';
 
 export interface MessignLogoAnimatedCSSProps {
@@ -19,27 +19,36 @@ export function MessignLogoAnimatedCSS({
   const rawId = useId().replace(/:/g, '');
   const logoGradId = `logo-grad-${rawId}`;
   const planeGradId = `plane-css-${rawId}`;
+  const animTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const triggerAnimation = () => {
+  const clearAnimTimers = useCallback(() => {
+    animTimers.current.forEach(clearTimeout);
+    animTimers.current = [];
+  }, []);
+
+  useEffect(() => clearAnimTimers, [clearAnimTimers]);
+
+  const triggerAnimation = useCallback(() => {
     if (isAnimating) return;
+    clearAnimTimers();
     setIsAnimating(true);
 
-    setTimeout(() => setShowPlane(true), 200);
-    setTimeout(() => setShowPlane(false), 2600);
-    setTimeout(() => setIsAnimating(false), 3000);
-  };
+    animTimers.current.push(setTimeout(() => setShowPlane(true), 200));
+    animTimers.current.push(setTimeout(() => setShowPlane(false), 2600));
+    animTimers.current.push(setTimeout(() => setIsAnimating(false), 3000));
+  }, [isAnimating, clearAnimTimers]);
 
   useEffect(() => {
     if (!autoPlay) return;
     const t = setTimeout(triggerAnimation, 1500);
     return () => clearTimeout(t);
-  }, [autoPlay]);
+  }, [autoPlay, triggerAnimation]);
 
   useEffect(() => {
     if (isAnimating || !autoPlay) return;
     const t = setTimeout(triggerAnimation, loopDelay);
     return () => clearTimeout(t);
-  }, [isAnimating, autoPlay, loopDelay]);
+  }, [isAnimating, autoPlay, loopDelay, triggerAnimation]);
 
   return (
     <div

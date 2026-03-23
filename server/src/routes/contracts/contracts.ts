@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Response } from 'express';
 import multer from 'multer';
-import fs from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import type { ReimbursementRequest } from '../../middleware/reimbursementAuth.js';
@@ -11,9 +11,7 @@ import { buildCtx, parsePositiveInt, parseSort } from './common.js';
 
 const router = Router();
 const CONTRACT_DIR = path.join(process.cwd(), 'uploads', 'contracts');
-if (!fs.existsSync(CONTRACT_DIR)) {
-  fs.mkdirSync(CONTRACT_DIR, { recursive: true });
-}
+await mkdir(CONTRACT_DIR, { recursive: true });
 
 const contractUpload = multer({
   storage: multer.memoryStorage(),
@@ -168,7 +166,7 @@ router.post('/:id/upload-document', contractUpload.single('document'), async (re
     const digest = crypto.createHash('sha1').update(file.buffer).digest('hex').slice(0, 12);
     const fileName = `${req.params.id}_${Date.now()}_${digest}${ext}`;
     const filePath = path.join(CONTRACT_DIR, fileName);
-    fs.writeFileSync(filePath, file.buffer);
+    await writeFile(filePath, file.buffer);
     const documentUrl = `/uploads/contracts/${fileName}`;
     const extractedText = await extractTextFromFile(filePath);
     const contract = await contractsDal.updateContract(buildCtx(req), req.params.id, {

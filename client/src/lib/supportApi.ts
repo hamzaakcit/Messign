@@ -1,5 +1,6 @@
 import { API_ORIGIN } from './api';
 import { getAccessToken } from './authToken';
+import type { PaginatedResult } from './types';
 
 const SUPPORT_BASE = `${API_ORIGIN}/api/support`;
 
@@ -15,13 +16,7 @@ export type SupportStatus =
 export type SupportSource = 'web' | 'email' | 'chat' | 'phone' | 'api';
 export type SupportSlaState = 'on_track' | 'at_risk' | 'breached';
 
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
+export type { PaginatedResult } from './types';
 
 export interface SupportSlaStatusDetail {
   dueAt: string | null;

@@ -138,8 +138,8 @@ export async function getRevenueMetrics(ctx: CallerContext): Promise<ExecutiveDa
     const [pipeline, dealsWon, trend] = await Promise.all([
       client.query(
         `SELECT
-           COALESCE(SUM(COALESCE(d.amount_eur, d.amount, 0)), 0)::numeric AS pipeline_value,
-           COALESCE(SUM(COALESCE(d.amount_eur, d.amount, 0) * COALESCE(d.probability, 0) / 100.0), 0)::numeric AS weighted_pipeline
+           COALESCE(SUM(COALESCE(d.amount_eur::numeric, d.amount::numeric, 0::numeric)), 0::numeric)::numeric AS pipeline_value,
+           COALESCE(SUM(COALESCE(d.amount_eur::numeric, d.amount::numeric, 0::numeric) * COALESCE(d.probability::numeric, 0::numeric) / 100.0), 0::numeric)::numeric AS weighted_pipeline
          FROM crm_deals d
          JOIN crm_deal_stages s ON s.id = d.stage_id
          WHERE s.is_won = FALSE AND s.is_lost = FALSE`,
@@ -158,13 +158,13 @@ export async function getRevenueMetrics(ctx: CallerContext): Promise<ExecutiveDa
              )
              ELSE 0
            END AS win_rate,
-           COALESCE(SUM(d.amount) FILTER (WHERE s.is_won = TRUE AND date_part('year', d.actual_close_date) = date_part('year', NOW())), 0)::numeric AS total_ytd
+           COALESCE(SUM(d.amount::numeric) FILTER (WHERE s.is_won = TRUE AND date_part('year', d.actual_close_date) = date_part('year', NOW())), 0::numeric)::numeric AS total_ytd
          FROM crm_deals d
          JOIN crm_deal_stages s ON s.id = d.stage_id`,
       ),
       client.query(
         `SELECT to_char(date_trunc('month', d.actual_close_date), 'Mon YY') AS month,
-                COALESCE(SUM(d.amount), 0)::numeric AS value
+                COALESCE(SUM(d.amount::numeric), 0::numeric)::numeric AS value
          FROM crm_deals d
          JOIN crm_deal_stages s ON s.id = d.stage_id
          WHERE s.is_won = TRUE
@@ -313,8 +313,8 @@ export async function getMarketingMetrics(ctx: CallerContext): Promise<Executive
              c.status,
              CASE
                WHEN c.actual_spend_eur > 0
-                 THEN COALESCE(SUM(d.amount_eur), 0) / c.actual_spend_eur
-               ELSE 0
+                 THEN COALESCE(SUM(d.amount_eur::numeric), 0::numeric) / c.actual_spend_eur::numeric
+               ELSE 0::numeric
              END AS roi_multiplier
            FROM marketing_campaigns c
            LEFT JOIN marketing_leads l ON l.campaign_id = c.id
@@ -335,8 +335,8 @@ export async function getMarketingMetrics(ctx: CallerContext): Promise<Executive
          c.name AS campaign_name,
          CASE
            WHEN c.actual_spend_eur > 0
-             THEN COALESCE(SUM(d.amount_eur), 0) / c.actual_spend_eur
-           ELSE 0
+             THEN COALESCE(SUM(d.amount_eur::numeric), 0::numeric) / c.actual_spend_eur::numeric
+           ELSE 0::numeric
          END AS roi_percent
        FROM marketing_campaigns c
        LEFT JOIN marketing_leads l ON l.campaign_id = c.id
@@ -545,7 +545,7 @@ export async function getRecentActivity(ctx: CallerContext): Promise<ExecutiveDa
          t.id::text AS id,
          'support'::text AS module,
          CASE WHEN t.status IN ('resolved', 'closed') THEN 'ticket.resolved' ELSE 'ticket.created' END AS type,
-         COALESCE(t.subject, t.ticket_number)::text AS title,
+         COALESCE(NULLIF(trim(t.subject), ''), t.ticket_number::text) AS title,
          COALESCE(u.full_name, 'System') AS actor,
          t.updated_at AS timestamp,
          '#f59e0b'::text AS color

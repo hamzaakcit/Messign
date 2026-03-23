@@ -5,7 +5,7 @@
 
 import { redisConnection } from '../../queue/connection.js';
 
-/** Delete keys matching a pattern using SCAN (non-blocking). */
+/** Delete keys matching a pattern using SCAN (non-blocking). Throws on failure so callers can react. */
 export async function invalidateByPattern(pattern: string): Promise<number> {
   let deleted = 0;
   let cursor = '0';
@@ -19,7 +19,9 @@ export async function invalidateByPattern(pattern: string): Promise<number> {
       }
     } while (cursor !== '0');
   } catch (e) {
-    if (e instanceof Error) console.warn('[Cache] invalidateByPattern failed:', e.message);
+    const message = e instanceof Error ? e.message : String(e);
+    console.error('[Cache] invalidateByPattern failed for', pattern, ':', message);
+    throw new Error(`Cache invalidation failed for ${pattern}: ${message}`);
   }
   return deleted;
 }
@@ -39,6 +41,11 @@ export async function invalidateCrmMetrics(orgId: string): Promise<void> {
   await invalidateByPattern(`crm_metrics_${orgId}_*`);
 }
 
+/** Invalidate marketing dashboard metrics (all periods) for an org. */
+export async function invalidateMarketingDashboardMetrics(orgId: string): Promise<void> {
+  await invalidateByPattern(`marketing_dashboard_metrics_${orgId}_*`);
+}
+
 /** Invalidate report cache for an org. */
 export async function invalidateReports(orgId: string): Promise<void> {
   await invalidateByPattern(`report_${orgId}_*`);
@@ -56,5 +63,6 @@ export async function invalidateOrgCaches(orgId: string): Promise<void> {
     invalidateSupportMetrics(orgId),
     invalidateCrmMetrics(orgId),
     invalidateReports(orgId),
+    invalidateMarketingDashboardMetrics(orgId),
   ]);
 }

@@ -9,8 +9,24 @@ interface ScoreCandidateInput {
   tenantId?: string;
 }
 
-const SCORE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const SCORE_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_SCORE_CACHE_SIZE = 500;
 const scoreCache = new Map<string, { result: ScoreCandidateResult; expiresAt: number }>();
+
+function pruneScoreCache(): void {
+  const now = Date.now();
+  for (const [k, v] of scoreCache) {
+    if (v.expiresAt < now) scoreCache.delete(k);
+  }
+  if (scoreCache.size > MAX_SCORE_CACHE_SIZE) {
+    const excess = scoreCache.size - MAX_SCORE_CACHE_SIZE;
+    const iter = scoreCache.keys();
+    for (let i = 0; i < excess; i++) {
+      const next = iter.next();
+      if (!next.done) scoreCache.delete(next.value);
+    }
+  }
+}
 
 function cacheKey(candidateId?: string, jobId?: string): string | null {
   if (candidateId && jobId) return `score:${candidateId}:${jobId}`;
@@ -45,6 +61,7 @@ function heuristicScore(input: ScoreCandidateInput): ScoreCandidateResult {
 }
 
 export async function scoreCandidateResume(input: ScoreCandidateInput): Promise<ScoreCandidateResult> {
+  if (scoreCache.size >= MAX_SCORE_CACHE_SIZE) pruneScoreCache();
   const key = cacheKey(input.candidateId, input.jobId);
   if (key) {
     const cached = scoreCache.get(key);

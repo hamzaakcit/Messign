@@ -54,12 +54,9 @@ export async function publishInstagramPost(
   const caption = stripHtml(input.content.body ?? input.content.body_html ?? '');
   const imageUrl = input.content.image_url ?? null;
 
-  // Validate: Instagram requires an image
-  if (!imageUrl) {
-    throw new Error(
-      'Instagram publish requires an image_url. ' +
-        'Generate an image first or upload one manually.',
-    );
+  if (!imageUrl?.trim()) {
+    console.warn('[PUB] Skipping Instagram publish — no image_url (generate in cockpit or set image_url)');
+    return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
   }
 
   // ── Production path: Meta Graph API ─────────────────────────────
@@ -88,7 +85,7 @@ async function publishViaMeta(args: {
   containerUrl.searchParams.set('caption', args.caption);
   containerUrl.searchParams.set('access_token', META_ACCESS_TOKEN);
 
-  const containerRes = await fetch(containerUrl.toString(), { method: 'POST' });
+  const containerRes = await fetch(containerUrl.toString(), { method: 'POST', signal: AbortSignal.timeout(30_000) });
   if (!containerRes.ok) {
     const err = await containerRes.text().catch(() => 'unknown');
     throw new Error(`Meta container creation failed (${containerRes.status}): ${err}`);
@@ -105,7 +102,7 @@ async function publishViaMeta(args: {
   publishUrl.searchParams.set('creation_id', container.id);
   publishUrl.searchParams.set('access_token', META_ACCESS_TOKEN);
 
-  const publishRes = await fetch(publishUrl.toString(), { method: 'POST' });
+  const publishRes = await fetch(publishUrl.toString(), { method: 'POST', signal: AbortSignal.timeout(30_000) });
   if (!publishRes.ok) {
     const err = await publishRes.text().catch(() => 'unknown');
     throw new Error(`Meta publish failed (${publishRes.status}): ${err}`);
@@ -136,7 +133,7 @@ async function waitForContainerReady(containerId: string, maxWaitMs = 30_000): P
     statusUrl.searchParams.set('fields', 'status_code');
     statusUrl.searchParams.set('access_token', META_ACCESS_TOKEN);
 
-    const res = await fetch(statusUrl.toString());
+    const res = await fetch(statusUrl.toString(), { signal: AbortSignal.timeout(10_000) });
     if (res.ok) {
       const data = (await res.json()) as { status_code?: string };
       if (data.status_code === 'FINISHED') return;
@@ -156,7 +153,7 @@ async function fetchPermalink(mediaId: string): Promise<string> {
   url.searchParams.set('fields', 'permalink');
   url.searchParams.set('access_token', META_ACCESS_TOKEN);
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) {
     return `https://www.instagram.com/p/unknown_${mediaId}/`;
   }

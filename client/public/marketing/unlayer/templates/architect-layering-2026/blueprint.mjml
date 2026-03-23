@@ -1,0 +1,134 @@
+<mjml>
+  <!--
+    Messign Architect Layering — MJML
+    - Environmental texture: mj-body background-url (container-level; NOT an Image block in hero)
+    - All mj-section: background-color transparent so environment shows through
+    - Ratios: 60.17 / 39.83 and 22.67 / 77.33
+    - H1: 49px, line-height 100%; body: 16px, line-height 160%
+    - For pixel-perfect ID-based mobile rules, compile and merge rules from blueprint.html or paste HTML block.
+  -->
+  <mj-head>
+    <mj-title>Messign — Architect Layering</mj-title>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" />
+    <mj-attributes>
+      <mj-all font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" />
+      <mj-section background-color="transparent" />
+      <mj-column background-color="transparent" />
+    </mj-attributes>
+    <mj-style>
+      .crush-h1 {
+        font-size: 49px !important;
+        font-weight: 800 !important;
+        line-height: 100% !important;
+        letter-spacing: -0.025em !important;
+        color: #E4E4E7 !important;
+        margin: 0 !important;
+      }
+      .body-calm { font-size: 16px !important; line-height: 160% !important; color: #E4E4E7 !important; }
+      .meta-ai {
+        font-family: ui-monospace, Menlo, Monaco, Consolas, monospace !important;
+        font-size: 12px !important;
+        line-height: 150% !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        color: #6B7280 !important;
+      }
+      .glass { border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 12px !important; background-color: transparent !important; }
+      .div-ccc { border-top: 1px solid #CCCCCC !important; margin: 0 !important; }
+      .div-bbb { border-top: 1px solid #BBBBBB !important; margin: 0 !important; }
+      @media only screen and (max-width: 480px) {
+        .crush-h1 { font-size: 36px !important; text-align: center !important; }
+        .mob-btn a {
+          display: block !important;
+          width: 65% !important;
+          max-width: 65% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          text-align: center !important;
+          box-sizing: border-box !important;
+        }
+      }
+    </mj-style>
+    <mj-breakpoint width="480px" />
+  </mj-head>
+  <mj-body
+    width="600px"
+    background-color="#050505"
+    background-url="https://images.unsplash.com/photo-1639322537504-6427a16b0a28?auto=format&fit=crop&w=2400&q=80"
+    background-repeat="no-repeat"
+    background-size="cover"
+    background-position="center center"
+  >
+    <mj-section padding="48px 32px 32px 32px" background-color="transparent">
+      <mj-column background-color="transparent">
+        <mj-text css-class="meta-ai" align="center" padding-bottom="16px">AI-native · workspace OS</mj-text>
+        <mj-text css-class="crush-h1" align="center" padding="0">Ahead of the quarter.</mj-text>
+        <mj-text css-class="body-calm" align="center" color="#A1A1AA" font-size="15px" padding-top="16px">
+          One surface for campaigns, proof, and execution — structured like a dashboard, not a newsletter.
+        </mj-text>
+        <mj-button
+          href="https://example.com/app"
+          align="center"
+          background-color="#00F0FF"
+          color="#050505"
+          font-weight="800"
+          border-radius="8px"
+          inner-padding="14px 28px"
+          padding-top="28px"
+          css-class="mob-btn"
+        >
+          Open Messign
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <!-- Divider padding: 13px 10px 10px -->
+    <mj-section padding="13px 10px 10px 10px" background-color="transparent">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#CCCCCC" padding="0" />
+      </mj-column>
+    </mj-section>
+
+    <!-- 60.17% | 39.83% -->
+    <mj-section padding="16px 16px 24px 16px" background-color="transparent">
+      <mj-column width="60.17%" padding="8px" css-class="glass">
+        <mj-text padding="20px" css-class="body-calm" font-size="16px" line-height="160%">
+          Primary narrative: approvals, calendar, and ROI stay in one thread — your team sees the next action without leaving the surface.
+        </mj-text>
+      </mj-column>
+      <mj-column width="39.83%" padding="8px" css-class="glass">
+        <mj-text padding="20px 20px 8px 20px" css-class="meta-ai">META · STATUS</mj-text>
+        <mj-text padding="0 20px 20px 20px" font-size="14px" line-height="160%" color="#9CA3AF">
+          Processing…<br />SLA green<br />Last sync 2m
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="13px 10px 10px 10px" background-color="transparent">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#BBBBBB" padding="0" />
+      </mj-column>
+    </mj-section>
+
+    <!-- 22.67% | 77.33% -->
+    <mj-section padding="8px 16px 32px 16px" background-color="transparent">
+      <mj-column width="22.67%" padding="8px" css-class="glass">
+        <mj-text padding="16px" css-class="meta-ai">RAIL</mj-text>
+        <mj-text padding="0 16px 16px 16px" font-size="14px" line-height="160%" color="#A1A1AA">Scope · Risk · Proof</mj-text>
+      </mj-column>
+      <mj-column width="77.33%" padding="8px" css-class="glass">
+        <mj-text padding="20px" font-size="15px" line-height="160%" color="#E4E4E7">
+          Secondary narrative uses the wide column for editorial calm: 14–16px body, 160% line-height. No hero image — glass cards over the environmental layer only.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="24px 24px 40px 24px" background-color="transparent">
+      <mj-column>
+        <mj-text align="center" font-size="13px" line-height="160%" color="#6B7280">
+          Messign Workspace · <a href="#" style="color:#00F0FF;">Unsubscribe</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

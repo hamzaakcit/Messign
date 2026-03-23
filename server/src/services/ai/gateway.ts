@@ -45,13 +45,42 @@ const geminiClient = new OpenAI({
 
 type DirectProvider = 'groq' | 'gemini';
 
+/** OpenAI-compat chat model id for generativelanguage.googleapis.com/v1beta/openai/ (override if your key only serves certain models). */
+const GEMINI_CHAT_MODEL_DEFAULT = 'gemini-2.0-flash-001';
+const GEMINI_CHAT_MODEL =
+  process.env.GEMINI_CHAT_MODEL?.trim() || GEMINI_CHAT_MODEL_DEFAULT;
+
+/** Computed once at startup — avoids per-request env reads + array allocation. */
+const GEMINI_CHAT_CANDIDATES: string[] = (() => {
+  const primary = process.env.GEMINI_CHAT_MODEL?.trim() || GEMINI_CHAT_MODEL_DEFAULT;
+  const fallbacks = [
+    GEMINI_CHAT_MODEL_DEFAULT,
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of [primary, ...fallbacks]) {
+    if (m && !seen.has(m)) {
+      seen.add(m);
+      out.push(m);
+    }
+  }
+  return out;
+})();
+
+function geminiChatModelCandidates(): string[] {
+  return GEMINI_CHAT_CANDIDATES;
+}
+
 /** Direct routing: Groq for tool-heavy tiers (reliable OpenAI-style tools); Gemini for balanced/vision. */
 const TIER_DIRECT: Record<ModelTier, { provider: DirectProvider; model: string }> = {
   fast: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-  balanced: { provider: 'gemini', model: 'gemini-2.0-flash-lite' },
+  balanced: { provider: 'gemini', model: GEMINI_CHAT_MODEL },
   complex: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
   frontier: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-  vision: { provider: 'gemini', model: 'gemini-2.0-flash' },
+  vision: { provider: 'gemini', model: GEMINI_CHAT_MODEL },
 };
 
 const FALLBACK_CHAIN: Record<ModelTier, ModelTier[]> = {
@@ -74,6 +103,16 @@ function directClientForTier(tier: ModelTier): OpenAI | null {
 
 /** Real-time keywords that trigger cache bypass (fresh inference) */
 const REALTIME_CACHE_BUST_PATTERN = /\b(right now|current|latest|today|just happened)\b/i;
+
+/** Lightweight cascade counter — helps track wasted spend on fallback retries */
+let _cascadeStats = { total: 0, cascaded: 0, failedTiers: 0 };
+
+/** Returns cascade metrics (cascade rate, failed tier count) and resets counters. */
+export function drainCascadeStats(): { total: number; cascaded: number; failedTiers: number; cascadeRate: number } {
+  const s = { ..._cascadeStats, cascadeRate: _cascadeStats.total > 0 ? _cascadeStats.cascaded / _cascadeStats.total : 0 };
+  _cascadeStats = { total: 0, cascaded: 0, failedTiers: 0 };
+  return s;
+}
 
 /** Estimated cost per request by tier (USD) — used for cache savings calculation */
 const TIER_ESTIMATED_COST_USD: Record<ModelTier, number> = {
@@ -177,9 +216,11 @@ async function callDirectProviders(
     if (!chain.includes(t)) chain.push(t);
   }
 
-  const maxTokens = options.maxTokens ?? 4096;
+  const maxTokens = options.maxTokens ?? 2048;
   const temperature = options.temperature ?? 0.3;
   const lastErrors: string[] = [];
+  _cascadeStats.total++;
+  let attemptIndex = 0;
 
   for (const tier of chain) {
     const client = directClientForTier(tier);
@@ -187,30 +228,85 @@ async function callDirectProviders(
       lastErrors.push(`${tier}: no API key for ${TIER_DIRECT[tier].provider}`);
       continue;
     }
-    const { model } = TIER_DIRECT[tier];
-    try {
-      const completion = await client.chat.completions.create({
-        model,
-        messages: options.messages,
-        tools: options.tools?.length ? options.tools : undefined,
-        tool_choice: options.tools?.length ? options.toolChoice : undefined,
-        max_tokens: maxTokens,
-        temperature,
-        stream: false,
-      });
-      return {
-        ...completion,
-        _cacheHit: false,
-        _estimatedCostSavingsUsd: 0,
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      lastErrors.push(`${tier} (${model}): ${msg}`);
-      console.warn(`[Gateway] Direct provider failed for tier ${tier}`, { model, error: msg });
+    const { provider, model: tierModel } = TIER_DIRECT[tier];
+    const modelsToTry = provider === 'gemini' ? geminiChatModelCandidates() : [tierModel];
+    for (const model of modelsToTry) {
+      try {
+        const completion = await client.chat.completions.create({
+          model,
+          messages: options.messages,
+          tools: options.tools?.length ? options.tools : undefined,
+          tool_choice: options.tools?.length ? options.toolChoice : undefined,
+          max_tokens: maxTokens,
+          temperature,
+          stream: false,
+        });
+        if (attemptIndex > 0) {
+          _cascadeStats.cascaded++;
+          _cascadeStats.failedTiers += attemptIndex;
+          console.warn(`[Gateway] Cascade: succeeded on attempt ${attemptIndex + 1} (${attemptIndex} failed tier(s) wasted ~$${(TIER_ESTIMATED_COST_USD[options.tier] * attemptIndex).toFixed(4)})`);
+        }
+        return {
+          ...completion,
+          _cacheHit: false,
+          _estimatedCostSavingsUsd: 0,
+        };
+      } catch (err) {
+        attemptIndex++;
+        const msg = err instanceof Error ? err.message : String(err);
+        const canRetryGemini404 =
+          provider === 'gemini' &&
+          modelsToTry.indexOf(model) < modelsToTry.length - 1 &&
+          /\b404\b/.test(msg);
+        if (canRetryGemini404) {
+          console.warn(`[Gateway] Gemini model ${model} failed (404); trying next`, { error: msg });
+          continue;
+        }
+        lastErrors.push(`${tier} (${model}): ${msg}`);
+        console.warn(`[Gateway] Direct provider failed for tier ${tier}`, { model, error: msg });
+      }
     }
   }
 
-  throw new Error(`All direct LLM providers failed: ${lastErrors.join(' | ')}`);
+  const errorSummary = lastErrors.join(' | ');
+  const allFailuresAreToolRelated =
+    lastErrors.length > 0 &&
+    lastErrors.every(
+      (e) =>
+        e.includes('which was not in request.tools') ||
+        e.includes('tool call validation failed') ||
+        e.includes('tool_use_failed'),
+    );
+
+  if (allFailuresAreToolRelated && options.messages?.length) {
+    console.log('[Gateway] All failures are tool-related. Attempting text-only fallback.');
+    const fastClient = getDirectClient('groq');
+    if (fastClient) {
+      const fallbackModel = TIER_DIRECT.fast.model;
+      try {
+        const completion = await fastClient.chat.completions.create({
+          model: fallbackModel,
+          messages: options.messages,
+          max_tokens: maxTokens,
+          temperature,
+          stream: false,
+        });
+        console.log('[Gateway] Text-only fallback succeeded');
+        return {
+          ...completion,
+          _cacheHit: false,
+          _estimatedCostSavingsUsd: 0,
+        };
+      } catch (textErr: unknown) {
+        console.warn(
+          '[Gateway] Text-only fallback also failed:',
+          textErr instanceof Error ? textErr.message : String(textErr),
+        );
+      }
+    }
+  }
+
+  throw new Error(`All direct LLM providers failed: ${errorSummary}`);
 }
 
 export async function callModel(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
@@ -222,7 +318,7 @@ export async function callModel(options: GatewayCallOptions): Promise<GatewayRes
       tools: options.tools,
       tool_choice: options.tools?.length ? options.toolChoice : undefined,
       stream: options.stream ?? false,
-      max_tokens: options.maxTokens ?? 4096,
+      max_tokens: options.maxTokens ?? 2048,
       temperature: options.temperature ?? 0.3,
       metadata: {
         tenant_id: options.tenantId,
@@ -272,15 +368,22 @@ export async function* streamModelSafe(options: GatewayCallOptions) {
     return msg;
   }) as OpenAI.ChatCompletionMessageParam[];
 
+  const hasRedactions = redactions.length > 0;
+
+  if (!hasRedactions) {
+    for await (const chunk of streamModel({ ...options, messages: sanitizedMessages })) {
+      yield chunk;
+    }
+    return;
+  }
+
   let bufferedContent = '';
   for await (const chunk of streamModel({ ...options, messages: sanitizedMessages })) {
     const content = chunk.choices?.[0]?.delta?.content;
     if (content) bufferedContent += content;
   }
 
-  if (redactions.length > 0 && bufferedContent) {
-    bufferedContent = restorePII(bufferedContent, redactions);
-  }
+  bufferedContent = restorePII(bufferedContent, redactions);
 
   if (bufferedContent) {
     yield { choices: [{ delta: { content: bufferedContent }, index: 0 }] } as OpenAI.ChatCompletionChunk;
@@ -295,7 +398,7 @@ async function* streamDirectProviders(
     if (!chain.includes(t)) chain.push(t);
   }
 
-  const maxTokens = options.maxTokens ?? 4096;
+  const maxTokens = options.maxTokens ?? 2048;
   const temperature = options.temperature ?? 0.3;
 
   for (const tier of chain) {
@@ -328,17 +431,18 @@ async function* streamDirectProviders(
 // Streaming variant for SSE responses
 export async function* streamModel(options: GatewayCallOptions) {
   if (litellmClient) {
+    const cacheParams = buildCacheParams(options);
     try {
       const stream = await litellmClient.chat.completions.create({
         model: options.tier,
         messages: options.messages,
         tools: options.tools,
         stream: true,
-        max_tokens: options.maxTokens ?? 4096,
+        max_tokens: options.maxTokens ?? 2048,
         temperature: options.temperature ?? 0.3,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metadata: { tenant_id: options.tenantId },
-      } as OpenAI.ChatCompletionCreateParamsStreaming & { metadata?: Record<string, string> });
+        ...(cacheParams ? { cache: cacheParams } : {}),
+      } as OpenAI.ChatCompletionCreateParamsStreaming & { metadata?: Record<string, string>; cache?: Record<string, unknown> });
 
       for await (const chunk of stream) {
         yield chunk;

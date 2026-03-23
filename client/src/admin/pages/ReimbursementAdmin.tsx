@@ -36,6 +36,7 @@ export function ReimbursementAdmin() {
     approvalsAPI
       .list(user.id)
       .then((data) => setList(Array.isArray(data) ? (data as ApprovalRow[]) : []))
+      .catch(() => setList([]))
       .finally(() => setLoading(false));
   }, [user?.id]);
 
@@ -205,6 +206,7 @@ export function ReimbursementAdmin() {
                     checked={selected.has(row.step_id)}
                     onChange={() => toggleSelect(row.step_id)}
                     className="rounded border-app-border bg-app text-primary-500 mt-1 shrink-0"
+                    aria-label={`Select reimbursement ${row.reimbursement_id}: ${row.title}`}
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">

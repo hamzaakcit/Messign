@@ -5,6 +5,10 @@
 import type { LLMParameterSchema, ToolRegistration } from '../../types.js';
 import type { ToolResult } from '../../../services/ai/types.js';
 import { resolveOrgIdForTool } from '../../../services/ai/tools/resolveOrgIdForTool.js';
+import {
+  CANONICAL_REPURPOSE_SOURCE_TYPES,
+  normalizeRepurposeSourceType,
+} from '../../../services/ai/repurposeSourceTypeNormalize.js';
 import { getDefaultBrandVoiceFallback, loadBrandVoiceProfileMd } from '../../../dal/marketing/truthBrand.js';
 
 const BRIEF_TYPES = [
@@ -27,14 +31,7 @@ const STYLE_PREFS = [
   'brand_default',
 ] as const;
 
-const SOURCE_TYPES = [
-  'blog_post',
-  'social_post',
-  'email',
-  'landing_page',
-  'webinar_transcript',
-  'product_update',
-] as const;
+const SOURCE_TYPES = CANONICAL_REPURPOSE_SOURCE_TYPES;
 
 const TARGET_FORMATS = [
   'linkedin_post',
@@ -103,18 +100,17 @@ export const generateImageBrief: ToolRegistration = {
           },
           brief_type: {
             type: 'string',
-            description: 'Type of visual brief.',
-            enum: [...BRIEF_TYPES],
+            description:
+              `Visual brief category. MUST be exactly one of: ${BRIEF_TYPES.join(', ')}. ` +
+              'Use social_image for Instagram and most social posts.',
           },
           platform: {
             type: 'string',
-            description: 'Target platform.',
-            enum: [...PLATFORMS],
+            description: `Target platform. One of: ${PLATFORMS.join(', ')}.`,
           },
           style_preference: {
             type: 'string',
-            description: 'Visual style direction.',
-            enum: [...STYLE_PREFS],
+            description: `Optional. One of: ${STYLE_PREFS.join(', ')}.`,
           },
           text_overlay: {
             type: 'string',
@@ -316,13 +312,16 @@ export const repurposeContent: ToolRegistration = {
           source_content: { type: 'string', description: 'Source text to repurpose.' },
           source_type: {
             type: 'string',
-            description: 'Original format.',
-            enum: [...SOURCE_TYPES],
+            description:
+              'Original format (canonical: blog_post, social_post, email, landing_page, webinar_transcript, product_update). Channel labels like x, twitter, linkedin, newsletter are accepted and mapped server-side.',
           },
           target_formats: {
             type: 'array',
-            description: 'Desired output formats.',
-            items: { type: 'string', enum: [...TARGET_FORMATS] },
+            description: `Desired output formats (prefer: ${TARGET_FORMATS.join(', ')}).`,
+            items: {
+              type: 'string',
+              description: `One of: ${TARGET_FORMATS.join(', ')} (synonyms are mapped server-side where possible).`,
+            },
           },
         },
         required: ['source_content', 'source_type', 'target_formats'],
@@ -332,10 +331,10 @@ export const repurposeContent: ToolRegistration = {
 
   handler: async (args, ctx): Promise<ToolResult> => {
     const sourceContent = typeof args.source_content === 'string' ? args.source_content.trim() : '';
-    const sourceType = typeof args.source_type === 'string' ? args.source_type : '';
+    const sourceType = normalizeRepurposeSourceType(args.source_type);
     const rawTargets = Array.isArray(args.target_formats) ? args.target_formats : [];
 
-    if (!sourceContent || !SOURCE_TYPES.includes(sourceType as (typeof SOURCE_TYPES)[number])) {
+    if (!sourceContent || !SOURCE_TYPES.includes(sourceType)) {
       return { success: false, data: null, summary: 'Valid source_content and source_type are required.' };
     }
 

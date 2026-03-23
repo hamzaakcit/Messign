@@ -1,9 +1,6 @@
 export * from './DashboardView';
 export * from './ChatView';
 export * from './ProjectsView';
-export * from './BountyBoard';
-export * from './SideOpsBoard';
-export * from './KnowledgeView';
 export * from './AchievementsView';
 export * from './TeamView';
 export * from './SettingsView';
@@ -11,4 +8,3 @@ export * from './ReimbursementRouter';
 export * from './ReimbursementDashboard';
 export * from './ReimbursementForm';
 export * from './ReimbursementDetail';
-export * from './ApprovalQueue';

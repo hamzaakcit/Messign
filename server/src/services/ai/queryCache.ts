@@ -70,6 +70,8 @@ const NO_CACHE_TOOLS: Set<string> = new Set([
 /**
  * Build a cache key from the tool name, arguments, and user context.
  * Keys are unique per tool + args + user (for permission-aware caching).
+ * Format: toolName:uid=<userId>:args=<serialized>[:idem=<key>]
+ * The uid= prefix enables safe substring matching in invalidateUser.
  */
 function buildCacheKey(
   toolName: string,
@@ -78,8 +80,8 @@ function buildCacheKey(
   idempotencyKey?: string,
 ): string {
   const argsStr = JSON.stringify(args, Object.keys(args).sort());
-  const idem = idempotencyKey ? `:idem:${idempotencyKey}` : '';
-  return `${toolName}:${userId}:${argsStr}${idem}`;
+  const idem = idempotencyKey ? `:idem=${idempotencyKey}` : '';
+  return `${toolName}:uid=${userId}:args=${argsStr}${idem}`;
 }
 
 /**
@@ -128,8 +130,7 @@ export function setCache(
   data: unknown,
   idempotencyKey?: string,
 ): void {
-  // Don't cache failed results
-  if (!data) return;
+  if (data === undefined) return;
 
   // Skip cache for real-time tools
   if (NO_CACHE_TOOLS.has(toolName)) return;
@@ -167,9 +168,9 @@ export function invalidateTool(toolName: string): void {
  * Call this when a user's permissions change.
  */
 export function invalidateUser(userId: string | number): void {
-  const uid = String(userId);
+  const needle = `:uid=${String(userId)}:`;
   for (const [key] of cache) {
-    if (key.includes(`:${uid}:`)) {
+    if (key.includes(needle)) {
       cache.delete(key);
     }
   }

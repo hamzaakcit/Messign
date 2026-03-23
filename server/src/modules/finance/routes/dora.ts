@@ -196,7 +196,8 @@ router.get('/forecast/payments', requireFinanceRole('finance', 'admin'), async (
 
 router.get('/approvals/chain/:entityType/:entityId', async (req: ReimbursementRequest, res: Response) => {
   try {
-    const chain = await approvalService.getChain(req.params.entityType, req.params.entityId);
+    const orgId = req.organizationId!;
+    const chain = await approvalService.getChain(req.params.entityType, req.params.entityId, orgId);
     res.json(chain);
   } catch (err) {
     res.status(500).json({ error: 'Failed to load approval chain' });

@@ -51,7 +51,7 @@ export function ARAgingPage() {
 
   const chartData = Object.entries(BUCKET_LABELS).map(([key, label]) => ({
     name: label,
-    amount: (report.totals as any)[key] || 0,
+    amount: (report.totals as Record<string, number>)[key] || 0,
   }));
 
   return (
@@ -61,7 +61,7 @@ export function ARAgingPage() {
           <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs text-app-muted">{label}</p>
             <p className="text-xl font-bold text-app-text" style={{ color: BUCKET_COLORS[i] }}>
-              ${((report.totals as any)[key] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${((report.totals as Record<string, number>)[key] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </p>
           </div>
         ))}

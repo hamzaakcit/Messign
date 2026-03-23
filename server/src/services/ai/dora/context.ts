@@ -7,7 +7,7 @@
  * -> synthesis). Nothing downstream mutates it.
  */
 
-import { query } from '../../../db/index.js';
+import { query, sanitizeUuid } from '../../../db/index.js';
 import type {
   DoraRequestContext,
   DoraUserContext,
@@ -93,6 +93,8 @@ export async function buildDoraContext(
   let mpPoints = 0;
 
   let userUuid: string | undefined;
+  /** JWT sub may be legacy slug (e.g. user-hamza); DB stores canonical auth UUID */
+  const authUserKey = sanitizeUuid(userId);
   if (orgId) {
     const userResult = await query<{
       id: string;
@@ -105,7 +107,7 @@ export async function buildDoraContext(
        FROM reimbursement_users ru
        WHERE ru.organization_id = $1 AND ru.auth_user_id = $2
        LIMIT 1`,
-      [orgId, userId],
+      [orgId, authUserKey],
     );
     const u = userResult.rows[0];
     if (u) {
@@ -114,21 +116,28 @@ export async function buildDoraContext(
       userName = u.full_name || userName;
       level = `L${u.level ?? 1}`;
       mpPoints = u.xp ?? 0;
+      if (userId !== authUserKey) {
+        console.log('[FIX-1] buildDoraContext: legacy auth slug mapped to reimbursement_users.id for FKs', {
+          reimbursementUserId: userUuid,
+          authUserKey,
+        });
+      }
     }
 
     const krResult = await query<{ role: string }>(
       `SELECT role FROM knowledge_user_roles WHERE user_id = $1 LIMIT 1`,
-      [userId],
+      [authUserKey],
     );
     knowledgeRole = krResult.rows[0]?.role ?? null;
 
+    const teamEmployeeId = userUuid ?? authUserKey;
     const teamResult = await query<{ team_id: string; team_name: string }>(
       `SELECT ptm.team_id, pt.team_name
        FROM performance_team_members ptm
        JOIN performance_teams pt ON pt.id = ptm.team_id
        WHERE ptm.employee_id = $1 AND ptm.is_active = TRUE
        LIMIT 1`,
-      [userId],
+      [teamEmployeeId],
     );
     teamId = teamResult.rows[0]?.team_id ?? null;
     if (teamResult.rows[0]?.team_name) {
@@ -223,6 +232,7 @@ export function resolveUserReferences(
 export function toLegacyToolContext(ctx: DoraRequestContext) {
   return {
     userId: ctx.user.userId,
+    userUuid: ctx.user.userUuid,
     userRole: ctx.user.userRole,
     knowledgeRole: ctx.user.knowledgeRole ?? undefined,
     teamId: ctx.user.teamId ?? undefined,

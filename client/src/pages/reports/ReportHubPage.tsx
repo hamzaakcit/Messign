@@ -90,7 +90,7 @@ export function ReportHubPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto p-4 md:p-6 bg-app space-y-4">
+    <div className="h-[calc(100vh-48px)] overflow-y-auto p-4 md:p-6 bg-app space-y-4">
       <div className="rounded-xl border border-app bg-app-card p-5">
         <h1 className="text-2xl font-bold text-app">Report Hub</h1>
         <p className="text-sm text-app-muted mt-1">Generate and export reports across all modules</p>
@@ -124,7 +124,7 @@ export function ReportHubPage() {
       <div className="rounded-xl border border-app bg-app-card p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
         <div>
           <label className="text-xs text-app-muted">Period</label>
-          <select className="mt-1 w-full rounded border border-app bg-app p-2 text-sm" value={periodMode} onChange={(e) => setPeriodMode(e.target.value as any)}>
+          <select className="mt-1 w-full rounded border border-app bg-app p-2 text-sm" value={periodMode} onChange={(e) => setPeriodMode(e.target.value as typeof PERIOD_OPTIONS[number])}>
             {PERIOD_OPTIONS.map((p) => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
           </select>
         </div>

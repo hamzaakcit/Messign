@@ -690,7 +690,7 @@ function MetricBox({ label, value, color }: { label: string; value: string; colo
 }
 
 function BudgetImpact({ budgetId, amount, userId }: { budgetId: string; amount: number; userId: string }) {
-  const [budget, setBudget] = useState<{ name: string; allocated_amount: number; spent_amount: number } | null>(null);
+  const [budget, setBudget] = useState<{ name: string; department?: string; allocated_amount: number; spent_amount: number } | null>(null);
 
   useEffect(() => {
     financeAPI.getBudget(userId, budgetId)
@@ -708,7 +708,7 @@ function BudgetImpact({ budgetId, amount, userId }: { budgetId: string; amount: 
     <div>
       <p className="text-xs font-medium text-app-muted mb-1">Budget Impact</p>
       <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-xs space-y-1">
-        <p className="text-app-muted">Budget: <span className="text-app-text">{budget.name || (budget as any).department || 'Unknown'}</span></p>
+        <p className="text-app-muted">Budget: <span className="text-app-text">{budget.name || budget.department || 'Unknown'}</span></p>
         <p className="text-app-muted">Remaining before: <span className="text-app-text">${remainingBefore.toFixed(2)}</span></p>
         <p className={cn('font-medium', overBudget ? 'text-red-400' : 'text-emerald-400')}>
           After: ${remainingAfter.toFixed(2)} {overBudget && '(OVER BUDGET)'}

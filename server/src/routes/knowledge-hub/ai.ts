@@ -41,7 +41,7 @@ function routeToDynamicToolLoop(userId: string, organizationId: string | null): 
     hash = hash & hash; // Keep 32-bit
   }
   const bucket = Math.abs(hash) % 100;
-  return bucket < 10; // 10% to dynamic
+  return true; // 100% dynamic — tool token savings validated
 }
 
 export const aiRouter = Router();
@@ -310,7 +310,6 @@ function emitWidgetsFromToolResults(
     for (const p of payloads) {
       if (emittedWidgetTypes.has(p.widgetType)) continue;
       emittedWidgetTypes.add(p.widgetType);
-      console.log('[WIDGET DEBUG] Emitting widget_data SSE:', { widgetType: p.widgetType, toolName: obs.toolName });
       send({ type: 'widget_data', content: { widgetType: p.widgetType, data: p.data, title: p.title } });
     }
   }
@@ -349,7 +348,9 @@ aiRouter.get('/answer/claude-status', async (req: Request, res: Response) => {
 });
 
 aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: Request, res: Response) => {
-  if (process.env.DORA_V2_ENABLED === 'true') {
+  const marketingAgentMode =
+    (req.body as { marketingAgentMode?: boolean }).marketingAgentMode === true;
+  if (process.env.DORA_V2_ENABLED === 'true' || marketingAgentMode) {
     const { runPipelineHandler } = await import('../../services/ai/v2/pipeline.js');
     await runPipelineHandler(req, res);
     return;
@@ -770,15 +771,6 @@ aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: R
       }
     }
     const mainPathToolResults: ToolResultForWidget[] = toolResultsForWidgets as ToolResultForWidget[];
-    console.log('[WIDGET DEBUG] Tool results available (orchestrator/agentic path):', {
-      hasToolObservations: !!(orchResult.toolObservations && orchResult.toolObservations.length > 0),
-      toolObservationsCount: orchResult.toolObservations?.length ?? 0,
-      toolNamesFromObservations: orchResult.toolObservations?.map((o) => o.toolName) ?? [],
-      path: pathTaken,
-      stepsObservationsCount: allToolResults.length,
-      mergedForWidgetsCount: mainPathToolResults.length,
-      mergedToolNames: mainPathToolResults.map((o) => o.toolName),
-    });
     emitWidgetsFromToolResults(send, mainPathToolResults, pathTaken, legacyContext.userRole);
 
     // Phase 4: emit pending action events for HITL confirmation cards

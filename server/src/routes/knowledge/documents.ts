@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
 import { join, extname } from 'path';
 import { requireAuth } from '../../middleware/requireAuth.js';
 import { requireAdmin } from '../../middleware/adminAuth.js';
@@ -18,7 +18,7 @@ const router = Router();
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 const KB_DIR = join(UPLOAD_DIR, 'knowledge');
-if (!existsSync(KB_DIR)) mkdirSync(KB_DIR, { recursive: true });
+await mkdir(KB_DIR, { recursive: true });
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -76,7 +76,7 @@ router.post('/', requireAdmin, upload.single('file'), async (req, res) => {
     if (req.file) {
       const ext = extname(req.file.originalname).toLowerCase();
       const filename = `${randomUUID()}${ext}`;
-      writeFileSync(join(KB_DIR, filename), req.file.buffer);
+      await writeFile(join(KB_DIR, filename), req.file.buffer);
       fileUrl = `/uploads/knowledge/${filename}`;
       fileSizeBytes = req.file.size;
       // Determine file type from extension
@@ -141,7 +141,7 @@ router.put('/:id', requireAdmin, upload.single('file'), async (req, res) => {
     if (req.file) {
       const ext = extname(req.file.originalname).toLowerCase();
       const filename = `${randomUUID()}${ext}`;
-      writeFileSync(join(KB_DIR, filename), req.file.buffer);
+      await writeFile(join(KB_DIR, filename), req.file.buffer);
       fileUrl = `/uploads/knowledge/${filename}`;
       fileSizeBytes = req.file.size;
       const typeMap: Record<string, string> = { '.pdf': 'pdf', '.pptx': 'pptx', '.ppt': 'pptx', '.docx': 'docx', '.doc': 'docx', '.xlsx': 'xlsx', '.xls': 'xlsx', '.png': 'image', '.jpg': 'image', '.jpeg': 'image', '.gif': 'image', '.webp': 'image', '.mp4': 'video', '.webm': 'video', '.mov': 'video' };

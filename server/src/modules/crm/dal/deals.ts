@@ -425,11 +425,23 @@ export async function moveDealToStage(
         closedAt: new Date().toISOString(),
         organizationId: deal.organization_id ?? undefined,
       });
+      eventBus.emit('crm.deal.closed', {
+        dealId,
+        organizationId: deal.organization_id ?? undefined,
+        tenantId,
+        outcome: 'won',
+      });
     }
 
     if (newStage.is_lost) {
       eventBus.emit('crm.deal.lost', {
         dealId, amount: deal.amount, reason: undefined, ownerId: deal.owner_id,
+      });
+      eventBus.emit('crm.deal.closed', {
+        dealId,
+        organizationId: deal.organization_id ?? undefined,
+        tenantId,
+        outcome: 'lost',
       });
     }
 

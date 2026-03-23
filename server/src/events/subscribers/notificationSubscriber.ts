@@ -82,192 +82,131 @@ async function getPolicyCreator(policyId?: string): Promise<string[]> {
   return rows.rows[0]?.created_by ? [rows.rows[0].created_by] : [];
 }
 
+function safeOn<T>(event: string, handler: (payload: T) => Promise<void>): void {
+  eventBus.on(event as keyof import('../eventTypes.js').EventMap, async (payload: unknown) => {
+    try { await handler(payload as T); }
+    catch (err) { console.error(`[NotificationSubscriber] ${event} handler error:`, err); }
+  });
+}
+
 export function register(): void {
-  eventBus.on('finance.expense.approved', async (payload) => {
+  safeOn('finance.expense.approved', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('expense_approved', {
-      eventType: 'finance.expense.approved',
-      expenseId: payload.expenseId,
-      title: 'Expense Approved',
-      message: 'Your expense has been approved',
-      link: `/finance/expenses?detail=${payload.expenseId}`,
-      module: 'finance',
-      severity: 'success',
-      channel: 'in_app',
+      eventType: 'finance.expense.approved', expenseId: payload.expenseId,
+      title: 'Expense Approved', message: 'Your expense has been approved',
+      link: `/finance/expenses?detail=${payload.expenseId}`, module: 'finance', severity: 'success', channel: 'in_app',
     });
   });
 
-  eventBus.on('finance.expense.rejected', async (payload) => {
+  safeOn('finance.expense.rejected', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('expense_rejected', {
-      eventType: 'finance.expense.rejected',
-      expenseId: payload.expenseId,
+      eventType: 'finance.expense.rejected', expenseId: payload.expenseId,
       title: 'Expense Rejected',
       message: payload.reason ? `Your expense was rejected: ${payload.reason}` : 'Your expense was rejected',
-      link: `/finance/expenses?detail=${payload.expenseId}`,
-      module: 'finance',
-      severity: 'warning',
-      channel: 'in_app',
+      link: `/finance/expenses?detail=${payload.expenseId}`, module: 'finance', severity: 'warning', channel: 'in_app',
     });
   });
 
-  eventBus.on('finance.invoice.overdue', async (payload) => {
-    const recipients = await getOrgAdminIdsByInvoice(payload.invoiceId);
+  safeOn('finance.invoice.overdue', async (payload: Record<string, unknown>) => {
+    const recipients = await getOrgAdminIdsByInvoice(payload.invoiceId as string);
     await notificationQueue.add('invoice_overdue', {
-      eventType: 'finance.invoice.overdue',
-      userIds: recipients,
-      title: 'Invoice Overdue',
-      message: `Invoice is ${payload.daysOverdue} days overdue (${payload.amount})`,
-      link: `/finance/invoices`,
-      module: 'finance',
-      severity: 'critical',
-      channel: 'in_app',
+      eventType: 'finance.invoice.overdue', userIds: recipients,
+      title: 'Invoice Overdue', message: `Invoice is ${payload.daysOverdue} days overdue (${payload.amount})`,
+      link: `/finance/invoices`, module: 'finance', severity: 'critical', channel: 'in_app',
     });
   });
 
-  eventBus.on('support.ticket.assigned', async (payload) => {
+  safeOn('support.ticket.assigned', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('support_ticket_assigned', {
-      userId: payload.assigneeId,
-      eventType: 'support.ticket.assigned',
-      title: 'New ticket assigned',
-      message: `Ticket ${payload.ticketId} has been assigned to you`,
-      link: `/support?detail=${payload.ticketId}`,
-      module: 'support',
-      severity: 'info',
-      channel: 'in_app',
+      userId: payload.assigneeId, eventType: 'support.ticket.assigned',
+      title: 'New ticket assigned', message: `Ticket ${payload.ticketId} has been assigned to you`,
+      link: `/support?detail=${payload.ticketId}`, module: 'support', severity: 'info', channel: 'in_app',
     });
   });
 
-  eventBus.on('support.ticket.escalated', async (payload) => {
+  safeOn('support.ticket.escalated', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('support_ticket_escalated', {
-      userId: payload.escalatedTo,
-      eventType: 'support.ticket.escalated',
-      title: 'Ticket escalated to you',
-      message: payload.reason || 'A support ticket has been escalated for your review.',
-      link: `/support?detail=${payload.ticketId}`,
-      module: 'support',
-      severity: 'warning',
-      channel: 'in_app',
+      userId: payload.escalatedTo, eventType: 'support.ticket.escalated',
+      title: 'Ticket escalated to you', message: (payload.reason as string) || 'A support ticket has been escalated for your review.',
+      link: `/support?detail=${payload.ticketId}`, module: 'support', severity: 'warning', channel: 'in_app',
     });
   });
 
-  eventBus.on('support.sla.breached', async (payload) => {
+  safeOn('support.sla.breached', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('support_sla_breached', {
-      userId: payload.assigneeId,
-      eventType: 'support.sla.breached',
-      title: 'SLA breached',
-      message: `Ticket ${payload.ticketId} breached its SLA.`,
-      link: `/support?detail=${payload.ticketId}`,
-      module: 'support',
-      severity: 'critical',
-      channel: 'in_app',
+      userId: payload.assigneeId, eventType: 'support.sla.breached',
+      title: 'SLA breached', message: `Ticket ${payload.ticketId} breached its SLA.`,
+      link: `/support?detail=${payload.ticketId}`, module: 'support', severity: 'critical', channel: 'in_app',
     });
   });
 
-  eventBus.on('crm.deal.won', async (payload) => {
-    const recipients = await getDealRecipients(payload.dealId);
+  safeOn('crm.deal.won', async (payload: Record<string, unknown>) => {
+    const recipients = await getDealRecipients(payload.dealId as string);
     await notificationQueue.add('crm_deal_won', {
       userIds: recipients.length ? recipients : [payload.ownerId],
-      eventType: 'crm.deal.won',
-      title: 'Deal won',
+      eventType: 'crm.deal.won', title: 'Deal won',
       message: `Great news: deal ${payload.dealId} was marked won.`,
-      link: `/crm`,
-      module: 'crm',
-      severity: 'success',
-      channel: 'in_app',
+      link: `/crm`, module: 'crm', severity: 'success', channel: 'in_app',
     });
   });
 
-  eventBus.on('crm.deal.stage_changed', async (payload) => {
-    const recipients = await getDealRecipients(payload.dealId);
+  safeOn('crm.deal.stage_changed', async (payload: Record<string, unknown>) => {
+    const recipients = await getDealRecipients(payload.dealId as string);
     await notificationQueue.add('crm_stage_changed', {
-      userIds: recipients,
-      eventType: 'crm.deal.stage_changed',
-      title: 'Deal stage updated',
-      message: `Deal ${payload.dealId} moved from ${payload.oldStage} to ${payload.newStage}.`,
-      link: `/crm`,
-      module: 'crm',
-      severity: 'info',
-      channel: 'in_app',
+      userIds: recipients, eventType: 'crm.deal.stage_changed',
+      title: 'Deal stage updated', message: `Deal ${payload.dealId} moved from ${payload.oldStage} to ${payload.newStage}.`,
+      link: `/crm`, module: 'crm', severity: 'info', channel: 'in_app',
     });
   });
 
-  eventBus.on('recruitment.interview.scheduled', async (payload) => {
+  safeOn('recruitment.interview.scheduled', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('recruitment_interview_scheduled', {
-      userId: payload.interviewerId,
-      eventType: 'recruitment.interview.scheduled',
-      title: 'Interview scheduled',
-      message: `You have a new interview scheduled.`,
-      link: `/recruitment/interviews`,
-      module: 'recruitment',
-      severity: 'info',
-      channel: 'in_app',
+      userId: payload.interviewerId, eventType: 'recruitment.interview.scheduled',
+      title: 'Interview scheduled', message: 'You have a new interview scheduled.',
+      link: `/recruitment/interviews`, module: 'recruitment', severity: 'info', channel: 'in_app',
     });
   });
 
-  eventBus.on('recruitment.offer.accepted', async (payload) => {
-    const recipients = await getOfferAcceptedRecipients(payload.offerId);
+  safeOn('recruitment.offer.accepted', async (payload: Record<string, unknown>) => {
+    const recipients = await getOfferAcceptedRecipients(payload.offerId as string);
     await notificationQueue.add('recruitment_offer_accepted', {
-      userIds: recipients,
-      eventType: 'recruitment.offer.accepted',
-      title: 'Offer accepted',
-      message: 'A candidate accepted an offer.',
-      link: `/recruitment/dashboard`,
-      module: 'recruitment',
-      severity: 'success',
-      channel: 'in_app',
+      userIds: recipients, eventType: 'recruitment.offer.accepted',
+      title: 'Offer accepted', message: 'A candidate accepted an offer.',
+      link: `/recruitment/dashboard`, module: 'recruitment', severity: 'success', channel: 'in_app',
     });
   });
 
-  eventBus.on('time.timesheet.approved', async (payload) => {
+  safeOn('time.timesheet.approved', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('timesheet_approved', {
-      userId: payload.userId,
-      eventType: 'time.timesheet.approved',
-      title: 'Timesheet approved',
-      message: 'Your timesheet has been approved.',
-      link: `/time/timesheets`,
-      module: 'time',
-      severity: 'success',
-      channel: 'in_app',
+      userId: payload.userId, eventType: 'time.timesheet.approved',
+      title: 'Timesheet approved', message: 'Your timesheet has been approved.',
+      link: `/time/timesheets`, module: 'time', severity: 'success', channel: 'in_app',
     });
   });
 
-  eventBus.on('time.timesheet.rejected', async (payload) => {
+  safeOn('time.timesheet.rejected', async (payload: Record<string, unknown>) => {
     await notificationQueue.add('timesheet_rejected', {
-      userId: payload.userId,
-      eventType: 'time.timesheet.rejected',
-      title: 'Timesheet rejected',
-      message: payload.reason || 'Your timesheet was rejected.',
-      link: `/time/timesheets`,
-      module: 'time',
-      severity: 'warning',
-      channel: 'in_app',
+      userId: payload.userId, eventType: 'time.timesheet.rejected',
+      title: 'Timesheet rejected', message: (payload.reason as string) || 'Your timesheet was rejected.',
+      link: `/time/timesheets`, module: 'time', severity: 'warning', channel: 'in_app',
     });
   });
 
-  eventBus.on('marketing.lead.qualified', async (payload) => {
-    const recipients = await getLeadQualifiedRecipients(payload.leadId);
+  safeOn('marketing.lead.qualified', async (payload: Record<string, unknown>) => {
+    const recipients = await getLeadQualifiedRecipients(payload.leadId as string);
     await notificationQueue.add('lead_qualified', {
-      userIds: recipients,
-      eventType: 'marketing.lead.qualified',
-      title: 'Lead qualified',
-      message: `Lead ${payload.leadId} has been qualified.`,
-      link: `/marketing/leads`,
-      module: 'marketing',
-      severity: 'info',
-      channel: 'in_app',
+      userIds: recipients, eventType: 'marketing.lead.qualified',
+      title: 'Lead qualified', message: `Lead ${payload.leadId} has been qualified.`,
+      link: `/marketing/leads`, module: 'marketing', severity: 'info', channel: 'in_app',
     });
   });
 
-  eventBus.on('dora.action.executed', async (payload) => {
-    const recipients = await getPolicyCreator(payload.policyId);
+  safeOn('dora.action.executed', async (payload: Record<string, unknown>) => {
+    const recipients = await getPolicyCreator(payload.policyId as string | undefined);
     await notificationQueue.add('dora_action_executed', {
-      userIds: recipients,
-      eventType: 'dora.action.executed',
-      title: 'Dora action executed',
-      message: 'One of your automated Dora actions has executed.',
-      link: `/dora/automations/log`,
-      module: 'dora',
-      severity: 'info',
-      channel: 'in_app',
+      userIds: recipients, eventType: 'dora.action.executed',
+      title: 'Dora action executed', message: 'One of your automated Dora actions has executed.',
+      link: `/dora/automations/log`, module: 'dora', severity: 'info', channel: 'in_app',
     });
   });
 

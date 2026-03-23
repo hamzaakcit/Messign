@@ -1,0 +1,90 @@
+{
+  "counters": {
+    "u_row": 1,
+    "u_column": 1,
+    "u_content_text": 0,
+    "u_content_image": 1
+  },
+  "body": {
+    "id": "root",
+    "rows": [
+      {
+        "id": "row-1",
+        "cells": [1],
+        "columns": [
+          {
+            "id": "col-1",
+            "contents": [
+              {
+                "type": "image",
+                "values": {
+                  "containerPadding": "0px",
+                  "anchor": "",
+                  "src": {
+                    "url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+                    "width": 600,
+                    "height": 338,
+                    "autoWidth": true,
+                    "maxWidth": "100%"
+                  },
+                  "textAlign": "center",
+                  "hideDesktop": false,
+                  "displayCondition": null,
+                  "_styleFeature": "image",
+                  "alt": "Hero",
+                  "fullWidth": true,
+                  "linkStyle": { "inherit": true },
+                  "lineHeight": "140%"
+                }
+              }
+            ],
+            "values": {
+              "_meta": { "htmlID": "u_column_1", "htmlClassNames": "u_column" },
+              "border": {},
+              "padding": "0px",
+              "backgroundColor": ""
+            }
+          }
+        ],
+        "values": {
+          "displayCondition": null,
+          "columns": false,
+          "backgroundColor": "#050505",
+          "columnsBackgroundColor": "",
+          "backgroundImage": {
+            "url": "",
+            "fullWidth": true,
+            "repeat": "no-repeat",
+            "size": "custom",
+            "position": "center"
+          },
+          "padding": "0px",
+          "anchor": "",
+          "hideDesktop": false
+        }
+      }
+    ],
+    "headers": [],
+    "footers": [],
+    "values": {
+      "_meta": { "htmlID": "u_body", "htmlClassNames": "u_body" },
+      "textColor": "#E4E4E7",
+      "linkColor": "#00F0FF",
+      "backgroundColor": "#050505",
+      "backgroundImage": {
+        "url": "",
+        "fullWidth": true,
+        "repeat": "no-repeat",
+        "size": "custom",
+        "position": "center"
+      },
+      "contentWidth": "600px",
+      "fontFamily": { "label": "Inter / system", "value": "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" },
+      "popupWidth": "600px",
+      "popupHeight": "auto",
+      "popupPosition": "center",
+      "popupDisplay": "modal",
+      "popupCloseButton": { "backgroundColor": "#CCCCCC", "icon": "close" }
+    }
+  }
+}

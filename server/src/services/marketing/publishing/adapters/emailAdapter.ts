@@ -20,6 +20,7 @@ export async function publishEmailCampaign(input: EmailAdapterInput): Promise<Ad
       const provider = process.env.RESEND_API_KEY ? 'resend' : 'sendgrid';
       const res = await fetch(provider === 'resend' ? 'https://api.resend.com/emails' : 'https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
+        signal: AbortSignal.timeout(30_000),
         headers: {
           Authorization: provider === 'resend' ? `Bearer ${apiKey}` : `Bearer ${apiKey}`,
           'Content-Type': 'application/json',

@@ -78,7 +78,7 @@ tasksRouter.post('/', async (req, res) => {
 // Update task status (move between steps) — any authenticated user can move tasks on the board
 tasksRouter.patch('/:id/status', requireJwt, async (req, res) => {
   const userId = (req as { userId?: string }).userId;
-  const { status, userId: bodyUserId } = req.body;
+  const { status } = req.body;
   if (!status) {
     res.status(400).json({ error: 'status is required' });
     return;
@@ -89,18 +89,17 @@ tasksRouter.patch('/:id/status', requireJwt, async (req, res) => {
       res.status(404).json({ error: 'Task not found' });
       return;
     }
-    const actorId = bodyUserId ?? userId;
-    if (status === 'done' && actorId) {
-      await addEmployeeXP(actorId, task.xpReward);
+    if (status === 'done' && userId) {
+      await addEmployeeXP(userId, task.xpReward);
       await addActivity({
-        userId: actorId,
+        userId,
         type: 'task_completed',
         message: `completed "${task.title}"`,
         xpGained: task.xpReward,
         timestamp: new Date().toISOString(),
       });
       eventBus.emit('project.task.completed', {
-        taskId: req.params.id, projectId: task.projectId, completedBy: actorId, xpAwarded: task.xpReward,
+        taskId: req.params.id, projectId: task.projectId, completedBy: userId, xpAwarded: task.xpReward,
       });
     }
     res.json(task);

@@ -17,6 +17,7 @@ export function CockpitContextPanel({
   onClose,
   onDataChanged,
   onAskDora,
+  onSelectContent,
 }: {
   userId: string;
   selectedItem: SelectedItem | null;
@@ -27,6 +28,7 @@ export function CockpitContextPanel({
   onClose: () => void;
   onDataChanged: () => void | Promise<void>;
   onAskDora: (prompt: string) => void;
+  onSelectContent?: (contentId: string) => void;
 }) {
   const navigate = useNavigate();
 
@@ -43,6 +45,8 @@ export function CockpitContextPanel({
         gatekeeperSnapshot={null}
         onClose={onClose}
         onDataChanged={onDataChanged}
+        onSelectContent={onSelectContent}
+        onAskDora={onAskDora}
       />
     );
   }
@@ -56,6 +60,8 @@ export function CockpitContextPanel({
         gatekeeperSnapshot={approvalSnapshot}
         onClose={onClose}
         onDataChanged={onDataChanged}
+        onSelectContent={onSelectContent}
+        onAskDora={onAskDora}
       />
     );
   }

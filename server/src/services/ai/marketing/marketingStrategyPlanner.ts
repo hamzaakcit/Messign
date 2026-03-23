@@ -15,6 +15,7 @@ import {
   type MarketingStrategyExecutionPlan,
 } from '../../../modules/marketing/prompts/v2/strategyExecutionPlan.js';
 import type { MarketingRouteKind, ParsedMarketingRoute } from './marketingRouteTypes.js';
+import { parseToolCallArgumentsJson } from '../parseToolArguments.js';
 
 export const EMIT_STRATEGY_PLAN_TOOL_NAME = 'emit_marketing_strategy_plan';
 
@@ -88,8 +89,9 @@ export function plannerShouldFallbackToLegacyRouter(plan: MarketingStrategyExecu
 }
 
 function formatPlannerStepsNote(plan: MarketingStrategyExecutionPlan): string | undefined {
-  if (!plan.steps.length) return undefined;
-  const lines = plan.steps.map((s, i) => {
+  const steps = plan.steps ?? [];
+  if (!steps.length) return undefined;
+  const lines = steps.map((s, i) => {
     const c = s.constraints?.length ? ` Constraints: ${s.constraints.join('; ')}` : '';
     return `${i + 1}. [${s.agent}] ${s.goal}${c}`;
   });
@@ -135,12 +137,7 @@ export function parseEmitStrategyPlanFromMessage(
       t.type === 'function' && 'function' in t && t.function?.name === EMIT_STRATEGY_PLAN_TOOL_NAME,
   );
   if (!tc) return null;
-  let args: unknown = {};
-  try {
-    args = JSON.parse(tc.function.arguments || '{}');
-  } catch {
-    return null;
-  }
+  const args = parseToolCallArgumentsJson(tc.function.arguments);
   try {
     return parseMarketingStrategyExecutionPlan(args);
   } catch {

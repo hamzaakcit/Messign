@@ -346,6 +346,7 @@ export async function createTask(ctx: CallerContext, data: CreateTaskInput): Pro
     projectId: data.projectId,
     assigneeId: data.assignees?.[0],
     title: data.title,
+    organizationId: ctx.organizationId,
   });
 
   return task;
@@ -363,6 +364,7 @@ export async function completeTask(ctx: CallerContext, taskId: string): Promise<
     projectId: task.projectId,
     completedBy: ctx.userId,
     xpAwarded: updated.xpReward,
+    organizationId: ctx.organizationId,
   });
 
   return updated;

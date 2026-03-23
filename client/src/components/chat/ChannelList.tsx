@@ -12,9 +12,14 @@ interface ChannelListProps {
 }
 
 export function ChannelList({ onRetry }: ChannelListProps) {
-  const { channels, activeChannelId, setActiveChannel, addChannel, isLoading, chatError } = useChatStore();
-  const { user: currentUser } = useAuthStore();
-  const { users } = useUsersStore();
+  const channels = useChatStore((s) => s.channels);
+  const activeChannelId = useChatStore((s) => s.activeChannelId);
+  const setActiveChannel = useChatStore((s) => s.setActiveChannel);
+  const addChannel = useChatStore((s) => s.addChannel);
+  const isLoading = useChatStore((s) => s.isLoading);
+  const chatError = useChatStore((s) => s.chatError);
+  const currentUser = useAuthStore((s) => s.user);
+  const users = useUsersStore((s) => s.users);
   const [expandedSections, setExpandedSections] = useState({
     public: true,
     private: true,

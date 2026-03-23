@@ -13,8 +13,20 @@ export interface EventMap {
   'finance.journal_entry.created': { entryId: string; type: string; amount: number };
 
   // ── Projects ──
-  'project.task.created': { taskId: string; projectId: string; assigneeId?: string; title: string };
-  'project.task.completed': { taskId: string; projectId: string; completedBy: string; xpAwarded?: number };
+  'project.task.created': {
+    taskId: string;
+    projectId: string;
+    assigneeId?: string;
+    title: string;
+    organizationId?: string;
+  };
+  'project.task.completed': {
+    taskId: string;
+    projectId: string;
+    completedBy: string;
+    xpAwarded?: number;
+    organizationId?: string;
+  };
   'project.task.assigned': { taskId: string; assigneeId: string; assignedBy: string };
   'project.task.effort_updated': { taskId: string; projectId: string; actualHours: number };
   'project.sprint.started': { sprintId: string; projectId: string; taskCount: number };
@@ -58,6 +70,13 @@ export interface EventMap {
   'crm.deal.assigned': { dealId: string; assigneeId: string; role?: string };
   'crm.deal.stage_changed': { dealId: string; oldStage: string; newStage: string; amount: number; movedBy: string };
   'crm.deal.won': { dealId: string; amount: number; currency: string; companyId?: string; ownerId: string; closedAt: string; organizationId?: string };
+  /** Emitted when a deal is closed won/lost or archived — use for automation triggers */
+  'crm.deal.closed': {
+    dealId: string;
+    organizationId?: string;
+    tenantId?: string;
+    outcome?: 'won' | 'lost' | string;
+  };
   'crm.deal.lost': { dealId: string; amount: number; reason?: string; ownerId: string };
   'crm.deal.updated': { dealId: string; updatedBy: string; changes: string[]; tenantId?: string; name?: string; value?: number; stage?: string; description?: string };
   'crm.activity.logged': { activityId: string; dealId?: string; contactId?: string; userId: string; type: 'call' | 'email' | 'meeting' | 'note'; tenantId?: string; notes?: string };
@@ -151,6 +170,7 @@ export interface EventMap {
   // ── OKRs ──
   'okr.goal.created': { goalId: string; title: string; ownerId: string; level: string };
   'okr.goal.updated': { goalId: string; progress: number; status: string; organizationId?: string };
+  'okr.goal.completed': { goalId: string; organizationId?: string; ownerId?: string; title?: string };
   'okr.key_result.created': { keyResultId: string; goalId: string; title: string };
   'okr.key_result.updated': { keyResultId: string; goalId: string; progress: number };
   'okr.key_result.completed': { keyResultId: string; goalId: string; title: string; ownerId?: string };

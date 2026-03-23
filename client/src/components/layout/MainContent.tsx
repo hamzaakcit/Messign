@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { useLocation, Navigate } from 'react-router-dom';
 import { PageSkeleton } from '@/components/ui';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Header } from './Header';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -33,11 +34,16 @@ const ReportHubPage = React.lazy(() => import('@/pages/reports/ReportHubPage').t
 const NotificationsPage = React.lazy(() => import('@/pages/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 
 export function MainContent() {
-  const { currentView } = useUIStore();
+  const currentView = useUIStore((s) => s.currentView);
+  const focusMode = useUIStore((s) => s.focusMode);
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const isKnowledgeHub = location.pathname.startsWith('/knowledge-hub');
   const isLeader = ['admin', 'manager', 'dept_head', 'system_admin'].includes(String(user?.role ?? ''));
+
+  const wrap = (key: string, node: React.ReactNode): React.ReactNode => (
+    <ErrorBoundary resetKey={`${key}-${location.pathname}`}>{node}</ErrorBoundary>
+  );
 
   const renderView = () => {
     switch (currentView) {
@@ -45,74 +51,77 @@ export function MainContent() {
         if (isLeader && (location.pathname === '/' || location.pathname === '/dashboard')) {
           return <Navigate to="/executive" replace />;
         }
-        return <DashboardView />;
+        return wrap('dashboard', <DashboardView />);
       case 'executive':
-        return <ExecutiveDashboardPage />;
+        return wrap('executive', <ExecutiveDashboardPage />);
       case 'reports':
-        return <ReportHubPage />;
+        return wrap('reports', <ReportHubPage />);
       case 'notifications':
-        return <NotificationsPage />;
-      case 'dora':
+        return wrap('notifications', <NotificationsPage />);
+      case 'dora': {
         if (location.pathname.startsWith('/dora/briefing')) {
-          return <DailyBriefingPage />;
+          return wrap('dora-briefing', <DailyBriefingPage />);
         }
         if (location.pathname.startsWith('/dora/automations/log')) {
-          return <AutomationLogPage />;
+          return wrap('dora-automation-log', <AutomationLogPage />);
         }
         if (location.pathname.startsWith('/dora/automations')) {
-          return <AutomationPoliciesPage />;
+          return wrap('dora-automations', <AutomationPoliciesPage />);
         }
-        return <DoraPage />;
+        return wrap('dora', <DoraPage />);
+      }
       case 'game':
-        return <DoraDashPage />;
+        return wrap('game', <DoraDashPage />);
       case 'chat':
-        return <ChatView />;
+        return wrap('chat', <ChatView />);
       case 'knowledge':
-        return <KnowledgeHubLayout />;
+        return wrap('knowledge', <KnowledgeHubLayout />);
       case 'achievements':
-        return <AchievementsView />;
+        return wrap('achievements', <AchievementsView />);
       case 'team':
-        return <TeamView />;
+        return wrap('team', <TeamView />);
       case 'projects':
-        return <ProjectsView />;
+        return wrap('projects', <ProjectsView />);
       case 'settings':
-        return <SettingsView />;
+        return wrap('settings', <SettingsView />);
       case 'finance':
-        return <FinancePage />;
+        return wrap('finance', <FinancePage />);
       case 'crm':
-        return <CRMLayout />;
+        return wrap('crm', <CRMLayout />);
       case 'marketing':
-        return <MarketingLayout />;
+        return wrap('marketing', <MarketingLayout />);
       case 'recruitment':
-        return <RecruitmentLayout />;
+        return wrap('recruitment', <RecruitmentLayout />);
       case 'support':
-        return <SupportLayout />;
+        return wrap('support', <SupportLayout />);
       case 'time':
-        return <TimeTrackingPage />;
+        return wrap('time', <TimeTrackingPage />);
       case 'okr':
-        return <OKRPage />;
+        return wrap('okr', <OKRPage />);
       case 'assets':
-        return <AssetsLayout />;
+        return wrap('assets', <AssetsLayout />);
       case 'contracts':
-        return <ContractsLayout />;
+        return wrap('contracts', <ContractsLayout />);
       case 'culture':
-        return <CultureDashboardPage />;
+        return wrap('culture', <CultureDashboardPage />);
       case 'reimbursements':
       case 'invoices':
-        return <ReimbursementRouter />;
+        return wrap('reimbursements', <ReimbursementRouter />);
       default:
-        return <DashboardView />;
+        return wrap('dashboard', <DashboardView />);
     }
   };
 
   if (isKnowledgeHub || currentView === 'knowledge') {
     return (
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app transition-colors duration-200">
-        <Header />
+        {!focusMode && <Header />}
         <main id="main-content" className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in" role="main">
-          <Suspense fallback={<PageSkeleton variant="list" />}>
-            <KnowledgeHubLayout />
-          </Suspense>
+          <ErrorBoundary resetKey={`knowledge-${location.pathname}`}>
+            <Suspense fallback={<PageSkeleton variant="list" />}>
+              <KnowledgeHubLayout />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
     );
@@ -120,11 +129,13 @@ export function MainContent() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app transition-colors duration-200">
-      <Header />
+      {!focusMode && <Header />}
       <main id="main-content" className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in" role="main">
-        <Suspense fallback={<PageSkeleton variant="dashboard" />}>
-          {renderView()}
-        </Suspense>
+        <ErrorBoundary resetKey={currentView}>
+          <Suspense fallback={<PageSkeleton variant="dashboard" />}>
+            {renderView()}
+          </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );

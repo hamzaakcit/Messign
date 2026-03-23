@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import fs from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import type { Response } from 'express';
 import { query } from '../../../db/index.js';
@@ -14,9 +14,7 @@ import { generateFinanceInvoicePdf } from '../../../services/finance/financePdfS
 const router = Router();
 
 const INVOICE_DOC_DIR = path.join(process.cwd(), 'uploads', 'finance', 'invoices');
-if (!fs.existsSync(INVOICE_DOC_DIR)) {
-  fs.mkdirSync(INVOICE_DOC_DIR, { recursive: true });
-}
+await mkdir(INVOICE_DOC_DIR, { recursive: true });
 
 const receiptUpload = multer({
   storage: multer.memoryStorage(),
@@ -85,7 +83,7 @@ router.post('/invoices/scan', receiptUpload.single('document'), async (req: Reim
     const ext = path.extname(file.originalname) || '.jpg';
     const fileName = `invoice_scan_${Date.now()}${ext}`;
     const filePath = path.join(INVOICE_DOC_DIR, fileName);
-    fs.writeFileSync(filePath, file.buffer);
+    await writeFile(filePath, file.buffer);
 
     const base64 = file.buffer.toString('base64');
     const mediaType = file.mimetype || 'image/jpeg';

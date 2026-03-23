@@ -1,0 +1,53 @@
+{
+  "version": "2.0",
+  "theme": "tech",
+  "subject": "We've Missed You — Here's What's New",
+  "preheader": "Your workspace moved forward while you were away—new automations, clearer analytics, and faster sync are live; take a two-minute tour and pick up where you left off.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "We miss you—your workspace got smarter",
+        "subheadline": "While you were gone we shipped updates to save clicks, tighten integrations, and surface what matters first.",
+        "ctaText": "See what changed",
+        "ctaUrl": "https://example.com/whats-new",
+        "imagePrompt": "Futuristic but friendly SaaS dashboard UI on a laptop in a dim modern desk setup, cyan and deep blue accent glow, subtle grid background, product photography",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "content": {
+        "body": "Here is what is new since your last visit: one-click workflow templates for common tasks, a rebuilt activity feed with filters, and native sync with the tools your team already uses—so you spend less time context-switching. Your account and data are exactly where you left them; nothing was deleted.",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "Come back in two minutes",
+        "description": "Log in to explore the updates—no setup required.",
+        "buttonText": "Return to my workspace",
+        "buttonUrl": "https://example.com/login",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Nimbus Labs",
+        "address": "1200 Innovation Way, Austin, TX 78701",
+        "unsubscribeText": "If you would rather not receive win-back emails, you can unsubscribe here—we will honor it immediately."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "direct, helpful, low-pressure",
+    "audience": "lapsed SaaS users and trialists"
+  }
+}

@@ -34,7 +34,11 @@ let adminUrl =
   (process.env.NODE_ENV !== 'production' ? localFallback : undefined);
 if (!adminUrl) {
   throw new Error(
-    'Set DATABASE_URL (or DATABASE_PUBLIC_URL / DATABASE_ADMIN_URL / DATABASE_MIGRATE_URL) for migrations. For local Postgres, try: postgresql://USER@localhost:5432/messign',
+    'Set DATABASE_URL (or DATABASE_PUBLIC_URL / DATABASE_ADMIN_URL / DATABASE_MIGRATE_URL) for migrations. ' +
+      'For local Postgres use your OS login as the role (Homebrew often has no `postgres` user), e.g. ' +
+      'postgresql://' +
+      (process.env.USER || os.userInfo().username || 'yourname') +
+      '@localhost:5432/messign',
   );
 }
 

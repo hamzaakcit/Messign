@@ -85,49 +85,38 @@ export function DashboardView() {
 
   return (
     <div
-      className="h-[calc(100vh-80px)] overflow-hidden w-full bg-app transition-colors duration-200"
+      className="h-[calc(100vh-48px)] overflow-y-auto w-full bg-app transition-colors duration-200"
       role="main"
       aria-label="Dashboard"
     >
-      <div className="px-6 pt-4">
+      <div className="px-6 pt-3">
         <DoraInsightBar module="dashboard" />
       </div>
       <motion.div
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-12 grid-rows-12 gap-4 h-full p-6"
+        className="flex flex-col gap-3 p-6"
       >
-        {/* Analytics Stage (Left - 75% width) */}
-        <motion.div
-          variants={item}
-          className="col-span-9 row-span-12 h-full flex flex-col gap-4 min-h-0"
-        >
-          {/* Compact KPI Row */}
-          <div className="shrink-0">
-            <DashboardKPIRow metrics={companyMetrics} />
-          </div>
-
-          {/* Massive Interactive Chart */}
-          <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-gray-800 bg-[#13151a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] p-4">
-            <PerformanceTrendChart />
-          </div>
+        <motion.div variants={item} className="shrink-0">
+          <DashboardKPIRow metrics={companyMetrics} />
         </motion.div>
 
-        {/* Command Panel (Right - 25% width) */}
         <motion.div
           variants={item}
-          className="col-span-3 row-span-12 h-full flex flex-col gap-4 min-h-0"
+          className="min-h-[420px] h-[55vh] overflow-hidden rounded-xl border border-gray-800 bg-[#13151a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] p-4"
         >
-          <div className="h-full min-h-0 flex flex-col">
-            <DashboardTeamPerformancePanel
-              view={teamView}
-              members={members}
-              loading={loading}
-              error={error}
-              onViewChange={setTeamView}
-            />
-          </div>
+          <PerformanceTrendChart />
+        </motion.div>
+
+        <motion.div variants={item} className="shrink-0">
+          <DashboardTeamPerformancePanel
+            view={teamView}
+            members={members}
+            loading={loading}
+            error={error}
+            onViewChange={setTeamView}
+          />
         </motion.div>
       </motion.div>
     </div>

@@ -126,7 +126,8 @@ export async function getMySentimentHistory(
       `SELECT analyzed_at::text AS analyzed_at, score::text AS score, source
        FROM heart_sentiment_scores
        WHERE user_id = $1::uuid AND analyzed_at >= NOW() - INTERVAL '1 day' * $2
-       ORDER BY analyzed_at ASC`,
+       ORDER BY analyzed_at ASC
+       LIMIT 500`,
       [ctx.userId, days]
     );
     return result.rows.map((r) => ({
@@ -302,7 +303,8 @@ export async function getDepartmentComparison(ctx: CallerContext): Promise<TeamH
               period_start::text AS period_start, period_end::text AS period_end
        FROM heart_team_health
        WHERE scope_type = 'department'
-       ORDER BY health_score DESC`,
+       ORDER BY health_score DESC
+       LIMIT 200`,
     );
     return result.rows
       .filter((r) => r.member_count >= K_ANON_THRESHOLD)

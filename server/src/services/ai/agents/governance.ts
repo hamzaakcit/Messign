@@ -39,6 +39,12 @@ const IRREVERSIBLE_PATTERNS = [
   /post/i,
 ];
 
+/**
+ * Names containing "generate" are normally HITL (see IRREVERSIBLE_PATTERNS), but these only
+ * produce structured text/briefs in-process — safe to auto-run in marketing loops (e.g. Instagram).
+ */
+const GENERATE_NAME_BUT_AUTO_EXECUTE = new Set(['creative:generate_image_brief']);
+
 /** Tools that must always go to HITL (matches actionInterceptor) */
 const ALWAYS_HITL_NAMES = new Set([
   'projects:create_task', 'projects:update_task_status', 'projects:update_task',
@@ -66,6 +72,7 @@ export function classifyActionRisk(
   valueThreshold: number = VALUE_THRESHOLD,
 ): ActionRiskLevel {
   if (ALWAYS_HITL_NAMES.has(toolName)) return 'irreversible';
+  if (GENERATE_NAME_BUT_AUTO_EXECUTE.has(toolName)) return 'read';
 
   const name = toolName.toLowerCase();
 

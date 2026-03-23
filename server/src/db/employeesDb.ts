@@ -168,6 +168,32 @@ export async function getEmployeeByIdAsUser(id: string): Promise<User | null> {
   return row ? mapRowToUser(row) : null;
 }
 
+/** Batch-fetch multiple employees by ID in a single query. */
+export async function getEmployeesByIdsAsUsers(ids: string[]): Promise<Map<string, User>> {
+  const result = new Map<string, User>();
+  if (ids.length === 0) return result;
+  const unique = [...new Set(ids)];
+  const orgResult = await query<{ id: string }>(
+    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+    [DEFAULT_ORG_SLUG]
+  );
+  const orgId = orgResult.rows[0]?.id;
+  if (!orgId) return result;
+  const rows = await query<DbEmployeeRow>(
+    `SELECT ${EMPLOYEE_SELECT}
+     FROM reimbursement_users ru
+     WHERE ru.organization_id = $1 AND (ru.auth_user_id = ANY($2::text[]) OR ru.id::text = ANY($2::text[]))`,
+    [orgId, unique]
+  );
+  for (const row of rows.rows) {
+    const user = mapRowToUser(row);
+    result.set(user.id, user);
+    if (row.id && row.id !== user.id) result.set(row.id, user);
+    if (row.auth_user_id && row.auth_user_id !== user.id) result.set(row.auth_user_id, user);
+  }
+  return result;
+}
+
 export async function getEmployeesAsUsers(): Promise<User[]> {
   const orgResult = await query<{ id: string }>(
     `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,

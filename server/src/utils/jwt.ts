@@ -1,7 +1,23 @@
 import jwt from 'jsonwebtoken';
 
-const ACCESS_SECRET = process.env.JWT_SECRET ?? process.env.JWT_ACCESS_SECRET ?? 'messign-access-secret-change-in-production';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET ?? 'messign-refresh-secret-change-in-production';
+function requireSecret(envKeys: string[], fallback: string): string {
+  for (const key of envKeys) {
+    if (process.env[key]) return process.env[key]!;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(`[FATAL] ${envKeys.join(' or ')} must be set in production`);
+  }
+  return fallback;
+}
+
+const ACCESS_SECRET = requireSecret(
+  ['JWT_SECRET', 'JWT_ACCESS_SECRET'],
+  'messign-access-secret-change-in-production',
+);
+const REFRESH_SECRET = requireSecret(
+  ['JWT_REFRESH_SECRET', 'JWT_SECRET'],
+  'messign-refresh-secret-change-in-production',
+);
 const ACCESS_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY ?? '15m';
 const REFRESH_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY ?? '7d';
 

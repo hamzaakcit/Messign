@@ -1,0 +1,95 @@
+---
+description: Messign Workspace architecture, monorepo layout, and Sprint-module conventions
+alwaysApply: true
+---
+
+# Messign Workspace — project standards
+
+## Product context
+
+- **Messign Workspace** is an AI-native business OS; the **Marketing Agent** and domain modules evolve through a phased roadmap.
+- **PRD** and **ROADMAP** documents are not versioned in this repository by default. When you add them, place them under `docs/` (e.g. `docs/PRD.md`, `docs/ROADMAP.md`) and reference them here or in README.
+
+## Actual stack (do not assume Next.js)
+
+| Layer | Stack |
+|-------|--------|
+| Client | **Vite**, **React 18**, **TypeScript**, **Tailwind**, **React Router**, **Zustand** |
+| API | **Express** (Node 20+), **Socket.io**, **BullMQ** / Redis |
+| Data | **PostgreSQL** (Neon/Railway-compatible), **RLS** via `messign_app` role |
+| AI | **LiteLLM** proxy (optional), **Gemini** / **Anthropic** / **OpenAI** via server env |
+| Embeds | **Unlayer** (`react-email-editor`), project ID on client |
+
+When generating code, **match existing patterns** in `client/` and `server/` rather than introducing Next.js App Router or `app/api` routes unless the repo is migrated.
+
+## Monorepo layout
+
+```
+messign-workspace/
+  client/          # Vite SPA — pages, hooks, features
+  server/          # Express API, modules, workers, migrations
+  db/              # RLS and shared SQL scripts
+  litellm/         # LiteLLM proxy config (optional local)
+  docs/            # Architecture notes, deployment
+```
+
+Workspace root runs `npm run dev` (concurrently client + server).
+
+## Server: platform modules (`server/src/modules/`)
+
+Domain features are **plugins** implementing `PlatformModule` (`server/src/modules/types.ts`):
+
+- **`namespace`**: URL segment for HTTP — mounted at **`/api/{namespace}`** by `initializeModules()` in `server/src/modules/registry.ts`.
+- **`registerTools()`**: LLM tool registrations (`ToolRegistration[]`); empty array is valid for scaffold modules.
+- **`getRouter()`**: Express `Router` for module routes.
+- **`registerEventHandlers(eventBus)`**: subscribe to `eventBus` (`server/src/platform/eventBus.ts`).
+- **`getSystemPromptFragment(role)`**: specialist-agent prompt text.
+
+**Conventions**
+
+- New modules: `server/src/modules/<namespace>/index.ts`, `routes/`, `tools/`, `events/`, `prompts/`, `types/` as needed.
+- Prefer **`snake_case` namespaces** when a name has multiple words (e.g. `marketing_automation`) so URLs stay predictable (`/api/marketing_automation/...`).
+- Heavy CRUD may live under `server/src/routes/<domain>/` and be **re-exported** from the module router (see `marketing/routes/index.ts`).
+
+## Server: other API routes
+
+- Top-level routers are registered in `server/src/index.ts` (auth, knowledge, dora, webhooks, etc.).
+- **Knowledge Hub AI v2**: `POST /api/v2/ai/answer` (SSE); related env: `DORA_V2_ENABLED`, LiteLLM URLs.
+
+## Client: pages and API
+
+- **Views** are selected by `useUIStore().currentView` in `client/src/components/layout/MainContent.tsx`; Marketing uses **`MarketingLayout`** and path segments under `/marketing/...`.
+- **API calls**: use the existing API base pattern (`VITE_API_URL` / proxy) and `fetch` wrappers in `client/src/lib/` (e.g. `marketingApi.ts`). New surfaces should add a small `*Api.ts` module next to the feature.
+- **Types**: mirror server contracts in `client/src/.../types.ts` or import shared types if a `packages/shared` package is introduced later. Until then, **server route handlers own the contract**; client duplicates minimal DTOs when needed.
+
+## Sprint 1 modules (scaffold)
+
+| Module | Server namespace | Purpose |
+|--------|------------------|---------|
+| Creative Hub (image gen) | `creative` | Replicate/Flux/OpenAI image pipelines — **server-only secrets** |
+| Marketing Automation | `marketing_automation` | Workflows, triggers, schedules — **no business logic in scaffold** |
+
+Client entry points (Marketing area):
+
+- `/marketing/creative-hub` — Creative Hub shell
+- `/marketing/automation` — Marketing Automation shell
+
+## Environment variables
+
+- **Server secrets** (`server/.env`): OpenAI, Replicate, LiteLLM, Supabase service role, DB, Redis, JWT, Dora flags.
+- **Client** (`client/.env`): only `VITE_*` — never commit API keys; Unlayer project ID is the main Marketing embed variable.
+- Document new variables in **`server/.env.example`** and **`client/.env.example`** together.
+
+## AI agents and tools
+
+- Global tool registration: `server/src/services/ai/toolRegistry.ts` (via `registerTool` / `finalizeRegistry`).
+- Module tools live in `server/src/modules/<ns>/tools/index.ts` and must return `ToolResult`-compatible shapes from handlers when used with the registry.
+
+## Database
+
+- Migrations: `server/src/migrations/` and `db/` — follow existing naming and RLS patterns; new tables that hold tenant data need **`tenant_id`** and policies consistent with `ARCHITECTURAL_AUDIT_REPORT.md` / `db/RLS_ENFORCEMENT.md`.
+
+## Testing and quality
+
+- Client: `npm run type-check --workspace=client`; Server: `npm run type-check --workspace=server`.
+- Prefer focused changes; avoid drive-by refactors unrelated to the task.

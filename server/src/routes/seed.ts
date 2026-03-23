@@ -5,7 +5,7 @@ import { seedMarketingData } from '../db/seeds/marketingSeed.js';
 
 const router = Router();
 
-/** Require SEED_SECRET or CRON_SECRET for safety (e.g. call from Vercel Cron or manual curl). */
+/** Require SEED_SECRET or CRON_SECRET via Authorization header or x-seed-secret header only. */
 function requireSeedSecret(req: Request, res: Response, next: () => void) {
   const secret = process.env.SEED_SECRET || process.env.CRON_SECRET;
   if (!secret) {
@@ -14,8 +14,7 @@ function requireSeedSecret(req: Request, res: Response, next: () => void) {
   }
   const provided =
     req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
-    (req.headers['x-seed-secret'] as string) ||
-    (req.query.secret as string);
+    (req.headers['x-seed-secret'] as string);
   if (provided !== secret) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
@@ -24,30 +23,27 @@ function requireSeedSecret(req: Request, res: Response, next: () => void) {
 }
 
 /**
- * POST or GET /api/seed/finance
+ * POST /api/seed/finance
  * Runs finance seed (idempotent). Use from Vercel Cron or once after deploy.
- * Auth: Bearer <SEED_SECRET> or x-seed-secret header or ?secret=<SEED_SECRET>
+ * Auth: Bearer <SEED_SECRET> or x-seed-secret header
  */
-router.all('/finance', requireSeedSecret, async (_req: Request, res: Response) => {
+router.post('/finance', requireSeedSecret, async (_req: Request, res: Response) => {
   try {
     await seedFinanceData();
     res.json({ ok: true, message: 'Finance seed completed.' });
   } catch (err) {
     console.error('[seed/finance]', err);
-    res.status(500).json({
-      ok: false,
-      error: err instanceof Error ? err.message : 'Seed failed',
-    });
+    res.status(500).json({ ok: false, error: 'Seed failed' });
   }
 });
 
 /**
- * POST or GET /api/seed/crm-okr
+ * POST /api/seed/crm-okr
  * Ensures default CRM pipeline + stages exist and inserts sample companies, contacts, deals.
  * Ensures OKR period Q2 2026 exists and inserts sample goals + key results.
  * Idempotent: skips inserts if data already present.
  */
-router.all('/crm-okr', requireSeedSecret, async (_req: Request, res: Response) => {
+router.post('/crm-okr', requireSeedSecret, async (_req: Request, res: Response) => {
   try {
     const result = await seedCrmOkrData();
     res.json({
@@ -58,19 +54,16 @@ router.all('/crm-okr', requireSeedSecret, async (_req: Request, res: Response) =
     });
   } catch (err) {
     console.error('[seed/crm-okr]', err);
-    res.status(500).json({
-      ok: false,
-      error: err instanceof Error ? err.message : 'Seed failed',
-    });
+    res.status(500).json({ ok: false, error: 'Seed failed' });
   }
 });
 
 /**
- * POST or GET /api/seed/marketing
+ * POST /api/seed/marketing
  * Inserts idempotent demo rows for campaigns, content, leads, email, approvals (sentinel campaign name).
  * Auth: same as /api/seed/finance
  */
-router.all('/marketing', requireSeedSecret, async (_req: Request, res: Response) => {
+router.post('/marketing', requireSeedSecret, async (_req: Request, res: Response) => {
   try {
     const result = await seedMarketingData();
     res.json({
@@ -80,10 +73,7 @@ router.all('/marketing', requireSeedSecret, async (_req: Request, res: Response)
     });
   } catch (err) {
     console.error('[seed/marketing]', err);
-    res.status(500).json({
-      ok: false,
-      error: err instanceof Error ? err.message : 'Seed failed',
-    });
+    res.status(500).json({ ok: false, error: 'Seed failed' });
   }
 });
 

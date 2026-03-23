@@ -1,0 +1,70 @@
+{
+  "version": "2.0",
+  "theme": "startup",
+  "subject": "New Features Just Dropped — See What's Changed",
+  "preheader": "Ship faster with batch actions, smarter defaults, and a cleaner command palette—this release is built for teams who iterate weekly; skim the highlights and try them today.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "New features just landed",
+        "subheadline": "Less friction between idea and shipped—built for teams who move fast and hate busywork.",
+        "ctaText": "Open the changelog",
+        "ctaUrl": "https://example.com/changelog",
+        "imagePrompt": "Bold startup-style hero: diverse team high-fiving near a whiteboard with sticky notes, energetic gradient overlay purple to coral, energetic product marketing feel",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "content": {
+        "sectionTitle": "Three upgrades you will feel on day one",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "⚡",
+            "heading": "Batch actions everywhere",
+            "description": "Select multiple items and apply labels, owners, or statuses in one go—no more repetitive clicking through lists."
+          },
+          {
+            "icon": "🎯",
+            "heading": "Smarter defaults",
+            "description": "The app learns from your last actions to pre-fill fields and suggest next steps so empty states rarely stay empty."
+          },
+          {
+            "icon": "⌘",
+            "heading": "Command palette v2",
+            "description": "Jump to projects, run shortcuts, and trigger integrations from a single keyboard-first surface with fuzzy search."
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "Try the new workflow today",
+        "description": "Everything is live in your workspace now—no migration or toggle required.",
+        "buttonText": "Try it now",
+        "buttonUrl": "https://example.com/app",
+        "variant": "fullWidth"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Pulseframe",
+        "address": "45 Howard Street, San Francisco, CA 94103",
+        "unsubscribeText": "You are subscribed to product updates from Pulseframe. Manage email preferences anytime."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "energetic, product-led",
+    "audience": "startup and SMB teams using the product weekly"
+  }
+}

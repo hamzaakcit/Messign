@@ -1,13 +1,14 @@
 import bcrypt from 'bcrypt';
 import { query } from '../db/index.js';
 import { getByAuthUserId, upsert } from '../db/employeeAuthDb.js';
-import { DEFAULT_PASSWORD } from '../types/auth.js';
+import { getDefaultSeedPassword } from '../types/auth.js';
 
 const SALT_ROUNDS = 12;
 const DEFAULT_ORG_SLUG = 'messign';
 
 export async function initializeAuthRecords(): Promise<void> {
-  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+  const defaultPassword = getDefaultSeedPassword();
+  const passwordHash = await bcrypt.hash(defaultPassword, SALT_ROUNDS);
   const orgResult = await query<{ id: string }>(
     `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
     [DEFAULT_ORG_SLUG]
@@ -33,7 +34,7 @@ export async function initializeAuthRecords(): Promise<void> {
       email: row.email.trim().toLowerCase(),
       password_hash: passwordHash,
       must_change_password: true,
-      temporary_password: DEFAULT_PASSWORD,
+      temporary_password: defaultPassword,
       account_status: 'active',
       created_by: 'system',
       updated_by: 'system',

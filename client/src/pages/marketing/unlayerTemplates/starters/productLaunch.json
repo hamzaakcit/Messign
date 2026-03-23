@@ -1,0 +1,70 @@
+{
+  "version": "2.0",
+  "theme": "bold",
+  "subject": "Introducing [Product Name] — Built for the Future",
+  "preheader": "The wait is over: meet the platform that redefines how your team ships, measures, and scales. See the roadmap, core capabilities, and what early adopters are saying—open now before the public launch window closes.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Meet [Product Name]",
+        "subheadline": "The next chapter of your workflow starts here—faster builds, clearer insights, and a product built for teams who refuse to stand still.",
+        "ctaText": "Explore the launch",
+        "ctaUrl": "https://example.com/product-launch",
+        "imagePrompt": "Bold futuristic product hero on deep gradient background, soft studio lighting, minimal UI mockup floating beside sleek hardware silhouette, high contrast editorial style",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "content": {
+        "sectionTitle": "Why teams are switching now",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "bolt",
+            "heading": "Ship in days, not quarters",
+            "description": "Automated pipelines and opinionated defaults get your first release live while competitors are still in planning."
+          },
+          {
+            "icon": "chart",
+            "heading": "Prove impact with live metrics",
+            "description": "Dashboards and experiments are wired in from day one so leadership sees ROI without another BI project."
+          },
+          {
+            "icon": "shield",
+            "heading": "Enterprise-ready from launch",
+            "description": "SSO, audit logs, and regional hosting options mean security and compliance are table stakes, not a Phase 2 promise."
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "See [Product Name] in action",
+        "description": "Book a 15-minute walkthrough or start a free trial—no credit card required for the first fourteen days.",
+        "buttonText": "Start your trial",
+        "buttonUrl": "https://example.com/trial",
+        "variant": "fullWidth"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Messign Labs, Inc.",
+        "address": "500 Market Street, Suite 1200, San Francisco, CA 94105",
+        "unsubscribeText": "You received this because you opted in at messign.example. Unsubscribe anytime."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "",
+    "audience": ""
+  }
+}

@@ -4,6 +4,7 @@ import { mapReimbursementUser } from '../types/reimbursement.js';
 import type { ReimbursementUser } from '../types/reimbursement.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
+let cachedOrgId: string | undefined;
 
 export interface ReimbursementRequest extends Request {
   reimbursementUser?: ReimbursementUser;
@@ -11,36 +12,77 @@ export interface ReimbursementRequest extends Request {
   tenantId?: string;
 }
 
+const isDev = process.env.NODE_ENV !== 'production';
+
+interface CachedReimbUser { user: ReimbursementUser; cachedAt: number }
+const reimbUserCache = new Map<string, CachedReimbUser>();
+const REIMB_CACHE_TTL_MS = 60_000;
+const REIMB_CACHE_MAX = 500;
+
+function getCachedReimbUser(key: string): ReimbursementUser | undefined {
+  const entry = reimbUserCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.cachedAt > REIMB_CACHE_TTL_MS) {
+    reimbUserCache.delete(key);
+    return undefined;
+  }
+  return entry.user;
+}
+
+function setCachedReimbUser(key: string, user: ReimbursementUser): void {
+  if (reimbUserCache.size >= REIMB_CACHE_MAX) {
+    const oldest = reimbUserCache.keys().next().value;
+    if (oldest) reimbUserCache.delete(oldest);
+  }
+  reimbUserCache.set(key, { user, cachedAt: Date.now() });
+}
+
+export function invalidateReimbAuthCache(authUserId: string, orgId: string): void {
+  reimbUserCache.delete(`${orgId}:${authUserId}`);
+}
+
 export async function reimbursementAuth(req: ReimbursementRequest, res: Response, next: NextFunction): Promise<void> {
-  const authUserId = req.headers['x-user-id'] as string | undefined;
+  const authUserId = (req as Request & { userId?: string }).userId
+    ?? (isDev ? (req.headers['x-user-id'] as string | undefined) : undefined);
   if (!authUserId) {
-    res.status(401).json({ error: 'Missing x-user-id header' });
+    res.status(401).json({ error: 'Authorization required' });
     return;
   }
 
   try {
-    const orgResult = await query<{ id: string }>(
-      `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-      [DEFAULT_ORG_SLUG]
-    );
-    const orgId = orgResult.rows[0]?.id;
+    let orgId = cachedOrgId;
+    if (!orgId) {
+      const orgResult = await query<{ id: string }>(
+        `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+        [DEFAULT_ORG_SLUG]
+      );
+      orgId = orgResult.rows[0]?.id;
+      if (orgId) cachedOrgId = orgId;
+    }
     if (!orgId) {
       res.status(503).json({ error: 'Organization not configured' });
       return;
     }
 
-    const userResult = await query(
-      `SELECT id, organization_id, auth_user_id, email, full_name, role, manager_id, created_at, updated_at
-       FROM reimbursement_users WHERE organization_id = $1 AND auth_user_id = $2 LIMIT 1`,
-      [orgId, authUserId]
-    );
-    const row = userResult.rows[0];
-    if (!row) {
-      res.status(403).json({ error: 'Reimbursement access not set up for this user' });
-      return;
+    const cacheKey = `${orgId}:${authUserId}`;
+    let reimbUser = getCachedReimbUser(cacheKey);
+
+    if (!reimbUser) {
+      const userResult = await query(
+        `SELECT id, organization_id, auth_user_id, email, full_name, role, manager_id, created_at, updated_at
+         FROM reimbursement_users WHERE organization_id = $1 AND auth_user_id = $2 LIMIT 1`,
+        [orgId, authUserId]
+      );
+      const row = userResult.rows[0];
+      if (!row) {
+        res.status(403).json({ error: 'Reimbursement access not set up for this user' });
+        return;
+      }
+      reimbUser = mapReimbursementUser(row as any);
+      setCachedReimbUser(cacheKey, reimbUser);
     }
 
-    req.reimbursementUser = mapReimbursementUser(row as any);
+    req.reimbursementUser = reimbUser;
     req.organizationId = orgId;
     req.tenantId = orgId;
     next();

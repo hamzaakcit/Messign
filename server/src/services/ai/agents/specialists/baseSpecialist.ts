@@ -105,11 +105,6 @@ If the user asks for something outside ${namespace}, say so and suggest the righ
 
     if (!toolCalls || toolCalls.length === 0) {
       const answer = thought || "I couldn't gather enough data to answer. Please try rephrasing.";
-      console.log('[SPECIALIST DEBUG] Returning result (no tool calls):', {
-        type: 'final_answer',
-        hasToolObs: toolObservations.length,
-        toolNames: toolObservations.map((o) => o.toolName),
-      });
       return {
         type: 'final_answer',
         content: answer,
@@ -238,12 +233,6 @@ Never say "our data retrieval system encountered an issue" when the outcome says
   );
 
   const synthContent = synthResponse.choices?.[0]?.message?.content?.trim() || "I've gathered the data. Here's what I found.";
-
-    console.log('[SPECIALIST DEBUG] Returning result:', {
-      type: pendingActions.length > 0 ? 'needs_approval' : 'final_answer',
-      hasToolObs: toolObservations.length,
-      toolNames: toolObservations.map((o) => o.toolName),
-    });
 
     return {
       type: pendingActions.length > 0 ? 'needs_approval' : 'final_answer',

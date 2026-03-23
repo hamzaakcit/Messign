@@ -239,7 +239,7 @@ export function CRMDashboardPage() {
                         <div className="min-w-0">
                           <p className="text-sm text-app-text font-medium truncate">{deal.title}</p>
                           <p className="text-[11px] text-app-muted">
-                            {(deal as any).owner_name ?? 'Unassigned'}
+                            {deal.owner_name ?? 'Unassigned'}
                           </p>
                         </div>
                         <span className="text-xs text-red-400 shrink-0 ml-2">

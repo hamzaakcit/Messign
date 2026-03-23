@@ -34,8 +34,8 @@ router.post('/', requireAdmin, async (req: ReimbursementRequest, res) => {
   }
   try {
     const result = await query(
-      `INSERT INTO expense_categories (organization_id, name, icon, spending_limit, requires_justification_above)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO expense_categories (organization_id, tenant_id, name, icon, spending_limit, requires_justification_above)
+       VALUES ($1, $1, $2, $3, $4, $5)
        RETURNING *`,
       [orgId, name.trim(), icon ?? null, spending_limit ?? null, requires_justification_above ?? null]
     );

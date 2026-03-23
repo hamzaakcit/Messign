@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, PaginatedResult } from '../types.js';
+import { reimbursementUsersPk } from '../reimbursementUsersPk.js';
 import { paginationClause } from '../helpers.js';
 
 async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -14,6 +15,8 @@ export interface EmailCampaign {
   name: string;
   subject: string;
   body_html: string;
+  /** Unlayer design JSON — required for visual round-trip editing */
+  body_design: Record<string, unknown> | null;
   body_text: string | null;
   from_name: string | null;
   from_email: string | null;
@@ -45,6 +48,7 @@ export interface CreateEmailCampaignInput {
   name: string;
   subject: string;
   body_html: string;
+  body_design?: Record<string, unknown> | null;
   body_text?: string;
   from_name?: string;
   from_email?: string;
@@ -76,6 +80,10 @@ function mapEmailCampaign(row: Record<string, unknown>): EmailCampaign {
     name: String(row.name),
     subject: String(row.subject),
     body_html: String(row.body_html),
+    body_design:
+      row.body_design != null && typeof row.body_design === 'object'
+        ? (row.body_design as Record<string, unknown>)
+        : null,
     body_text: row.body_text ? String(row.body_text) : null,
     from_name: row.from_name ? String(row.from_name) : null,
     from_email: row.from_email ? String(row.from_email) : null,
@@ -179,16 +187,17 @@ export async function createEmailCampaign(ctx: CallerContext, data: CreateEmailC
   return runInTenant(tenantId, async (client) => {
     const result = await client.query(
     `INSERT INTO marketing_email_campaigns (
-       campaign_id, name, subject, body_html, body_text, from_name, from_email,
+       campaign_id, name, subject, body_html, body_design, body_text, from_name, from_email,
        status, scheduled_at, recipient_count, audience_filter, created_by
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
     [
       data.campaign_id ?? null,
       data.name,
       data.subject,
       data.body_html,
+      data.body_design ?? null,
       data.body_text ?? null,
       data.from_name ?? null,
       data.from_email ?? null,
@@ -196,7 +205,7 @@ export async function createEmailCampaign(ctx: CallerContext, data: CreateEmailC
       data.scheduled_at ?? null,
       data.recipient_count ?? 0,
       JSON.stringify(data.audience_filter ?? {}),
-      ctx.userId,
+      reimbursementUsersPk(ctx),
     ],
   );
     return (await getEmailCampaignById(ctx, String(result.rows[0].id))) ?? mapEmailCampaign(result.rows[0] as Record<string, unknown>);
@@ -216,6 +225,7 @@ export async function updateEmailCampaign(
     ['name', data.name],
     ['subject', data.subject],
     ['body_html', data.body_html],
+    ['body_design', data.body_design],
     ['body_text', data.body_text],
     ['from_name', data.from_name],
     ['from_email', data.from_email],

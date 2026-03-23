@@ -131,6 +131,13 @@ export async function updateLastActivity(sessionId: string): Promise<void> {
   );
 }
 
+export async function updateRefreshTokenHash(sessionId: string, hash: string): Promise<void> {
+  await query(
+    `UPDATE auth_sessions SET refresh_token_hash = $1 WHERE id = $2`,
+    [hash, sessionId],
+  );
+}
+
 export function generateRefreshToken(): string {
   return randomBytes(32).toString('hex');
 }

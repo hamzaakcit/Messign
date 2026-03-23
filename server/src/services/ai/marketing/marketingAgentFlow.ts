@@ -23,6 +23,9 @@ import { buildMarketingContentStrategistPrompt } from '../../../modules/marketin
 import { buildMarketingCampaignManagerPrompt } from '../../../modules/marketing/prompts/marketingCampaignManagerPrompt.js';
 import { loadMarketingTruthBrandLayers } from '../../../dal/marketing/truthBrand.js';
 import { resolveOrgIdForTool } from '../tools/resolveOrgIdForTool.js';
+import { resolveCalibrationPrompt } from '../../marketing/calibrationResolver.js';
+import { getBrandProfile, formatBrandProfileAsMd } from '../../marketing/brandProfileService.js';
+import { query as dbQuery } from '../../../db/index.js';
 import {
   mapStrategyPlanToParsedRoute,
   plannerShouldFallbackToLegacyRouter,
@@ -33,6 +36,7 @@ import { planRequiresResearchPhase } from '../../../modules/marketing/prompts/v2
 import type { MarketingRouteKind, ParsedMarketingRoute } from './marketingRouteTypes.js';
 import type { ContentWorkflowResult, MarketingOrchestrationContext } from './marketingAgentOrchestrator.js';
 import * as contentDal from '../../../dal/marketing/content.js';
+import { parseToolCallArgumentsJson } from '../parseToolArguments.js';
 
 export type { MarketingRouteKind, ParsedMarketingRoute } from './marketingRouteTypes.js';
 
@@ -57,6 +61,8 @@ export const CONTENT_TOOL_NAMES = [
   'creative:repurpose_content',
   'seo:keyword_optimizer',
   'marketing:competitor_social_listen',
+  'marketing:list_saved_email_designs',
+  'marketing:get_saved_email_design',
 ] as const;
 
 /** Strategy-first research phase: read-only tools only (subset of content + campaign analytics). */
@@ -167,11 +173,7 @@ export function parseMarketingRouteFromMessage(message: OpenAI.ChatCompletionMes
   );
   if (!tc) return null;
   let args: Record<string, unknown> = {};
-  try {
-    args = JSON.parse(tc.function.arguments || '{}') as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  args = parseToolCallArgumentsJson(tc.function.arguments);
   const route = args.route as MarketingRouteKind | undefined;
   if (
     !route ||
@@ -399,58 +401,97 @@ ${priorBlock ? `\nContext from prior step:\n${priorBlock}\n` : ''}`;
         tc.type === 'function' && 'function' in tc && tc.function != null,
     );
 
-    for (const tc of validCalls) {
-      const toolName = tc.function.name;
-      let args: Record<string, unknown> = {};
-      try {
-        args = JSON.parse(tc.function.arguments || '{}') as Record<string, unknown>;
-      } catch {
-        /* empty */
+    const readOnlyCalls = validCalls.filter((tc) => {
+      const rn = resolveRegisteredToolName(tc.function.name) ?? tc.function.name;
+      const args = parseToolCallArgumentsJson(tc.function.arguments);
+      const argVal = validateToolArgsForExecution(rn, args);
+      const risk = classifyActionRisk(rn, argVal.ok ? argVal.args : args);
+      return !(risk === 'irreversible' || isWriteTool(rn)) && argVal.ok;
+    });
+    const canParallelize = readOnlyCalls.length === validCalls.length && validCalls.length > 1;
+
+    if (canParallelize) {
+      const results = await Promise.all(
+        validCalls.map(async (tc) => {
+          const toolName = tc.function.name;
+          const args = parseToolCallArgumentsJson(tc.function.arguments);
+          const resolvedTn = resolveRegisteredToolName(toolName) ?? toolName;
+          const argVal = validateToolArgsForExecution(resolvedTn, args);
+          const toolResult = await executeTool(resolvedTn, argVal.ok ? argVal.args : args, legacyContext);
+          return { tc, toolName, toolResult: {
+            ...toolResult,
+            data: toolResult.data ? sanitizeData(toolResult.data, legacyContext.userRole === 'admin') : null,
+          }};
+        }),
+      );
+      for (const { tc, toolName, toolResult } of results) {
+        toolsUsed.push(toolName);
+        toolObservations.push({
+          toolName,
+          success: toolResult.success,
+          data: toolResult.data ?? toolResult,
+          summary: toolResult.summary,
+        });
+        let toolContent = toolResult.summary || JSON.stringify(toolResult.data ?? {});
+        if (
+          (toolName === 'knowledge:search_knowledge_base' || toolName.endsWith('search_knowledge_base')) &&
+          toolResult.success &&
+          toolContent.includes('| Content:')
+        ) {
+          toolContent = STRICT_RAG_PREAMBLE + toolContent;
+        }
+        const redacted = redactPII(toolContent.slice(0, 8000));
+        messages.push({ role: 'tool', tool_call_id: tc.id!, content: redacted.redactedText });
       }
+    } else {
+      for (const tc of validCalls) {
+        const toolName = tc.function.name;
+        const args = parseToolCallArgumentsJson(tc.function.arguments);
 
-      toolsUsed.push(toolName);
-      const resolvedTn = resolveRegisteredToolName(toolName) ?? toolName;
-      const argVal = validateToolArgsForExecution(resolvedTn, args);
-      const risk = classifyActionRisk(resolvedTn, argVal.ok ? argVal.args : args);
-      const needsHITL = risk === 'irreversible' || isWriteTool(resolvedTn);
+        toolsUsed.push(toolName);
+        const resolvedTn = resolveRegisteredToolName(toolName) ?? toolName;
+        const argVal = validateToolArgsForExecution(resolvedTn, args);
+        const risk = classifyActionRisk(resolvedTn, argVal.ok ? argVal.args : args);
+        const needsHITL = risk === 'irreversible' || isWriteTool(resolvedTn);
 
-      let toolResult: ToolResult;
-      if (!argVal.ok) {
-        toolResult = {
-          success: false,
-          data: null,
-          summary: argVal.summary,
-          metadata: { source: 'tool_validation', validationError: true },
-        };
-      } else if (needsHITL) {
-        const { toolResult: tr, sseEvent } = await interceptWriteAction(resolvedTn, argVal.args, doraCtx, query, risk);
-        toolResult = tr;
-        pendingActions.push(sseEvent);
-      } else {
-        toolResult = await executeTool(resolvedTn, argVal.args, legacyContext);
-        toolResult = {
-          ...toolResult,
-          data: toolResult.data ? sanitizeData(toolResult.data, legacyContext.userRole === 'admin') : null,
-        };
+        let toolResult: ToolResult;
+        if (!argVal.ok) {
+          toolResult = {
+            success: false,
+            data: null,
+            summary: argVal.summary,
+            metadata: { source: 'tool_validation', validationError: true },
+          };
+        } else if (needsHITL) {
+          const { toolResult: tr, sseEvent } = await interceptWriteAction(resolvedTn, argVal.args, doraCtx, query, risk);
+          toolResult = tr;
+          pendingActions.push(sseEvent);
+        } else {
+          toolResult = await executeTool(resolvedTn, argVal.args, legacyContext);
+          toolResult = {
+            ...toolResult,
+            data: toolResult.data ? sanitizeData(toolResult.data, legacyContext.userRole === 'admin') : null,
+          };
+        }
+
+        toolObservations.push({
+          toolName,
+          success: toolResult.success,
+          data: toolResult.data ?? toolResult,
+          summary: toolResult.summary,
+        });
+
+        let toolContent = toolResult.summary || JSON.stringify(toolResult.data ?? {});
+        if (
+          (toolName === 'knowledge:search_knowledge_base' || toolName.endsWith('search_knowledge_base')) &&
+          toolResult.success &&
+          toolContent.includes('| Content:')
+        ) {
+          toolContent = STRICT_RAG_PREAMBLE + toolContent;
+        }
+        const redacted = redactPII(toolContent.slice(0, 8000));
+        messages.push({ role: 'tool', tool_call_id: tc.id!, content: redacted.redactedText });
       }
-
-      toolObservations.push({
-        toolName,
-        success: toolResult.success,
-        data: toolResult.data ?? toolResult,
-        summary: toolResult.summary,
-      });
-
-      let toolContent = toolResult.summary || JSON.stringify(toolResult.data ?? {});
-      if (
-        (toolName === 'knowledge:search_knowledge_base' || toolName.endsWith('search_knowledge_base')) &&
-        toolResult.success &&
-        toolContent.includes('| Content:')
-      ) {
-        toolContent = STRICT_RAG_PREAMBLE + toolContent;
-      }
-      const redacted = redactPII(toolContent.slice(0, 8000));
-      messages.push({ role: 'tool', tool_call_id: tc.id!, content: redacted.redactedText });
     }
   }
 
@@ -549,6 +590,8 @@ export interface MarketingFlowOptions {
   history?: Array<{ role: string; content: string }>;
   /** /marketing/agent or client flag */
   forceMarketingContext?: boolean;
+  /** Set by v2 pipeline when `body.marketingAgentMode` is true */
+  marketingAgentMode?: boolean;
   onStreamChunk?: (text: string) => void;
 }
 
@@ -583,8 +626,16 @@ async function persistedContentExtras(
   marketingContentId?: string | null;
   marketingImageUrl?: string | null;
   marketingContentStatus?: string | null;
+  marketingContentError?: string | null;
   marketingValidation?: Record<string, unknown>;
 }> {
+  if (contentResult.status === 'failed' && contentResult.creationError != null) {
+    return {
+      marketingContentId: null,
+      marketingContentStatus: 'error',
+      marketingContentError: contentResult.creationError,
+    };
+  }
   const id =
     contentResult.status === 'completed'
       ? contentResult.contentId
@@ -626,8 +677,10 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
   /** Set when persisted content workflow creates/updates a `marketing_content` row */
   marketingContentId?: string | null;
   marketingImageUrl?: string | null;
-  /** DB status after workflow (e.g. `in_review`, `draft`) */
+  /** DB status after workflow (e.g. `in_review`, `draft`) or `error` when creation failed (e.g. RLS) */
   marketingContentStatus?: string | null;
+  /** When creation failed (e.g. RLS), short message for the UI */
+  marketingContentError?: string | null;
   /** Compact gatekeeper summary when workflow completed */
   marketingValidation?: Record<string, unknown>;
 }> {
@@ -644,6 +697,11 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
 
   return withTimeout(
     (async () => {
+      console.log('[DIAG] runMarketingSubOrchestratorFlow called', {
+        marketingAgentMode: opts.marketingAgentMode ?? false,
+        route: '(pending)',
+      });
+
       const { route, plan } = await resolveMarketingRouteWithPlanner(
         query,
         history,
@@ -653,6 +711,10 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         legacyContext,
         forceMarketingContext,
       );
+
+      const { inferMarketingContentChannel } = await import('./marketingAgentOrchestrator.js');
+      const channelInferred = inferMarketingContentChannel(query);
+      console.log('[DIAG] Sub-orchestrator routing result:', { route: route.route, channel: channelInferred });
 
       if (route.route === 'CLARIFY') {
         const q = route.clarifyQuestion?.trim() || 'Could you share a bit more about what you want to achieve?';
@@ -702,10 +764,24 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         };
         const orgId = await resolveOrgIdForTool(mergedCtx);
         const { productTruthMd, brandVoiceMd } = await loadMarketingTruthBrandLayers(orgId);
+
+        let calibrationText = '';
+        if (orgId) {
+          try {
+            const calibration = await resolveCalibrationPrompt(orgId, channelInferred, undefined);
+            calibrationText = calibration.text;
+          } catch (err) {
+            console.warn('[marketingAgentFlow] Calibration resolve failed, continuing without:', err);
+          }
+        }
+
+        // CONTENT_STRATEGIST rules (Messign positioning, Instagram hashtags / pattern interrupt): `marketingContentStrategistPrompt.ts`
         const systemPrompt = buildMarketingContentStrategistPrompt({
           userRole: agentContext.userRole,
           productTruthMd,
           brandVoiceMd,
+          channel: channelInferred,
+          calibrationText,
         });
         const r = await runMarketingMiniLoop({
           role: 'content',
@@ -744,6 +820,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       };
 
       if (route.route === 'CONTENT_STRATEGIST') {
+        console.log('[DIAG] CONTENT_STRATEGIST route entered');
         const mo = await import('./marketingAgentOrchestrator.js');
         const orchCtx: MarketingOrchestrationContext = {
           agentContext,
@@ -756,6 +833,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         };
         const ch = mo.inferMarketingContentChannel(note + query);
         const ct = mo.contentTypeForMarketingChannel(ch);
+        console.log('[DIAG] executeContentWorkflow called', { contentId: undefined, channel: ch });
         const contentResult = await mo.executeContentWorkflow(
           {
             userQuery: note + query,
@@ -791,14 +869,30 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       }
 
       if (route.route === 'CAMPAIGN_MANAGER') {
+        console.log('[DIAG] Skipping executeContentWorkflow — path:', {
+          route: route.route,
+          channel: inferMarketingContentChannel(note + query),
+        });
         combined = await runCampaign(query);
         onStreamChunk?.(combined);
         return { content: combined, pendingActions: allPending, toolObservations: allObs, toolsUsed: allTools };
       }
 
-      // BOTH_CAMPAIGN_THEN_CONTENT
-      const campaignPart = await runCampaign(query);
-      onStreamChunk?.(campaignPart);
+      // BOTH_CAMPAIGN_THEN_CONTENT — campaign step is informational; failure must not block content creation.
+      let campaignContext =
+        '(Campaign analysis was unavailable. Proceed with content creation using available context.)';
+      let campaignPartForCombined = campaignContext;
+      try {
+        const campaignPart = await runCampaign(query);
+        onStreamChunk?.(campaignPart);
+        campaignPartForCombined =
+          typeof campaignPart === 'string' ? campaignPart : JSON.stringify(campaignPart ?? {});
+        campaignContext = campaignPartForCombined;
+        console.log('[BOTH] Campaign analysis succeeded');
+      } catch (campaignErr: unknown) {
+        const msg = campaignErr instanceof Error ? campaignErr.message : String(campaignErr);
+        console.warn('[BOTH] Campaign analysis failed (non-blocking):', msg);
+      }
 
       const moBoth = await import('./marketingAgentOrchestrator.js');
       const orchCtxBoth: MarketingOrchestrationContext = {
@@ -812,9 +906,10 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       };
       const chBoth = moBoth.inferMarketingContentChannel(note + query);
       const ctBoth = moBoth.contentTypeForMarketingChannel(chBoth);
+      console.log('[DIAG] executeContentWorkflow called', { contentId: undefined, channel: chBoth });
       const contentResult = await moBoth.executeContentWorkflow(
         {
-          userQuery: `${note + query}\n\nContext from campaign planning:\n${campaignPart}`,
+          userQuery: `${note + query}\n\nContext from campaign planning:\n${campaignContext}`,
           title: undefined,
           channel: chBoth,
           contentType: ctBoth,
@@ -825,7 +920,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       allTools.push(...contentResult.toolsUsed);
       const extrasBoth = await persistedContentExtras(legacyContext, contentResult);
       if (contentResult.status === 'completed') {
-        combined = `${campaignPart}\n\n${contentResult.draft}`;
+        combined = `${campaignPartForCombined}\n\n${contentResult.draft}`;
         onStreamChunk?.(`\n\n${contentResult.draft}`);
         return {
           content: combined,
@@ -836,7 +931,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         };
       }
       const failPart = (contentResult.lastDraft?.trim() || contentResult.reason).trim();
-      combined = `${campaignPart}\n\n${failPart}`;
+      combined = `${campaignPartForCombined}\n\n${failPart}`;
       onStreamChunk?.(`\n\n${failPart}`);
       return {
         content: combined,
@@ -851,12 +946,18 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
   ).catch((err) => {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[marketingAgentFlow]', msg);
+    if (err instanceof Error && err.stack) {
+      console.error('[marketingAgentFlow] stack:', err.stack);
+    }
     return {
       content:
         'The marketing assistant timed out or hit an error. Please try again with a shorter question, or check LiteLLM and API keys.',
       pendingActions: [] as PendingActionSSEEvent[],
       toolObservations: [] as ToolObservation[],
       toolsUsed: [] as string[],
+      marketingContentId: null,
+      marketingContentStatus: 'error',
+      marketingContentError: msg.slice(0, 200),
     };
   });
 }

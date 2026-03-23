@@ -5,7 +5,6 @@ export {
   gamificationQueue,
   doraInsightsQueue,
   doraSchedulerQueue,
-  analyticsQueue,
   webhookQueue,
   embeddingsQueue,
 } from './queues.js';

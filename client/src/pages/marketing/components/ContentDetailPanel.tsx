@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Calendar, Globe, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import { Calendar, Clock, Eye, Layers, Rocket, Send, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
 import { InstagramCockpit } from './InstagramCockpit';
+import { ContentEmailUnlayerControls } from './ContentEmailUnlayerControls';
+import { BatchPanel } from './BatchPanel';
+import { InstagramIntelligencePanel } from './cockpit/InstagramIntelligencePanel';
+import { isEmailContentItem } from '../lib/contentEmailGuards';
+import { ComplianceDetailPanel } from './ComplianceDetailPanel';
+
+type InstagramFormat = 'feed' | 'story' | 'reel';
 
 interface ContentDetailPanelProps {
   contentId: string;
@@ -17,6 +26,12 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
   const [loading, setLoading] = useState(true);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [imageGenProgress, setImageGenProgress] = useState('');
+  const [showBatchPanel, setShowBatchPanel] = useState(false);
+  const [autoScheduling, setAutoScheduling] = useState(false);
+  const [igFormat, setIgFormat] = useState<InstagramFormat>('feed');
+  const [showScheduleEditor, setShowScheduleEditor] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
 
   const fetchContent = useCallback(async () => {
     if (!userId || !contentId) return;
@@ -33,115 +48,270 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
     fetchContent();
   }, [fetchContent]);
 
+  const handleAutoSchedule = async () => {
+    if (!content) return;
+    setAutoScheduling(true);
+    try {
+      const bestTimes = await marketingAPI.getBestTimesToPost(userId, { topN: 1 });
+      const slot = bestTimes.data.topSlots[0];
+      if (!slot) {
+        toast.error('No optimal slot found');
+        return;
+      }
+      const now = new Date();
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const targetDayIdx = dayNames.indexOf(slot.day);
+      const currentDay = now.getDay();
+      let daysAhead = targetDayIdx - currentDay;
+      if (daysAhead <= 0) daysAhead += 7;
+      const targetDate = new Date(now);
+      targetDate.setDate(now.getDate() + daysAhead);
+      const dateStr = targetDate.toISOString().slice(0, 10);
+      const timeStr = `${String(slot.hour).padStart(2, '0')}:00`;
+
+      await marketingAPI.scheduleContent(userId, content.id, dateStr, timeStr);
+      toast.success(`Scheduled for ${slot.day} at ${slot.timeSlot}`, { description: slot.reason });
+      await fetchContent();
+      onUpdated();
+    } catch (e) {
+      toast.error('Auto-schedule failed', { description: e instanceof Error ? e.message : 'Unknown' });
+    } finally {
+      setAutoScheduling(false);
+    }
+  };
+
+  const handleManualSchedule = async () => {
+    if (!content || !scheduleDate) return;
+    try {
+      await marketingAPI.scheduleContent(userId, content.id, scheduleDate, scheduleTime || undefined);
+      toast.success('Scheduled', { description: `${scheduleDate}${scheduleTime ? ` at ${scheduleTime}` : ''}` });
+      setShowScheduleEditor(false);
+      await fetchContent();
+      onUpdated();
+    } catch (e) {
+      toast.error('Schedule failed', { description: e instanceof Error ? e.message : 'Unknown' });
+    }
+  };
+
   if (loading || !content) {
     return <div className="p-6 text-sm text-app-muted">Loading content…</div>;
   }
 
   const isInstagram = (content.channel ?? '').toLowerCase() === 'instagram';
+  const isEmail = isEmailContentItem(content);
+
+  const formatAspectRatio: Record<InstagramFormat, string> = {
+    feed: '1:1',
+    story: '9:16',
+    reel: '9:16',
+  };
 
   return (
-    <div className="p-6 space-y-5">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Badge variant="blue">{content.content_type}</Badge>
-          <Badge variant={content.status === 'published' ? 'green' : 'default'}>{content.status}</Badge>
+    <div className="flex h-full min-h-0 gap-0">
+      {/* Left column: preview + controls */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="blue">{content.content_type}</Badge>
+            <Badge variant={content.status === 'published' ? 'green' : 'default'}>{content.status}</Badge>
+            {isInstagram && (
+              <Badge variant="purple">{igFormat === 'feed' ? '1:1 Feed' : igFormat === 'story' ? '9:16 Story' : '9:16 Reel'}</Badge>
+            )}
+          </div>
+          <h3 className="text-2xl font-semibold text-app-text">{content.title}</h3>
+          <p className="text-sm text-app-muted mt-2">{content.channel || 'No channel'} • {content.campaign_name || 'No campaign'}</p>
         </div>
-        <h3 className="text-2xl font-semibold text-app-text">{content.title}</h3>
-        <p className="text-sm text-app-muted mt-2">{content.channel || 'No channel'} • {content.campaign_name || 'No campaign'}</p>
-      </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <MetricCard icon={Calendar} label="Scheduled" value={content.scheduled_date || 'Unscheduled'} />
-        <MetricCard icon={Globe} label="Views" value={content.views.toLocaleString()} />
-        <MetricCard icon={Send} label="Leads" value={content.leads_attributed.toLocaleString()} />
-      </div>
+        <div className="flex items-center gap-4 text-xs text-app-muted">
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {content.scheduled_date
+              ? `${content.scheduled_date}${content.scheduled_time ? ` · ${content.scheduled_time}` : ''}`
+              : 'Not scheduled'}
+          </span>
+          <span className="flex items-center gap-1">
+            <Eye className="w-3 h-3" /> {(content.views ?? 0).toLocaleString()}
+          </span>
+          <span className="flex items-center gap-1">
+            <Send className="w-3 h-3" /> {(content.leads_attributed ?? 0).toLocaleString()}
+          </span>
+        </div>
 
-      {isInstagram ? (
-        <InstagramCockpit
-          caption={content.body ?? ''}
-          imageUrl={content.image_url ?? null}
-          imagePrompt={content.image_prompt ?? null}
-          altText={content.visual_description ?? null}
-          isGenerating={isGeneratingImage}
-          progressMessage={imageGenProgress}
-          contentId={content.id}
-          onRegenerateImage={async (newPrompt, stylePreset) => {
-            setIsGeneratingImage(true);
-            setImageGenProgress('Regenerating visual…');
-            try {
-              const r = await marketingAPI.regenerateContentImage(userId, content.id, {
-                image_prompt: newPrompt,
-                style_preset: stylePreset,
-              });
-              if (r.success && r.image_url) {
-                setContent((c) =>
-                  c ? { ...c, image_url: r.image_url, image_prompt: newPrompt, visual_description: newPrompt } : c,
-                );
-                onUpdated();
+        {/* Instagram format selector */}
+        {isInstagram && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Format</span>
+            {(['feed', 'story', 'reel'] as const).map((fmt) => (
+              <button
+                key={fmt}
+                type="button"
+                onClick={() => setIgFormat(fmt)}
+                className={cn(
+                  'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors capitalize',
+                  igFormat === fmt
+                    ? 'border-pink-500/40 bg-pink-500/10 text-pink-300'
+                    : 'border-white/[0.08] bg-white/[0.04] text-slate-400 hover:border-white/20',
+                )}
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isEmail ? (
+          <ContentEmailUnlayerControls
+            content={content}
+            onUpdated={async () => {
+              await fetchContent();
+              onUpdated();
+            }}
+          />
+        ) : null}
+
+        {isInstagram ? (
+          <InstagramCockpit
+            caption={content.body ?? ''}
+            imageUrl={content.image_url ?? null}
+            imagePrompt={content.image_prompt ?? null}
+            altText={content.visual_description ?? null}
+            isGenerating={isGeneratingImage}
+            progressMessage={imageGenProgress}
+            contentId={content.id}
+            onRegenerateImage={async (newPrompt, stylePreset) => {
+              setIsGeneratingImage(true);
+              setImageGenProgress('Regenerating visual…');
+              try {
+                const r = await marketingAPI.regenerateContentImage(userId, content.id, {
+                  image_prompt: newPrompt,
+                  style_preset: stylePreset,
+                  aspect_ratio: formatAspectRatio[igFormat] !== '1:1' ? formatAspectRatio[igFormat] : undefined,
+                });
+                if (r.success && r.image_url) {
+                  setContent((c) =>
+                    c ? { ...c, image_url: r.image_url, image_prompt: newPrompt, visual_description: newPrompt } : c,
+                  );
+                  onUpdated();
+                }
+              } finally {
+                setIsGeneratingImage(false);
+                setImageGenProgress('');
               }
-            } finally {
-              setIsGeneratingImage(false);
-              setImageGenProgress('');
-            }
-          }}
-        />
-      ) : (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-          <p className="text-xs uppercase tracking-wide text-app-muted mb-2">Body</p>
-          <div className="text-sm text-app-text whitespace-pre-wrap">{content.body || 'No body yet.'}</div>
+            }}
+          />
+        ) : (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="text-sm text-app-text whitespace-pre-wrap">{content.body || 'No body yet.'}</div>
+          </div>
+        )}
+
+        {(content.tags?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {content.tags?.map((tag) => (
+              <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-white/[0.06] text-app-muted">{tag}</span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              void marketingAPI.publishContent(userId, content.id).then(() => {
+                toast.success('Published');
+                void fetchContent();
+                onUpdated();
+              }).catch(() => toast.error('Publish failed'));
+            }}
+            title="Publish"
+            className="h-8 w-8 flex items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+          >
+            <Rocket className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowScheduleEditor((v) => !v)}
+            title={content.scheduled_date ? 'Reschedule' : 'Schedule'}
+            className="h-8 w-8 flex items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 transition-colors"
+          >
+            <Clock className="w-4 h-4" />
+          </button>
+          {!content.scheduled_date && (
+            <button
+              onClick={() => void handleAutoSchedule()}
+              disabled={autoScheduling}
+              title="Auto-schedule"
+              className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40"
+            >
+              <Zap className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => setShowBatchPanel(true)}
+            title="Atomize to channels"
+            className="h-8 w-8 flex items-center justify-center rounded-lg bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-colors"
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+        </div>
+
+        {content.brand_profile_id && (
+          <ComplianceDetailPanel contentId={content.id} />
+        )}
+
+        {/* Schedule editor */}
+        {showScheduleEditor && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pick date & time</p>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                title="Schedule date"
+                value={scheduleDate || content.scheduled_date || ''}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-slate-200"
+              />
+              <input
+                type="time"
+                title="Schedule time"
+                value={scheduleTime || content.scheduled_time || ''}
+                onChange={(e) => setScheduleTime(e.target.value)}
+                className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-slate-200"
+              />
+              <button
+                onClick={() => void handleManualSchedule()}
+                disabled={!scheduleDate}
+                className="rounded-lg bg-cyan-600/80 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-40"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showBatchPanel && (
+          <BatchPanel heroContent={content} onClose={() => setShowBatchPanel(false)} />
+        )}
+      </div>
+
+      {/* Right column: Instagram Intelligence */}
+      {isInstagram && (
+        <div className="w-[340px] shrink-0 overflow-y-auto border-l border-white/[0.06] bg-[#0a0d12] p-4">
+          <InstagramIntelligencePanel
+            userId={userId}
+            content={content}
+            onCaptionSelected={async (newCaption) => {
+              try {
+                await marketingAPI.updateContent(userId, contentId, { body: newCaption });
+                toast.success('Caption updated');
+                await fetchContent();
+                onUpdated();
+              } catch {
+                toast.error('Failed to update caption');
+              }
+            }}
+          />
         </div>
       )}
-
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <p className="text-xs uppercase tracking-wide text-app-muted mb-2">Tags</p>
-        <p className="text-sm text-app-text">{content.tags.length > 0 ? content.tags.join(', ') : 'No tags.'}</p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => {
-            void marketingAPI.publishContent(userId, content.id).then(() => {
-              void fetchContent();
-              onUpdated();
-            });
-          }}
-          className="px-3 py-2 rounded-lg text-sm bg-primary-500 text-white"
-        >
-          Publish
-        </button>
-        <button
-          onClick={() => {
-            if (!content.scheduled_date) return;
-            void marketingAPI.scheduleContent(userId, content.id, content.scheduled_date, content.scheduled_time || undefined).then(() => {
-              void fetchContent();
-              onUpdated();
-            });
-          }}
-          className="px-3 py-2 rounded-lg text-sm bg-white/5 text-app-text"
-        >
-          Re-Schedule
-        </button>
-      </div>
     </div>
   );
 }
 
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-      <div className="flex items-center gap-2 text-app-muted text-xs uppercase tracking-wide">
-        <Icon className="w-4 h-4" />
-        {label}
-      </div>
-      <p className="text-xl font-semibold text-app-text mt-3">{value}</p>
-    </div>
-  );
-}

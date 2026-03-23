@@ -8,7 +8,7 @@ import {
   resolveSprint,
 } from '../db/sprintsDb.js';
 import { getProjectById } from '../db/projectsDb.js';
-import { getEmployeeByIdAsUser } from '../db/employeesDb.js';
+import { getEmployeeByIdAsUser, getEmployeesByIdsAsUsers } from '../db/employeesDb.js';
 import { requireJwt } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -22,25 +22,28 @@ router.get('/', requireJwt, async (req, res) => {
   }
   try {
     const sprints = await getActiveSprintRequests();
-    const withDetails = await Promise.all(
-      sprints.map(async (s) => {
-        const project = await getProjectById(s.project_id);
-        const requester = await getEmployeeByIdAsUser(s.requester_id);
-        const helpers = await getSprintHelpers(s.id);
-        const helpersWithUser = await Promise.all(
-          helpers.map(async (h) => {
-            const user = await getEmployeeByIdAsUser(h.user_id);
-            return { ...h, user: user ? { id: user.id, name: user.name, avatar: user.avatar } : { id: h.user_id, name: '', avatar: '' } };
-          })
-        );
-        return {
-          ...s,
-          project: project ? { id: project.id, name: project.name, type: project.type } : { id: s.project_id, title: s.title, department: s.title },
-          requester: requester ? { id: requester.id, name: requester.name, avatar: requester.avatar } : { id: s.requester_id, name: '', avatar: '' },
-          helpers: helpersWithUser,
-        };
-      })
-    );
+    const allHelpers = await Promise.all(sprints.map((s) => getSprintHelpers(s.id)));
+    const allProjects = await Promise.all(sprints.map((s) => getProjectById(s.project_id)));
+
+    const allUserIds = new Set<string>();
+    sprints.forEach((s) => allUserIds.add(s.requester_id));
+    allHelpers.flat().forEach((h) => allUserIds.add(h.user_id));
+    const usersMap = await getEmployeesByIdsAsUsers([...allUserIds]);
+
+    const withDetails = sprints.map((s, i) => {
+      const project = allProjects[i];
+      const requester = usersMap.get(s.requester_id) ?? null;
+      const helpersWithUser = allHelpers[i]!.map((h) => {
+        const user = usersMap.get(h.user_id) ?? null;
+        return { ...h, user: user ? { id: user.id, name: user.name, avatar: user.avatar } : { id: h.user_id, name: '', avatar: '' } };
+      });
+      return {
+        ...s,
+        project: project ? { id: project.id, name: project.name, type: project.type } : { id: s.project_id, title: s.title, department: s.title },
+        requester: requester ? { id: requester.id, name: requester.name, avatar: requester.avatar } : { id: s.requester_id, name: '', avatar: '' },
+        helpers: helpersWithUser,
+      };
+    });
     res.json({ sprints: withDetails });
   } catch (e) {
     console.error('[sprints] list error:', e);

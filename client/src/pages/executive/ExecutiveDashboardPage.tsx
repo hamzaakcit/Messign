@@ -109,7 +109,7 @@ export function ExecutiveDashboardPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-app p-4 md:p-6 space-y-4">
+    <div className="h-[calc(100vh-48px)] overflow-y-auto bg-app p-4 md:p-6 space-y-4">
       {!bannerDismissed && (
         <div className="rounded-xl p-5 bg-gradient-to-r from-blue-900 to-slate-900 border border-blue-800/50">
           <div className="flex items-start justify-between gap-3">
@@ -132,9 +132,9 @@ export function ExecutiveDashboardPage() {
         </div>
       )}
 
-      <div data-testid="executive-kpis" className="flex gap-3 overflow-x-auto pb-2">
+      <div data-testid="executive-kpis" className="flex gap-2.5 overflow-x-auto pb-2">
         {kpis.map((kpi) => (
-          <div key={kpi.label} data-testid={`executive-kpi-${kpi.label.replace(/\s/g, '-')}`} className="min-w-[190px] rounded-lg border border-app bg-app-card p-3">
+          <div key={kpi.label} data-testid={`executive-kpi-${kpi.label.replace(/\s/g, '-')}`} className="min-w-[170px] rounded-lg border border-app bg-app-card p-2.5">
             <div className="text-xs text-app-muted">{kpi.label}</div>
             <div className="mt-1 text-lg font-semibold text-app">{kpi.value}</div>
             <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -144,8 +144,8 @@ export function ExecutiveDashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-        <div className="xl:col-span-3 space-y-4">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
+        <div className="xl:col-span-3 space-y-3">
           <div data-testid="executive-chart" className="rounded-lg border border-app bg-app-card p-4">
             <div className="text-sm font-semibold text-app mb-3">Revenue Trend</div>
             <div className="space-y-2">
@@ -189,7 +189,7 @@ export function ExecutiveDashboardPage() {
           </div>
         </div>
 
-        <div className="xl:col-span-2 space-y-4">
+        <div className="xl:col-span-2 space-y-3">
           <div className="rounded-lg border border-app bg-app-card p-4">
             <div className="text-sm font-semibold text-app mb-2">Pending Actions</div>
             <ul className="space-y-2 text-sm text-app-muted">

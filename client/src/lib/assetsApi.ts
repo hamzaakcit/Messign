@@ -1,5 +1,6 @@
 import { API_ORIGIN } from './api';
 import { getAccessToken } from './authToken';
+import type { PaginatedResult } from './types';
 
 const ASSETS_BASE = `${API_ORIGIN}/api/assets`;
 
@@ -21,13 +22,7 @@ async function assetsRequest<T>(path: string, options: RequestInit = {}, userId?
   return res.json();
 }
 
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages?: number;
-}
+export type { PaginatedResult } from './types';
 
 export interface Asset {
   id: string;

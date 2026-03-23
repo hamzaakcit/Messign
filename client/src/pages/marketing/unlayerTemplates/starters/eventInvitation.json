@@ -1,0 +1,74 @@
+{
+  "version": "2.0",
+  "theme": "luxury",
+  "subject": "You're Invited — [Event Name] on [Date]",
+  "preheader": "An intimate evening of conversation, live music, and a seated tasting menu—dress is cocktail attire. Space is limited; kindly RSVP by the date shown so we may reserve your place and accommodate dietary preferences with our chef.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "You’re cordially invited",
+        "subheadline": "[Event Name] — an evening crafted for leaders who value craft, discretion, and meaningful connection.",
+        "ctaText": "Save the date",
+        "ctaUrl": "https://example.com/events/save",
+        "imagePrompt": "Luxury invitation aesthetic, deep charcoal and gold foil accents, soft candlelight bokeh, marble texture, editorial fashion-event photography mood, no readable text in image",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "content": {
+        "body": "<strong>When:</strong> [Date], reception at 6:30 PM, program at 7:15 PM (local time)<br><br><strong>Where:</strong> The Atrium, Meridian House, 1600 Crescent Lane — valet and rideshare pickup at the west entrance.<br><br><strong>Attire:</strong> Cocktail; outerwear will be checked.<br><br><strong>Notes:</strong> This invitation is non-transferable. If you require accessibility accommodations or have dietary restrictions, include them with your RSVP and our concierge will confirm within one business day.",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "Kindly respond",
+        "description": "Reserve your seat and share any guest details—we will send a calendar hold and arrival instructions.",
+        "buttonText": "RSVP",
+        "buttonUrl": "https://example.com/events/rsvp",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 4,
+      "content": {
+        "style": "mixed",
+        "items": [
+          {
+            "label": "Elena Vasquez",
+            "value": "Keynote — The Architecture of Trust"
+          },
+          {
+            "label": "James Okonkwo",
+            "value": "Fireside — Capital, Culture, and Long Horizons"
+          },
+          {
+            "label": "Sofia Lindström",
+            "value": "Closing — Live Q&A with the hosts"
+          }
+        ]
+      }
+    },
+    {
+      "type": "footer",
+      "order": 5,
+      "content": {
+        "companyName": "Meridian Collective",
+        "address": "1600 Crescent Lane, New York, NY 10012",
+        "unsubscribeText": "You received this invitation as a guest of Meridian Collective. Reply to decline or contact events@example.com."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "",
+    "audience": ""
+  }
+}

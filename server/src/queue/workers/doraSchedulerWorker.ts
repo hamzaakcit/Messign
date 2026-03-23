@@ -34,15 +34,32 @@ const MATERIALIZED_VIEWS = [
 ];
 
 async function refreshMaterializedViews(): Promise<void> {
-  for (const view of MATERIALIZED_VIEWS) {
-    try {
-      await query(`REFRESH MATERIALIZED VIEW CONCURRENTLY ${view}`);
-      console.log(`[DoraScheduler] Refreshed ${view}`);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`[DoraScheduler] Could not refresh ${view}:`, message);
+  const listed = await query<{ matviewname: string }>(
+    `SELECT matviewname FROM pg_matviews WHERE schemaname = 'public' AND matviewname = ANY($1::text[])`,
+    [MATERIALIZED_VIEWS],
+  );
+  const existing = new Set(listed.rows.map((r) => r.matviewname));
+  const toRefresh = MATERIALIZED_VIEWS.filter((v) => existing.has(v));
+  for (const v of MATERIALIZED_VIEWS) {
+    if (!existing.has(v)) {
+      console.log(`[DoraScheduler] Skipping refresh (matview not in DB): ${v}`);
     }
   }
+  const results = await Promise.allSettled(
+    toRefresh.map((view) =>
+      query(`REFRESH MATERIALIZED VIEW CONCURRENTLY ${view}`).then(() => view),
+    ),
+  );
+  results.forEach((r, i) => {
+    const view = toRefresh[i];
+    if (r.status === 'fulfilled') {
+      console.log(`[DoraScheduler] Refreshed ${view}`);
+    } else {
+      const reason = r.reason;
+      const message = reason instanceof Error ? reason.message : String(reason);
+      console.warn(`[DoraScheduler] Could not refresh ${view}:`, message);
+    }
+  });
 }
 
 const worker = new Worker<SchedulerJob>(

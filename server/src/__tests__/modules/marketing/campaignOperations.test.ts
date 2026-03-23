@@ -40,6 +40,7 @@ describe('Phase 4 — campaign operations matrix', () => {
       status: 'draft',
       body: 'x',
       body_html: null,
+      body_design: null,
       scheduled_date: null,
       scheduled_time: null,
       published_at: null,

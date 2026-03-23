@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
-import fs from 'fs';
+import { existsSync } from 'fs';
+import { writeFile, readFile, mkdir } from 'fs/promises';
 import path from 'path';
 import type { Response } from 'express';
 import { query } from '../../../db/index.js';
@@ -13,9 +14,7 @@ import { extractReceiptData } from '../../../services/ai/receiptExtractor.js';
 const router = Router();
 
 const RECEIPT_DIR = path.join(process.cwd(), 'uploads', 'finance', 'receipts');
-if (!fs.existsSync(RECEIPT_DIR)) {
-  fs.mkdirSync(RECEIPT_DIR, { recursive: true });
-}
+await mkdir(RECEIPT_DIR, { recursive: true });
 
 const receiptUpload = multer({
   storage: multer.memoryStorage(),
@@ -234,7 +233,7 @@ router.post('/:id/receipts', receiptUpload.single('receipt'), async (req: Reimbu
     const ext = path.extname(file.originalname) || '.jpg';
     const fileName = `${expenseId}_${Date.now()}${ext}`;
     const filePath = path.join(RECEIPT_DIR, fileName);
-    fs.writeFileSync(filePath, file.buffer);
+    await writeFile(filePath, file.buffer);
 
     const fileUrl = `/uploads/finance/receipts/${fileName}`;
     const result = await query(
@@ -261,9 +260,9 @@ router.post('/:id/receipts/:docId/ocr', async (req: ReimbursementRequest, res: R
     if (!doc.rows[0]) { res.status(404).json({ error: 'Document not found' }); return; }
 
     const filePath = path.join(process.cwd(), doc.rows[0].file_url);
-    if (!fs.existsSync(filePath)) { res.status(404).json({ error: 'File not found on disk' }); return; }
+    if (!existsSync(filePath)) { res.status(404).json({ error: 'File not found on disk' }); return; }
 
-    const fileBuffer = fs.readFileSync(filePath);
+    const fileBuffer = await readFile(filePath);
     const base64 = fileBuffer.toString('base64');
     const mediaType = doc.rows[0].mime_type || 'image/jpeg';
 

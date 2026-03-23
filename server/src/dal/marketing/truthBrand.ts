@@ -70,7 +70,7 @@ export async function loadProductTruthSheetMd(
     featParams.push(ilike(topic));
     p++;
   }
-  featSql += ' ORDER BY sort_order, name';
+  featSql += ' ORDER BY sort_order, name LIMIT 200';
 
   const features = await query<{ key: string; name: string; description: string | null; status: string; announced: boolean }>(
     featSql,
@@ -110,7 +110,7 @@ export async function loadProductTruthSheetMd(
   }
 
   const blocked = await query<{ pattern_or_text: string; reason: string | null }>(
-    `SELECT pattern_or_text, reason FROM marketing_truth_blocked WHERE organization_id = $1::uuid ORDER BY sort_order`,
+    `SELECT pattern_or_text, reason FROM marketing_truth_blocked WHERE organization_id = $1::uuid ORDER BY sort_order LIMIT 200`,
     [organizationId],
   );
   parts.push('\n### Blocked / caution patterns\n');
@@ -189,7 +189,7 @@ export async function loadBrandVoiceProfileMd(organizationId: string | null): Pr
     [organizationId],
   );
   const examples = await query<{ kind: string; title: string | null; body: string }>(
-    `SELECT kind, title, body FROM marketing_brand_examples WHERE organization_id = $1::uuid ORDER BY kind, sort_order`,
+    `SELECT kind, title, body FROM marketing_brand_examples WHERE organization_id = $1::uuid ORDER BY kind, sort_order LIMIT 100`,
     [organizationId],
   );
 

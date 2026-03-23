@@ -306,6 +306,7 @@ export async function runDoraPipeline(
         legacyContext: legacy,
         history: body.history,
         forceMarketingContext: marketingHubAgent,
+        marketingAgentMode: body.marketingAgentMode === true,
         onStreamChunk: (t) => controller.emit('text', t),
       });
 
@@ -314,6 +315,11 @@ export async function runDoraPipeline(
       }
 
       const dataPoints = result.toolObservations.filter((o) => o.success && o.data != null).length;
+      console.log('[DIAG] SSE metadata emitting:', {
+        marketingContentId: result.marketingContentId,
+        marketingContentStatus: result.marketingContentStatus,
+        marketingContentError: result.marketingContentError ?? undefined,
+      });
       controller.emit('metadata', {
         toolsUsed: result.toolsUsed,
         dataPoints,
@@ -323,14 +329,15 @@ export async function runDoraPipeline(
         specialist: 'marketing',
         specialistDisplayName: 'Marketing',
         specialistIcon: '📣',
-        ...(result.marketingContentId != null && result.marketingContentId !== ''
-          ? { marketingContentId: result.marketingContentId }
+        marketingContentId: result.marketingContentId ?? null,
+        ...(result.marketingContentStatus != null && result.marketingContentStatus !== ''
+          ? { marketingContentStatus: result.marketingContentStatus }
+          : {}),
+        ...(result.marketingContentError != null && result.marketingContentError !== ''
+          ? { marketingContentError: result.marketingContentError }
           : {}),
         ...(result.marketingImageUrl != null && result.marketingImageUrl !== ''
           ? { marketingImageUrl: result.marketingImageUrl }
-          : {}),
-        ...(result.marketingContentStatus != null && result.marketingContentStatus !== ''
-          ? { marketingContentStatus: result.marketingContentStatus }
           : {}),
         ...(result.marketingValidation != null && Object.keys(result.marketingValidation).length > 0
           ? { marketingValidation: result.marketingValidation }

@@ -17,7 +17,7 @@ export function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    await login(email.trim(), password);
+    await login(email.trim(), password, rememberMe);
     const state = useAuthStore.getState();
     if (state.isAuthenticated) {
       if (state.mustChangePassword) navigate('/force-password-change', { replace: true });

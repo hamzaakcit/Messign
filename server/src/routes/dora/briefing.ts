@@ -11,6 +11,7 @@ function buildCtx(req: ReimbursementRequest): CallerContext {
   const user = req.reimbursementUser!;
   return {
     userId: user.id,
+    userUuid: user.id,
     role: user.role as CallerContext['role'],
     organizationId: req.organizationId,
   };

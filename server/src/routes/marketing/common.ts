@@ -34,8 +34,10 @@ export function parseSort(
   mapping: Record<string, string>,
 ): SortOptions | undefined {
   if (typeof sortBy !== 'string' || !sortBy) return undefined;
+  const mapped = mapping[sortBy];
+  if (!mapped) return undefined;
   return {
-    field: mapping[sortBy] ?? sortBy,
+    field: mapped,
     direction: sortDir === 'asc' ? 'asc' : 'desc',
   };
 }

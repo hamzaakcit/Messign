@@ -19,6 +19,7 @@ import { API_ORIGIN, assertNotHtmlApiResponse } from '@/lib/api';
 import { khAIFeedbackAPI } from '@/lib/knowledge-hub/api';
 import { resolveIntent } from '@/shared/intents/resolver';
 import type { UseAIChatOptions, SendMessageOptions, UseAIChatReturn } from '@/hooks/knowledge-hub/useAIChat';
+import { formatAiHttpError } from '@/utils/aiHttpError';
 
 const V2_ANSWER_URL = `${API_ORIGIN}/api/v2/ai/answer`;
 
@@ -81,6 +82,27 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const messagesRef = useRef<AIMessage[]>([]);
   messagesRef.current = messages;
   const sendInFlightRef = useRef(false);
+
+  /** Batches rapid setMessages calls into a single React render per animation frame. */
+  const pendingUpdateRef = useRef<((prev: AIMessage[]) => AIMessage[]) | null>(null);
+  const rafIdRef = useRef<number>(0);
+  const batchedSetMessages = useCallback(
+    (updater: (prev: AIMessage[]) => AIMessage[]) => {
+      const prev = pendingUpdateRef.current;
+      pendingUpdateRef.current = prev
+        ? (msgs) => updater(prev(msgs))
+        : updater;
+      if (!rafIdRef.current) {
+        rafIdRef.current = requestAnimationFrame(() => {
+          rafIdRef.current = 0;
+          const fn = pendingUpdateRef.current;
+          pendingUpdateRef.current = null;
+          if (fn) setMessages(fn);
+        });
+      }
+    },
+    [],
+  );
 
   const sendMessage = useCallback(
     async (query: string, sendOpts?: SendMessageOptions) => {
@@ -167,7 +189,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         });
 
         if (!response.ok) {
-          throw new Error(`AI request failed: ${response.status} ${response.statusText}`);
+          throw new Error(await formatAiHttpError(response));
         }
 
         assertNotHtmlApiResponse(response);
@@ -197,7 +219,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           switch (event.type) {
             case 'text': {
               accumulatedText += eventTextChunk(event);
-              setMessages((prev) =>
+              batchedSetMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
                 ),
@@ -211,7 +233,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               if (note) {
                 const prefix = accumulatedText ? '\n\n' : '';
                 accumulatedText += `${prefix}⚠️ ${note}`;
-                setMessages((prev) =>
+                batchedSetMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
                   ),
@@ -226,7 +248,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 displayName: (event.displayName as string) ?? (event.module as string) ?? '',
                 icon: (event.icon as string) ?? '✨',
               };
-              setMessages((prev) =>
+              batchedSetMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m,
                 ),
@@ -248,7 +270,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                   displayName: meta.specialistDisplayName ?? meta.specialist,
                   icon: meta.specialistIcon ?? '✨',
                 };
-                setMessages((prev) =>
+                batchedSetMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessage.id ? { ...m, specialist: accumulatedSpecialist } : m,
                   ),
@@ -274,7 +296,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               } else if (pack && typeof pack === 'object' && 'widgetType' in pack) {
                 accumulatedWidgets.push(pack as AIWidgetPayload);
               }
-              setMessages((prev) =>
+              batchedSetMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessage.id ? { ...m, widgets: [...accumulatedWidgets] } : m,
                 ),
@@ -285,7 +307,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
             case 'pending_action': {
               const raw = (event.data ?? event.content) as DoraPendingActionContent;
               accumulatedPendingAction = raw;
-              setMessages((prev) =>
+              batchedSetMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessage.id
                     ? { ...m, pendingAction: raw, actionStatus: 'pending' }
@@ -533,11 +555,12 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
   const submitFeedback = useCallback(
     async (messageId: string, isHelpful: boolean) => {
-      const message = messages.find((m) => m.id === messageId);
+      const currentMessages = messagesRef.current;
+      const message = currentMessages.find((m) => m.id === messageId);
       if (!message || message.role !== 'assistant') return;
 
-      const messageIndex = messages.findIndex((m) => m.id === messageId);
-      const userMessage = messageIndex > 0 ? messages[messageIndex - 1] : null;
+      const messageIndex = currentMessages.findIndex((m) => m.id === messageId);
+      const userMessage = messageIndex > 0 ? currentMessages[messageIndex - 1] : null;
 
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, feedback: isHelpful ? 'up' : 'down' } : m)),
@@ -555,7 +578,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         console.error('[useDoraChat] Feedback submission failed:', err);
       }
     },
-    [messages],
+    [],
   );
 
   const clearChat = useCallback(() => {
@@ -572,6 +595,13 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
   }, []);
 
   return {

@@ -1,9 +1,44 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import type { StateStorage } from 'zustand/middleware';
 import type { User } from '@/types';
 import { authAPI } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { setAccessToken } from '@/lib/authToken';
+
+const AUTH_PERSIST_NAME = 'messign-auth';
+
+/** When true, auth snapshot lives in sessionStorage (cleared when the tab/window is closed). When false, localStorage survives restarts. */
+let authUseSessionStorage = false;
+
+const authStateStorage: StateStorage = {
+  getItem: (name) => {
+    const fromSession = sessionStorage.getItem(name);
+    if (fromSession != null) {
+      authUseSessionStorage = true;
+      return fromSession;
+    }
+    const fromLocal = localStorage.getItem(name);
+    if (fromLocal != null) {
+      authUseSessionStorage = false;
+      return fromLocal;
+    }
+    return null;
+  },
+  setItem: (name, value) => {
+    if (authUseSessionStorage) {
+      localStorage.removeItem(name);
+      sessionStorage.setItem(name, value);
+    } else {
+      sessionStorage.removeItem(name);
+      localStorage.setItem(name, value);
+    }
+  },
+  removeItem: (name) => {
+    sessionStorage.removeItem(name);
+    localStorage.removeItem(name);
+  },
+};
 
 export interface LoginError {
   code?: string;
@@ -23,7 +58,7 @@ interface AuthState {
   error: string | null;
   loginError: LoginError | null;
   _hasHydrated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   updateUser: (updates: Partial<User>) => void;
@@ -45,7 +80,7 @@ export const useAuthStore = create<AuthState>()(
       loginError: null,
       _hasHydrated: false,
 
-      login: async (email: string, password: string) => {
+      login: async (email: string, password: string, rememberMe = true) => {
         try {
           set({ isLoading: true, error: null, loginError: null });
           const res = await authAPI.login(email, password);
@@ -70,6 +105,9 @@ export const useAuthStore = create<AuthState>()(
             mustChangePassword: boolean;
           };
           const expiresAt = Date.now() + (d.expiresIn ?? 900) * 1000;
+          authUseSessionStorage = !rememberMe;
+          sessionStorage.removeItem(AUTH_PERSIST_NAME);
+          localStorage.removeItem(AUTH_PERSIST_NAME);
           setAccessToken(d.accessToken);
           set({
             user: d.user,
@@ -140,7 +178,8 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null, loginError: null }),
     }),
     {
-      name: 'messign-auth',
+      name: AUTH_PERSIST_NAME,
+      storage: createJSONStorage(() => authStateStorage),
       partialize: (s) => ({
         user: s.user,
         accessToken: s.accessToken,

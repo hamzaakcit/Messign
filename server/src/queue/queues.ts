@@ -67,15 +67,8 @@ export const doraSchedulerQueue = new Queue('dora-scheduler', {
 });
 doraSchedulerQueue.on('error', (err) => onQueueError('dora-scheduler', err));
 
-export const analyticsQueue = new Queue('analytics', {
-  connection,
-  defaultJobOptions: {
-    attempts: 2,
-    removeOnComplete: { count: 200 },
-    removeOnFail: { count: 500 },
-  },
-});
-analyticsQueue.on('error', (err) => onQueueError('analytics', err));
+// analyticsQueue removed — no producers or consumers exist yet.
+// TODO: re-add when analytics pipeline is implemented.
 
 export const webhookQueue = new Queue('webhooks', {
   connection,
@@ -98,5 +91,3 @@ export const embeddingsQueue = new Queue('embeddings', {
   },
 });
 embeddingsQueue.on('error', (err) => onQueueError('embeddings', err));
-
-console.log('[Queues] All BullMQ queues initialized');

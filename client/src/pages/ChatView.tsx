@@ -8,8 +8,11 @@ import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 
 export function ChatView() {
-  const { activeChannelId, setActiveChannel, channels, fetchChannels } = useChatStore();
-  const { user } = useAuthStore();
+  const activeChannelId = useChatStore((s) => s.activeChannelId);
+  const setActiveChannel = useChatStore((s) => s.setActiveChannel);
+  const channels = useChatStore((s) => s.channels);
+  const fetchChannels = useChatStore((s) => s.fetchChannels);
+  const user = useAuthStore((s) => s.user);
   const location = useLocation();
   const navigate = useNavigate();
 

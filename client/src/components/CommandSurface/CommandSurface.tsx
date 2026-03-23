@@ -23,9 +23,19 @@ import {
   BarChart3,
   BookOpenCheck,
   LifeBuoy,
+  Target,
+  Megaphone,
+  UserPlus,
+  CheckCircle2,
+  Package,
+  FileSignature,
+  Heart,
+  Bell,
+  Ticket,
+  Mail,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFinanceStore } from '@/stores/financeStore';
+import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
 import { useDoraStore } from '@/stores/doraStore';
 import type { RecentPage } from './useRecentPages';
 
@@ -43,12 +53,16 @@ interface CommandItem {
 
 const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', keywords: 'home overview', type: 'navigate' },
+  { id: 'nav-executive', label: 'Executive Dashboard', icon: LayoutDashboard, path: '/executive', keywords: 'executive leadership overview kpis', type: 'navigate' },
+  { id: 'nav-reports', label: 'Report Hub', icon: BarChart3, path: '/reports', keywords: 'reports analytics data charts', type: 'navigate' },
+  { id: 'nav-notifications', label: 'Notifications', icon: Bell, path: '/notifications', keywords: 'alerts inbox updates', type: 'navigate' },
   { id: 'nav-dora', label: 'Dora', icon: Sparkles, path: '/dora', keywords: 'ai assistant chat bot', type: 'navigate' },
   { id: 'nav-dora-automations', label: 'Dora Automations', icon: Sparkles, path: '/dora/automations', keywords: 'automation policy builder autonomous', type: 'navigate' },
   { id: 'nav-dora-automation-log', label: 'Dora Automation Log', icon: Clock, path: '/dora/automations/log', keywords: 'automation log executions', type: 'navigate' },
   { id: 'nav-chat', label: 'Chat', icon: MessageSquare, path: '/chat', keywords: 'messages conversations', type: 'navigate' },
   { id: 'nav-projects', label: 'Projects', icon: Briefcase, path: '/projects', keywords: 'marketplace tasks bounties', type: 'navigate' },
   { id: 'nav-time', label: 'Time Tracking', icon: Clock, path: '/time', keywords: 'time hours timesheet utilization timer billable', type: 'navigate' },
+  { id: 'nav-okr', label: 'OKRs & Goals', icon: CheckCircle2, path: '/okr', keywords: 'objectives key results goals progress', type: 'navigate' },
   { id: 'nav-knowledge', label: 'Knowledge Hub', icon: BookOpen, path: '/knowledge-hub', keywords: 'docs documents wiki', type: 'navigate' },
   { id: 'nav-achievements', label: 'Achievements', icon: Trophy, path: '/achievements', keywords: 'xp badges gamification', type: 'navigate' },
   { id: 'nav-team', label: 'Team Directory', icon: Users, path: '/team', keywords: 'people employees directory', type: 'navigate' },
@@ -60,15 +74,26 @@ const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-finance-payments', label: 'Finance > Payments', icon: CreditCard, path: '/finance', keywords: 'pay transfer', type: 'navigate', financeView: 'payments' },
   { id: 'nav-finance-accounting', label: 'Finance > Accounting', icon: BookOpenCheck, path: '/finance', keywords: 'ledger journal', type: 'navigate', financeView: 'accounting' },
   { id: 'nav-finance-reports', label: 'Finance > Reports', icon: BarChart3, path: '/finance', keywords: 'analytics charts data', type: 'navigate', financeView: 'reports' },
+  { id: 'nav-crm', label: 'Sales CRM', icon: Target, path: '/crm', keywords: 'sales deals pipeline contacts companies forecast', type: 'navigate' },
+  { id: 'nav-marketing', label: 'Marketing', icon: Megaphone, path: '/marketing', keywords: 'campaigns content email leads', type: 'navigate' },
+  { id: 'nav-marketing-campaigns', label: 'Marketing > Campaigns', icon: Megaphone, path: '/marketing/campaigns', keywords: 'campaign management', type: 'navigate' },
+  { id: 'nav-marketing-builder', label: 'Marketing > Builder', icon: Mail, path: '/marketing/builder', keywords: 'email builder template', type: 'navigate' },
+  { id: 'nav-recruitment', label: 'Recruitment', icon: UserPlus, path: '/recruitment', keywords: 'hiring jobs candidates interviews pipeline', type: 'navigate' },
   { id: 'nav-support', label: 'Support', icon: LifeBuoy, path: '/support', keywords: 'tickets help desk sla customer support', type: 'navigate' },
-  { id: 'nav-settings', label: 'Settings', icon: Settings, path: '/settings', keywords: 'preferences config profile', type: 'navigate' },
-  { id: 'nav-admin', label: 'Admin', icon: Shield, path: '/admin', keywords: 'administration management', type: 'navigate' },
+  { id: 'nav-assets', label: 'Assets', icon: Package, path: '/assets', keywords: 'equipment inventory hardware software', type: 'navigate' },
+  { id: 'nav-contracts', label: 'Contracts', icon: FileSignature, path: '/contracts', keywords: 'agreements legal renewals', type: 'navigate' },
+  { id: 'nav-culture', label: 'Culture', icon: Heart, path: '/culture', keywords: 'engagement pulse surveys wellness', type: 'navigate' },
+  { id: 'nav-settings', label: 'Settings', icon: Settings, path: '/settings', keywords: 'preferences config profile theme', type: 'navigate' },
+  { id: 'nav-admin', label: 'Admin', icon: Shield, path: '/admin', keywords: 'administration management employees', type: 'navigate' },
 ];
 
 const ACTION_ITEMS: CommandItem[] = [
   { id: 'act-expense', label: 'Create Expense', icon: PlusCircle, path: '/finance', keywords: 'new expense add claim reimbursement', type: 'action', financeView: 'expenses' },
   { id: 'act-invoice', label: 'New Invoice', icon: FileText, path: '/finance', keywords: 'create invoice bill', type: 'action', financeView: 'invoices' },
   { id: 'act-task', label: 'New Task', icon: ListTodo, path: '/projects', keywords: 'create task todo', type: 'action' },
+  { id: 'act-campaign', label: 'New Campaign', icon: Megaphone, path: '/marketing/campaigns', keywords: 'create campaign marketing', type: 'action' },
+  { id: 'act-ticket', label: 'Create Ticket', icon: Ticket, path: '/support', keywords: 'new ticket support request', type: 'action' },
+  { id: 'act-job', label: 'Post Job', icon: UserPlus, path: '/recruitment', keywords: 'new job posting hire', type: 'action' },
   { id: 'act-dora', label: 'Ask Dora', icon: Sparkles, path: '/dora', keywords: 'ai question help assistant', type: 'action' },
 ];
 
@@ -89,7 +114,8 @@ interface CommandSurfaceProps {
 export function CommandSurface({ open, onClose, recentPages }: CommandSurfaceProps) {
   const navigate = useNavigate();
   const { setActiveView } = useFinanceStore();
-  const { createSession, setActiveSession } = useDoraStore();
+  const createSession = useDoraStore((s) => s.createSession);
+  const setActiveSession = useDoraStore((s) => s.setActiveSession);
 
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -155,7 +181,8 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
     if (open) {
       setQuery('');
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
     }
   }, [open]);
 
@@ -196,7 +223,7 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
       if (item.path) {
         navigate(item.path);
         if (item.financeView) {
-          setActiveView(item.financeView as any);
+          setActiveView(item.financeView as FinanceView);
         }
       }
     },
@@ -257,9 +284,6 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
             className="flex-1 bg-transparent text-base outline-none"
             style={{ color: 'var(--app-text)', caretColor: 'var(--primary-500)' }}
             aria-label="Search command"
-            aria-controls="command-surface-listbox"
-            aria-autocomplete="list"
-            aria-expanded={flatItems.length > 0}
           />
           <kbd
             className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-mono select-none"
@@ -276,8 +300,8 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
         {/* Results */}
         <div
           ref={listRef}
-          id="command-surface-listbox"
-          role="listbox"
+          id="command-surface-results"
+          role="region"
           aria-label="Command options"
           className="max-h-[360px] overflow-y-auto py-1"
         >
@@ -316,8 +340,8 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
                     if (el) itemRefs.current.set(idx, el);
                     else itemRefs.current.delete(idx);
                   }}
-                  role="option"
-                  aria-selected={isSelected}
+                  type="button"
+                  aria-current={isSelected ? 'true' : undefined}
                   onClick={() => executeItem(item, entry.isDoraFallback)}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={cn(

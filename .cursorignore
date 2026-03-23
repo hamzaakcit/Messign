@@ -1,0 +1,56 @@
+# Dependencies & package manager caches
+node_modules/
+**/node_modules/
+.npm/
+.pnpm-store/
+
+# VCS & editor project metadata (keep rules under .cursor/rules if needed via explicit @ paths)
+.git/
+
+# Knowledge & bulky secondary trees
+knowledge-hub/
+knowledge-hub.zip/
+
+# Data & DB dumps
+*.dump
+db/
+supabase/.temp/
+supabase/.branches/
+
+# Build & typecheck artifacts
+dist/
+**/dist/
+build/
+**/build/
+*.tsbuildinfo
+coverage/
+**/coverage/
+
+# Test & e2e outputs
+test-results/
+playwright-report/
+blob-report/
+e2e/.auth/
+playwright/.cache/
+playwright/.auth/
+
+# Logs & local uploads
+*.log
+server/uploads/
+
+# Optional large / low-signal binaries (adjust if you need these in chat)
+**/*.mp4
+**/*.mov
+**/*.webm
+**/*.zip
+**/*.tar
+**/*.gz
+**/*.7z
+
+# OS
+.DS_Store
+
+# Env (never feed secrets to models)
+.env
+.env.*
+!.env.example

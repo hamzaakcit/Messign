@@ -1,0 +1,74 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "subject": "How [Company] Achieved 3x Growth with [Product]",
+  "preheader": "Read the full customer story: measurable pipeline lift, shorter sales cycles, and how the team operationalized [Product] across marketing and revenue in under two quarters.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "From stalled pipeline to predictable growth",
+        "subheadline": "A data-backed look at how [Company] scaled revenue with [Product] across sales and marketing.",
+        "ctaText": "Download the case study",
+        "ctaUrl": "https://example.com/case-study",
+        "imagePrompt": "Professional B2B office setting, diverse executive team reviewing analytics on a large screen, subtle blue and slate tones, photorealistic corporate photography",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 2,
+      "content": {
+        "quote": "[Product] gave us the visibility we needed to align GTM and finally move the needle on conversion—not just traffic.",
+        "authorName": "Jordan Ellis",
+        "authorRole": "VP, Revenue Operations",
+        "authorCompany": "[Company]",
+        "rating": 5
+      }
+    },
+    {
+      "type": "image",
+      "order": 3,
+      "content": {
+        "imagePrompt": "Clean infographic-style photograph of a modern glass conference room with a printed one-page results summary on the table, soft daylight, executive aesthetic",
+        "altText": "Executive summary of key outcomes from the [Company] implementation",
+        "caption": "Key outcomes at a glance",
+        "width": "full"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 4,
+      "content": {
+        "body": "Within two quarters, [Company] increased qualified pipeline by 3x, reduced average deal cycle length by 18%, and improved forecast accuracy for the revenue leadership team. The program combined tighter lead scoring, standardized playbooks in [Product], and weekly cross-functional reviews—so improvements compounded instead of stalling after launch.",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "See the methodology behind the results",
+        "description": "Get the PDF with charts, implementation timeline, and lessons for your team.",
+        "buttonText": "Get the full case study",
+        "buttonUrl": "https://example.com/case-study",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Messign Analytics",
+        "address": "500 Market Street, Suite 1200, San Francisco, CA 94105",
+        "unsubscribeText": "You are receiving this email because you requested B2B resources from Messign. Unsubscribe anytime."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "professional, evidence-led",
+    "audience": "B2B decision-makers and revenue leaders"
+  }
+}

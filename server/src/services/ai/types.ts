@@ -18,6 +18,9 @@ export interface ToolContext {
   /** The authenticated user's auth_user_id (from JWT sub) */
   userId: string;
 
+  /** reimbursement_users.id UUID when resolved — use for DB FKs to reimbursement_users */
+  userUuid?: string;
+
   /**
    * The user's system-wide role.
    * Maps to whatever role field exists in reimbursement_users.
@@ -108,10 +111,18 @@ export interface ToolParameterSchema {
 }
 
 export interface ToolParameterProperty {
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
-  description: string;
+  /** Omit when using `anyOf` for a union (e.g. number | string for LLM flexibility). */
+  type?: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  description?: string;
+  /** JSON Schema union — Groq validates tool args; use for fields LLMs may emit as string or number. */
+  anyOf?: Array<{ type: string; description?: string }>;
   enum?: string[];
-  items?: { type: string; properties?: Record<string, ToolParameterProperty>; description?: string };
+  items?: {
+    type: string;
+    properties?: Record<string, ToolParameterProperty>;
+    description?: string;
+    enum?: string[];
+  };
   /** Nested properties when type is 'object' (OpenAI-style JSON Schema subset). */
   properties?: Record<string, ToolParameterProperty>;
   default?: unknown;

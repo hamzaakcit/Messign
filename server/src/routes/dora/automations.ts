@@ -157,7 +157,7 @@ router.post('/policies', async (req: ReimbursementRequest, res: Response) => {
     res.status(201).json({ id: result.rows[0].id });
   } catch (err) {
     console.error('[dora/automations/policies POST]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to create policy' });
+    res.status(400).json({ error: 'Failed to create policy' });
   }
 });
 
@@ -217,7 +217,7 @@ router.put('/policies/:id', async (req: ReimbursementRequest, res: Response) => 
     res.json({ success: true });
   } catch (err) {
     console.error('[dora/automations/policies/:id PUT]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to update policy' });
+    res.status(400).json({ error: 'Failed to update policy' });
   }
 });
 
@@ -255,7 +255,7 @@ router.put('/policies/:id/toggle', async (req: ReimbursementRequest, res: Respon
     res.json({ success: true, isActive: nextState });
   } catch (err) {
     console.error('[dora/automations/policies/:id/toggle PUT]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to toggle policy' });
+    res.status(400).json({ error: 'Failed to toggle policy' });
   }
 });
 
@@ -288,7 +288,7 @@ router.delete('/policies/:id', async (req: ReimbursementRequest, res: Response) 
     res.json({ success: true });
   } catch (err) {
     console.error('[dora/automations/policies/:id DELETE]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to delete policy' });
+    res.status(400).json({ error: 'Failed to delete policy' });
   }
 });
 
@@ -449,7 +449,7 @@ router.post('/log/:id/undo', async (req: ReimbursementRequest, res: Response) =>
     res.json({ success: true });
   } catch (err) {
     console.error('[dora/automations/log/:id/undo POST]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to undo action' });
+    res.status(400).json({ error: 'Failed to undo action' });
   }
 });
 

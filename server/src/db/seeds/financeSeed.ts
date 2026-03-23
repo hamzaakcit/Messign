@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { query, getClient } from '../index.js';
 import crypto from 'crypto';
 import { CATEGORY_DEPARTMENT_MAP } from '../../services/finance/categoryDepartmentMap.js';
@@ -14,6 +15,47 @@ function randomDate(daysBack: number): string {
 }
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+const FINANCE_TENANT_TABLES = [
+  'budgets',
+  'finance_vendors',
+  'finance_gl_accounts',
+  'finance_approval_policies',
+  'finance_expense_policies',
+  'reimbursement_requests',
+  'finance_budgets',
+  'invoices',
+  'finance_payments',
+  'finance_notifications',
+  'finance_audit_log',
+  'finance_dora_decisions',
+  'finance_tax_rates',
+  'finance_period_closes',
+  'finance_settings',
+  'finance_journal_entries',
+] as const;
+
+/** Same as core seed: tenant_id column + backfill from organization_id where applicable. */
+async function ensureFinanceSeedTenantColumns(client: PoolClient): Promise<void> {
+  for (const table of FINANCE_TENANT_TABLES) {
+    const ex = await client.query<{ ok: boolean }>(
+      `SELECT to_regclass($1) IS NOT NULL AS ok`,
+      [`public.${table}`],
+    );
+    if (!ex.rows[0]?.ok) continue;
+    await client.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS tenant_id UUID`);
+    const hasOrg = await client.query(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'organization_id'`,
+      [table],
+    );
+    if (hasOrg.rows.length > 0) {
+      await client.query(
+        `UPDATE ${table} SET tenant_id = organization_id WHERE tenant_id IS NULL AND organization_id IS NOT NULL`,
+      );
+    }
+  }
 }
 
 export async function seedFinanceData() {
@@ -63,6 +105,8 @@ export async function seedFinanceData() {
       ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS step_name VARCHAR(100);
     `);
 
+    await ensureFinanceSeedTenantColumns(client);
+
     // 1. Expense categories with GL codes
     const categories = [
       { slug: 'travel_flight', name: 'Travel - Flights', gl_code: '6100', icon: 'plane' },
@@ -96,14 +140,14 @@ export async function seedFinanceData() {
       );
       if (existing.rows[0]) {
         await client.query(
-          `UPDATE expense_categories SET slug = $1, gl_code = $2, icon = $3 WHERE id = $4`,
-          [cat.slug, cat.gl_code, cat.icon, existing.rows[0].id],
+          `UPDATE expense_categories SET slug = $1, gl_code = $2, icon = $3, tenant_id = COALESCE(tenant_id, $5) WHERE id = $4`,
+          [cat.slug, cat.gl_code, cat.icon, existing.rows[0].id, orgId],
         );
         categoryMap.set(cat.slug, existing.rows[0].id);
       } else {
         const r = await client.query<{ id: string }>(
-          `INSERT INTO expense_categories (organization_id, name, icon, slug, gl_code, is_active)
-           VALUES ($1, $2, $3, $4, $5, TRUE)
+          `INSERT INTO expense_categories (organization_id, tenant_id, name, icon, slug, gl_code, is_active)
+           VALUES ($1, $1, $2, $3, $4, $5, TRUE)
            RETURNING id`,
           [orgId, cat.name, cat.icon, cat.slug, cat.gl_code],
         );
@@ -133,8 +177,8 @@ export async function seedFinanceData() {
     const vendorIds: string[] = [];
     for (const v of vendors) {
       const r = await client.query<{ id: string }>(
-        `INSERT INTO finance_vendors (organization_id, name, ai_category, is_active, is_verified)
-         VALUES ($1, $2, $3, TRUE, TRUE)
+        `INSERT INTO finance_vendors (organization_id, tenant_id, name, ai_category, is_active, is_verified)
+         VALUES ($1, $1, $2, $3, TRUE, TRUE)
          ON CONFLICT DO NOTHING
          RETURNING id`,
         [orgId, v.name, v.category],
@@ -162,8 +206,8 @@ export async function seedFinanceData() {
 
     for (const gl of glAccounts) {
       await client.query(
-        `INSERT INTO finance_gl_accounts (organization_id, code, name, type)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO finance_gl_accounts (organization_id, tenant_id, code, name, type)
+         VALUES ($1, $1, $2, $3, $4)
          ON CONFLICT (organization_id, code) DO NOTHING`,
         [orgId, gl.code, gl.name, gl.type],
       );
@@ -172,8 +216,8 @@ export async function seedFinanceData() {
     // 4. Approval Policies
     await client.query(
       `INSERT INTO finance_approval_policies
-       (organization_id, name, applies_to, rules, ai_auto_approve_enabled, ai_auto_approve_max, ai_min_confidence, ai_max_risk)
-       VALUES ($1, 'Standard Expense Policy', 'expense', $2, TRUE, 100.00, 0.95, 0.20)
+       (organization_id, tenant_id, name, applies_to, rules, ai_auto_approve_enabled, ai_auto_approve_max, ai_min_confidence, ai_max_risk)
+       VALUES ($1, $1, 'Standard Expense Policy', 'expense', $2, TRUE, 100.00, 0.95, 0.20)
        ON CONFLICT DO NOTHING`,
       [orgId, JSON.stringify([
         { condition: 'amount < 50', action: 'auto_approve', ai_confidence_min: 0.95 },
@@ -186,8 +230,8 @@ export async function seedFinanceData() {
     // 5. Expense Policies
     await client.query(
       `INSERT INTO finance_expense_policies
-       (organization_id, name, rules, violation_action, is_active, created_by)
-       VALUES ($1, 'Standard Travel & Meals Policy', $2, 'flag', TRUE, $3)
+       (organization_id, tenant_id, name, rules, violation_action, is_active, created_by)
+       VALUES ($1, $1, 'Standard Travel & Meals Policy', $2, 'flag', TRUE, $3)
        ON CONFLICT DO NOTHING`,
       [orgId, JSON.stringify({
         travel_flight: { max_amount: 1500, requires_pre_approval_above: 2000 },
@@ -252,11 +296,11 @@ export async function seedFinanceData() {
 
       const r = await client.query<{ id: string }>(
         `INSERT INTO reimbursement_requests
-         (organization_id, submitted_by, title, description, category_id, category_slug,
+         (organization_id, tenant_id, submitted_by, title, description, category_id, category_slug,
           original_amount, original_currency, converted_amount, expense_date, status,
           ai_confidence_score, ai_risk_score, ai_auto_approved, ai_category_suggestion,
           ai_review_notes, submitted_at, approved_at, paid_at, created_by, is_deleted)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'USD',$7,$8,$9,$10,$11,$12,$6,$13,
+         VALUES ($1,$1,$2,$3,$4,$5,$6,$7,'USD',$7,$8,$9,$10,$11,$12,$6,$13,
                  $14, $15, $16, $2, FALSE)
          RETURNING id`,
         [
@@ -284,11 +328,11 @@ export async function seedFinanceData() {
       const owner = users.find((u) => u.role === 'admin' || u.role === 'manager') || users[0];
       const r = await client.query<{ id: string }>(
         `INSERT INTO finance_budgets
-         (organization_id, name, department, allocated_amount, spent_amount, currency,
+         (organization_id, tenant_id, name, department, allocated_amount, spent_amount, currency,
           period_start, period_end, status, owner_id,
           warning_threshold, critical_threshold, created_by,
           ai_health_score, ai_forecast_amount, is_active)
-         VALUES ($1, $2, $3, $4, $5, 'USD', $6, $7, 'active', $8,
+         VALUES ($1, $1, $2, $3, $4, $5, 'USD', $6, $7, 'active', $8,
                  80.00, 95.00, $8, $9, $10, TRUE)
          ON CONFLICT (organization_id, department, name) WHERE name IS NOT NULL
            DO UPDATE SET allocated_amount = EXCLUDED.allocated_amount, updated_at = NOW()
@@ -329,9 +373,9 @@ export async function seedFinanceData() {
          (invoice_number, employee_id, period_year, period_month,
           base_retainer, total_expenses, grand_total, status,
           generated_date, due_date,
-          organization_id, invoice_type, to_name, to_email,
+          organization_id, tenant_id, invoice_type, to_name, to_email,
           ai_generated, ai_confidence)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11,
                  'standard', $12, $13, $14, $15)
          ON CONFLICT DO NOTHING`,
         [
@@ -360,10 +404,10 @@ export async function seedFinanceData() {
       const completedAt = pStatus === 'completed' ? new Date().toISOString() : null;
       await client.query(
         `INSERT INTO finance_payments
-         (organization_id, payment_number, payment_type, vendor_id,
+         (organization_id, tenant_id, payment_number, payment_type, vendor_id,
           amount, currency, payment_method, status,
           scheduled_date, completed_at, ai_scheduled, created_by)
-         VALUES ($1, $2, $3, $4, $5, 'USD', $6, $7, $8,
+         VALUES ($1, $1, $2, $3, $4, $5, 'USD', $6, $7, $8,
                  $9, $10, $11)
          ON CONFLICT DO NOTHING`,
         [
@@ -386,8 +430,8 @@ export async function seedFinanceData() {
       const nType = pick(types);
       await client.query(
         `INSERT INTO finance_notifications
-         (organization_id, recipient_id, type, title, message, priority, is_read)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (organization_id, tenant_id, recipient_id, type, title, message, priority, is_read)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT DO NOTHING`,
         [
           orgId, u.id, nType,
@@ -444,9 +488,9 @@ export async function seedFinanceData() {
 
       await client.query(
         `INSERT INTO finance_audit_log
-         (organization_id, event_type, event_category, actor_type, actor_id, actor_name,
+         (organization_id, tenant_id, event_type, event_category, actor_type, actor_id, actor_name,
           entity_type, entity_id, event_hash, previous_hash, ai_involved)
-         VALUES ($1, $2, 'expense', $3, $4, $5, 'expense', $6, $7, $8, $9)`,
+         VALUES ($1, $1, $2, 'expense', $3, $4, $5, 'expense', $6, $7, $8, $9)`,
         [
           orgId, event,
           event.startsWith('expense.ai') ? 'ai' : 'user',
@@ -535,11 +579,11 @@ export async function seedFinanceData() {
 
       const r = await client.query<{ id: string }>(
         `INSERT INTO reimbursement_requests
-         (organization_id, submitted_by, title, description, category_id, category_slug,
+         (organization_id, tenant_id, submitted_by, title, description, category_id, category_slug,
           original_amount, original_currency, converted_amount, expense_date, status,
           ai_confidence_score, ai_risk_score, ai_auto_approved, ai_category_suggestion,
           ai_review_notes, submitted_at, approved_at, paid_at, budget_id, created_by, is_deleted)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'USD',$7,$8,$9,$10,$11,$12,$6,$13,$14,$15,$16,$17,$2,FALSE)
+         VALUES ($1,$1,$2,$3,$4,$5,$6,$7,'USD',$7,$8,$9,$10,$11,$12,$6,$13,$14,$15,$16,$17,$2,FALSE)
          RETURNING id`,
         [
           orgId, user.id, tmpl.title, `Current month expense: ${tmpl.title}`,
@@ -561,6 +605,24 @@ export async function seedFinanceData() {
         GROUP BY budget_id
       ) sub WHERE finance_budgets.id = sub.budget_id
     `);
+
+    // Legacy DBs: snapshots FK may still point at `budgets` while seed rows are in `finance_budgets` only.
+    if (budgetIds.length > 0) {
+      const { rows: reg } = await client.query<{ exists: boolean }>(
+        `SELECT to_regclass('public.budgets') IS NOT NULL AS exists`,
+      );
+      if (reg[0]?.exists) {
+        await client.query(`ALTER TABLE budgets ADD COLUMN IF NOT EXISTS tenant_id UUID`);
+        await client.query(
+          `INSERT INTO budgets (id, organization_id, tenant_id, department, period_start, period_end, allocated_amount, currency, alert_threshold, created_by)
+           SELECT id, organization_id, tenant_id, department, period_start, period_end, allocated_amount, currency, 0.80::numeric, COALESCE(owner_id, created_by)
+           FROM finance_budgets
+           WHERE id = ANY($1::uuid[])
+           ON CONFLICT (id) DO NOTHING`,
+          [budgetIds],
+        );
+      }
+    }
 
     // 9d. Budget snapshots (30 daily entries per budget)
     for (const bid of budgetIds) {
@@ -589,10 +651,10 @@ export async function seedFinanceData() {
     // 9e. Finance settings
     await client.query(
       `INSERT INTO finance_settings
-       (organization_id, company_name, company_address, company_email, base_currency,
+       (organization_id, tenant_id, company_name, company_address, company_email, base_currency,
         dora_autonomy_level, dora_auto_approve_enabled, dora_auto_approve_max,
         dora_min_confidence, dora_max_risk)
-       VALUES ($1, 'Messign Communications', 'Delaware, USA', 'finance@messign.com', 'USD',
+       VALUES ($1, $1, 'Messign Communications', 'Delaware, USA', 'finance@messign.com', 'USD',
                'copilot', TRUE, 100.00, 0.95, 0.20)
        ON CONFLICT (organization_id) DO NOTHING`,
       [orgId],
@@ -637,9 +699,9 @@ export async function seedFinanceData() {
       const conf = randomFloat(0.5, 1.0);
       await client.query(
         `INSERT INTO finance_dora_decisions
-         (organization_id, decision_type, entity_type, entity_id, action_taken,
+         (organization_id, tenant_id, decision_type, entity_type, entity_id, action_taken,
           confidence_score, reasoning, processing_time_ms, model_used)
-         VALUES ($1, $2, 'expense', $3, $4, $5, $6, $7, 'llama-3.3-70b-versatile')`,
+         VALUES ($1, $1, $2, 'expense', $3, $4, $5, $6, $7, 'llama-3.3-70b-versatile')`,
         [
           orgId, dt, eId, dt,
           conf,
@@ -659,8 +721,8 @@ export async function seedFinanceData() {
     ];
     for (const tr of taxRates) {
       await client.query(
-        `INSERT INTO finance_tax_rates (organization_id, name, code, rate, type, is_default)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO finance_tax_rates (organization_id, tenant_id, name, code, rate, type, is_default)
+         VALUES ($1, $1, $2, $3, $4, $5, $6)
          ON CONFLICT (organization_id, code) DO NOTHING`,
         [orgId, tr.name, tr.code, tr.rate, tr.type, tr.code === 'VAT-STD'],
       );
@@ -669,8 +731,8 @@ export async function seedFinanceData() {
     // 12. Current period close with default tasks
     const currentPeriod = new Date().toISOString().slice(0, 7);
     const pcResult = await client.query(
-      `INSERT INTO finance_period_closes (organization_id, period, status)
-       VALUES ($1, $2, 'open')
+      `INSERT INTO finance_period_closes (organization_id, tenant_id, period, status)
+       VALUES ($1, $1, $2, 'open')
        ON CONFLICT (organization_id, period) DO NOTHING
        RETURNING id`,
       [orgId, currentPeriod],
@@ -721,9 +783,9 @@ export async function seedFinanceData() {
 
       const je = await client.query(
         `INSERT INTO finance_journal_entries
-         (organization_id, entry_number, entry_date, description, source_type, source_id,
+         (organization_id, tenant_id, entry_number, entry_date, description, source_type, source_id,
           status, period, total_debit, total_credit, is_auto_generated, posted_at)
-         VALUES ($1, $2, COALESCE($3::DATE, CURRENT_DATE), $4, 'expense_approved', $5,
+         VALUES ($1, $1, $2, COALESCE($3::DATE, CURRENT_DATE), $4, 'expense_approved', $5,
                  'posted', $6, $7, $7, TRUE, NOW())
          ON CONFLICT (organization_id, entry_number) DO NOTHING
          RETURNING id`,
@@ -758,9 +820,9 @@ export async function seedFinanceData() {
 
       const je = await client.query(
         `INSERT INTO finance_journal_entries
-         (organization_id, entry_number, entry_date, description, source_type, source_id,
+         (organization_id, tenant_id, entry_number, entry_date, description, source_type, source_id,
           status, period, total_debit, total_credit, is_auto_generated, posted_at)
-         VALUES ($1, $2, COALESCE($3::DATE, CURRENT_DATE), $4, 'invoice_sent', $5,
+         VALUES ($1, $1, $2, COALESCE($3::DATE, CURRENT_DATE), $4, 'invoice_sent', $5,
                  'posted', $6, $7, $7, TRUE, NOW())
          ON CONFLICT (organization_id, entry_number) DO NOTHING
          RETURNING id`,

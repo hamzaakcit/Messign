@@ -59,6 +59,18 @@ describe('parseComplianceScanJson', () => {
     expect(r.verdict).toBe('WARNING');
     expect(r.warnings[0]?.check).toBe('scanner_output');
   });
+
+  it('stringifies object channel_specific_issues instead of [object Object]', () => {
+    const raw = JSON.stringify({
+      verdict: 'WARNING',
+      warnings: [],
+      warning_count: { high: 0, medium: 0, low: 0 },
+      channel_specific_issues: [{ issue: 'Missing alt text for carousel slide 2' }, 'plain string'],
+    });
+    const r = parseComplianceScanJson(raw);
+    expect(r.channel_specific_issues[0]).toContain('alt text');
+    expect(r.channel_specific_issues[1]).toBe('plain string');
+  });
 });
 
 describe('runComplianceScan', () => {

@@ -1,0 +1,71 @@
+{
+  "version": "2.0",
+  "theme": "minimal",
+  "subject": "Your Weekly Digest — [Week of Month Day]",
+  "preheader": "This week: one long read worth your Sunday coffee, a practical template you can steal, and a short list of links our editors actually finished. Skim the highlights or dive deep—either way, we kept it calm and clutter-free.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Your weekly digest",
+        "subheadline": "Curated for builders, operators, and curious readers—no hype, just signal.",
+        "ctaText": "Read online",
+        "ctaUrl": "https://example.com/newsletter/archive",
+        "imagePrompt": "Minimal editorial newsletter header, soft paper texture, single serif title typography, lots of whitespace, muted neutral palette",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "content": {
+        "body": "Hello—here is what stood out this week: a thoughtful piece on decision-making under uncertainty, a lightweight framework for weekly reviews, and a reminder that small systems beat big resolutions. Skim the sections below or save this email for later; the links stay valid.",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "image",
+      "order": 3,
+      "content": {
+        "imagePrompt": "Abstract calm landscape in muted sage and cream, wide horizontal crop suitable for email hero, soft gradients, no text",
+        "altText": "Abstract calm gradient illustration for the weekly digest",
+        "caption": "A quiet moment between meetings—our editors’ pick for the week.",
+        "width": "full"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 4,
+      "content": {
+        "body": "<strong>From the archive:</strong> We resurfaced an essay on writing clearer specs and a checklist for async handoffs. <strong>Community:</strong> Three reader replies on balancing deep work with Slack—trimmed for length, linked in the web version. <strong>Next week:</strong> We are testing a shorter format; reply and tell us what you prefer.",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "Prefer the web?",
+        "description": "Open the full issue with working links, comments, and past editions in one place.",
+        "buttonText": "View in browser",
+        "buttonUrl": "https://example.com/newsletter/latest",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Messign Weekly",
+        "address": "PO Box 100, Portland, OR 97201",
+        "unsubscribeText": "Unsubscribe or manage preferences using the links below. We send one digest per week."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "",
+    "audience": ""
+  }
+}

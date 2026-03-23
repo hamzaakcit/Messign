@@ -28,6 +28,8 @@ export interface ContentPayloadForPublish {
 export interface AdapterPublishSuccess {
   publishedUrl?: string;
   externalPostId?: string;
+  /** When true, publisher should not mark the row published (e.g. Instagram without image). */
+  skipped?: boolean;
 }
 
 /** Thrown by adapters to signal HTTP-like semantics for retry policy */

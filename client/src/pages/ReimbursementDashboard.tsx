@@ -73,12 +73,13 @@ export function ReimbursementDashboard() {
     };
   }, [user?.id, reimbContext?.refreshCounts]);
 
+  const items = fullList as Array<Record<string, unknown>>;
   const list = statusFilter
-    ? fullList.filter((r: any) => r.status === statusFilter)
-    : fullList.filter((r: any) => r.status !== 'draft');
+    ? items.filter((r) => r.status === statusFilter)
+    : items.filter((r) => r.status !== 'draft');
 
   const { pendingCount, underReviewCount, approvedThisMonth, totalReimbursed } = stats;
-  const recentList = (fullList as any[]).filter((r: any) => r.status !== 'draft').slice(-5).reverse();
+  const recentList = items.filter((r) => r.status !== 'draft').slice(-5).reverse();
 
   const tabs = [
     { id: '', label: 'All' },

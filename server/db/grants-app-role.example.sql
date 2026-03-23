@@ -1,0 +1,5 @@
+-- Prefer `supabase-grants.sql` for Supabase/postgres roles (postgres, authenticated, service_role).
+-- For a custom app role only:
+-- GRANT CREATE ON SCHEMA public TO messign_app;
+-- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO messign_app;
+-- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO messign_app;

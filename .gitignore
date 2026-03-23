@@ -9,9 +9,17 @@ dist/
 .env.*
 !.env.example
 
+# Neon CLI (OAuth tokens under ~/.config/neonctl/ — never commit copies into the repo)
+.config/neonctl/
+
 # OS and editor
 .DS_Store
+.CFUserTextEncoding
 *.log
+
+# Local tool caches (Prisma download cache, Puppeteer browsers, etc.)
+.cache/
+.npm-cache/
 
 # Vercel
 .vercel/

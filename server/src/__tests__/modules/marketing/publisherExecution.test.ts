@@ -94,6 +94,7 @@ describe.skipIf(!hasDb)('Phase 5 — publisher execution matrix', { timeout: 30_
       expect(r.claimed).toBe(1);
       expect(r.published).toBe(1);
       expect(r.failed).toBe(0);
+      expect(r.deferred).toBe(0);
       expect(publishContent).toHaveBeenCalledTimes(1);
 
       const row = await pool.query<{ status: string; external_post_id: string | null }>(
@@ -117,6 +118,7 @@ describe.skipIf(!hasDb)('Phase 5 — publisher execution matrix', { timeout: 30_
       expect(r.claimed).toBe(1);
       expect(r.published).toBe(0);
       expect(r.failed).toBe(1);
+      expect(r.deferred).toBe(0);
 
       const row = await pool.query<{ status: string; last_error: string | null }>(
         `SELECT status, last_error FROM marketing_content_calendar WHERE id = $1`,

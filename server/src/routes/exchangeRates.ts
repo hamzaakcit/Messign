@@ -15,7 +15,7 @@ const SUPPORTED_CURRENCIES = [
 async function fetchFrankfurterRate(currency: string, dateOrLatest: string): Promise<number | null> {
   const path = dateOrLatest === 'latest' ? '/latest' : `/${dateOrLatest}`;
   const url = `${FRANKFURTER_BASE}${path}?base=${encodeURIComponent(currency)}&symbols=EUR`;
-  const response = await fetch(url);
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) return null;
   const data = await response.json() as { rates?: { EUR?: number } };
   const rate = data.rates?.EUR;

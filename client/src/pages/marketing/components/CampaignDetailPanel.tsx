@@ -172,7 +172,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
           <Section title="Dates">
             {campaign.start_date || 'TBD'} to {campaign.end_date || 'TBD'}
           </Section>
-          <Section title="Tags">{campaign.tags.length > 0 ? campaign.tags.join(', ') : 'No tags.'}</Section>
+          <Section title="Tags">{campaign.tags && campaign.tags.length > 0 ? campaign.tags.join(', ') : 'No tags.'}</Section>
         </div>
       )}
 

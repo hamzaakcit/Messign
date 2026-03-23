@@ -67,8 +67,8 @@ export function DashboardKPIRow({ metrics }: DashboardKPIRowProps) {
 
   return (
     <div
-      className="grid grid-cols-3 gap-4"
-      role="tablist"
+      className="grid grid-cols-3 gap-3"
+      role="group"
       aria-label="Company performance metrics"
     >
       {configs.map((config) => {
@@ -81,11 +81,9 @@ export function DashboardKPIRow({ metrics }: DashboardKPIRowProps) {
           <button
             key={config.id}
             type="button"
-            role="tab"
-            aria-selected={isActive}
             onClick={() => setActiveMetric(config.id)}
             className={cn(
-              'flex items-center gap-2.5 rounded-xl p-3 h-20 text-left overflow-hidden',
+              'flex items-center gap-2.5 rounded-xl p-3 h-[72px] text-left overflow-hidden',
               'border transition-all duration-200',
               'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
               'bg-[#13151a] border-gray-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
@@ -102,6 +100,9 @@ export function DashboardKPIRow({ metrics }: DashboardKPIRowProps) {
                 : undefined
             }
           >
+            {isActive ? (
+              <span className="sr-only">Selected metric. </span>
+            ) : null}
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
               style={{ backgroundColor: `${config.color}20` }}

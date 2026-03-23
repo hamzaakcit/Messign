@@ -8,7 +8,7 @@ import {
   getEmployeeById,
   getLevelFromXp,
 } from '../../db/employeesDb.js';
-import { getBadgesForUser } from '../../db/badgesDb.js';
+import { getBadgesForUser, getBadgesForUsers } from '../../db/badgesDb.js';
 import { addAuditLog } from '../../db/auditDb.js';
 import { requireAdmin } from '../../middleware/adminAuth.js';
 
@@ -30,11 +30,11 @@ async function getDeptNameToId(): Promise<Record<string, string>> {
   return map;
 }
 
-async function toEmployee(u: User, deptNameToId: Record<string, string>) {
-  const badges = await getBadgesForUser(u.id);
+async function toEmployee(u: User, deptNameToId: Record<string, string>, badges?: import('../../types/index.js').Badge[]) {
+  const resolvedBadges = badges ?? await getBadgesForUser(u.id);
   return {
     ...u,
-    badges,
+    badges: resolvedBadges,
     departmentId: deptNameToId[u.department] ?? u.department,
     employeeId: u.id.startsWith('user-') ? u.id.replace('user-', 'EMP') : u.id,
     joinDate: u.joinedAt,
@@ -49,7 +49,8 @@ router.get('/', async (_req, res) => {
       getEmployeesAsUsers(),
       getDeptNameToId(),
     ]);
-    const list = await Promise.all(users.map((u) => toEmployee(u, deptNameToId)));
+    const badgesMap = await getBadgesForUsers(users.map((u) => u.id));
+    const list = await Promise.all(users.map((u) => toEmployee(u, deptNameToId, badgesMap.get(u.id) ?? [])));
     res.json(list);
   } catch (e) {
     console.error('[admin/employees]', e);

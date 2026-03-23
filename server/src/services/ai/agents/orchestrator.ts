@@ -1,8 +1,12 @@
 /**
- * Orchestrator Agent — Traffic cop that routes to specialists
+ * Intent Router (historically named "orchestrator") — Traffic cop that routes to specialists.
  *
  * Classifies user intent and either responds directly (greetings, general)
  * or delegates to the appropriate specialist via route_to_specialist.
+ *
+ * NOTE: This is NOT the agentic loop. The ReAct agentic loop lives in
+ * `services/ai/orchestrator/agenticLoop.ts`. This file handles high-level
+ * intent classification and specialist dispatch only.
  */
 
 import type OpenAI from 'openai';

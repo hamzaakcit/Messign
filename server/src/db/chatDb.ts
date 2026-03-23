@@ -45,19 +45,25 @@ export async function getChannelsForUser(userId: string): Promise<ChannelRow[]> 
      ORDER BY c.name`,
     [userId]
   );
-  const channels: ChannelRow[] = [];
-  for (const row of result.rows) {
-    const membersResult = await query<{ user_id: string }>(
-      `SELECT user_id FROM channel_members WHERE channel_id = $1`,
-      [row.id]
-    );
-    channels.push({
-      ...row,
-      id: row.id,
-      members: membersResult.rows.map((r) => r.user_id),
-    });
+  if (result.rows.length === 0) return [];
+
+  const channelIds = result.rows.map((r) => r.id);
+  const membersResult = await query<{ channel_id: string; user_id: string }>(
+    `SELECT channel_id::text AS channel_id, user_id FROM channel_members WHERE channel_id = ANY($1::uuid[])`,
+    [channelIds]
+  );
+  const membersByChannel = new Map<string, string[]>();
+  for (const r of membersResult.rows) {
+    const list = membersByChannel.get(r.channel_id) ?? [];
+    list.push(r.user_id);
+    membersByChannel.set(r.channel_id, list);
   }
-  return channels;
+
+  return result.rows.map((row) => ({
+    ...row,
+    id: row.id,
+    members: membersByChannel.get(row.id) ?? [],
+  }));
 }
 
 /** Mark a channel as read for a user (updates last_read_at so unread count becomes 0). */

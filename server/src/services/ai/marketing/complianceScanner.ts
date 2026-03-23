@@ -54,6 +54,26 @@ function normalizeSeverity(s: unknown): ComplianceSeverity {
   return 'MEDIUM';
 }
 
+/** LLMs sometimes emit objects; avoid `[object Object]` in logs and UI. */
+function formatChannelSpecificIssue(item: unknown): string {
+  if (typeof item === 'string') return item.trim();
+  if (item != null && typeof item === 'object' && !Array.isArray(item)) {
+    const o = item as Record<string, unknown>;
+    const issue = typeof o.issue === 'string' ? o.issue.trim() : '';
+    const message = typeof o.message === 'string' ? o.message.trim() : '';
+    const summary = typeof o.summary === 'string' ? o.summary.trim() : '';
+    const text = issue || message || summary;
+    if (text) return text;
+    try {
+      return JSON.stringify(o).slice(0, 500);
+    } catch {
+      return '';
+    }
+  }
+  if (item == null) return '';
+  return String(item).trim();
+}
+
 function countFromWarnings(warnings: ComplianceWarningItem[]): { high: number; medium: number; low: number } {
   let high = 0;
   let medium = 0;
@@ -108,7 +128,10 @@ export function parseComplianceScanJson(raw: string): ComplianceScanResult {
     }
 
     const channel_specific_issues = Array.isArray(p.channel_specific_issues)
-      ? p.channel_specific_issues.map(String).slice(0, 20)
+      ? p.channel_specific_issues
+          .slice(0, 20)
+          .map((item) => formatChannelSpecificIssue(item))
+          .filter((s) => s.length > 0)
       : [];
 
     let email_compliance: EmailComplianceBlock | null | undefined;

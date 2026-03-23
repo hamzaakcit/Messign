@@ -1,18 +1,12 @@
 /**
  * Messign AI Brain — PII Stripping Layer
  *
- * Sanitizes free-text data before sending to external AI APIs.
- * Complements dataSanitizer.ts which blocks field names;
- * this catches regex patterns (emails, phones, IBANs, credit cards)
- * that appear in free-text fields.
+ * Delegates to the canonical PII redactor in safety/piiRedactor.ts.
+ * This file preserves the existing API surface (stripPII / restorePII with Map)
+ * so callers don't need changes.
  */
 
-const PII_PATTERNS: Record<string, RegExp> = {
-  email: /[\w.+-]+@[\w.-]+\.\w{2,}/g,
-  phone: /(\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g,
-  iban: /\b[A-Z]{2}\d{2}[A-Z0-9]{4,30}\b/g,
-  creditCard: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
-};
+import { redactPII, restorePII as redactorRestore, type RedactionMap } from './safety/piiRedactor.js';
 
 export interface StrippedResult {
   sanitizedText: string;
@@ -21,26 +15,18 @@ export interface StrippedResult {
 }
 
 export function stripPII(text: string): StrippedResult {
-  let sanitized = text;
+  const { redactedText, redactions } = redactPII(text);
   const mappings = new Map<string, string>();
-  let counter = 0;
-
-  for (const [type, pattern] of Object.entries(PII_PATTERNS)) {
-    const label = type.toUpperCase();
-    sanitized = sanitized.replace(new RegExp(pattern.source, pattern.flags), (match) => {
-      const token = `[${label}_${++counter}]`;
-      mappings.set(token, match);
-      return token;
-    });
+  for (const r of redactions) {
+    mappings.set(r.placeholder, r.original);
   }
-
-  return { sanitizedText: sanitized, strippedCount: counter, mappings };
+  return { sanitizedText: redactedText, strippedCount: redactions.length, mappings };
 }
 
 export function restorePII(text: string, mappings: Map<string, string>): string {
-  let restored = text;
-  for (const [token, original] of mappings) {
-    restored = restored.replaceAll(token, original);
+  const redactions: RedactionMap[] = [];
+  for (const [placeholder, original] of mappings) {
+    redactions.push({ original, placeholder });
   }
-  return restored;
+  return redactorRestore(text, redactions);
 }

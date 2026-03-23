@@ -27,3 +27,18 @@ dotenv.config();
 if (!process.env.GRAPHHOPPER_API_KEY) {
   console.warn('[server] GRAPHHOPPER_API_KEY not set; mileage calculator will use fallback 10 km.');
 }
+
+if (process.env.NODE_ENV === 'production') {
+  const required = ['DATABASE_URL'];
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    console.error(`[FATAL] Missing required env vars in production: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+
+  const recommended = ['REDIS_URL', 'JWT_SECRET', 'CORS_ORIGIN'];
+  const absent = recommended.filter((k) => !process.env[k]);
+  if (absent.length > 0) {
+    console.warn(`[server] Recommended env vars not set: ${absent.join(', ')}`);
+  }
+}

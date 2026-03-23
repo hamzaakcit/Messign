@@ -7,9 +7,11 @@ import { MessageInput } from './MessageInput';
 import { Hash, Lock, User } from 'lucide-react';
 
 export function ChatWindow() {
-  const { channels, activeChannelId, messages } = useChatStore();
-  const { user: currentUser } = useAuthStore();
-  const { users } = useUsersStore();
+  const channels = useChatStore((s) => s.channels);
+  const activeChannelId = useChatStore((s) => s.activeChannelId);
+  const messages = useChatStore((s) => s.messages);
+  const currentUser = useAuthStore((s) => s.user);
+  const users = useUsersStore((s) => s.users);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeChannel = channels.find(c => c.id === activeChannelId);

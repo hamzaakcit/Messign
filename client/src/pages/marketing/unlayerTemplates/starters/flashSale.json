@@ -1,0 +1,91 @@
+{
+  "version": "2.0",
+  "theme": "startup",
+  "subject": "Flash Sale — Up to 50% Off for 48 Hours Only",
+  "preheader": "Clock is ticking: deep discounts on our bestsellers and bundles disappear in forty-eight hours. Cart saves do not guarantee inventory—checkout now to lock your price before items sell out or the timer hits zero.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "48 hours. Up to 50% off.",
+        "subheadline": "No codes to hunt—prices drop at checkout. When the countdown ends, these deals vanish. Miss it and you wait until our next seasonal event.",
+        "ctaText": "Shop the sale",
+        "ctaUrl": "https://example.com/flash-sale",
+        "imagePrompt": "High-energy startup flash sale banner, electric blue and neon accent, countdown vibe without numbers, product silhouettes, dynamic diagonal shapes",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "content": {
+        "sectionTitle": "Featured drops",
+        "columns": 2,
+        "items": [
+          {
+            "name": "Founder Backpack Pro",
+            "description": "Weather-sealed, laptop sleeve, lifetime hardware warranty on zippers.",
+            "price": "$89",
+            "originalPrice": "$149",
+            "imagePrompt": "Modern matte black commuter backpack on concrete, soft daylight, subtle shadow, ecommerce catalog style",
+            "linkUrl": "https://example.com/products/founder-backpack",
+            "badge": "Bestseller"
+          },
+          {
+            "name": "Focus Noise-Canceling Buds",
+            "description": "Hybrid ANC, multipoint pairing, 32-hour case battery.",
+            "price": "$79",
+            "originalPrice": "$129",
+            "imagePrompt": "Wireless earbuds in open charging case on white sweep, mirror reflection, crisp product photography",
+            "linkUrl": "https://example.com/products/focus-buds",
+            "badge": "-39%"
+          },
+          {
+            "name": "Ship-It Sprint Kit",
+            "description": "Templates, notion pack, and a one-page retro—everything for your next two-week cycle.",
+            "price": "$24",
+            "originalPrice": "$49",
+            "imagePrompt": "Flat lay of notebook, sticky notes, and pen on warm wood desk, minimal styling, productivity aesthetic",
+            "linkUrl": "https://example.com/products/sprint-kit",
+            "badge": "Digital"
+          },
+          {
+            "name": "Team Standup Mug Set (4)",
+            "description": "Stackable ceramic, dishwasher safe—because morale is a feature.",
+            "price": "$36",
+            "originalPrice": "$72",
+            "imagePrompt": "Set of four stacked ceramic mugs in soft gradient glazes, studio lighting, subtle steam optional",
+            "linkUrl": "https://example.com/products/mug-set",
+            "badge": "Bundle"
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "Ends soon—don’t leave items behind",
+        "description": "Inventory is live; popular SKUs can sell through before the deadline. Complete checkout to secure your discount.",
+        "buttonText": "Checkout before it ends",
+        "buttonUrl": "https://example.com/cart",
+        "variant": "fullWidth"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Startup Supply Co.",
+        "address": "2200 Mission Street, San Francisco, CA 94110",
+        "unsubscribeText": "Flash sale emails are promotional. You can adjust frequency or unsubscribe below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "",
+    "audience": ""
+  }
+}

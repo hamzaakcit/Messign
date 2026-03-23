@@ -19,7 +19,7 @@ import { signAccess, signRefresh, verifyRefresh, getAccessExpirySeconds } from '
 import * as authSessionsDb from '../db/authSessionsDb.js';
 import { ensureReimbursementUserForAuth } from '../db/ensureReimbursementUser.js';
 import type { User } from '../types/index.js';
-import { DEFAULT_PASSWORD } from '../types/auth.js';
+import { getDefaultSeedPassword } from '../types/auth.js';
 
 export function computeFingerprint(ip?: string | null, userAgent?: string | null): string {
   return crypto.createHash('sha256')
@@ -123,10 +123,12 @@ export async function login(
   }
 
   const passwordTrimmed = typeof password === 'string' ? password.trim() : '';
+  /** bcrypt cost 12 — dominant CPU cost on login; lowering rounds trades security for latency. */
   let valid = await bcrypt.compare(passwordTrimmed, auth.password_hash);
 
-  if (!valid && passwordTrimmed === DEFAULT_PASSWORD) {
-    const freshHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
+  const seedPw = (() => { try { return getDefaultSeedPassword(); } catch { return null; } })();
+  if (!valid && seedPw && passwordTrimmed === seedPw) {
+    const freshHash = await bcrypt.hash(seedPw, 12);
     await updatePassword({
       auth_user_id: authUserId,
       password_hash: freshHash,
@@ -183,10 +185,22 @@ export async function login(
     last_login_device: userAgent ? `${parseUserAgent(userAgent)} on ${parseDeviceType(userAgent)}` : null,
   });
 
-  const refreshToken = authSessionsDb.generateRefreshToken();
-  const { sessionId, expiresAt } = await sessionService.createSession({
+  const [orgRow, user] = await Promise.all([
+    query<{ organization_id: string }>(
+      `SELECT organization_id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+      [authUserId],
+    ),
+    getEmployeeByIdAsUser(authUserId),
+  ]);
+  if (!user) {
+    return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'User not found' } };
+  }
+  const tenantId = orgRow.rows[0]?.organization_id ?? null;
+
+  const placeholderToken = authSessionsDb.generateRefreshToken();
+  const { sessionId } = await sessionService.createSession({
     auth_user_id: authUserId,
-    refreshToken,
+    refreshToken: placeholderToken,
     device_name: userAgent ? parseUserAgent(userAgent) : null,
     device_type: parseDeviceType(userAgent),
     browser: userAgent ? parseUserAgent(userAgent) : null,
@@ -194,11 +208,8 @@ export async function login(
     location: null,
   });
 
-  const orgRow = await query<{ organization_id: string }>(
-    `SELECT organization_id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
-    [authUserId],
-  );
-  const tenantId = orgRow.rows[0]?.organization_id ?? null;
+  const refreshJwt = signRefresh({ sub: authUserId, sessionId });
+  await sessionService.updateRefreshTokenHash(sessionId, refreshJwt);
 
   const fp = computeFingerprint(ip, userAgent);
   const accessToken = signAccess({
@@ -207,7 +218,6 @@ export async function login(
     fp,
     organizationId: tenantId ?? undefined,
   });
-  const refreshJwt = signRefresh({ sub: authUserId, sessionId });
 
   await insertAudit({
     auth_user_id: authUserId,
@@ -227,16 +237,12 @@ export async function login(
     userAgent: userAgent ?? undefined,
   });
 
-  const user = await getEmployeeByIdAsUser(authUserId);
-  if (!user) {
-    return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'User not found' } };
-  }
-  try {
-    await ensureReimbursementUserForAuth(authUserId, user.email, user.name);
-  } catch (e) {
-    console.warn('[authService.login] ensureReimbursementUserForAuth:', e);
-  }
-  const badges = await getBadgesForUser(user.id);
+  const [, badges] = await Promise.all([
+    ensureReimbursementUserForAuth(authUserId, user.email, user.name).catch((e) => {
+      console.warn('[authService.login] ensureReimbursementUserForAuth:', e);
+    }),
+    getBadgesForUser(user.id),
+  ]);
   const userWithBadges = { ...user, badges };
 
   return {
@@ -272,6 +278,7 @@ export async function refresh(
     organizationId: orgRow.rows[0]?.organization_id,
   });
   const newRefreshJwt = signRefresh({ sub: payload.sub, sessionId: payload.sessionId });
+  await sessionService.updateRefreshTokenHash(payload.sessionId, newRefreshJwt);
 
   logAuditEvent({
     userId: payload.sub,
@@ -294,16 +301,23 @@ export async function logout(
   req?: { ip?: string; headers?: Record<string, string | string[] | undefined> },
 ): Promise<void> {
   let userId: string | null = null;
+  let revokedSessionId: string | null = sessionId;
   if (refreshToken) {
     try {
       const payload = verifyRefresh(refreshToken);
       userId = payload.sub;
+      revokedSessionId = payload.sessionId;
       await sessionService.revokeSession(payload.sessionId);
     } catch {
       // Token invalid or expired - nothing to revoke
     }
   } else if (sessionId) {
     await sessionService.revokeSession(sessionId);
+  }
+
+  if (revokedSessionId) {
+    const { blacklistSession } = await import('../middleware/authMiddleware.js');
+    await blacklistSession(revokedSessionId);
   }
 
   if (userId) {

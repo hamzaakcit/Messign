@@ -1,0 +1,81 @@
+{
+  "counters": {
+    "u_row": 1,
+    "u_column": 1,
+    "u_content_text": 1
+  },
+  "body": {
+    "id": "root",
+    "rows": [
+      {
+        "id": "row-1",
+        "cells": [1],
+        "columns": [
+          {
+            "id": "col-1",
+            "contents": [
+              {
+                "type": "text",
+                "values": {
+                  "containerPadding": "12px",
+                  "anchor": "",
+                  "textAlign": "left",
+                  "lineHeight": "140%",
+                  "linkStyle": { "inherit": true },
+                  "hideDesktop": false,
+                  "displayCondition": null,
+                  "_styleFeature": "text",
+                  "text": "<p style=\"margin:0\">Edit this starter or add blocks from the sidebar.</p>"
+                }
+              }
+            ],
+            "values": {
+              "_meta": { "htmlID": "u_column_1", "htmlClassNames": "u_column" },
+              "border": {},
+              "padding": "0px",
+              "backgroundColor": ""
+            }
+          }
+        ],
+        "values": {
+          "displayCondition": null,
+          "columns": false,
+          "backgroundColor": "",
+          "columnsBackgroundColor": "",
+          "backgroundImage": {
+            "url": "",
+            "fullWidth": true,
+            "repeat": "no-repeat",
+            "size": "custom",
+            "position": "center"
+          },
+          "padding": "0px",
+          "anchor": "",
+          "hideDesktop": false
+        }
+      }
+    ],
+    "headers": [],
+    "footers": [],
+    "values": {
+      "_meta": { "htmlID": "u_body", "htmlClassNames": "u_body" },
+      "textColor": "#1a1a2e",
+      "linkColor": "#2563eb",
+      "backgroundColor": "#f8fafc",
+      "backgroundImage": {
+        "url": "",
+        "fullWidth": true,
+        "repeat": "no-repeat",
+        "size": "custom",
+        "position": "center"
+      },
+      "contentWidth": "600px",
+      "fontFamily": { "label": "Arial", "value": "arial,helvetica,sans-serif" },
+      "popupWidth": "600px",
+      "popupHeight": "auto",
+      "popupPosition": "center",
+      "popupDisplay": "modal",
+      "popupCloseButton": { "backgroundColor": "#CCCCCC", "icon": "close" }
+    }
+  }
+}

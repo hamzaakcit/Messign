@@ -1,6 +1,7 @@
+import { randomUUID } from 'crypto';
 import bcrypt from 'bcrypt';
 import { query, getClient } from './index.js';
-import { DEFAULT_PASSWORD } from '../types/auth.js';
+import { getDefaultSeedPassword } from '../types/auth.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
 const SALT_ROUNDS = 12;
@@ -90,10 +91,9 @@ export async function insertEmployees(
     });
   }
 
-  const ts = Date.now();
   let defaultPasswordHash: string | null = null;
   if (createAuth) {
-    defaultPasswordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+    defaultPasswordHash = await bcrypt.hash(getDefaultSeedPassword(), SALT_ROUNDS);
   }
 
   const client = await getClient();
@@ -102,7 +102,8 @@ export async function insertEmployees(
 
     for (let i = 0; i < parsed.length; i++) {
       const row = parsed[i]!;
-      const authUserId = row.id && row.id.length > 0 ? row.id : `user-${ts}-${i}`;
+      const authUserId =
+        row.id && row.id.length > 0 ? row.id : `user-${randomUUID()}`;
       const role = normalizeRole(row.role);
       const jobTitle = row.jobTitle ?? role;
       const xp = typeof row.xp === 'number' && row.xp >= 0 ? row.xp : 0;
@@ -191,7 +192,7 @@ export async function insertEmployees(
                account_status = EXCLUDED.account_status,
                updated_at = NOW(),
                updated_by = EXCLUDED.updated_by`,
-            [effectiveAuthUserId, emailLower, defaultPasswordHash, DEFAULT_PASSWORD]
+            [effectiveAuthUserId, emailLower, defaultPasswordHash, getDefaultSeedPassword()]
           );
         }
 

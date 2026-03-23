@@ -1,0 +1,78 @@
+# ============================================================
+# .cursorrules - Month 1: Visual Architect v2
+# Messign Workspace Engineering Spec
+# ============================================================
+
+## Project Architecture
+- Monorepo: client/ (Vite+React+TS) and server/ (Express.js+TS)
+- Database: PostgreSQL with Row-Level Security on 58+ tables
+- AI Gateway: LiteLLM centralizes all model calls
+- AI Models: Groq (fast categorization), Claude (vision/synthesis)
+- Email Builder: Unlayer react-email-editor (v1.x)
+- Charts: Recharts
+- State: React hooks + custom hooks (useDora, useMarketingApi)
+- Testing: Vitest 4.x (client: jsdom + @testing-library/react, server: node)
+
+## Active Module: Marketing
+- Layout: client/src/pages/marketing/MarketingLayout.tsx
+- All marketing pages under client/src/pages/marketing/
+- API client: client/src/lib/marketingApi.ts
+- Server routes: server/src/routes/marketing/
+- Agent: server/src/agents/marketing/
+
+## Active Work: Visual Architect v2 (Design System)
+
+### Files You Must Read Before Any Task:
+- client/src/pages/marketing/lib/designTokens.ts
+- client/src/pages/marketing/lib/blockBuilders.ts
+- client/src/pages/marketing/lib/designAssembler.ts
+- client/src/pages/marketing/lib/emailAiDraftToDesign.ts
+- client/src/pages/marketing/components/UnlayerEditor.tsx
+- client/src/pages/marketing/components/UnlayerEmailEditor.tsx
+- client/src/pages/marketing/components/ContentDetailPanel.tsx
+- client/src/pages/marketing/components/cockpit/ContentDetailPanel.tsx
+- client/src/pages/marketing/unlayerTemplates/registry.ts
+- server/src/agents/marketing/marketingContentStrategistPrompt.ts
+
+### Design Manifest Flow:
+1. User requests email content via Dora (chat or Command Center)
+2. Content Strategist agent outputs a DesignManifest JSON
+3. Client parses manifest, calls assembleDesign()
+4. assembleDesign() calls blockBuilders per section
+5. Result is valid Unlayer design JSON
+6. Unlayer editor.loadDesign() renders it
+7. User edits in Unlayer, exports HTML for sending
+
+### Critical Constraints:
+- Unlayer design JSON must round-trip: loadDesign -> exportHtml -> works
+- All colors from design tokens, never hardcoded hex
+- Google Fonts only (no local fonts - Unlayer cant access them)
+- Mobile responsive: Unlayer handles stacking, but we must set correct row/column configs
+- Email HTML must render in: Gmail, Outlook 2019+, Apple Mail, Yahoo Mail, Outlook.com
+- WCAG AA contrast (4.5:1) for all text-on-background combos
+- Max email width: 600px (industry standard)
+- Preheader text: always include, 100+ chars, hidden from visual
+
+### TypeScript Rules:
+- Explicit return types on all exported functions
+- No "any" types - use unknown + type guards if needed
+- Interface over type alias for object shapes
+- Barrel exports from lib/index.ts
+- JSDoc on every exported function
+
+### Testing Rules:
+- Client tests: Vitest + jsdom + @testing-library/react
+- Server tests: Vitest + node environment
+- Client test location: client/src/__tests__/ (matching src structure)
+- Server test location: server/src/__tests__/ (agents/, dal/, modules/)
+- Run client tests: cd client && npm test
+- Run server tests: cd server && npm run test:agents
+- Every new module must have at least one test file
+- Use describe/it/expect (globals: true, no imports needed)
+
+### Naming Conventions:
+- Block builders: build[SectionType](content, theme, spacing)
+- Token getters: get[TokenType](key)
+- Types: PascalCase, prefixed if ambiguous (ManifestSection vs ContentSection)
+- Files: camelCase.ts for modules, PascalCase.tsx for React components
+- Test files: [module].test.ts matching the source file name

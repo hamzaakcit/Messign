@@ -73,107 +73,109 @@ export function register(): void {
   });
 
   eventBus.on('finance.expense.created', async (payload) => {
-    await doraInsightsQueue.add('expense_created', {
-      type: 'expense_created',
-      payload: {
-        expenseId: payload.expenseId,
-        userId: payload.userId,
-        amount: payload.amount,
-        category: payload.category,
-        departmentId: payload.departmentId,
-      },
-    });
+    try {
+      await doraInsightsQueue.add('expense_created', {
+        type: 'expense_created',
+        payload: {
+          expenseId: payload.expenseId,
+          userId: payload.userId,
+          amount: payload.amount,
+          category: payload.category,
+          departmentId: payload.departmentId,
+        },
+      });
+    } catch (err) { console.error('[DoraSubscriber] finance.expense.created handler error:', err); }
   });
 
   eventBus.on('finance.budget.threshold_breached', async (payload) => {
-    await doraInsightsQueue.add('budget_threshold_breached', {
-      type: 'budget_threshold_breached',
-      payload: {
-        budgetId: payload.budgetId,
-        departmentId: payload.departmentId,
-        currentPercent: payload.currentPercent,
-        threshold: payload.threshold,
-      },
-    });
+    try {
+      await doraInsightsQueue.add('budget_threshold_breached', {
+        type: 'budget_threshold_breached',
+        payload: {
+          budgetId: payload.budgetId,
+          departmentId: payload.departmentId,
+          currentPercent: payload.currentPercent,
+          threshold: payload.threshold,
+        },
+      });
+    } catch (err) { console.error('[DoraSubscriber] finance.budget.threshold_breached handler error:', err); }
   });
 
   eventBus.on('finance.invoice.overdue', async (payload) => {
-    await doraInsightsQueue.add('invoice_overdue', {
-      type: 'invoice_overdue',
-      payload: {
-        invoiceId: payload.invoiceId,
-        vendorId: payload.vendorId,
-        daysOverdue: payload.daysOverdue,
-        amount: payload.amount,
-      },
-    });
+    try {
+      await doraInsightsQueue.add('invoice_overdue', {
+        type: 'invoice_overdue',
+        payload: {
+          invoiceId: payload.invoiceId,
+          vendorId: payload.vendorId,
+          daysOverdue: payload.daysOverdue,
+          amount: payload.amount,
+        },
+      });
+    } catch (err) { console.error('[DoraSubscriber] finance.invoice.overdue handler error:', err); }
   });
 
   eventBus.on('support.sla.breached', async (payload) => {
-    await doraInsightsQueue.add('support_sla_breached', {
-      type: 'support_sla_breached',
-      payload,
-    });
+    try {
+      await doraInsightsQueue.add('support_sla_breached', { type: 'support_sla_breached', payload });
+    } catch (err) { console.error('[DoraSubscriber] support.sla.breached handler error:', err); }
   });
 
   eventBus.on('support.pattern.detected', async (payload) => {
-    await doraInsightsQueue.add('support_pattern_detected', {
-      type: 'support_pattern_detected',
-      payload,
-    });
+    try {
+      await doraInsightsQueue.add('support_pattern_detected', { type: 'support_pattern_detected', payload });
+    } catch (err) { console.error('[DoraSubscriber] support.pattern.detected handler error:', err); }
   });
 
   eventBus.on('support.volume.spike', async (payload) => {
-    await doraInsightsQueue.add('support_volume_spike', {
-      type: 'support_volume_spike',
-      payload,
-    });
+    try {
+      await doraInsightsQueue.add('support_volume_spike', { type: 'support_volume_spike', payload });
+    } catch (err) { console.error('[DoraSubscriber] support.volume.spike handler error:', err); }
   });
 
   eventBus.on('crm.deal.won', async (payload) => {
-    await doraInsightsQueue.add('crm_deal_won', {
-      type: 'crm_deal_won',
-      payload: {
-        dealId: payload.dealId,
-        amount: payload.amount,
-        ownerId: payload.ownerId,
-      },
-    });
+    try {
+      await doraInsightsQueue.add('crm_deal_won', {
+        type: 'crm_deal_won',
+        payload: { dealId: payload.dealId, amount: payload.amount, ownerId: payload.ownerId },
+      });
+    } catch (err) { console.error('[DoraSubscriber] crm.deal.won handler error:', err); }
   });
 
   eventBus.on('crm.deal.stage_changed', async (payload) => {
-    const staleResult = await query<{
-      title: string;
-      owner_id: string;
-      days_since_activity: string;
-    }>(
-      `SELECT
-         d.title,
-         d.owner_id::text AS owner_id,
-         COALESCE(
-           FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(MAX(a.created_at), d.updated_at))) / 86400),
-           0
-         )::int::text AS days_since_activity
-       FROM crm_deals d
-       LEFT JOIN crm_activities a ON a.deal_id = d.id
-       WHERE d.id = $1
-       GROUP BY d.id`,
-      [payload.dealId],
-    );
-
-    const stale = staleResult.rows[0];
-    const daysSinceActivity = parseInt(stale?.days_since_activity ?? '0', 10);
-    if (stale && daysSinceActivity >= 10) {
-      await doraInsightsQueue.add('crm_deal_stale', {
-        type: 'crm_deal_stale',
-        payload: {
-          dealId: payload.dealId,
-          title: stale.title,
-          ownerId: stale.owner_id,
-          daysSinceActivity,
-        },
-      });
-    }
+    try {
+      const staleResult = await query<{
+        title: string;
+        owner_id: string;
+        days_since_activity: string;
+      }>(
+        `SELECT
+           d.title,
+           d.owner_id::text AS owner_id,
+           COALESCE(
+             FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(MAX(a.created_at), d.updated_at))) / 86400),
+             0
+           )::int::text AS days_since_activity
+         FROM crm_deals d
+         LEFT JOIN crm_activities a ON a.deal_id = d.id
+         WHERE d.id = $1
+         GROUP BY d.id`,
+        [payload.dealId],
+      );
+      const stale = staleResult.rows[0];
+      const daysSinceActivity = parseInt(stale?.days_since_activity ?? '0', 10);
+      if (stale && daysSinceActivity >= 10) {
+        await doraInsightsQueue.add('crm_deal_stale', {
+          type: 'crm_deal_stale',
+          payload: {
+            dealId: payload.dealId,
+            title: stale.title,
+            ownerId: stale.owner_id,
+            daysSinceActivity,
+          },
+        });
+      }
+    } catch (err) { console.error('[DoraSubscriber] crm.deal.stage_changed handler error:', err); }
   });
 
   console.log('[Subscriber] Dora subscriber registered');

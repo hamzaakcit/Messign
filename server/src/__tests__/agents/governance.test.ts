@@ -36,4 +36,10 @@ describe('classifyActionRisk', () => {
   it('projects:create_task → irreversible (always HITL)', () => {
     expect(classifyActionRisk('projects:create_task', { title: 'Test' })).toBe('irreversible');
   });
+
+  it('creative:generate_image_brief → read (auto-execute; not HITL — name contains "generate")', () => {
+    expect(classifyActionRisk('creative:generate_image_brief', { content_context: 'x', brief_type: 'social_image', platform: 'instagram' })).toBe(
+      'read',
+    );
+  });
 });

@@ -1,8 +1,7 @@
 import { useLocation } from 'react-router-dom';
-import { Menu, Search, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Search, ChevronRight, Menu } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { KnowledgeHubIcon } from '@/components/knowledge-hub/icons';
 
 const viewTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -17,62 +16,82 @@ const viewTitles: Record<string, string> = {
   team: 'Team Directory',
   projects: 'Project Marketplace',
   settings: 'Settings',
+  finance: 'Finance',
   reimbursements: 'Reimbursements',
   invoices: 'Invoices',
+  crm: 'Sales CRM',
+  marketing: 'Marketing',
+  recruitment: 'Recruitment',
+  support: 'Support',
+  time: 'Time Tracking',
+  okr: 'OKRs & Goals',
+  assets: 'Assets',
+  contracts: 'Contracts',
+  culture: 'Culture',
 };
+
+function Breadcrumbs({ pathname, currentView }: { pathname: string; currentView: string }) {
+  const segments = pathname.split('/').filter(Boolean);
+  const root = viewTitles[currentView] ?? currentView;
+
+  if (segments.length <= 1) {
+    return <span className="text-sm font-medium text-app-muted">{root}</span>;
+  }
+
+  const sub = segments
+    .slice(1)
+    .map((s) => s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+
+  return (
+    <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">
+      <span className="text-app-muted font-medium">{root}</span>
+      {sub.map((label, i) => (
+        <span key={i} className="flex items-center gap-1">
+          <ChevronRight className="w-3 h-3 text-app-muted/50" />
+          <span className={i === sub.length - 1 ? 'text-app font-medium' : 'text-app-muted'}>{label}</span>
+        </span>
+      ))}
+    </nav>
+  );
+}
 
 export function Header() {
   const location = useLocation();
-  const { currentView, toggleLeftSidebar, toggleRightSidebar, leftSidebarOpen, rightSidebarOpen, leftSidebarCollapsed, rightSidebarCollapsed, isMobile, openCommandSurface } = useUIStore();
-  const isKnowledgeHub = location.pathname.startsWith('/knowledge-hub');
+  const currentView = useUIStore((s) => s.currentView);
+  const toggleLeftSidebar = useUIStore((s) => s.toggleLeftSidebar);
+  const leftSidebarOpen = useUIStore((s) => s.leftSidebarOpen);
+  const isMobile = useUIStore((s) => s.isMobile);
+  const openCommandSurface = useUIStore((s) => s.openCommandSurface);
 
   return (
-    <header className="h-16 border-b border-app flex items-center justify-between px-4 bg-app-sidebar backdrop-blur-sm transition-colors duration-200">
-      <div className="flex items-center gap-4">
-        {/* Toggle Left Sidebar */}
-        <button
-          onClick={toggleLeftSidebar}
-          className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
-          aria-label={
-            isMobile
-              ? leftSidebarOpen
-                ? 'Close left sidebar'
-                : 'Open left sidebar'
-              : leftSidebarCollapsed
-                ? 'Expand left sidebar'
-                : 'Collapse left sidebar'
-          }
-        >
-          {isMobile ? (
-            leftSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <Menu className="w-5 h-5" />
-          ) : leftSidebarCollapsed ? (
-            <PanelLeftOpen className="w-5 h-5" />
-          ) : (
-            <PanelLeftClose className="w-5 h-5" />
-          )}
-        </button>
+    <header className="h-12 border-b border-app flex items-center justify-between px-4 bg-app-sidebar backdrop-blur-sm transition-colors duration-200">
+      <div className="flex items-center gap-3">
+        {isMobile && (
+          <button
+            onClick={toggleLeftSidebar}
+            className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+            aria-label={leftSidebarOpen ? 'Close menu' : 'Open menu'}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
 
-        {/* View Title */}
-        <div className="flex items-center gap-2">
-          {(currentView === 'knowledge' || isKnowledgeHub) && <KnowledgeHubIcon size={24} active />}
-          <h1 className="text-xl font-semibold text-app">{viewTitles[currentView]}</h1>
-        </div>
+        <Breadcrumbs pathname={location.pathname} currentView={currentView} />
       </div>
 
-      {/* Search trigger — opens Command Surface */}
       {!isMobile && (
         <div className="flex-1 max-w-md mx-8">
           <button
             data-testid="onboarding-cmdk"
             onClick={openCommandSurface}
-            className="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border transition-colors text-left"
+            className="w-full flex items-center gap-3 px-3 py-1.5 rounded-lg border transition-colors text-left"
             style={{
               backgroundColor: 'var(--input-bg)',
               borderColor: 'var(--input-border)',
               color: 'var(--input-placeholder)',
             }}
           >
-            <Search className="w-4 h-4 shrink-0" />
+            <Search className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1 text-sm">Search or ask Dora...</span>
             <kbd
               className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono"
@@ -89,43 +108,19 @@ export function Header() {
       )}
 
       <div className="flex items-center gap-2">
-        {/* Search (mobile) */}
         {isMobile && (
           <button
             onClick={openCommandSurface}
-            className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+            className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+            aria-label="Search"
           >
             <Search className="w-5 h-5" />
           </button>
         )}
 
-        {/* Notifications */}
         <div data-testid="onboarding-notifications">
           <NotificationBell />
         </div>
-
-        {/* Toggle Right Sidebar */}
-        <button
-            onClick={toggleRightSidebar}
-            className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
-            aria-label={
-              isMobile
-                ? rightSidebarOpen
-                  ? 'Close right sidebar'
-                  : 'Open right sidebar'
-                : rightSidebarCollapsed
-                  ? 'Expand right sidebar'
-                  : 'Collapse right sidebar'
-            }
-          >
-            {isMobile ? (
-              rightSidebarOpen ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />
-            ) : rightSidebarCollapsed ? (
-              <PanelRightOpen className="w-5 h-5" />
-            ) : (
-              <PanelRightClose className="w-5 h-5" />
-            )}
-          </button>
       </div>
     </header>
   );

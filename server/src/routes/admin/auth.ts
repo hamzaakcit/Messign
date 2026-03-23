@@ -43,11 +43,17 @@ router.put('/policy', async (req, res) => {
   }
 });
 
+function stripSensitiveFields<T extends Record<string, unknown>>(obj: T): Omit<T, 'password_hash' | 'password_history' | 'temporary_password'> {
+  const { password_hash: _ph, password_history: _phist, temporary_password: _tp, ...safe } = obj;
+  return safe as Omit<T, 'password_hash' | 'password_history' | 'temporary_password'>;
+}
+
 // GET /api/admin/auth/employees
 router.get('/employees', async (_req, res) => {
   try {
     const list = await getAllWithAuth();
-    return res.json({ success: true, data: list });
+    const sanitized = list.map((emp) => stripSensitiveFields(emp as unknown as Record<string, unknown>));
+    return res.json({ success: true, data: sanitized });
   } catch (e) {
     console.error('[admin/auth] employees list:', e);
     return res.status(500).json({ error: 'Failed to list employees' });
@@ -61,7 +67,7 @@ router.get('/employees/:oddrooId', async (req, res) => {
     const auth = await getByAuthUserId(oddrooId);
     if (!auth) return res.status(404).json({ error: 'Employee auth not found' });
     const user = await getEmployeeByIdAsUser(oddrooId);
-    return res.json({ success: true, data: { auth, user } });
+    return res.json({ success: true, data: { auth: stripSensitiveFields(auth as unknown as Record<string, unknown>), user } });
   } catch (e) {
     console.error('[admin/auth] employee get:', e);
     return res.status(500).json({ error: 'Failed to get employee' });

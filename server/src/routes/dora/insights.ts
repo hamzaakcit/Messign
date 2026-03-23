@@ -3,8 +3,24 @@ import { query } from '../../db/index.js';
 import { reimbursementAuth, type ReimbursementRequest } from '../../middleware/reimbursementAuth.js';
 import type { CallerContext } from '../../dal/types.js';
 import * as doraInsights from '../../dal/doraInsights.js';
+import { redisConnection } from '../../queue/connection.js';
 
 const router = Router();
+
+const COUNTS_CACHE_TTL_SEC = 15;
+
+function countsCacheKey(ctx: CallerContext): string {
+  const dept = ctx.departmentId ?? '';
+  return `dora:insight:counts:v1:${ctx.organizationId}:${ctx.userId}:${ctx.role}:${encodeURIComponent(dept)}`;
+}
+
+async function invalidateCountsCache(ctx: CallerContext): Promise<void> {
+  try {
+    await redisConnection.del(countsCacheKey(ctx));
+  } catch (e) {
+    if (e instanceof Error) console.warn('[Redis] dora counts cache invalidate:', e.message);
+  }
+}
 
 async function buildCtx(req: ReimbursementRequest): Promise<CallerContext> {
   const authUserId = req.reimbursementUser?.authUserId ?? null;
@@ -55,8 +71,23 @@ router.get('/insights', async (req: ReimbursementRequest, res) => {
 router.get('/insights/counts', async (req: ReimbursementRequest, res) => {
   try {
     const ctx = await buildCtx(req);
+    const key = countsCacheKey(ctx);
+    try {
+      const cached = await redisConnection.get(key);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] dora counts cache get:', e.message);
+    }
     const counts = await doraInsights.getUnreadCounts(ctx);
-    res.json({ counts });
+    const payload = { counts };
+    try {
+      await redisConnection.setex(key, COUNTS_CACHE_TTL_SEC, JSON.stringify(payload));
+    } catch (e) {
+      if (e instanceof Error) console.warn('[Redis] dora counts cache set:', e.message);
+    }
+    res.json(payload);
   } catch (error) {
     console.error('[dora/insights] counts failed:', error);
     res.status(500).json({ error: 'Failed to fetch unread counts' });
@@ -70,6 +101,7 @@ router.put('/insights/dismiss-all', async (req: ReimbursementRequest, res) => {
       ctx,
       typeof req.body?.module === 'string' ? req.body.module : undefined,
     );
+    await invalidateCountsCache(ctx);
     res.json({ dismissed });
   } catch (error) {
     console.error('[dora/insights] dismiss all failed:', error);
@@ -81,6 +113,7 @@ router.put('/insights/:id/read', async (req: ReimbursementRequest, res) => {
   try {
     const ctx = await buildCtx(req);
     await doraInsights.markRead(ctx, req.params.id);
+    await invalidateCountsCache(ctx);
     res.json({ ok: true });
   } catch (error) {
     console.error('[dora/insights] mark read failed:', error);
@@ -92,6 +125,7 @@ router.put('/insights/:id/dismiss', async (req: ReimbursementRequest, res) => {
   try {
     const ctx = await buildCtx(req);
     await doraInsights.dismiss(ctx, req.params.id);
+    await invalidateCountsCache(ctx);
     res.json({ ok: true });
   } catch (error) {
     console.error('[dora/insights] dismiss failed:', error);

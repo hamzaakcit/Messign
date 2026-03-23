@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Messign — Architect Layering</title>
+  <!--
+    Parity with Unlayer exports in docs/reference-unlayer/*.zip — class names: u-row-container, u-row, u-col-60p17, u-col-39p83, u-col-22p67, u-col-77
+    Reference uses #u_content_* IDs for mobile !important overrides (49px crush, divider 13px 10px 10px, button 65%).
+  -->
+  <style type="text/css">
+    html, body { margin: 0; padding: 0; }
+    table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { border: 0; outline: none; text-decoration: none; }
+    a { text-decoration: none; }
+
+    /* Unlayer desktop column locks @ 600px row (from reference exports) */
+    @media only screen and (min-width: 620px) {
+      .u-row { width: 600px !important; margin-left: auto !important; margin-right: auto !important; }
+      .u-row .u-col { vertical-align: top; }
+      .u-row .u-col-60p17 { width: 361.02px !important; }
+      .u-row .u-col-39p83 { width: 238.98px !important; }
+      .u-row .u-col-22p67 { width: 136.02px !important; }
+      .u-row .u-col-77 { width: 462px !important; }
+    }
+    @media only screen and (max-width: 620px) {
+      .u-row-container { max-width: 100% !important; padding-left: 0 !important; padding-right: 0 !important; }
+      .u-row { width: 100% !important; }
+      .u-row .u-col {
+        display: block !important;
+        width: 100% !important;
+        min-width: 320px !important;
+        max-width: 100% !important;
+      }
+    }
+
+    /* Desktop base */
+    .crush-h1 {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 49px;
+      font-weight: 800;
+      line-height: 100%;
+      letter-spacing: -0.025em;
+      color: #E4E4E7;
+    }
+    .body-calm {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 160%;
+      color: #E4E4E7;
+    }
+    .meta-ai {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 150%;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6B7280;
+    }
+    .glass {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background-color: transparent;
+    }
+
+    /* Mobile: Unlayer-style #u_content_* hooks (see reference m4CZP6 / i7YLJX exports) */
+    @media only screen and (max-width: 480px) {
+      #messign-env {
+        background-size: cover !important;
+        background-position: center center !important;
+      }
+      #u_content_heading_1 .v-font-size { font-size: 36px !important; }
+      /* Reference toggles 10% vs 100% for 49px display — 100% is readable; 10% matches export id1 */
+      #u_content_heading_1 .v-line-height { line-height: 100% !important; }
+      #u_content_divider_1.v-container-padding-padding { padding: 13px 10px 10px !important; }
+      #u_content_button_1 .v-size-width {
+        width: 65% !important;
+        max-width: 65% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        display: block !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+      }
+      #row-hero-inner,
+      #row-asym-1,
+      #row-asym-2,
+      #row-footer {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .crush-h1 {
+        font-size: 36px !important;
+        line-height: 100% !important;
+        text-align: center !important;
+      }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#050505;">
+  <center style="width:100%;background-color:#050505;">
+    <!-- u-row-container: environmental layer (NOT an Image block) — matches Unlayer export class -->
+    <table role="presentation" id="messign-env" class="u-row-container" cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:0;background-color:#050505;background-image:url('https://images.unsplash.com/photo-1639322537504-6427a16b0a28?auto=format&fit=crop&w=2400&q=80');background-repeat:no-repeat;background-position:center center;background-size:cover;">
+      <tr>
+        <td align="center" style="padding:0;">
+          <table role="presentation" class="u-row" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:transparent;">
+
+            <!-- Hero: type + CTA only — environment shows through (transparent rows/cols) -->
+            <tr>
+              <td id="row-hero-inner" style="padding:48px 32px 32px 32px;background-color:transparent;">
+                <p class="meta-ai" id="hero-eyebrow" style="margin:0 0 16px 0;text-align:center;">AI-native · workspace OS</p>
+                <h1 class="crush-h1 v-text-align v-line-height v-font-size" id="u_content_heading_1" style="text-align:center;">Ahead of the quarter.</h1>
+                <p class="body-calm" id="hero-sub" style="margin:16px 0 0 0;text-align:center;color:#A1A1AA;font-size:15px;">
+                  One surface for campaigns, proof, and execution — structured like a dashboard, not a newsletter.
+                </p>
+                <table role="presentation" id="u_content_button_1" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:28px auto 0 auto;background-color:transparent;">
+                  <tr>
+                    <td align="center" style="background-color:transparent;">
+                      <a class="v-size-width" id="btn-primary" href="https://example.com/app" target="_blank" style="display:inline-block;padding:14px 28px;background-color:#00F0FF;color:#050505;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;border-radius:8px;line-height:1.2;">Open Messign</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Invisible divider: #CCC 1px + asymmetric padding 13px 10px 10px (#u_content_divider_1 in reference) -->
+            <tr>
+              <td id="u_content_divider_1" class="v-container-padding-padding" style="padding:13px 10px 10px 10px;background-color:transparent;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="height:1px;background-color:#CCCCCC;line-height:0;font-size:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Asymmetric row A: 60.17% narrative | 39.83% meta -->
+            <tr>
+              <td style="padding:16px 16px 24px 16px;background-color:transparent;">
+                <table role="presentation" id="row-asym-1" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:transparent;">
+                  <tr>
+                    <td class="u-col u-col-60p17" id="col-narrative-6017" width="361" valign="top" style="width:361.02px;padding:8px;background-color:transparent;">
+                      <table role="presentation" width="100%" class="glass" style="border:1px solid rgba(255,255,255,0.1);background-color:transparent;border-radius:12px;">
+                        <tr>
+                          <td style="padding:20px;">
+                            <p class="body-calm" style="font-size:16px;line-height:160%;color:#E4E4E7;">
+                              Primary narrative: approvals, calendar, and ROI stay in one thread — your team sees the next action without leaving the surface.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td class="u-col u-col-39p83" id="col-meta-3983" width="239" valign="top" style="width:238.98px;padding:8px;background-color:transparent;">
+                      <table role="presentation" width="100%" class="glass" style="border:1px solid rgba(255,255,255,0.1);background-color:transparent;border-radius:12px;">
+                        <tr>
+                          <td style="padding:20px;">
+                            <p class="meta-ai" style="margin:0 0 8px 0;">META · STATUS</p>
+                            <p class="body-calm" style="font-size:14px;line-height:160%;color:#9CA3AF;margin:0;">
+                              Processing…<br />
+                              SLA green<br />
+                              Last sync 2m
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Divider variant #BBBBBB -->
+            <tr>
+              <td style="padding:13px 10px 10px 10px;background-color:transparent;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr><td style="height:1px;background-color:#BBBBBB;line-height:0;font-size:0;">&nbsp;</td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Asymmetric row B: 22.67% rail | 77.33% long copy -->
+            <tr>
+              <td style="padding:8px 16px 32px 16px;background-color:transparent;">
+                <table role="presentation" id="row-asym-2" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:transparent;">
+                  <tr>
+                    <td class="u-col u-col-22p67" id="col-rail-2267" width="136" valign="top" style="width:136.02px;padding:8px;background-color:transparent;">
+                      <table role="presentation" width="100%" class="glass" style="border:1px solid rgba(255,255,255,0.1);background-color:transparent;border-radius:12px;">
+                        <tr>
+                          <td style="padding:16px;">
+                            <p class="meta-ai" style="margin:0;text-align:left;">RAIL</p>
+                            <p class="body-calm" style="margin:8px 0 0 0;font-size:14px;line-height:160%;color:#A1A1AA;">Scope · Risk · Proof</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td class="u-col u-col-77" id="col-wide-7733" width="462" valign="top" style="width:462px;padding:8px;background-color:transparent;">
+                      <table role="presentation" width="100%" class="glass" style="border:1px solid rgba(255,255,255,0.1);background-color:transparent;border-radius:12px;">
+                        <tr>
+                          <td style="padding:20px;">
+                            <p class="body-calm" style="font-size:15px;line-height:160%;color:#E4E4E7;">
+                              Secondary narrative block uses the wide column for editorial calm: 14–16px body, 160% line-height, so the dense dashboard world outside still feels readable in the inbox. No hero image here — only glass over the environmental layer.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td id="row-footer" align="center" style="padding:24px 24px 40px 24px;background-color:transparent;">
+                <p class="body-calm" style="font-size:13px;line-height:160%;color:#6B7280;">
+                  Messign Workspace · <a href="#" style="color:#00F0FF;">Unsubscribe</a>
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>

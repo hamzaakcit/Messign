@@ -39,29 +39,45 @@ export function ReimbursementDetail({ id }: ReimbursementDetailProps) {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id || !id) return;
-    reimbursementAPI.getById(user.id, id).then((r: any) => setData(r)).finally(() => setLoading(false));
+    let cancelled = false;
+    setError(null);
+    reimbursementAPI.getById(user.id, id)
+      .then((r: any) => { if (!cancelled) setData(r); })
+      .catch(() => { if (!cancelled) setError('Failed to load reimbursement'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [user?.id, id]);
 
   useEffect(() => {
     if (!user?.id || !id || !data) return;
-    reimbursementAPI.getComments(user.id, id).then(setComments);
+    reimbursementAPI.getComments(user.id, id).then(setComments).catch(() => setComments([]));
   }, [user?.id, id, data]);
 
   const handleAddComment = async () => {
     if (!user?.id || !id || !newComment.trim()) return;
-    await reimbursementAPI.addComment(user.id, id, newComment.trim());
-    setNewComment('');
-    reimbursementAPI.getComments(user.id, id).then(setComments);
+    try {
+      await reimbursementAPI.addComment(user.id, id, newComment.trim());
+      setNewComment('');
+      reimbursementAPI.getComments(user.id, id).then(setComments).catch(() => {});
+    } catch { /* swallow - user can retry */ }
   };
 
   if (!user?.id) return null;
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="h-full overflow-auto bg-app p-6 transition-colors duration-200">
         <div className="max-w-4xl mx-auto text-app-muted">Loading...</div>
+      </div>
+    );
+  }
+  if (error || !data) {
+    return (
+      <div className="h-full overflow-auto bg-app p-6 transition-colors duration-200">
+        <div className="max-w-4xl mx-auto text-red-500">{error ?? 'Not found'}</div>
       </div>
     );
   }

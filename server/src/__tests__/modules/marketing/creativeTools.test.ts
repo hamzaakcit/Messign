@@ -5,6 +5,7 @@ import {
   repurposeContent,
 } from '../../../modules/marketing/tools/creativeTools.js';
 import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
+import { validateToolArgsForExecution } from '../../../services/ai/toolArgSchemas.js';
 
 const ctx: ToolContext = {
   userId: 'user-1',
@@ -57,5 +58,27 @@ describe('creative:* tools', () => {
     const d = r.data as { repurposed: Array<{ format: string; content: string }> };
     expect(d.repurposed).toHaveLength(2);
     expect(d.repurposed[0].content.length).toBeLessThanOrEqual(280);
+  });
+
+  it('creative:repurpose_content maps channel-style source_type to canonical (e.g. x → social_post)', async () => {
+    const r = (await repurposeContent.handler(
+      {
+        source_content: 'Short line for social.',
+        source_type: 'x',
+        target_formats: ['linkedin_post'],
+      },
+      ctx,
+    )) as ToolResult;
+    expect(r.success).toBe(true);
+  });
+
+  it('validateToolArgs normalizes repurpose source_type (e.g. newsletter → email)', () => {
+    const r = validateToolArgsForExecution('creative:repurpose_content', {
+      source_content: 'Body',
+      source_type: 'newsletter',
+      target_formats: ['email_snippet'],
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.args.source_type).toBe('email');
   });
 });

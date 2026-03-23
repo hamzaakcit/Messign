@@ -96,4 +96,16 @@ export const defaultPasswordPolicy: PasswordPolicy = {
   sessionTimeoutMinutes: 480,
 };
 
-export const DEFAULT_PASSWORD = '030319941.Aa';
+/**
+ * Default password for seeded users — read from SEED_DEFAULT_PASSWORD env var.
+ * Never hardcode credentials in source code.
+ */
+export function getDefaultSeedPassword(): string {
+  const pw = process.env.SEED_DEFAULT_PASSWORD;
+  if (!pw) {
+    throw new Error(
+      'SEED_DEFAULT_PASSWORD env var is required for seeding. Set it in server/.env',
+    );
+  }
+  return pw;
+}

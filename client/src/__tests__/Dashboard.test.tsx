@@ -24,6 +24,9 @@ vi.mock('@/lib/api', () => ({
     getWholesaleTeamMembers: vi.fn().mockResolvedValue([]),
     getTeam: vi.fn().mockResolvedValue({ members: [] }),
   },
+  dashboardAPI: {
+    getTrends: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  },
   setOnUnauthorized: vi.fn(),
 }));
 

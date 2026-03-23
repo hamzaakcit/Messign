@@ -1,5 +1,6 @@
 import { API_ORIGIN } from './api';
 import { getAccessToken } from './authToken';
+import type { PaginatedResult } from './types';
 
 const CONTRACTS_BASE = `${API_ORIGIN}/api/contracts`;
 
@@ -24,13 +25,7 @@ async function contractsRequest<T>(path: string, options: RequestInit = {}, user
   return res.json();
 }
 
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages?: number;
-}
+export type { PaginatedResult } from './types';
 
 export interface Contract {
   id: string;

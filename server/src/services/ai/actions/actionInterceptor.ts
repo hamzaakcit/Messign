@@ -470,10 +470,17 @@ function buildActionPreview(
     }
 
     case 'marketing:create_campaign': {
+      const rawBudget = args.budget;
+      const budgetNum =
+        typeof rawBudget === 'number' && Number.isFinite(rawBudget)
+          ? rawBudget
+          : typeof rawBudget === 'string'
+            ? parseFloat(rawBudget.replace(/[^0-9.-]/g, '')) || 0
+            : 0;
       const payload = {
         name: (args.name as string) || '',
         channel: (args.channel as string) || '',
-        budget: (args.budget as number) || 0,
+        budget: budgetNum,
         startDate: (args.startDate as string) || '',
         description: (args.description as string) || '',
       };
@@ -514,17 +521,18 @@ function buildActionPreview(
     }
 
     default: {
+      const safe = args != null && typeof args === 'object' && !Array.isArray(args) ? args : {};
       return {
         description: `Execute ${toolName} action`,
-        displayFields: Object.entries(args).map(([key, value]) => ({
+        displayFields: Object.entries(safe).map(([key, value]) => ({
           key,
           label: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
           type: 'text' as const,
           value,
           editable: true,
         })),
-        editableFields: Object.keys(args),
-        sanitizedPayload: args,
+        editableFields: Object.keys(safe),
+        sanitizedPayload: safe,
       };
     }
   }

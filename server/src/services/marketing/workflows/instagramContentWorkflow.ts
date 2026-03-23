@@ -3,7 +3,8 @@
  */
 import type { CallerContext } from '../../../dal/types.js';
 import * as contentDal from '../../../dal/marketing/content.js';
-import type { ImageGenerationInput, ImageGenerationResult } from '../../../dal/marketing/instagramTypes.js';
+import type { ImageGenerationInput, ImageGenerationResult, AspectRatio } from '../../../dal/marketing/instagramTypes.js';
+import { ASPECT_RATIO_RESOLUTIONS } from '../../../dal/marketing/instagramTypes.js';
 import { generateImage, enhanceImagePrompt } from '../publishing/imageService.js';
 
 export async function regenerateImageForContent(
@@ -12,6 +13,7 @@ export async function regenerateImageForContent(
     content_id: string;
     new_prompt: string;
     style_preset?: ImageGenerationInput['style_preset'];
+    aspect_ratio?: AspectRatio;
   },
 ): Promise<ImageGenerationResult> {
   const orgId = ctx.organizationId;
@@ -31,13 +33,18 @@ export async function regenerateImageForContent(
     };
   }
 
+  const resolution = input.aspect_ratio
+    ? (ASPECT_RATIO_RESOLUTIONS[input.aspect_ratio] as ImageGenerationInput['resolution'])
+    : '1024x1024';
+
   const enhanced = enhanceImagePrompt(input.new_prompt, input.style_preset ?? 'modern_noir');
   const result = await generateImage({
     org_id: orgId,
     content_id: input.content_id,
     prompt: enhanced,
-    resolution: '1024x1024',
+    resolution: resolution ?? '1024x1024',
     style_preset: input.style_preset ?? 'modern_noir',
+    aspect_ratio: input.aspect_ratio,
   });
 
   if (result.success && result.image_url) {

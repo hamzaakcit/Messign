@@ -36,8 +36,9 @@ export async function initNewTables(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_dora_messages_session ON dora_messages (session_id, created_at);
     `);
-    console.log('[initNewTables] game_scores + dora_sessions + dora_messages OK');
+    console.log('[FIX-2] [initNewTables] Success — game_scores, dora_sessions, dora_messages');
   } catch (err) {
-    console.warn('[initNewTables] warning:', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[FIX-2] [initNewTables] Skipped (permission issue — grant CREATE on schema public to app role or run migrations as admin):', msg);
   }
 }

@@ -37,6 +37,7 @@ import './seoConversionTools.js';
 import './memoryAutomationTools.js';
 import './competitorSocialListenTools.js';
 import './brandVoiceProposalTools.js';
+import './createCampaignTool.js';
 import './approvalQueue.js';
 import './systemStats.js';
 import './meetingDecisions.js';

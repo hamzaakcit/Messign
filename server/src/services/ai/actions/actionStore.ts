@@ -1,16 +1,18 @@
 import { v4 as uuidv4 } from 'uuid';
-import { query } from '../../../db/index.js';
+import { query, sanitizeUuid } from '../../../db/index.js';
 import type {
   PendingAction,
   WriteActionType,
   ActionDisplayField,
 } from './types.js';
 
+// pending_actions.user_id is UUID-typed; sanitizeUuid() maps legacy `user-hamza` to the dev canonical id.
 const ACTION_TTL_MS = 15 * 60 * 1000;
 const MAX_PENDING_PER_USER = 10;
 
 export async function setupActionSchema(): Promise<void> {
-  await query(`
+  try {
+    await query(`
     CREATE TABLE IF NOT EXISTS pending_actions (
       token           UUID PRIMARY KEY,
       action_type     TEXT NOT NULL,
@@ -53,7 +55,11 @@ export async function setupActionSchema(): Promise<void> {
     )
   `);
 
-  console.log('[ActionStore] Schema setup complete.');
+    console.log('[FIX-2] [ActionStore] Schema setup complete.');
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[FIX-2] [ActionStore] Skipped schema setup (permission or existing DDL):', msg);
+  }
 }
 
 function rowToPendingAction(row: Record<string, unknown>, statusOverride?: PendingAction['status']): PendingAction {
@@ -120,6 +126,7 @@ export async function createPendingAction(
   originQuery: string,
   options?: { organizationId?: string | null; idempotencyKey?: string | null },
 ): Promise<PendingAction> {
+  const userIdUuid = sanitizeUuid(userId);
   const organizationId = options?.organizationId?.trim() || null;
   const idempotencyKey = options?.idempotencyKey?.trim() || null;
 
@@ -128,7 +135,7 @@ export async function createPendingAction(
       `SELECT * FROM pending_actions
        WHERE organization_id = $1::uuid AND user_id = $2 AND idempotency_key = $3 AND status = 'pending'
        ORDER BY created_at DESC LIMIT 1`,
-      [organizationId, userId, idempotencyKey],
+      [organizationId, userIdUuid, idempotencyKey],
     );
     const erow = existing.rows[0] as Record<string, unknown> | undefined;
     if (erow) {
@@ -141,7 +148,7 @@ export async function createPendingAction(
 
   const countResult = await query(
     `SELECT COUNT(*) as count FROM pending_actions WHERE user_id = $1 AND status = 'pending'`,
-    [userId],
+    [userIdUuid],
   );
   const pendingCount = parseInt(countResult.rows[0]?.count || '0');
 
@@ -154,7 +161,7 @@ export async function createPendingAction(
          WHERE user_id = $1 AND status = 'pending'
          ORDER BY created_at ASC LIMIT 3
        )`,
-      [userId],
+      [userIdUuid],
     );
   }
 
@@ -173,7 +180,7 @@ export async function createPendingAction(
       description,
       JSON.stringify(displayFields),
       editableFields,
-      userId,
+      userIdUuid,
       originQuery,
       expiresAt.toISOString(),
       organizationId,
@@ -214,6 +221,7 @@ export async function validateAndConsume(
   action: PendingAction | null;
   error?: string;
 }> {
+  const userIdUuid = sanitizeUuid(userId);
   const result = await query(
     `SELECT * FROM pending_actions WHERE token = $1`,
     [token],
@@ -225,7 +233,7 @@ export async function validateAndConsume(
     return { valid: false, action: null, error: 'Action not found. It may have already been processed.' };
   }
 
-  if (row.user_id !== userId) {
+  if (String(row.user_id) !== userIdUuid) {
     console.warn(`[ActionStore] Token ownership mismatch: token user=${row.user_id}, request user=${userId}`);
     return { valid: false, action: null, error: 'This action belongs to another user.' };
   }
@@ -328,12 +336,13 @@ export async function markExecuted(token: string): Promise<void> {
 }
 
 export async function cancelAction(token: string, userId: string): Promise<boolean> {
+  const userIdUuid = sanitizeUuid(userId);
   const sel = await query(
     `SELECT user_id, organization_id FROM pending_actions WHERE token = $1 AND status = 'pending'`,
     [token],
   );
   const row = sel.rows[0] as { user_id: string; organization_id: string | null } | undefined;
-  if (!row || row.user_id !== userId) {
+  if (!row || String(row.user_id) !== userIdUuid) {
     return false;
   }
   const userOrgRes = await query<{ organization_id: string | null }>(
@@ -348,7 +357,7 @@ export async function cancelAction(token: string, userId: string): Promise<boole
     `UPDATE pending_actions SET status = 'cancelled'
      WHERE token = $1 AND user_id = $2 AND status = 'pending'
      RETURNING token`,
-    [token, userId],
+    [token, userIdUuid],
   );
   return result.rows.length > 0;
 }

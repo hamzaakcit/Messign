@@ -80,8 +80,12 @@ function ChartTooltip({
 }
 
 export function PerformanceTrendChart() {
-  const { activeMetric, activeEntity, activeEntityName, timeRange, setTimeRange, clearEntitySelection } =
-    useDashboardStore();
+  const activeMetric = useDashboardStore((s) => s.activeMetric);
+  const activeEntity = useDashboardStore((s) => s.activeEntity);
+  const activeEntityName = useDashboardStore((s) => s.activeEntityName);
+  const timeRange = useDashboardStore((s) => s.timeRange);
+  const setTimeRange = useDashboardStore((s) => s.setTimeRange);
+  const clearEntitySelection = useDashboardStore((s) => s.clearEntitySelection);
   const { data, loading, error } = useTrendData();
 
   const config = METRIC_CONFIG[activeMetric];

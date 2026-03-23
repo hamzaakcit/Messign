@@ -30,12 +30,9 @@ const PRESENTATION_SUGGESTION = { label: 'Create a presentation about Messign', 
 
 export function DoraPage() {
   const user = useAuthStore((s) => s.user);
-  const {
-    sessions,
-    // activeSessionId,
-    createSession,
-    setActiveSession,
-  } = useDoraStore();
+  const sessions = useDoraStore((s) => s.sessions);
+  const createSession = useDoraStore((s) => s.createSession);
+  const setActiveSession = useDoraStore((s) => s.setActiveSession);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // Prefer a welcome (empty) session when opening Dora so we show the welcome page, not the last conversation
@@ -95,7 +92,10 @@ export function DoraPage() {
 function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; role?: string } | null; welcomeOnly?: boolean }) {
   const location = useLocation();
   const userRole = user?.role ?? 'member';
-  const { getActiveMessages, setActiveMessages, createSession, activeSessionId } = useDoraStore();
+  const getActiveMessages = useDoraStore(s => s.getActiveMessages);
+  const setActiveMessages = useDoraStore(s => s.setActiveMessages);
+  const createSession = useDoraStore(s => s.createSession);
+  const activeSessionId = useDoraStore(s => s.activeSessionId);
   const addIntent = useDoraSessionStore((s) => s.addIntent);
   const clearSessionMemory = useDoraSessionStore((s) => s.clearSession);
   const setPreferredMode = useDoraSessionStore((s) => s.setPreferredMode);
@@ -136,6 +136,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
   const slashMatches = useMemo(() => filterSlashCommands(slashFilter), [slashFilter]);
   const slashOpen = inputValue.startsWith('/');
   const [entranceDone, setEntranceDone] = useState(false);
+  const handleEntranceComplete = useCallback(() => setEntranceDone(true), []);
   const [presentation, setPresentation] = useState<PresentationData | null>(null);
   const [presentationLoading, setPresentationLoading] = useState(false);
   const [presentationError, setPresentationError] = useState<string | null>(null);
@@ -499,7 +500,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
               <DoraWelcomeHero
                 userName={user?.name?.split(' ')[0] || ''}
                 faceSize={130}
-                onEntranceComplete={() => setEntranceDone(true)}
+                onEntranceComplete={handleEntranceComplete}
               />
 
               {/* Suggestion area — fades in after entrance */}

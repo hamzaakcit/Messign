@@ -432,6 +432,12 @@ export function FloatingWidget() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   if (widgetState === 'collapsed') {
     return (
       <div className="fixed bottom-6 right-6 z-50">

@@ -63,7 +63,7 @@ router.patch('/', async (req: ReimbursementRequest, res) => {
     if (row) return res.json(row);
     // No row: insert defaults
     const insertResult = await query(
-      `INSERT INTO reimbursement_settings (organization_id) VALUES ($1) RETURNING *`,
+      `INSERT INTO reimbursement_settings (organization_id, tenant_id) VALUES ($1, $1) RETURNING *`,
       [orgId]
     );
     return res.json(insertResult.rows[0]);
@@ -92,8 +92,8 @@ router.patch('/', async (req: ReimbursementRequest, res) => {
         body.enable_currency_conversion ?? true,
       ];
       const insResult = await query(
-        `INSERT INTO reimbursement_settings (organization_id, mileage_rate_per_km, mileage_currency, meal_limit, daily_limit, monthly_limit, require_signed_invoice_above, auto_approve_below, enable_ocr, enable_mileage, enable_currency_conversion)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        `INSERT INTO reimbursement_settings (organization_id, tenant_id, mileage_rate_per_km, mileage_currency, meal_limit, daily_limit, monthly_limit, require_signed_invoice_above, auto_approve_below, enable_ocr, enable_mileage, enable_currency_conversion)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
         insParams
       );
       row = insResult.rows[0];

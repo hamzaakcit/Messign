@@ -8,7 +8,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { NLFilterBar } from '@/components/ui/NLFilterBar';
 import { useAuthStore } from '@/stores/authStore';
 import { marketingAPI, type Lead, type LeadFunnelMetrics } from '@/lib/marketingApi';
-import { MarketingNav } from './components/MarketingNav';
+
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 
 function scoreColor(score: number) {
@@ -119,7 +119,6 @@ export function MarketingLeadsPage() {
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-4">
-          <MarketingNav />
           <DoraInsightBar module="marketing" />
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-5 mb-6">

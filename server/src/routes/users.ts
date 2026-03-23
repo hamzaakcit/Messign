@@ -6,15 +6,18 @@ import {
   addEmployeeXP,
   updateEmployeeStatus,
 } from '../db/employeesDb.js';
-import { getBadgesForUser } from '../db/badgesDb.js';
+import { getBadgesForUser, getBadgesForUsers } from '../db/badgesDb.js';
 
 export const usersRouter = Router();
 
 // Get all users (DB only)
-usersRouter.get('/', async (_req, res) => {
+usersRouter.get('/', async (req, res) => {
   try {
-    const users = await getEmployeesAsUsers();
-    const withBadges = await Promise.all(users.map(async (u) => ({ ...u, badges: await getBadgesForUser(u.id) })));
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 500, 500);
+    let users = await getEmployeesAsUsers();
+    users = users.slice(0, limit);
+    const badgeMap = await getBadgesForUsers(users.map((u) => u.id));
+    const withBadges = users.map((u) => ({ ...u, badges: badgeMap.get(u.id) ?? [] }));
     res.json(withBadges);
   } catch (e) {
     console.error('[users] DB error:', e);

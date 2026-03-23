@@ -12,7 +12,7 @@ async function geocodeAddress(address: string, key: string): Promise<{ lat: numb
     key,
   });
   const url = `${GRAPHHOPPER_GEOCODE}?${params.toString()}`;
-  const resp = await fetch(url);
+  const resp = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   const data = (await resp.json()) as {
     hits?: Array<{ point?: { lat: number; lng: number } }>;
     message?: string;
@@ -42,7 +42,7 @@ async function getRouteDistance(
   params.append('point', `${origin.lat},${origin.lng}`);
   params.append('point', `${dest.lat},${dest.lng}`);
   const url = `${GRAPHHOPPER_ROUTE}?${params.toString()}`;
-  const resp = await fetch(url);
+  const resp = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   const data = (await resp.json()) as {
     paths?: Array<{ distance?: number; time?: number }>;
     message?: string;

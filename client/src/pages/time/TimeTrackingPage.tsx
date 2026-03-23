@@ -110,7 +110,7 @@ export function TimeTrackingPage() {
 
   const loadEntries = useCallback(async () => {
     if (!userId) return;
-    const result = await timeApi.listEntries(userId, { page: 1, pageSize: 100 }) as any;
+    const result = await timeApi.listEntries(userId, { page: 1, pageSize: 100 }) as { data?: unknown[] };
     setEntries(Array.isArray(result?.data) ? result.data : []);
   }, [userId]);
 
@@ -166,9 +166,9 @@ export function TimeTrackingPage() {
   useEffect(() => {
     if (!addRowOpen || !userId) return;
     timeApi.listCategories(userId).then((list: unknown) => {
-      const arr = Array.isArray(list) ? list : [];
-      setCategories(arr.map((c: any) => ({ id: c.id ?? c.categoryId ?? '', name: c.name ?? '' })));
-      if (arr.length && !addRowCategoryId) setAddRowCategoryId((arr[0] as any).id ?? (arr[0] as any).categoryId ?? '');
+      const arr = Array.isArray(list) ? list as Array<Record<string, unknown>> : [];
+      setCategories(arr.map((c) => ({ id: String(c.id ?? c.categoryId ?? ''), name: String(c.name ?? '') })));
+      if (arr.length && !addRowCategoryId) setAddRowCategoryId(String(arr[0].id ?? arr[0].categoryId ?? ''));
     }).catch(() => setCategories([]));
   }, [addRowOpen, userId]);
 

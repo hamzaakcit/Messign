@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { withTenantQuery } from '../../middleware/tenantContext.js';
 import { eventBus } from '../../events/index.js';
 import type { CallerContext, PaginatedResult, SortOptions } from '../types.js';
+import { reimbursementUsersPk } from '../reimbursementUsersPk.js';
 import { paginationClause } from '../helpers.js';
 import { ANALYTICS_VIEWS, refreshMaterializedViews } from '../../services/analytics/materializedViews.js';
 import * as crmContacts from '../../modules/crm/dal/contacts.js';
@@ -545,7 +546,7 @@ export async function qualifyLead(ctx: CallerContext, leadId: string): Promise<L
   });
   eventBus.emit('marketing.lead.qualified', {
     leadId,
-    qualifiedBy: ctx.userId,
+    qualifiedBy: reimbursementUsersPk(ctx),
     crmDealId: lead.crm_deal_id ?? undefined,
   });
   return lead;
@@ -601,7 +602,7 @@ export async function convertLeadToCRM(
     crm_contact_id: contact.id,
     crm_deal_id: deal.id,
     converted_at: new Date().toISOString(),
-    converted_by: ctx.userId,
+    converted_by: reimbursementUsersPk(ctx),
     last_activity_at: new Date().toISOString(),
   });
 

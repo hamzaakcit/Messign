@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Response } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
-import fs from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import type { ReimbursementRequest } from '../../../middleware/reimbursementAuth.js';
 import * as candidatesDal from '../dal/recruitment/candidates.js';
@@ -12,9 +12,7 @@ import { buildCtx, parsePositiveInt, parseSort } from './common.js';
 const router = Router();
 const RESUME_DIR = path.join(process.cwd(), 'uploads', 'recruitment', 'resumes');
 
-if (!fs.existsSync(RESUME_DIR)) {
-  fs.mkdirSync(RESUME_DIR, { recursive: true });
-}
+await mkdir(RESUME_DIR, { recursive: true });
 
 const resumeUpload = multer({
   storage: multer.memoryStorage(),
@@ -119,7 +117,7 @@ router.post('/:id/resume', resumeUpload.single('resume'), async (req: Reimbursem
     const digest = crypto.createHash('sha1').update(file.buffer).digest('hex').slice(0, 12);
     const fileName = `${candidate.id}_${Date.now()}_${digest}${ext}`;
     const filePath = path.join(RESUME_DIR, fileName);
-    fs.writeFileSync(filePath, file.buffer);
+    await writeFile(filePath, file.buffer);
     const resumeUrl = `/uploads/recruitment/resumes/${fileName}`;
     const extractedText = await extractTextFromFile(filePath);
     const updated = await candidatesDal.persistParsedResume(buildCtx(req), candidate.id, {

@@ -3,6 +3,10 @@
  */
 import { z } from 'zod';
 import { productTruthLookupFields } from '../marketing/productTruthSearchService.js';
+import {
+  CANONICAL_REPURPOSE_SOURCE_TYPES,
+  normalizeRepurposeSourceType,
+} from './repurposeSourceTypeNormalize.js';
 
 export const toolArgSchemas: Record<string, z.ZodType<Record<string, unknown>>> = {
   'knowledge:search_knowledge_base': z
@@ -92,28 +96,11 @@ export const toolArgSchemas: Record<string, z.ZodType<Record<string, unknown>>> 
   'creative:repurpose_content': z
     .object({
       source_content: z.string().min(1).max(100_000),
-      source_type: z.enum([
-        'blog_post',
-        'social_post',
-        'email',
-        'landing_page',
-        'webinar_transcript',
-        'product_update',
-      ]),
-      target_formats: z
-        .array(
-          z.enum([
-            'linkedin_post',
-            'twitter_thread',
-            'email_snippet',
-            'ad_copy',
-            'blog_post',
-            'infographic_brief',
-            'video_script',
-          ]),
-        )
-        .min(1)
-        .max(12),
+      source_type: z.preprocess(
+        (v) => normalizeRepurposeSourceType(v),
+        z.enum([...CANONICAL_REPURPOSE_SOURCE_TYPES]),
+      ),
+      target_formats: z.array(z.string().min(1).max(80)).min(1).max(12),
     })
     .strict() as z.ZodType<Record<string, unknown>>,
 
@@ -194,6 +181,17 @@ export const toolArgSchemas: Record<string, z.ZodType<Record<string, unknown>>> 
     })
     .strict() as z.ZodType<Record<string, unknown>>,
 
+  'marketing:create_campaign': z
+    .object({
+      name: z.string().min(1).max(500),
+      channel: z.string().min(1).max(120),
+      /** JSON numbers and string `"1000"` from LLMs; coerce to number for handlers. */
+      budget: z.coerce.number().min(0),
+      startDate: z.string().max(32).optional(),
+      description: z.string().max(8000).optional(),
+    })
+    .strict() as z.ZodType<Record<string, unknown>>,
+
   'marketing:propose_brand_voice_patch': z
     .object({
       rationale: z.string().min(1).max(8000),
@@ -210,6 +208,18 @@ export const toolArgSchemas: Record<string, z.ZodType<Record<string, unknown>>> 
       tone_notes: z.array(z.string().max(2000)).max(100).optional(),
     })
     .strict() as z.ZodType<Record<string, unknown>>,
+
+  'marketing:list_saved_email_designs': z
+    .object({
+      limit: z.number().int().min(1).max(20).optional(),
+    })
+    .strict() as z.ZodType<Record<string, unknown>>,
+
+  'marketing:get_saved_email_design': z
+    .object({
+      content_id: z.string().uuid(),
+    })
+    .strict() as z.ZodType<Record<string, unknown>>,
 };
 
 export function getToolArgSchema(toolName: string): z.ZodType<Record<string, unknown>> | undefined {
@@ -220,13 +230,71 @@ export function formatZodIssues(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.') || 'root'}: ${i.message}`).join('; ');
 }
 
+const GENERATE_IMAGE_BRIEF_TYPES = [
+  'social_image',
+  'ad_creative',
+  'infographic',
+  'thumbnail',
+  'hero_image',
+  'email_header',
+] as const;
+
+/** LLMs often emit synonyms; map before Zod so gateway tool validation does not 400. */
+function normalizeCreativeGenerateImageBriefArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const raw = args.brief_type;
+  if (typeof raw !== 'string') return args;
+  const t = raw.trim().toLowerCase().replace(/\s+/g, '_');
+  if ((GENERATE_IMAGE_BRIEF_TYPES as readonly string[]).includes(t)) {
+    return t === raw ? args : { ...args, brief_type: t };
+  }
+  const aliases: Record<string, (typeof GENERATE_IMAGE_BRIEF_TYPES)[number]> = {
+    instagram: 'social_image',
+    instagram_post: 'social_image',
+    social: 'social_image',
+    social_post: 'social_image',
+    social_media: 'social_image',
+    story: 'social_image',
+    reel: 'social_image',
+    carousel: 'social_image',
+    feed_post: 'social_image',
+    ad: 'ad_creative',
+    advertisement: 'ad_creative',
+    display_ad: 'ad_creative',
+    thumb: 'thumbnail',
+    hero: 'hero_image',
+    landing_hero: 'hero_image',
+    email: 'email_header',
+    header: 'email_header',
+    newsletter_header: 'email_header',
+    info_graphic: 'infographic',
+  };
+  const mapped = aliases[t];
+  if (mapped) return { ...args, brief_type: mapped };
+  if (t.includes('social') || t.includes('instagram') || t.includes('story') || t.includes('reel')) {
+    return { ...args, brief_type: 'social_image' };
+  }
+  if (t.includes('ad') || t.includes('banner') || t.includes('display')) {
+    return { ...args, brief_type: 'ad_creative' };
+  }
+  if (t.includes('hero')) return { ...args, brief_type: 'hero_image' };
+  if (t.includes('thumb')) return { ...args, brief_type: 'thumbnail' };
+  if (t.includes('email') || t.includes('header')) return { ...args, brief_type: 'email_header' };
+  if (t.includes('info')) return { ...args, brief_type: 'infographic' };
+  return { ...args, brief_type: 'social_image' };
+}
+
 export function validateToolArgsForExecution(
   resolvedToolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, unknown> | null | undefined,
 ): { ok: true; args: Record<string, unknown> } | { ok: false; summary: string } {
+  let safeArgs =
+    args != null && typeof args === 'object' && !Array.isArray(args) ? args : ({} as Record<string, unknown>);
+  if (resolvedToolName === 'creative:generate_image_brief') {
+    safeArgs = normalizeCreativeGenerateImageBriefArgs(safeArgs);
+  }
   const schema = getToolArgSchema(resolvedToolName);
-  if (!schema) return { ok: true, args };
-  const parsed = schema.safeParse(args);
+  if (!schema) return { ok: true, args: safeArgs };
+  const parsed = schema.safeParse(safeArgs);
   if (!parsed.success) {
     return {
       ok: false,

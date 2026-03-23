@@ -23,14 +23,14 @@ export const eventBus = {
   },
 
   on<T extends EventName>(event: T, handler: (payload: EventPayload<T>) => void): void {
-    emitter.on(event, handler as any);
+    emitter.on(event, handler as (payload: unknown) => void);
   },
 
   off<T extends EventName>(event: T, handler: (payload: EventPayload<T>) => void): void {
-    emitter.off(event, handler as any);
+    emitter.off(event, handler as (payload: unknown) => void);
   },
 
-  onAny(handler: (event: EventName, payload: any) => void): void {
+  onAny(handler: (event: EventName, payload: unknown) => void): void {
     emitter.on('*', (type, payload) => handler(type as EventName, payload));
   },
 };

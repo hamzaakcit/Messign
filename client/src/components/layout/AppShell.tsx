@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useUIStore } from '@/stores/uiStore';
+import { useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, MessageSquare, Search, Sparkles, Menu } from 'lucide-react';
+import { useUIStore, type View } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
+import { cn } from '@/lib/utils';
 import { useChatStore } from '@/stores/chatStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { useGameStore } from '@/stores/gameStore';
 import { LeftSidebar } from './LeftSidebar';
-import { RightSidebar } from './RightSidebar';
 import { MainContent } from './MainContent';
 import { XPGainNotification, CelebrationOverlay } from '@/components/ui';
 import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
@@ -62,6 +63,11 @@ function getViewFromPath(path: string): string {
   if (path.startsWith('/reimbursements')) return 'reimbursements';
   if (path.startsWith('/knowledge-hub')) return 'knowledge';
   if (path.startsWith('/knowledge')) return 'knowledge';
+  if (path.startsWith('/projects')) return 'projects';
+  if (path.startsWith('/team')) return 'team';
+  if (path.startsWith('/achievements')) return 'achievements';
+  if (path.startsWith('/chat')) return 'chat';
+  if (path.startsWith('/settings')) return 'settings';
   if (path === '/dora/game') return 'game';
   if (path.startsWith('/dora')) return 'dora';
   return PATH_TO_VIEW[path] ?? 'dashboard';
@@ -96,50 +102,75 @@ const VIEW_LABELS: Record<string, string> = {
 
 export function AppShell() {
   const location = useLocation();
-  const { leftSidebarOpen, rightSidebarOpen, leftSidebarCollapsed, rightSidebarCollapsed, isMobile, setMobile, setView, currentView, commandSurfaceOpen, closeCommandSurface, toggleCommandSurface } = useUIStore();
-  const { user, updateUser } = useAuthStore();
+  const leftSidebarOpen = useUIStore(s => s.leftSidebarOpen);
+  const leftSidebarCollapsed = useUIStore(s => s.leftSidebarCollapsed);
+  const isMobile = useUIStore(s => s.isMobile);
+  const setMobile = useUIStore(s => s.setMobile);
+  const setView = useUIStore(s => s.setView);
+  const currentView = useUIStore(s => s.currentView);
+  const focusMode = useUIStore(s => s.focusMode);
+  const commandSurfaceOpen = useUIStore(s => s.commandSurfaceOpen);
+  const closeCommandSurface = useUIStore(s => s.closeCommandSurface);
+  const toggleCommandSurface = useUIStore(s => s.toggleCommandSurface);
+  const toggleFocusMode = useUIStore(s => s.toggleFocusMode);
+  const user = useAuthStore(s => s.user);
+  const updateUser = useAuthStore(s => s.updateUser);
   const { recentPages, trackPage } = useRecentPages();
 
-  // Global Cmd+K handler
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         toggleCommandSurface();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === '.') {
+        e.preventDefault();
+        toggleFocusMode();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [toggleCommandSurface]);
-  const { fetchChannels, addMessage, incrementChannelUnread } = useChatStore();
-  const { fetchProjects, fetchTasks } = useProjectStore();
-  const { fetchUsers, updateUserStatus } = useUsersStore();
-  const { fetchBadges, fetchActivities, fetchLeaderboard, addActivity, addXPGain, showXPGain, lastXPGain } = useGameStore();
+  }, [toggleCommandSurface, toggleFocusMode]);
 
-  // Sync URL to view + track recent pages
+  const fetchChannels = useChatStore(s => s.fetchChannels);
+  const addMessage = useChatStore(s => s.addMessage);
+  const incrementChannelUnread = useChatStore(s => s.incrementChannelUnread);
+  const fetchProjects = useProjectStore(s => s.fetchProjects);
+  const fetchTasks = useProjectStore(s => s.fetchTasks);
+  const fetchUsers = useUsersStore(s => s.fetchUsers);
+  const updateUserStatus = useUsersStore(s => s.updateUserStatus);
+  const fetchBadges = useGameStore(s => s.fetchBadges);
+  const fetchActivities = useGameStore(s => s.fetchActivities);
+  const fetchLeaderboard = useGameStore(s => s.fetchLeaderboard);
+  const addActivity = useGameStore(s => s.addActivity);
+  const addXPGain = useGameStore(s => s.addXPGain);
+  const showXPGain = useGameStore(s => s.showXPGain);
+  const lastXPGain = useGameStore(s => s.lastXPGain);
+
   useEffect(() => {
     const path = location.pathname;
     const view = getViewFromPath(path);
     if (view !== currentView) {
-      setView(view as 'dashboard' | 'executive' | 'reports' | 'notifications' | 'dora' | 'game' | 'chat' | 'knowledge' | 'achievements' | 'team' | 'projects' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'time' | 'okr' | 'assets' | 'contracts' | 'culture');
+      setView(view as Parameters<typeof setView>[0]);
     }
     const label = VIEW_LABELS[view] ?? view;
     trackPage(path, label);
   }, [location.pathname]);
 
-  // Initialize app data when user is present
   useEffect(() => {
     if (!user) return;
     if (user.id) fetchChannels(user.id);
     fetchProjects();
     fetchTasks();
-    fetchUsers();
-    fetchBadges();
-    fetchActivities();
-    fetchLeaderboard();
+    const t = setTimeout(() => {
+      fetchUsers();
+      fetchBadges();
+      fetchActivities();
+      fetchLeaderboard();
+    }, 0);
+    return () => clearTimeout(t);
   }, [user?.id]);
 
-  // Handle responsive layout
   useEffect(() => {
     const handleResize = () => {
       setMobile(window.innerWidth < 1024);
@@ -149,15 +180,17 @@ export function AppShell() {
     return () => window.removeEventListener('resize', handleResize);
   }, [setMobile]);
 
-  // Socket event listeners
+  // Socket handlers use getState() for reactive values. All other store actions
+  // (addMessage, addXPGain, etc.) are stable Zustand selectors that never change
+  // identity. Only updateUser is included as a dep for ESLint correctness; the
+  // effect is effectively mounted once for the lifetime of AppShell.
   useEffect(() => {
     const socket = getSocket();
 
     socket.on('message:new', (message: { userId?: string; channelId?: string; senderName?: string; content?: string }) => {
       const currentUserId = useAuthStore.getState().user?.id;
       if (currentUserId && message.userId === currentUserId) return;
-      addMessage(message as any);
-      // Notify unread when message is in a channel we're not viewing
+      addMessage(message as Parameters<typeof addMessage>[0]);
       const { activeChannelId, channels } = useChatStore.getState();
       const viewingThisChannel = activeChannelId === message.channelId;
       if (message.channelId && !viewingThisChannel) {
@@ -183,7 +216,7 @@ export function AppShell() {
     });
 
     socket.on('user:status', ({ userId, status }) => {
-      updateUserStatus(userId, status as any);
+      updateUserStatus(userId, status as Parameters<typeof updateUserStatus>[1]);
     });
 
     const handleEmployeeUpdated = (data: { employee?: { id: string; name?: string; jobTitle?: string; department?: string; email?: string; role?: string; phone?: string; location?: string } }) => {
@@ -195,7 +228,7 @@ export function AppShell() {
           jobTitle: emp.jobTitle ?? currentUser.jobTitle,
           department: emp.department ?? currentUser.department,
           email: emp.email ?? currentUser.email,
-          role: (emp.role ?? currentUser.role) as 'admin' | 'manager' | 'member',
+          role: (emp.role ?? currentUser.role) as import('@/types').UserRole,
           ...(emp.phone !== undefined && { phone: emp.phone }),
           ...(emp.location !== undefined && { location: emp.location }),
         });
@@ -234,6 +267,8 @@ export function AppShell() {
     };
   }, [updateUser]);
 
+  const showSidebar = !focusMode && leftSidebarOpen;
+
   return (
     <div className="h-screen flex bg-app overflow-hidden transition-colors duration-200">
       <a
@@ -242,31 +277,27 @@ export function AppShell() {
       >
         Skip to main content
       </a>
-      {/* Command Surface (Cmd+K) */}
+
       <CommandSurface
         open={commandSurfaceOpen}
         onClose={closeCommandSurface}
         recentPages={recentPages}
       />
 
-      {/* MP Gain Notification */}
       <XPGainNotification amount={lastXPGain} show={showXPGain} />
 
-      {/* Celebration Overlay (confetti on deal won, badge earned, etc.) */}
       {user && <CelebrationOverlay />}
-
-      {/* Morning briefing toast (first login of day) */}
       {user && <MorningBriefingToast />}
 
       {/* Left Sidebar */}
       <div
         className={`
-          ${!leftSidebarOpen ? 'w-0' : leftSidebarCollapsed ? 'w-16' : 'w-72'}
+          ${!showSidebar ? 'w-0' : leftSidebarCollapsed ? 'w-16' : 'w-60'}
           ${isMobile ? 'absolute z-40 h-full' : 'relative'}
-          transition-all duration-200 ease-out overflow-hidden
+          transition-all duration-200 ease-out overflow-visible
         `}
       >
-        {leftSidebarOpen && <LeftSidebar collapsed={leftSidebarCollapsed} />}
+        {showSidebar && <LeftSidebar collapsed={leftSidebarCollapsed} />}
       </div>
 
       {/* Main Content */}
@@ -274,34 +305,85 @@ export function AppShell() {
         <MainContent />
       </div>
 
-      {/* Right Sidebar */}
-      <div
-        className={`
-          ${!rightSidebarOpen ? 'w-0' : rightSidebarCollapsed ? 'w-12' : 'w-80'}
-          ${isMobile ? 'absolute right-0 z-40 h-full' : 'relative'}
-          transition-all duration-200 ease-out overflow-hidden
-        `}
-      >
-        {rightSidebarOpen && <RightSidebar collapsed={rightSidebarCollapsed} />}
-      </div>
-
       {/* Mobile overlay */}
-      {isMobile && (leftSidebarOpen || rightSidebarOpen) && (
+      {isMobile && leftSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30"
-          onClick={() => {
-            if (leftSidebarOpen) useUIStore.getState().toggleLeftSidebar();
-            if (rightSidebarOpen) useUIStore.getState().toggleRightSidebar();
-          }}
+          onClick={() => useUIStore.getState().toggleLeftSidebar()}
         />
       )}
 
-      {/* Floating Dora Widget (global, persists across pages) */}
-      {user && <FloatingTimer />}
-      {user && <FloatingWidget />}
+      {/* Focus mode exit pill */}
+      {focusMode && (
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 group">
+          <button
+            onClick={toggleFocusMode}
+            className="opacity-0 group-hover:opacity-100 transition-opacity mt-1 px-3 py-1 rounded-full bg-app-card border border-app text-xs text-app-muted hover:text-app shadow-lg"
+          >
+            Exit focus mode (⌘.)
+          </button>
+        </div>
+      )}
 
-      {/* Onboarding walkthrough (first-time users) */}
+      {user && <FloatingTimer />}
+      {user && !isMobile && <FloatingWidget />}
       {user && <OnboardingWalkthrough />}
+
+      {/* Mobile bottom tab bar */}
+      {isMobile && user && !focusMode && <MobileTabBar />}
     </div>
+  );
+}
+
+const MOBILE_TABS = [
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/dashboard' },
+  { id: 'dora', label: 'Dora', icon: Sparkles, path: '/dora' },
+  { id: 'chat', label: 'Chat', icon: MessageSquare, path: '/chat' },
+  { id: 'search', label: 'Search', icon: Search, path: null },
+  { id: 'menu', label: 'Menu', icon: Menu, path: null },
+] as const;
+
+function MobileTabBar() {
+  const navigate = useNavigate();
+  const currentView = useUIStore((s) => s.currentView);
+  const setView = useUIStore((s) => s.setView);
+  const toggleLeftSidebar = useUIStore((s) => s.toggleLeftSidebar);
+  const openCommandSurface = useUIStore((s) => s.openCommandSurface);
+
+  const handleTab = useCallback((tab: typeof MOBILE_TABS[number]) => {
+    if (tab.id === 'search') {
+      openCommandSurface();
+      return;
+    }
+    if (tab.id === 'menu') {
+      toggleLeftSidebar();
+      return;
+    }
+    if (tab.path) {
+      setView(tab.id as View);
+      navigate(tab.path);
+    }
+  }, [setView, navigate, toggleLeftSidebar, openCommandSurface]);
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around h-14 bg-app-sidebar border-t border-app safe-area-bottom">
+      {MOBILE_TABS.map((tab) => {
+        const isActive = tab.id === currentView;
+        const Icon = tab.icon;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => handleTab(tab)}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-colors',
+              isActive ? 'text-primary-400' : 'text-app-muted',
+            )}
+          >
+            <Icon className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{tab.label}</span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }

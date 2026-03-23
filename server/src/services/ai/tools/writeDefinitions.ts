@@ -505,7 +505,14 @@ export const WRITE_TOOL_DEFINITIONS: LLMToolDefinition[] = [
         properties: {
           name: { type: 'string', description: 'Campaign name.' },
           channel: { type: 'string', description: 'Primary campaign channel.' },
-          budget: { type: 'number', description: 'Campaign budget amount.' },
+          /** LLMs often emit JSON numbers as strings; Groq validates args against this schema. */
+          budget: {
+            description: 'Campaign budget amount (number or numeric string).',
+            anyOf: [
+              { type: 'number', description: 'Campaign budget amount.' },
+              { type: 'string', description: 'Budget as a numeric string (e.g. "5000").' },
+            ],
+          },
           startDate: { type: 'string', description: 'Campaign start date (YYYY-MM-DD).' },
           description: { type: 'string', description: 'Campaign summary.' },
         },

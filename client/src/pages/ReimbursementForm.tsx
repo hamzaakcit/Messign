@@ -13,6 +13,17 @@ import { DocumentUploader, type OCROutput } from '@/components/reimbursement/Doc
 import { MileageCalculator } from '@/components/reimbursement/MileageCalculator';
 import { PolicyGuardModal } from '@/components/reimbursement/PolicyGuardModal';
 
+interface ReimbursementDoc {
+  id: string;
+  file_name: string;
+  document_type: string;
+  ocr_processed?: boolean;
+  ocr_vendor_name?: string;
+  ocr_amount?: number;
+  ocr_currency?: string;
+  ocr_date?: string;
+}
+
 interface ReimbursementFormProps {
   id?: string;
   onSuccess: (id: string) => void;
@@ -33,7 +44,7 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
   const [originalCurrency, setOriginalCurrency] = useState('USD');
   const [convertedAmount, setConvertedAmount] = useState<number | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<ReimbursementDoc[]>([]);
   const [mileageAmount, setMileageAmount] = useState<number | null>(null);
   const [expenseType, setExpenseType] = useState<'receipt' | 'mileage' | 'invoice'>('receipt');
   const [loading, setLoading] = useState(false);
@@ -44,23 +55,27 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
 
   useEffect(() => {
     if (!user?.id) return;
-    categoriesAPI.list(user.id).then((data: any) => setCategories(Array.isArray(data) ? data : []));
+    categoriesAPI.list(user.id)
+      .then((data: any) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
   }, [user?.id]);
 
   useEffect(() => {
     if (id && user?.id) {
       setDraftId(null);
-      reimbursementAPI.getById(user.id, id).then((r: any) => {
-        setTitle(r.title ?? '');
-        setDescription(r.description ?? '');
-        setCategoryId(r.category_id ?? '');
-        setExpenseDate(r.expense_date ?? '');
-        setOriginalAmount(String(r.original_amount ?? ''));
-        setOriginalCurrency(r.original_currency ?? 'USD');
-        setConvertedAmount(r.converted_amount != null ? parseFloat(r.converted_amount) : null);
-        setExchangeRate(r.exchange_rate != null ? parseFloat(r.exchange_rate) : null);
-        setDocuments(r.documents ?? []);
-      });
+      reimbursementAPI.getById(user.id, id)
+        .then((r: any) => {
+          setTitle(r.title ?? '');
+          setDescription(r.description ?? '');
+          setCategoryId(r.category_id ?? '');
+          setExpenseDate(r.expense_date ?? '');
+          setOriginalAmount(String(r.original_amount ?? ''));
+          setOriginalCurrency(r.original_currency ?? 'USD');
+          setConvertedAmount(r.converted_amount != null ? parseFloat(r.converted_amount) : null);
+          setExchangeRate(r.exchange_rate != null ? parseFloat(r.exchange_rate) : null);
+          setDocuments(r.documents ?? []);
+        })
+        .catch(() => { /* failed to hydrate edit form */ });
     }
   }, [id, user?.id]);
 
@@ -169,8 +184,8 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
   };
 
   const uploadDocument = async (file: File, documentType?: string) => {
-    if (!user?.id || !effectiveId) return {} as any;
-    return reimbursementAPI.uploadDocument(user.id, effectiveId, file, documentType) as Promise<any>;
+    if (!user?.id || !effectiveId) return {} as unknown;
+    return reimbursementAPI.uploadDocument(user.id, effectiveId, file, documentType);
   };
 
   const handleCreateDraftAndUpload = async (file: File | Blob, filename: string, documentType: string) => {
@@ -338,7 +353,7 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
               type={expenseType === 'invoice' ? 'invoice' : 'receipt'}
               documents={documents}
               onUpload={uploadDocument}
-              onDocumentAdded={(doc) => setDocuments((d) => [...d, doc as any])}
+              onDocumentAdded={(doc) => setDocuments((d) => [...d, doc as ReimbursementDoc])}
               onCreateDraftAndUpload={!effectiveId ? handleCreateDraftAndUpload : undefined}
               onOCRApply={expenseType === 'receipt' ? handleOCRApply : undefined}
               deleteDocument={async (docId) => {
@@ -347,9 +362,9 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
                 setDocuments((d) => d.filter((x) => x.id !== docId));
               }}
               triggerOCR={async (docId) => {
-                if (!effectiveId) return {} as any;
+                if (!effectiveId) return {} as unknown;
                 const doc = await reimbursementAPI.triggerOCR(user.id, effectiveId, docId);
-                setDocuments((d) => d.map((x) => (x.id === docId ? (doc as any) : x)));
+                setDocuments((d) => d.map((x) => (x.id === docId ? (doc as ReimbursementDoc) : x)));
                 return doc;
               }}
               disabled={loading}

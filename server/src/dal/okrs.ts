@@ -100,7 +100,7 @@ export async function listPeriods(ctx: CallerContext): Promise<OKRPeriod[]> {
   if (!tenantId) throw new Error('Tenant context required for listPeriods');
 
   return runInTenant(tenantId, async (client) => {
-    const result = await client.query(`SELECT * FROM okr_periods ORDER BY start_date DESC`, []);
+    const result = await client.query(`SELECT * FROM okr_periods ORDER BY start_date DESC LIMIT 100`, []);
     return result.rows as OKRPeriod[];
   });
 }
@@ -143,9 +143,23 @@ export async function listGoals(
 
     const goals = result.rows as Goal[];
 
-    for (const goal of goals) {
-      const krs = await client.query('SELECT * FROM okr_key_results WHERE goal_id = $1 ORDER BY created_at', [goal.id]);
-      goal.key_results = krs.rows as KeyResult[];
+    if (goals.length > 0) {
+      const goalIds = goals.map((g) => g.id);
+      const krs = await client.query(
+        'SELECT * FROM okr_key_results WHERE goal_id = ANY($1::uuid[]) ORDER BY created_at LIMIT 2000',
+        [goalIds]
+      );
+      const krsByGoal = new Map<string, KeyResult[]>();
+      for (const kr of krs.rows as KeyResult[]) {
+        const list = krsByGoal.get(kr.goal_id) ?? [];
+        list.push(kr);
+        krsByGoal.set(kr.goal_id, list);
+      }
+      for (const goal of goals) {
+        goal.key_results = krsByGoal.get(goal.id) ?? [];
+      }
+    } else {
+      for (const goal of goals) goal.key_results = [];
     }
 
     return goals;
@@ -382,11 +396,11 @@ export async function checkIn(
         ownerId,
       });
       if (ownerId) {
-        void emitToUser(ownerId, 'celebration:okr-kr-completed', {
+        emitToUser(ownerId, 'celebration:okr-kr-completed', {
           keyResultId: krId,
           goalId: kr.goal_id,
           title: kr.title,
-        });
+        }).catch((err) => console.error('[OKR] emitToUser kr-completed error:', err));
       }
     }
 

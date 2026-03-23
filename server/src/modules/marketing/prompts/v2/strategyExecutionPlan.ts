@@ -47,7 +47,8 @@ export type MarketingStrategyExecutionPlan = z.infer<typeof marketingStrategyExe
 
 /** True when any step is explicitly marked research (triggers strategy-first research mini-loop). */
 export function planRequiresResearchPhase(plan: MarketingStrategyExecutionPlan): boolean {
-  return plan.steps.some((s) => s.step_kind === 'research');
+  const steps = plan.steps ?? [];
+  return steps.some((s) => s.step_kind === 'research');
 }
 
 /** Parse planner JSON; throws ZodError on invalid payloads. */

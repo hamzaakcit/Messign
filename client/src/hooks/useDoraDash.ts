@@ -514,7 +514,7 @@ export function useDoraDash(): DoraDashAPI {
       const sprite = spriteRef.current;
       if (sprite) {
         ctx.drawImage(
-          sprite as any,
+          sprite as CanvasImageSource,
           playerRef.current.x - (64 - PLAYER_W) / 2,
           playerRef.current.y - (64 - PLAYER_H) / 2,
           64,

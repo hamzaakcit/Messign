@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DoraProcessingDual } from './DoraPilot';
 
 const CYCLING_MESSAGES = [
@@ -70,16 +70,21 @@ function ThinkingIndicatorStatic({ label }: { label: string }) {
 function ThinkingIndicatorCycling() {
   const [messageIdx, setMessageIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setVisible(false);
-      setTimeout(() => {
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = setTimeout(() => {
         setMessageIdx((prev) => (prev + 1) % CYCLING_MESSAGES.length);
         setVisible(true);
       }, 250);
     }, 2200);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
   }, []);
 
   return (

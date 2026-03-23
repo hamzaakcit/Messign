@@ -9,10 +9,18 @@
  */
 import { query, withTenantQuery } from '../../db/index.js';
 import type { QueryResult } from 'pg';
-import type { CalendarRecordForPublish, ContentPayloadForPublish } from './publishing/types.js';
+import type { AdapterPublishSuccess, CalendarRecordForPublish, ContentPayloadForPublish } from './publishing/types.js';
 import { publishContent } from './publishing/publishRouter.js';
 
 const DEFAULT_BATCH = 50;
+
+/** Minutes to push `scheduled_at` when Instagram publish is skipped (no image). Override with MARKETING_IG_SKIP_RETRY_MINUTES. */
+function instagramSkipRetryMinutes(): number {
+  const raw = process.env.MARKETING_IG_SKIP_RETRY_MINUTES;
+  const n = raw != null && raw !== '' ? Number(raw) : 60;
+  if (!Number.isFinite(n)) return 60;
+  return Math.max(1, Math.min(24 * 60, Math.floor(n)));
+}
 
 /** Same signature as `query` from `db/index.js` — injectable for tests (claim step only). */
 export type MarketingPublisherQueryFn = <T extends import('pg').QueryResultRow = import('pg').QueryResultRow>(
@@ -105,6 +113,36 @@ async function markCalendarPublished(
   );
 }
 
+/** Atomically marks both calendar row and content row as published in a single transaction. */
+async function markPublishedAtomic(
+  workspaceId: string,
+  calendarId: string,
+  contentId: string,
+  publishedUrl?: string,
+  externalPostId?: string,
+): Promise<void> {
+  await withTenantQuery(workspaceId, async (client) => {
+    await client.query(
+      `UPDATE marketing_content_calendar
+       SET status = 'published',
+           published_url = $2,
+           external_post_id = $3,
+           last_error = NULL,
+           updated_at = NOW()
+       WHERE id = $1 AND workspace_id = $4`,
+      [calendarId, publishedUrl ?? null, externalPostId ?? null, workspaceId],
+    );
+    await client.query(
+      `UPDATE marketing_content
+       SET status = 'published',
+           published_at = COALESCE(published_at, NOW()),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [contentId],
+    );
+  });
+}
+
 async function markCalendarFailed(workspaceId: string, calendarId: string, message: string): Promise<void> {
   await query(
     `UPDATE marketing_content_calendar
@@ -113,6 +151,25 @@ async function markCalendarFailed(workspaceId: string, calendarId: string, messa
          updated_at = NOW()
      WHERE id = $1 AND workspace_id = $3`,
     [calendarId, message.slice(0, 8000), workspaceId],
+  );
+}
+
+/** Instagram (and similar): no image yet — leave row schedulable, not failed. Reschedule to avoid hot-looping every minute. */
+async function markCalendarRescheduledAfterSkip(
+  workspaceId: string,
+  calendarId: string,
+  message: string,
+  retryAfterMinutes: number,
+): Promise<void> {
+  const mins = Math.max(1, Math.min(24 * 60, Math.floor(retryAfterMinutes)));
+  await query(
+    `UPDATE marketing_content_calendar
+     SET status = 'scheduled',
+         scheduled_at = NOW() + ($3::int * INTERVAL '1 minute'),
+         last_error = $2,
+         updated_at = NOW()
+     WHERE id = $1 AND workspace_id = $4`,
+    [calendarId, message.slice(0, 8000), mins, workspaceId],
   );
 }
 
@@ -133,6 +190,8 @@ export interface PublisherTickResult {
   claimed: number;
   published: number;
   failed: number;
+  /** Rows left schedulable (e.g. Instagram deferred until image_url exists). */
+  deferred: number;
   errors: string[];
 }
 
@@ -151,6 +210,7 @@ export async function pollAndPublish(
   const errors: string[] = [];
   let published = 0;
   let failed = 0;
+  let deferred = 0;
 
   for (const cal of rows) {
     const ws = cal.workspace_id;
@@ -164,9 +224,25 @@ export async function pollAndPublish(
         continue;
       }
 
-      const result = await publishFn(cal, payload);
-      await markCalendarPublished(ws, cal.id, result.publishedUrl, result.externalPostId);
-      await markContentPublished(ws, cal.content_id);
+      const result = (await publishFn(cal, payload)) as AdapterPublishSuccess;
+      if (result.skipped) {
+        const retryMins = instagramSkipRetryMinutes();
+        await markCalendarRescheduledAfterSkip(
+          ws,
+          cal.id,
+          `Deferred: Instagram needs image_url before publish. Will retry automatically in ~${retryMins} min (or regenerate image in cockpit).`,
+          retryMins,
+        );
+        deferred++;
+        errors.push(`${cal.id}: deferred (instagram — no image_url, rescheduled +${retryMins}m)`);
+        console.warn('[marketingPublisherService] Instagram skip — calendar row rescheduled', {
+          calendarId: cal.id,
+          contentId: cal.content_id,
+          retryInMinutes: retryMins,
+        });
+        continue;
+      }
+      await markPublishedAtomic(ws, cal.id, cal.content_id, result.publishedUrl, result.externalPostId);
       published++;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -182,10 +258,11 @@ export async function pollAndPublish(
       claimed: rows.length,
       published,
       failed,
+      deferred,
     });
   }
 
-  return { claimed: rows.length, published, failed, errors };
+  return { claimed: rows.length, published, failed, deferred, errors };
 }
 
 /** @deprecated Prefer {@link pollAndPublish} — kept for existing cron import. */

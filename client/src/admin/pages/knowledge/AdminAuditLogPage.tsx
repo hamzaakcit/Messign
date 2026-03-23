@@ -13,20 +13,27 @@ interface AuditEntry {
 }
 
 export function AdminAuditLogPage() {
-  const [entries, _setEntries] = useState<AuditEntry[]>([]);
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const token = localStorage.getItem('auth-token');
     if (token) {
       try { const p = JSON.parse(token); headers['Authorization'] = `Bearer ${p?.state?.accessToken ?? p}`; } catch { headers['Authorization'] = `Bearer ${token}`; }
     }
 
-    fetch(`${API_ORIGIN}/api/knowledge-hub/analytics/stats`, { headers })
+    fetch(`${API_ORIGIN}/api/admin/audit?limit=100`, { headers, signal: controller.signal })
       .then(r => r.json())
+      .then(data => {
+        const rows = Array.isArray(data) ? data : (data?.data ?? []);
+        if (!controller.signal.aborted) setEntries(rows);
+      })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+
+    return () => controller.abort();
   }, []);
 
   return (

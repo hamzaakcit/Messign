@@ -5,7 +5,7 @@ import type { Express } from 'express';
 import { Router } from 'express';
 import type { PlatformModule, ToolRegistration } from './types.js';
 import { registerTool, finalizeRegistry } from '../services/ai/toolRegistry.js';
-import type { Tool, ToolResult } from '../services/ai/types.js';
+import type { Tool, ToolParameterProperty, ToolResult } from '../services/ai/types.js';
 import { eventBus } from '../platform/eventBus.js';
 
 // Import all modules
@@ -21,6 +21,8 @@ import { heartModule } from './heart/index.js';
 import { executiveModule } from './executive/index.js';
 import { assetsModule } from './assets/index.js';
 import { contractsModule } from './contracts/index.js';
+import { creativeModule } from './creative/index.js';
+import { marketingAutomationModule } from './marketing_automation/index.js';
 
 const modules: PlatformModule[] = [
   crmModule,
@@ -28,6 +30,8 @@ const modules: PlatformModule[] = [
   financeModule,
   hrModule,
   marketingModule,
+  creativeModule,
+  marketingAutomationModule,
   knowledgeModule,
   timeModule,
   okrModule,
@@ -46,6 +50,7 @@ const namespaceToCategory: Record<string, Tool['category']> = {
   finance: 'finance',
   hr: 'people',
   marketing: 'analytics',
+  marketing_automation: 'analytics',
   creative: 'analytics',
   knowledge: 'knowledge',
   time: 'analytics',
@@ -65,6 +70,53 @@ const namespaceToCategory: Record<string, Tool['category']> = {
   system: 'analytics',
 };
 
+/** Map module LLM property → ToolParameterProperty (preserves array `items`, nested objects). */
+function mapLlmPropertyToToolParameter(v: {
+  type?: string;
+  description?: string;
+  enum?: string[];
+  items?: Record<string, unknown>;
+  properties?: Record<string, unknown>;
+}): ToolParameterProperty {
+  const t = v.type;
+  if (t === 'array') {
+    const prop: ToolParameterProperty = {
+      type: 'array',
+      description: v.description ?? '',
+    };
+    if (v.items && typeof v.items === 'object') {
+      const it = v.items;
+      prop.items = {
+        type: typeof it.type === 'string' ? it.type : 'string',
+        description: typeof it.description === 'string' ? it.description : '',
+      };
+      if (Array.isArray(it.enum)) {
+        prop.items.enum = it.enum as string[];
+      }
+    }
+    return prop;
+  }
+  if (t === 'object' && v.properties && typeof v.properties === 'object') {
+    return {
+      type: 'object',
+      description: v.description ?? '',
+      properties: Object.fromEntries(
+        Object.entries(v.properties).map(([key, child]) => [
+          key,
+          mapLlmPropertyToToolParameter(child as { type?: string; description?: string; enum?: string[]; items?: Record<string, unknown>; properties?: Record<string, unknown> }),
+        ]),
+      ),
+    };
+  }
+  const typeStr =
+    t === 'number' || t === 'boolean' || t === 'array' || t === 'object' ? t : 'string';
+  return {
+    type: typeStr as 'string' | 'number' | 'boolean' | 'array' | 'object',
+    description: v.description ?? '',
+    enum: v.enum,
+  };
+}
+
 /** Convert ToolRegistration to Tool and register with the global registry */
 function registerToolFromModule(reg: ToolRegistration): void {
   const params = reg.llmSchema.function.parameters;
@@ -76,14 +128,7 @@ function registerToolFromModule(reg: ToolRegistration): void {
     parameters: {
       type: 'object',
       properties: Object.fromEntries(
-        Object.entries(props).map(([k, v]) => [
-          k,
-          {
-            type: (v.type === 'number' || v.type === 'boolean' || v.type === 'array' ? v.type : 'string') as 'string' | 'number' | 'boolean' | 'array',
-            description: v.description ?? '',
-            enum: v.enum,
-          },
-        ]),
+        Object.entries(props).map(([k, v]) => [k, mapLlmPropertyToToolParameter(v)]),
       ),
       required: params.required ?? [],
     },

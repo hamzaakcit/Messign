@@ -22,7 +22,7 @@ export function parseSort(
 ): SortOptions | undefined {
   if (typeof sortBy !== 'string' || !sortBy) return undefined;
   return {
-    field: mapping[sortBy] ?? sortBy,
+    field: mapping[sortBy] ?? 'created_at',
     direction: sortDir === 'asc' ? 'asc' : 'desc',
   };
 }

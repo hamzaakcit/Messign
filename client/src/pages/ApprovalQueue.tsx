@@ -19,7 +19,10 @@ export function ApprovalQueue() {
 
   useEffect(() => {
     if (!user?.id) return;
-    approvalsAPI.list(user.id).then(setList).finally(() => setLoading(false));
+    approvalsAPI.list(user.id)
+      .then(setList)
+      .catch(() => setList([]))
+      .finally(() => setLoading(false));
   }, [user?.id]);
 
   const toggleSelect = (stepId: string) => {

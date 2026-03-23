@@ -1,41 +1,42 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { useAuthStore } from '@/stores/authStore';
 import { connectSocket } from '@/lib/socket';
 import { NotificationSocketSubscriber } from '@/components/notifications/NotificationSocketSubscriber';
 import { AdminGuard } from '@/admin/AdminGuard';
-import { AdminLayout } from '@/admin/layouts/AdminLayout';
-import { AdminDashboard } from '@/admin/pages/AdminDashboard';
-import { EmployeeManagement } from '@/admin/pages/EmployeeManagement';
-import { DepartmentManagement } from '@/admin/pages/DepartmentManagement';
-import { RolePermissions } from '@/admin/pages/RolePermissions';
-import { XPAchievements } from '@/admin/pages/XPAchievements';
-import { Analytics } from '@/admin/pages/Analytics';
-import { Settings } from '@/admin/pages/Settings';
-import { AuditLogs } from '@/admin/pages/AuditLogs';
-import { BulkImport } from '@/admin/pages/BulkImport';
-import { EmployeeForm } from '@/admin/pages/EmployeeForm';
-import { ReimbursementAdmin } from '@/admin/pages/ReimbursementAdmin';
-import { ReimbursementSettings } from '@/admin/pages/ReimbursementSettings';
-import { InvoicesAdmin } from '@/admin/pages/InvoicesAdmin';
 import { ReimbursementProvider } from '@/contexts/ReimbursementContext';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignUpPage } from '@/pages/SignUpPage';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
-import { SecurityManagementPage } from '@/admin/pages/SecurityManagementPage';
-import { ProjectsAdminPage } from '@/admin/pages/ProjectsAdminPage';
-import { KnowledgeDocumentsAdmin } from '@/admin/pages/knowledge/KnowledgeDocumentsAdmin';
-import { KnowledgeCategoriesAdmin } from '@/admin/pages/knowledge/KnowledgeCategoriesAdmin';
-import { KnowledgeCollectionsAdmin } from '@/admin/pages/knowledge/KnowledgeCollectionsAdmin';
-import { KnowledgeFlagsAdmin } from '@/admin/pages/knowledge/KnowledgeFlagsAdmin';
-import { KnowledgeComplianceAdmin } from '@/admin/pages/knowledge/KnowledgeComplianceAdmin';
-import { KnowledgeAdminDashboard } from '@/admin/pages/knowledge/KnowledgeAdminDashboard';
-import { AdminKnowledgeRolesPage } from '@/admin/pages/knowledge/AdminKnowledgeRolesPage';
-import { AdminTeamsPage } from '@/admin/pages/knowledge/AdminTeamsPage';
-import { AdminPendingReviewsPage } from '@/admin/pages/knowledge/AdminPendingReviewsPage';
-import { AdminAuditLogPage } from '@/admin/pages/knowledge/AdminAuditLogPage';
-import { AISettingsPage } from '@/admin/pages/AISettingsPage';
+
+const AdminLayout = lazy(() => import('@/admin/layouts/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const AdminDashboard = lazy(() => import('@/admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const EmployeeManagement = lazy(() => import('@/admin/pages/EmployeeManagement').then(m => ({ default: m.EmployeeManagement })));
+const DepartmentManagement = lazy(() => import('@/admin/pages/DepartmentManagement').then(m => ({ default: m.DepartmentManagement })));
+const RolePermissions = lazy(() => import('@/admin/pages/RolePermissions').then(m => ({ default: m.RolePermissions })));
+const XPAchievements = lazy(() => import('@/admin/pages/XPAchievements').then(m => ({ default: m.XPAchievements })));
+const Analytics = lazy(() => import('@/admin/pages/Analytics').then(m => ({ default: m.Analytics })));
+const Settings = lazy(() => import('@/admin/pages/Settings').then(m => ({ default: m.Settings })));
+const AuditLogs = lazy(() => import('@/admin/pages/AuditLogs').then(m => ({ default: m.AuditLogs })));
+const BulkImport = lazy(() => import('@/admin/pages/BulkImport').then(m => ({ default: m.BulkImport })));
+const EmployeeForm = lazy(() => import('@/admin/pages/EmployeeForm').then(m => ({ default: m.EmployeeForm })));
+const ReimbursementAdmin = lazy(() => import('@/admin/pages/ReimbursementAdmin').then(m => ({ default: m.ReimbursementAdmin })));
+const ReimbursementSettings = lazy(() => import('@/admin/pages/ReimbursementSettings').then(m => ({ default: m.ReimbursementSettings })));
+const InvoicesAdmin = lazy(() => import('@/admin/pages/InvoicesAdmin').then(m => ({ default: m.InvoicesAdmin })));
+const SecurityManagementPage = lazy(() => import('@/admin/pages/SecurityManagementPage').then(m => ({ default: m.SecurityManagementPage })));
+const ProjectsAdminPage = lazy(() => import('@/admin/pages/ProjectsAdminPage').then(m => ({ default: m.ProjectsAdminPage })));
+const KnowledgeDocumentsAdmin = lazy(() => import('@/admin/pages/knowledge/KnowledgeDocumentsAdmin').then(m => ({ default: m.KnowledgeDocumentsAdmin })));
+const KnowledgeCategoriesAdmin = lazy(() => import('@/admin/pages/knowledge/KnowledgeCategoriesAdmin').then(m => ({ default: m.KnowledgeCategoriesAdmin })));
+const KnowledgeCollectionsAdmin = lazy(() => import('@/admin/pages/knowledge/KnowledgeCollectionsAdmin').then(m => ({ default: m.KnowledgeCollectionsAdmin })));
+const KnowledgeFlagsAdmin = lazy(() => import('@/admin/pages/knowledge/KnowledgeFlagsAdmin').then(m => ({ default: m.KnowledgeFlagsAdmin })));
+const KnowledgeComplianceAdmin = lazy(() => import('@/admin/pages/knowledge/KnowledgeComplianceAdmin').then(m => ({ default: m.KnowledgeComplianceAdmin })));
+const KnowledgeAdminDashboard = lazy(() => import('@/admin/pages/knowledge/KnowledgeAdminDashboard').then(m => ({ default: m.KnowledgeAdminDashboard })));
+const AdminKnowledgeRolesPage = lazy(() => import('@/admin/pages/knowledge/AdminKnowledgeRolesPage').then(m => ({ default: m.AdminKnowledgeRolesPage })));
+const AdminTeamsPage = lazy(() => import('@/admin/pages/knowledge/AdminTeamsPage').then(m => ({ default: m.AdminTeamsPage })));
+const AdminPendingReviewsPage = lazy(() => import('@/admin/pages/knowledge/AdminPendingReviewsPage').then(m => ({ default: m.AdminPendingReviewsPage })));
+const AdminAuditLogPage = lazy(() => import('@/admin/pages/knowledge/AdminAuditLogPage').then(m => ({ default: m.AdminAuditLogPage })));
+const AISettingsPage = lazy(() => import('@/admin/pages/AISettingsPage').then(m => ({ default: m.AISettingsPage })));
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -103,7 +104,7 @@ function App() {
         <Route path="/force-password-change" element={<RequireAuth><ForcePasswordChangePage /></RequireAuth>} />
         <Route path="/approvals" element={<Navigate to="/admin/reimbursements" replace />} />
         <Route path="/admin" element={<AdminGuard />}>
-          <Route element={<AdminLayout />}>
+          <Route element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-app"><div className="text-app-muted">Loading admin...</div></div>}><AdminLayout /></Suspense>}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="security" element={<SecurityManagementPage />} />

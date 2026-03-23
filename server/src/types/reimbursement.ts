@@ -1,4 +1,7 @@
-export type ReimbursementUserRole = 'employee' | 'manager' | 'finance' | 'admin';
+import type { AppRole } from '../dal/types.js';
+
+/** Reimbursement module accepts the full AppRole set for compatibility. */
+export type ReimbursementUserRole = AppRole;
 
 export interface ReimbursementUserRow {
   id: string;

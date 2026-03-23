@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { marketingAPI } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
+import { BrandSelector } from './BrandSelector';
 
 interface CampaignCreatePanelProps {
   onCreated: () => void;
@@ -17,6 +18,7 @@ export function CampaignCreatePanel({ onCreated, onCancel }: CampaignCreatePanel
     name: '',
     channel: 'email',
     budget: '',
+    brand_profile_id: '',
     start_date: '',
     end_date: '',
     description: '',
@@ -34,8 +36,9 @@ export function CampaignCreatePanel({ onCreated, onCancel }: CampaignCreatePanel
     if (!userId) return;
     setSaving(true);
     try {
+      const { brand_profile_id: _brandId, ...campaignFields } = form;
       await marketingAPI.createCampaign(userId, {
-        ...form,
+        ...campaignFields,
         budget: Number(form.budget || 0),
       });
       onCreated();
@@ -69,6 +72,13 @@ export function CampaignCreatePanel({ onCreated, onCancel }: CampaignCreatePanel
           <label className="block text-sm text-app-muted mb-1">Budget</label>
           <input className={inputClass} type="number" value={form.budget} onChange={(e) => handleChange('budget', e.target.value)} />
         </div>
+      </div>
+      <div>
+        <label className="block text-sm text-app-muted mb-1">Brand</label>
+        <BrandSelector
+          selectedBrandId={form.brand_profile_id || null}
+          onBrandChange={(id) => handleChange('brand_profile_id', id || '')}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

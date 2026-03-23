@@ -135,22 +135,48 @@ export async function getDashboardMetrics(
 
   const startDate = getPeriodStart(period);
   return runInTenant(tenantId, async (client) => {
-    const [summaryResult, channelBreakdown, monthlyTrendResult] = await Promise.all([
+    /** Split aggregates: avoids join explosion from campaigns × leads × content × email (was 500ms+). */
+    const dateFilter = `($1::date IS NULL OR c.created_at::date >= $1::date)`;
+    const [
+      campaignAgg,
+      leadAgg,
+      contentAgg,
+      emailAgg,
+      channelBreakdown,
+      monthlyTrendResult,
+    ] = await Promise.all([
       client.query<Record<string, unknown>>(
         `SELECT
-           COUNT(*) FILTER (WHERE l.status IN ('qualified', 'converted'))::int AS mqls,
            COALESCE(SUM(c.actual_spend_eur), 0)::numeric AS total_spend,
            COALESCE(SUM(c.leads_generated), 0)::int AS total_leads,
            COUNT(*) FILTER (WHERE c.status = 'active')::int AS active_campaigns,
-           COUNT(*) FILTER (WHERE mc.status = 'published')::int AS content_published,
-           COUNT(*) FILTER (WHERE l.status = 'converted')::int AS converted_leads,
-           COALESCE(MAX(NULLIF(c.roi, 0)), 0)::numeric AS best_roi,
-           COALESCE(AVG(NULLIF(ec.open_rate, 0)), 0)::numeric AS email_open_rate
+           COALESCE(MAX(NULLIF(c.roi, 0)), 0)::numeric AS best_roi
          FROM marketing_campaigns c
-         LEFT JOIN marketing_leads l ON l.campaign_id = c.id
-         LEFT JOIN marketing_content mc ON mc.campaign_id = c.id
-         LEFT JOIN marketing_email_campaigns ec ON ec.campaign_id = c.id
-         WHERE ($1::date IS NULL OR c.created_at::date >= $1::date)`,
+         WHERE ${dateFilter}`,
+        [startDate],
+      ),
+      client.query<Record<string, unknown>>(
+        `SELECT
+           COUNT(*) FILTER (WHERE l.status IN ('qualified', 'converted'))::int AS mqls,
+           COUNT(*) FILTER (WHERE l.status = 'converted')::int AS converted_leads
+         FROM marketing_leads l
+         INNER JOIN marketing_campaigns c ON c.id = l.campaign_id
+         WHERE ${dateFilter}`,
+        [startDate],
+      ),
+      client.query<Record<string, unknown>>(
+        `SELECT COUNT(*)::int AS content_published
+         FROM marketing_content mc
+         INNER JOIN marketing_campaigns c ON c.id = mc.campaign_id
+         WHERE ${dateFilter}
+           AND mc.status = 'published'`,
+        [startDate],
+      ),
+      client.query<Record<string, unknown>>(
+        `SELECT COALESCE(AVG(NULLIF(ec.open_rate, 0)), 0)::numeric AS email_open_rate
+         FROM marketing_email_campaigns ec
+         INNER JOIN marketing_campaigns c ON c.id = ec.campaign_id
+         WHERE ${dateFilter}`,
         [startDate],
       ),
       getChannelPerformance(ctx, period),
@@ -167,21 +193,24 @@ export async function getDashboardMetrics(
       ),
     ]);
 
-    const summary = summaryResult.rows[0] ?? {};
-    const totalSpend = toNumber(summary.total_spend);
-    const totalLeads = toNumber(summary.total_leads);
-    const convertedLeads = toNumber(summary.converted_leads);
+    const cRow = (campaignAgg.rows[0] ?? {}) as Record<string, unknown>;
+    const lRow = (leadAgg.rows[0] ?? {}) as Record<string, unknown>;
+    const mcRow = (contentAgg.rows[0] ?? {}) as Record<string, unknown>;
+    const ecRow = (emailAgg.rows[0] ?? {}) as Record<string, unknown>;
+    const totalSpend = toNumber(cRow.total_spend);
+    const totalLeads = toNumber(cRow.total_leads);
+    const convertedLeads = toNumber(lRow.converted_leads);
 
     return {
-      mqls: toNumber(summary.mqls),
+      mqls: toNumber(lRow.mqls),
       cac: convertedLeads > 0 ? Number((totalSpend / convertedLeads).toFixed(2)) : 0,
       cpl: totalLeads > 0 ? Number((totalSpend / totalLeads).toFixed(2)) : 0,
-      roi: toNumber(summary.best_roi),
-      activeCampaigns: toNumber(summary.active_campaigns),
+      roi: toNumber(cRow.best_roi),
+      activeCampaigns: toNumber(cRow.active_campaigns),
       totalSpend,
       totalLeads,
-      emailOpenRate: toNumber(summary.email_open_rate),
-      contentPublished: toNumber(summary.content_published),
+      emailOpenRate: toNumber(ecRow.email_open_rate),
+      contentPublished: toNumber(mcRow.content_published),
       channelBreakdown,
       monthlyTrend: monthlyTrendResult.rows.map((row) => ({
         month: row.month,

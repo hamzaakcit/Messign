@@ -98,15 +98,18 @@ Use this tool when someone asks:
         `SELECT
           COUNT(*)::int as total,
           COUNT(*) FILTER (WHERE status != 'archived')::int as active
-        FROM projects`
+        FROM projects
+        WHERE organization_id = $1`,
+        [orgId]
       );
       const taskMetricsResult = await query(
         `SELECT
           COUNT(*)::int as total,
           COUNT(*) FILTER (WHERE status IN ('completed', 'done') AND completed_at >= $1)::int as completed_period,
           COUNT(*) FILTER (WHERE due_date < NOW() AND status NOT IN ('completed', 'done', 'cancelled'))::int as overdue
-        FROM tasks`,
-        [dateFilter]
+        FROM tasks
+        WHERE project_id IN (SELECT id FROM projects WHERE organization_id = $2)`,
+        [dateFilter, orgId]
       );
       report.projects = { ...(projectsResult.rows[0] as object), ...(taskMetricsResult.rows[0] as object) };
       const proj = report.projects as Record<string, unknown>;

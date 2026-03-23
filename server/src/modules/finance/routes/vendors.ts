@@ -61,18 +61,23 @@ router.delete('/:id', requireFinanceRole('finance', 'admin'), async (req: Reimbu
 router.get('/:id/transactions', async (req: ReimbursementRequest, res: Response) => {
   try {
     const orgId = req.organizationId!;
-    const invoices = await query(
-      `SELECT * FROM invoices
-       WHERE organization_id = $1 AND vendor_id = $2 AND (is_deleted IS NULL OR is_deleted = FALSE)
-       ORDER BY created_at DESC LIMIT 50`,
-      [orgId, req.params.id],
-    );
-    const payments = await query(
-      `SELECT * FROM finance_payments
-       WHERE organization_id = $1 AND vendor_id = $2
-       ORDER BY created_at DESC LIMIT 50`,
-      [orgId, req.params.id],
-    );
+    const vendorId = req.params.id;
+    const [invoices, payments] = await Promise.all([
+      query(
+        `SELECT id, invoice_number, status, total_amount, currency, due_date, created_at
+         FROM invoices
+         WHERE organization_id = $1 AND vendor_id = $2 AND (is_deleted IS NULL OR is_deleted = FALSE)
+         ORDER BY created_at DESC LIMIT 50`,
+        [orgId, vendorId],
+      ),
+      query(
+        `SELECT id, amount, currency, payment_date, payment_method, status, created_at
+         FROM finance_payments
+         WHERE organization_id = $1 AND vendor_id = $2
+         ORDER BY created_at DESC LIMIT 50`,
+        [orgId, vendorId],
+      ),
+    ]);
     res.json({ invoices: invoices.rows, payments: payments.rows });
   } catch (err) {
     console.error('[finance/vendors/:id/transactions]', err);

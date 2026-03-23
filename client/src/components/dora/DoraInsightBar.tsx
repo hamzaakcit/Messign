@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { MOTION } from '@/styles/design-tokens';
@@ -123,6 +123,7 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
   const [loaded, setLoaded] = useState(false);
   const [dismissedFallback, setDismissedFallback] = useState(() => isDismissed(module));
   const [criticalPulse, setCriticalPulse] = useState(false);
+  const pulseTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setDismissedFallback(isDismissed(module));
@@ -168,12 +169,14 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
 
       if (incoming.severity === 'critical') {
         setCriticalPulse(true);
-        window.setTimeout(() => setCriticalPulse(false), 2000);
+        if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+        pulseTimerRef.current = window.setTimeout(() => setCriticalPulse(false), 2000);
       }
     });
 
     return () => {
       unsubscribe();
+      if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
     };
   }, [module]);
 

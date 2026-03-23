@@ -28,7 +28,15 @@ export interface UserStats {
 }
 
 export type UserStatus = 'online' | 'away' | 'busy' | 'offline';
-export type UserRole = 'admin' | 'manager' | 'member';
+export type UserRole =
+  | 'employee'
+  | 'manager'
+  | 'dept_head'
+  | 'finance'
+  | 'finance_admin'
+  | 'admin'
+  | 'system_admin'
+  | 'member';
 
 export interface LeaderboardEntry {
   rank: number;

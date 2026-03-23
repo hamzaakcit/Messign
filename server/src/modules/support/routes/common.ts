@@ -24,7 +24,7 @@ export function parseOptionalNumber(value: unknown): number | undefined {
 export function parseSort(sortBy: unknown, sortDir: unknown, mapping: Record<string, string>): SortOptions | undefined {
   if (typeof sortBy !== 'string' || !sortBy) return undefined;
   return {
-    field: mapping[sortBy] ?? sortBy,
+    field: mapping[sortBy] ?? 'created_at',
     direction: sortDir === 'asc' ? 'asc' : 'desc',
   };
 }

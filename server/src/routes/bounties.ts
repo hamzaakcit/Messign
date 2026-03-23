@@ -12,7 +12,7 @@ import {
   type BountyCategory,
   type BountyUrgency,
 } from '../db/bountiesDb.js';
-import { getEmployeeByIdAsUser } from '../db/employeesDb.js';
+import { getEmployeeByIdAsUser, getEmployeesByIdsAsUsers } from '../db/employeesDb.js';
 import { requireJwt } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -42,18 +42,18 @@ router.get('/', requireJwt, async (req, res) => {
       category: category && validateCategory(category) ? category : undefined,
       urgency: urgency && validateUrgency(urgency) ? urgency : undefined,
     });
-    const withCreator = await Promise.all(
-      bounties.map(async (b) => {
-        const creator = await getEmployeeByIdAsUser(b.creator_id);
-        const claimedByUser = b.claimed_by ? await getEmployeeByIdAsUser(b.claimed_by) : null;
-        return {
-          ...b,
-          creator: creator ? { id: creator.id, name: creator.name, avatar: creator.avatar, department: creator.department } : { id: b.creator_id, name: '', avatar: '', department: '' },
-          claimedByUser: claimedByUser ? { id: claimedByUser.id, name: claimedByUser.name, avatar: claimedByUser.avatar } : null,
-          department: b.department ? { id: b.department, name: b.department } : null,
-        };
-      })
-    );
+    const userIds = [...new Set(bounties.flatMap(b => [b.creator_id, b.claimed_by].filter(Boolean) as string[]))];
+    const usersMap = await getEmployeesByIdsAsUsers(userIds);
+    const withCreator = bounties.map((b) => {
+      const creator = usersMap.get(b.creator_id) ?? null;
+      const claimedByUser = b.claimed_by ? usersMap.get(b.claimed_by) ?? null : null;
+      return {
+        ...b,
+        creator: creator ? { id: creator.id, name: creator.name, avatar: creator.avatar, department: creator.department } : { id: b.creator_id, name: '', avatar: '', department: '' },
+        claimedByUser: claimedByUser ? { id: claimedByUser.id, name: claimedByUser.name, avatar: claimedByUser.avatar } : null,
+        department: b.department ? { id: b.department, name: b.department } : null,
+      };
+    });
     res.json({ bounties: withCreator });
   } catch (e) {
     console.error('[bounties] list error:', e);

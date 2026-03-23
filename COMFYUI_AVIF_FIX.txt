@@ -1,0 +1,54 @@
+ComfyUI + AVIF (bulut ve yerel)
+==============================
+
+Strateji 1 — Bulut terminalinde "zorla" güncelleme (SSH / provider terminal)
+----------------------------------------------------------------------------
+Hata çıktısındaki Python ile aynı yorumlayıcıyı kullanın (örnek conda 3.11):
+
+  /opt/conda/bin/python3.11 -m pip install pillow-avif-plugin
+
+Ardından ComfyUI sürecini yeniden başlatın. Bu, konteyner yeniden oluşturulana kadar kalır;
+kalıcı imaj için requirements-comfyui-cloud.txt veya pre_start.sh kullanın.
+
+Strateji 2 — Cursor / yerel ön işleme
+------------------------------------
+fix_and_upload.py : dora_references içindeki AVIF -> PNG, AVIF sil, sonra generate_dora.
+
+Strateji 3 — Startup
+--------------------
+pre_start.sh veya scripts/comfyui-entrypoint.example.sh (repoda).
+
+---
+
+A) Kalıcı çözüm — Docker / RunPod / Vast.ai
+-------------------------------------------
+`docker exec ... pip install` geçicidir; konteyner yeniden üretilince silinir.
+
+1) requirements birleştirme  
+   Repoda: requirements-comfyui-cloud.txt  
+   Kendi ComfyUI requirements.txt dosyanıza şunu ekleyin:
+     pillow-avif-plugin>=1.4.0
+
+2) Dockerfile (örnek)
+     COPY requirements-comfyui-cloud.txt /tmp/
+     RUN pip install --no-cache-dir -r /tmp/requirements-comfyui-cloud.txt
+
+3) Entrypoint (her başlangıçta garanti)
+   Repoda: scripts/comfyui-entrypoint.example.sh
+   İçerik özeti: pip install pillow-avif-plugin && exec python main.py --listen ...
+   Dockerfile'da CMD ile bu script kullanılabilir.
+
+B) generate_dora.py — "universal language" stratejisi
+-------------------------------------------------------
+Script artık SADECE .png / .jpg / .jpeg yükler (ComfyUI ile en sorunsuz yol).
+AVIF/WebP yüklemez. Önce dönüştürün:
+
+  # ImageMagick yüklüyse (macOS: brew install imagemagick)
+  mogrify -format png dora_references/*.avif
+
+  # veya Pillow ile (projede):
+  python3 convert_refs.py
+
+C) Sunucuda hâlâ .avif sürükleniyorsa
+------------------------------------
+Bölüm A'daki pip + yeniden başlatma gerekir; aksi halde Load Image PIL hatası verir.

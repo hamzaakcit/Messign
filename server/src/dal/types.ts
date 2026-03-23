@@ -1,6 +1,21 @@
+/**
+ * Canonical role union — every layer (auth middleware, DAL, client types) should
+ * reference this single source of truth. Add new roles here only.
+ */
+export type AppRole =
+  | 'employee'
+  | 'manager'
+  | 'dept_head'
+  | 'finance'
+  | 'finance_admin'
+  | 'admin'
+  | 'system_admin';
+
 export interface CallerContext {
   userId: string;
-  role: 'employee' | 'manager' | 'dept_head' | 'finance_admin' | 'system_admin';
+  /** reimbursement_users.id — set when auth user_id maps to a row (use for FK to reimbursement_users) */
+  userUuid?: string;
+  role: AppRole;
   departmentId?: string;
   teamId?: string;
   organizationId?: string;

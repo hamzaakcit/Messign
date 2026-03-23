@@ -46,7 +46,7 @@ export function ContentActions({
     );
   }
 
-  if (s === 'in_review' || s === 'pending_review') {
+  if (s === 'in_review' || s === 'pending_review' || s === 'ready_for_review') {
     return (
       <div className="flex flex-wrap gap-2">
         <button

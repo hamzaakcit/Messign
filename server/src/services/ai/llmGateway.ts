@@ -227,7 +227,7 @@ async function callGroq(
     { role: 'user', content: config.userMessage },
   ];
 
-  const maxTokens = config.maxTokens ?? 4096;
+  const maxTokens = config.maxTokens ?? 2048;
   const temperature = config.temperature ?? 0.2;
 
   const body: ChatCompletionCreateParamsNonStreaming = {
@@ -280,7 +280,7 @@ async function callAnthropic(
 
   const request: Anthropic.MessageCreateParams = {
     model: cfg.model,
-    max_tokens: config.maxTokens ?? 8192,
+    max_tokens: config.maxTokens ?? 4096,
     temperature: config.temperature ?? 0.2,
     system,
     messages: [{ role: 'user', content: config.userMessage }],
@@ -324,7 +324,49 @@ async function callAnthropic(
   };
 }
 
+async function tryViaLiteLLM(config: PromptConfig): Promise<LLMGatewayResult | null> {
+  const litellmUrl = process.env.LITELLM_URL?.trim();
+  if (!litellmUrl || /localhost|127\.0\.0\.1/i.test(litellmUrl)) return null;
+
+  try {
+    const { callModelSafe } = await import('./gateway.js');
+    const tier = config.tier === LLM_TIER.FAST ? 'fast' : 'complex';
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: 'system', content: config.systemPrompt },
+      { role: 'user', content: config.userMessage },
+    ];
+    const response = await callModelSafe({
+      tier: tier as 'fast' | 'complex',
+      messages,
+      tools: config.tools,
+      toolChoice: config.toolChoice,
+      tenantId: config.tenantId ?? 'llm-gateway',
+      maxTokens: config.maxTokens,
+      temperature: config.temperature,
+    });
+
+    const msg = response.choices?.[0]?.message;
+    const u = response.usage;
+    return {
+      content: msg?.content?.trim() ?? '',
+      toolCalls: normalizeOpenAIToolCalls(msg),
+      usage: {
+        promptTokens: u?.prompt_tokens,
+        completionTokens: u?.completion_tokens,
+        totalTokens: u ? (u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0) : undefined,
+      },
+      provider: config.tier === LLM_TIER.FAST ? 'groq' : 'anthropic',
+      model: config.tier === LLM_TIER.FAST ? LLM_TIER_CONFIG.fast.model : LLM_TIER_CONFIG.complex.model,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function executeOnce(config: PromptConfig, signal: AbortSignal): Promise<LLMGatewayResult> {
+  const litellmResult = await tryViaLiteLLM(config);
+  if (litellmResult) return litellmResult;
+
   if (config.tier === LLM_TIER.FAST) {
     return callGroq(config, LLM_TIER_CONFIG.fast, signal);
   }

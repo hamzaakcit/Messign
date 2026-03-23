@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 export function SettingsView() {
   const { user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
-  const { leftSidebarCollapsed, rightSidebarCollapsed, setLeftSidebarCollapsed, setRightSidebarCollapsed } = useUIStore();
+  const { leftSidebarCollapsed, setLeftSidebarCollapsed } = useUIStore();
 
   return (
     <div className="h-full overflow-auto bg-app transition-colors duration-200">
@@ -50,12 +50,12 @@ export function SettingsView() {
         <Card className="p-6">
           <h3 className="font-medium text-app mb-1">Layout</h3>
           <p className="text-app-muted text-sm mb-4">
-            Control sidebar visibility across all pages (Dashboard, Chat, Knowledge Hub, Projects, etc.). When expanded, the left sidebar shows labels and the right sidebar shows full content. Your preference is saved and applied everywhere.
+            Control sidebar visibility. When expanded, the sidebar shows labels and grouped navigation. Your preference is saved across sessions. You can also hover the collapsed sidebar to peek.
           </p>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label htmlFor="layout-left" className="text-sm text-app">
-                Left sidebar expanded
+                Sidebar expanded by default
               </label>
               <button
                 id="layout-left"
@@ -71,28 +71,6 @@ export function SettingsView() {
                   className={cn(
                     'absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200 ease-in-out',
                     leftSidebarCollapsed ? 'left-1' : 'left-6'
-                  )}
-                />
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <label htmlFor="layout-right" className="text-sm text-app">
-                Right sidebar expanded
-              </label>
-              <button
-                id="layout-right"
-                role="switch"
-                aria-checked={!rightSidebarCollapsed}
-                onClick={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
-                className={cn(
-                  'relative w-11 h-6 rounded-full transition-colors duration-200',
-                  rightSidebarCollapsed ? 'bg-app-hover' : 'bg-primary-500'
-                )}
-              >
-                <span
-                  className={cn(
-                    'absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200 ease-in-out',
-                    rightSidebarCollapsed ? 'left-1' : 'left-6'
                   )}
                 />
               </button>

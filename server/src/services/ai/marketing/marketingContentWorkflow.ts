@@ -20,6 +20,10 @@ import {
   extractImagePrompts,
 } from '../../../modules/marketing/prompts/instagramChannelSpec.js';
 import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/imageService.js';
+import { parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
+import { resolveCalibrationPrompt } from '../../marketing/calibrationResolver.js';
+import { getBrandProfile, formatBrandProfileAsMd } from '../../marketing/brandProfileService.js';
+import { query as dbQuery } from '../../../db/index.js';
 import { runBrandVoiceCheck, type BrandVoiceCheckResult } from './brandVoiceChecker.js';
 import { runComplianceScan, type ComplianceScanResult } from './complianceScanner.js';
 import { runProductTruthValidation, type ProductTruthValidationResult } from './productTruthValidator.js';
@@ -106,10 +110,25 @@ async function generateDraft(
 ): Promise<string> {
   const productTruthMd = ctx.productTruthMd ?? getDefaultProductTruthFallback();
   const brandVoiceMd = ctx.brandVoiceMd ?? getDefaultBrandVoiceFallback();
+
+  let calibrationText = '';
+  try {
+    const calibration = await resolveCalibrationPrompt(
+      ctx.organizationId,
+      ctx.channel,
+      undefined,
+    );
+    calibrationText = calibration.text;
+  } catch (err) {
+    console.warn('[marketingContentWorkflow] Calibration resolve failed, continuing without:', err);
+  }
+
   const systemPrompt = buildMarketingContentStrategistPrompt({
     userRole: ctx.userRole ?? 'marketing',
     productTruthMd,
     brandVoiceMd,
+    channel: ctx.channel,
+    calibrationText,
   });
 
   const userMessage = [brief, MOCK_PRODUCT_TRUTH_LOOKUP_TOOL_RESULT, revisionBlock].filter(Boolean).join('\n\n');
@@ -177,6 +196,16 @@ export async function executeContentWorkflow(
   let lastDraft = '';
   let lastTruth: ProductTruthValidationResult | undefined;
 
+  const rowBrandProfileId = (contentRow as unknown as Record<string, unknown>).brand_profile_id as string | undefined;
+  if (rowBrandProfileId && !context.brandVoiceMd) {
+    try {
+      const bp = await getBrandProfile(rowBrandProfileId, { query: dbQuery });
+      if (bp) context = { ...context, brandVoiceMd: formatBrandProfileAsMd(bp) };
+    } catch (err) {
+      console.warn('[brand-isolation] Failed to load brand profile, using default', err);
+    }
+  }
+
   const normalizedChannel = (context.channel ?? contentRow.channel ?? '').toLowerCase().trim();
   const isInstagram = normalizedChannel === 'instagram';
 
@@ -191,10 +220,10 @@ export async function executeContentWorkflow(
     let imagePrompt: string | null = null;
     let visualDesc: string | null = null;
     if (isInstagram) {
-      draft = extractCaption(rawDraft);
-      const prompts = extractImagePrompts(rawDraft);
-      imagePrompt = prompts[0]?.prompt ?? null;
-      visualDesc = extractAltText(rawDraft) ?? imagePrompt;
+      const parsed = parseInstagramDraft(rawDraft);
+      draft = parsed.caption || rawDraft.trim();
+      imagePrompt = parsed.imagePrompt;
+      visualDesc = parsed.visualDescription;
     }
     lastDraft = draft;
     if (!draft) {
@@ -272,21 +301,20 @@ export async function executeContentWorkflow(
       continue;
     }
 
-    if (isInstagram && imagePrompt) {
-      const enhanced = enhanceImagePrompt(imagePrompt, 'modern_noir');
-      const genResult = await generateImage({
-        org_id: orgId,
-        content_id: contentId,
-        prompt: enhanced,
-        resolution: '1024x1024',
-        style_preset: 'modern_noir',
+    if (isInstagram) {
+      const igResult = await runInstagramImageGeneration({
+        orgId,
+        contentId,
+        rawDraft,
+        caller,
+        stylePreset: 'modern_noir',
       });
-      if (genResult.success && genResult.image_url) {
-        await updateContent(caller, contentId, {
-          image_url: genResult.image_url,
-          image_generation_metadata: genResult.metadata,
-        });
-      }
+      console.log(`${LOG} instagram_image_gen`, {
+        contentId,
+        success: igResult.success,
+        promptSource: igResult.promptSource,
+        error: igResult.error,
+      });
     }
 
     const assigned = await assign(caller, {

@@ -55,6 +55,49 @@ export async function getBadgesForUser(userId: string): Promise<Badge[]> {
   return result.rows.map(mapRowToBadge);
 }
 
+/** One query for many users; omits per-badge `holders` aggregate (list/avatar use only). */
+export async function getBadgesForUsers(userIds: string[]): Promise<Map<string, Badge[]>> {
+  const byUser = new Map<string, Badge[]>();
+  if (userIds.length === 0) return byUser;
+
+  const result = await query<{
+    user_id: string;
+    id: string;
+    name: string;
+    icon: string;
+    type: string;
+    description: string;
+    rarity: string;
+    criteria: string | null;
+  }>(
+    `SELECT ub.user_id::text AS user_id,
+            b.id, b.name, b.icon, b.type, b.description, b.rarity, b.criteria
+     FROM user_badges ub
+     INNER JOIN badges b ON b.id = ub.badge_id
+     WHERE ub.user_id = ANY($1::text[])
+     ORDER BY ub.user_id, b.name`,
+    [userIds]
+  );
+
+  for (const row of result.rows) {
+    const badge: Badge = {
+      id: row.id,
+      name: row.name,
+      icon: row.icon,
+      type: row.type as Badge['type'],
+      description: row.description,
+      rarity: row.rarity as Badge['rarity'],
+      holders: [],
+      criteria: row.criteria ?? undefined,
+    };
+    const uid = row.user_id;
+    const list = byUser.get(uid);
+    if (list) list.push(badge);
+    else byUser.set(uid, [badge]);
+  }
+  return byUser;
+}
+
 export async function getAllBadges(): Promise<Badge[]> {
   const result = await query<BadgeRow>(
     `SELECT ${BADGE_SELECT}

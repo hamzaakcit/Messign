@@ -1,0 +1,181 @@
+<mjml>
+  <!--
+    Messign — Feature Launch (2026 AI-Native)
+    Tokens: base #050505, surface #121214, cyan #00F0FF, violet glow #7000FF, text #E4E4E7, mono #6B7280
+    Verification: Button label #050505 on #00F0FF exceeds WCAG AA. Stack columns on mobile via mj-group / fluid layout.
+    Images: Use 16:9 — width × 9/16 = height. In clients that support it, prefer object-fit:cover on <img> (see mj-style .img-16x9).
+  -->
+  <mj-head>
+    <mj-title>Messign — Feature Launch</mj-title>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" />
+    <mj-attributes>
+      <mj-all font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" />
+      <mj-text color="#E4E4E7" line-height="1.6" font-size="16px" />
+      <mj-button background-color="#00F0FF" color="#050505" font-weight="800" border-radius="8px" inner-padding="14px 28px" font-size="15px" />
+    </mj-attributes>
+    <mj-style>
+      .glass-header {
+        background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(18,18,20,0.92) 100%) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 0 48px rgba(112, 0, 255, 0.12) !important;
+      }
+      .h-hero {
+        font-weight: 800 !important;
+        letter-spacing: -0.02em !important;
+        color: #E4E4E7 !important;
+      }
+      .mono-status {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace !important;
+        color: #6B7280 !important;
+        font-size: 12px !important;
+        letter-spacing: 0.02em !important;
+      }
+      .bento-card {
+        background-color: #121214 !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 12px !important;
+      }
+      .divider-line { border-top: 1px solid #1F1F23 !important; }
+      /* 16:9 "cover" behavior where supported — set explicit height to match row width × 9/16 */
+      .img-16x9 table img,
+      .img-16x9 img {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 180px !important;
+        object-fit: cover !important;
+      }
+    </mj-style>
+    <mj-breakpoint width="480px" />
+  </mj-head>
+  <mj-body background-color="#050505" width="600px">
+    <!-- Glassmorphism header region (HTML-style shell for Unlayer: replicate with HTML block) -->
+    <mj-section padding="24px 24px 8px 24px" background-color="#050505">
+      <mj-column width="100%">
+        <mj-raw>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="glass-header" style="border-collapse:collapse;border-radius:16px;background:linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(18,18,20,0.92) 100%);border:1px solid rgba(255,255,255,0.1);box-shadow:0 0 48px rgba(112,0,255,0.12);">
+            <tr>
+              <td style="padding:20px 24px 16px 24px;">
+                <p class="mono-status" style="margin:0 0 12px 0;font-family:ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace;color:#6B7280;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">AI processing · feature launch</p>
+                <h1 class="h-hero" style="margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:1.15;color:#E4E4E7;text-align:center;">
+                  Ship the workspace your team feels tomorrow.
+                </h1>
+                <p style="margin:12px 0 0 0;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#A1A1AA;text-align:center;">
+                  One OS for campaigns, approvals, and proof — without newsletter noise.
+                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:20px auto 0 auto;">
+                  <tr>
+                    <td align="center" style="border-radius:8px;background-color:#00F0FF;box-shadow:0 0 28px rgba(0,240,255,0.35),0 0 60px rgba(112,0,255,0.15);">
+                      <a href="https://example.com/app" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#050505;text-decoration:none;border-radius:8px;">Open Messign</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="8px 24px 0 24px" background-color="#050505">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#1F1F23" padding="16px 0" css-class="divider-line" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Bento row 1: 60% | 40% — replace image src with 16:9 asset; object-fit described in head -->
+    <mj-section padding="8px 16px" background-color="#050505">
+      <mj-column width="60%" padding="8px">
+        <mj-wrapper padding="0px" css-class="bento-card">
+          <mj-image
+            src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80"
+            alt="Product surface"
+            border-radius="8px"
+            padding="16px 16px 8px 16px"
+            css-class="img-16x9"
+          />
+          <!-- 16:9: container ~312px wide → target height ~175px; adjust height attribute if compiler supports -->
+          <mj-text font-size="13px" color="#6B7280" padding="0 16px 4px 16px" font-family="ui-monospace, Menlo, Monaco, Consolas, monospace">LIVE · workspace</mj-text>
+          <mj-text padding="0 16px 16px 16px" font-size="15px" color="#E4E4E7">
+            Command Center unifies approvals, calendar, and ROI in one glass-smooth surface.
+          </mj-text>
+        </mj-wrapper>
+      </mj-column>
+      <mj-column width="40%" padding="8px">
+        <mj-wrapper padding="0px" css-class="bento-card">
+          <mj-text padding="16px 16px 8px 16px" font-size="18px" font-weight="800" color="#E4E4E7" letter-spacing="-0.02em">Ahead-of-time</mj-text>
+          <mj-text padding="0 16px 12px 16px" font-size="16px" color="#A1A1AA">
+            Dora surfaces risks before standup. Technical precision, human-readable.
+          </mj-text>
+          <mj-text color="#00F0FF" font-size="14px" padding="0 16px 16px 16px" line-height="2">
+            <a href="#" style="color:#00F0FF;">Approvals</a><br />
+            <a href="#" style="color:#00F0FF;">Calendar</a><br />
+            <a href="#" style="color:#00F0FF;">Insights</a>
+          </mj-text>
+        </mj-wrapper>
+      </mj-column>
+    </mj-section>
+
+    <!-- Bento row 2: 60% | 40% -->
+    <mj-section padding="0 16px 16px 16px" background-color="#050505">
+      <mj-column width="60%" padding="8px">
+        <mj-wrapper padding="0px" css-class="bento-card">
+          <mj-image
+            src="https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=800&q=80"
+            alt="Team workflow"
+            border-radius="8px"
+            padding="16px 16px 8px 16px"
+            css-class="img-16x9"
+          />
+          <mj-text font-size="13px" color="#6B7280" padding="0 16px 4px 16px" font-family="ui-monospace, Menlo, Monaco, Consolas, monospace">STATUS · sync</mj-text>
+          <mj-text padding="0 16px 16px 16px" font-size="15px" color="#E4E4E7">
+            Real-time handoffs across marketing, sales, and support — no tab sprawl.
+          </mj-text>
+        </mj-wrapper>
+      </mj-column>
+      <mj-column width="40%" padding="8px">
+        <mj-wrapper padding="0px" css-class="bento-card">
+          <mj-text padding="16px 16px 8px 16px" font-size="18px" font-weight="800" color="#E4E4E7" letter-spacing="-0.02em">Security</mj-text>
+          <mj-text padding="0 16px 16px 16px" font-size="16px" color="#A1A1AA">
+            Enterprise controls with a consumer-grade experience — violet-trimmed alerts when policy needs you.
+          </mj-text>
+        </mj-wrapper>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px" background-color="#050505">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#1F1F23" padding="8px 0 16px 0" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="8px 24px 24px 24px" background-color="#050505">
+      <mj-column>
+        <mj-text align="center" font-size="11px" letter-spacing="0.14em" text-transform="uppercase" color="#6B7280" padding-bottom="12px">Trust</mj-text>
+        <mj-social mode="horizontal" icon-size="24px" align="center" inner-padding="8px">
+          <mj-social-element href="#" src="https://www.mailjet.com/images/theme/v1/icons/gray/facebook.png" background-color="transparent" />
+          <mj-social-element href="#" src="https://www.mailjet.com/images/theme/v1/icons/gray/linkedin.png" background-color="transparent" />
+          <mj-social-element href="#" src="https://www.mailjet.com/images/theme/v1/icons/gray/twitter.png" background-color="transparent" />
+        </mj-social>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="24px 24px 32px 24px" background-color="#0a0a0a">
+      <mj-column width="33%">
+        <mj-text font-size="12px" font-weight="800" color="#E4E4E7" padding-bottom="8px" letter-spacing="-0.01em">Launch app</mj-text>
+        <mj-text font-size="13px" color="#9CA3AF" padding="4px 0" line-height="1.8"><a href="#" style="color:#9CA3AF;">Open</a></mj-text>
+        <mj-text font-size="13px" color="#9CA3AF" padding="4px 0" line-height="1.8"><a href="#" style="color:#9CA3AF;">Invite</a></mj-text>
+      </mj-column>
+      <mj-column width="34%">
+        <mj-text font-size="12px" font-weight="800" color="#E4E4E7" padding-bottom="8px" letter-spacing="-0.01em">Documentation</mj-text>
+        <mj-text font-size="13px" color="#9CA3AF" padding="4px 0" line-height="1.8"><a href="#" style="color:#9CA3AF;">Guides</a></mj-text>
+        <mj-text font-size="13px" color="#9CA3AF" padding="4px 0" line-height="1.8"><a href="#" style="color:#9CA3AF;">API</a></mj-text>
+      </mj-column>
+      <mj-column width="33%">
+        <mj-text font-size="12px" font-weight="800" color="#E4E4E7" padding-bottom="8px" letter-spacing="-0.01em">Support</mj-text>
+        <mj-text font-size="13px" color="#9CA3AF" padding="4px 0" line-height="1.8"><a href="#" style="color:#9CA3AF;">Help</a></mj-text>
+        <mj-text font-size="13px" color="#9CA3AF" padding="4px 0" line-height="1.8"><a href="#" style="color:#9CA3AF;">Contact</a></mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

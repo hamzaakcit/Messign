@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
-import { MarketingNav } from './components/MarketingNav';
+
 import { ApprovalList, type RiskFilter, type SortMode } from './components/approval/ApprovalList';
 import { ReviewDetail } from './components/approval/ReviewDetail';
 import { FeedbackModal } from './components/approval/FeedbackModal';
@@ -75,7 +75,6 @@ export function MarketingApprovalQueuePage() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <DoraInsightBar module="marketing" fallback="Review AI drafts with truth, brand voice, and compliance telemetry before approval." />
-      <MarketingNav />
       <div className="flex flex-col gap-2 mb-2 shrink-0">
         <h1 className="text-xl font-semibold text-app">Approval queue</h1>
         <p className="text-sm text-app-muted max-w-3xl">

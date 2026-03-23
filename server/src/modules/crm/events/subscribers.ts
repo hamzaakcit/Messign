@@ -10,55 +10,63 @@ import type { EmbeddingInput } from '../../../services/ai/rag/embeddingPipeline.
 export function registerCrmEventHandlers(eventBus: EventBus): void {
   registerCrmEmbeddingHandlers(eventBus);
   eventBus.on('crm.deal.won', async (payload) => {
-    void emitToUser(payload.ownerId, 'celebration:deal-won', {
-      dealId: payload.dealId,
-      amount: payload.amount,
-      currency: payload.currency,
-    });
-    await crossModuleQueue.add('generate_invoice_from_deal', {
-      type: 'generate_invoice_from_deal',
-      payload: {
+    try {
+      emitToUser(payload.ownerId, 'celebration:deal-won', {
         dealId: payload.dealId,
         amount: payload.amount,
         currency: payload.currency,
-        companyId: payload.companyId,
-      },
-      sourceEvent: 'crm.deal.won',
-    });
+      }).catch((err) => console.error('[CRM] emitToUser celebration error:', err));
+      await crossModuleQueue.add('generate_invoice_from_deal', {
+        type: 'generate_invoice_from_deal',
+        payload: {
+          dealId: payload.dealId,
+          amount: payload.amount,
+          currency: payload.currency,
+          companyId: payload.companyId,
+        },
+        sourceEvent: 'crm.deal.won',
+      });
+    } catch (err) { console.error('[CRM] crm.deal.won handler error:', err); }
   });
 
   eventBus.on('crm.deal.stage_changed', async (payload) => {
-    await crossModuleQueue.add('update_okr_progress', {
-      type: 'update_okr_progress',
-      payload: {
-        source: 'crm.deals',
-        event: 'stage_changed',
-        dealId: payload.dealId,
-        newStage: payload.newStage,
-      },
-      sourceEvent: 'crm.deal.stage_changed',
-    });
+    try {
+      await crossModuleQueue.add('update_okr_progress', {
+        type: 'update_okr_progress',
+        payload: {
+          source: 'crm.deals',
+          event: 'stage_changed',
+          dealId: payload.dealId,
+          newStage: payload.newStage,
+        },
+        sourceEvent: 'crm.deal.stage_changed',
+      });
+    } catch (err) { console.error('[CRM] crm.deal.stage_changed handler error:', err); }
   });
 
   eventBus.on('crm.deal.created', async (payload) => {
-    await notificationQueue.add('deal_created_notification', {
-      type: 'deal_created_notification',
-      payload: {
-        dealId: payload.dealId,
-        title: payload.title,
-        ownerId: payload.ownerId,
-        amount: payload.amount,
-      },
-    });
+    try {
+      await notificationQueue.add('deal_created_notification', {
+        type: 'deal_created_notification',
+        payload: {
+          dealId: payload.dealId,
+          title: payload.title,
+          ownerId: payload.ownerId,
+          amount: payload.amount,
+        },
+      });
+    } catch (err) { console.error('[CRM] crm.deal.created handler error:', err); }
   });
 
   eventBus.on('crm.activity.logged', async (payload) => {
-    await gamificationQueue.add('award_xp', {
-      type: 'award_xp',
-      userId: payload.userId,
-      amount: 5,
-      reason: `Logged ${payload.type} activity`,
-    });
+    try {
+      await gamificationQueue.add('award_xp', {
+        type: 'award_xp',
+        userId: payload.userId,
+        amount: 5,
+        reason: `Logged ${payload.type} activity`,
+      });
+    } catch (err) { console.error('[CRM] crm.activity.logged handler error:', err); }
   });
 
   console.log('[Module] CRM event handlers registered');

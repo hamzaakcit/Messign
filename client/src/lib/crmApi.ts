@@ -1,5 +1,6 @@
 import { getAccessToken } from './authToken';
 import { API_ORIGIN } from './api';
+import type { PaginatedResult } from './types';
 
 const CRM_BASE = `${API_ORIGIN}/api/crm`;
 
@@ -258,12 +259,7 @@ export interface CreateDealInput {
   tags?: string[];
 }
 
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
+export type { PaginatedResult } from './types';
 
 // ── API ────────────────────────────────────────────
 

@@ -21,7 +21,7 @@ export function parseSort(
   mapping: Record<string, string>,
   fallbackField: string,
 ): SortOptions {
-  const field = typeof sortBy === 'string' && sortBy ? mapping[sortBy] ?? sortBy : fallbackField;
+  const field = typeof sortBy === 'string' && sortBy ? (mapping[sortBy] ?? fallbackField) : fallbackField;
   return {
     field,
     direction: sortDir === 'asc' ? 'asc' : 'desc',

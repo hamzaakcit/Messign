@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 export const employmentTypeEnum = z.enum(['full_time', 'part_time', 'contract', 'intern']);
-export const userRoleEnum = z.enum(['admin', 'manager', 'member']);
+export const userRoleEnum = z.enum([
+  'employee', 'manager', 'dept_head', 'finance', 'finance_admin', 'admin', 'system_admin', 'member',
+]);
 export const userStatusEnum = z.enum(['online', 'away', 'busy', 'offline']);
 
 export const employeeFormSchema = z.object({

@@ -28,6 +28,7 @@ export const marketingAgent: SpecialistAgent = {
       priorContext,
       history: [],
       forceMarketingContext,
+      marketingAgentMode: forceMarketingContext,
     });
 
     return {

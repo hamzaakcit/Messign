@@ -7,7 +7,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "(npx kill-port 3000 3001 || true) && concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev": "node scripts/kill-dev-ports.cjs && concurrently -k \"npm run dev:server\" \"npx wait-on -t 120000 http://127.0.0.1:3001/api/health && npm run dev:client\"",
+    "ev": "npm run dev",
     "litellm": "(npx kill-port 4000 || true) && ([ -f .env ] && set -a && . ./.env && set +a) || true && ([ -f server/.env ] && set -a && . ./server/.env && set +a) || true && unset DATABASE_URL DATABASE_PUBLIC_URL DATABASE_ADMIN_URL && export LITELLM_MASTER_KEY=\"${LITELLM_MASTER_KEY:-sk-litellm}\" && (PATH=\"/opt/homebrew/opt/python@3.11/bin:/usr/local/opt/python@3.11/bin:$PATH\" litellm --config ./litellm/config.yaml --port 4000 || (echo 'LiteLLM not found for Python 3.11. Run: npm run litellm:install' && exit 1))",
     "litellm:install": "python3.11 -m pip install \"litellm[proxy]\"",
     "dev:client": "npm run dev --workspace=client",
@@ -17,10 +18,15 @@
     "start": "npm run start --workspace=server",
     "start:client": "npx serve client/dist -l $PORT",
     "type-check": "npm run type-check --workspaces --if-present",
+    "db:seed": "npm run db:seed --workspace=server",
+    "db:setup": "npm run db:setup --workspace=server",
+    "db:migrate": "npm run db:migrate --workspace=server",
+    "db:migrate-runner": "npm run db:migrate-runner --workspace=server",
     "db:verify-rls": "npm run db:verify-rls --workspace=server",
     "db:diagnose-rls": "npm run db:diagnose-rls --workspace=server",
     "db:apply-rls": "npm run db:apply-rls --workspace=server",
-    "db:check-org-gaps": "npm run db:check-org-gaps --workspace=server"
+    "db:check-org-gaps": "npm run db:check-org-gaps --workspace=server",
+    "render:dora-logo": "node scripts/render-dora-logo.mjs"
   },
   "workspaces": [
     "client",
@@ -34,6 +40,8 @@
     "@types/node": "^25.4.0",
     "concurrently": "^8.2.2",
     "kill-port": "^2.0.1",
-    "typescript": "^5.3.3"
+    "wait-on": "^8.0.1",
+    "typescript": "^5.3.3",
+    "sharp": "^0.34.5"
   }
 }
