@@ -70,12 +70,15 @@ Use this tool when someone asks:
 
   async execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
     const timePeriod = (args.time_period as string) || 'this_month';
-    let scope = (args.scope as string) || 'my';
     const category = args.category as string | undefined;
+
+    const privilegedRoles = ['admin', 'manager', 'cpo', 'finance', 'hr'];
+    const isPrivileged = privilegedRoles.includes(context.userRole);
+    let scope = (args.scope as string) || (isPrivileged ? 'company' : 'my');
 
     const isCompanyScope = scope === 'company' || scope === 'team';
     let scopeDowngraded = false;
-    if (isCompanyScope && !['admin', 'manager', 'cpo', 'finance', 'hr'].includes(context.userRole)) {
+    if (isCompanyScope && !isPrivileged) {
       scope = 'my';
       scopeDowngraded = true;
     }
@@ -189,11 +192,11 @@ Use this tool when someone asks:
            COUNT(*) FILTER (WHERE status IN ('finalized', 'signed'))::int as paid,
            COUNT(*) FILTER (WHERE status IN ('draft', 'revision'))::int as unpaid
            FROM invoices i
-           WHERE i.created_at >= $1`;
+           WHERE i.organization_id = $1 AND i.created_at >= $2`;
 
       const invoiceParams = scope === 'my'
         ? [context.userId, dateFilter]
-        : [dateFilter];
+        : [orgId, dateFilter];
       const invResult = await query(invoiceQuery, invoiceParams);
       invoiceStats = invResult.rows[0] as Record<string, unknown>;
     } catch {

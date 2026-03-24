@@ -8,12 +8,12 @@ export const FORMAT_PRESETS: Record<'agentStep' | 'synthesis' | 'kbContext' | 'p
   planning: { maxChars: 1500, style: 'compact' },
 };
 
-const SQLISH = /\b(SELECT|INSERT|UPDATE|DELETE|DROP|FROM|WHERE)\b/gi;
+const SQL_STATEMENT = /\b(SELECT|INSERT|UPDATE|DELETE|DROP)\s+[\s\S]{4,}?\b(FROM|INTO|SET|TABLE|WHERE)\b/gi;
 
 export function sanitizeForLLM(content: string): string {
   let s = content.replace(/\b[\w.-]+@[\w.-]+\.\w{2,}\b/g, '[email]');
   s = s.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[phone]');
-  s = s.replace(SQLISH, '[redacted-sql]');
+  s = s.replace(SQL_STATEMENT, '[redacted-sql]');
   return s;
 }
 

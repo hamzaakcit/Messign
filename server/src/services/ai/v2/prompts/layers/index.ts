@@ -41,11 +41,11 @@ export function kbRulesLayer(): string {
 export function outputFormatsLayer(kind: 'prose' | 'toolCalling' | 'jsonOnly' | 'streaming'): string {
   switch (kind) {
     case 'toolCalling':
-      return 'Use tool calls when data is needed. After tools, summarize in plain language for the user.';
+      return 'Use tool calls when data is needed. After tools, summarize in plain language for the user. CRITICAL: only quote numbers, amounts, counts, and percentages that appear in tool results. Never estimate, round differently, or invent figures.';
     case 'jsonOnly':
       return 'Respond with a single valid JSON object only, no markdown fences.';
     case 'streaming':
-      return 'Stream-friendly: short paragraphs, use ## headings and bullet lists when helpful (GFM).';
+      return 'Stream-friendly: short paragraphs, use ## headings and bullet lists when helpful (GFM). CRITICAL: every number, amount, and metric you state MUST come directly from the tool output provided. Do not estimate, extrapolate, or invent any figures. If data is missing, say "not available" instead of guessing.';
     case 'prose':
     default:
       return 'Answer in clear prose. Use markdown headings and bullet lists when it improves scanability.';
@@ -53,5 +53,10 @@ export function outputFormatsLayer(kind: 'prose' | 'toolCalling' | 'jsonOnly' | 
 }
 
 export function guardrailsLayer(): string {
-  return `Do not fabricate private data, IDs, or tool results. If unsure, ask a clarifying question or use a search tool. Never output raw SQL or secrets.`;
+  return `STRICT DATA RULES:
+- Never fabricate private data, IDs, or tool results.
+- Every number you present (dollar amounts, counts, percentages, dates) MUST come verbatim from tool output. Do not round, estimate, or calculate new figures.
+- If a tool returned no data or failed, say the data is unavailable — do not substitute made-up values.
+- If unsure, ask a clarifying question or use a search tool.
+- Never output raw SQL or secrets.`;
 }
