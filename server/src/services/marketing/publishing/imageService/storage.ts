@@ -8,6 +8,19 @@ const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 const STORAGE_BUCKET = process.env.MARKETING_IMAGE_BUCKET ?? 'marketing-images';
 
+/**
+ * Supabase Storage REST expects a JWT in `Authorization: Bearer`.
+ * New opaque keys (`sb_secret_…`) are NOT valid JWTs — they must be
+ * sent via the `apikey` header instead.  Detect the format and build
+ * the correct header map.
+ */
+function storageAuthHeaders(): Record<string, string> {
+  if (SUPABASE_SERVICE_KEY.startsWith('sb_')) {
+    return { apikey: SUPABASE_SERVICE_KEY };
+  }
+  return { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` };
+}
+
 export function buildStorageKey(orgId: string, contentId: string): string {
   const timestamp = Date.now();
   const nonce = randomUUID().slice(0, 8);
@@ -26,7 +39,7 @@ export async function uploadToStorage(buffer: Buffer, key: string): Promise<stri
     const response = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        ...storageAuthHeaders(),
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=31536000, immutable',
         'x-upsert': 'true',

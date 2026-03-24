@@ -9,7 +9,7 @@
 // ============================================================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Download } from 'lucide-react';
+import { Download, ImageOff } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,7 +91,10 @@ export function InstagramCockpit({
   const [editedPrompt, setEditedPrompt] = useState(() => imagePrompt ?? buildFallbackImagePrompt(caption, contentTitle));
   const [selectedStyle, setSelectedStyle] = useState('modern_noir');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [imgLoadError, setImgLoadError] = useState(false);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setImgLoadError(false); }, [imageUrl]);
 
   // Sync from server; when `image_prompt` is absent, pre-fill a valid prompt so Regenerate works (server min 10 chars).
   useEffect(() => {
@@ -221,12 +224,20 @@ export function InstagramCockpit({
                   {progressMessage ?? 'Generating visual...'}
                 </p>
               </div>
-            ) : imageUrl ? (
+            ) : imageUrl && !imgLoadError ? (
               <img
                 src={imageUrl}
                 alt={altText ?? 'Generated Instagram post image'}
                 style={styles.postImage}
+                onError={() => setImgLoadError(true)}
               />
+            ) : imageUrl && imgLoadError ? (
+              <div style={styles.placeholderState}>
+                <ImageOff size={28} strokeWidth={1.5} style={{ opacity: 0.4 }} />
+                <p style={styles.placeholderText}>
+                  Image could not be loaded — click <strong>Regenerate image</strong> below to generate a new one.
+                </p>
+              </div>
             ) : (
               <div style={styles.placeholderState}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.3 }}>

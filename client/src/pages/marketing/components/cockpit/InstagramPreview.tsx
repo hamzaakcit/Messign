@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function splitCaptionAndHashtags(body: string): { main: string; hashtags: string[] } {
@@ -49,8 +49,11 @@ export function InstagramPreview({
   username?: string;
 }) {
   const [slideIndex, setSlideIndex] = useState(0);
+  const [imgLoadError, setImgLoadError] = useState(false);
   const { main, hashtags } = splitCaptionAndHashtags(caption);
   const { visible, more } = foldCaption(main);
+
+  useEffect(() => { setImgLoadError(false); }, [imageUrl]);
 
   const isCarousel = carouselImages && carouselImages.length > 1;
   const currentImage = isCarousel
@@ -74,9 +77,9 @@ export function InstagramPreview({
             <div className="h-10 w-10 animate-pulse rounded-full bg-white/[0.08]" />
             <p className="text-[11px] text-slate-500">Generating visuals…</p>
           </div>
-        ) : currentImage ? (
+        ) : currentImage && !imgLoadError ? (
           <>
-            <img src={currentImage} alt="" className="h-full w-full object-cover" />
+            <img src={currentImage} alt="" className="h-full w-full object-cover" onError={() => setImgLoadError(true)} />
             {isCarousel && (
               <>
                 {slideIndex > 0 && (
@@ -113,6 +116,13 @@ export function InstagramPreview({
               </>
             )}
           </>
+        ) : currentImage && imgLoadError ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
+            <ImageOff className="h-7 w-7 text-slate-600" strokeWidth={1.5} />
+            <p className="text-[10px] text-slate-500 text-center">
+              Image could not be loaded — regenerate to create a new one.
+            </p>
+          </div>
         ) : (
           <div className="flex h-full flex-col justify-end p-3">
             <p className="text-[10px] leading-relaxed text-slate-500 line-clamp-[12]">
