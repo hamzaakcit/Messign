@@ -9,5 +9,6 @@ export {
   DoraPilotFace,
   DoraWelcomeHero,
   DoraProcessingDual,
+  DoraPilot3DLazy,
 } from './pilot';
-export type { FacePhase } from './pilot';
+export type { FacePhase, DoraPilot3DProps } from './pilot';

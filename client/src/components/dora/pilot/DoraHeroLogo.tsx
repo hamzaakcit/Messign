@@ -1,13 +1,24 @@
 import { useState } from 'react';
 import { PilotPlaneSVG } from './PilotPlaneSVG';
+import { DoraPilot3DLazy } from './DoraPilot3DLazy';
 
 interface DoraHeroLogoProps {
   size?: number;
   showLabel?: boolean;
+  /** Render the interactive 3D canvas instead of the flat SVG. */
+  variant?: '2d' | '3d';
+  /** Show export buttons on the 3D canvas (dev / asset-generation use). */
+  showExport?: boolean;
 }
 
-export function DoraHeroLogo({ size = 140, showLabel = true }: DoraHeroLogoProps) {
+export function DoraHeroLogo({
+  size = 140,
+  showLabel = true,
+  variant = '2d',
+  showExport = false,
+}: DoraHeroLogoProps) {
   const [hovered, setHovered] = useState(false);
+  const use3D = variant === '3d';
 
   return (
     <div
@@ -38,7 +49,7 @@ export function DoraHeroLogo({ size = 140, showLabel = true }: DoraHeroLogoProps
           pointerEvents: 'none',
         }} />
 
-        {hovered && [0, 1, 2].map(i => (
+        {!use3D && hovered && [0, 1, 2].map(i => (
           <div key={i} style={{
             position: 'absolute',
             top: '50%',
@@ -53,13 +64,21 @@ export function DoraHeroLogo({ size = 140, showLabel = true }: DoraHeroLogoProps
           }} />
         ))}
 
-        <div style={{
-          animation: 'dp-breathe 4s ease-in-out infinite',
-          transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-          transition: 'transform 0.5s cubic-bezier(0.16,1,0.3,1)',
-        }}>
-          <PilotPlaneSVG size={size} showGoggleGlint isActive={hovered} />
-        </div>
+        {use3D ? (
+          <DoraPilot3DLazy
+            width={size}
+            height={size}
+            showExport={showExport}
+          />
+        ) : (
+          <div style={{
+            animation: 'dp-breathe 4s ease-in-out infinite',
+            transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+            transition: 'transform 0.5s cubic-bezier(0.16,1,0.3,1)',
+          }}>
+            <PilotPlaneSVG size={size} showGoggleGlint isActive={hovered} />
+          </div>
+        )}
       </div>
 
       <div style={{

@@ -62,6 +62,11 @@ import { initNewTables } from './db/initNewTables.js';
 const app = express();
 const httpServer = createServer(app);
 
+// Behind Railway / reverse proxies: trust X-Forwarded-* so req.ip and JWT session fingerprint match real clients.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // CORS: production allows messign.com, CLIENT_URL (Vercel), and ADDITIONAL_CORS_ORIGINS (comma-separated)
 const CORS_ORIGINS = process.env.NODE_ENV === 'production'
   ? [

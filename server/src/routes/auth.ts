@@ -6,16 +6,25 @@ import { requireJwt } from '../middleware/authMiddleware.js';
 
 export const authRouter = Router();
 
-// Cross-origin (Vercel + Railway): SameSite=strict blocks cookie on cross-site requests, causing login redirect loop.
-// Use SameSite=none when CLIENT_URL is set (frontend on different domain).
-function getRefreshCookieOptions(): { httpOnly: boolean; secure: boolean; sameSite: 'strict' | 'none'; maxAge: number; path: string } {
+/**
+ * HttpOnly refresh cookie options.
+ * In production the API is always HTTPS (Railway, etc.). Browsers will not store
+ * SameSite=Strict cookies set from a cross-origin `fetch` (e.g. Vercel → Railway),
+ * so refresh fails and the first `/api/*` call after login returns 401 → logout loop.
+ * Use SameSite=None + Secure for all production cookies on this path.
+ */
+function getRefreshCookieOptions(): {
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: 'strict' | 'lax' | 'none';
+  maxAge: number;
+  path: string;
+} {
   const isProduction = process.env.NODE_ENV === 'production';
-  const clientUrl = process.env.CLIENT_URL?.trim();
-  const isCrossOrigin = isProduction && !!clientUrl;
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isCrossOrigin ? 'none' : 'strict',
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/api/auth/refresh',
   };

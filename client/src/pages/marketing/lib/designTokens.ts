@@ -404,6 +404,9 @@ export const MESSIGN_BRAND = {
   logoHeight: 36,
   logoAlt: 'Messign',
   logoFallbackUrl: 'https://placehold.co/140x36/transparent/0070F3?text=Messign&font=inter',
+  /** 3D-rendered Dora mascot (1080×1080 transparent PNG) for emails & social. */
+  doraMascot3dUrl: '/branding/dora-pilot-3d-square.png',
+  doraMascot3dPortraitUrl: '/branding/dora-pilot-3d-portrait.png',
 } as const;
 
 

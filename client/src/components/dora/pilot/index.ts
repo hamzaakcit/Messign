@@ -7,3 +7,5 @@ export { DoraPilotFace } from './DoraPilotFace';
 export type { FacePhase } from './DoraPilotFace';
 export { DoraWelcomeHero } from './DoraWelcomeHero';
 export { DoraProcessingDual } from './DoraProcessingDual';
+export { DoraPilot3DLazy } from './DoraPilot3DLazy';
+export type { DoraPilot3DProps } from './DoraPilot3D';
