@@ -33,14 +33,20 @@ if (!useLiteLLM && LITELLM_URL_RAW) {
 const groqApiKey = process.env.GROQ_API_KEY ?? '';
 const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY ?? '';
 
+const LLM_TIMEOUT_MS = 25_000;
+
 const groqClient = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
   apiKey: groqApiKey,
+  timeout: LLM_TIMEOUT_MS,
+  maxRetries: 1,
 });
 
 const geminiClient = new OpenAI({
   baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
   apiKey: geminiApiKey,
+  timeout: LLM_TIMEOUT_MS,
+  maxRetries: 1,
 });
 
 type DirectProvider = 'groq' | 'gemini';
@@ -400,32 +406,46 @@ async function* streamDirectProviders(
 
   const maxTokens = options.maxTokens ?? 2048;
   const temperature = options.temperature ?? 0.3;
+  const lastErrors: string[] = [];
 
   for (const tier of chain) {
     const client = directClientForTier(tier);
-    if (!client) continue;
-    const { model } = TIER_DIRECT[tier];
-    try {
-      const stream = await client.chat.completions.create({
-        model,
-        messages: options.messages,
-        tools: options.tools?.length ? options.tools : undefined,
-        max_tokens: maxTokens,
-        temperature,
-        stream: true,
-      });
-      for await (const chunk of stream) {
-        yield chunk;
+    if (!client) {
+      lastErrors.push(`${tier}: no API key for ${TIER_DIRECT[tier].provider}`);
+      continue;
+    }
+    const { provider, model: tierModel } = TIER_DIRECT[tier];
+    const modelsToTry = provider === 'gemini' ? geminiChatModelCandidates() : [tierModel];
+    for (const model of modelsToTry) {
+      try {
+        const stream = await client.chat.completions.create({
+          model,
+          messages: options.messages,
+          tools: options.tools?.length ? options.tools : undefined,
+          max_tokens: maxTokens,
+          temperature,
+          stream: true,
+        });
+        for await (const chunk of stream) {
+          yield chunk;
+        }
+        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const canRetryGemini404 =
+          provider === 'gemini' &&
+          modelsToTry.indexOf(model) < modelsToTry.length - 1 &&
+          /\b404\b/.test(msg);
+        if (canRetryGemini404) {
+          console.warn(`[Gateway] Gemini stream model ${model} 404; trying next`);
+          continue;
+        }
+        lastErrors.push(`${tier} (${model}): ${msg}`);
+        console.warn(`[Gateway] Direct stream failed for tier ${tier}`, { model, error: msg });
       }
-      return;
-    } catch (err) {
-      console.warn(`[Gateway] Direct stream failed for tier ${tier}`, {
-        model,
-        error: err instanceof Error ? err.message : String(err),
-      });
     }
   }
-  throw new Error('[Gateway] All direct streaming providers failed');
+  throw new Error(`[Gateway] All direct streaming providers failed: ${lastErrors.join(' | ')}`);
 }
 
 // Streaming variant for SSE responses

@@ -89,6 +89,9 @@ function bearerFromReq(req: Request): string | null {
   return h?.startsWith('Bearer ') ? h.slice(7) : null;
 }
 
+/** Max time before we forcibly close the SSE stream (keeps within Railway/Vercel proxy limits). */
+const PIPELINE_TIMEOUT_MS = 55_000;
+
 export async function runDoraPipeline(
   req: Request,
   res: Response,
@@ -98,8 +101,20 @@ export async function runDoraPipeline(
   const controller = new StreamController(res);
   const telemetry: PipelineTelemetry = { startedAt: Date.now(), stages: [] };
   const startedAt = telemetry.startedAt;
-  /** First byte for clients/proxies that drop idle SSE; progress is replaced by real text. */
   controller.emit('progress', { phase: 'starting', step: 1, maxSteps: 4 });
+
+  let pipelineSettled = false;
+  const safetyTimer = setTimeout(() => {
+    if (pipelineSettled) return;
+    pipelineSettled = true;
+    console.warn('[v2 pipeline] safety timeout — forcing done event', { elapsedMs: Date.now() - startedAt });
+    controller.emit('error', {
+      code: 'timeout',
+      message: 'The AI backend took too long to respond. Please try again.',
+    });
+    controller.emit('done', null);
+    controller.end();
+  }, PIPELINE_TIMEOUT_MS);
 
   try {
     const sessionId = body.sessionId || `s_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
@@ -161,6 +176,8 @@ export async function runDoraPipeline(
             terminationReason: 'pending_action',
           });
           controller.emit('done', null);
+          pipelineSettled = true;
+          clearTimeout(safetyTimer);
           controller.end();
           return;
         } catch (e) {
@@ -172,6 +189,8 @@ export async function runDoraPipeline(
     if (body.searchMode) {
       telemetry.stages.push('kb_only');
       await streamKBSynthesis({ controller, context: ctx, userQuery: body.query, startedAt });
+      pipelineSettled = true;
+      clearTimeout(safetyTimer);
       controller.end();
       return;
     }
@@ -209,6 +228,8 @@ export async function runDoraPipeline(
             trace,
             startedAt,
           });
+          pipelineSettled = true;
+          clearTimeout(safetyTimer);
           controller.end();
           return;
         } catch (e) {
@@ -218,6 +239,8 @@ export async function runDoraPipeline(
             message: e instanceof Error ? e.message : String(e),
           });
           controller.emit('done', null);
+          pipelineSettled = true;
+          clearTimeout(safetyTimer);
           controller.end();
           return;
         }
@@ -246,6 +269,8 @@ export async function runDoraPipeline(
     if (plan.outcome.type === 'web_search') {
       telemetry.stages.push('web_search_fallback_kb');
       await streamKBSynthesis({ controller, context: ctx, userQuery: body.query, startedAt });
+      pipelineSettled = true;
+      clearTimeout(safetyTimer);
       controller.end();
       return;
     }
@@ -253,6 +278,8 @@ export async function runDoraPipeline(
     if (plan.outcome.type === 'greeting') {
       telemetry.stages.push('greeting');
       await streamGreeting({ controller, context: ctx, startedAt });
+      pipelineSettled = true;
+      clearTimeout(safetyTimer);
       controller.end();
       return;
     }
@@ -260,6 +287,8 @@ export async function runDoraPipeline(
     if (plan.outcome.type === 'kb_search') {
       telemetry.stages.push('kb_search');
       await streamKBSynthesis({ controller, context: ctx, userQuery: body.query, startedAt });
+      pipelineSettled = true;
+      clearTimeout(safetyTimer);
       controller.end();
       return;
     }
@@ -285,6 +314,8 @@ export async function runDoraPipeline(
           intentId: plan.outcome.intentId,
         });
         controller.emit('done', null);
+        pipelineSettled = true;
+        clearTimeout(safetyTimer);
         controller.end();
         return;
       }
@@ -346,6 +377,8 @@ export async function runDoraPipeline(
           : {}),
       });
       controller.emit('done', null);
+      pipelineSettled = true;
+      clearTimeout(safetyTimer);
       controller.end();
       return;
     }
@@ -370,8 +403,13 @@ export async function runDoraPipeline(
       trace,
       startedAt,
     });
+    pipelineSettled = true;
+    clearTimeout(safetyTimer);
     controller.end();
   } catch (err) {
+    if (pipelineSettled) return;
+    pipelineSettled = true;
+    clearTimeout(safetyTimer);
     if (err instanceof DoraPipelineError) {
       controller.emit('error', { code: err.code, message: err.message, details: err.details });
     } else {

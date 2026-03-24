@@ -425,17 +425,17 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
         if (!sawDoneEvent) {
           assistantFinalized = true;
-          const connectionHint =
-            'No response was returned. The stream closed early — often the AI backend (LiteLLM / OpenAI) is unreachable or timed out. Check server env: LITELLM_URL, LITELLM_MASTER_KEY, or OPENAI_API_KEY.';
+          const fallbackMsg = 'The AI took too long to respond. Please try again.';
+          const cleanText = accumulatedText?.replace(/^_[^_]*…_\s*/, '').trim();
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessage.id
                 ? {
                     ...m,
                     content:
-                      accumulatedText?.trim() ||
-                      (typeof m.content === 'string' ? m.content.trim() : '') ||
-                      connectionHint,
+                      cleanText ||
+                      (typeof m.content === 'string' ? m.content.replace(/^_[^_]*…_\s*/, '').trim() : '') ||
+                      fallbackMsg,
                     specialist: accumulatedSpecialist ?? m.specialist,
                     sources: accumulatedSources.length > 0 ? accumulatedSources : m.sources,
                     metadata: accumulatedMetadata ?? m.metadata,
@@ -471,6 +471,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         setIsStreaming(false);
         abortControllerRef.current = null;
         if (!assistantFinalized) {
+          assistantFinalized = true;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessage.id && m.isStreaming
@@ -479,7 +480,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                     isStreaming: false,
                     content:
                       m.content?.trim() ||
-                      'No response was returned. Try again or check your connection.',
+                      'The AI took too long to respond. Please try again.',
                   }
                 : m,
             ),

@@ -20,6 +20,7 @@ export class StreamController {
   }
 
   emit(type: string, data: unknown): void {
+    if (this.res.writableEnded) return;
     if (type === 'done') {
       this.doneEmitted = true;
     }
@@ -32,17 +33,24 @@ export class StreamController {
         data: { code: 'sse_payload', message: 'Response payload could not be serialized.' },
       });
     }
-    this.res.write(`data: ${payload}\n\n`);
+    try {
+      this.res.write(`data: ${payload}\n\n`);
+    } catch {
+      /* client disconnected */
+    }
   }
 
   end(): void {
-    if (!this.doneEmitted) {
-      this.doneEmitted = true;
-      const payload = JSON.stringify({ type: 'done', data: null });
-      this.res.write(`data: ${payload}\n\n`);
-    }
-    if (!this.res.writableEnded) {
-      this.res.end();
+    try {
+      if (!this.doneEmitted && !this.res.writableEnded) {
+        this.doneEmitted = true;
+        this.res.write(`data: ${JSON.stringify({ type: 'done', data: null })}\n\n`);
+      }
+      if (!this.res.writableEnded) {
+        this.res.end();
+      }
+    } catch {
+      /* client already disconnected */
     }
   }
 }
