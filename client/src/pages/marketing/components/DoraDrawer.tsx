@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Instagram, Linkedin, Loader2, Mail, Send, StopCircle, Trash2, X } from 'lucide-react';
+import { Instagram, Loader2, Send, StopCircle, Trash2, X as CloseIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
@@ -8,21 +8,10 @@ import { DoraChatAvatar } from '@/components/dora/DoraPilot';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
+import { MARKETING_COMPOSER_QUICK_ACTIONS } from './marketingDoraQuickActions';
+import { MarketingDoraQuickActionIcon } from './MarketingDoraQuickActionIcon';
 
 const noop = (): void => {};
-
-const QUICK_PROMPTS_LINKEDIN_EMAIL: { label: string; text: string; icon: 'linkedin' | 'mail' }[] = [
-  {
-    label: 'LinkedIn post',
-    icon: 'linkedin',
-    text: 'Draft a LinkedIn post for [topic]: hook in the first two lines, short paragraphs, minimal emoji (0\u20132), and a professional CTA.',
-  },
-  {
-    label: 'Email promo',
-    icon: 'mail',
-    text: 'Draft a short marketing email: subject line (~55 chars), preview text, body with one primary CTA, plain-language tone.',
-  },
-];
 
 interface DoraDrawerProps {
   open: boolean;
@@ -120,7 +109,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                 className="p-1.5 rounded-md text-app-muted hover:text-app-text hover:bg-app-nav-hover"
                 title="Close"
               >
-                <X className="w-4 h-4" />
+                <CloseIcon className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -165,29 +154,33 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
           </div>
 
           <div className="p-2 border-t border-white/[0.06] space-y-1.5 bg-[#0a0c10]">
-            <div className="flex flex-wrap gap-1">
+            <div className="flex gap-1 overflow-x-auto pb-0.5 snap-x scrollbar-thin [-webkit-overflow-scrolling:touch]">
               <button
                 type="button"
                 disabled={isLoading}
                 onClick={() => setIgModalOpen(true)}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-pink-500/25 bg-pink-500/10 text-pink-200/90 hover:bg-pink-500/15 disabled:opacity-40"
+                className="inline-flex shrink-0 snap-start items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border border-pink-500/25 bg-gradient-to-b from-pink-500/30 to-rose-600/20 text-pink-100/95 hover:brightness-110 disabled:opacity-40"
               >
                 <Instagram className="w-2.5 h-2.5 shrink-0" />
                 Instagram
               </button>
-              {QUICK_PROMPTS_LINKEDIN_EMAIL.map((q) => (
+              {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
                 <button
-                  key={q.label}
+                  key={q.id}
                   type="button"
                   disabled={isLoading}
                   onClick={() => {
                     setInputValue(q.text);
                     inputRef.current?.focus();
                   }}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-app-border bg-app-surface-tertiary text-app-muted hover:text-app-text hover:bg-app-hover disabled:opacity-40"
+                  className={`
+                    inline-flex shrink-0 snap-start items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border bg-gradient-to-b
+                    text-app-text/90 hover:brightness-110 disabled:opacity-40
+                    ${q.accent}
+                    ${q.upgraded ? 'ring-1 ring-white/5' : ''}
+                  `}
                 >
-                  {q.icon === 'linkedin' ? <Linkedin className="w-2.5 h-2.5 shrink-0 text-blue-300" /> : null}
-                  {q.icon === 'mail' ? <Mail className="w-2.5 h-2.5 shrink-0 text-emerald-300" /> : null}
+                  <MarketingDoraQuickActionIcon icon={q.icon} size="sm" />
                   {q.label}
                 </button>
               ))}

@@ -5,6 +5,7 @@ import { buildValuePropGrid, buildTextBlock, buildImageBlock } from './contentBu
 import { buildCTASection, buildDividerBlock } from './ctaBuilder';
 import { buildTestimonialCard, buildSocialProofBar, buildFooterBlock } from './socialBuilders';
 import { buildProductGrid } from './productBuilder';
+import { buildImageTextSection } from './imageTextBuilder';
 
 /**
  * Registry mapping section types to their builder functions.
@@ -18,6 +19,7 @@ const VA2_BUILDER_REGISTRY: Record<SectionType, BlockBuilder> = {
   social_proof: buildSocialProofBar as BlockBuilder,
   text_block: buildTextBlock as BlockBuilder,
   image: buildImageBlock as BlockBuilder,
+  image_text: buildImageTextSection as BlockBuilder,
   cta: buildCTASection as BlockBuilder,
   divider: buildDividerBlock as BlockBuilder,
   footer: buildFooterBlock as BlockBuilder,

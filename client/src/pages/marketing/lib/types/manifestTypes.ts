@@ -14,6 +14,7 @@ export type SectionType =
   | 'footer'
   | 'text_block'
   | 'image'
+  | 'image_text'
   | 'preheader'
   | 'product_grid';
 
@@ -94,6 +95,18 @@ export interface ImageContent {
   caption?: string;
   linkUrl?: string;
   width?: 'full' | 'medium' | 'small';
+  [key: string]: unknown;
+}
+
+export interface ImageTextContent {
+  headline?: string;
+  body: string;
+  imageUrl?: string;
+  imagePrompt?: string;
+  altText?: string;
+  layout?: 'image_left' | 'image_right' | 'image_top';
+  ctaText?: string;
+  ctaUrl?: string;
   [key: string]: unknown;
 }
 

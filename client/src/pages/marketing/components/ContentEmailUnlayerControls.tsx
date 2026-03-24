@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
-import { Bookmark, ChevronDown, Mail, Sparkles, Wand2 } from 'lucide-react';
+import { Bookmark, ChevronDown, Mail, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { UnlayerEmailEditor } from './UnlayerEmailEditor';
 import {
@@ -303,28 +304,47 @@ export function ContentEmailUnlayerControls({
           ) : null}
 
           <div className="min-h-[640px] min-w-0 flex-1">
-            <UnlayerEmailEditor
-              ref={editorRef}
-              editorKey={editorKey}
-              initialDesign={bodyDesign}
-              initialHtml={bodyHtml}
-              starterTemplates={mergedStarters}
-              user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
-              onApply={({ html, design }) => {
-                setBodyHtml(html);
-                setBodyDesign(design);
-              }}
-              onRegenerateImage={async (prompt: string) => {
-                if (!userId || !content.id) return null;
-                try {
-                  const result = await marketingAPI.regenerateContentImage(userId, content.id, { image_prompt: prompt });
-                  return result.image_url;
-                } catch {
-                  return null;
-                }
-              }}
-              onManifestAssembled={wizard.handleManifestAssembled}
-            />
+            <ErrorBoundary
+              resetKey={editorKey}
+              fallback={
+                <div className="flex flex-col items-center justify-center gap-3 p-12 text-center min-h-[400px]">
+                  <p className="text-sm font-medium text-app-text">The email builder encountered an error.</p>
+                  <p className="text-xs text-app-muted max-w-sm">
+                    This can happen when the Unlayer CDN updates or the editor fails to initialize. Try closing and reopening the builder.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setBuilderOpen(false)}
+                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Close and retry
+                  </button>
+                </div>
+              }
+            >
+              <UnlayerEmailEditor
+                ref={editorRef}
+                editorKey={editorKey}
+                initialDesign={bodyDesign}
+                initialHtml={bodyHtml}
+                starterTemplates={mergedStarters}
+                user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
+                onApply={({ html, design }) => {
+                  setBodyHtml(html);
+                  setBodyDesign(design);
+                }}
+                onRegenerateImage={async (prompt: string) => {
+                  if (!userId || !content.id) return null;
+                  try {
+                    const result = await marketingAPI.regenerateContentImage(userId, content.id, { image_prompt: prompt });
+                    return result.image_url;
+                  } catch {
+                    return null;
+                  }
+                }}
+                onManifestAssembled={wizard.handleManifestAssembled}
+              />
+            </ErrorBoundary>
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t border-app-border">
             <button

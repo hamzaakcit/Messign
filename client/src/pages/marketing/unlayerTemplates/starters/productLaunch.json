@@ -12,13 +12,26 @@
         "subheadline": "The next chapter of your workflow starts here—faster builds, clearer insights, and a product built for teams who refuse to stand still.",
         "ctaText": "Explore the launch",
         "ctaUrl": "https://example.com/product-launch",
-        "imagePrompt": "Bold futuristic product hero on deep gradient background, soft studio lighting, minimal UI mockup floating beside sleek hardware silhouette, high contrast editorial style",
+        "imagePrompt": "[STOCK] Bold futuristic product launch event stage with dramatic lighting, modern tech conference setting, audience silhouettes, deep blue and purple tones, professional event photography",
         "alignment": "center"
       }
     },
     {
-      "type": "value_prop",
+      "type": "image_text",
       "order": 2,
+      "content": {
+        "headline": "Ship in days, not quarters",
+        "body": "Automated pipelines and opinionated defaults get your first release live while competitors are still in planning. Connect your repo and watch your first deploy go out in under ten minutes.",
+        "imagePrompt": "[STOCK] Developer at a clean modern desk with laptop showing code, bright natural office light, focused work moment, startup workspace with plants",
+        "altText": "Developer shipping code from a modern workspace",
+        "layout": "image_left",
+        "ctaText": "See the workflow",
+        "ctaUrl": "https://example.com/workflow"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 3,
       "content": {
         "sectionTitle": "Why teams are switching now",
         "columns": 3,
@@ -42,8 +55,19 @@
       }
     },
     {
+      "type": "image_text",
+      "order": 4,
+      "content": {
+        "headline": "Built for real teams",
+        "body": "Whether you're a five-person startup or a growing enterprise, the setup fits your workflow — not the other way around. Your team will feel at home from day one.",
+        "imagePrompt": "[STOCK] Diverse team collaborating around a large monitor in a modern open-plan office, casual professional atmosphere, warm natural light, candid teamwork moment",
+        "altText": "Team collaborating in a modern office",
+        "layout": "image_right"
+      }
+    },
+    {
       "type": "cta",
-      "order": 3,
+      "order": 5,
       "content": {
         "headline": "See [Product Name] in action",
         "description": "Book a 15-minute walkthrough or start a free trial—no credit card required for the first fourteen days.",
@@ -54,7 +78,7 @@
     },
     {
       "type": "footer",
-      "order": 4,
+      "order": 6,
       "content": {
         "companyName": "Messign Labs, Inc.",
         "address": "500 Market Street, Suite 1200, San Francisco, CA 94105",

@@ -11,6 +11,7 @@ import { AISourcesList } from './AISourcesList';
 import { AIWidgetRenderer } from '@/components/dora/widgets/AIWidgetRenderer';
 import DoraAvatar from '@/components/dora/DoraAvatar';
 import { ThinkingIndicator } from '@/components/dora/ThinkingIndicator';
+import { AIProcessingSteps } from '@/components/dora/AIProcessingSteps';
 import { DoraFollowUpChips } from './DoraFollowUpChips';
 import { ActionConfirmationInline } from '@/components/dora/ActionConfirmationInline';
 import { Link } from 'react-router-dom';
@@ -90,7 +91,11 @@ export function AIMessageBubble({
             <SpecialistBadge specialist={message.specialist} />
           )}
           {isEmptyStreaming ? (
-            <ThinkingIndicator />
+            message.processingSteps && message.processingSteps.length > 0 ? (
+              <AIProcessingSteps steps={message.processingSteps} />
+            ) : (
+              <ThinkingIndicator />
+            )
           ) : (
             <div className="dora-glass px-4 py-3 rounded-2xl rounded-tl-md">
               <div className="max-w-3xl text-sm text-app-muted leading-relaxed whitespace-pre-wrap [&_strong]:text-app-text [&_h1]:text-app-text [&_h2]:text-app-text [&_h3]:text-app-text [&_ul]:my-1 [&_li]:text-app-muted">

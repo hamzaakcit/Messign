@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Instagram, Linkedin, Loader2, Mail, Send, StopCircle, Trash2 } from 'lucide-react';
+import { Instagram, Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { DoraChatAvatar } from '@/components/dora/DoraPilot';
@@ -8,23 +8,10 @@ import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import type { BoardCardData } from './BoardCard';
 import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
+import { MARKETING_COMPOSER_QUICK_ACTIONS } from './marketingDoraQuickActions';
+import { MarketingDoraQuickActionIcon } from './MarketingDoraQuickActionIcon';
 
 const noop = (): void => {};
-
-const QUICK_PROMPTS_LINKEDIN_EMAIL: { label: string; text: string; icon: 'linkedin' | 'mail'; accent: string }[] = [
-  {
-    label: 'LinkedIn',
-    icon: 'linkedin',
-    accent: 'from-blue-500/25 to-indigo-600/15 border-blue-500/20',
-    text: 'Draft a LinkedIn post for [topic]: hook in the first two lines, short paragraphs, minimal emoji (0\u20132), and a professional CTA.',
-  },
-  {
-    label: 'Email',
-    icon: 'mail',
-    accent: 'from-emerald-500/25 to-teal-600/15 border-emerald-500/20',
-    text: 'Draft a short marketing email: subject line (~55 chars), preview text, body with one primary CTA, plain-language tone.',
-  },
-];
 
 interface DoraRailProps {
   selectedCard: BoardCardData | null;
@@ -161,20 +148,20 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
       </div>
 
       <div className="relative z-20 p-2 border-t border-white/[0.06] space-y-1 bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
-        <div className="grid grid-cols-3 gap-1">
+        <div className="flex gap-1 overflow-x-auto pb-0.5 snap-x snap-mandatory scrollbar-thin [-webkit-overflow-scrolling:touch]">
           <button
             type="button"
             disabled={isLoading}
             onClick={() => setIgModalOpen(true)}
             title="Instagram"
-            className="flex flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-1 py-2 text-[9px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
+            className="flex shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-2 py-2 min-w-[4.75rem] text-[9px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
           >
             <Instagram className="w-4 h-4 text-pink-300" />
             <span className="leading-none">Instagram</span>
           </button>
-          {QUICK_PROMPTS_LINKEDIN_EMAIL.map((q) => (
+          {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
             <button
-              key={q.label}
+              key={q.id}
               type="button"
               disabled={isLoading}
               onClick={() => {
@@ -183,14 +170,14 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
               }}
               title={q.label}
               className={`
-                flex flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-1 py-2
+                flex shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-2 py-2 min-w-[4.75rem]
                 text-[9px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40
                 ${q.accent}
+                ${q.upgraded ? 'ring-1 ring-white/5' : ''}
               `}
             >
-              {q.icon === 'linkedin' ? <Linkedin className="w-4 h-4 text-blue-300" /> : null}
-              {q.icon === 'mail' ? <Mail className="w-4 h-4 text-emerald-300" /> : null}
-              <span className="leading-none">{q.label}</span>
+              <MarketingDoraQuickActionIcon icon={q.icon} />
+              <span className="leading-none text-center">{q.label}</span>
             </button>
           ))}
         </div>

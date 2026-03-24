@@ -13,6 +13,7 @@ import type {
   AIWidgetPayload,
   SpecialistInfo,
   DoraPendingActionContent,
+  ProcessingStep,
 } from '@/types/knowledge-hub/ai';
 import { getAccessToken } from '@/lib/authToken';
 import { API_ORIGIN, assertNotHtmlApiResponse } from '@/lib/api';
@@ -52,6 +53,23 @@ function eventTextChunk(event: Record<string, unknown>): string {
   if (typeof event.data === 'string') return event.data;
   if (typeof event.content === 'string') return event.content;
   return '';
+}
+
+/** Human-readable copy when the server sends `phase` without `label` (e.g. agentic engine). */
+function labelForProgressPayload(
+  phase: string,
+  tool?: string,
+): string {
+  switch (phase) {
+    case 'starting':
+      return 'Starting…';
+    case 'model':
+      return 'Reasoning…';
+    case 'tool':
+      return tool ? `Using ${tool.replace(/^[^:]+:/, '').replace(/_/g, ' ')}…` : 'Running a tool…';
+    default:
+      return tool ? `${phase} · ${tool}` : phase;
+  }
 }
 
 export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
@@ -220,6 +238,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         let accumulatedWidgets: AIWidgetPayload[] = [];
         let accumulatedSpecialist: SpecialistInfo | null = null;
         let accumulatedPendingAction: DoraPendingActionContent | undefined;
+        let accumulatedSteps: ProcessingStep[] = [];
         /** Avoid double finalization: `done` already applies the same snapshot; post-loop is only for streams that close without `done`. */
         let sawDoneEvent = false;
 
@@ -236,7 +255,9 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               }
               batchedSetMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
+                  m.id === assistantMessage.id
+                    ? { ...m, content: accumulatedText, processingSteps: undefined }
+                    : m,
                 ),
               );
               break;
@@ -259,16 +280,48 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
             case 'progress': {
               const d = event.data as
-                | { step?: number; maxSteps?: number; phase?: string; tool?: string }
+                | { step?: number; maxSteps?: number; phase?: string; label?: string; tool?: string; status?: string }
                 | undefined;
-              if (!d || accumulatedText.trim().length > 0) break;
-              const hint = `_${d.phase ?? 'Working'}${d.step != null ? ` (${d.step}/${d.maxSteps ?? '?'})` : ''}${d.tool ? ` · ${d.tool}` : ''}…_`;
-              accumulatedText = `${hint}\n\n`;
-              batchedSetMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
-                ),
-              );
+              if (!d) break;
+
+              const phase = typeof d.phase === 'string' ? d.phase : '';
+              const label =
+                typeof d.label === 'string' && d.label.trim()
+                  ? d.label
+                  : phase
+                    ? labelForProgressPayload(phase, typeof d.tool === 'string' ? d.tool : undefined)
+                    : '';
+
+              if (phase && label) {
+                const existing = accumulatedSteps.findIndex((s) => s.phase === phase);
+                const entry: ProcessingStep = {
+                  phase,
+                  label,
+                  step: d.step ?? accumulatedSteps.length + 1,
+                  maxSteps: d.maxSteps ?? 5,
+                  status: (d.status as ProcessingStep['status']) ?? 'active',
+                };
+                if (existing >= 0) {
+                  accumulatedSteps = accumulatedSteps.map((s, i) => (i === existing ? entry : s));
+                } else {
+                  accumulatedSteps = [...accumulatedSteps, entry];
+                }
+                batchedSetMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMessage.id
+                      ? { ...m, processingSteps: [...accumulatedSteps] }
+                      : m,
+                  ),
+                );
+              } else if (accumulatedText.trim().length === 0) {
+                const hint = `_${d.phase ?? 'Working'}${d.step != null ? ` (${d.step}/${d.maxSteps ?? '?'})` : ''}${d.tool ? ` · ${d.tool}` : ''}…_`;
+                accumulatedText = `${hint}\n\n`;
+                batchedSetMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
+                  ),
+                );
+              }
               break;
             }
 
@@ -359,7 +412,9 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               setError(errMsg);
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantMessage.id ? { ...m, content: errMsg, isStreaming: false } : m,
+                  m.id === assistantMessage.id
+                    ? { ...m, content: errMsg, isStreaming: false, processingSteps: undefined }
+                    : m,
                 ),
               );
               break;
@@ -380,6 +435,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                         chartData: accumulatedChartData,
                         tableData: accumulatedTableData,
                         widgets: accumulatedWidgets.length > 0 ? accumulatedWidgets : undefined,
+                        processingSteps: undefined,
                         pendingAction: accumulatedPendingAction ?? m.pendingAction,
                         actionStatus:
                           accumulatedPendingAction ?? m.pendingAction

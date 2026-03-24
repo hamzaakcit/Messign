@@ -416,6 +416,7 @@ const VALID_SECTION_TYPES: SectionType[] = [
   'footer',
   'text_block',
   'image',
+  'image_text',
   'preheader',
   'product_grid',
 ];

@@ -297,7 +297,7 @@ function extractKeywords(text: string, max = 6): string[] {
 function buildImagePromptFromContext(keywords: string[], context: string): string {
   const topicPhrase = keywords.slice(0, 4).join(', ');
   const snippet = context.replace(/<[^>]+>/g, '').slice(0, 80).trim();
-  return `Professional editorial photograph related to ${topicPhrase}. Scene: ${snippet}. Warm natural lighting, shallow depth of field, modern clean composition, no text overlays.`;
+  return `[STOCK] Professional editorial photograph related to ${topicPhrase}. Scene: ${snippet}. Warm natural lighting, shallow depth of field, modern clean composition, no text overlays.`;
 }
 
 function splitIntoParagraphs(body: string): string[] {
@@ -334,7 +334,7 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
       subheadline: preview !== subject ? preview : undefined,
       ctaText: 'Learn More',
       ctaUrl: '#',
-      imagePrompt: `Wide cinematic shot related to ${keywords.slice(0, 3).join(', ')}. Professional corporate atmosphere, vibrant colors, modern design, high resolution, no text overlays.`,
+      imagePrompt: `[STOCK] Wide cinematic shot related to ${keywords.slice(0, 3).join(', ')}. Professional corporate atmosphere, vibrant colors, modern design, high resolution, no text overlays.`,
       alignment: 'center',
     },
   });
@@ -386,26 +386,45 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
       i < paragraphs.length - 1;
 
     if (shouldInsertImage) {
-      flushTextBlock();
-      sections.push({
-        type: 'divider',
-        order: order++,
-        content: {},
-      });
-      sections.push({
-        type: 'image',
-        order: order++,
-        content: {
-          imagePrompt: buildImagePromptFromContext(keywords, paragraphs[i]),
-          altText: `Visual related to ${keywords[0] || 'content'}`,
-          width: 'full',
-        },
-      });
-      sections.push({
-        type: 'divider',
-        order: order++,
-        content: {},
-      });
+      const useImageText = imageCount % 2 === 0;
+      const imageLayout = imageCount % 2 === 0 ? 'image_left' : 'image_right';
+      const nextPara = i + 1 < paragraphs.length ? paragraphs[i + 1] : '';
+
+      if (useImageText && nextPara) {
+        flushTextBlock();
+        sections.push({
+          type: 'image_text',
+          order: order++,
+          content: {
+            body: `<p>${nextPara}</p>`,
+            imagePrompt: buildImagePromptFromContext(keywords, paragraphs[i]),
+            altText: `Visual related to ${keywords[0] || 'content'}`,
+            layout: imageLayout,
+          },
+        });
+        i++;
+      } else {
+        flushTextBlock();
+        sections.push({
+          type: 'divider',
+          order: order++,
+          content: {},
+        });
+        sections.push({
+          type: 'image',
+          order: order++,
+          content: {
+            imagePrompt: buildImagePromptFromContext(keywords, paragraphs[i]),
+            altText: `Visual related to ${keywords[0] || 'content'}`,
+            width: 'full',
+          },
+        });
+        sections.push({
+          type: 'divider',
+          order: order++,
+          content: {},
+        });
+      }
       imageCount++;
     }
   }

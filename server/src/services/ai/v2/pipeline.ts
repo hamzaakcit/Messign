@@ -341,6 +341,7 @@ export async function runDoraPipeline(
         forceMarketingContext: marketingHubAgent,
         marketingAgentMode: body.marketingAgentMode === true,
         onStreamChunk: (t) => controller.emit('text', t),
+        onProgress: (step) => controller.emit('progress', step),
       });
 
       for (const pa of result.pendingActions) {

@@ -45,6 +45,14 @@ export interface DoraPendingActionContent {
   riskLevel?: 'write' | 'irreversible';
 }
 
+export interface ProcessingStep {
+  phase: string;
+  label: string;
+  step: number;
+  maxSteps: number;
+  status?: 'active' | 'completed';
+}
+
 export interface AIMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -69,6 +77,8 @@ export interface AIMessage {
   tableData?: AITablePayload;
   /** Generative UI widgets derived from tool results (Phase 5) */
   widgets?: AIWidgetPayload[];
+  /** Real-time processing steps from SSE progress events */
+  processingSteps?: ProcessingStep[];
   /** Whether this message is still being streamed */
   isStreaming?: boolean;
   /** Whether feedback has been given */
@@ -326,4 +336,48 @@ export const TOOL_DISPLAY_MAP: Record<string, { label: string; icon: string; col
   get_knowledge_base_stats: { label: 'Knowledge Stats', icon: 'BookOpen', color: 'text-accent-500' },
   get_available_questions: { label: 'Available Questions', icon: 'HelpCircle', color: 'text-primary-400' },
   play_dora_dash: { label: 'Dora Dash', icon: 'Gamepad2', color: 'text-accent-500' },
+  // Marketing / creative / analytics (namespaced registry keys — must match server tool names)
+  'marketing:product_truth_lookup': { label: 'Product truth', icon: 'BookOpen', color: 'text-sky-400' },
+  'marketing:brand_voice_check': { label: 'Brand voice', icon: 'MessageSquare', color: 'text-violet-400' },
+  'marketing:validate_product_truth': { label: 'Truth check', icon: 'ClipboardCheck', color: 'text-emerald-400' },
+  'marketing:compliance_scan': { label: 'Compliance', icon: 'FileText', color: 'text-amber-400' },
+  'marketing:competitor_content_scan': { label: 'Competitor scan', icon: 'GitCompare', color: 'text-app-muted' },
+  'marketing:competitor_social_listen': { label: 'Competitor listen', icon: 'Activity', color: 'text-pink-400' },
+  'marketing:suggest_content_topics': { label: 'Topic ideas', icon: 'Target', color: 'text-primary-400' },
+  'marketing:list_saved_email_designs': { label: 'Saved emails', icon: 'FolderKanban', color: 'text-cyan-400' },
+  'marketing:get_saved_email_design': { label: 'Email design', icon: 'FileText', color: 'text-cyan-400' },
+  'marketing:get_campaign_performance': { label: 'Campaign metrics', icon: 'BarChart3', color: 'text-blue-400' },
+  'marketing:get_marketing_roi': { label: 'Marketing ROI', icon: 'TrendingUp', color: 'text-green-400' },
+  'marketing:create_campaign': { label: 'Create campaign', icon: 'Calendar', color: 'text-orange-400' },
+  'marketing:propose_brand_voice_patch': { label: 'Brand voice patch', icon: 'MessageSquare', color: 'text-violet-400' },
+  'knowledge:search_knowledge_base': { label: 'Knowledge search', icon: 'BookOpen', color: 'text-primary-400' },
+  'creative:generate_image_brief': { label: 'Image brief', icon: 'Star', color: 'text-fuchsia-400' },
+  'creative:check_brand_compliance': { label: 'Brand compliance', icon: 'ClipboardCheck', color: 'text-teal-400' },
+  'creative:repurpose_content': { label: 'Repurpose', icon: 'GitCompare', color: 'text-accent-400' },
+  'seo:keyword_optimizer': { label: 'SEO keywords', icon: 'Target', color: 'text-lime-400' },
+  'analytics:funnel_analysis': { label: 'Funnel analysis', icon: 'PieChart', color: 'text-indigo-400' },
+  'analytics:experiment_design': { label: 'Experiments', icon: 'Activity', color: 'text-indigo-400' },
+  'conversion:rate_simulator': { label: 'Conversion sim', icon: 'BarChart3', color: 'text-rose-400' },
+  'automation:manage_trigger': { label: 'Automation', icon: 'Zap', color: 'text-yellow-400' },
 };
+
+/**
+ * Resolves a registry tool name to a chip label/icon for {@link AIMetadataBar}.
+ * Unknown namespaced tools get Title Case after the colon; legacy names get underscores → spaces.
+ */
+export function getToolChipDisplay(toolName: string): { label: string; icon: string; color: string } {
+  const mapped = TOOL_DISPLAY_MAP[toolName];
+  if (mapped) return mapped;
+  const colon = toolName.indexOf(':');
+  if (colon >= 0) {
+    const tail = toolName.slice(colon + 1).replace(/_/g, ' ');
+    const label = tail.replace(/\b\w/g, (c) => c.toUpperCase());
+    return { label, icon: 'Database', color: 'text-app-muted' };
+  }
+  return {
+    label: toolName.replace(/^get_/, '').replace(/_/g, ' '),
+    icon: 'Database',
+    color: 'text-app-muted',
+  };
+}
+

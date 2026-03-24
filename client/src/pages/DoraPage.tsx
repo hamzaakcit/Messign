@@ -646,7 +646,6 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
                   onCancelPendingAction={cancelPendingAction}
                 />
               ))}
-              {/* Don't show standalone indicator when a message bubble is already showing "Analyzing..." (avoids duplicate) */}
               {!messages.some((m) => m.role === 'assistant' && m.isStreaming && !m.content) && (
                 <AITypingIndicator isLoading={isLoading} isStreaming={isStreaming} />
               )}

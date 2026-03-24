@@ -12,7 +12,7 @@
         "subheadline": "No codes to hunt—prices drop at checkout. When the countdown ends, these deals vanish. Miss it and you wait until our next seasonal event.",
         "ctaText": "Shop the sale",
         "ctaUrl": "https://example.com/flash-sale",
-        "imagePrompt": "High-energy startup flash sale banner, electric blue and neon accent, countdown vibe without numbers, product silhouettes, dynamic diagonal shapes",
+        "imagePrompt": "[STOCK] High-energy ecommerce sale shopping bags and boxes on clean modern background, vibrant colors, dynamic retail photography, professional product arrangement",
         "alignment": "center"
       }
     },
@@ -28,7 +28,7 @@
             "description": "Weather-sealed, laptop sleeve, lifetime hardware warranty on zippers.",
             "price": "$89",
             "originalPrice": "$149",
-            "imagePrompt": "Modern matte black commuter backpack on concrete, soft daylight, subtle shadow, ecommerce catalog style",
+            "imagePrompt": "[STOCK] Modern matte black commuter backpack on concrete, soft daylight, subtle shadow, ecommerce catalog style",
             "linkUrl": "https://example.com/products/founder-backpack",
             "badge": "Bestseller"
           },
@@ -37,7 +37,7 @@
             "description": "Hybrid ANC, multipoint pairing, 32-hour case battery.",
             "price": "$79",
             "originalPrice": "$129",
-            "imagePrompt": "Wireless earbuds in open charging case on white sweep, mirror reflection, crisp product photography",
+            "imagePrompt": "[STOCK] Wireless earbuds in open charging case on white sweep, mirror reflection, crisp product photography",
             "linkUrl": "https://example.com/products/focus-buds",
             "badge": "-39%"
           },
@@ -46,7 +46,7 @@
             "description": "Templates, notion pack, and a one-page retro—everything for your next two-week cycle.",
             "price": "$24",
             "originalPrice": "$49",
-            "imagePrompt": "Flat lay of notebook, sticky notes, and pen on warm wood desk, minimal styling, productivity aesthetic",
+            "imagePrompt": "[STOCK] Flat lay of notebook, sticky notes, and pen on warm wood desk, minimal styling, productivity aesthetic",
             "linkUrl": "https://example.com/products/sprint-kit",
             "badge": "Digital"
           },
@@ -55,7 +55,7 @@
             "description": "Stackable ceramic, dishwasher safe—because morale is a feature.",
             "price": "$36",
             "originalPrice": "$72",
-            "imagePrompt": "Set of four stacked ceramic mugs in soft gradient glazes, studio lighting, subtle steam optional",
+            "imagePrompt": "[STOCK] Set of four stacked ceramic mugs in soft gradient glazes, studio lighting, clean product photography",
             "linkUrl": "https://example.com/products/mug-set",
             "badge": "Bundle"
           }
@@ -63,10 +63,21 @@
       }
     },
     {
-      "type": "cta",
+      "type": "image_text",
       "order": 3,
       "content": {
-        "headline": "Ends soon—don’t leave items behind",
+        "headline": "Why now?",
+        "body": "We only run flash sales twice a year, and inventory on popular items won't last the full 48 hours. Last time, the Founder Backpack sold out in under 12 hours. Don't wait on this one.",
+        "imagePrompt": "[STOCK] Excited customer unboxing a package at home, genuine happiness, warm living room setting, authentic lifestyle moment",
+        "altText": "Customer unboxing their order",
+        "layout": "image_left"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 4,
+      "content": {
+        "headline": "Ends soon—don't leave items behind",
         "description": "Inventory is live; popular SKUs can sell through before the deadline. Complete checkout to secure your discount.",
         "buttonText": "Checkout before it ends",
         "buttonUrl": "https://example.com/cart",
@@ -75,7 +86,7 @@
     },
     {
       "type": "footer",
-      "order": 4,
+      "order": 5,
       "content": {
         "companyName": "Startup Supply Co.",
         "address": "2200 Mission Street, San Francisco, CA 94110",

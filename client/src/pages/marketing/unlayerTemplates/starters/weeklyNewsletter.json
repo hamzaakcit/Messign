@@ -12,33 +12,41 @@
         "subheadline": "Curated for builders, operators, and curious readers—no hype, just signal.",
         "ctaText": "Read online",
         "ctaUrl": "https://example.com/newsletter/archive",
-        "imagePrompt": "Minimal editorial newsletter header, soft paper texture, single serif title typography, lots of whitespace, muted neutral palette",
+        "imagePrompt": "[STOCK] Minimal editorial newsletter header, clean desk with open notebook and coffee, soft morning light, warm neutral tones, calm professional atmosphere",
         "alignment": "left"
       }
     },
     {
-      "type": "text_block",
+      "type": "image_text",
       "order": 2,
       "content": {
-        "body": "Hello—here is what stood out this week: a thoughtful piece on decision-making under uncertainty, a lightweight framework for weekly reviews, and a reminder that small systems beat big resolutions. Skim the sections below or save this email for later; the links stay valid.",
-        "alignment": "left"
+        "headline": "The long read",
+        "body": "This week's deep dive: a thoughtful piece on decision-making under uncertainty. It's the kind of essay you'll bookmark and actually come back to — we tested that theory ourselves.",
+        "imagePrompt": "[STOCK] Person reading a book in a cozy corner with natural light, warm wooden furniture, peaceful indoor reading moment, shallow depth of field",
+        "altText": "Person enjoying a long read",
+        "layout": "image_left",
+        "ctaText": "Read the essay",
+        "ctaUrl": "https://example.com/newsletter/long-read"
       }
     },
     {
-      "type": "image",
+      "type": "image_text",
       "order": 3,
       "content": {
-        "imagePrompt": "Abstract calm landscape in muted sage and cream, wide horizontal crop suitable for email hero, soft gradients, no text",
-        "altText": "Abstract calm gradient illustration for the weekly digest",
-        "caption": "A quiet moment between meetings—our editors’ pick for the week.",
-        "width": "full"
+        "headline": "Template you can steal",
+        "body": "A lightweight framework for weekly reviews that takes fifteen minutes, not an hour. We've been using it for three months and the results speak for themselves — fewer dropped balls, less meeting overhead.",
+        "imagePrompt": "[STOCK] Flat lay of organized notebook with colorful sticky notes, pen, and laptop on clean white desk, productivity planning aesthetic, overhead view",
+        "altText": "Organized planning workspace",
+        "layout": "image_right",
+        "ctaText": "Grab the template",
+        "ctaUrl": "https://example.com/newsletter/template"
       }
     },
     {
       "type": "text_block",
       "order": 4,
       "content": {
-        "body": "<strong>From the archive:</strong> We resurfaced an essay on writing clearer specs and a checklist for async handoffs. <strong>Community:</strong> Three reader replies on balancing deep work with Slack—trimmed for length, linked in the web version. <strong>Next week:</strong> We are testing a shorter format; reply and tell us what you prefer.",
+        "body": "<strong>From the archive:</strong> We resurfaced an essay on writing clearer specs and a checklist for async handoffs. <strong>Community:</strong> Three reader replies on balancing deep work with Slack — trimmed for length, linked in the web version. <strong>Next week:</strong> We're testing a shorter format; reply and tell us what you prefer.",
         "alignment": "left"
       }
     },

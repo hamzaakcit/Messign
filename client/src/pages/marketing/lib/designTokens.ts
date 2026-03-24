@@ -114,6 +114,24 @@ export const GOOGLE_FONTS: GoogleFontConfig[] = [
     url: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap',
     weights: [400, 500, 600, 700],
   },
+  {
+    label: 'Lora',
+    value: "'Lora', serif",
+    url: 'https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap',
+    weights: [400, 500, 600, 700],
+  },
+  {
+    label: 'Poppins',
+    value: "'Poppins', sans-serif",
+    url: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap',
+    weights: [400, 500, 600, 700, 800],
+  },
+  {
+    label: 'Raleway',
+    value: "'Raleway', sans-serif",
+    url: 'https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&display=swap',
+    weights: [400, 500, 600, 700, 800],
+  },
 ];
 
 export const RADII = {
@@ -494,12 +512,12 @@ export function adjustBrightness(hex: string, percent: number): string {
 // ── Theme definitions (exported) ──
 
 const executiveTypography: ThemeTypography = {
-  hero: { fontFamily: 'Inter', fontSize: 36, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.5 },
-  heading: { fontFamily: 'Inter', fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
+  hero: { fontFamily: 'DM Sans', fontSize: 36, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.5 },
+  heading: { fontFamily: 'DM Sans', fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
   subheading: { fontFamily: 'Inter', fontSize: 18, fontWeight: 500, lineHeight: 1.4 },
   body: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeight: 1.6 },
   caption: { fontFamily: 'Inter', fontSize: 13, fontWeight: 400, lineHeight: 1.4 },
-  cta: { fontFamily: 'Inter', fontSize: 16, fontWeight: 600, lineHeight: 1.0 },
+  cta: { fontFamily: 'DM Sans', fontSize: 16, fontWeight: 600, lineHeight: 1.0 },
   preheader: { fontFamily: 'Inter', fontSize: 12, fontWeight: 400, lineHeight: 1.0 },
 };
 
@@ -525,7 +543,7 @@ export const executiveTheme: DesignTheme = {
   spacing: VA2_SPACING_SCALE,
   borderRadius: 8,
   shadowStyle: 'soft',
-  googleFonts: ['Inter'],
+  googleFonts: ['DM Sans', 'Inter'],
 };
 
 const startupTypography: ThemeTypography = {
@@ -618,6 +636,16 @@ export const luxuryTheme: DesignTheme = {
   googleFonts: ['Playfair Display', 'Inter'],
 };
 
+const minimalTypography: ThemeTypography = {
+  hero: { fontFamily: 'Raleway', fontSize: 36, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.5 },
+  heading: { fontFamily: 'Raleway', fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
+  subheading: { fontFamily: 'Inter', fontSize: 18, fontWeight: 500, lineHeight: 1.4 },
+  body: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeight: 1.6 },
+  caption: { fontFamily: 'Inter', fontSize: 13, fontWeight: 400, lineHeight: 1.4 },
+  cta: { fontFamily: 'Raleway', fontSize: 16, fontWeight: 600, lineHeight: 1.0 },
+  preheader: { fontFamily: 'Inter', fontSize: 12, fontWeight: 400, lineHeight: 1.0 },
+};
+
 export const minimalTheme: DesignTheme = {
   name: 'minimal',
   label: 'Minimal',
@@ -636,11 +664,11 @@ export const minimalTheme: DesignTheme = {
     heroOverlayStart: 'rgba(31,41,55,0.7)',
     heroOverlayEnd: 'rgba(31,41,55,0.3)',
   },
-  typography: executiveTypography,
+  typography: minimalTypography,
   spacing: VA2_SPACING_SCALE,
   borderRadius: 6,
   shadowStyle: 'soft',
-  googleFonts: ['Inter'],
+  googleFonts: ['Raleway', 'Inter'],
 };
 
 const boldTypography: ThemeTypography = {
@@ -691,8 +719,8 @@ export const boldTheme: DesignTheme = {
 };
 
 const natureTypography: ThemeTypography = {
-  hero: { fontFamily: 'Inter', fontSize: 36, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.5 },
-  heading: { fontFamily: 'Inter', fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
+  hero: { fontFamily: 'Lora', fontSize: 36, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.3 },
+  heading: { fontFamily: 'Lora', fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
   subheading: { fontFamily: 'Inter', fontSize: 18, fontWeight: 500, lineHeight: 1.4 },
   body: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeight: 1.7 },
   caption: { fontFamily: 'Inter', fontSize: 13, fontWeight: 400, lineHeight: 1.4 },
@@ -722,7 +750,7 @@ export const natureTheme: DesignTheme = {
   spacing: VA2_SPACING_SCALE,
   borderRadius: 24,
   shadowStyle: 'soft',
-  googleFonts: ['Inter'],
+  googleFonts: ['Lora', 'Inter'],
 };
 
 const techTypography: ThemeTypography = {
@@ -773,12 +801,12 @@ export const techTheme: DesignTheme = {
 };
 
 const warmTypography: ThemeTypography = {
-  hero: { fontFamily: 'Inter', fontSize: 36, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.5 },
-  heading: { fontFamily: 'Inter', fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
-  subheading: { fontFamily: 'Inter', fontSize: 18, fontWeight: 500, lineHeight: 1.4 },
+  hero: { fontFamily: 'Poppins', fontSize: 36, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.3 },
+  heading: { fontFamily: 'Poppins', fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
+  subheading: { fontFamily: 'Poppins', fontSize: 18, fontWeight: 500, lineHeight: 1.4 },
   body: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeight: 1.7 },
   caption: { fontFamily: 'Inter', fontSize: 13, fontWeight: 400, lineHeight: 1.4 },
-  cta: { fontFamily: 'Inter', fontSize: 16, fontWeight: 600, lineHeight: 1.0 },
+  cta: { fontFamily: 'Poppins', fontSize: 16, fontWeight: 600, lineHeight: 1.0 },
   preheader: { fontFamily: 'Inter', fontSize: 12, fontWeight: 400, lineHeight: 1.0 },
 };
 
@@ -804,7 +832,7 @@ export const warmTheme: DesignTheme = {
   spacing: VA2_SPACING_SCALE,
   borderRadius: 12,
   shadowStyle: 'soft',
-  googleFonts: ['Inter'],
+  googleFonts: ['Poppins', 'Inter'],
 };
 
 /** Map of all available themes */

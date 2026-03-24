@@ -17,7 +17,7 @@ import type { AgentContext, ToolObservation } from '../agents/types.js';
 import type { DoraRequestContext } from '../dora/types.js';
 import type { ToolContext, ToolResult } from '../types.js';
 import type { PendingActionSSEEvent } from '../actions/types.js';
-import type { DoraContext } from '../v2/types.js';
+import type { DoraContext, ProgressStep } from '../v2/types.js';
 import { getMarketingSubOrchestratorSystemPrompt } from '../../../modules/marketing/prompts/marketingSubOrchestratorPrompt.js';
 import { buildMarketingContentStrategistPrompt } from '../../../modules/marketing/prompts/marketingContentStrategistPrompt.js';
 import { buildMarketingCampaignManagerPrompt } from '../../../modules/marketing/prompts/marketingCampaignManagerPrompt.js';
@@ -508,29 +508,29 @@ ${priorBlock ? `\nContext from prior step:\n${priorBlock}\n` : ''}`;
 Tool outcomes:
 ${outcomeHints}
 
-Output a tight bullet summary (max 8 bullets) of findings **from tools only**. No draft copy, no invented metrics. If a tool failed, say what is missing.`
+Output a tight bullet summary (max 6 bullets) of findings **from tools only**. No draft copy, no invented metrics. If a tool failed, say what is missing.`
     : role === 'content'
       ? `Using the tool results above, fulfill the user's content request: "${query}"
 
 Tool outcomes:
 ${outcomeHints}
 
-Produce final copy or guidance. Do not invent product facts. Remind the user that publishing requires review and calendar scheduling uses the Marketing hub if relevant.`
+Produce **final copy or short guidance** (chat-first: tight, scannable). **Do not** repeat tool names, restate this outcome list, or paste tool output verbatim unless the user asked for raw data. **Do not invent** product facts. One line on publishing/review if relevant.`
       : campaignManager
         ? `Based on the tool results, answer clearly: "${query}"
 
 Tool outcomes:
 ${outcomeHints}
 
-Follow the reporting format from your system instructions (key number first, trend only if data supports it, context, action). Do not invent metrics.
-If the user needed long-form copy, the Content Strategist handles drafts — say so briefly.
-For calendar, approval queue actions, pause/clone/budget journal flows not in your tool list, direct them to the Marketing hub.`
+Follow your system instructions: headline insight → short bullets → one next step. **Do not** repeat tool names or dump the outcome list. Do not invent metrics.
+If the user needed long-form copy, the Content Strategist handles drafts — say so in one sentence.
+For calendar / approval / budget flows not in your tool list, direct them to the Marketing hub in one line.`
         : `Based on the tool results, answer clearly: "${query}"
 
 Tool outcomes:
 ${outcomeHints}
 
-Do not invent metrics. Note: calendar rearrangement uses the Marketing hub UI — there is no AI tool for that yet.`;
+Stay under ~200 words. **Do not** repeat tool names or restate the outcome list. Do not invent metrics. Calendar: Marketing hub UI — no AI tool for drag/drop scheduling.`;
 
   const metricsOnlySynthesis =
     !researchMode &&
@@ -549,10 +549,10 @@ Do not invent metrics. Note: calendar rearrangement uses the Marketing hub UI �
     synthMaxTokens = 1200;
   } else if (contentStrategist) {
     synthTier = 'complex';
-    synthMaxTokens = 1600;
+    synthMaxTokens = 1000;
   } else if (role === 'campaign' && campaignManager) {
     synthTier = metricsOnlySynthesis ? 'fast' : 'complex';
-    synthMaxTokens = metricsOnlySynthesis ? 1200 : 1600;
+    synthMaxTokens = metricsOnlySynthesis ? 900 : 1100;
   }
   const synth = await withTimeout(
     callModelSafe({
@@ -593,6 +593,7 @@ export interface MarketingFlowOptions {
   /** Set by v2 pipeline when `body.marketingAgentMode` is true */
   marketingAgentMode?: boolean;
   onStreamChunk?: (text: string) => void;
+  onProgress?: (step: ProgressStep) => void;
 }
 
 async function loadMarketingContentSnapshot(
@@ -693,6 +694,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
     history = [],
     forceMarketingContext = false,
     onStreamChunk,
+    onProgress,
   } = opts;
 
   return withTimeout(
@@ -701,6 +703,8 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         marketingAgentMode: opts.marketingAgentMode ?? false,
         route: '(pending)',
       });
+
+      onProgress?.({ phase: 'routing', label: 'Routing your request…', step: 1, maxSteps: 5, status: 'active' });
 
       const { route, plan } = await resolveMarketingRouteWithPlanner(
         query,
@@ -711,6 +715,8 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         legacyContext,
         forceMarketingContext,
       );
+
+      onProgress?.({ phase: 'routing', label: 'Routing your request…', step: 1, maxSteps: 5, status: 'completed' });
 
       const { inferMarketingContentChannel } = await import('./marketingAgentOrchestrator.js');
       const channelInferred = inferMarketingContentChannel(query);
@@ -735,6 +741,8 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       const allObs: ToolObservation[] = [];
       const allTools: string[] = [];
       let combined = '';
+
+      onProgress?.({ phase: 'brand_context', label: 'Loading brand context…', step: 2, maxSteps: 5, status: 'active' });
 
       if (plan && planRequiresResearchPhase(plan)) {
         const mergedCtx: ToolContext = {
@@ -819,6 +827,8 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         return r.content;
       };
 
+      onProgress?.({ phase: 'brand_context', label: 'Loading brand context…', step: 2, maxSteps: 5, status: 'completed' });
+
       if (route.route === 'CONTENT_STRATEGIST') {
         console.log('[DIAG] CONTENT_STRATEGIST route entered');
         const mo = await import('./marketingAgentOrchestrator.js');
@@ -830,6 +840,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
           history,
           forceMarketingContext,
           onStreamChunk,
+          onProgress,
         };
         const ch = mo.inferMarketingContentChannel(note + query);
         const ct = mo.contentTypeForMarketingChannel(ch);
@@ -903,6 +914,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         history,
         forceMarketingContext,
         onStreamChunk,
+        onProgress,
       };
       const chBoth = moBoth.inferMarketingContentChannel(note + query);
       const ctBoth = moBoth.contentTypeForMarketingChannel(chBoth);

@@ -93,6 +93,8 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
    * fires before the listener is attached — we also poll ref + timeout fallback.
    */
   const [editorExportReady, setEditorExportReady] = useState(false);
+  const [editorLoadError, setEditorLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const projectId = useMemo(() => parseProjectId(import.meta.env.VITE_UNLAYER_PROJECT_ID), []);
   const [pickedStarterId, setPickedStarterId] = useState<string | null>(null);
 
@@ -313,6 +315,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
 
   useEffect(() => {
     setEditorExportReady(false);
+    setEditorLoadError(false);
     let cancelled = false;
     const mark = () => {
       if (!cancelled) setEditorExportReady(true);
@@ -323,13 +326,19 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
         window.setTimeout(mark, 400);
       }
     }, 120);
-    const fallback = window.setTimeout(mark, 12000);
+    const fallback = window.setTimeout(() => {
+      if (!cancelled && !emailEditorRef.current?.editor) {
+        setEditorLoadError(true);
+        console.warn('[UnlayerEditor] Editor did not initialize within timeout — CDN may be unreachable or embed script changed.');
+      }
+      mark();
+    }, 15000);
     return () => {
       cancelled = true;
       window.clearInterval(poll);
       window.clearTimeout(fallback);
     };
-  }, [editorMountKey]);
+  }, [editorMountKey, retryCount]);
 
   if (shouldOfferPicker && pickedStarterId === null) {
     return (
@@ -390,12 +399,30 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
           </details>
         </div>
       ) : null}
+      {editorLoadError && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-app-muted flex items-center justify-between gap-3">
+          <span>
+            The visual editor is taking longer than expected to load. This can happen if the Unlayer CDN is slow or your network blocks third-party scripts.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setEditorLoadError(false);
+              setEditorExportReady(false);
+              setRetryCount((c) => c + 1);
+            }}
+            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div
         className="rounded-lg border border-app-border bg-app-card overflow-hidden w-full"
         style={{ minHeight: 700, minWidth: 'min(100%, 1024px)' }}
       >
         <EmailEditor
-          key={editorMountKey}
+          key={`${editorMountKey}-${retryCount}`}
           ref={emailEditorRef}
           minHeight={700}
           options={{
@@ -414,6 +441,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
           onLoad={handleLoad}
           onReady={() => {
             setEditorExportReady(true);
+            setEditorLoadError(false);
             if (onRegenerateImage) {
               const editor = emailEditorRef.current?.editor;
               if (editor && typeof (editor as Record<string, unknown>).registerCallback === 'function') {

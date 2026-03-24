@@ -4,7 +4,7 @@ export { uid, pad, wrapHtml, makeRow, makeColumn, resolveButtonStyle } from './s
 
 export type { BlockBuilderOptions, BlockBuilder } from './types';
 
-export { createSingleColumnRow } from './va2Shared';
+export { createSingleColumnRow, createTwoColumnRow } from './va2Shared';
 
 export {
   buildLogoHeaderRow,
@@ -30,5 +30,7 @@ export { buildCTASection, buildDividerBlock } from './ctaBuilder';
 export { buildTestimonialCard, buildSocialProofBar, buildFooterBlock } from './socialBuilders';
 
 export { buildProductGrid } from './productBuilder';
+
+export { buildImageTextSection } from './imageTextBuilder';
 
 export { getVa2Builder, getRegisteredSectionTypes } from './registry';

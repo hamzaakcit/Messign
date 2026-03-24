@@ -114,6 +114,14 @@ export type SSEEventType =
   | 'error'
   | 'done';
 
+export interface ProgressStep {
+  phase: string;
+  label: string;
+  step: number;
+  maxSteps: number;
+  status?: 'active' | 'completed';
+}
+
 export interface PipelineRequest {
   query: string;
   history: Array<{ role: string; content: string }>;

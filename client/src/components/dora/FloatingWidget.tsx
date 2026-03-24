@@ -9,7 +9,8 @@ import { DORA_V2 } from '@/lib/featureFlags';
 import { DoraSidebarLogo, DoraChatAvatar, PilotPlaneSVG } from './DoraPilot';
 import { ActionConfirmationInline } from '@/components/dora/ActionConfirmationInline';
 import { AIWidgetRenderer } from '@/components/dora/widgets/AIWidgetRenderer';
-import type { AIWidgetPayload, DoraPendingActionContent } from '@/types/knowledge-hub/ai';
+import type { AIWidgetPayload, DoraPendingActionContent, ProcessingStep } from '@/types/knowledge-hub/ai';
+import { AIProcessingSteps } from '@/components/dora/AIProcessingSteps';
 
 interface SpecialistInfo {
   module: string;
@@ -27,6 +28,7 @@ interface WidgetMessage {
   pendingAction?: DoraPendingActionContent | null;
   actionStatus?: 'pending' | 'confirmed' | 'cancelled' | 'executed';
   widgets?: AIWidgetPayload[];
+  processingSteps?: ProcessingStep[];
   metadata?: {
     toolsUsed: string[];
     dataPoints: number;
@@ -195,6 +197,7 @@ export function FloatingWidget() {
       const decoder = new TextDecoder();
       let buffer = '';
       const accumulatedWidgets: AIWidgetPayload[] = [];
+      let accumulatedSteps: ProcessingStep[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -223,7 +226,9 @@ export function FloatingWidget() {
                 if (!chunk) break;
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === assistantMsg.id ? { ...m, content: m.content + chunk } : m,
+                    m.id === assistantMsg.id
+                      ? { ...m, content: m.content + chunk, processingSteps: undefined }
+                      : m,
                   ),
                 );
                 break;
@@ -294,6 +299,35 @@ export function FloatingWidget() {
                 break;
               }
 
+              case 'progress': {
+                const d = event.data as
+                  | { phase?: string; label?: string; step?: number; maxSteps?: number; status?: string }
+                  | undefined;
+                if (d?.label && d.phase) {
+                  const entry: ProcessingStep = {
+                    phase: d.phase,
+                    label: d.label,
+                    step: d.step ?? accumulatedSteps.length + 1,
+                    maxSteps: d.maxSteps ?? 5,
+                    status: (d.status as ProcessingStep['status']) ?? 'active',
+                  };
+                  const idx = accumulatedSteps.findIndex((s) => s.phase === d.phase);
+                  if (idx >= 0) {
+                    accumulatedSteps = accumulatedSteps.map((s, i) => (i === idx ? entry : s));
+                  } else {
+                    accumulatedSteps = [...accumulatedSteps, entry];
+                  }
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMsg.id
+                        ? { ...m, processingSteps: [...accumulatedSteps] }
+                        : m,
+                    ),
+                  );
+                }
+                break;
+              }
+
               case 'error': {
                 const msg =
                   (event.data && typeof event.data === 'object' && 'message' in event.data
@@ -304,7 +338,7 @@ export function FloatingWidget() {
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMsg.id
-                      ? { ...m, content: msg, isStreaming: false }
+                      ? { ...m, content: msg, isStreaming: false, processingSteps: undefined }
                       : m,
                   ),
                 );
@@ -314,8 +348,10 @@ export function FloatingWidget() {
               case 'done':
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === assistantMsg.id ? { ...m, isStreaming: false } : m
-                  )
+                    m.id === assistantMsg.id
+                      ? { ...m, isStreaming: false, processingSteps: undefined }
+                      : m,
+                  ),
                 );
                 break;
             }
@@ -564,12 +600,16 @@ export function FloatingWidget() {
                     {msg.specialist.icon} {msg.specialist.displayName} Specialist
                   </div>
                 )}
-                <div className="whitespace-pre-wrap break-words">
-                  {msg.content}
-                  {msg.isStreaming && (
-                    <span className="inline-block w-1.5 h-4 bg-blue-400 ml-0.5 animate-pulse rounded-sm" />
-                  )}
-                </div>
+                {msg.isStreaming && !msg.content && msg.processingSteps?.length ? (
+                  <AIProcessingSteps steps={msg.processingSteps} />
+                ) : (
+                  <div className="whitespace-pre-wrap break-words">
+                    {msg.content}
+                    {msg.isStreaming && (
+                      <span className="inline-block w-1.5 h-4 bg-blue-400 ml-0.5 animate-pulse rounded-sm" />
+                    )}
+                  </div>
+                )}
 
                 {msg.pendingAction && msg.actionStatus === 'pending' && (
                   <ActionConfirmationInline

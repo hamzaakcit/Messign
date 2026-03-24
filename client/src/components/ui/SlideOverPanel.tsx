@@ -1,6 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+
+let openPanelCount = 0;
 
 interface SlideOverPanelProps {
   isOpen: boolean;
@@ -17,22 +19,35 @@ export function SlideOverPanel({
   width = 640,
   children,
 }: SlideOverPanelProps) {
+  const layerRef = useRef(0);
+
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && layerRef.current === openPanelCount) {
+        e.stopImmediatePropagation();
+        onClose();
+      }
     },
     [onClose],
   );
 
   useEffect(() => {
     if (!isOpen) return;
-    window.addEventListener('keydown', handleEscape);
+    openPanelCount += 1;
+    layerRef.current = openPanelCount;
+    window.addEventListener('keydown', handleEscape, true);
     document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleEscape, true);
+      openPanelCount -= 1;
+      if (openPanelCount === 0) {
+        document.body.style.overflow = '';
+      }
     };
   }, [isOpen, handleEscape]);
+
+  const zBackdrop = 59 + (layerRef.current > 1 ? layerRef.current * 2 : 0);
+  const zPanel = zBackdrop + 1;
 
   return (
     <AnimatePresence>
@@ -40,7 +55,8 @@ export function SlideOverPanel({
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 z-[59] bg-black/40"
+            className="fixed inset-0 bg-black/40"
+            style={{ zIndex: zBackdrop }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -50,8 +66,9 @@ export function SlideOverPanel({
 
           {/* Panel */}
           <motion.div
-            className="fixed right-0 top-0 bottom-0 z-[60] flex flex-col border-l shadow-2xl"
+            className="fixed right-0 top-0 bottom-0 flex flex-col border-l shadow-2xl"
             style={{
+              zIndex: zPanel,
               width: `min(${width}px, 100vw)`,
               backgroundColor: 'var(--app-sidebar)',
               borderColor: 'var(--app-border)',

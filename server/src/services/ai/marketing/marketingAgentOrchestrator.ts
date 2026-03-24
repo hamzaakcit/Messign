@@ -9,6 +9,7 @@ import { z } from 'zod';
 import type { AgentContext, ToolObservation } from '../agents/types.js';
 import type { DoraRequestContext } from '../dora/types.js';
 import type { ToolContext } from '../types.js';
+import type { ProgressStep } from '../v2/types.js';
 import type { PendingActionSSEEvent } from '../actions/types.js';
 import type { CallerContext } from '../../../dal/types.js';
 import * as contentDal from '../../../dal/marketing/content.js';
@@ -153,6 +154,7 @@ export interface MarketingOrchestrationContext {
   history?: Array<{ role: string; content: string }>;
   forceMarketingContext?: boolean;
   onStreamChunk?: (text: string) => void;
+  onProgress?: (step: ProgressStep) => void;
 }
 
 export interface ContentWorkflowBrief {
@@ -427,6 +429,7 @@ export async function executeContentWorkflow(
     const userQuery = revisionPrefix + brief.userQuery;
 
     log('content_generation_attempt', { attempt: attempt + 1, maxAttempts, contentId });
+    ctx.onProgress?.({ phase: 'generating', label: 'Generating content draft…', step: 3, maxSteps: 5, status: 'active' });
 
     const loopArgs = await buildContentStrategistLoopArgs(ctx, userQuery, emailPriorBlock, brief.channel ?? contentRow.channel ?? undefined, (contentRow as unknown as Record<string, unknown>).brand_profile_id as string | undefined);
     const mini = await runMarketingMiniLoop(loopArgs);
@@ -479,6 +482,9 @@ export async function executeContentWorkflow(
     });
 
     const targetChannel = brief.channel ?? contentRow.channel ?? 'linkedin';
+
+    ctx.onProgress?.({ phase: 'generating', label: 'Generating content draft…', step: 3, maxSteps: 5, status: 'completed' });
+    ctx.onProgress?.({ phase: 'validating', label: 'Validating content…', step: 4, maxSteps: 5, status: 'active' });
 
     log('run_gatekeepers_parallel', { contentId, attempt: attempt + 1, isInstagram });
     const [truthRaw, brandRaw, compRaw] = await Promise.all([
@@ -557,8 +563,10 @@ export async function executeContentWorkflow(
     }
 
     log('product_truth_pass', { attempt: attempt + 1 });
+    ctx.onProgress?.({ phase: 'validating', label: 'Validating content…', step: 4, maxSteps: 5, status: 'completed' });
 
     if (isInstagram) {
+      ctx.onProgress?.({ phase: 'images', label: 'Generating images…', step: 5, maxSteps: 6, status: 'active' });
       const igResult = await runInstagramImageGeneration({
         orgId,
         contentId,
@@ -576,7 +584,10 @@ export async function executeContentWorkflow(
         imageUrl: igResult.imageUrl?.slice(0, 80),
         error: igResult.error,
       });
+      ctx.onProgress?.({ phase: 'images', label: 'Generating images…', step: 5, maxSteps: 6, status: 'completed' });
     }
+
+    ctx.onProgress?.({ phase: 'finalizing', label: 'Finalizing…', step: 5, maxSteps: 5, status: 'active' });
 
     const approvalPayload = {
       content_id: contentId,
@@ -602,6 +613,7 @@ export async function executeContentWorkflow(
     }
 
     log('assign_approval_ok', { approvalId: assigned.data.approval_id, contentId });
+    ctx.onProgress?.({ phase: 'finalizing', label: 'Finalizing…', step: 5, maxSteps: 5, status: 'completed' });
 
     try {
       const latest = await contentDal.getContentById(caller, contentId);

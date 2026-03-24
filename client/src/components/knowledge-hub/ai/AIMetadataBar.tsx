@@ -23,7 +23,7 @@ import {
   PieChart,
 } from 'lucide-react';
 import type { AIResponseMetadata } from '@/types/knowledge-hub/ai';
-import { TOOL_DISPLAY_MAP } from '@/types/knowledge-hub/ai';
+import { getToolChipDisplay } from '@/types/knowledge-hub/ai';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen,
@@ -57,11 +57,7 @@ export function AIMetadataBar({ metadata }: AIMetadataBarProps) {
   if (!metadata || metadata.toolsUsed.length === 0) return null;
 
   const toolChips = metadata.toolsUsed.map((toolName) => {
-    const display = TOOL_DISPLAY_MAP[toolName] ?? {
-      label: toolName.replace(/^get_/, '').replace(/_/g, ' '),
-      icon: 'Database',
-      color: 'text-app-muted',
-    };
+    const display = getToolChipDisplay(toolName);
     const IconComponent = ICON_MAP[display.icon] ?? Database;
 
     return (

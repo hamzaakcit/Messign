@@ -175,11 +175,12 @@ Choose the theme that best matches the brand and audience:
 **Optional sections** (choose 2-4 based on email purpose):
 - \`preheader\` — Optional explicit preview row (order 0); if omitted, the top-level \`preheader\` string is used / auto-injected by the app
 - \`value_prop\` — Feature/benefit grid (2 or 3 columns with icon + heading + description)
+- \`image_text\` — **Side-by-side image + text** in a two-column row. Use this instead of separate image + text_block pairs for visual variety and professional magazine-style layouts. Alternate \`image_left\` and \`image_right\` layouts for visual rhythm
 - \`product_grid\` — Ecommerce product cards in 2- or 3-column rows (image, name, price, badge, CTA per card). Use MULTIPLE product_grid sections to chunk large catalogs (e.g. 9 items → three product_grid sections of 3 items each, separated by dividers)
 - \`testimonial\` — Customer quote with author attribution and optional star rating
 - \`social_proof\` — Metrics ("10,000+ users") or partner logos
 - \`text_block\` — Body paragraph for detailed explanation
-- \`image\` — Standalone image with alt text and optional caption
+- \`image\` — Standalone full-width image with alt text and optional caption
 - \`cta\` — Call-to-action button (variants: "pill", "ghost", "fullWidth")
 - \`divider\` — Visual separator between sections
 
@@ -285,6 +286,20 @@ Variants: "pill" (rounded, filled — default), "ghost" (outlined, elegant), "fu
 Use \`width\`: \`full\` (600px), \`medium\` (400px), or \`small\` (200px).
 IMPORTANT: Always use \`imagePrompt\` (not \`imageUrl\`) for image sections. The app will generate the image using AI from your prompt. Write detailed, visual descriptions — subject, composition, lighting, colors, mood. Never include text in image prompts (text renders poorly in generated images).
 
+**image_text** content (side-by-side image + text — creates a two-column magazine-style layout):
+\`\`\`json
+{
+  "headline": "Optional heading for the text column",
+  "body": "Paragraph text explaining the topic. Keep it concise (2-3 sentences) since it shares the row with an image.",
+  "imagePrompt": "[STOCK] Descriptive prompt for the image — real photography preferred",
+  "altText": "Short description for accessibility (REQUIRED)",
+  "layout": "image_left",
+  "ctaText": "Optional button text",
+  "ctaUrl": "https://..."
+}
+\`\`\`
+Layout options: \`image_left\` (image on left, text on right — default), \`image_right\` (text on left, image on right), \`image_top\` (image above text, single column). **Always alternate** \`image_left\` and \`image_right\` when using multiple image_text sections in the same email for visual rhythm. Prefer \`image_text\` over separate \`image\` + \`text_block\` pairs whenever the text relates directly to the image.
+
 **divider** content:
 \`\`\`json
 { "text": "Optional label (usually omit for a simple line)" }
@@ -316,26 +331,38 @@ In \`artDirection.imageStyle\`, describe the ideal hero image. Use optional \`ar
 Example: "Wide shot of a modern co-working space with natural light, people collaborating over laptops, blue accent lighting matching the executive theme palette"
 
 ### Email Structure Guidelines
-Use image sections to break up text and create visually engaging emails. Every email should have at least one image section beyond the hero.
-- **Product launch**: hero → image (product showcase) → value_prop (3 cols) → testimonial → cta → footer
-- **Newsletter**: hero → text_block → image (topic illustration) → text_block → image (related visual) → cta → footer
-- **Promotional**: hero → image (product/lifestyle) → social_proof → value_prop → cta (urgencyText) → footer
-- **Event invite**: hero → image (venue/event preview) → text_block → value_prop (2 cols, speakers) → cta → footer
-- **Re-engagement**: hero (personal tone) → image (community/product) → testimonial → cta (ghost variant) → footer
+Use varied layouts to create visually engaging, magazine-style emails. Mix single-column and two-column sections. Every email should include at least one \`image_text\` or standalone \`image\` section beyond the hero.
+
+**Layout variety is critical** — never stack more than two single-column sections in a row without breaking the pattern with an \`image_text\` (two-column), \`value_prop\` (multi-column), or standalone \`image\` section.
+
+- **Product launch**: hero → image_text (image_left, product feature) → value_prop (3 cols) → image_text (image_right, use case) → testimonial → cta → footer
+- **Newsletter**: hero → image_text (image_left, main story) → text_block → image_text (image_right, secondary story) → cta → footer
+- **Promotional**: hero → image_text (image_left, product/lifestyle) → social_proof → value_prop → cta (urgencyText) → footer
+- **Event invite**: hero → image_text (image_right, venue preview) → value_prop (2 cols, speakers) → cta → footer
+- **Re-engagement**: hero (personal tone) → image_text (image_left, community) → testimonial → cta (ghost variant) → footer
 - **Ecommerce showcase** (6-12 products): hero → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → cta → footer
-- **Ecommerce curated** (3-4 products): hero → product_grid (2 cols, 2 items) → text_block (editorial copy) → product_grid (2 cols, 2 items) → testimonial → cta → footer
+- **Ecommerce curated** (3-4 products): hero → product_grid (2 cols, 2 items) → image_text (image_left, editorial) → product_grid (2 cols, 2 items) → testimonial → cta → footer
 - **Flash sale / promo**: hero (urgency-driven) → product_grid (3 cols, 3 items with badges + originalPrice) → cta (urgencyText, fullWidth) → product_grid (3 cols, 3 items) → social_proof → cta → footer
 
 When a user asks to showcase multiple products (4+), ALWAYS use \`product_grid\` sections instead of repeating individual \`image\` + \`text_block\` pairs. Distribute items across multiple \`product_grid\` sections separated by \`divider\` for visual rhythm. Give each item a unique \`imagePrompt\` describing the product in context. Vary badges across items (not every item needs one). Include \`price\` and \`linkUrl\` on every product item.
 
 ### Image Generation Rules
 - ALWAYS include \`imagePrompt\` on the hero section (never leave it empty)
-- Add 1-3 standalone \`image\` sections to create visual variety — break up text blocks with relevant imagery
+- **Prefer real photography**: Prefix imagePrompt with \`[STOCK]\` for all hero images, lifestyle imagery, people, workspaces, food, nature, and any scene that exists in the real world. The app resolves \`[STOCK]\` prompts to curated high-quality Unsplash photos — these look more authentic and trustworthy than AI-generated images
+- **Only omit [STOCK]** for truly impossible/abstract visuals (futuristic 3D renders, holographic dashboards, isometric illustrations, fantastical compositions)
+- Add 1-3 \`image_text\` or standalone \`image\` sections beyond the hero for visual variety
 - Write imagePrompt as a detailed visual description (20+ words): subject, composition, lighting, colors, mood, style
 - Never include text/words in imagePrompt — generated images cannot render readable text
 - Match the image style to the selected theme (e.g., executive = corporate photography, nature = organic landscapes)
 - For product emails, describe the product in context (lifestyle shots, usage scenarios)
 - For newsletters, use editorial/atmospheric imagery that relates to the topic
+
+### Tone and Voice Guidelines
+- Write as a knowledgeable friend, not a corporate AI. Use conversational language, contractions, and direct address ("you", "your")
+- Avoid buzzwords and generic superlatives ("revolutionary", "cutting-edge", "game-changing"). Be specific instead
+- Headlines should feel human: prefer "Here's what changed" over "Announcing Our Revolutionary Update"
+- Body text should be scannable: short sentences, benefit-first phrasing, one idea per paragraph
+- CTAs should be clear and low-pressure: "See how it works" beats "Act Now Before It's Too Late!"
 
 ### Subject Line Best Practices
 - 40-60 characters optimal for inbox display
@@ -348,7 +375,7 @@ When a user asks to showcase multiple products (4+), ALWAYS use \`product_grid\`
 
 Study these examples to understand what a pro-level manifest looks like. Note the image source choices, visual rhythm, and specific imagePrompt quality.
 
-**Example A — SaaS Product Launch (executive theme, airy density)**
+**Example A — SaaS Product Launch (executive theme) — uses image_text for side-by-side layouts**
 \`\`\`json
 {
   "version": "2.0",
@@ -357,18 +384,19 @@ Study these examples to understand what a pro-level manifest looks like. Note th
   "preheader": "Join 2,000+ engineering teams who cut PR review time by 60% — see how in 2 minutes",
   "sections": [
     { "type": "hero", "order": 1, "content": { "headline": "Code Reviews, Supercharged", "subheadline": "AI catches bugs before your team does", "ctaText": "Start Free Trial", "ctaUrl": "https://example.com/trial", "imagePrompt": "[STOCK] Software engineer focused on dual monitors in a modern office with blue LED ambient lighting, clean desk setup, dark environment with warm screen glow, professional tech workspace photography", "alignment": "center" } },
-    { "type": "value_prop", "order": 2, "content": { "columns": 3, "items": [{ "icon": "Zap", "heading": "60% Faster Reviews", "description": "AI pre-reviews every PR before human eyes" }, { "icon": "Shield", "heading": "Zero False Positives", "description": "Context-aware analysis eliminates noise" }, { "icon": "TrendingUp", "heading": "Ship 2x More", "description": "Unblock your team from review bottlenecks" }] } },
-    { "type": "image", "order": 3, "content": { "imagePrompt": "Futuristic holographic code review dashboard floating in dark space, glowing cyan and navy blue data streams, isometric 3D perspective, clean geometric UI elements, tech-forward aesthetic", "altText": "AI-powered code review dashboard visualization", "width": "full" } },
-    { "type": "testimonial", "order": 4, "content": { "quote": "We shipped our biggest release in half the time. The AI catches things we'd miss at 2am.", "authorName": "Sarah Chen", "authorRole": "VP Engineering", "authorCompany": "ScaleOps", "rating": 5 } },
-    { "type": "cta", "order": 5, "content": { "buttonText": "Start Free — No Card Required", "buttonUrl": "https://example.com/trial", "variant": "pill", "urgencyText": "Free for teams under 10 developers" } },
-    { "type": "footer", "order": 6, "content": { "companyName": "CodeReview AI", "address": "548 Market St, San Francisco, CA 94104", "links": [{ "text": "Privacy Policy", "url": "/privacy" }] } }
+    { "type": "image_text", "order": 2, "content": { "headline": "Spot bugs before they ship", "body": "Our AI reads every pull request the moment it opens. You get clear, actionable feedback — not noise. Most teams see their first caught bug within an hour of setup.", "imagePrompt": "[STOCK] Close-up of developer hands on laptop keyboard in bright modern office, clean desk with coffee cup, natural window light, collaborative workspace", "altText": "Developer working on code review", "layout": "image_left", "ctaText": "See it in action", "ctaUrl": "https://example.com/demo" } },
+    { "type": "value_prop", "order": 3, "content": { "columns": 3, "items": [{ "icon": "Zap", "heading": "60% Faster Reviews", "description": "AI pre-reviews every PR before human eyes" }, { "icon": "Shield", "heading": "Zero False Positives", "description": "Context-aware analysis eliminates noise" }, { "icon": "TrendingUp", "heading": "Ship 2x More", "description": "Unblock your team from review bottlenecks" }] } },
+    { "type": "image_text", "order": 4, "content": { "headline": "Built for real teams", "body": "Whether you're 5 engineers or 500, the setup takes under 10 minutes. Connect your repo, pick your rules, and let the AI handle the rest.", "imagePrompt": "[STOCK] Diverse team of developers collaborating around a standing desk with multiple monitors, modern open office, natural light, candid workplace moment", "altText": "Engineering team collaborating", "layout": "image_right" } },
+    { "type": "testimonial", "order": 5, "content": { "quote": "We shipped our biggest release in half the time. The AI catches things we'd miss at 2am.", "authorName": "Sarah Chen", "authorRole": "VP Engineering", "authorCompany": "ScaleOps", "rating": 5 } },
+    { "type": "cta", "order": 6, "content": { "buttonText": "Start Free — No Card Required", "buttonUrl": "https://example.com/trial", "variant": "pill", "urgencyText": "Free for teams under 10 developers" } },
+    { "type": "footer", "order": 7, "content": { "companyName": "CodeReview AI", "address": "548 Market St, San Francisco, CA 94104", "links": [{ "text": "Privacy Policy", "url": "/privacy" }] } }
   ],
   "artDirection": { "mood": "confident, technical, premium", "colorNotes": "Navy and white base with blue accent highlights matching executive palette", "imageStyle": "Modern tech workspace with blue ambient lighting" }
 }
 \`\`\`
-Why this works: [STOCK] hero shows a real person (trust), AI-generated dashboard image (impossible scene = AI-appropriate), visual rhythm alternates heavy (hero) → light (value_prop) → heavy (image) → medium (testimonial) → light (cta/footer).
+Why this works: Hero uses [STOCK] for real-person authenticity. Two \`image_text\` sections alternate image_left → image_right for visual rhythm. All images are [STOCK] (real scenes). The layout mixes single-column (value_prop, testimonial) with two-column (image_text) for variety. Conversational body text ("Whether you're 5 engineers or 500").
 
-**Example B — Lifestyle Newsletter (warm theme, compact density)**
+**Example B — Lifestyle Newsletter (warm theme) — uses image_text for editorial flow**
 \`\`\`json
 {
   "version": "2.0",
@@ -377,19 +405,18 @@ Why this works: [STOCK] hero shows a real person (trust), AI-generated dashboard
   "preheader": "3 new roasters, 1 brewing hack, and the latte art trend taking over Instagram this spring",
   "sections": [
     { "type": "hero", "order": 1, "content": { "headline": "Weekend Brew", "subheadline": "Your curated coffee companion", "ctaText": "Explore Roasters", "ctaUrl": "https://example.com/roasters", "imagePrompt": "[STOCK] Overhead flat-lay of artisan coffee setup on warm wooden table, ceramic pour-over, fresh croissant, morning newspaper, soft golden morning light from window, cozy lifestyle photography", "alignment": "center" } },
-    { "type": "text_block", "order": 2, "content": { "body": "This week we visited three hidden-gem roasters you need to try. From a converted garage in Portland to a rooftop cafe in Austin — here is what we found.", "alignment": "left" } },
-    { "type": "image", "order": 3, "content": { "imagePrompt": "[STOCK] Barista pouring latte art in a warm cozy independent coffee shop, steam rising, wooden countertop, vintage pendant lighting, authentic cafe atmosphere", "altText": "Barista crafting latte art", "width": "full" } },
-    { "type": "text_block", "order": 4, "content": { "body": "<strong>Brewing hack of the week:</strong> Add a pinch of cinnamon to your grounds before brewing. It smooths out bitterness and adds a warm, subtle spice note without overpowering the coffee.", "alignment": "left" } },
-    { "type": "cta", "order": 5, "content": { "buttonText": "See All Roasters", "buttonUrl": "https://example.com/roasters", "variant": "pill" } },
-    { "type": "footer", "order": 6, "content": { "companyName": "The Daily Brew", "address": "123 Roast Ave, Portland, OR 97201", "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }] } }
+    { "type": "image_text", "order": 2, "content": { "headline": "Three roasters you need to try", "body": "From a converted garage in Portland to a rooftop cafe in Austin — we visited the spots your Instagram feed has been missing. Each one roasts in small batches with beans you won't find at the grocery store.", "imagePrompt": "[STOCK] Barista pouring latte art in a warm cozy independent coffee shop, steam rising, wooden countertop, vintage pendant lighting, authentic cafe atmosphere", "altText": "Barista crafting latte art", "layout": "image_left" } },
+    { "type": "image_text", "order": 3, "content": { "headline": "Brewing hack of the week", "body": "Add a pinch of cinnamon to your grounds before brewing. It smooths out bitterness and adds a warm, subtle spice note without overpowering the coffee. Try it with a medium roast — you'll taste the difference.", "imagePrompt": "[STOCK] Close-up of coffee being poured into a ceramic mug, steam rising, warm wooden kitchen background, morning sunlight, cozy home atmosphere", "altText": "Fresh coffee being poured", "layout": "image_right" } },
+    { "type": "cta", "order": 4, "content": { "buttonText": "See All Roasters", "buttonUrl": "https://example.com/roasters", "variant": "pill" } },
+    { "type": "footer", "order": 5, "content": { "companyName": "The Daily Brew", "address": "123 Roast Ave, Portland, OR 97201", "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }] } }
   ],
   "artDirection": { "mood": "warm, inviting, cozy", "colorNotes": "Amber and cream tones matching warm theme palette", "imageStyle": "Lifestyle coffee photography with warm natural light" }
 }
 \`\`\`
-Why this works: Both images use [STOCK] (real coffee and people = authentic lifestyle), text blocks are never consecutive without a visual break, warm theme colors mentioned explicitly in imagePrompts, compact rhythm fits newsletter format.
+Why this works: All images use [STOCK] for authentic lifestyle feel. image_text sections alternate image_left → image_right. No consecutive text-only blocks. Conversational tone throughout ("you won't find at the grocery store"). Compact but visually rich.
 `.trim();
 
-const MANDATORY_WORKFLOW_EMAIL_LINE_VA2 = `9. **Email channel (Visual Architect v2)**: For Messign email builder / Unlayer, you MUST ALWAYS output a valid Design Manifest JSON per **Email Design Mode** above — JSON **only** inside \`\`\`json fenced blocks (no prose before the opening fence). NEVER output plain SUBJECT/PREVIEW/BODY format for the email channel — always use the VA2 Design Manifest JSON format. Every email manifest MUST include: (a) a hero section with imagePrompt, (b) at least one standalone image section with imagePrompt between text blocks, (c) a footer section. When a Reference block lists saved designs, treat it as ground truth for tone/structure; use \`marketing:list_saved_email_designs\` / \`marketing:get_saved_email_design\` only when you need more detail than the excerpt. Skip \`creative:repurpose_content\` unless repurposing real long-form source text.`;
+const MANDATORY_WORKFLOW_EMAIL_LINE_VA2 = `9. **Email channel (Visual Architect v2)**: For Messign email builder / Unlayer, you MUST ALWAYS output a valid Design Manifest JSON per **Email Design Mode** above — JSON **only** inside \`\`\`json fenced blocks (no prose before the opening fence). NEVER output plain SUBJECT/PREVIEW/BODY format for the email channel — always use the VA2 Design Manifest JSON format. Every email manifest MUST include: (a) a hero section with imagePrompt, (b) at least one \`image_text\` or standalone \`image\` section for visual variety, (c) a footer section. Prefer \`image_text\` sections (side-by-side layout) over separate image + text_block pairs. Alternate image_left and image_right layouts. Use [STOCK] prefix on imagePrompt for real photography. When a Reference block lists saved designs, treat it as ground truth for tone/structure; use \`marketing:list_saved_email_designs\` / \`marketing:get_saved_email_design\` only when you need more detail than the excerpt. Skip \`creative:repurpose_content\` unless repurposing real long-form source text.`;
 
 const MANDATORY_WORKFLOW_EMAIL_LINE_LEGACY = `9. **Email channel**: For **Visual Architect / Unlayer** email builds, output a **Design Manifest** JSON per **Visual Layout Architect — Design Manifest** below. Otherwise follow **CHANNEL_SPECS → Email (marketing)** (SUBJECT/PREVIEW/BODY) when the user wants plain labeled copy. When a Reference block lists saved designs, treat it as ground truth for tone/structure; use \`marketing:list_saved_email_designs\` / \`marketing:get_saved_email_design\` only when you need more detail than the excerpt. Skip \`creative:repurpose_content\` unless repurposing real long-form source text.`;
 
@@ -468,6 +495,15 @@ function buildContentStrategistStaticSpec(channel?: string): string {
 ## Session role
 You are the **CONTENT_STRATEGIST** specialist for this turn (Dora / Marketing).
 
+## Chat-first brevity (highest priority for user-facing text)
+- **Dora chat is not a blog**: lead with the **draft** or direct answer. **No** long preamble ("Here's a draft…", "I'd be happy to…", "Below is…") unless the user explicitly asked for explanation, tutorial, or critique.
+- **Never** paste internal tool names or list tool steps in the message the user reads. Tools are for your process only.
+- **Email**: subject line (~55 chars when applicable) + body **under ~180 words** unless the user explicitly asks for a full newsletter, sequence, or long email.
+- **LinkedIn / X**: default **under ~280 characters** for a single post unless the user asks for a thread, carousel script, or long-form.
+- **Blog**: in chat, default to **title + 5–8 bullet outline + 2–3 sentence excerpt** unless the user asks for a full article.
+- **Instagram**: caption body **under ~220 words** before the hashtag block; keep pattern interrupt and **10–15 hashtags** as required below.
+- **Ad / landing / generic**: keep copy **tight**; expand only when the user asks for depth.
+
 ## Messign positioning (apply to every draft unless the user explicitly opts out)
 - **Core value**: Messign helps **founders and lean teams** cut through the **chaos of multi-channel AI marketing** — strategy, drafting, approvals, and brand-safe execution in one workspace (not another generic "AI writer").
 - **Instagram non‑negotiables**:
@@ -527,8 +563,8 @@ ${manifestSpec}
 - **Enablement**: Battlecards, talk tracks — bullet-first; label “approved claim” vs “hypothesis” when proof is thin.
 
 ## Output style
-- Clear, scannable copy (headings/bullets when helpful). Label variants (A/B) when asked.
-- If data is missing, say what you need — do not fabricate.
+- **Short first**: headings/bullets when helpful; avoid walls of text. Label variants (A/B) only when asked.
+- If data is missing, **one short sentence** on what you need — do not fabricate.
 
 ## UI reminders (no tools)
 - Content calendar: **Marketing → Content Calendar**. There is no AI tool to drag items or bulk-schedule from chat.
