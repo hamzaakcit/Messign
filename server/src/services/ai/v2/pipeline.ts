@@ -387,6 +387,7 @@ export async function runDoraPipeline(
     const domain = plan.outcome.type === 'engine' ? plan.outcome.domain : classified.domain;
     const overrides = plan.outcome.type === 'engine' && plan.outcome.toolNames.length ? plan.outcome.toolNames : undefined;
     const tools = selectTools(domain, overrides);
+
     const trace = await runAgenticEngine({
       userMessage: body.query,
       history: body.history,

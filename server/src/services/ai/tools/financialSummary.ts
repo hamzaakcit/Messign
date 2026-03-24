@@ -70,17 +70,14 @@ Use this tool when someone asks:
 
   async execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
     const timePeriod = (args.time_period as string) || 'this_month';
-    const scope = (args.scope as string) || 'my';
+    let scope = (args.scope as string) || 'my';
     const category = args.category as string | undefined;
 
     const isCompanyScope = scope === 'company' || scope === 'team';
+    let scopeDowngraded = false;
     if (isCompanyScope && !['admin', 'manager', 'cpo', 'finance', 'hr'].includes(context.userRole)) {
-      return {
-        success: false,
-        data: null,
-        summary:
-          'Company-wide financial data is only available to admins and finance roles. You can view your own finances by asking "Show me my reimbursements".',
-      };
+      scope = 'my';
+      scopeDowngraded = true;
     }
 
     const dateFilter = buildFinanceDateFilter(timePeriod);
@@ -204,7 +201,7 @@ Use this tool when someone asks:
     }
 
     let topCategories: Record<string, unknown>[] = [];
-    if (isCompanyScope) {
+    if (isCompanyScope && !scopeDowngraded) {
       try {
         const catResult = await query(
           `SELECT c.name as category, COUNT(*)::int as count, COALESCE(SUM(r.converted_amount), SUM(r.original_amount))::numeric as total
@@ -223,7 +220,8 @@ Use this tool when someone asks:
     }
 
     const periodLabel = timePeriod.replace('_', ' ');
-    const scopeLabel = scope === 'my' ? 'Your' : 'Company-wide';
+    const actuallyCompany = scope !== 'my';
+    const scopeLabel = actuallyCompany ? 'Company-wide' : (scopeDowngraded ? 'Your (company-wide requires admin/finance role)' : 'Your');
 
     let summary = `**${scopeLabel} Financial Summary (${periodLabel}):**\n`;
 

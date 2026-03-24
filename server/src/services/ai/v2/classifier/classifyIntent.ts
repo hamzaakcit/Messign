@@ -4,7 +4,7 @@ const DOMAIN_KEYWORDS: Array<{ domain: Domain; weight: number; patterns: RegExp[
   {
     domain: 'finance',
     weight: 1,
-    patterns: [/\b(invoice|budget|expense|reimburs|payroll|ledger|vat|tax)\b/i],
+    patterns: [/\b(invoice|budget|expense|reimburs|payroll|ledger|vat|tax|revenue|profit|financial|spending|cost|earnings|income|cash\s*flow)\b/i],
   },
   {
     domain: 'hr',
@@ -59,7 +59,7 @@ const DOMAIN_KEYWORDS: Array<{ domain: Domain; weight: number; patterns: RegExp[
   {
     domain: 'analytics',
     weight: 1,
-    patterns: [/\b(dashboard|metrics|report|activity|approval queue|stats)\b/i],
+    patterns: [/\b(dashboard|metrics|report|activity|approval queue|stats|overview|performance|summary|kpi)\b/i],
   },
   {
     domain: 'settings',

@@ -51,8 +51,8 @@ const geminiClient = new OpenAI({
 
 type DirectProvider = 'groq' | 'gemini';
 
-/** OpenAI-compat chat model id for generativelanguage.googleapis.com/v1beta/openai/ (override if your key only serves certain models). */
-const GEMINI_CHAT_MODEL_DEFAULT = 'gemini-2.0-flash-001';
+/** OpenAI-compat chat model id for generativelanguage.googleapis.com/v1beta/openai/ */
+const GEMINI_CHAT_MODEL_DEFAULT = 'gemini-2.5-flash';
 const GEMINI_CHAT_MODEL =
   process.env.GEMINI_CHAT_MODEL?.trim() || GEMINI_CHAT_MODEL_DEFAULT;
 
@@ -60,9 +60,8 @@ const GEMINI_CHAT_MODEL =
 const GEMINI_CHAT_CANDIDATES: string[] = (() => {
   const primary = process.env.GEMINI_CHAT_MODEL?.trim() || GEMINI_CHAT_MODEL_DEFAULT;
   const fallbacks = [
-    GEMINI_CHAT_MODEL_DEFAULT,
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
     'gemini-1.5-flash',
   ];
   const seen = new Set<string>();

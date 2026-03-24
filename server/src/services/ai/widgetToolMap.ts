@@ -6,14 +6,20 @@ export const AI_WIDGET_TOOL_MAP: Record<string, string> = {
   'projects:get_tasks_by_user': 'task_table',
   'projects:get_project_status': 'project_status',
   'finance:get_financial_summary': 'financial_summary',
+  'finance:get_finance_dashboard': 'financial_summary',
+  'finance:get_budget_status': 'data_table',
   /** invoice rows: resolved dynamically in widgetResolve (single → invoice_preview, many → data_table) */
   'analytics:get_approval_queue': 'data_table',
+  'analytics:get_department_report': 'data_table',
   'finance:get_reimbursement_details': 'data_table',
   'people:get_employee_performance': 'performance_overview',
   'people:get_team_overview': 'team_overview',
   'hr:compare_employees': 'data_table',
   'hr:get_hiring_pipeline': 'data_table',
   'hr:get_recruitment_metrics': 'data_table',
+  'crm:get_pipeline_status': 'data_table',
+  'crm:get_deal_details': 'data_table',
+  'crm:get_sales_forecast': 'data_table',
   'support:get_ticket_overview': 'data_table',
   'support:get_support_metrics': 'data_table',
   'support:get_customer_health': 'data_table',
@@ -27,6 +33,8 @@ export const AI_WIDGET_TOOL_MAP: Record<string, string> = {
   /** Marketing hub: tabular metrics (no `instagram:create_post` — publishing is server-side, not an LLM tool). */
   'marketing:get_campaign_performance': 'data_table',
   'marketing:get_marketing_roi': 'data_table',
+  'executive:get_executive_dashboard': 'data_table',
+  'executive:generate_daily_briefing': 'data_table',
 };
 
 export type ToolObservationForWidget = {
