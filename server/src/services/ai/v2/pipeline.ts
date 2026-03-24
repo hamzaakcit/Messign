@@ -98,6 +98,8 @@ export async function runDoraPipeline(
   const controller = new StreamController(res);
   const telemetry: PipelineTelemetry = { startedAt: Date.now(), stages: [] };
   const startedAt = telemetry.startedAt;
+  /** First byte for clients/proxies that drop idle SSE; progress is replaced by real text. */
+  controller.emit('progress', { phase: 'starting', step: 1, maxSteps: 4 });
 
   try {
     const sessionId = body.sessionId || `s_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;

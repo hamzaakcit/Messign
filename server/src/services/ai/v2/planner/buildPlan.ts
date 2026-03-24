@@ -74,19 +74,25 @@ export async function buildPlan(
   });
 
   const tiers = selectModelTier('planning', message, 0);
-  const normalized = await callWithFallback(
-    {
-      messages,
-      tenantId: ctx.organizationId,
-      maxTokens: 400,
-      temperature: 0.1,
-      userQuery: message,
-    },
-    tiers.primary,
-    tiers.fallback,
-  );
-
-  const { tools } = parsePlanningJson(normalized.content ?? '{}');
+  let tools: string[] = [];
+  try {
+    const normalized = await callWithFallback(
+      {
+        messages,
+        tenantId: ctx.organizationId,
+        maxTokens: 400,
+        temperature: 0.1,
+        userQuery: message,
+      },
+      tiers.primary,
+      tiers.fallback,
+    );
+    tools = parsePlanningJson(normalized.content ?? '{}').tools;
+  } catch (e) {
+    console.warn('[buildPlan] planning LLM failed — falling back to domain default tools', {
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
 
   return {
     outcome: {

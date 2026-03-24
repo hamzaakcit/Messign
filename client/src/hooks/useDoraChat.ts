@@ -39,6 +39,14 @@ function parseSseJsonLine(line: string): Record<string, unknown> | null {
   }
 }
 
+/** EOF may leave multiple `data: {...}` lines in the buffer without a trailing newline. */
+function parseAllSseJsonLines(block: string, handler: (ev: Record<string, unknown>) => void): void {
+  for (const line of block.split('\n')) {
+    const ev = parseSseJsonLine(line);
+    if (ev && typeof ev.type === 'string') handler(ev);
+  }
+}
+
 /** v2 `{ type, data }` plus optional legacy `content` / `message` */
 function eventTextChunk(event: Record<string, unknown>): string {
   if (typeof event.data === 'string') return event.data;
@@ -218,7 +226,14 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         const handleSseEvent = (event: Record<string, unknown>) => {
           switch (event.type) {
             case 'text': {
-              accumulatedText += eventTextChunk(event);
+              let chunk = eventTextChunk(event);
+              if (chunk) {
+                if (accumulatedText.startsWith('_') && accumulatedText.includes('…_')) {
+                  const sep = accumulatedText.indexOf('\n\n');
+                  if (sep !== -1) accumulatedText = accumulatedText.slice(sep + 2);
+                }
+                accumulatedText += chunk;
+              }
               batchedSetMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
@@ -239,6 +254,21 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                   ),
                 );
               }
+              break;
+            }
+
+            case 'progress': {
+              const d = event.data as
+                | { step?: number; maxSteps?: number; phase?: string; tool?: string }
+                | undefined;
+              if (!d || accumulatedText.trim().length > 0) break;
+              const hint = `_${d.phase ?? 'Working'}${d.step != null ? ` (${d.step}/${d.maxSteps ?? '?'})` : ''}${d.tool ? ` · ${d.tool}` : ''}…_`;
+              accumulatedText = `${hint}\n\n`;
+              batchedSetMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, content: accumulatedText } : m,
+                ),
+              );
               break;
             }
 
@@ -325,6 +355,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 (typeof event.message === 'string' ? event.message : null) ||
                 (typeof event.content === 'string' ? event.content : null) ||
                 'Unknown error';
+              accumulatedText = errMsg;
               setError(errMsg);
               setMessages((prev) =>
                 prev.map((m) =>
@@ -386,10 +417,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
           if (done) {
             if (buffer.trim()) {
-              const event = parseSseJsonLine(buffer);
-              if (event && typeof event.type === 'string') {
-                handleSseEvent(event);
-              }
+              parseAllSseJsonLines(buffer, handleSseEvent);
             }
             break;
           }
@@ -397,6 +425,8 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
         if (!sawDoneEvent) {
           assistantFinalized = true;
+          const connectionHint =
+            'No response was returned. The stream closed early — often the AI backend (LiteLLM / OpenAI) is unreachable or timed out. Check server env: LITELLM_URL, LITELLM_MASTER_KEY, or OPENAI_API_KEY.';
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessage.id
@@ -405,7 +435,7 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                     content:
                       accumulatedText?.trim() ||
                       (typeof m.content === 'string' ? m.content.trim() : '') ||
-                      'No response was returned. Try again or check your connection.',
+                      connectionHint,
                     specialist: accumulatedSpecialist ?? m.specialist,
                     sources: accumulatedSources.length > 0 ? accumulatedSources : m.sources,
                     metadata: accumulatedMetadata ?? m.metadata,
