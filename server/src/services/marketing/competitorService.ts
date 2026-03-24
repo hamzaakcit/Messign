@@ -7,6 +7,7 @@
  */
 
 import { createHash } from 'crypto';
+import { isMissingSchemaObjectError } from '../../utils/pgSchemaErrors.js';
 import type { DbClient } from './performanceCollector.js';
 
 // ── Types: Competitor Profile ──
@@ -185,22 +186,29 @@ export async function listCompetitors(
   const params: unknown[] = [organizationId];
   if (!includeInactive) where += ' AND active = true';
 
-  const countResult = await db.query(
-    `SELECT COUNT(*) as total FROM competitors ${where}`, params,
-  );
+  try {
+    const countResult = await db.query(
+      `SELECT COUNT(*) as total FROM competitors ${where}`, params,
+    );
 
-  params.push(limit, offset);
-  const listResult = await db.query(
-    `SELECT * FROM competitors ${where}
+    params.push(limit, offset);
+    const listResult = await db.query(
+      `SELECT * FROM competitors ${where}
      ORDER BY tier ASC, name ASC
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
-    params,
-  );
+      params,
+    );
 
-  return {
-    competitors: listResult.rows as unknown as Competitor[],
-    total: parseInt(String(countResult.rows[0]?.total ?? 0), 10),
-  };
+    return {
+      competitors: listResult.rows as unknown as Competitor[],
+      total: parseInt(String(countResult.rows[0]?.total ?? 0), 10),
+    };
+  } catch (err) {
+    if (isMissingSchemaObjectError(err)) {
+      return { competitors: [], total: 0 };
+    }
+    throw err;
+  }
 }
 
 export async function updateCompetitor(
@@ -362,22 +370,29 @@ export async function queryEvents(
     where += ` AND discovered_at >= $${params.length}`;
   }
 
-  const countResult = await db.query(
-    `SELECT COUNT(*) as total FROM competitor_events ${where}`, params,
-  );
+  try {
+    const countResult = await db.query(
+      `SELECT COUNT(*) as total FROM competitor_events ${where}`, params,
+    );
 
-  params.push(limit, offset);
-  const eventsResult = await db.query(
-    `SELECT * FROM competitor_events ${where}
+    params.push(limit, offset);
+    const eventsResult = await db.query(
+      `SELECT * FROM competitor_events ${where}
      ORDER BY discovered_at DESC
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
-    params,
-  );
+      params,
+    );
 
-  return {
-    events: eventsResult.rows as unknown as CompetitorEvent[],
-    total: parseInt(String(countResult.rows[0]?.total ?? 0), 10),
-  };
+    return {
+      events: eventsResult.rows as unknown as CompetitorEvent[],
+      total: parseInt(String(countResult.rows[0]?.total ?? 0), 10),
+    };
+  } catch (err) {
+    if (isMissingSchemaObjectError(err)) {
+      return { events: [], total: 0 };
+    }
+    throw err;
+  }
 }
 
 export async function getRecentEvents(

@@ -405,6 +405,12 @@ httpServer.listen(Number(port), '0.0.0.0', async () => {
     console.warn('[initNewTables]', e);
   }
   try {
+    const { warnOptionalMarketingSchemaIfMissing } = await import('./db/warnOptionalMarketingSchema.js');
+    await warnOptionalMarketingSchemaIfMissing();
+  } catch (e) {
+    console.warn('[optionalMarketingSchema]', e);
+  }
+  try {
     await initializeAuthRecords();
   } catch (e) {
     console.warn('[initAuth]', e);

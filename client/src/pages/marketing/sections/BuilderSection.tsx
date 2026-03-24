@@ -120,6 +120,25 @@ export function BuilderSection(): JSX.Element {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  /** Deep-link from board email card: `/marketing/builder?type=email&open=<id>` */
+  const openId = searchParams.get('open');
+  useEffect(() => {
+    if (!openId || items.length === 0 || loading) return;
+    const found = items.find((i) => i.id === openId);
+    if (found) {
+      setSelectedItem(found);
+      if (found.type !== 'all') setFilterType(found.type);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('open');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [openId, items, loading, setSearchParams]);
+
   const filtered = useMemo(() => {
     if (filterType === 'all') return items;
     return items.filter((i) => i.type === filterType);

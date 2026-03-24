@@ -6,6 +6,7 @@
  * for the Content Strategist.
  */
 
+import { isMissingSchemaObjectError } from '../../utils/pgSchemaErrors.js';
 import { invalidateCalibrationCache } from './calibrationCache.js';
 import { evaluatePerformanceTriggers, evaluateStreakBonus } from './mpTriggerService.js';
 
@@ -219,76 +220,83 @@ export async function getPerformanceContext(
   },
   db: DbClient,
 ): Promise<PerformanceContext> {
-  const channel = options.channel || 'email';
-  const brandFilter = options.brandProfileId;
+  try {
+    const channel = options.channel || 'email';
+    const brandFilter = options.brandProfileId;
 
-  let where =
-    'WHERE organization_id = $1 AND channel = $2 AND send_count >= $3';
-  const params: unknown[] = [organizationId, channel, MIN_SEND_COUNT];
+    let where =
+      'WHERE organization_id = $1 AND channel = $2 AND send_count >= $3';
+    const params: unknown[] = [organizationId, channel, MIN_SEND_COUNT];
 
-  if (brandFilter) {
-    params.push(brandFilter);
-    where += ` AND brand_profile_id = $${params.length}`;
-  }
+    if (brandFilter) {
+      params.push(brandFilter);
+      where += ` AND brand_profile_id = $${params.length}`;
+    }
 
-  const countResult = await db.query(
-    `SELECT COUNT(*) as total FROM performance_feedback ${where}`,
-    params,
-  );
-  const totalRecords = parseInt(
-    String(countResult.rows[0]?.total ?? 0),
-    10,
-  );
+    const countResult = await db.query(
+      `SELECT COUNT(*) as total FROM performance_feedback ${where}`,
+      params,
+    );
+    const totalRecords = parseInt(
+      String(countResult.rows[0]?.total ?? 0),
+      10,
+    );
 
-  if (totalRecords === 0) {
-    return emptyContext();
-  }
+    if (totalRecords === 0) {
+      return emptyContext();
+    }
 
-  const topResult = await db.query(
-    `SELECT * FROM performance_feedback ${where}
+    const topResult = await db.query(
+      `SELECT * FROM performance_feedback ${where}
      ORDER BY open_rate DESC NULLS LAST
      LIMIT $${params.length + 1}`,
-    [...params, TOP_N],
-  );
-  const topPerformers = topResult.rows as unknown as PerformanceRecord[];
+      [...params, TOP_N],
+    );
+    const topPerformers = topResult.rows as unknown as PerformanceRecord[];
 
-  const bottomResult = await db.query(
-    `SELECT * FROM performance_feedback ${where}
+    const bottomResult = await db.query(
+      `SELECT * FROM performance_feedback ${where}
      ORDER BY open_rate ASC NULLS LAST
      LIMIT $${params.length + 1}`,
-    [...params, TOP_N],
-  );
-  const bottomPerformers =
-    bottomResult.rows as unknown as PerformanceRecord[];
+      [...params, TOP_N],
+    );
+    const bottomPerformers =
+      bottomResult.rows as unknown as PerformanceRecord[];
 
-  const avgResult = await db.query(
-    `SELECT
+    const avgResult = await db.query(
+      `SELECT
        AVG(open_rate) as avg_open,
        AVG(click_through_rate) as avg_ctr,
        AVG(conversion_rate) as avg_conv
      FROM performance_feedback ${where}`,
-    params,
-  );
-  const avgRow = avgResult.rows[0] || {};
+      params,
+    );
+    const avgRow = avgResult.rows[0] || {};
 
-  return {
-    topPerformers,
-    bottomPerformers,
-    averages: {
-      openRate: avgRow.avg_open
-        ? parseFloat(String(avgRow.avg_open))
-        : null,
-      clickThroughRate: avgRow.avg_ctr
-        ? parseFloat(String(avgRow.avg_ctr))
-        : null,
-      conversionRate: avgRow.avg_conv
-        ? parseFloat(String(avgRow.avg_conv))
-        : null,
-    },
-    patterns: extractPatterns(topPerformers, bottomPerformers),
-    totalRecords,
-    hasEnoughData: totalRecords >= MIN_RECORDS_FOR_PATTERNS,
-  };
+    return {
+      topPerformers,
+      bottomPerformers,
+      averages: {
+        openRate: avgRow.avg_open
+          ? parseFloat(String(avgRow.avg_open))
+          : null,
+        clickThroughRate: avgRow.avg_ctr
+          ? parseFloat(String(avgRow.avg_ctr))
+          : null,
+        conversionRate: avgRow.avg_conv
+          ? parseFloat(String(avgRow.avg_conv))
+          : null,
+      },
+      patterns: extractPatterns(topPerformers, bottomPerformers),
+      totalRecords,
+      hasEnoughData: totalRecords >= MIN_RECORDS_FOR_PATTERNS,
+    };
+  } catch (err) {
+    if (isMissingSchemaObjectError(err)) {
+      return emptyContext();
+    }
+    throw err;
+  }
 }
 
 /**

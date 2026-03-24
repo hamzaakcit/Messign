@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Instagram, Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
+import { Instagram, Linkedin, Loader2, Mail, Send, StopCircle, Trash2 } from 'lucide-react';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { DoraChatAvatar } from '@/components/dora/DoraPilot';
@@ -10,18 +10,23 @@ import type { BoardCardData } from './BoardCard';
 
 const noop = (): void => {};
 
-const QUICK_PROMPTS: { label: string; text: string; icon?: 'instagram' }[] = [
+const QUICK_PROMPTS: { label: string; text: string; icon?: 'instagram' | 'linkedin' | 'mail'; accent: string }[] = [
   {
-    label: 'Instagram + image',
+    label: 'Instagram',
     icon: 'instagram',
+    accent: 'from-pink-500/30 to-rose-600/20 border-pink-500/25',
     text: 'Draft an Instagram post for [topic]. Include: a strong hook (first line), short paragraphs with line breaks, a clear CTA, 10\u201315 relevant hashtags, and a separate block exactly in this format for the hero image:\n\n[IMAGE_PROMPT]\nDescribe subject, lighting, colors, mood, and style. Square 1:1, no text in the image unless I ask.\n[/IMAGE_PROMPT]',
   },
   {
-    label: 'LinkedIn post',
+    label: 'LinkedIn',
+    icon: 'linkedin',
+    accent: 'from-blue-500/25 to-indigo-600/15 border-blue-500/20',
     text: 'Draft a LinkedIn post for [topic]: hook in the first two lines, short paragraphs, minimal emoji (0\u20132), and a professional CTA.',
   },
   {
-    label: 'Email promo',
+    label: 'Email',
+    icon: 'mail',
+    accent: 'from-emerald-500/25 to-teal-600/15 border-emerald-500/20',
     text: 'Draft a short marketing email: subject line (~55 chars), preview text, body with one primary CTA, plain-language tone.',
   },
 ];
@@ -108,11 +113,14 @@ export function DoraRail({ selectedCard }: DoraRailProps): JSX.Element {
 
       <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
         {messages.length === 0 && !isLoading && (
-          <div className="text-center py-6 text-app-muted text-[10px] space-y-1.5">
-            <div className="flex justify-center mb-2">
-              <DoraChatAvatar size={32} />
+          <div className="text-center py-4 px-1 space-y-3">
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-primary-500/20 blur-xl scale-150" aria-hidden />
+                <DoraChatAvatar size={36} />
+              </div>
             </div>
-            <p>Ask for copy, insights, or ideas.</p>
+            <p className="text-[10px] text-slate-500">Quick start</p>
           </div>
         )}
 
@@ -141,17 +149,24 @@ export function DoraRail({ selectedCard }: DoraRailProps): JSX.Element {
       </div>
 
       <div className="p-2 border-t border-white/[0.06] space-y-1 bg-[#0a0c10] shrink-0">
-        <div className="flex flex-wrap gap-1">
+        <div className="grid grid-cols-3 gap-1">
           {QUICK_PROMPTS.map((q) => (
             <button
               key={q.label}
               type="button"
               disabled={isLoading}
               onClick={() => { setInputValue(q.text); inputRef.current?.focus(); }}
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border border-white/10 bg-white/[0.04] text-app-muted hover:text-app-text hover:bg-white/[0.08] disabled:opacity-40"
+              title={q.label}
+              className={`
+                flex flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-1 py-2
+                text-[9px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40
+                ${q.accent}
+              `}
             >
-              {q.icon === 'instagram' ? <Instagram className="w-2 h-2 shrink-0" /> : null}
-              {q.label}
+              {q.icon === 'instagram' ? <Instagram className="w-4 h-4 text-pink-300" /> : null}
+              {q.icon === 'linkedin' ? <Linkedin className="w-4 h-4 text-blue-300" /> : null}
+              {q.icon === 'mail' ? <Mail className="w-4 h-4 text-emerald-300" /> : null}
+              <span className="leading-none">{q.label}</span>
             </button>
           ))}
         </div>

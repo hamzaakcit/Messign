@@ -26,6 +26,7 @@ import { CampaignCreatePanel } from './components/CampaignCreatePanel';
 import { ContentCreatePanel } from './components/ContentCreatePanel';
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
+import { EmailCampaignDetailPanel } from './components/EmailCampaignDetailPanel';
 
 const ContentDetailPanel = React.lazy(() =>
   import('./components/ContentDetailPanel').then((m) => ({ default: m.ContentDetailPanel })),
@@ -62,6 +63,7 @@ type DetailTarget =
   | { type: 'content'; id: string }
   | { type: 'campaign'; id: string }
   | { type: 'lead'; id: string }
+  | { type: 'email'; id: string }
   | null;
 
 function SectionFallback(): JSX.Element {
@@ -242,7 +244,7 @@ export function MarketingHub(): JSX.Element {
       setDetail({ type: 'campaign', id: c.id });
     } else if (card.type === 'email') {
       const e = card.sourceData as EmailCampaign;
-      setDetail({ type: 'content', id: e.id });
+      setDetail({ type: 'email', id: e.id });
     } else if (card.type === 'approval') {
       const a = card.sourceData as ApprovalQueueItem;
       if (a.contentId) {
@@ -388,6 +390,17 @@ export function MarketingHub(): JSX.Element {
       >
         {detail?.type === 'lead' && (
           <LeadDetailPanel leadId={detail.id} onUpdated={fetchData} />
+        )}
+      </SlideOverPanel>
+
+      <SlideOverPanel
+        isOpen={detail?.type === 'email'}
+        onClose={() => { setDetail(null); setSelectedCard(null); }}
+        title="Email campaign"
+        width={960}
+      >
+        {detail?.type === 'email' && (
+          <EmailCampaignDetailPanel emailId={detail.id} onUpdated={fetchData} />
         )}
       </SlideOverPanel>
 

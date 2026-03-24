@@ -6,6 +6,7 @@
  * the `compliance_scans` table for the approval queue UI.
  */
 
+import { isMissingSchemaObjectError } from '../../utils/pgSchemaErrors.js';
 import type { DbClient } from './performanceCollector.js';
 import type { BrandProfile } from './brandProfileService.js';
 import { getBrandProfile } from './brandProfileService.js';
@@ -426,7 +427,10 @@ export function triggerBrandComplianceScan(
     };
 
     await scanContent(content, callLLM, db);
-  })().catch((err) => console.error('[ComplianceScanner] Auto-scan failed:', err));
+  })().catch((err) => {
+    if (isMissingSchemaObjectError(err)) return;
+    console.error('[ComplianceScanner] Auto-scan failed:', err);
+  });
 }
 
 // ── Helpers ──

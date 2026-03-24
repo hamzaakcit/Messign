@@ -6,6 +6,7 @@
  * The LLM system prompt uses ONLY the selected brand's data.
  */
 
+import { isMissingSchemaObjectError } from '../../utils/pgSchemaErrors.js';
 import type { DbClient } from './performanceCollector.js';
 
 // ── Types ──
@@ -158,22 +159,29 @@ export async function listBrandProfiles(
     where += ' AND active = true';
   }
 
-  const countResult = await db.query(
-    `SELECT COUNT(*) as total FROM brand_profiles ${where}`,
-    countParams,
-  );
+  try {
+    const countResult = await db.query(
+      `SELECT COUNT(*) as total FROM brand_profiles ${where}`,
+      countParams,
+    );
 
-  const listResult = await db.query(
-    `SELECT * FROM brand_profiles ${where}
+    const listResult = await db.query(
+      `SELECT * FROM brand_profiles ${where}
      ORDER BY brand_name ASC
      LIMIT $2 OFFSET $3`,
-    [organizationId, limit, offset],
-  );
+      [organizationId, limit, offset],
+    );
 
-  return {
-    profiles: listResult.rows as unknown as BrandProfile[],
-    total: parseInt(String(countResult.rows[0]?.total ?? 0), 10),
-  };
+    return {
+      profiles: listResult.rows as unknown as BrandProfile[],
+      total: parseInt(String(countResult.rows[0]?.total ?? 0), 10),
+    };
+  } catch (err) {
+    if (isMissingSchemaObjectError(err)) {
+      return { profiles: [], total: 0 };
+    }
+    throw err;
+  }
 }
 
 export async function updateBrandProfile(

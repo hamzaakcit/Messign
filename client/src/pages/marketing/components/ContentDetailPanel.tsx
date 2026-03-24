@@ -24,6 +24,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
   const userId = user?.authUserId || user?.id || '';
   const [content, setContent] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [imageGenProgress, setImageGenProgress] = useState('');
   const [showBatchPanel, setShowBatchPanel] = useState(false);
@@ -36,9 +37,14 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
   const fetchContent = useCallback(async () => {
     if (!userId || !contentId) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const result = await marketingAPI.getContent(userId, contentId);
       setContent(result);
+    } catch (e) {
+      setContent(null);
+      setLoadError(e instanceof Error ? e.message : 'Failed to load content');
+      toast.error('Could not load content', { description: e instanceof Error ? e.message : undefined });
     } finally {
       setLoading(false);
     }
@@ -93,8 +99,24 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
     }
   };
 
-  if (loading || !content) {
+  if (loading) {
     return <div className="p-6 text-sm text-app-muted">Loading content…</div>;
+  }
+
+  if (loadError || !content) {
+    return (
+      <div className="p-8 text-center space-y-2">
+        <p className="text-sm font-medium text-app-text">Content unavailable</p>
+        <p className="text-xs text-app-muted max-w-md mx-auto">{loadError ?? 'This item may have been removed or is not a content post.'}</p>
+        <button
+          type="button"
+          onClick={() => void fetchContent()}
+          className="text-xs text-primary-400 hover:underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   const isInstagram = (content.channel ?? '').toLowerCase() === 'instagram';
