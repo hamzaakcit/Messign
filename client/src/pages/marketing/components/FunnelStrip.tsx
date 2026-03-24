@@ -42,7 +42,7 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
         <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto no-scrollbar">
           {STAGES.map((stage, i) => (
             <span key={stage.key} className="flex items-center gap-1 shrink-0">
-              {i > 0 && <ChevronRight className="w-2.5 h-2.5 text-white/20" />}
+              {i > 0 && <ChevronRight className="w-2.5 h-2.5 text-app-text/20" />}
               <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold', stage.color)}>
                 {funnel[stage.key] ?? 0}
               </span>

@@ -156,7 +156,7 @@ export function JournalEntriesPage() {
       <div className="flex items-center gap-4 flex-wrap">
         <button
           onClick={openNewEntry}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 transition-colors"
         >
           <Plus className="h-4 w-4" /> New Entry
         </button>
@@ -395,7 +395,7 @@ export function JournalEntriesPage() {
             <div className="flex justify-end gap-2">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-muted hover:text-app-text hover:bg-white/10 transition-colors">Cancel</button>
               <button onClick={handleSaveEntry} disabled={jeSaving || !isBalanced}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50 transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 disabled:opacity-50 transition-colors">
                 {jeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {jeSaving ? 'Posting...' : 'Post Entry'}
               </button>

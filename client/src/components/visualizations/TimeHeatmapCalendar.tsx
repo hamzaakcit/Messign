@@ -97,17 +97,17 @@ export function TimeHeatmapCalendar({ data, weeks = 26, onDayClick }: TimeHeatma
   return (
     <div className="rounded-lg border border-[var(--app-border)] p-4 bg-[var(--app-bg)]">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-white">Hours Logged</h3>
+        <h3 className="text-sm font-medium text-app-text">Hours Logged</h3>
         <div className="flex rounded-lg border border-[var(--app-border)] overflow-hidden">
           <button
             onClick={() => setBillableMode(false)}
-            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-white/5 text-gray-400' : 'bg-primary-600 text-white'}`}
+            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-white/5 text-app-muted' : 'bg-primary-600 text-app-text'}`}
           >
             Total Hours
           </button>
           <button
             onClick={() => setBillableMode(true)}
-            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400'}`}
+            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-primary-600 text-app-text' : 'bg-white/5 text-app-muted'}`}
           >
             Billable Only
           </button>
@@ -115,7 +115,7 @@ export function TimeHeatmapCalendar({ data, weeks = 26, onDayClick }: TimeHeatma
       </div>
 
       <div className="flex gap-2">
-        <div className="flex flex-col justify-between text-[10px] text-gray-500 py-1.5">
+        <div className="flex flex-col justify-between text-[10px] text-app-muted py-1.5">
           {weekLabels.map((l, i) => (
             <span key={i} className="h-3 flex items-center">
               {l}
@@ -123,7 +123,7 @@ export function TimeHeatmapCalendar({ data, weeks = 26, onDayClick }: TimeHeatma
           ))}
         </div>
         <div className="flex-1">
-          <div className="flex gap-0.5 mb-2 text-[10px] text-gray-500">
+          <div className="flex gap-0.5 mb-2 text-[10px] text-app-muted">
             {monthLabels.map((m, i) => (
               <span key={i} style={{ width: (cellSize + gap) * 4.33, marginLeft: i === 0 ? 0 : -((cellSize + gap) * 2) }}>
                 {m.label}

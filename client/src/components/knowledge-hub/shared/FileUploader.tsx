@@ -55,7 +55,7 @@ export function FileUploader({ documentId, onFileUploaded, className }: Props) {
         onClick={() => inputRef.current?.click()}
         className={cn(
           'border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors',
-          dragOver ? 'border-primary-500 bg-primary-500/5' : 'border-dark-600 hover:border-dark-500'
+          dragOver ? 'border-primary-500 bg-primary-500/5' : 'border-app-border hover:border-app-border'
         )}
       >
         <input
@@ -67,19 +67,19 @@ export function FileUploader({ documentId, onFileUploaded, className }: Props) {
         {uploading ? (
           <Loader2 className="w-8 h-8 mx-auto mb-2 text-primary-400 animate-spin" />
         ) : (
-          <Upload className="w-8 h-8 mx-auto mb-2 text-gray-500" />
+          <Upload className="w-8 h-8 mx-auto mb-2 text-app-muted" />
         )}
-        <p className="text-sm text-gray-400">{uploading ? 'Uploading...' : 'Drop a file here or click to upload'}</p>
+        <p className="text-sm text-app-muted">{uploading ? 'Uploading...' : 'Drop a file here or click to upload'}</p>
         <p className="text-xs text-gray-600 mt-1">Max 50MB</p>
       </div>
 
       {uploadedFiles.length > 0 && (
         <div className="mt-3 space-y-1.5">
           {uploadedFiles.map(file => (
-            <div key={file.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700">
-              <File className="w-4 h-4 text-gray-400 shrink-0" />
+            <div key={file.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-card">
+              <File className="w-4 h-4 text-app-muted shrink-0" />
               <span className="text-sm text-gray-300 truncate flex-1">{file.fileName}</span>
-              <button onClick={() => removeFile(file.id)} className="p-0.5 rounded text-gray-500 hover:text-white">
+              <button onClick={() => removeFile(file.id)} className="p-0.5 rounded text-app-muted hover:text-app-text">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>

@@ -156,7 +156,7 @@ export function NewDealModal({ isOpen, onClose, pipelineId, stages, onCreated }:
           <button
             type="submit"
             disabled={submitting}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50 transition-colors"
           >
             {submitting ? 'Creating...' : 'Create Deal'}
           </button>

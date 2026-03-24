@@ -18,7 +18,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-gray-500/20 text-gray-400',
+  draft: 'bg-gray-500/20 text-app-muted',
   submitted: 'bg-blue-500/20 text-blue-400',
   manager_review: 'bg-amber-500/20 text-amber-400',
   finance_review: 'bg-amber-500/20 text-amber-400',
@@ -123,7 +123,7 @@ export function ReimbursementDashboard() {
             <div
               key={label}
               className={cn(
-                'flex items-center gap-4 flex-1 min-w-0 rounded-xl border border-app-border bg-dark-800 p-4 border-l-4',
+                'flex items-center gap-4 flex-1 min-w-0 rounded-xl border border-app-border bg-app-sidebar p-4 border-l-4',
                 borderClass
               )}
             >
@@ -139,7 +139,7 @@ export function ReimbursementDashboard() {
         </div>
 
         {recentList.length > 0 && (
-          <div className="rounded-xl border border-app-border bg-dark-800 overflow-hidden">
+          <div className="rounded-xl border border-app-border bg-app-sidebar overflow-hidden">
             <h3 className="px-4 py-3 border-b border-app-border text-sm font-semibold text-app flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-400" />
               Recent requests
@@ -168,7 +168,7 @@ export function ReimbursementDashboard() {
                     <span className="text-sm font-semibold text-app">
                       {(r.converted_amount ?? r.original_amount) ?? 0} {r.original_currency}
                     </span>
-                    <span className={cn('px-2 py-1 rounded text-xs font-medium', STATUS_COLORS[r.status] || 'bg-gray-500/20 text-gray-400')}>
+                    <span className={cn('px-2 py-1 rounded text-xs font-medium', STATUS_COLORS[r.status] || 'bg-gray-500/20 text-app-muted')}>
                       {STATUS_LABELS[r.status] ?? r.status}
                     </span>
                     <button
@@ -192,7 +192,7 @@ export function ReimbursementDashboard() {
               onClick={() => setStatusFilter(tab.id)}
               className={cn(
                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                statusFilter === tab.id ? 'bg-primary-500 text-white' : 'bg-app-hover text-app-muted hover:text-app'
+                statusFilter === tab.id ? 'bg-primary-500 text-app-text' : 'bg-app-hover text-app-muted hover:text-app'
               )}
             >
               {tab.label}
@@ -200,7 +200,7 @@ export function ReimbursementDashboard() {
           ))}
         </div>
 
-        <div className="rounded-xl border border-app-border bg-dark-800 overflow-hidden">
+        <div className="rounded-xl border border-app-border bg-app-sidebar overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-app-muted">Loading...</div>
           ) : list.length === 0 ? (
@@ -228,7 +228,7 @@ export function ReimbursementDashboard() {
                         {(r.converted_amount ?? r.original_amount) ?? 0} {r.original_currency}
                       </td>
                       <td className="p-3">
-                        <span className={cn('px-2 py-1 rounded text-xs font-medium', STATUS_COLORS[r.status] || 'bg-gray-500/20 text-gray-400')}>
+                        <span className={cn('px-2 py-1 rounded text-xs font-medium', STATUS_COLORS[r.status] || 'bg-gray-500/20 text-app-muted')}>
                           {STATUS_LABELS[r.status] ?? r.status}
                         </span>
                       </td>

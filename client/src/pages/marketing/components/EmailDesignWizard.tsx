@@ -106,7 +106,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
             <div
               className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
                 s === step
-                  ? 'bg-primary-500 text-white'
+                  ? 'bg-primary-500 text-app-text'
                   : s < step
                     ? 'bg-primary-500/20 text-primary-400'
                     : 'bg-white/10 text-app-muted'
@@ -153,7 +153,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
               type="button"
               disabled={!goal}
               onClick={() => setStep(2)}
-              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-opacity disabled:opacity-40 hover:bg-primary-600"
+              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text transition-opacity disabled:opacity-40 hover:bg-primary-600"
             >
               Next <ArrowRight className="h-3.5 w-3.5" />
             </button>
@@ -198,7 +198,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
               type="button"
               disabled={!theme}
               onClick={() => setStep(3)}
-              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-opacity disabled:opacity-40 hover:bg-primary-600"
+              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text transition-opacity disabled:opacity-40 hover:bg-primary-600"
             >
               Next <ArrowRight className="h-3.5 w-3.5" />
             </button>
@@ -261,7 +261,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
                 <button
                   type="button"
                   onClick={() => handleFinish('ai')}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text hover:bg-primary-600 transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" /> Apply AI draft
                 </button>
@@ -272,7 +272,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
                 className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                   hasAiDraft
                     ? 'border border-white/15 bg-white/5 text-app-text hover:bg-white/10'
-                    : 'bg-primary-500 text-white hover:bg-primary-600'
+                    : 'bg-primary-500 text-app-text hover:bg-primary-600'
                 }`}
               >
                 Use template

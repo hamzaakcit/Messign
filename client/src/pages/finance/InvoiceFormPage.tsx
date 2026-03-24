@@ -299,7 +299,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
           <button
             onClick={() => handleSave(true)}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
           >
             <Send className="h-4 w-4" /> Save & Send
           </button>

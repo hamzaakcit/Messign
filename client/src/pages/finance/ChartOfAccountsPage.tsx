@@ -152,7 +152,7 @@ export function ChartOfAccountsPage() {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600"
         >
           <Plus className="h-4 w-4" /> Add Account
         </button>
@@ -196,7 +196,7 @@ export function ChartOfAccountsPage() {
               className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCreate} className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600">Create Account</button>
+            <button onClick={handleCreate} className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">Create Account</button>
             <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-app-muted hover:text-app-text text-sm">Cancel</button>
           </div>
         </div>

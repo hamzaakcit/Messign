@@ -79,7 +79,7 @@ export function ReceiptUploader({ onUpload, className }: ReceiptUploaderProps) {
             <img src={preview} alt="Receipt" className="max-h-40 mx-auto rounded-lg" />
             <button
               onClick={(e) => { e.stopPropagation(); setPreview(null); }}
-              className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white"
+              className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-app-text"
             >
               <X className="h-3 w-3" />
             </button>

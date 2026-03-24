@@ -58,30 +58,30 @@ export function WorkflowStatusBar({ doc, onStatusChange }: Props) {
   if (!availableActions.length) return null;
 
   return (
-    <div className="mb-4 p-3 rounded-xl bg-dark-800 border border-dark-700">
+    <div className="mb-4 p-3 rounded-xl bg-app-sidebar border border-app-border">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: statusMeta?.color + '20', color: statusMeta?.color }}>
             {statusMeta?.label}
           </span>
-          <span className="text-xs text-gray-500">Workflow Actions:</span>
+          <span className="text-xs text-app-muted">Workflow Actions:</span>
         </div>
         <div className="flex items-center gap-2">
           {availableActions.map(action => (
             <div key={action.key}>
               {showCommentInput === action.key ? (
                 <div className="flex items-center gap-2">
-                  <input value={actionComment} onChange={(e) => setActionComment(e.target.value)} placeholder="Add a comment..." className="px-2 py-1 rounded text-xs bg-dark-700 text-white border border-dark-600 w-48" autoFocus />
-                  <button onClick={() => handleAction(action.key)} disabled={loading || !actionComment.trim()} className={cn('px-2 py-1 rounded text-xs text-white', action.color, 'disabled:opacity-50')}>
+                  <input value={actionComment} onChange={(e) => setActionComment(e.target.value)} placeholder="Add a comment..." className="px-2 py-1 rounded text-xs bg-app-card text-app-text border border-app-border w-48" autoFocus />
+                  <button onClick={() => handleAction(action.key)} disabled={loading || !actionComment.trim()} className={cn('px-2 py-1 rounded text-xs text-app-text', action.color, 'disabled:opacity-50')}>
                     Confirm
                   </button>
-                  <button onClick={() => setShowCommentInput(null)} className="text-xs text-gray-500 hover:text-white">Cancel</button>
+                  <button onClick={() => setShowCommentInput(null)} className="text-xs text-app-muted hover:text-app-text">Cancel</button>
                 </div>
               ) : (
                 <button
                   onClick={() => action.needsComment ? setShowCommentInput(action.key) : handleAction(action.key)}
                   disabled={loading}
-                  className={cn('flex items-center gap-1 px-2.5 py-1 rounded text-xs text-white transition-opacity disabled:opacity-50', action.color, 'hover:opacity-90')}
+                  className={cn('flex items-center gap-1 px-2.5 py-1 rounded text-xs text-app-text transition-opacity disabled:opacity-50', action.color, 'hover:opacity-90')}
                 >
                   <action.icon className="w-3 h-3" /> {action.label}
                 </button>

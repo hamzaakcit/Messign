@@ -127,7 +127,7 @@ export function ApprovalList({
                       <div className="flex items-center gap-1.5 mt-1 text-xs text-app-muted">
                         <ChannelIcon channel={item.targetChannel} className="text-app-muted" />
                         <span>{channelLabel(item.targetChannel)}</span>
-                        <span className="text-white/20">·</span>
+                        <span className="text-app-text/20">·</span>
                         <span className="truncate">{item.campaignName}</span>
                       </div>
                       <p className="text-[11px] text-app-muted mt-1">{formatRelativeTime(item.submittedAt)}</p>

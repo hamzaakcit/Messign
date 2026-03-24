@@ -26,7 +26,7 @@ export function FlagModal({ open, onClose, onSubmit, documentTitle }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="rounded-xl border border-app-border bg-dark-800 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
           <div className="flex items-center gap-2">
             <Flag className="w-5 h-5 text-amber-400" />
@@ -42,7 +42,7 @@ export function FlagModal({ open, onClose, onSubmit, documentTitle }: Props) {
             value={reason}
             onChange={e => setReason(e.target.value)}
             placeholder="Why is this document outdated? What needs updating?"
-            className="w-full h-24 p-3 rounded-lg bg-dark-700 border border-app-border text-app text-sm placeholder:text-app-muted resize-none focus:outline-none focus:border-primary-500"
+            className="w-full h-24 p-3 rounded-lg bg-app-card border border-app-border text-app text-sm placeholder:text-app-muted resize-none focus:outline-none focus:border-primary-500"
           />
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-app-border">

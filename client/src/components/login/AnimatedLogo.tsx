@@ -45,7 +45,7 @@ export function AnimatedLogo() {
               : '0 10px 40px rgba(59, 130, 246, 0.3)',
           }}
         >
-          <span className="text-4xl font-bold text-white">M</span>
+          <span className="text-4xl font-bold text-app-text">M</span>
         </div>
         <div className="absolute inset-0 animate-spin-slow pointer-events-none">
           <div className="absolute -top-1 left-1/2 w-2 h-2 bg-blue-400 rounded-full animate-pulse -translate-x-1/2" />
@@ -79,7 +79,7 @@ export function AnimatedLogo() {
 
       <p
         className={`
-          mt-4 text-gray-500 text-lg tracking-wide
+          mt-4 text-app-muted text-lg tracking-wide
           transition-all duration-1000 delay-500
           ${isComplete ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
         `}

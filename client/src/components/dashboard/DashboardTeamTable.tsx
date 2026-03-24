@@ -63,7 +63,7 @@ export function DashboardTeamTable({
           return rank <= 3 ? (
             <span className="text-lg">{rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}</span>
           ) : (
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-white text-sm font-medium">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-app-text text-sm font-medium">
               {rank}
             </span>
           );
@@ -79,8 +79,8 @@ export function DashboardTeamTable({
             <div className="flex items-center gap-2">
               <Avatar src={avatar} name={name} size="sm" showStatus={false} className="shrink-0" />
               <div>
-                <p className="font-medium text-sm text-white">{name}</p>
-                <p className="text-xs text-gray-400">{role}</p>
+                <p className="font-medium text-sm text-app-text">{name}</p>
+                <p className="text-xs text-app-muted">{role}</p>
               </div>
             </div>
           );
@@ -94,7 +94,7 @@ export function DashboardTeamTable({
           const m = getValue();
           return (
             <div>
-              <p className="font-medium text-sm text-white">{m.formatted}</p>
+              <p className="font-medium text-sm text-app-text">{m.formatted}</p>
               <p className={cn('text-xs', targetColor(m.targetPercent))}>{m.targetPercent}% vs target</p>
             </div>
           );
@@ -108,7 +108,7 @@ export function DashboardTeamTable({
           const m = getValue();
           return (
             <div>
-              <p className="text-sm text-white">{m.formatted}</p>
+              <p className="text-sm text-app-text">{m.formatted}</p>
               <span className={cn('inline-block mt-0.5 px-2 py-0.5 rounded text-xs', rateBadge(m.deliveryRate))}>
                 {m.deliveryRate}%
               </span>
@@ -124,7 +124,7 @@ export function DashboardTeamTable({
           const m = getValue();
           return (
             <div>
-              <p className="text-sm text-white">{m.formatted}</p>
+              <p className="text-sm text-app-text">{m.formatted}</p>
               <span className={cn('inline-block mt-0.5 px-2 py-0.5 rounded text-xs', rateBadge(m.deliveryRate))}>
                 {m.deliveryRate}%
               </span>
@@ -140,7 +140,7 @@ export function DashboardTeamTable({
           const rate = getValue();
           return (
             <div>
-              <p className="text-sm text-white font-medium">{rate}%</p>
+              <p className="text-sm text-app-text font-medium">{rate}%</p>
               <div className="mt-1 h-1.5 w-full rounded-full bg-white/10 overflow-hidden max-w-[60px]">
                 <div
                   className="h-full rounded-full bg-primary-500"
@@ -161,7 +161,7 @@ export function DashboardTeamTable({
             <span
               className={cn(
                 'inline-flex px-2 py-0.5 rounded text-xs font-medium border',
-                statusColors[status] ?? 'bg-white/5 text-gray-400'
+                statusColors[status] ?? 'bg-white/5 text-app-muted'
               )}
             >
               {row.original.statusLabel}
@@ -191,7 +191,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'view')}
-              className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
               aria-label="View"
             >
               <Eye className="w-4 h-4" />
@@ -199,7 +199,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'edit')}
-              className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
               aria-label="Edit"
             >
               <Pencil className="w-4 h-4" />
@@ -207,7 +207,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'more')}
-              className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
               aria-label="More"
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -229,7 +229,7 @@ export function DashboardTeamTable({
           return rank <= 3 ? (
             <span className="text-lg">{rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}</span>
           ) : (
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-white text-sm font-medium">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-app-text text-sm font-medium">
               {rank}
             </span>
           );
@@ -245,8 +245,8 @@ export function DashboardTeamTable({
             <div className="flex items-center gap-2">
               <Avatar src={avatar} name={name} size="sm" showStatus={false} className="shrink-0" />
               <div>
-                <p className="font-medium text-sm text-white">{name}</p>
-                <p className="text-xs text-gray-400">{role}</p>
+                <p className="font-medium text-sm text-app-text">{name}</p>
+                <p className="text-xs text-app-muted">{role}</p>
               </div>
             </div>
           );
@@ -260,7 +260,7 @@ export function DashboardTeamTable({
           const m = getValue();
           return (
             <div>
-              <p className="font-medium text-sm text-white">{m.formatted}</p>
+              <p className="font-medium text-sm text-app-text">{m.formatted}</p>
               <p className={cn('text-xs', targetColor(m.targetPercent))}>{m.targetPercent}% vs target</p>
             </div>
           );
@@ -270,7 +270,7 @@ export function DashboardTeamTable({
       columnHelper.accessor((r) => (r as TeamMemberWholesale).metrics.smsVolume.formatted, {
         id: 'sms',
         header: 'SMS',
-        cell: ({ getValue }) => <span className="text-sm text-white">{getValue()}</span>,
+        cell: ({ getValue }) => <span className="text-sm text-app-text">{getValue()}</span>,
         size: 100,
       }),
       columnHelper.accessor((r) => (r as TeamMemberWholesale).metrics.smsVolume.deliveryRate, {
@@ -286,14 +286,14 @@ export function DashboardTeamTable({
       columnHelper.accessor((r) => (r as TeamMemberWholesale).metrics.smsVolume.responseRate, {
         id: 'resp',
         header: 'Resp.',
-        cell: ({ getValue }) => <span className="text-sm text-white">{getValue()}%</span>,
+        cell: ({ getValue }) => <span className="text-sm text-app-text">{getValue()}%</span>,
         size: 80,
       }),
       columnHelper.accessor((r) => (r as TeamMemberWholesale).metrics.smsVolume.costPerSMS, {
         id: 'cost',
         header: 'Cost',
         cell: ({ getValue }) => (
-          <span className="text-sm text-white font-mono text-xs">${getValue().toFixed(4)}</span>
+          <span className="text-sm text-app-text font-mono text-xs">${getValue().toFixed(4)}</span>
         ),
         size: 80,
       }),
@@ -304,7 +304,7 @@ export function DashboardTeamTable({
           <span
             className={cn(
               'inline-flex px-2 py-0.5 rounded text-xs font-medium border',
-              statusColors[row.original.status] ?? 'bg-white/5 text-gray-400'
+              statusColors[row.original.status] ?? 'bg-white/5 text-app-muted'
             )}
           >
             {row.original.statusLabel}
@@ -333,7 +333,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'view')}
-              className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
               aria-label="View"
             >
               <Eye className="w-4 h-4" />
@@ -341,7 +341,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'edit')}
-              className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
               aria-label="Edit"
             >
               <Pencil className="w-4 h-4" />
@@ -349,7 +349,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'more')}
-              className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
               aria-label="More"
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -374,7 +374,7 @@ export function DashboardTeamTable({
   if (loading && members.length === 0) {
     return (
       <div className="flex items-center justify-center h-full py-12">
-        <p className="text-sm text-gray-400">Loading team data...</p>
+        <p className="text-sm text-app-muted">Loading team data...</p>
       </div>
     );
   }
@@ -396,7 +396,7 @@ export function DashboardTeamTable({
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400"
+                  className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted"
                   style={{ width: header.getSize() }}
                 >
                   {header.column.id ? flexRender(header.column.columnDef.header, header.getContext()) : null}

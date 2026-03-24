@@ -63,12 +63,12 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
       {/* Header */}
       <div className="flex items-start gap-2 mb-2">
         {!disabledDrag && (
-          <button {...attributes} {...listeners} className="mt-1 text-gray-600 hover:text-gray-400">
+          <button {...attributes} {...listeners} className="mt-1 text-gray-600 hover:text-app-muted">
             <GripVertical className="w-4 h-4" />
           </button>
         )}
         <div className="flex-1">
-          <h4 className="font-medium text-white text-sm leading-tight">{task.title}</h4>
+          <h4 className="font-medium text-app-text text-sm leading-tight">{task.title}</h4>
         </div>
       </div>
 
@@ -78,7 +78,7 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
           {task.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 text-[10px] bg-white/10 text-gray-400 rounded"
+              className="px-1.5 py-0.5 text-[10px] bg-white/10 text-app-muted rounded"
             >
               {tag}
             </span>
@@ -104,7 +104,7 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
         <div className="flex items-center gap-2">
           {/* Due Date */}
           {task.dueDate && (
-            <span className="flex items-center gap-1 text-[10px] text-gray-500">
+            <span className="flex items-center gap-1 text-[10px] text-app-muted">
               <Calendar className="w-3 h-3" />
               {formatDate(task.dueDate)}
             </span>

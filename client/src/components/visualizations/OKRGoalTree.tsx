@@ -232,12 +232,12 @@ export function OKRGoalTree({ goals, periodId, onGoalClick }: OKRGoalTreeProps) 
           className="fixed z-50 px-3 py-2 rounded-lg bg-[var(--app-card)] border border-[var(--app-border)] text-sm shadow-lg pointer-events-none"
           style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}
         >
-          <div className="font-medium text-white">{tooltip.node.title}</div>
-          <div className="text-gray-400 text-xs mt-1">{tooltip.node.owner}</div>
-          <div className="text-gray-400 text-xs">
+          <div className="font-medium text-app-text">{tooltip.node.title}</div>
+          <div className="text-app-muted text-xs mt-1">{tooltip.node.owner}</div>
+          <div className="text-app-muted text-xs">
             {tooltip.node.progress.toFixed(0)}% · {tooltip.node.keyResults?.length ?? 0} key results
           </div>
-          <div className="text-xs mt-1 text-gray-500">{tooltip.node.status}</div>
+          <div className="text-xs mt-1 text-app-muted">{tooltip.node.status}</div>
         </div>
       )}
     </div>

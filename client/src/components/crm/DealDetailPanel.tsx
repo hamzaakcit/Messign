@@ -190,7 +190,7 @@ function LogActivityForm({ onSubmit, onCancel }: { onSubmit: (data: CreateActivi
         <button
           type="button"
           onClick={() => onSubmit({ type, subject: subject || undefined, description: description || undefined, outcome: outcome || undefined })}
-          className="px-3 py-1 text-xs font-medium rounded-md bg-primary-500 text-white hover:bg-primary-600"
+          className="px-3 py-1 text-xs font-medium rounded-md bg-primary-500 text-app-text hover:bg-primary-600"
         >
           Log
         </button>
@@ -402,7 +402,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1">
                 <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px]"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-app-text text-[10px]"
                   style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}
                 >
                   ✦
@@ -446,7 +446,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
                   <h4 className="text-xs font-medium text-app-muted mb-1">Tags</h4>
                   <div className="flex flex-wrap gap-1">
                     {deal.tags.map(tag => (
-                      <span key={tag} className="px-2 py-0.5 text-[11px] bg-white/10 text-gray-400 rounded-full">{tag}</span>
+                      <span key={tag} className="px-2 py-0.5 text-[11px] bg-white/10 text-app-muted rounded-full">{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -587,7 +587,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             <button
               onClick={handleLose}
               disabled={actionLoading}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-app-text hover:bg-red-600 disabled:opacity-50 transition-colors"
             >
               Confirm
             </button>
@@ -611,7 +611,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             <button
               onClick={handleWin}
               disabled={actionLoading}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500 text-app-text hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-1.5"
             >
               <Trophy className="w-3.5 h-3.5" />
               Won

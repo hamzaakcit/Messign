@@ -133,7 +133,7 @@ export function VendorDetailPage({ vendorId, onBack }: Props) {
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
             </div>
             <div className="flex gap-2">
-              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
                 <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save'}
               </button>
               <button onClick={() => setEditing(false)} className="flex items-center gap-2 px-4 py-2 text-app-muted hover:text-app-text text-sm">

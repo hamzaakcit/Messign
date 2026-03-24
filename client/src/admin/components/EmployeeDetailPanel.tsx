@@ -28,13 +28,13 @@ export function EmployeeDetailPanel({
   if (!employee) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-dark-800 border-l border-white/10 shadow-xl flex flex-col z-20">
+    <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-app-sidebar border-l border-white/10 shadow-xl flex flex-col z-20">
       <div className="flex items-center justify-between p-4 border-b border-white/10">
-        <h2 className="text-lg font-semibold text-white">Employee Profile</h2>
+        <h2 className="text-lg font-semibold text-app-text">Employee Profile</h2>
         <button
           type="button"
           onClick={onClose}
-          className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white"
+          className="p-2 rounded-lg hover:bg-white/10 text-app-muted hover:text-app-text"
           aria-label="Close panel"
         >
           <X className="w-5 h-5" />
@@ -45,9 +45,9 @@ export function EmployeeDetailPanel({
         <div className="flex items-center gap-4">
           <Avatar src={employee.avatar} name={employee.name} size="lg" status={employee.status} />
           <div>
-            <h3 className="font-semibold text-white">{employee.name}</h3>
-            <p className="text-sm text-gray-400">{employee.jobTitle}</p>
-            <p className="text-xs text-gray-500">{employee.email}</p>
+            <h3 className="font-semibold text-app-text">{employee.name}</h3>
+            <p className="text-sm text-app-muted">{employee.jobTitle}</p>
+            <p className="text-xs text-app-muted">{employee.email}</p>
           </div>
         </div>
       </div>
@@ -63,49 +63,49 @@ export function EmployeeDetailPanel({
         <div className="flex-1 overflow-y-auto p-4">
           <TabsContent value="overview" className="mt-0 space-y-4">
             <Card>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">Basic Info</h4>
+              <h4 className="text-sm font-medium text-app-muted mb-2">Basic Info</h4>
               <dl className="grid grid-cols-2 gap-2 text-sm">
-                <dt className="text-gray-500">Department</dt>
-                <dd className="text-white">{employee.department}</dd>
-                <dt className="text-gray-500">Role</dt>
-                <dd className="text-white">{employee.role}</dd>
-                <dt className="text-gray-500">Level</dt>
-                <dd className="text-white">{employee.level}</dd>
-                <dt className="text-gray-500">MP</dt>
-                <dd className="text-white">{employee.xp}</dd>
-                <dt className="text-gray-500">Joined</dt>
-                <dd className="text-white">{employee.joinedAt ? new Date(employee.joinedAt).toLocaleDateString() : '—'}</dd>
+                <dt className="text-app-muted">Department</dt>
+                <dd className="text-app-text">{employee.department}</dd>
+                <dt className="text-app-muted">Role</dt>
+                <dd className="text-app-text">{employee.role}</dd>
+                <dt className="text-app-muted">Level</dt>
+                <dd className="text-app-text">{employee.level}</dd>
+                <dt className="text-app-muted">MP</dt>
+                <dd className="text-app-text">{employee.xp}</dd>
+                <dt className="text-app-muted">Joined</dt>
+                <dd className="text-app-text">{employee.joinedAt ? new Date(employee.joinedAt).toLocaleDateString() : '—'}</dd>
               </dl>
             </Card>
           </TabsContent>
           <TabsContent value="xp" className="mt-0">
             <Card>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">MP & Progress</h4>
-              <p className="text-sm text-gray-500">MP history and manual adjustment form will appear here.</p>
+              <h4 className="text-sm font-medium text-app-muted mb-2">MP & Progress</h4>
+              <p className="text-sm text-app-muted">MP history and manual adjustment form will appear here.</p>
             </Card>
           </TabsContent>
           <TabsContent value="achievements" className="mt-0">
             <Card>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">Achievements</h4>
-              <p className="text-sm text-gray-500">Earned badges grid and award new badge action.</p>
+              <h4 className="text-sm font-medium text-app-muted mb-2">Achievements</h4>
+              <p className="text-sm text-app-muted">Earned badges grid and award new badge action.</p>
             </Card>
           </TabsContent>
           <TabsContent value="activity" className="mt-0">
             <Card>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">Activity</h4>
-              <p className="text-sm text-gray-500">Activity timeline will appear here.</p>
+              <h4 className="text-sm font-medium text-app-muted mb-2">Activity</h4>
+              <p className="text-sm text-app-muted">Activity timeline will appear here.</p>
             </Card>
           </TabsContent>
           <TabsContent value="permissions" className="mt-0">
             <Card>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">Permissions</h4>
-              <p className="text-sm text-gray-500">Role and permission matrix.</p>
+              <h4 className="text-sm font-medium text-app-muted mb-2">Permissions</h4>
+              <p className="text-sm text-app-muted">Role and permission matrix.</p>
             </Card>
           </TabsContent>
           <TabsContent value="analytics" className="mt-0">
             <Card>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">Analytics</h4>
-              <p className="text-sm text-gray-500">Charts and stats.</p>
+              <h4 className="text-sm font-medium text-app-muted mb-2">Analytics</h4>
+              <p className="text-sm text-app-muted">Charts and stats.</p>
             </Card>
           </TabsContent>
         </div>

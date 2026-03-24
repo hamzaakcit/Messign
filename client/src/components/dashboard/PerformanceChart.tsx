@@ -36,15 +36,15 @@ export const PerformanceChart = React.memo(function PerformanceChart({ monthlyDa
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white">Performance trend</h3>
-        <div className="flex rounded-lg bg-dark-700 p-0.5">
+        <h3 className="text-lg font-semibold text-app-text">Performance trend</h3>
+        <div className="flex rounded-lg bg-app-card p-0.5">
           <button
             onClick={() => setRange('monthly')}
             className={cn(
               'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               range === 'monthly'
-                ? 'bg-white/10 text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-white/10 text-app-text'
+                : 'text-app-muted hover:text-app-text'
             )}
           >
             Monthly
@@ -54,8 +54,8 @@ export const PerformanceChart = React.memo(function PerformanceChart({ monthlyDa
             className={cn(
               'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               range === 'yearly'
-                ? 'bg-white/10 text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-white/10 text-app-text'
+                : 'text-app-muted hover:text-app-text'
             )}
           >
             Yearly
@@ -93,7 +93,7 @@ export const PerformanceChart = React.memo(function PerformanceChart({ monthlyDa
             />
             <Legend
               wrapperStyle={{ fontSize: 12 }}
-              formatter={(value) => <span className="text-gray-400">{value}</span>}
+              formatter={(value) => <span className="text-app-muted">{value}</span>}
             />
             <Line
               type="monotone"

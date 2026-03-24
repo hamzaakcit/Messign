@@ -32,7 +32,7 @@ interface ToolbarButton {
 }
 
 function Divider() {
-  return <div className="w-px h-6 bg-dark-600" />;
+  return <div className="w-px h-6 bg-app-hover" />;
 }
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
@@ -170,7 +170,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   ];
 
   return (
-    <div className="border-b border-app-border bg-dark-800 p-2 flex flex-wrap gap-1 sticky top-0 z-10">
+    <div className="border-b border-app-border bg-app-sidebar p-2 flex flex-wrap gap-1 sticky top-0 z-10">
       {groups.map((group, gi) => (
         <div key={gi} className="flex items-center gap-1">
           {gi > 0 && <Divider />}
@@ -185,7 +185,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
                 onClick={btn.action}
                 title={btn.label}
                 className={cn(
-                  'p-2 rounded hover:bg-dark-600 text-gray-400 transition-colors',
+                  'p-2 rounded hover:bg-app-hover text-app-muted transition-colors',
                   active && 'bg-blue-600/20 text-blue-400',
                 )}
               >

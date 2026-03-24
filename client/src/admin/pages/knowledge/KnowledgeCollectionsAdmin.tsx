@@ -88,7 +88,7 @@ export function KnowledgeCollectionsAdmin() {
         <div className="rounded-xl border border-app-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-dark-700 text-app-muted text-xs uppercase tracking-wider">
+              <tr className="bg-app-card text-app-muted text-xs uppercase tracking-wider">
                 <th className="text-left py-3 px-4">Collection</th>
                 <th className="text-right py-3 px-3">Documents</th>
                 <th className="text-left py-3 px-3">Share Link</th>
@@ -98,7 +98,7 @@ export function KnowledgeCollectionsAdmin() {
             </thead>
             <tbody>
               {collections.map(col => (
-                <tr key={col.id} className="border-t border-app-border hover:bg-dark-700/50">
+                <tr key={col.id} className="border-t border-app-border hover:bg-app-hover/50">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <FolderOpen className="w-5 h-5 text-indigo-400 shrink-0" />
@@ -135,7 +135,7 @@ export function KnowledgeCollectionsAdmin() {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
-          <div className="rounded-xl border border-app-border bg-dark-800 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-app-border flex items-center justify-between">
               <h3 className="font-bold text-app">{editing ? 'Edit Collection' : 'Create Collection'}</h3>
               <button onClick={() => setModalOpen(false)} className="text-app-muted hover:text-app"><X className="w-5 h-5" /></button>
@@ -144,12 +144,12 @@ export function KnowledgeCollectionsAdmin() {
               <div>
                 <label className="block text-sm font-medium text-app mb-1">Name *</label>
                 <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm focus:outline-none focus:border-primary-500" />
+                  className="w-full px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm focus:outline-none focus:border-primary-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-app mb-1">Description</label>
                 <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  className="w-full h-20 px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm resize-none focus:outline-none focus:border-primary-500" />
+                  className="w-full h-20 px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm resize-none focus:outline-none focus:border-primary-500" />
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.isPublic} onChange={e => setForm(p => ({ ...p, isPublic: e.target.checked }))} className="rounded border-app-border" />

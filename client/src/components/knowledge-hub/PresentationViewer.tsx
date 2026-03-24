@@ -69,29 +69,29 @@ export function PresentationViewer({ presentation, onClose }: Props) {
     <div
       ref={containerRef}
       className={cn(
-        'flex flex-col bg-dark-900 rounded-xl border border-dark-700 overflow-hidden',
+        'flex flex-col bg-app-bg rounded-xl border border-app-border overflow-hidden',
         fullscreen && 'fixed inset-0 z-50 rounded-none'
       )}
     >
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-dark-700 bg-dark-800">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-app-border bg-app-sidebar">
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-700"
+            className="p-2 rounded-lg text-app-muted hover:text-app-text hover:bg-app-hover"
             title="Close"
           >
             <X className="w-4 h-4" />
           </button>
-          <span className="text-sm font-medium text-white truncate max-w-[200px]">{presentation.title}</span>
-          <span className="text-xs text-gray-500">
+          <span className="text-sm font-medium text-app-text truncate max-w-[200px]">{presentation.title}</span>
+          <span className="text-xs text-app-muted">
             {currentIndex + 1} / {totalSlides}
           </span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setFullscreen((f) => !f)}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-700"
+            className="p-2 rounded-lg text-app-muted hover:text-app-text hover:bg-app-hover"
             title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
             {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -99,7 +99,7 @@ export function PresentationViewer({ presentation, onClose }: Props) {
           <button
             onClick={handleDownload}
             disabled={downloading}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-primary-400 hover:bg-dark-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-primary-400 hover:bg-app-hover disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
             {downloading ? 'Exporting…' : 'Download PPTX'}
@@ -112,12 +112,12 @@ export function PresentationViewer({ presentation, onClose }: Props) {
         <div className="w-full max-w-3xl">
           {currentIndex === 0 ? (
             <div className="text-center py-12">
-              <h1 className="text-4xl font-bold text-white mb-4">{presentation.title}</h1>
-              <p className="text-gray-500 text-sm">Knowledge Hub Presentation</p>
+              <h1 className="text-4xl font-bold text-app-text mb-4">{presentation.title}</h1>
+              <p className="text-app-muted text-sm">Knowledge Hub Presentation</p>
             </div>
           ) : currentSlide ? (
             <div>
-              <h2 className="text-2xl font-bold text-white mb-6">{currentSlide.title}</h2>
+              <h2 className="text-2xl font-bold text-app-text mb-6">{currentSlide.title}</h2>
               <ul className="space-y-3">
                 {currentSlide.bullets.map((bullet, i) => (
                   <li key={i} className="flex gap-3 text-gray-300">
@@ -132,11 +132,11 @@ export function PresentationViewer({ presentation, onClose }: Props) {
       </div>
 
       {/* Prev / Next */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-dark-700 bg-dark-800">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-app-border bg-app-sidebar">
         <button
           onClick={goPrev}
           disabled={currentIndex === 0}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-dark-700 disabled:opacity-40 disabled:pointer-events-none"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-app-muted hover:text-app-text hover:bg-app-hover disabled:opacity-40 disabled:pointer-events-none"
         >
           <ChevronLeft className="w-4 h-4" /> Previous
         </button>
@@ -145,7 +145,7 @@ export function PresentationViewer({ presentation, onClose }: Props) {
             onClick={() => setCurrentIndex(0)}
             className={cn(
               'w-2 h-2 rounded-full transition-colors',
-              0 === currentIndex ? 'bg-primary-500' : 'bg-dark-600 hover:bg-dark-500'
+              0 === currentIndex ? 'bg-primary-500' : 'bg-app-hover hover:bg-app-hover'
             )}
             title="Title"
           />
@@ -155,7 +155,7 @@ export function PresentationViewer({ presentation, onClose }: Props) {
               onClick={() => setCurrentIndex(i + 1)}
               className={cn(
                 'w-2 h-2 rounded-full transition-colors',
-                i + 1 === currentIndex ? 'bg-primary-500' : 'bg-dark-600 hover:bg-dark-500'
+                i + 1 === currentIndex ? 'bg-primary-500' : 'bg-app-hover hover:bg-app-hover'
               )}
               title={`Slide ${i + 2}`}
             />
@@ -164,7 +164,7 @@ export function PresentationViewer({ presentation, onClose }: Props) {
         <button
           onClick={goNext}
           disabled={currentIndex === totalSlides - 1}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-dark-700 disabled:opacity-40 disabled:pointer-events-none"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-app-muted hover:text-app-text hover:bg-app-hover disabled:opacity-40 disabled:pointer-events-none"
         >
           Next <ChevronRight className="w-4 h-4" />
         </button>

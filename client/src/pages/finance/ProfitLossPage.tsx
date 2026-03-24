@@ -84,7 +84,7 @@ export function ProfitLossPage() {
               key={t}
               onClick={() => setPeriodType(t)}
               className={cn('px-4 py-2 text-sm font-medium transition-colors capitalize',
-                periodType === t ? 'bg-primary-500 text-white' : 'text-app-muted hover:text-app-text bg-white/5')}
+                periodType === t ? 'bg-primary-500 text-app-text' : 'text-app-muted hover:text-app-text bg-white/5')}
             >
               {t}
             </button>

@@ -17,9 +17,9 @@ export function AchievementsRightSidebar() {
         <ul className="space-y-3">
           {nearestAchievements.map((a) => (
             <li key={a.id} className="p-2 rounded-lg bg-white/5">
-              <p className="text-sm text-white font-medium">{a.name}</p>
+              <p className="text-sm text-app-text font-medium">{a.name}</p>
               <ProgressBar value={a.progress} size="sm" className="mt-1" />
-              <p className="text-xs text-gray-500 mt-1">{a.needed}</p>
+              <p className="text-xs text-app-muted mt-1">{a.needed}</p>
             </li>
           ))}
         </ul>
@@ -37,7 +37,7 @@ export function AchievementsRightSidebar() {
               <li key={u.userId + u.badgeName} className="flex items-center gap-2 text-sm">
                 <Avatar src={user.avatar} name={user.name} size="sm" showStatus={false} />
                 <span className="text-gray-300">{user.name.split(' ')[0]} unlocked <span className="text-primary-400">{u.badgeName}</span></span>
-                <span className="text-gray-500 text-xs ml-auto">{u.time}</span>
+                <span className="text-app-muted text-xs ml-auto">{u.time}</span>
               </li>
             ) : null;
           })}
@@ -51,20 +51,20 @@ export function AchievementsRightSidebar() {
         </h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="p-2 rounded bg-white/5">
-            <p className="text-gray-500 text-xs">Total badges</p>
-            <p className="text-white font-semibold">{myAchievementStats.totalBadges}/{myAchievementStats.totalPossible}</p>
+            <p className="text-app-muted text-xs">Total badges</p>
+            <p className="text-app-text font-semibold">{myAchievementStats.totalBadges}/{myAchievementStats.totalPossible}</p>
           </div>
           <div className="p-2 rounded bg-white/5">
-            <p className="text-gray-500 text-xs">MP from achievements</p>
-            <p className="text-white font-semibold">{myAchievementStats.xpFromAchievements.toLocaleString()}</p>
+            <p className="text-app-muted text-xs">MP from achievements</p>
+            <p className="text-app-text font-semibold">{myAchievementStats.xpFromAchievements.toLocaleString()}</p>
           </div>
           <div className="p-2 rounded bg-white/5 col-span-2">
-            <p className="text-gray-500 text-xs">Completion</p>
+            <p className="text-app-muted text-xs">Completion</p>
             <ProgressBar value={myAchievementStats.completionPercent} size="sm" className="mt-1" />
-            <p className="text-xs text-gray-400 mt-1">{myAchievementStats.completionPercent}%</p>
+            <p className="text-xs text-app-muted mt-1">{myAchievementStats.completionPercent}%</p>
           </div>
           <div className="p-2 rounded bg-white/5 col-span-2">
-            <p className="text-gray-500 text-xs">Rarest badge</p>
+            <p className="text-app-muted text-xs">Rarest badge</p>
             <p className="text-primary-400 font-medium">{myAchievementStats.rarestBadge}</p>
           </div>
         </div>

@@ -279,7 +279,7 @@ export function BrandProfileManager() {
             {editingId && (
               confirmDelete === editingId ? (
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => handleDelete(editingId)} disabled={saving} className="px-3 py-1.5 rounded text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Confirm Delete</button>
+                  <button type="button" onClick={() => handleDelete(editingId)} disabled={saving} className="px-3 py-1.5 rounded text-xs bg-red-600 text-app-text hover:bg-red-700 disabled:opacity-50">Confirm Delete</button>
                   <button type="button" onClick={() => setConfirmDelete(null)} className="px-3 py-1.5 rounded text-xs text-app-muted hover:text-app-text">Cancel</button>
                 </div>
               ) : (
@@ -289,7 +289,7 @@ export function BrandProfileManager() {
           </div>
           <div className="flex gap-3">
             <button type="button" onClick={cancel} className="px-3 py-2 rounded-lg text-sm text-app-muted hover:text-app-text">Cancel</button>
-            <button type="button" onClick={handleSave} disabled={saving || !form.brand_name.trim()} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50">
+            <button type="button" onClick={handleSave} disabled={saving || !form.brand_name.trim()} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50">
               {saving ? 'Saving…' : creating ? 'Create' : 'Save'}
             </button>
           </div>
@@ -302,7 +302,7 @@ export function BrandProfileManager() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-base font-medium text-app-text">Brand Profiles</h3>
-        <button type="button" onClick={openCreate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-white hover:bg-primary-600">
+        <button type="button" onClick={openCreate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600">
           + Create Brand
         </button>
       </div>
@@ -310,7 +310,7 @@ export function BrandProfileManager() {
       {profiles.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-sm text-app-muted mb-3">No brand profiles yet. Create one to start managing brand voice consistency.</p>
-          <button type="button" onClick={openCreate} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600">
+          <button type="button" onClick={openCreate} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600">
             Create First Brand
           </button>
         </div>

@@ -84,10 +84,10 @@ export function DocumentCard({ document: doc, onView, onPin, onDownload, onFlag,
   };
 
   return (
-    <div className="group rounded-xl border border-app-border bg-dark-800 overflow-hidden hover:border-app-border-hover transition-all hover:shadow-lg hover:shadow-black/10">
+    <div className="group rounded-xl border border-app-border bg-app-sidebar overflow-hidden hover:border-app-border-hover transition-all hover:shadow-lg hover:shadow-black/10">
       {/* Thumbnail area */}
       <div
-        className="relative h-36 bg-dark-700 flex items-center justify-center cursor-pointer overflow-hidden"
+        className="relative h-36 bg-app-card flex items-center justify-center cursor-pointer overflow-hidden"
         onClick={() => onView(doc)}
       >
         {doc.thumbnail_url ? (
@@ -104,14 +104,14 @@ export function DocumentCard({ document: doc, onView, onPin, onDownload, onFlag,
             'absolute top-2 right-2 p-1.5 rounded-lg transition-all',
             doc.user_pinned
               ? 'bg-primary-500/30 text-primary-400 opacity-100'
-              : 'bg-black/40 text-white/70 opacity-0 group-hover:opacity-100 hover:text-white'
+              : 'bg-black/40 text-app-text/70 opacity-0 group-hover:opacity-100 hover:text-app-text'
           )}
         >
           <Pin className="w-4 h-4" fill={doc.user_pinned ? 'currentColor' : 'none'} />
         </button>
         {/* Required reading indicator */}
         {doc.is_required_reading && !doc.user_acknowledged && (
-          <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-red-500/90 text-white text-[10px] font-bold uppercase">
+          <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-red-500/90 text-app-text text-[10px] font-bold uppercase">
             Required
           </div>
         )}
@@ -175,7 +175,7 @@ export function DocumentCard({ document: doc, onView, onPin, onDownload, onFlag,
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 bottom-full mb-1 z-50 w-48 rounded-lg border border-app-border bg-dark-800 shadow-xl py-1">
+                <div className="absolute right-0 bottom-full mb-1 z-50 w-48 rounded-lg border border-app-border bg-app-sidebar shadow-xl py-1">
                   <button onClick={handleCopyLink}
                     className="w-full text-left px-3 py-2 text-sm text-app-muted hover:text-app hover:bg-app-hover flex items-center gap-2">
                     <Link2 className="w-4 h-4" /> Copy Link

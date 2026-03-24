@@ -180,7 +180,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h4 className="text-sm font-semibold text-app-text">Spend Entries</h4>
-            <button onClick={() => setSpendFormOpen((value) => !value)} className="px-3 py-1.5 rounded-lg text-sm bg-primary-500 text-white flex items-center gap-1.5">
+            <button onClick={() => setSpendFormOpen((value) => !value)} className="px-3 py-1.5 rounded-lg text-sm bg-primary-500 text-app-text flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> Record Spend
             </button>
           </div>
@@ -212,7 +212,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
               <input className={inputClass} type="date" value={spendForm.date} onChange={(e) => setSpendForm((current) => ({ ...current, date: e.target.value }))} />
               <input className={inputClass} placeholder="Description" value={spendForm.description} onChange={(e) => setSpendForm((current) => ({ ...current, description: e.target.value }))} />
               <div className="md:col-span-4 flex justify-end">
-                <button type="submit" className="px-3 py-2 rounded-lg text-sm bg-primary-500 text-white">Save Spend</button>
+                <button type="submit" className="px-3 py-2 rounded-lg text-sm bg-primary-500 text-app-text">Save Spend</button>
               </div>
             </form>
           )}

@@ -157,7 +157,7 @@ export function FinanceSankeyFlow({ data, loading }: FinanceSankeyFlowProps) {
 
   return (
     <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
-      <h3 className="mb-3 text-sm font-semibold text-white">Money Flow</h3>
+      <h3 className="mb-3 text-sm font-semibold text-app-text">Money Flow</h3>
       <svg ref={svgRef} className="w-full overflow-visible" role="img" aria-label="Financial flow Sankey diagram showing money flow between categories" />
     </div>
   );

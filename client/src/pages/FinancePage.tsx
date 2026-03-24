@@ -256,7 +256,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
                   <span className="text-xs text-app-muted w-28 truncate shrink-0">{b.department}</span>
                   <div className="flex-1 h-5 bg-white/5 rounded-full overflow-hidden relative">
                     <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${pct}%` }} />
-                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white/80">
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-app-text/80">
                       ${b.spent.toLocaleString()} / ${b.allocatedAmount.toLocaleString()}
                     </span>
                   </div>

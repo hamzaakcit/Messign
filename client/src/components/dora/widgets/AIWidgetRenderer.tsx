@@ -114,7 +114,7 @@ function BlockToolbar({
           key={a.id}
           type="button"
           onClick={() => void host.dispatch(a.action)}
-          className="rounded-lg border border-dark-600 bg-dark-800/80 px-3 py-1.5 text-xs dora-chat-text-secondary transition-colors hover:border-sky-500/35 hover:text-white dora-focus-ring"
+          className="rounded-lg border border-app-border bg-app-sidebar/80 px-3 py-1.5 text-xs dora-chat-text-secondary transition-colors hover:border-sky-500/35 hover:text-app-text dora-focus-ring"
         >
           {a.label}
         </button>

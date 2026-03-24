@@ -23,7 +23,7 @@ export function FilterChips({ categories, activeSlug, onSelect }: Props) {
           'shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-all',
           activeSlug === null
             ? 'bg-primary-500/20 text-primary-400 border-primary-500/30'
-            : 'bg-dark-800 text-app-muted border-app-border hover:border-app-border-hover hover:text-app'
+            : 'bg-app-sidebar text-app-muted border-app-border hover:border-app-border-hover hover:text-app'
         )}
       >
         All
@@ -35,8 +35,8 @@ export function FilterChips({ categories, activeSlug, onSelect }: Props) {
           className={cn(
             'shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-all flex items-center gap-1.5',
             activeSlug === cat.slug
-              ? 'border-opacity-50 text-white'
-              : 'bg-dark-800 text-app-muted border-app-border hover:border-app-border-hover hover:text-app'
+              ? 'border-opacity-50 text-app-text'
+              : 'bg-app-sidebar text-app-muted border-app-border hover:border-app-border-hover hover:text-app'
           )}
           style={activeSlug === cat.slug && cat.color ? { backgroundColor: cat.color + '30', borderColor: cat.color + '60', color: cat.color } : undefined}
         >

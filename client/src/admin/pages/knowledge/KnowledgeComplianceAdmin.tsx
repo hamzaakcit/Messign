@@ -61,7 +61,7 @@ export function KnowledgeComplianceAdmin() {
       <div className="rounded-xl border border-app-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-dark-700 text-app-muted text-xs uppercase tracking-wider">
+            <tr className="bg-app-card text-app-muted text-xs uppercase tracking-wider">
               <th className="text-left py-3 px-4">Document</th>
               <th className="text-right py-3 px-3">Total Users</th>
               <th className="text-right py-3 px-3">Acknowledged</th>
@@ -73,14 +73,14 @@ export function KnowledgeComplianceAdmin() {
           <tbody>
             {data.documents.map(doc => (
               <>
-                <tr key={doc.documentId} className="border-t border-app-border hover:bg-dark-700/50">
+                <tr key={doc.documentId} className="border-t border-app-border hover:bg-app-hover/50">
                   <td className="py-3 px-4 font-medium text-app">{doc.title}</td>
                   <td className="py-3 px-3 text-right text-app-muted">{doc.totalUsers}</td>
                   <td className="py-3 px-3 text-right text-emerald-400">{doc.acknowledged}</td>
                   <td className="py-3 px-3 text-right text-amber-400">{doc.pending}</td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <div className="w-16 h-2 bg-dark-600 rounded-full overflow-hidden">
+                      <div className="w-16 h-2 bg-app-hover rounded-full overflow-hidden">
                         <div className={cn('h-full rounded-full', doc.compliancePercent >= 80 ? 'bg-emerald-500' : doc.compliancePercent >= 50 ? 'bg-amber-500' : 'bg-red-500')}
                           style={{ width: `${doc.compliancePercent}%` }} />
                       </div>
@@ -95,7 +95,7 @@ export function KnowledgeComplianceAdmin() {
                 </tr>
                 {expandedDoc === doc.documentId && (
                   <tr key={`${doc.documentId}-detail`}>
-                    <td colSpan={6} className="bg-dark-700/50 px-8 py-4">
+                    <td colSpan={6} className="bg-app-card/50 px-8 py-4">
                       {acksLoading ? (
                         <p className="text-xs text-app-muted">Loading...</p>
                       ) : (
@@ -131,7 +131,7 @@ export function KnowledgeComplianceAdmin() {
 
 function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
   return (
-    <div className="rounded-xl border border-app-border bg-dark-800 p-4">
+    <div className="rounded-xl border border-app-border bg-app-sidebar p-4">
       <div className="flex items-center gap-3 mb-2">
         <div className={`w-10 h-10 rounded-lg bg-${color}-500/20 flex items-center justify-center`}>{icon}</div>
       </div>

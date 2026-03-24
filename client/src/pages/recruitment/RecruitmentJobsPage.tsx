@@ -130,7 +130,7 @@ export function RecruitmentJobsPage() {
                 <input className="rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" value={filters.search} onChange={(e) => setFilters((current) => ({ ...current, search: e.target.value }))} />
               </div>
             </div>
-            <button onClick={() => setCreateOpen(true)} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 flex items-center gap-1.5">
+            <button onClick={() => setCreateOpen(true)} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 flex items-center gap-1.5">
               <Plus className="w-4 h-4" />
               New Job
             </button>

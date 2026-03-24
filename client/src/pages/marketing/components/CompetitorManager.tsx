@@ -9,7 +9,7 @@ const inputClass =
 
 const TIERS = [
   { value: 'direct', label: 'Direct', color: 'bg-blue-500/15 text-blue-400' },
-  { value: 'indirect', label: 'Indirect', color: 'bg-gray-500/15 text-gray-400' },
+  { value: 'indirect', label: 'Indirect', color: 'bg-gray-500/15 text-app-muted' },
   { value: 'aspirational', label: 'Aspirational', color: 'bg-purple-500/15 text-purple-400' },
 ] as const;
 
@@ -304,7 +304,7 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
             {editingId && (
               confirmDelete === editingId ? (
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => handleDelete(editingId)} disabled={saving} className="px-3 py-1.5 rounded text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Confirm Delete</button>
+                  <button type="button" onClick={() => handleDelete(editingId)} disabled={saving} className="px-3 py-1.5 rounded text-xs bg-red-600 text-app-text hover:bg-red-700 disabled:opacity-50">Confirm Delete</button>
                   <button type="button" onClick={() => setConfirmDelete(null)} className="px-3 py-1.5 rounded text-xs text-app-muted hover:text-app-text">Cancel</button>
                 </div>
               ) : (
@@ -314,7 +314,7 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
           </div>
           <div className="flex gap-3">
             <button type="button" onClick={cancel} className="px-3 py-2 rounded-lg text-sm text-app-muted hover:text-app-text">Cancel</button>
-            <button type="button" onClick={handleSave} disabled={saving || !form.name.trim()} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50">
+            <button type="button" onClick={handleSave} disabled={saving || !form.name.trim()} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50">
               {saving ? 'Saving…' : creating ? 'Create' : 'Save'}
             </button>
           </div>
@@ -334,7 +334,7 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
               Scrape All
             </button>
           )}
-          <button type="button" onClick={() => { setCreating(true); setEditingId(null); setForm(emptyForm); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-white hover:bg-primary-600">
+          <button type="button" onClick={() => { setCreating(true); setEditingId(null); setForm(emptyForm); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600">
             + Add Competitor
           </button>
         </div>
@@ -343,7 +343,7 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
       {competitors.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-sm text-app-muted mb-3">No competitors tracked yet. Add one to start monitoring.</p>
-          <button type="button" onClick={() => { setCreating(true); setForm(emptyForm); }} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600">
+          <button type="button" onClick={() => { setCreating(true); setForm(emptyForm); }} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600">
             Add First Competitor
           </button>
         </div>

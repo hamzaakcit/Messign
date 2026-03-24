@@ -188,7 +188,7 @@ export function BuilderSection(): JSX.Element {
         <div className="relative">
           <button
             onClick={() => setCreateDropdownOpen((o) => !o)}
-            className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             New
@@ -349,7 +349,7 @@ function BuilderDetailPanel({
               <Send className="w-4 h-4" />Send
             </button>
           )}
-          <button type="button" disabled={saving} onClick={() => void handleSave()} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50">
+          <button type="button" disabled={saving} onClick={() => void handleSave()} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50">
             {saving ? 'Saving\u2026' : 'Save'}
           </button>
         </div>
@@ -506,7 +506,7 @@ function BuilderCreatePanel({
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-white/15 text-app-text hover:bg-white/5">Cancel</button>
-        <button type="submit" className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white flex items-center gap-1.5">Create {typeLabel(type)}</button>
+        <button type="submit" className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text flex items-center gap-1.5">Create {typeLabel(type)}</button>
       </div>
     </form>
   );

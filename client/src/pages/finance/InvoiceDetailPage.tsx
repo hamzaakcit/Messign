@@ -330,7 +330,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
                 <button
                   onClick={handleRecordPayment}
                   disabled={actionLoading === 'payment'}
-                  className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
                 >
                   {actionLoading === 'payment' ? 'Recording...' : 'Record Payment'}
                 </button>
@@ -362,7 +362,7 @@ function ActionBtn({
       disabled={loading}
       className={cn(
         'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50',
-        variant === 'primary' && 'bg-primary-500 text-white hover:bg-primary-600',
+        variant === 'primary' && 'bg-primary-500 text-app-text hover:bg-primary-600',
         variant === 'danger' && 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20',
         variant === 'default' && 'bg-white/5 border border-white/10 text-app-text hover:bg-white/10',
       )}

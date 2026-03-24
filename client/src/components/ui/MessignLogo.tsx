@@ -34,8 +34,8 @@ export function MessignLogo({
 }: MessignLogoProps) {
   const config = SIZES[size];
   const isDark = variant === 'dark';
-  const textColor = isDark ? 'text-white' : 'text-[#1a2b4a]';
-  const taglineColor = isDark ? 'text-gray-400' : 'text-gray-500';
+  const textColor = isDark ? 'text-app-text' : 'text-[#1a2b4a]';
+  const taglineColor = isDark ? 'text-app-muted' : 'text-app-muted';
 
   if (logoSrc) {
     const heightMap = { sm: 32, md: 40, lg: 48, xl: 56 } as const;
@@ -125,7 +125,7 @@ export function MessignLogo({
           <span className={cn('font-semibold tracking-tight', config.text, textColor)}>
             Messign
             {isDark && (
-              <span className="font-normal text-gray-400 ml-1">Workspace</span>
+              <span className="font-normal text-app-muted ml-1">Workspace</span>
             )}
           </span>
           {showTagline && (

@@ -145,7 +145,7 @@ export function MarketplaceNavBar({
                       ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                       : 'text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 border border-transparent'
                     : activeFilter === filter.id
-                      ? 'bg-primary-500 text-white'
+                      ? 'bg-primary-500 text-app-text'
                       : 'text-app-muted hover:text-app hover:bg-app-hover'
                 )}
               >
@@ -157,7 +157,7 @@ export function MarketplaceNavBar({
                   <span
                     className={cn(
                       'ml-1 px-1.5 py-0.5 text-xs rounded-full shrink-0',
-                      activeFilter === filter.id ? 'bg-white/20 text-white' : 'bg-app-hover text-app-muted'
+                      activeFilter === filter.id ? 'bg-white/20 text-app-text' : 'bg-app-hover text-app-muted'
                     )}
                   >
                     {myItemsCount}
@@ -185,7 +185,7 @@ export function MarketplaceNavBar({
             <Filter className="w-4 h-4 shrink-0" />
             <span>Filters</span>
             {activeFilterCount > 0 && (
-              <span className="w-5 h-5 flex items-center justify-center bg-primary-500 text-white text-xs rounded-full shrink-0">
+              <span className="w-5 h-5 flex items-center justify-center bg-primary-500 text-app-text text-xs rounded-full shrink-0">
                 {activeFilterCount}
               </span>
             )}
@@ -287,7 +287,7 @@ export function MarketplaceNavBar({
               <button
                 type="button"
                 onClick={handleApplyFilters}
-                className="w-full mt-4 py-2 rounded-lg text-sm font-medium bg-primary-500 hover:bg-primary-600 text-white transition-colors"
+                className="w-full mt-4 py-2 rounded-lg text-sm font-medium bg-primary-500 hover:bg-primary-600 text-app-text transition-colors"
               >
                 Apply Filters
               </button>
@@ -323,7 +323,7 @@ export function MarketplaceNavBar({
         <button
           type="button"
           onClick={onPropose}
-          className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors h-9 shrink-0"
+          className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-app-text px-4 py-2 rounded-lg text-sm font-medium transition-colors h-9 shrink-0"
         >
           <Plus className="w-4 h-4 shrink-0" />
           <span>Propose</span>

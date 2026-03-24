@@ -352,7 +352,7 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="rounded-xl border border-app-border bg-dark-800 w-full max-w-lg shadow-2xl"
+        className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-lg shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -404,7 +404,7 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
               {/* Existing signature preview */}
               {existingSignature && (
                 <div className="border border-app-border rounded-lg p-4 bg-white">
-                  <p className="text-xs text-gray-400 mb-2">Current Signature:</p>
+                  <p className="text-xs text-app-muted mb-2">Current Signature:</p>
                   <img src={existingSignature} alt="Current signature" className="max-h-16 mx-auto" />
                 </div>
               )}
@@ -415,8 +415,8 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
                   onClick={() => setTab('upload')}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                     tab === 'upload'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-dark-700 text-app-muted hover:text-app hover:bg-dark-600'
+                      ? 'bg-purple-600 text-app-text'
+                      : 'bg-app-card text-app-muted hover:text-app hover:bg-app-hover'
                   }`}
                 >
                   <Upload className="w-4 h-4" />
@@ -426,8 +426,8 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
                   onClick={() => setTab('camera')}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                     tab === 'camera'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-dark-700 text-app-muted hover:text-app hover:bg-dark-600'
+                      ? 'bg-purple-600 text-app-text'
+                      : 'bg-app-card text-app-muted hover:text-app hover:bg-app-hover'
                   }`}
                 >
                   <Camera className="w-4 h-4" />
@@ -450,7 +450,7 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-8 rounded-lg border-2 border-dashed border-app-border bg-dark-700 hover:bg-dark-600 hover:border-purple-500/50 transition-colors flex flex-col items-center gap-2 text-app-muted hover:text-app"
+                    className="w-full py-8 rounded-lg border-2 border-dashed border-app-border bg-app-card hover:bg-app-hover hover:border-purple-500/50 transition-colors flex flex-col items-center gap-2 text-app-muted hover:text-app"
                   >
                     <Upload className="w-8 h-8 opacity-60" />
                     <span className="text-sm font-medium">Click to select image</span>
@@ -471,7 +471,7 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
                   {!cameraActive ? (
                     <button
                       onClick={startCamera}
-                      className="w-full py-8 rounded-lg border-2 border-dashed border-app-border bg-dark-700 hover:bg-dark-600 hover:border-purple-500/50 transition-colors flex flex-col items-center gap-2 text-app-muted hover:text-app"
+                      className="w-full py-8 rounded-lg border-2 border-dashed border-app-border bg-app-card hover:bg-app-hover hover:border-purple-500/50 transition-colors flex flex-col items-center gap-2 text-app-muted hover:text-app"
                     >
                       <Camera className="w-8 h-8 opacity-60" />
                       <span className="text-sm font-medium">Start Camera</span>
@@ -494,7 +494,7 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
                       </div>
                       <button
                         onClick={captureFromCamera}
-                        className="w-full py-2.5 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-2.5 rounded-lg text-sm font-medium bg-purple-600 text-app-text hover:bg-purple-500 transition-colors flex items-center justify-center gap-2"
                       >
                         <Camera className="w-4 h-4" />
                         Capture
@@ -518,7 +518,7 @@ export function SignaturePad({ open, onClose, targetUserId, targetUserName }: Si
           <button
             onClick={handleSave}
             disabled={saving || loading || !capturedSignature}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-app-text hover:bg-purple-500 disabled:opacity-50 transition-colors"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Signature'}

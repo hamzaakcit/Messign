@@ -113,7 +113,7 @@ export function DoraContextBar({
   if (segments.length === 0) return null;
 
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] text-gray-500">
+    <div className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] text-app-muted">
       <span className="shrink-0 text-gray-600">Context:</span>
       {segments.map((s, i) => (
         <span key={s.key} className="inline-flex items-center gap-1">
@@ -121,7 +121,7 @@ export function DoraContextBar({
           <button
             type="button"
             onClick={() => onResendIntent(s.intentId, s.sendQuery)}
-            className="max-w-[200px] truncate rounded-md px-1.5 py-0.5 text-left text-gray-300 transition-colors hover:bg-dark-800 hover:text-sky-300"
+            className="max-w-[200px] truncate rounded-md px-1.5 py-0.5 text-left text-gray-300 transition-colors hover:bg-app-hover hover:text-sky-300"
             title="Repeat this intent"
           >
             {s.label}
@@ -131,7 +131,7 @@ export function DoraContextBar({
       <button
         type="button"
         onClick={onClear}
-        className="ml-1 inline-flex items-center gap-0.5 rounded-md border border-dark-600 px-2 py-0.5 text-gray-400 transition-colors hover:border-danger-500/40 hover:text-danger-400"
+        className="ml-1 inline-flex items-center gap-0.5 rounded-md border border-app-border px-2 py-0.5 text-app-muted transition-colors hover:border-danger-500/40 hover:text-danger-400"
         title="Clear conversation"
       >
         <X size={12} />

@@ -460,7 +460,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
           <button
             onClick={handleSubmitComment}
             disabled={commentSubmitting || !newComment.trim()}
-            className="p-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="p-2 rounded-lg bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50 transition-colors"
           >
             <Send className="h-4 w-4" />
           </button>
@@ -504,7 +504,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
           <div className="flex justify-end gap-2">
             <button onClick={() => { setShowApproveModal(false); setActionError(null); }} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleApprove} disabled={actionLoading}
-              className="px-5 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2">
+              className="px-5 py-2 rounded-lg bg-emerald-500 text-app-text text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2">
               <CheckCircle className="h-4 w-4" /> {actionLoading ? 'Approving...' : 'Approve'}
             </button>
           </div>
@@ -528,7 +528,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
           <div className="flex justify-end gap-2">
             <button onClick={() => { setShowRejectModal(false); setActionError(null); }} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleReject} disabled={actionLoading || !rejectReason.trim()}
-              className="px-5 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 flex items-center gap-2">
+              className="px-5 py-2 rounded-lg bg-red-500 text-app-text text-sm font-medium hover:bg-red-600 disabled:opacity-50 flex items-center gap-2">
               <XCircle className="h-4 w-4" /> {actionLoading ? 'Rejecting...' : 'Reject'}
             </button>
           </div>
@@ -549,7 +549,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
           <div className="flex justify-end gap-2">
             <button onClick={() => setShowInfoModal(false)} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleRequestInfo} disabled={actionLoading || !infoMessage.trim()}
-              className="px-5 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
+              className="px-5 py-2 rounded-lg bg-amber-500 text-app-text text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
               <Info className="h-4 w-4" /> {actionLoading ? 'Sending...' : 'Request Info'}
             </button>
           </div>
@@ -604,7 +604,7 @@ function ActionBar({
         <>
           {editing ? (
             <>
-              <button onClick={onSaveEdit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+              <button onClick={onSaveEdit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
                 <Save className="h-4 w-4" /> Save
               </button>
               <button onClick={onCancelEdit} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
@@ -614,7 +614,7 @@ function ActionBar({
               <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text hover:bg-white/10">
                 <Edit3 className="h-4 w-4" /> Edit
               </button>
-              <button onClick={onSubmit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+              <button onClick={onSubmit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
                 <Send className="h-4 w-4" /> {isInfoRequested ? 'Resubmit' : 'Submit'}
               </button>
               {isDraft && (
@@ -630,7 +630,7 @@ function ActionBar({
       {canApprove && (
         <>
           <button onClick={onApprove} disabled={actionLoading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-app-text text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
             <CheckCircle className="h-4 w-4" /> Approve
           </button>
           <button onClick={onReject} disabled={actionLoading}
@@ -646,7 +646,7 @@ function ActionBar({
 
       {canMarkPaid && (
         <button onClick={onMarkPaid} disabled={actionLoading}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-app-text text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
           <DollarSign className="h-4 w-4" /> Mark as Paid
         </button>
       )}

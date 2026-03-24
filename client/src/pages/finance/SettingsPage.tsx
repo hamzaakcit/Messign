@@ -141,7 +141,7 @@ function GeneralTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
       </div>
       {isAdmin && (
         <button onClick={handleSave} disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
           <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save Changes'}
         </button>
       )}
@@ -232,7 +232,7 @@ function PoliciesTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) 
         <h3 className="text-lg font-semibold text-app-text">Expense Policies</h3>
         {isAdmin && (
           <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ name: '', description: '', violation_action: 'flag', category: '', limit_amount: '' }); }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600">
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">
             <Plus className="h-3.5 w-3.5" /> Add Policy
           </button>
         )}
@@ -275,7 +275,7 @@ function PoliciesTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) 
           </div>
           <div className="flex gap-2">
             <button onClick={editingId ? handleUpdate : handleCreate}
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600">
+              className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">
               {editingId ? 'Update' : 'Create'}
             </button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }}
@@ -431,7 +431,7 @@ function AITab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
 
       {isAdmin && (
         <button onClick={handleSave} disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
           <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save AI Settings'}
         </button>
       )}
@@ -486,7 +486,7 @@ function TaxTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
         <h3 className="text-lg font-semibold text-app-text">Tax Rates</h3>
         {isAdmin && (
           <button onClick={() => setShowTaxForm(!showTaxForm)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600">
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">
             <Plus className="h-3.5 w-3.5" /> Add Rate
           </button>
         )}
@@ -519,7 +519,7 @@ function TaxTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCreateTax} className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600">Create</button>
+            <button onClick={handleCreateTax} className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">Create</button>
             <button onClick={() => setShowTaxForm(false)} className="px-4 py-2 text-app-muted hover:text-app-text text-sm">Cancel</button>
           </div>
         </div>
@@ -677,7 +677,7 @@ function WorkflowsTab({ userId, isAdmin }: { userId: string; isAdmin: boolean })
 
       {isAdmin && (
         <button onClick={handleSave} disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
           <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save Workflows'}
         </button>
       )}
@@ -780,7 +780,7 @@ function NotificationsTab({ userId }: { userId: string }) {
       </div>
 
       <button onClick={handleSave} disabled={saving}
-        className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+        className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
         <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save Preferences'}
       </button>
     </div>

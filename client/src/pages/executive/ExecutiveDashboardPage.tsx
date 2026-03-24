@@ -114,7 +114,7 @@ export function ExecutiveDashboardPage() {
         <div className="rounded-xl p-5 bg-gradient-to-r from-blue-900 to-slate-900 border border-blue-800/50">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-app-text">
                 Good morning, {user?.name?.split(' ')[0] || 'there'}. Here&apos;s your company at a glance.
               </h2>
               <div className="mt-2 text-sm text-blue-100">
@@ -127,7 +127,7 @@ export function ExecutiveDashboardPage() {
                 View full briefing →
               </button>
             </div>
-            <button className="text-xs text-slate-200 hover:text-white" onClick={dismissBanner}>Dismiss</button>
+            <button className="text-xs text-slate-200 hover:text-app-text" onClick={dismissBanner}>Dismiss</button>
           </div>
         </div>
       )}

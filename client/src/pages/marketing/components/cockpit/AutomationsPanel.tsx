@@ -180,7 +180,7 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
             type="button"
             disabled={creating || !name.trim()}
             onClick={() => void create()}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-600/80 px-3 py-2 text-xs font-medium text-white hover:bg-cyan-500 disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-600/80 px-3 py-2 text-xs font-medium text-app-text hover:bg-cyan-500 disabled:opacity-40"
           >
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Create

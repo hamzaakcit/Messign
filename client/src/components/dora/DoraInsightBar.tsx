@@ -243,7 +243,7 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
               }}
             >
               <motion.div
-                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white text-xs"
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-app-text text-xs"
                 style={{ background: styles.iconBg }}
                 animate={criticalPulse && insight.severity === 'critical'
                   ? { boxShadow: ['0 0 0 rgba(239,68,68,0)', '0 0 18px rgba(239,68,68,0.7)', '0 0 0 rgba(239,68,68,0)'] }
@@ -269,7 +269,7 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
                 <button
                   type="button"
                   onClick={() => navigate(insight.actionUrl!)}
-                  className="text-[11px] font-medium text-white/90 hover:text-white shrink-0"
+                  className="text-[11px] font-medium text-app-text/90 hover:text-app-text shrink-0"
                 >
                   {insight.actionLabel}
                 </button>

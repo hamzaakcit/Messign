@@ -213,7 +213,7 @@ export function SparkBar({
             type="button"
             onClick={() => setCreateOpen((o) => !o)}
             title="Create new"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             <ChevronDown className="w-3 h-3 opacity-70" />

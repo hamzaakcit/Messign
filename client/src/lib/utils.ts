@@ -75,7 +75,7 @@ export function getStatusColor(status: string): string {
 export function getRarityColor(rarity: string): string {
   switch (rarity) {
     case 'common':
-      return 'border-gray-500 text-gray-400';
+      return 'border-gray-500 text-app-muted';
     case 'rare':
       return 'border-primary-500 text-primary-400';
     case 'epic':
@@ -83,7 +83,7 @@ export function getRarityColor(rarity: string): string {
     case 'legendary':
       return 'border-warning-500 text-warning-400';
     default:
-      return 'border-gray-500 text-gray-400';
+      return 'border-gray-500 text-app-muted';
   }
 }
 
@@ -96,9 +96,9 @@ export function getPriorityColor(priority: string): string {
     case 'medium':
       return 'bg-primary-500/20 text-primary-400 border-primary-500/30';
     case 'low':
-      return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      return 'bg-gray-500/20 text-app-muted border-gray-500/30';
     default:
-      return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      return 'bg-gray-500/20 text-app-muted border-gray-500/30';
   }
 }
 
@@ -113,6 +113,6 @@ export function getProjectTypeColor(type: string): string {
     case 'marketing':
       return 'bg-warning-500/20 text-warning-500';
     default:
-      return 'bg-gray-500/20 text-gray-400';
+      return 'bg-gray-500/20 text-app-muted';
   }
 }

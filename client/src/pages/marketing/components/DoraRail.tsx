@@ -214,7 +214,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
             <button
               type="button"
               onClick={abortStream}
-              className="shrink-0 p-1.5 rounded-lg bg-red-500/90 text-white hover:bg-red-600"
+              className="shrink-0 p-1.5 rounded-lg bg-red-500/90 text-app-text hover:bg-red-600"
               title="Stop"
             >
               <StopCircle size={14} />
@@ -224,7 +224,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
               type="button"
               onClick={() => void handleSend()}
               disabled={!inputValue.trim() || isLoading}
-              className="shrink-0 p-1.5 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40"
+              className="shrink-0 p-1.5 rounded-lg bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-40"
               title="Send"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send size={14} />}

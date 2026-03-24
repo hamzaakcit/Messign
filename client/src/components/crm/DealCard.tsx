@@ -77,7 +77,7 @@ export function DealCard({ deal, isDragging, isWonColumn, onClick }: DealCardPro
           {deal.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 text-[10px] bg-white/10 text-gray-400 rounded"
+              className="px-1.5 py-0.5 text-[10px] bg-white/10 text-app-muted rounded"
             >
               {tag}
             </span>

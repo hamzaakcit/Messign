@@ -39,12 +39,12 @@ export function RightSidebarActivity({ userId }: RightSidebarActivityProps) {
       <CardContent>
         <ul className="space-y-2 max-h-48 overflow-y-auto">
           {logs.length === 0 ? (
-            <li className="text-sm text-gray-500">No recent activity</li>
+            <li className="text-sm text-app-muted">No recent activity</li>
           ) : (
             logs.map((log) => (
-              <li key={log.id} className="text-sm text-gray-400">
+              <li key={log.id} className="text-sm text-app-muted">
                 <span>{log.description}</span>
-                <span className="block text-xs text-gray-500 mt-0.5">
+                <span className="block text-xs text-app-muted mt-0.5">
                   {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                 </span>
               </li>

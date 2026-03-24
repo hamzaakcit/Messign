@@ -11,11 +11,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
     const variants = {
-      primary: 'bg-primary-500 hover:bg-primary-600 text-white hover:shadow-lg hover:shadow-primary-500/25 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-app',
+      primary: 'bg-primary-500 hover:bg-primary-600 text-app-text hover:shadow-lg hover:shadow-primary-500/25 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-app',
       secondary: 'bg-app-card border border-app-border text-app hover:bg-app-surface-tertiary focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-app',
-      accent: 'bg-accent-500 hover:bg-accent-600 text-white hover:shadow-lg hover:shadow-accent-500/25 focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-app',
+      accent: 'bg-accent-500 hover:bg-accent-600 text-app-text hover:shadow-lg hover:shadow-accent-500/25 focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-app',
       ghost: 'bg-transparent hover:bg-app-hover text-app-muted hover:text-app focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-app',
-      danger: 'bg-danger-500 hover:bg-danger-600 text-white hover:shadow-lg hover:shadow-danger-500/25 focus:ring-2 focus:ring-danger-500 focus:ring-offset-2 focus:ring-offset-app',
+      danger: 'bg-danger-500 hover:bg-danger-600 text-app-text hover:shadow-lg hover:shadow-danger-500/25 focus:ring-2 focus:ring-danger-500 focus:ring-offset-2 focus:ring-offset-app',
     };
 
     const sizes = {

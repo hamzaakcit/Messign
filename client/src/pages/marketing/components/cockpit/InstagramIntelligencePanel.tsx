@@ -48,7 +48,7 @@ function ScoreRing({ score, size = 48 }: { score: number; size?: number }) {
       <circle
         cx={size / 2} cy={size / 2} r={r}
         fill="none" stroke="currentColor"
-        className="text-white/[0.06]"
+        className="text-app-text/[0.06]"
         strokeWidth={4}
       />
       <circle

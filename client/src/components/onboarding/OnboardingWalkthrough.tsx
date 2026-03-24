@@ -123,7 +123,7 @@ export function OnboardingWalkthrough() {
             <button
               type="button"
               onClick={handleNext}
-              className="px-4 py-1.5 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600"
+              className="px-4 py-1.5 text-sm font-medium rounded-lg bg-primary-500 text-app-text hover:bg-primary-600"
             >
               {step >= STEPS.length - 1 ? 'Done' : 'Next'}
             </button>

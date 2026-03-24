@@ -146,19 +146,19 @@ export function AuditLogPage() {
           className={cn('flex items-center gap-1 px-3 py-2 rounded-lg text-sm border transition-colors',
             showFilters || activeFilterCount > 0 ? 'bg-primary-500/10 border-primary-500/30 text-primary-400' : 'bg-white/5 border-white/10 text-app-muted hover:text-app-text')}>
           <Filter className="h-4 w-4" /> Filters
-          {activeFilterCount > 0 && <span className="px-1.5 py-0.5 rounded-full bg-primary-500 text-white text-xs">{activeFilterCount}</span>}
+          {activeFilterCount > 0 && <span className="px-1.5 py-0.5 rounded-full bg-primary-500 text-app-text text-xs">{activeFilterCount}</span>}
         </button>
       </div>
 
       {/* Category chips */}
       <div className="flex items-center gap-2 flex-wrap">
         <button onClick={() => setCategoryFilter('all')}
-          className={cn('px-3 py-1 rounded-full text-xs transition-colors', categoryFilter === 'all' ? 'bg-primary-500 text-white' : 'bg-white/5 text-app-muted hover:text-app-text')}>
+          className={cn('px-3 py-1 rounded-full text-xs transition-colors', categoryFilter === 'all' ? 'bg-primary-500 text-app-text' : 'bg-white/5 text-app-muted hover:text-app-text')}>
           All
         </button>
         {categories.map((cat) => (
           <button key={cat} onClick={() => setCategoryFilter(cat)}
-            className={cn('px-3 py-1 rounded-full text-xs capitalize transition-colors', categoryFilter === cat ? 'bg-primary-500 text-white' : 'bg-white/5 text-app-muted hover:text-app-text')}>
+            className={cn('px-3 py-1 rounded-full text-xs capitalize transition-colors', categoryFilter === cat ? 'bg-primary-500 text-app-text' : 'bg-white/5 text-app-muted hover:text-app-text')}>
             {cat}
           </button>
         ))}

@@ -70,7 +70,7 @@ export function BadgeDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 rounded-xl text-app-text/70 hover:text-app-text hover:bg-white/10 transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
@@ -86,10 +86,10 @@ export function BadgeDetailModal({
               boxShadow: `0 0 48px ${theme.glow}`,
             }}
           >
-            <Icon className="w-16 h-16 text-white" strokeWidth={2} />
+            <Icon className="w-16 h-16 text-app-text" strokeWidth={2} />
           </div>
 
-          <h2 id="badge-detail-title" className="text-2xl font-bold text-white mb-2">
+          <h2 id="badge-detail-title" className="text-2xl font-bold text-app-text mb-2">
             {badge.name}
           </h2>
           <span
@@ -103,12 +103,12 @@ export function BadgeDetailModal({
             {badge.rarity}
           </span>
 
-          <p className="text-white/80 text-sm leading-relaxed mb-4 max-w-sm">
+          <p className="text-app-text/80 text-sm leading-relaxed mb-4 max-w-sm">
             {badge.description}
           </p>
 
           {isEarned && badge.unlockedAt && (
-            <p className="text-white/50 text-sm mb-4">
+            <p className="text-app-text/50 text-sm mb-4">
               Earned {formatDate(badge.unlockedAt)}
             </p>
           )}
@@ -120,7 +120,7 @@ export function BadgeDetailModal({
 
           {holderUsers.length > 0 && (
             <div className="w-full border-t border-white/10 pt-4">
-              <p className="text-xs text-white/50 uppercase tracking-wider mb-3">
+              <p className="text-xs text-app-text/50 uppercase tracking-wider mb-3">
                 {holderUsers.length} {holderUsers.length === 1 ? 'holder' : 'holders'}
               </p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -135,7 +135,7 @@ export function BadgeDetailModal({
                   />
                 ))}
                 {holderUsers.length > 8 && (
-                  <span className="text-xs text-white/50 self-center">
+                  <span className="text-xs text-app-text/50 self-center">
                     +{holderUsers.length - 8}
                   </span>
                 )}
@@ -145,7 +145,7 @@ export function BadgeDetailModal({
 
           <button
             type="button"
-            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors border border-white/20"
+            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-app-text text-sm font-medium transition-colors border border-white/20"
             onClick={() => {
               if (navigator.share && badge) {
                 navigator.share({

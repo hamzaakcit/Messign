@@ -201,7 +201,7 @@ export function CRMForecastPage() {
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-sm"
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-app-text text-sm"
                     style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}
                   >
                     ✦

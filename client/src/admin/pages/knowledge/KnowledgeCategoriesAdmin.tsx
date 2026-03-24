@@ -89,7 +89,7 @@ export function KnowledgeCategoriesAdmin() {
         <div className="rounded-xl border border-app-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-dark-700 text-app-muted text-xs uppercase tracking-wider">
+              <tr className="bg-app-card text-app-muted text-xs uppercase tracking-wider">
                 <th className="text-left py-3 px-4">Category</th>
                 <th className="text-left py-3 px-3">Icon</th>
                 <th className="text-left py-3 px-3">Color</th>
@@ -100,7 +100,7 @@ export function KnowledgeCategoriesAdmin() {
             </thead>
             <tbody>
               {categories.map(cat => (
-                <tr key={cat.id} className="border-t border-app-border hover:bg-dark-700/50">
+                <tr key={cat.id} className="border-t border-app-border hover:bg-app-hover/50">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color ?? '#6366f1' }} />
@@ -131,7 +131,7 @@ export function KnowledgeCategoriesAdmin() {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
-          <div className="rounded-xl border border-app-border bg-dark-800 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-app-border flex items-center justify-between">
               <h3 className="font-bold text-app">{editing ? 'Edit Category' : 'Add Category'}</h3>
               <button onClick={() => setModalOpen(false)} className="text-app-muted hover:text-app"><X className="w-5 h-5" /></button>
@@ -140,13 +140,13 @@ export function KnowledgeCategoriesAdmin() {
               <div>
                 <label className="block text-sm font-medium text-app mb-1">Name *</label>
                 <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm focus:outline-none focus:border-primary-500" />
+                  className="w-full px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm focus:outline-none focus:border-primary-500" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-app mb-1">Icon (Lucide name)</label>
                   <input value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} placeholder="e.g. Palette"
-                    className="w-full px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm focus:outline-none focus:border-primary-500" />
+                    className="w-full px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm focus:outline-none focus:border-primary-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-app mb-1">Color</label>
@@ -154,14 +154,14 @@ export function KnowledgeCategoriesAdmin() {
                     <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
                       className="w-8 h-8 rounded cursor-pointer" />
                     <input value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
-                      className="flex-1 px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm font-mono focus:outline-none focus:border-primary-500" />
+                      className="flex-1 px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm font-mono focus:outline-none focus:border-primary-500" />
                   </div>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-app mb-1">Sort Order</label>
                 <input type="number" value={form.sortOrder} onChange={e => setForm(p => ({ ...p, sortOrder: parseInt(e.target.value) || 0 }))}
-                  className="w-24 px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm focus:outline-none focus:border-primary-500" />
+                  className="w-24 px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm focus:outline-none focus:border-primary-500" />
               </div>
             </div>
             <div className="px-6 py-4 border-t border-app-border flex justify-end gap-2">

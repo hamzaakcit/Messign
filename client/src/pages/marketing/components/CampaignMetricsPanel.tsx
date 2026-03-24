@@ -246,7 +246,7 @@ export function CampaignMetricsPanel({
               type="button"
               disabled={saving || !hasAnyMetric || !allValid}
               onClick={() => void handleSubmit()}
-              className="w-full mt-1 px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full mt-1 px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? 'Recording…' : 'Record Metrics'}
             </button>

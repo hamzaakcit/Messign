@@ -113,7 +113,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
         <button
           type="button"
           onClick={onApprove}
-          className="px-5 py-2 rounded-lg text-sm font-semibold bg-emerald-600/90 text-white hover:bg-emerald-600 border border-emerald-500/50"
+          className="px-5 py-2 rounded-lg text-sm font-semibold bg-emerald-600/90 text-app-text hover:bg-emerald-600 border border-emerald-500/50"
         >
           Approve
         </button>

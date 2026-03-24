@@ -68,10 +68,10 @@ function ChartTooltip({
       className="rounded-xl border border-white/10 bg-[rgba(20,20,28,0.95)] px-4 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md min-w-[160px]"
       role="tooltip"
     >
-      <p className="text-sm font-semibold text-white/80 mb-2">{label}</p>
+      <p className="text-sm font-semibold text-app-text/80 mb-2">{label}</p>
       <div className="flex items-center justify-between gap-4">
-        <span className="text-[13px] text-white/60">{config.name}</span>
-        <span className="text-base font-bold text-white" style={{ color: config.color }}>
+        <span className="text-[13px] text-app-text/60">{config.name}</span>
+        <span className="text-base font-bold text-app-text" style={{ color: config.color }}>
           {config.formatValue(value)}
         </span>
       </div>
@@ -123,14 +123,14 @@ export function PerformanceTrendChart() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
           <div>
-            <h3 className="text-sm font-semibold text-white">{chartTitle}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{RANGE_SUBTITLES[timeRange]}</p>
+            <h3 className="text-sm font-semibold text-app-text">{chartTitle}</h3>
+            <p className="text-xs text-app-muted mt-0.5">{RANGE_SUBTITLES[timeRange]}</p>
           </div>
           {activeEntity !== 'company' && (
             <button
               type="button"
               onClick={clearEntitySelection}
-              className="text-xs px-2 py-1 rounded-md bg-white/10 text-gray-400 hover:text-white hover:bg-white/15 transition-colors"
+              className="text-xs px-2 py-1 rounded-md bg-white/10 text-app-muted hover:text-app-text hover:bg-white/15 transition-colors"
             >
               Clear selection
             </button>
@@ -149,8 +149,8 @@ export function PerformanceTrendChart() {
               className={cn(
                 'px-2.5 py-1.5 text-xs font-medium rounded-full transition-all duration-200',
                 timeRange === r
-                  ? 'bg-indigo-500/20 border border-indigo-500/40 text-white'
-                  : 'text-white/50 hover:bg-white/10'
+                  ? 'bg-indigo-500/20 border border-indigo-500/40 text-app-text'
+                  : 'text-app-text/50 hover:bg-white/10'
               )}
             >
               {RANGE_LABELS[r]}
@@ -164,7 +164,7 @@ export function PerformanceTrendChart() {
           <div className="h-full w-full flex items-center justify-center bg-white/5 rounded-lg animate-pulse">
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 border-2 border-white/20 border-t-primary-500 rounded-full animate-spin" />
-              <p className="text-xs text-gray-400">Loading chart...</p>
+              <p className="text-xs text-app-muted">Loading chart...</p>
             </div>
           </div>
         ) : error ? (
@@ -173,7 +173,7 @@ export function PerformanceTrendChart() {
           </div>
         ) : data.length === 0 ? (
           <div className="h-full w-full flex items-center justify-center">
-            <p className="text-sm text-gray-400">No data available</p>
+            <p className="text-sm text-app-muted">No data available</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

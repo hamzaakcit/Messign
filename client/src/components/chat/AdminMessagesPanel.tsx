@@ -22,8 +22,8 @@ export function AdminMessagesPanel() {
       <div className="px-4 py-3 border-b border-white/5 flex items-center gap-3">
         <Mail className="w-5 h-5 text-blue-400" />
         <div>
-          <h3 className="font-semibold text-white">Messages from Admin</h3>
-          <p className="text-xs text-gray-500">
+          <h3 className="font-semibold text-app-text">Messages from Admin</h3>
+          <p className="text-xs text-app-muted">
             Messages sent to you by administrators
           </p>
         </div>
@@ -31,7 +31,7 @@ export function AdminMessagesPanel() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {adminMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-gray-500">
+          <div className="h-full flex flex-col items-center justify-center text-app-muted">
             <Mail className="w-12 h-12 mb-4 text-gray-600" />
             <p className="text-lg font-medium">No admin messages yet</p>
             <p className="text-sm">
@@ -50,13 +50,13 @@ export function AdminMessagesPanel() {
                     <Mail className="w-5 h-5 text-blue-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-white text-sm mb-1">
+                    <h4 className="font-semibold text-app-text text-sm mb-1">
                       {n.title}
                     </h4>
                     <p className="text-sm text-gray-300 whitespace-pre-wrap">
                       {n.message}
                     </p>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-app-muted mt-2">
                       {formatDistanceToNow(new Date(n.timestamp), {
                         addSuffix: true,
                       })}

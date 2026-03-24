@@ -467,9 +467,9 @@ export function FloatingWidget() {
         <div className="flex items-center gap-2">
           <DoraChatAvatar size={26} isThinking={isStreaming} />
           <div>
-            <h2 className="text-sm font-semibold text-white leading-tight">Dora</h2>
+            <h2 className="text-sm font-semibold text-app-text leading-tight">Dora</h2>
             {entityLabel && (
-              <p className="text-[11px] text-gray-400 leading-tight">{entityLabel}</p>
+              <p className="text-[11px] text-app-muted leading-tight">{entityLabel}</p>
             )}
           </div>
         </div>
@@ -484,7 +484,7 @@ export function FloatingWidget() {
                   ? mode === 'search'
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-blue-500/20 text-blue-400'
-                  : 'text-gray-500 hover:text-gray-300'
+                  : 'text-app-muted hover:text-gray-300'
               }`}
             >
               {mode === 'search' ? 'Web' : mode.charAt(0).toUpperCase() + mode.slice(1)}
@@ -494,7 +494,7 @@ export function FloatingWidget() {
           <button
             onClick={() => setWidgetState('collapsed')}
             className="w-7 h-7 rounded-lg flex items-center justify-center
-                       text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                       text-app-muted hover:text-app-text hover:bg-gray-800 transition-colors"
             aria-label="Close assistant"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">
@@ -511,10 +511,10 @@ export function FloatingWidget() {
             <div className="mb-3" style={{ animation: 'dp-breathe 4s ease-in-out infinite' }}>
               <PilotPlaneSVG size={48} showGoggleGlint />
             </div>
-            <p className="text-sm text-white font-medium mb-1">
+            <p className="text-sm text-app-text font-medium mb-1">
               Hey {userName}! I'm Dora.
             </p>
-            <p className="text-xs text-gray-400 mb-4">
+            <p className="text-xs text-app-muted mb-4">
               I can access company data, create tasks, draft invoices, and more.
             </p>
 
@@ -555,7 +555,7 @@ export function FloatingWidget() {
               <div
                 className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-sm'
+                    ? 'bg-blue-600 text-app-text rounded-br-sm'
                     : 'bg-gray-800 text-gray-200 rounded-bl-sm'
                 }`}
               >
@@ -623,7 +623,7 @@ export function FloatingWidget() {
               title={chip.query}
               onClick={() => handleSuggestionClick(chip.query, chip.id)}
               className="text-[10px] px-3 py-1.5 rounded-full border border-gray-700/50
-                       text-gray-400 hover:text-blue-400 hover:border-blue-500/50
+                       text-app-muted hover:text-blue-400 hover:border-blue-500/50
                        whitespace-nowrap transition-all duration-200 flex-shrink-0 hover:scale-[1.02]"
             >
               {chip.label}
@@ -642,7 +642,7 @@ export function FloatingWidget() {
             onKeyDown={handleKeyDown}
             placeholder="Ask Dora anything..."
             rows={1}
-            className="flex-1 bg-transparent text-sm text-white placeholder-gray-500
+            className="flex-1 bg-transparent text-sm text-app-text placeholder-gray-500
                      resize-none outline-none max-h-24 leading-relaxed"
             disabled={isStreaming}
           />
@@ -663,7 +663,7 @@ export function FloatingWidget() {
               onClick={() => sendMessage(inputValue)}
               disabled={!inputValue.trim()}
               className="w-8 h-8 flex items-center justify-center rounded-lg
-                       bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-30
+                       bg-blue-600 text-app-text hover:bg-blue-500 disabled:opacity-30
                        disabled:cursor-not-allowed transition-colors flex-shrink-0"
               aria-label="Send"
             >

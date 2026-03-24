@@ -45,14 +45,14 @@ export function Avatar({ src, name, size = 'md', status, showStatus = true, clas
           height={px}
           loading="lazy"
           className={cn(
-            'rounded-full object-cover bg-dark-600',
+            'rounded-full object-cover bg-app-hover',
             sizes[size]
           )}
         />
       ) : (
         <div
           className={cn(
-            'rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center font-semibold text-white',
+            'rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center font-semibold text-app-text',
             sizes[size]
           )}
         >

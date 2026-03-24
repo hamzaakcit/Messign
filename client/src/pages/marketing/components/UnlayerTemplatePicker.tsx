@@ -53,7 +53,7 @@ export function UnlayerTemplatePicker({ templates, onSelect }: Props) {
             onClick={() => setActiveFilter(f.id)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               activeFilter === f.id
-                ? 'bg-primary-500 text-white'
+                ? 'bg-primary-500 text-app-text'
                 : 'bg-white/5 text-app-muted hover:bg-white/10 hover:text-app-text'
             }`}
           >
@@ -89,7 +89,7 @@ export function UnlayerTemplatePicker({ templates, onSelect }: Props) {
                 </span>
               )}
             </div>
-            <p className="text-sm font-medium text-app-text group-hover:text-white transition-colors">{t.title}</p>
+            <p className="text-sm font-medium text-app-text group-hover:text-app-text transition-colors">{t.title}</p>
             <p className="text-[11px] text-app-muted mt-0.5 line-clamp-2">{getSubtitle(t)}</p>
           </button>
         ))}

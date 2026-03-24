@@ -179,7 +179,7 @@ export function PeriodClosePage() {
               <button
                 onClick={() => handleAction('close')}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-app-text rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
                 <CalendarCheck className="h-4 w-4" /> Close Period
               </button>
@@ -195,7 +195,7 @@ export function PeriodClosePage() {
                 <button
                   onClick={() => handleAction('lock')}
                   disabled={actionLoading}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-app-text rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                 >
                   <Lock className="h-4 w-4" /> Lock Period
                 </button>

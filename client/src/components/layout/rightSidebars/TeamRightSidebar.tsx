@@ -18,15 +18,15 @@ export function TeamRightSidebar() {
         </h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="p-2 rounded bg-white/5">
-            <p className="text-gray-500 text-xs">Total members</p>
-            <p className="text-white font-semibold">{teamStats.totalMembers}</p>
+            <p className="text-app-muted text-xs">Total members</p>
+            <p className="text-app-text font-semibold">{teamStats.totalMembers}</p>
           </div>
           <div className="p-2 rounded bg-white/5">
-            <p className="text-gray-500 text-xs">Average level</p>
-            <p className="text-white font-semibold">{teamStats.averageLevel}</p>
+            <p className="text-app-muted text-xs">Average level</p>
+            <p className="text-app-text font-semibold">{teamStats.averageLevel}</p>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-2">Most active: {teamStats.mostActiveDepartment}</p>
+        <p className="text-xs text-app-muted mt-2">Most active: {teamStats.mostActiveDepartment}</p>
         <div className="h-24 mt-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={teamStats.departmentBreakdown} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
@@ -50,8 +50,8 @@ export function TeamRightSidebar() {
         <ul className="space-y-1 text-sm">
           {teamStats.departmentBreakdown.map((d) => (
             <li key={d.name} className="flex justify-between">
-              <span className="text-gray-400">{d.name}</span>
-              <span className="text-white font-medium">{d.count}</span>
+              <span className="text-app-muted">{d.name}</span>
+              <span className="text-app-text font-medium">{d.count}</span>
             </li>
           ))}
         </ul>
@@ -63,7 +63,7 @@ export function TeamRightSidebar() {
           <Cake className="w-4 h-4 text-warning-500" /> Birthdays This Week
         </h3>
         {birthdaysThisWeek.length === 0 ? (
-          <p className="text-xs text-gray-500">No birthdays this week</p>
+          <p className="text-xs text-app-muted">No birthdays this week</p>
         ) : (
           <ul className="space-y-2">
             {birthdaysThisWeek.map((b) => {
@@ -72,7 +72,7 @@ export function TeamRightSidebar() {
                 <li key={b.userId} className="flex items-center gap-2">
                   <Avatar src={u.avatar} name={u.name} size="sm" showStatus={false} />
                   <span className="text-sm text-gray-300">{b.name}</span>
-                  <span className="text-xs text-gray-500 ml-auto">{b.date}</span>
+                  <span className="text-xs text-app-muted ml-auto">{b.date}</span>
                 </li>
               ) : null;
             })}
@@ -92,8 +92,8 @@ export function TeamRightSidebar() {
               <li key={n.userId} className="flex items-center gap-2">
                 <Avatar src={u.avatar} name={u.name} size="sm" showStatus={false} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white truncate">{n.name}</p>
-                  <p className="text-xs text-gray-500">Joined {n.joinDate}</p>
+                  <p className="text-sm text-app-text truncate">{n.name}</p>
+                  <p className="text-xs text-app-muted">Joined {n.joinDate}</p>
                 </div>
                 <button className="text-xs text-primary-400 hover:underline">Say hello</button>
               </li>
@@ -107,7 +107,7 @@ export function TeamRightSidebar() {
         <h3 className="font-semibold text-app flex items-center gap-2 mb-2">
           <Circle className="w-2 h-2 fill-success-500 text-success-500" /> Online Now
         </h3>
-        <p className="text-sm text-gray-400 mb-2">{onlineCount} members online</p>
+        <p className="text-sm text-app-muted mb-2">{onlineCount} members online</p>
         <div className="flex -space-x-2">
           {onlineUsers.map((u) => (
             <Avatar key={u.id} src={u.avatar} name={u.name} size="sm" status="online" className="ring-2 ring-dark-800" />

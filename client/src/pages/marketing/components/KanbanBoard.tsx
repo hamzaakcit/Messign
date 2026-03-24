@@ -165,7 +165,7 @@ function Lane({
           ))}
         </SortableContext>
         {cards.length === 0 && (
-          <div className="flex items-center justify-center h-20 text-[10px] text-white/20">
+          <div className="flex items-center justify-center h-20 text-[10px] text-app-text/20">
             <CircleDot className="w-3 h-3" />
           </div>
         )}

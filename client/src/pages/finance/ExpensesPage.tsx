@@ -225,13 +225,13 @@ export function ExpensesPage() {
           <Filter className="h-4 w-4" />
           Filters
           {activeFilterCount > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary-500 text-white text-xs">{activeFilterCount}</span>
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary-500 text-app-text text-xs">{activeFilterCount}</span>
           )}
         </button>
         <button
           data-testid="expense-new"
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 transition-colors"
         >
           <Plus className="h-4 w-4" /> New Expense
         </button>
@@ -486,7 +486,7 @@ function FilterChip({ label, onRemove, icon }: { label: string; onRemove: () => 
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-xs text-primary-400">
       {icon}
       {label}
-      <button onClick={onRemove} className="hover:text-white transition-colors"><X className="h-3 w-3" /></button>
+      <button onClick={onRemove} className="hover:text-app-text transition-colors"><X className="h-3 w-3" /></button>
     </span>
   );
 }

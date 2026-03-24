@@ -72,7 +72,7 @@ export function BankDetailsModal({ open, onClose, targetUserId, targetUserName }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="rounded-xl border border-app-border bg-dark-800 w-full max-w-md shadow-2xl"
+        className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-md shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 py-4 border-b border-app-border flex items-center justify-between">
@@ -157,7 +157,7 @@ export function BankDetailsModal({ open, onClose, targetUserId, targetUserName }
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-app-text hover:bg-blue-500 disabled:opacity-50 transition-colors"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save'}

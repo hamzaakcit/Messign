@@ -118,7 +118,7 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
                 type="button"
                 disabled={sending}
                 onClick={() => void handleSend()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-app-text hover:bg-emerald-500 disabled:opacity-50"
               >
                 {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 Send

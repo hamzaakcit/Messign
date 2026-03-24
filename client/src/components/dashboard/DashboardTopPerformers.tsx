@@ -44,13 +44,13 @@ export function DashboardTopPerformers() {
   return (
     <div className="h-full flex flex-col rounded-xl border border-gray-800 bg-[#13151a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
-        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-app-text flex items-center gap-2">
           <Trophy className="w-4 h-4 text-yellow-400" />
           Top Performers
         </h2>
         <a
           href="/projects"
-          className="text-xs text-gray-400 hover:text-primary-400 flex items-center gap-0.5 transition-colors"
+          className="text-xs text-app-muted hover:text-primary-400 flex items-center gap-0.5 transition-colors"
         >
           View all <ChevronRight className="w-3 h-3" />
         </a>
@@ -69,7 +69,7 @@ export function DashboardTopPerformers() {
             ))}
           </div>
         ) : topMembers.length === 0 ? (
-          <p className="text-xs text-gray-500 py-4 text-center">No team data yet</p>
+          <p className="text-xs text-app-muted py-4 text-center">No team data yet</p>
         ) : (
           <div className="space-y-2">
             {topMembers.map((member, idx) => {
@@ -102,10 +102,10 @@ export function DashboardTopPerformers() {
                   </div>
                   <Avatar src={member.avatar} name={member.name} size="sm" showStatus={false} className="shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{member.name}</p>
-                    <p className="text-xs text-gray-400 truncate">{member.role}</p>
+                    <p className="text-sm font-medium text-app-text truncate">{member.name}</p>
+                    <p className="text-xs text-app-muted truncate">{member.role}</p>
                   </div>
-                  <span className="text-xs font-medium text-gray-500">#{member.rank}</span>
+                  <span className="text-xs font-medium text-app-muted">#{member.rank}</span>
                 </button>
               );
             })}

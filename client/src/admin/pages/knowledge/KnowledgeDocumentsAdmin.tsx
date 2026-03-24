@@ -157,7 +157,7 @@ export function KnowledgeDocumentsAdmin() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search documents..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-app-border bg-dark-800 text-app text-sm placeholder:text-app-muted focus:outline-none focus:border-primary-500" />
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-app-border bg-app-sidebar text-app text-sm placeholder:text-app-muted focus:outline-none focus:border-primary-500" />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="input-theme py-2 w-36">
@@ -172,7 +172,7 @@ export function KnowledgeDocumentsAdmin() {
       {loading ? (
         <div className="p-12 text-center text-app-muted">Loading...</div>
       ) : documents.length === 0 ? (
-        <div className="rounded-xl border border-app-border bg-dark-800 p-12 text-center text-app-muted">
+        <div className="rounded-xl border border-app-border bg-app-sidebar p-12 text-center text-app-muted">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="font-semibold">No documents found.</p>
         </div>
@@ -180,7 +180,7 @@ export function KnowledgeDocumentsAdmin() {
         <div className="rounded-xl border border-app-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-dark-700 text-app-muted text-xs uppercase tracking-wider">
+              <tr className="bg-app-card text-app-muted text-xs uppercase tracking-wider">
                 <th className="text-left py-3 px-4">Document</th>
                 <th className="text-left py-3 px-3 hidden md:table-cell">Category</th>
                 <th className="text-left py-3 px-3 hidden lg:table-cell">Status</th>
@@ -194,7 +194,7 @@ export function KnowledgeDocumentsAdmin() {
               {documents.map(doc => {
                 const IconComp = FILE_ICONS[doc.file_type ?? doc.type] ?? FileText;
                 return (
-                  <tr key={doc.id} className="border-t border-app-border hover:bg-dark-700/50">
+                  <tr key={doc.id} className="border-t border-app-border hover:bg-app-hover/50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-lg bg-primary-500/10 flex items-center justify-center shrink-0">
@@ -218,7 +218,7 @@ export function KnowledgeDocumentsAdmin() {
                     <td className="py-3 px-3 hidden lg:table-cell">
                       <span className={cn('px-2 py-0.5 rounded text-xs font-medium uppercase',
                         doc.status === 'published' ? 'bg-emerald-500/20 text-emerald-400' :
-                        doc.status === 'draft' ? 'bg-gray-500/20 text-gray-400' :
+                        doc.status === 'draft' ? 'bg-gray-500/20 text-app-muted' :
                         'bg-amber-500/20 text-amber-400'
                       )}>{doc.status}</span>
                     </td>
@@ -262,8 +262,8 @@ export function KnowledgeDocumentsAdmin() {
       {/* ── Create/Edit Modal ── */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
-          <div className="rounded-xl border border-app-border bg-dark-800 w-full max-w-2xl max-h-[85vh] overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-dark-800 border-b border-app-border px-6 py-4 flex items-center justify-between z-10">
+          <div className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-2xl max-h-[85vh] overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-app-sidebar border-b border-app-border px-6 py-4 flex items-center justify-between z-10">
               <h3 className="font-bold text-app text-lg">{editingDoc ? 'Edit Document' : 'Upload Document'}</h3>
               <button onClick={() => setModalOpen(false)} className="text-app-muted hover:text-app"><X className="w-5 h-5" /></button>
             </div>
@@ -272,19 +272,19 @@ export function KnowledgeDocumentsAdmin() {
               <div>
                 <label className="block text-sm font-medium text-app mb-1">Title *</label>
                 <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm focus:outline-none focus:border-primary-500" />
+                  className="w-full px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm focus:outline-none focus:border-primary-500" />
               </div>
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-app mb-1">Description</label>
                 <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  className="w-full h-20 px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm resize-none focus:outline-none focus:border-primary-500" />
+                  className="w-full h-20 px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm resize-none focus:outline-none focus:border-primary-500" />
               </div>
               {/* Content */}
               <div>
                 <label className="block text-sm font-medium text-app mb-1">Content (rich text / markdown)</label>
                 <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
-                  className="w-full h-32 px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm font-mono resize-y focus:outline-none focus:border-primary-500" />
+                  className="w-full h-32 px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm font-mono resize-y focus:outline-none focus:border-primary-500" />
               </div>
               {/* File Upload */}
               <div>
@@ -361,11 +361,11 @@ export function KnowledgeDocumentsAdmin() {
                 <div>
                   <label className="block text-sm font-medium text-app mb-1">Pin Order</label>
                   <input type="number" value={form.pinOrder} onChange={e => setForm(p => ({ ...p, pinOrder: e.target.value }))}
-                    className="w-24 px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm focus:outline-none focus:border-primary-500" />
+                    className="w-24 px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm focus:outline-none focus:border-primary-500" />
                 </div>
               )}
             </div>
-            <div className="sticky bottom-0 bg-dark-800 border-t border-app-border px-6 py-4 flex justify-end gap-2">
+            <div className="sticky bottom-0 bg-app-sidebar border-t border-app-border px-6 py-4 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving...' : editingDoc ? 'Update' : 'Create'}

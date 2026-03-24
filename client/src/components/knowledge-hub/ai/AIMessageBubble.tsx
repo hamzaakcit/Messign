@@ -62,7 +62,7 @@ export function AIMessageBubble({
     return (
       <div className="flex justify-end mb-4">
         <div className="flex items-start gap-2 max-w-[80%]">
-          <div className="px-4 py-2.5 bg-primary-500 text-white rounded-2xl rounded-tr-md text-sm leading-relaxed">
+          <div className="px-4 py-2.5 bg-primary-500 text-app-text rounded-2xl rounded-tr-md text-sm leading-relaxed">
             {message.content}
           </div>
           <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-500/20 flex items-center justify-center mt-0.5">
@@ -93,7 +93,7 @@ export function AIMessageBubble({
             <ThinkingIndicator />
           ) : (
             <div className="dora-glass px-4 py-3 rounded-2xl rounded-tl-md">
-              <div className="max-w-3xl text-sm text-gray-300 leading-relaxed whitespace-pre-wrap [&_strong]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_ul]:my-1 [&_li]:text-gray-300">
+              <div className="max-w-3xl text-sm text-gray-300 leading-relaxed whitespace-pre-wrap [&_strong]:text-app-text [&_h1]:text-app-text [&_h2]:text-app-text [&_h3]:text-app-text [&_ul]:my-1 [&_li]:text-gray-300">
                 <DoraReactMarkdown content={message.content} />
                 {message.isStreaming && (
                   <span
@@ -124,7 +124,7 @@ export function AIMessageBubble({
                   <button
                     type="button"
                     onClick={() => onCancelAct(message.id)}
-                    className="rounded-lg border border-dark-600 px-4 py-2 text-xs text-gray-300 hover:border-dark-500 hover:text-white"
+                    className="rounded-lg border border-app-border px-4 py-2 text-xs text-gray-300 hover:border-app-border hover:text-app-text"
                   >
                     Cancel
                   </button>
@@ -159,13 +159,13 @@ export function AIMessageBubble({
               {message.metadata?.marketingContentId &&
                 message.metadata.marketingImageUrl &&
                 !String(message.metadata.marketingImageUrl).includes('storage.mock.local') && (
-                  <div className="mt-3 rounded-xl border border-dark-600/80 bg-dark-800/40 overflow-hidden">
+                  <div className="mt-3 rounded-xl border border-app-border/80 bg-app-sidebar/40 overflow-hidden">
                     <img
                       src={message.metadata.marketingImageUrl}
                       alt="Generated marketing image"
                       className="w-full max-h-48 object-contain bg-black/20"
                     />
-                    <div className="px-3 py-2 flex flex-wrap items-center gap-2 border-t border-dark-600/60">
+                    <div className="px-3 py-2 flex flex-wrap items-center gap-2 border-t border-app-border/60">
                       <Link
                         to={`/marketing/content?contentId=${encodeURIComponent(message.metadata.marketingContentId)}`}
                         className="text-xs font-medium text-sky-400 hover:text-sky-300"
@@ -208,7 +208,7 @@ export function AIMessageBubble({
             <div className="flex items-center gap-1 mt-1.5 ml-1">
               <button
                 onClick={handleCopy}
-                className="p-1 rounded hover:bg-dark-700 dora-chat-text-tertiary hover:text-gray-300 transition-colors"
+                className="p-1 rounded hover:bg-app-hover dora-chat-text-tertiary hover:text-gray-300 transition-colors"
                 title="Copy response"
               >
                 {copied ? (
@@ -224,7 +224,7 @@ export function AIMessageBubble({
                     className={`p-1 rounded transition-colors ${
                       message.feedback === 'up'
                         ? 'bg-success-500/20 text-success-500'
-                        : 'hover:bg-dark-700 dora-chat-text-tertiary hover:text-success-500'
+                        : 'hover:bg-app-hover dora-chat-text-tertiary hover:text-success-500'
                     }`}
                     title="Helpful"
                     disabled={message.feedback !== null}
@@ -236,7 +236,7 @@ export function AIMessageBubble({
                     className={`p-1 rounded transition-colors ${
                       message.feedback === 'down'
                         ? 'bg-danger-500/20 text-danger-500'
-                        : 'hover:bg-dark-700 dora-chat-text-tertiary hover:text-danger-500'
+                        : 'hover:bg-app-hover dora-chat-text-tertiary hover:text-danger-500'
                     }`}
                     title="Not helpful"
                     disabled={message.feedback !== null}
@@ -274,7 +274,7 @@ function SpecialistBadge({ specialist }: { specialist: SpecialistInfo }) {
   const mod = specialist.module?.toLowerCase() ?? '';
   const cfg = MODULE_BADGE[mod] ?? {
     emoji: specialist.icon || '✨',
-    className: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    className: 'bg-gray-500/10 text-app-muted border-gray-500/20',
     short: specialist.displayName || mod || 'Dora',
   };
   return (
@@ -294,9 +294,9 @@ function DoraReactMarkdown({ content }: { content: string }) {
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeSanitize]}
       components={{
-        h1: ({ children }) => <h3 className="text-base font-semibold text-white mt-3 mb-1">{children}</h3>,
-        h2: ({ children }) => <h3 className="text-base font-semibold text-white mt-3 mb-1">{children}</h3>,
-        h3: ({ children }) => <h4 className="text-sm font-semibold text-white mt-3 mb-1">{children}</h4>,
+        h1: ({ children }) => <h3 className="text-base font-semibold text-app-text mt-3 mb-1">{children}</h3>,
+        h2: ({ children }) => <h3 className="text-base font-semibold text-app-text mt-3 mb-1">{children}</h3>,
+        h3: ({ children }) => <h4 className="text-sm font-semibold text-app-text mt-3 mb-1">{children}</h4>,
         p: ({ children }) => <p className="my-1">{children}</p>,
         ul: ({ children }) => <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal pl-4 my-1 space-y-0.5">{children}</ol>,
@@ -310,7 +310,7 @@ function DoraReactMarkdown({ content }: { content: string }) {
           const isBlock = /language-/.test(className ?? '') || String(children).includes('\n');
           if (isBlock) {
             return (
-              <pre className="my-2 p-2 rounded-lg bg-dark-800 overflow-x-auto text-xs">
+              <pre className="my-2 p-2 rounded-lg bg-app-sidebar overflow-x-auto text-xs">
                 <code className={className} {...props}>
                   {children}
                 </code>
@@ -318,23 +318,23 @@ function DoraReactMarkdown({ content }: { content: string }) {
             );
           }
           return (
-            <code className="px-1 py-0.5 bg-dark-700 rounded text-xs font-mono text-primary-300" {...props}>
+            <code className="px-1 py-0.5 bg-app-card rounded text-xs font-mono text-primary-300" {...props}>
               {children}
             </code>
           );
         },
         table: ({ children }) => (
           <div className="overflow-x-auto my-2">
-            <table className="min-w-full text-xs border-collapse border border-dark-600">{children}</table>
+            <table className="min-w-full text-xs border-collapse border border-app-border">{children}</table>
           </div>
         ),
         th: ({ children }) => (
-          <th className="border border-dark-600 px-2 py-1 text-left text-gray-400 font-semibold">{children}</th>
+          <th className="border border-app-border px-2 py-1 text-left text-app-muted font-semibold">{children}</th>
         ),
         td: ({ children }) => (
-          <td className="border border-dark-600 px-2 py-1 text-gray-300">{children}</td>
+          <td className="border border-app-border px-2 py-1 text-gray-300">{children}</td>
         ),
-        hr: () => <hr className="my-3 border-dark-600" />,
+        hr: () => <hr className="my-3 border-app-border" />,
       }}
     >
       {content}

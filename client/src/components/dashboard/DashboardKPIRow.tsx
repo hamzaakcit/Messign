@@ -110,11 +110,11 @@ export function DashboardKPIRow({ metrics }: DashboardKPIRowProps) {
               <Icon className="w-4 h-4" style={{ color: config.color }} aria-hidden />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white tracking-tight">
+              <p className="text-sm font-bold text-app-text tracking-tight">
                 {config.format(animatedValue)}
               </p>
-              <p className="text-xs text-gray-400">{config.label}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-app-muted">{config.label}</p>
+              <p className="text-xs text-app-muted">
                 {change >= 0 ? '+' : ''}{change}% vs last quarter
               </p>
             </div>

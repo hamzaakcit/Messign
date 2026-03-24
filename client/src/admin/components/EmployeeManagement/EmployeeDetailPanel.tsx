@@ -138,7 +138,7 @@ export function EmployeeDetailPanel({ employee, isOpen, onClose, onUpdate }: Emp
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-app-text rounded-lg font-medium"
               >
                 <Edit2 className="w-4 h-4" />
                 Edit
@@ -152,7 +152,7 @@ export function EmployeeDetailPanel({ employee, isOpen, onClose, onUpdate }: Emp
                   type="button"
                   onClick={handleSave}
                   disabled={loading}
-                  className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg disabled:opacity-50 font-medium"
+                  className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-app-text rounded-lg disabled:opacity-50 font-medium"
                 >
                   {loading ? 'Saving...' : 'Save'}
                 </button>

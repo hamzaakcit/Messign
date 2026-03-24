@@ -252,7 +252,7 @@ function CampaignsTab({ userId }: { userId: string }): JSX.Element {
             <input className="rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" type="date" value={filters.dateTo} onChange={(e) => setFilters((c) => ({ ...c, dateTo: e.target.value }))} />
           </div>
         </div>
-        <button onClick={() => setCreateOpen(true)} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 flex items-center gap-1.5">
+        <button onClick={() => setCreateOpen(true)} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 flex items-center gap-1.5">
           <Plus className="w-4 h-4" />
           New Campaign
         </button>
@@ -414,7 +414,7 @@ function ContentCalendarTab({ userId }: { userId: string }): JSX.Element {
     return (
       <div key={day.date} className={cn('min-h-[120px] border-r border-b border-white/[0.06] p-1.5 transition-colors', day.inMonth ? 'bg-[#0c0f14]' : 'bg-[#080a0e] opacity-50', draggedContentId && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)} onClick={(e) => { if (e.target === e.currentTarget) setCreateDate(day.date); }}>
         <div className="flex items-center justify-between mb-1">
-          <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium', isToday ? 'bg-cyan-500 text-white' : 'text-slate-500')}>{new Date(day.date + 'T12:00:00').getDate()}</span>
+          <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-500')}>{new Date(day.date + 'T12:00:00').getDate()}</span>
           {hasWarning && <AlertTriangle className="h-3 w-3 text-amber-400/80" />}
         </div>
         <div className="space-y-0.5">
@@ -460,7 +460,7 @@ function ContentCalendarTab({ userId }: { userId: string }): JSX.Element {
         {viewMode === 'week' && (
           <div>
             <div className="grid grid-cols-7 border-b border-white/[0.06]">
-              {weekDays.map((day) => { const d = new Date(day.date + 'T12:00:00'); const isToday = day.date === todayKey; return (<div key={day.date} className="border-r border-white/[0.06] px-2 py-2 last:border-r-0 text-center"><div className="text-[10px] uppercase tracking-wider text-slate-600">{d.toLocaleDateString('en', { weekday: 'short' })}</div><div className={cn('mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium', isToday ? 'bg-cyan-500 text-white' : 'text-slate-300')}>{d.getDate()}</div></div>); })}
+              {weekDays.map((day) => { const d = new Date(day.date + 'T12:00:00'); const isToday = day.date === todayKey; return (<div key={day.date} className="border-r border-white/[0.06] px-2 py-2 last:border-r-0 text-center"><div className="text-[10px] uppercase tracking-wider text-slate-600">{d.toLocaleDateString('en', { weekday: 'short' })}</div><div className={cn('mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-300')}>{d.getDate()}</div></div>); })}
             </div>
             <div className="grid grid-cols-7 min-h-[300px]">
               {weekDays.map((day) => (<div key={day.date} className={cn('border-r border-white/[0.06] p-2 last:border-r-0', draggedContentId && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)} onClick={(e) => { if (e.target === e.currentTarget) setCreateDate(day.date); }}><div className="space-y-1">{day.items.map(renderCalendarItem)}</div>{day.items.length === 0 && <p className="mt-8 text-center text-[9px] text-slate-700">Click to add</p>}</div>))}

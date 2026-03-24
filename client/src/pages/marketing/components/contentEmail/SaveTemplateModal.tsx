@@ -82,7 +82,7 @@ export function SaveTemplateModal({
             type="button"
             disabled={!form.name.trim() || saving}
             onClick={onSave}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save Template'}
           </button>

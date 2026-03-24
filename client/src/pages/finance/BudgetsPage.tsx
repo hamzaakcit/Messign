@@ -112,7 +112,7 @@ export function BudgetsPage({ onViewBudget }: Props) {
           </button>
           {isAdmin && (
             <button onClick={() => setShowCreate(!showCreate)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">
               <Plus className="h-4 w-4" /> New Budget
             </button>
           )}
@@ -229,7 +229,7 @@ export function BudgetsPage({ onViewBudget }: Props) {
           })()}
           <div className="flex gap-2">
             <button onClick={handleCreate} disabled={!formData.department || !formData.allocatedAmount}
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">Create Budget</button>
+              className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">Create Budget</button>
             <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-app-muted hover:text-app-text text-sm">Cancel</button>
           </div>
         </div>

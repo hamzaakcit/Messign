@@ -172,7 +172,7 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                 ref={closeButtonRef}
                 type="button"
                 onClick={onClose}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-app-text/70 hover:text-app-text hover:bg-white/10 transition-colors"
                 aria-label="Close panel"
               >
                 <ArrowLeft className="w-6 h-6" />
@@ -181,7 +181,7 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                 <button
                   type="button"
                   onClick={() => setActionsOpen((o) => !o)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-app-text/70 hover:text-app-text hover:bg-white/10 transition-colors"
                   aria-label="Actions menu"
                   aria-expanded={actionsOpen}
                 >
@@ -191,7 +191,7 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setActionsOpen(false)} aria-hidden />
                     <div
-                      className="absolute right-0 top-full mt-1 py-1 min-w-[180px] rounded-xl bg-dark-700 border border-white/10 shadow-xl z-20 animate-fade-in"
+                      className="absolute right-0 top-full mt-1 py-1 min-w-[180px] rounded-xl bg-app-card border border-white/10 shadow-xl z-20 animate-fade-in"
                       role="menu"
                     >
                       {['Edit Profile', 'Send Message', 'View Full Profile', 'Manage Permissions', 'View Activity Log'].map(
@@ -200,7 +200,7 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                             key={label}
                             type="button"
                             onClick={() => setActionsOpen(false)}
-                            className="w-full px-4 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors"
+                            className="w-full px-4 py-2.5 text-left text-sm text-app-text/90 hover:bg-white/10 transition-colors"
                             role="menuitem"
                           >
                             {label}
@@ -223,7 +223,7 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
               <div className="relative flex flex-col items-center text-center">
                 <div className="relative">
                   <div
-                    className="w-[120px] h-[120px] rounded-full border-4 flex items-center justify-center overflow-hidden bg-dark-600"
+                    className="w-[120px] h-[120px] rounded-full border-4 flex items-center justify-center overflow-hidden bg-app-hover"
                     style={{
                       borderColor: `${deptColor.primary}${Math.round(deptColor.borderOpacity * 255).toString(16).padStart(2, '0')}`,
                       boxShadow: `0 0 32px ${deptColor.primary}40`,
@@ -236,7 +236,7 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                         className="w-full h-full object-cover object-center rounded-full"
                       />
                     ) : (
-                      <div className="w-full h-full rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-3xl font-bold text-white">
+                      <div className="w-full h-full rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-3xl font-bold text-app-text">
                         {getInitials(user.name)}
                       </div>
                     )}
@@ -260,11 +260,11 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                 >
                   {user.status}
                 </span>
-                <h2 className="mt-4 text-[28px] font-bold text-white tracking-tight" style={{ letterSpacing: '-0.02em' }}>
+                <h2 className="mt-4 text-[28px] font-bold text-app-text tracking-tight" style={{ letterSpacing: '-0.02em' }}>
                   {user.name}
                 </h2>
-                <p className="mt-2 text-base font-medium text-white/70">{user.jobTitle}</p>
-                <p className="mt-1 text-[13px] text-white/50">{getEmployeeId(user)}</p>
+                <p className="mt-2 text-base font-medium text-app-text/70">{user.jobTitle}</p>
+                <p className="mt-1 text-[13px] text-app-text/50">{getEmployeeId(user)}</p>
                 <div className="flex flex-wrap justify-center gap-2 mt-4">
                   <span
                     className="px-3 py-1.5 rounded-md text-xs font-semibold"
@@ -277,7 +277,7 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                     {user.department}
                   </span>
                   <span
-                    className="px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 border border-white/20 text-white/90"
+                    className="px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 border border-white/20 text-app-text/90"
                   >
                     {user.role}
                   </span>
@@ -298,8 +298,8 @@ export function EmployeeDetailPanel({ user, isOpen, onClose }: EmployeeDetailPan
                   className={cn(
                     'flex-shrink-0 px-5 py-4 text-sm font-semibold transition-all duration-200 cursor-pointer',
                     activeTab === tabId
-                      ? 'text-white border-b-[3px]'
-                      : 'text-white/60 hover:text-white/80 hover:bg-white/10',
+                      ? 'text-app-text border-b-[3px]'
+                      : 'text-app-text/60 hover:text-app-text/80 hover:bg-white/10',
                     activeTab !== tabId && 'border-b-[3px] border-transparent'
                   )}
                   style={
@@ -369,15 +369,15 @@ function OverviewTab({
             className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             style={{ background: bg, borderColor: border }}
           >
-            <Icon className="w-6 h-6 text-white" />
-            <span className="text-xs font-medium text-white/90">{label}</span>
+            <Icon className="w-6 h-6 text-app-text" />
+            <span className="text-xs font-medium text-app-text/90">{label}</span>
           </button>
         ))}
       </div>
 
       {/* Contact information */}
       <div>
-        <h4 className="text-base font-semibold text-white mb-4">Contact Information</h4>
+        <h4 className="text-base font-semibold text-app-text mb-4">Contact Information</h4>
         <div className="space-y-0">
           {[
             { icon: Mail, label: 'Email', value: user.email, copy: true },
@@ -389,14 +389,14 @@ function OverviewTab({
               key={label}
               className="flex items-center gap-3 py-3 border-b border-white/5"
             >
-              <Icon className="w-[18px] h-[18px] text-white/50 shrink-0" />
-              <span className="text-sm text-white/50 w-[100px] shrink-0">{label}</span>
-              <span className="text-sm text-white flex-1 truncate">{value}</span>
+              <Icon className="w-[18px] h-[18px] text-app-text/50 shrink-0" />
+              <span className="text-sm text-app-text/50 w-[100px] shrink-0">{label}</span>
+              <span className="text-sm text-app-text flex-1 truncate">{value}</span>
               {showCopy && (
                 <button
                   type="button"
                   onClick={copyEmail}
-                  className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  className="p-1.5 rounded-lg text-app-text/50 hover:text-app-text hover:bg-white/10 transition-colors"
                   aria-label="Copy email"
                 >
                   <Copy className="w-4 h-4" />
@@ -410,26 +410,26 @@ function OverviewTab({
       {/* MP & Level */}
       <div className="relative rounded-xl p-4 border border-white/10 overflow-hidden">
         <div
-          className="absolute top-4 right-4 w-12 h-12 rounded-full flex items-center justify-center text-base font-bold text-white"
+          className="absolute top-4 right-4 w-12 h-12 rounded-full flex items-center justify-center text-base font-bold text-app-text"
           style={{ background: deptColor.primary }}
         >
           L{user.level}
         </div>
-        <h4 className="text-base font-semibold text-white mb-2">Progress & Level</h4>
-        <p className="text-2xl font-bold text-white">{user.xp.toLocaleString()} MP</p>
-        <p className="text-[13px] text-white/50 mb-2">MP to next level: {user.xpToNextLevel.toLocaleString()}</p>
+        <h4 className="text-base font-semibold text-app-text mb-2">Progress & Level</h4>
+        <p className="text-2xl font-bold text-app-text">{user.xp.toLocaleString()} MP</p>
+        <p className="text-[13px] text-app-text/50 mb-2">MP to next level: {user.xpToNextLevel.toLocaleString()}</p>
         <div className="h-2 rounded-full overflow-hidden bg-white/10">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(progress, 100)}%`, background: deptColor.primary }}
           />
         </div>
-        <p className="text-xs text-white/50 mt-1 text-right">{Math.round(progress)}%</p>
+        <p className="text-xs text-app-text/50 mt-1 text-right">{Math.round(progress)}%</p>
       </div>
 
       {/* Stats overview */}
       <div>
-        <h4 className="text-base font-semibold text-white mb-3">Stats Overview</h4>
+        <h4 className="text-base font-semibold text-app-text mb-3">Stats Overview</h4>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
             { label: 'Tasks', value: user.stats.tasksCompleted, icon: Target },
@@ -441,9 +441,9 @@ function OverviewTab({
               className="rounded-xl p-4 border border-white/5 text-center"
               style={{ background: 'rgba(255,255,255,0.03)' }}
             >
-              <Icon className="w-5 h-5 text-white/60 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">{value}</p>
-              <p className="text-xs text-white/60">{label}</p>
+              <Icon className="w-5 h-5 text-app-text/60 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-app-text">{value}</p>
+              <p className="text-xs text-app-text/60">{label}</p>
             </div>
           ))}
         </div>
@@ -451,34 +451,34 @@ function OverviewTab({
 
       {/* Team & reporting */}
       <div>
-        <h4 className="text-base font-semibold text-white mb-3">Team & Reporting</h4>
+        <h4 className="text-base font-semibold text-app-text mb-3">Team & Reporting</h4>
         <div className="space-y-2 text-sm">
           {manager && (
             <div className="flex items-center justify-between py-2 border-b border-white/5">
-              <span className="text-white/60">Reports to</span>
-              <span className="text-white font-medium">{manager.name}</span>
+              <span className="text-app-text/60">Reports to</span>
+              <span className="text-app-text font-medium">{manager.name}</span>
             </div>
           )}
           {(reporteesCount > 0 || manager) && (
             <div className="flex items-center justify-between py-2 border-b border-white/5">
-              <span className="text-white/60">Manages</span>
-              <span className="text-white font-medium">{reporteesCount} people</span>
+              <span className="text-app-text/60">Manages</span>
+              <span className="text-app-text font-medium">{reporteesCount} people</span>
             </div>
           )}
           {!manager && reporteesCount === 0 && (
-            <p className="text-sm text-white/50">No reporting structure data.</p>
+            <p className="text-sm text-app-text/50">No reporting structure data.</p>
           )}
         </div>
       </div>
 
       {/* Skills */}
       <div>
-        <h4 className="text-base font-semibold text-white mb-3">Skills</h4>
+        <h4 className="text-base font-semibold text-app-text mb-3">Skills</h4>
         <div className="flex flex-wrap gap-2">
           {getSkills(user).map((skill) => (
             <span
               key={skill}
-              className="px-3.5 py-2 rounded-[20px] text-[13px] text-white/90 border border-white/15 transition-colors hover:border-white/25"
+              className="px-3.5 py-2 rounded-[20px] text-[13px] text-app-text/90 border border-white/15 transition-colors hover:border-white/25"
               style={{ background: 'rgba(255,255,255,0.08)' }}
             >
               {skill}
@@ -489,9 +489,9 @@ function OverviewTab({
 
       {/* Recent badges */}
       <div>
-        <h4 className="text-base font-semibold text-white mb-3">Recent Achievements</h4>
+        <h4 className="text-base font-semibold text-app-text mb-3">Recent Achievements</h4>
         {user.badges.length === 0 ? (
-          <p className="text-sm text-white/50">No achievements yet.</p>
+          <p className="text-sm text-app-text/50">No achievements yet.</p>
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-2">
             {user.badges.slice(0, 4).map((badge) => {
@@ -507,8 +507,8 @@ function OverviewTab({
                     boxShadow: `0 0 20px ${theme.glow}`,
                   }}
                 >
-                  <IconComponent className="w-8 h-8 text-white shrink-0" aria-hidden />
-                  <p className="mt-2 text-sm font-medium text-white truncate w-full">{badge.name}</p>
+                  <IconComponent className="w-8 h-8 text-app-text shrink-0" aria-hidden />
+                  <p className="mt-2 text-sm font-medium text-app-text truncate w-full">{badge.name}</p>
                   <p className="text-xs capitalize mt-0.5" style={{ color: theme.primary }}>{badge.rarity}</p>
                 </div>
               );
@@ -568,11 +568,11 @@ function ActivityTab({ userId }: { userId: string }) {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-        <h4 className="text-base font-semibold text-white">Activity</h4>
+        <h4 className="text-base font-semibold text-app-text">Activity</h4>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-          className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-primary-500"
+          className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-app-text focus:outline-none focus:border-primary-500"
           aria-label="Filter activity by type"
         >
           {ACTIVITY_FILTER_OPTIONS.map((opt) => (
@@ -583,7 +583,7 @@ function ActivityTab({ userId }: { userId: string }) {
         </select>
       </div>
       {filtered.length === 0 ? (
-        <p className="text-sm text-white/50">No recent activity.</p>
+        <p className="text-sm text-app-text/50">No recent activity.</p>
       ) : (
         <div className="space-y-0">
           {filtered.slice(0, 20).map((activity) => {
@@ -595,11 +595,11 @@ function ActivityTab({ userId }: { userId: string }) {
                   className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: bg }}
                 >
-                  <Icon className="w-4 h-4 text-white" />
+                  <Icon className="w-4 h-4 text-app-text" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white">{activity.message}</p>
-                  <p className="text-xs text-white/50 mt-0.5">
+                  <p className="text-sm text-app-text">{activity.message}</p>
+                  <p className="text-xs text-app-text/50 mt-0.5">
                     {new Date(activity.timestamp).toLocaleString()}
                   </p>
                 </div>
@@ -683,7 +683,7 @@ function StatsTab({
 
   return (
     <div className="p-6 space-y-6">
-      <h4 className="text-base font-semibold text-white">MP Gained Over Time</h4>
+      <h4 className="text-base font-semibold text-app-text">MP Gained Over Time</h4>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -700,10 +700,10 @@ function StatsTab({
         </ResponsiveContainer>
       </div>
 
-      <h4 className="text-base font-semibold text-white">Activity Breakdown</h4>
+      <h4 className="text-base font-semibold text-app-text">Activity Breakdown</h4>
       <div className="h-40">
         {pieData.length === 0 ? (
-          <p className="text-sm text-white/50">No activity data yet.</p>
+          <p className="text-sm text-app-text/50">No activity data yet.</p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -730,7 +730,7 @@ function StatsTab({
         )}
       </div>
 
-      <h4 className="text-base font-semibold text-white">Performance Metrics</h4>
+      <h4 className="text-base font-semibold text-app-text">Performance Metrics</h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {metrics.map((m) => (
           <div
@@ -738,14 +738,14 @@ function StatsTab({
             className="rounded-xl p-4 border border-white/5"
             style={{ background: 'rgba(255,255,255,0.03)' }}
           >
-            <p className="text-sm text-white/60">{m.label}</p>
-            <p className="text-3xl font-bold text-white mt-1">{m.value}</p>
+            <p className="text-sm text-app-text/60">{m.label}</p>
+            <p className="text-3xl font-bold text-app-text mt-1">{m.value}</p>
             <p className={cn('text-xs mt-1', m.positive ? 'text-success-500' : 'text-danger-500')}>{m.trend} from last week</p>
           </div>
         ))}
       </div>
 
-      <h4 className="text-base font-semibold text-white">Comparison to Team</h4>
+      <h4 className="text-base font-semibold text-app-text">Comparison to Team</h4>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={barData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} layout="vertical" barCategoryGap="20%">
@@ -808,24 +808,24 @@ function PermissionsTab({ user }: { user: User }) {
             onClick={() => setExpanded(expanded === section.id ? null : section.id)}
             className="w-full flex items-center justify-between px-4 py-3 text-left bg-white/5 hover:bg-white/10 transition-colors"
           >
-            <span className="font-semibold text-white">{section.title}</span>
+            <span className="font-semibold text-app-text">{section.title}</span>
             <ChevronRight
-              className={cn('w-5 h-5 text-white/50 transition-transform', expanded === section.id && 'rotate-90')}
+              className={cn('w-5 h-5 text-app-text/50 transition-transform', expanded === section.id && 'rotate-90')}
             />
           </button>
           {expanded === section.id && (
             <div className="px-4 py-3 space-y-2 border-t border-white/5">
               {section.items.map((item) => (
                 <div key={item.feature} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-white/80">{item.feature}</span>
+                  <span className="text-sm text-app-text/80">{item.feature}</span>
                   <span
                     className={cn(
                       'text-xs px-2 py-1 rounded-md',
-                      item.level === 'None' && 'bg-white/10 text-white/50',
+                      item.level === 'None' && 'bg-white/10 text-app-text/50',
                       item.level === 'View' && 'bg-primary-500/20 text-primary-400',
                       (item.level?.includes('Edit') || item.level === 'View, Create, Edit (own)') && 'bg-accent-500/20 text-accent-400',
                       item.level === 'Full' && 'bg-success-500/20 text-success-500',
-                      (item.level === 'Yes' || item.level === 'No') && 'bg-white/10 text-white/70'
+                      (item.level === 'Yes' || item.level === 'No') && 'bg-white/10 text-app-text/70'
                     )}
                   >
                     {item.level}
@@ -839,7 +839,7 @@ function PermissionsTab({ user }: { user: User }) {
       {isAdmin && (
         <button
           type="button"
-          className="mt-4 w-full py-2.5 rounded-xl border border-white/20 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+          className="mt-4 w-full py-2.5 rounded-xl border border-white/20 text-sm font-medium text-app-text hover:bg-white/10 transition-colors"
         >
           Edit Permissions
         </button>

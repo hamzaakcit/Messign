@@ -208,7 +208,7 @@ export function BatchPanel({ heroContent, onClose }: BatchPanelProps) {
                 type="button"
                 disabled={selectedChannels.length === 0 || isSubmitting}
                 onClick={() => void handleSubmit()}
-                className="rounded-lg px-3 py-2 text-[12px] font-medium bg-purple-500 text-white hover:bg-purple-600 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                className="rounded-lg px-3 py-2 text-[12px] font-medium bg-purple-500 text-app-text hover:bg-purple-600 transition-colors disabled:opacity-40 flex items-center gap-1.5"
               >
                 {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {getAtomizeButtonText(selectedChannels.length)}
@@ -230,7 +230,7 @@ export function BatchPanel({ heroContent, onClose }: BatchPanelProps) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2 text-[12px] font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+              className="rounded-lg px-3 py-2 text-[12px] font-medium bg-primary-500 text-app-text hover:bg-primary-600 transition-colors"
             >
               Close
             </button>

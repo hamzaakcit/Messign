@@ -530,7 +530,7 @@ export function NewExpensePage({ onBack, onCreated }: NewExpensePageProps) {
           <button
             onClick={() => handleSubmit(false)}
             disabled={submitting}
-            className="px-6 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
           >
             {submitting ? 'Creating...' : 'Submit for Approval'}
           </button>

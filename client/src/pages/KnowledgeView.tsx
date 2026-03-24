@@ -58,19 +58,19 @@ const VIEW_MODE_KEY = 'kb-view-mode';
 function DocumentListSkeleton({ count = 6 }: { count?: number }) {
   return (
     <div className="rounded-xl border border-app-border overflow-hidden animate-pulse">
-      <div className="bg-dark-700 h-10" />
+      <div className="bg-app-card h-10" />
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-4 py-3 border-t border-app-border">
-          <div className="w-9 h-9 rounded-lg bg-dark-700 shrink-0" />
+          <div className="w-9 h-9 rounded-lg bg-app-card shrink-0" />
           <div className="flex-1 space-y-2">
-            <div className="h-4 bg-dark-700 rounded w-2/3" />
-            <div className="h-3 bg-dark-700 rounded w-1/3" />
+            <div className="h-4 bg-app-card rounded w-2/3" />
+            <div className="h-3 bg-app-card rounded w-1/3" />
           </div>
-          <div className="hidden md:block w-20 h-5 bg-dark-700 rounded" />
-          <div className="hidden lg:block w-16 h-4 bg-dark-700 rounded" />
+          <div className="hidden md:block w-20 h-5 bg-app-card rounded" />
+          <div className="hidden lg:block w-16 h-4 bg-app-card rounded" />
           <div className="flex gap-1">
-            <div className="w-7 h-7 bg-dark-700 rounded" />
-            <div className="w-7 h-7 bg-dark-700 rounded" />
+            <div className="w-7 h-7 bg-app-card rounded" />
+            <div className="w-7 h-7 bg-app-card rounded" />
           </div>
         </div>
       ))}
@@ -313,7 +313,7 @@ export function KnowledgeView() {
   }
   if (subView === 'detail' && location.pathname.startsWith(`${KNOWLEDGE_PATH}/`)) {
     return (
-      <div className="h-full flex items-center justify-center bg-dark-900">
+      <div className="h-full flex items-center justify-center bg-app-bg">
         <div className="text-app-muted">Loading document…</div>
       </div>
     );
@@ -333,11 +333,11 @@ export function KnowledgeView() {
     return (
       <div className="h-full flex flex-col overflow-hidden">
         <div className="px-6 py-3 border-b border-app-border flex items-center gap-3">
-          <button onClick={() => setSubView('list')} className="p-1.5 rounded-lg hover:bg-dark-700 text-gray-400 hover:text-white transition-colors">
+          <button onClick={() => setSubView('list')} className="p-1.5 rounded-lg hover:bg-app-hover text-app-muted hover:text-app-text transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <Bot className="w-5 h-5 text-blue-400" />
-          <h2 className="text-lg font-semibold text-white">AI Assistant</h2>
+          <h2 className="text-lg font-semibold text-app-text">AI Assistant</h2>
         </div>
         <div className="flex-1 overflow-hidden">
           <AIAssistantPanel />
@@ -522,8 +522,8 @@ export function KnowledgeView() {
       {/* Required Reading Drawer */}
       {requiredReadingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setRequiredReadingOpen(false)}>
-          <div className="rounded-xl border border-app-border bg-dark-800 w-full max-w-lg max-h-[70vh] overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-dark-800 border-b border-app-border px-5 py-4 flex items-center justify-between">
+          <div className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-lg max-h-[70vh] overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-app-sidebar border-b border-app-border px-5 py-4 flex items-center justify-between">
               <h3 className="font-semibold text-app">Required Reading</h3>
               <button onClick={() => setRequiredReadingOpen(false)} className="text-app-muted hover:text-app">
                 <FileText className="w-5 h-5" />
@@ -534,7 +534,7 @@ export function KnowledgeView() {
                 <p className="text-sm text-app-muted text-center py-8">All caught up! No required reading pending.</p>
               ) : (
                 requiredDocs.map(doc => (
-                  <div key={doc.id} className="p-4 rounded-lg border border-app-border bg-dark-700">
+                  <div key={doc.id} className="p-4 rounded-lg border border-app-border bg-app-card">
                     <h4 className="font-medium text-app text-sm">{doc.title}</h4>
                     <p className="text-xs text-app-muted mt-1">Updated on {new Date(doc.updated_at).toLocaleDateString()}</p>
                     <Button size="sm" className="mt-3 gap-2" onClick={() => { setRequiredReadingOpen(false); handleViewDoc(doc); }}>

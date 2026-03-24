@@ -42,7 +42,7 @@ export function PipelineColumn({ stage, deals, onDealClick }: PipelineColumnProp
           style={{ backgroundColor: stage.color }}
         />
         <h3 className="font-semibold text-sm text-app-text truncate flex-1">{stage.name}</h3>
-        <span className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-gray-400 shrink-0 tabular-nums">
+        <span className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-app-muted shrink-0 tabular-nums">
           {deals.length}
         </span>
         {totalValue > 0 && (

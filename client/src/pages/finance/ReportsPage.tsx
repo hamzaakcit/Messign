@@ -107,7 +107,7 @@ export function ReportsPage() {
             onClick={() => setReportView('charts')}
             className={cn(
               'px-3 py-1.5 text-sm flex items-center gap-1.5 transition',
-              reportView === 'charts' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white',
+              reportView === 'charts' ? 'bg-primary-600 text-app-text' : 'bg-white/5 text-app-muted hover:text-app-text',
             )}
           >
             <LayoutGrid className="w-4 h-4" />
@@ -117,7 +117,7 @@ export function ReportsPage() {
             onClick={() => setReportView('flow')}
             className={cn(
               'px-3 py-1.5 text-sm flex items-center gap-1.5 transition',
-              reportView === 'flow' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white',
+              reportView === 'flow' ? 'bg-primary-600 text-app-text' : 'bg-white/5 text-app-muted hover:text-app-text',
             )}
           >
             <GitBranch className="w-4 h-4" />

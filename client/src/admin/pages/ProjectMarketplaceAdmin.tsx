@@ -51,7 +51,7 @@ function getStatusColor(status: string): { bg: string; text: string } {
       return { bg: 'bg-accent-500/20', text: 'text-accent-400' };
     case 'completed':
     case 'closed':
-      return { bg: 'bg-gray-500/20', text: 'text-gray-400' };
+      return { bg: 'bg-gray-500/20', text: 'text-app-muted' };
     case 'rejected':
       return { bg: 'bg-red-500/20', text: 'text-red-400' };
     default:

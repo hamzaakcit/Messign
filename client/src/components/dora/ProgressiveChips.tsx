@@ -122,7 +122,7 @@ export function ProgressiveChips({
                 key={cat}
                 type="button"
                 onClick={() => setSelected(cat)}
-                className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dark-700 bg-dark-800 px-4 py-2 text-sm text-gray-300 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500/50 hover:bg-dark-800/80 hover:text-white"
+                className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-border bg-app-sidebar px-4 py-2 text-sm text-gray-300 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500/50 hover:bg-app-hover/80 hover:text-app-text"
               >
                 <span className="whitespace-nowrap">{categoryChipLabel(cat)}</span>
               </button>
@@ -131,7 +131,7 @@ export function ProgressiveChips({
               <button
                 type="button"
                 onClick={() => setSelected(MORE_KEY)}
-                className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dark-700 bg-dark-800 px-4 py-2 text-sm text-gray-300 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500/50 hover:bg-dark-800/80 hover:text-white"
+                className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-border bg-app-sidebar px-4 py-2 text-sm text-gray-300 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500/50 hover:bg-app-hover/80 hover:text-app-text"
               >
                 <span className="whitespace-nowrap">🔍 More...</span>
               </button>
@@ -149,7 +149,7 @@ export function ProgressiveChips({
             <button
               type="button"
               onClick={() => setSelected(null)}
-              className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-sky-500/30 bg-dark-800/90 px-3 py-2 text-sm text-sky-300 transition-all hover:border-sky-500/50 hover:text-white"
+              className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-sky-500/30 bg-app-sidebar/90 px-3 py-2 text-sm text-sky-300 transition-all hover:border-sky-500/50 hover:text-app-text"
             >
               <span className="whitespace-nowrap">← Back</span>
             </button>
@@ -166,10 +166,10 @@ export function ProgressiveChips({
                     animationDelay: `${i * 40}ms`,
                     opacity: 0,
                   }}
-                  className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dark-700 border-l-2 border-l-primary-500/50 bg-dark-800 px-4 py-2 text-sm text-gray-300 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500/50 hover:bg-dark-800/80 hover:text-white"
+                  className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-border border-l-2 border-l-primary-500/50 bg-app-sidebar px-4 py-2 text-sm text-gray-300 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500/50 hover:bg-app-hover/80 hover:text-app-text"
                 >
                   {IconComponent && (
-                    <IconComponent size={14} className="shrink-0 text-gray-500 transition-colors group-hover:text-primary-400" />
+                    <IconComponent size={14} className="shrink-0 text-app-muted transition-colors group-hover:text-primary-400" />
                   )}
                   <span className="whitespace-nowrap">{suggestion.label}</span>
                 </button>

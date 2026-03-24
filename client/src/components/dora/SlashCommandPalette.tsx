@@ -69,7 +69,7 @@ export function SlashCommandPalette({
   if (matches.length === 0) {
     return (
       <div
-        className="absolute bottom-full left-0 right-0 z-30 mb-1 rounded-xl border border-dark-600 bg-dark-900/98 px-3 py-2 text-xs text-gray-500 shadow-xl backdrop-blur-md"
+        className="absolute bottom-full left-0 right-0 z-30 mb-1 rounded-xl border border-app-border bg-app-bg/98 px-3 py-2 text-xs text-app-muted shadow-xl backdrop-blur-md"
         role="listbox"
       >
         No commands match &ldquo;{filter || '…'}&rdquo;
@@ -80,7 +80,7 @@ export function SlashCommandPalette({
   return (
     <div
       ref={listRef}
-      className="absolute bottom-full left-0 right-0 z-30 mb-1 max-h-[min(240px,40vh)] overflow-y-auto rounded-xl border border-sky-500/15 bg-dark-900/98 py-1 shadow-xl backdrop-blur-md"
+      className="absolute bottom-full left-0 right-0 z-30 mb-1 max-h-[min(240px,40vh)] overflow-y-auto rounded-xl border border-sky-500/15 bg-app-bg/98 py-1 shadow-xl backdrop-blur-md"
       role="listbox"
     >
       {matches.map((entry, i) => {
@@ -96,12 +96,12 @@ export function SlashCommandPalette({
             onMouseEnter={() => onActiveIndexChange(i)}
             onClick={() => onSelect(entry)}
             className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-              active ? 'bg-sky-500/15 text-white' : 'text-gray-300 hover:bg-dark-800'
+              active ? 'bg-sky-500/15 text-app-text' : 'text-gray-300 hover:bg-app-hover'
             }`}
           >
-            {Icon && <Icon size={16} className="shrink-0 text-gray-500" />}
+            {Icon && <Icon size={16} className="shrink-0 text-app-muted" />}
             <span className="min-w-0 flex-1 truncate">{entry.label}</span>
-            <span className="shrink-0 rounded-md bg-dark-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
+            <span className="shrink-0 rounded-md bg-app-card px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-app-muted">
               {categoryTag(entry.category)}
             </span>
           </button>

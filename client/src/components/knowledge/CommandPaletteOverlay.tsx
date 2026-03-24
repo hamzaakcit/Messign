@@ -156,10 +156,10 @@ export function CommandPaletteOverlay({
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-xl mx-4 rounded-2xl border border-app-border bg-dark-800 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-xl mx-4 rounded-2xl border border-app-border bg-app-sidebar shadow-2xl overflow-hidden">
         {/* Search input */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-app-border">
-          <Search className="w-5 h-5 text-gray-500 shrink-0" />
+          <Search className="w-5 h-5 text-app-muted shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -167,11 +167,11 @@ export function CommandPaletteOverlay({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search or type a command..."
-            className="flex-1 bg-transparent text-base text-white placeholder:text-gray-600 outline-none"
+            className="flex-1 bg-transparent text-base text-app-text placeholder:text-gray-600 outline-none"
           />
           <button
             onClick={onClose}
-            className="p-1 rounded-md hover:bg-dark-700 text-gray-500 hover:text-white transition-colors"
+            className="p-1 rounded-md hover:bg-app-hover text-app-muted hover:text-app-text transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -180,13 +180,13 @@ export function CommandPaletteOverlay({
         {/* Results */}
         <div className="max-h-80 overflow-y-auto py-2">
           {isSearching && (
-            <div className="px-5 py-6 text-center text-sm text-gray-500">
+            <div className="px-5 py-6 text-center text-sm text-app-muted">
               Searching...
             </div>
           )}
 
           {!isSearching && allItems.length === 0 && query && (
-            <div className="px-5 py-6 text-center text-sm text-gray-500">
+            <div className="px-5 py-6 text-center text-sm text-app-muted">
               No results
             </div>
           )}
@@ -194,7 +194,7 @@ export function CommandPaletteOverlay({
           {!isSearching &&
             Object.entries(groups).map(([group, items]) => (
               <div key={group}>
-                <div className="px-5 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="px-5 py-1.5 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
                   {group}
                 </div>
                 {items.map((item) => {
@@ -211,8 +211,8 @@ export function CommandPaletteOverlay({
                       className={cn(
                         'w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors',
                         idx === selectedIndex
-                          ? 'bg-primary-500/10 text-white'
-                          : 'text-gray-400 hover:bg-dark-700 hover:text-white',
+                          ? 'bg-primary-500/10 text-app-text'
+                          : 'text-app-muted hover:bg-app-hover hover:text-app-text',
                       )}
                     >
                       <Icon className="w-4 h-4 shrink-0" />
@@ -221,7 +221,7 @@ export function CommandPaletteOverlay({
                           {item.label}
                         </p>
                         {item.description && (
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-app-muted truncate">
                             {item.description}
                           </p>
                         )}
@@ -233,7 +233,7 @@ export function CommandPaletteOverlay({
             ))}
 
           {!isSearching && !query && (
-            <div className="px-5 py-6 text-center text-sm text-gray-500">
+            <div className="px-5 py-6 text-center text-sm text-app-muted">
               Start typing to search
             </div>
           )}
@@ -242,19 +242,19 @@ export function CommandPaletteOverlay({
         {/* Footer */}
         <div className="px-5 py-2.5 border-t border-app-border flex items-center gap-4 text-[11px] text-gray-600">
           <span>
-            <kbd className="px-1.5 py-0.5 rounded bg-dark-700 text-gray-400 font-mono">
+            <kbd className="px-1.5 py-0.5 rounded bg-app-card text-app-muted font-mono">
               ↑↓
             </kbd>{' '}
             navigate
           </span>
           <span>
-            <kbd className="px-1.5 py-0.5 rounded bg-dark-700 text-gray-400 font-mono">
+            <kbd className="px-1.5 py-0.5 rounded bg-app-card text-app-muted font-mono">
               ↵
             </kbd>{' '}
             select
           </span>
           <span>
-            <kbd className="px-1.5 py-0.5 rounded bg-dark-700 text-gray-400 font-mono">
+            <kbd className="px-1.5 py-0.5 rounded bg-app-card text-app-muted font-mono">
               esc
             </kbd>{' '}
             close

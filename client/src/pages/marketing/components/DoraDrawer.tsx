@@ -212,7 +212,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                 <button
                   type="button"
                   onClick={abortStream}
-                  className="shrink-0 p-2 rounded-lg bg-red-500/90 text-white hover:bg-red-600"
+                  className="shrink-0 p-2 rounded-lg bg-red-500/90 text-app-text hover:bg-red-600"
                   title="Stop"
                 >
                   <StopCircle size={18} />
@@ -222,7 +222,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                   type="button"
                   onClick={() => void handleSend()}
                   disabled={!inputValue.trim() || isLoading}
-                  className="shrink-0 p-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="shrink-0 p-2 rounded-lg bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Send"
                 >
                   {isLoading ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : <Send size={18} />}

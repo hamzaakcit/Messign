@@ -10,9 +10,9 @@ const EVENT_TYPE_CONFIG: Record<string, { label: string; bg: string; text: strin
   feature_update: { label: 'Feature', bg: 'bg-green-500/15', text: 'text-green-400' },
   partnership: { label: 'Partner', bg: 'bg-indigo-500/15', text: 'text-indigo-400' },
   funding: { label: 'Funding', bg: 'bg-yellow-500/15', text: 'text-yellow-400' },
-  press_release: { label: 'Press', bg: 'bg-gray-500/15', text: 'text-gray-400' },
+  press_release: { label: 'Press', bg: 'bg-gray-500/15', text: 'text-app-muted' },
   social_post: { label: 'Social', bg: 'bg-pink-500/15', text: 'text-pink-400' },
-  other: { label: 'Other', bg: 'bg-gray-500/15', text: 'text-gray-400' },
+  other: { label: 'Other', bg: 'bg-gray-500/15', text: 'text-app-muted' },
 };
 
 export function formatRelativeDate(dateStr: string): string {

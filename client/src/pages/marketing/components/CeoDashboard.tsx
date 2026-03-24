@@ -150,7 +150,7 @@ export function CeoDashboard() {
           </p>
         </div>
         <div className="flex gap-3 mt-2">
-          <button type="button" onClick={() => navigate('/marketing')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors">
+          <button type="button" onClick={() => navigate('/marketing')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600 transition-colors">
             Create Content
           </button>
           <button type="button" onClick={() => navigate('/marketing/intelligence')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-app-card border border-app-border text-app-text hover:bg-white/5 transition-colors">

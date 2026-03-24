@@ -38,21 +38,21 @@ export function AdminAuditLogPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><ScrollText className="w-5 h-5 text-orange-400" /> Knowledge Audit Log</h1>
+      <h1 className="text-xl font-bold text-app-text mb-6 flex items-center gap-2"><ScrollText className="w-5 h-5 text-orange-400" /> Knowledge Audit Log</h1>
 
       {loading ? (
-        <div className="text-center py-10 text-gray-500">Loading...</div>
+        <div className="text-center py-10 text-app-muted">Loading...</div>
       ) : entries.length === 0 ? (
-        <div className="text-center py-20 text-gray-500">
+        <div className="text-center py-20 text-app-muted">
           <ScrollText className="w-12 h-12 mx-auto mb-3 text-gray-600" />
           <p className="text-lg">Audit log is empty</p>
           <p className="text-sm mt-1">Actions will be recorded here as users interact with the Knowledge Hub</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-dark-700 overflow-hidden">
+        <div className="rounded-xl border border-app-border overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="bg-dark-800 text-xs text-gray-500 uppercase">
+              <tr className="bg-app-sidebar text-xs text-app-muted uppercase">
                 <th className="text-left px-4 py-3">Time</th>
                 <th className="text-left px-4 py-3">User</th>
                 <th className="text-left px-4 py-3">Action</th>
@@ -62,12 +62,12 @@ export function AdminAuditLogPage() {
             </thead>
             <tbody className="divide-y divide-dark-700">
               {entries.map(entry => (
-                <tr key={entry.id} className="bg-dark-800/50">
-                  <td className="px-4 py-2 text-xs text-gray-400">{new Date(entry.created_at).toLocaleString()}</td>
+                <tr key={entry.id} className="bg-app-sidebar/50">
+                  <td className="px-4 py-2 text-xs text-app-muted">{new Date(entry.created_at).toLocaleString()}</td>
                   <td className="px-4 py-2 text-xs text-gray-300">{entry.user_id}</td>
-                  <td className="px-4 py-2 text-xs text-white">{entry.action}</td>
-                  <td className="px-4 py-2 text-xs text-gray-400">{entry.entity_type}/{entry.entity_id.slice(0, 8)}</td>
-                  <td className="px-4 py-2 text-xs text-gray-500">{JSON.stringify(entry.details)}</td>
+                  <td className="px-4 py-2 text-xs text-app-text">{entry.action}</td>
+                  <td className="px-4 py-2 text-xs text-app-muted">{entry.entity_type}/{entry.entity_id.slice(0, 8)}</td>
+                  <td className="px-4 py-2 text-xs text-app-muted">{JSON.stringify(entry.details)}</td>
                 </tr>
               ))}
             </tbody>

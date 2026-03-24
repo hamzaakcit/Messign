@@ -79,7 +79,7 @@ export function ActionConfirmationInline({
               type="button"
               onClick={handleConfirm}
               disabled={isSubmitting}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-white bg-sky-600/90 hover:bg-sky-500 disabled:opacity-50 transition-colors dora-focus-ring"
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-app-text bg-sky-600/90 hover:bg-sky-500 disabled:opacity-50 transition-colors dora-focus-ring"
             >
               {isSubmitting ? 'Working…' : 'Confirm'}
             </button>
@@ -87,14 +87,14 @@ export function ActionConfirmationInline({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium border border-white/15 bg-white/5 dora-chat-text-secondary hover:text-white hover:bg-white/10 disabled:opacity-50 transition-colors dora-focus-ring"
+              className="rounded-lg px-3 py-1.5 text-xs font-medium border border-white/15 bg-white/5 dora-chat-text-secondary hover:text-app-text hover:bg-white/10 disabled:opacity-50 transition-colors dora-focus-ring"
             >
               Not now
             </button>
             <button
               type="button"
               onClick={() => setEditorOpen((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium dora-chat-text-tertiary hover:text-white transition-colors dora-focus-ring"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium dora-chat-text-tertiary hover:text-app-text transition-colors dora-focus-ring"
               aria-expanded={editorOpen}
             >
               {editorOpen ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
@@ -115,7 +115,7 @@ export function ActionConfirmationInline({
                       value={String(editedPayload[field.key] || '')}
                       onChange={(e) => handleFieldChange(field.key, e.target.value)}
                       disabled={!field.editable}
-                      className="w-full text-xs rounded-lg border border-white/10 bg-dark-900/80 px-2 py-1.5 text-gray-200 resize-none dora-focus-ring
+                      className="w-full text-xs rounded-lg border border-white/10 bg-app-bg/80 px-2 py-1.5 text-gray-200 resize-none dora-focus-ring
                                disabled:opacity-50 disabled:cursor-not-allowed"
                       rows={2}
                     />
@@ -124,7 +124,7 @@ export function ActionConfirmationInline({
                       value={String(editedPayload[field.key] || '')}
                       onChange={(e) => handleFieldChange(field.key, e.target.value)}
                       disabled={!field.editable}
-                      className="w-full text-xs rounded-lg border border-white/10 bg-dark-900/80 px-2 py-1.5 text-gray-200 dora-focus-ring disabled:opacity-50"
+                      className="w-full text-xs rounded-lg border border-white/10 bg-app-bg/80 px-2 py-1.5 text-gray-200 dora-focus-ring disabled:opacity-50"
                     >
                       {field.options?.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -143,7 +143,7 @@ export function ActionConfirmationInline({
                         )
                       }
                       disabled={!field.editable}
-                      className="w-full text-xs rounded-lg border border-white/10 bg-dark-900/80 px-2 py-1.5 text-gray-200 dora-focus-ring
+                      className="w-full text-xs rounded-lg border border-white/10 bg-app-bg/80 px-2 py-1.5 text-gray-200 dora-focus-ring
                                disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   )}

@@ -313,7 +313,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
               <button
                 onClick={() => void handleManualSchedule()}
                 disabled={!scheduleDate}
-                className="rounded-lg bg-cyan-600/80 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-40"
+                className="rounded-lg bg-cyan-600/80 px-4 py-2 text-sm font-medium text-app-text hover:bg-cyan-500 disabled:opacity-40"
               >
                 Confirm
               </button>

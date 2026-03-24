@@ -98,7 +98,7 @@ export function KPIMetricCard({ data, index, onCardClick }: KPIMetricCardProps) 
 
       {/* Main metric (count-up) */}
       <p
-        className="text-white font-bold tracking-tight leading-tight mt-2"
+        className="text-app-text font-bold tracking-tight leading-tight mt-2"
         style={{
           fontSize: 'clamp(1.75rem, 2.8vw, 2.45rem)',
           letterSpacing: '-0.02em',
@@ -108,8 +108,8 @@ export function KPIMetricCard({ data, index, onCardClick }: KPIMetricCardProps) 
       </p>
 
       {/* Labels */}
-      <p className="mt-2 text-base font-medium text-white/70">{label}</p>
-      <p className="mt-1 text-[13px] font-normal text-white/40">{sublabel}</p>
+      <p className="mt-2 text-base font-medium text-app-text/70">{label}</p>
+      <p className="mt-1 text-[13px] font-normal text-app-text/40">{sublabel}</p>
     </article>
   );
 }

@@ -364,7 +364,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
             disabled={!editorExportReady}
             title={!editorExportReady ? 'Wait until the Unlayer builder finishes loading' : undefined}
             onClick={handleApply}
-            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {editorExportReady ? 'Apply HTML & design' : 'Loading builder…'}
           </button>

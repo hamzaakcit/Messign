@@ -260,7 +260,7 @@ export function BulkImport() {
                       onClick={() => setImportStep(step.id)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                         importStep === step.id
-                          ? 'bg-primary-500 text-white'
+                          ? 'bg-primary-500 text-app-text'
                           : 'bg-app-surface-tertiary text-app-muted hover:bg-app-hover'
                       }`}
                     >

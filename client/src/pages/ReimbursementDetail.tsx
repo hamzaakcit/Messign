@@ -17,7 +17,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-gray-500/20 text-gray-400',
+  draft: 'bg-gray-500/20 text-app-muted',
   submitted: 'bg-blue-500/20 text-blue-400',
   manager_review: 'bg-amber-500/20 text-amber-400',
   finance_review: 'bg-amber-500/20 text-amber-400',
@@ -30,7 +30,7 @@ interface ReimbursementDetailProps {
   id: string;
 }
 
-const cardClass = 'rounded-xl border border-app-border bg-dark-800 p-4';
+const cardClass = 'rounded-xl border border-app-border bg-app-sidebar p-4';
 
 export function ReimbursementDetail({ id }: ReimbursementDetailProps) {
   const { user } = useAuthStore();
@@ -106,7 +106,7 @@ export function ReimbursementDetail({ id }: ReimbursementDetailProps) {
           <div className="lg:col-span-1 space-y-4">
             <div className={cardClass}>
               <p className="text-xs font-semibold text-app-muted uppercase tracking-wide mb-2">Status</p>
-              <span className={cn('inline-block px-3 py-1 rounded text-sm font-medium', STATUS_COLORS[data.status] || 'bg-gray-500/20 text-gray-400')}>
+              <span className={cn('inline-block px-3 py-1 rounded text-sm font-medium', STATUS_COLORS[data.status] || 'bg-gray-500/20 text-app-muted')}>
                 {STATUS_LABELS[data.status] ?? data.status}
               </span>
             </div>

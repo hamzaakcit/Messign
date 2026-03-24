@@ -182,15 +182,15 @@ export function DocumentUploader({
             {uploadError}
           </p>
         )}
-        <Upload className="w-10 h-10 mx-auto text-gray-500 mb-2" />
-        <p className="text-sm text-gray-400 mb-1">{label}</p>
-        <p className="text-xs text-gray-500 mb-3">PDF, JPG, PNG up to 10MB</p>
+        <Upload className="w-10 h-10 mx-auto text-app-muted mb-2" />
+        <p className="text-sm text-app-muted mb-1">{label}</p>
+        <p className="text-xs text-app-muted mb-3">PDF, JPG, PNG up to 10MB</p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={disabled || uploading}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-blue-600 text-app-text text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin inline" /> : 'Choose File'}
           </button>
@@ -199,7 +199,7 @@ export function DocumentUploader({
             type="button"
             onClick={startCamera}
             disabled={disabled || uploading}
-            className="md:hidden px-4 py-2 rounded-lg bg-gray-700 text-white text-sm font-medium hover:bg-gray-600 disabled:opacity-50 flex items-center gap-2"
+            className="md:hidden px-4 py-2 rounded-lg bg-gray-700 text-app-text text-sm font-medium hover:bg-gray-600 disabled:opacity-50 flex items-center gap-2"
           >
             <Camera className="w-4 h-4" />
             Camera
@@ -218,13 +218,13 @@ export function DocumentUploader({
               className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-white/5 border border-gray-700/50"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <FileText className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                <span className="text-sm text-white truncate">{doc.file_name}</span>
+                <FileText className="w-5 h-5 text-app-muted flex-shrink-0" />
+                <span className="text-sm text-app-text truncate">{doc.file_name}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                 {doc.ocr_processed && showOCR && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-app-muted">
                       {doc.ocr_vendor_name} | {doc.ocr_amount} {doc.ocr_currency} | {doc.ocr_date}
                     </span>
                     {onOCRApply && (
@@ -247,7 +247,7 @@ export function DocumentUploader({
                         <button
                           type="button"
                           onClick={() => {}}
-                          className="text-xs text-gray-400 hover:text-gray-300 flex items-center gap-1"
+                          className="text-xs text-app-muted hover:text-gray-300 flex items-center gap-1"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                           Edit Manually
@@ -301,14 +301,14 @@ export function DocumentUploader({
             <button
               type="button"
               onClick={stopCamera}
-              className="px-4 py-2 rounded-lg bg-gray-700 text-white text-sm"
+              className="px-4 py-2 rounded-lg bg-gray-700 text-app-text text-sm"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={capturePhoto}
-              className="px-6 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium"
+              className="px-6 py-2 rounded-lg bg-blue-600 text-app-text text-sm font-medium"
             >
               Capture
             </button>

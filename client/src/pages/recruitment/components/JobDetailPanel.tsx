@@ -102,7 +102,7 @@ export function JobDetailPanel({ jobId, onUpdated }: JobDetailPanelProps) {
             await load();
             onUpdated();
           }}
-          className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600"
+          className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600"
         >
           Publish
         </button>

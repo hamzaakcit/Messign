@@ -369,7 +369,7 @@ export function ContentDetailPanel({
                     >
                       <img src={v.image_url} alt="" className="aspect-square w-full object-cover" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
-                        <span className="text-[9px] font-medium text-white/80">
+                        <span className="text-[9px] font-medium text-app-text/80">
                           {v.style_preset.replace(/_/g, ' ')}
                         </span>
                       </div>
@@ -415,7 +415,7 @@ export function ContentDetailPanel({
                     ))}
                   </div>
                   <input value={regenPrompt} onChange={(e) => setRegenPrompt(e.target.value)} placeholder="Prompt…" className="flex-1 min-w-[120px] h-7 rounded-md border border-white/[0.08] bg-black/30 px-2 text-[10px] text-slate-200 placeholder:text-slate-600" />
-                  <button type="button" onClick={() => void handleRegenerateImage()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md bg-cyan-600/80 text-[10px] font-medium text-white hover:bg-cyan-500 disabled:opacity-40">{isRegenerating ? '…' : 'Go'}</button>
+                  <button type="button" onClick={() => void handleRegenerateImage()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md bg-cyan-600/80 text-[10px] font-medium text-app-text hover:bg-cyan-500 disabled:opacity-40">{isRegenerating ? '…' : 'Go'}</button>
                   <button type="button" onClick={() => void handleGenerateVariants()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md border border-purple-500/30 bg-purple-500/10 text-[10px] font-medium text-purple-300 hover:bg-purple-500/20 disabled:opacity-40">{isGeneratingVariants ? '…' : 'A/B'}</button>
                 </div>
               )}

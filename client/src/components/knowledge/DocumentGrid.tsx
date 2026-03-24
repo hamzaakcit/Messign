@@ -13,23 +13,23 @@ interface Props {
 /* ── Skeleton card placeholder ── */
 function DocumentCardSkeleton() {
   return (
-    <div className="rounded-xl border border-app-border bg-dark-800 overflow-hidden animate-pulse">
-      <div className="h-36 bg-dark-700" />
+    <div className="rounded-xl border border-app-border bg-app-sidebar overflow-hidden animate-pulse">
+      <div className="h-36 bg-app-card" />
       <div className="p-4 space-y-3">
-        <div className="h-4 bg-dark-700 rounded w-3/4" />
-        <div className="h-3 bg-dark-700 rounded w-full" />
-        <div className="h-3 bg-dark-700 rounded w-1/2" />
+        <div className="h-4 bg-app-card rounded w-3/4" />
+        <div className="h-3 bg-app-card rounded w-full" />
+        <div className="h-3 bg-app-card rounded w-1/2" />
         <div className="flex gap-1.5 pt-1">
-          <div className="h-5 w-12 bg-dark-700 rounded" />
-          <div className="h-5 w-10 bg-dark-700 rounded" />
+          <div className="h-5 w-12 bg-app-card rounded" />
+          <div className="h-5 w-10 bg-app-card rounded" />
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <div className="h-3 w-3 bg-dark-700 rounded" />
-          <div className="h-3 w-16 bg-dark-700 rounded" />
+          <div className="h-3 w-3 bg-app-card rounded" />
+          <div className="h-3 w-16 bg-app-card rounded" />
         </div>
         <div className="pt-3 border-t border-app-border flex items-center justify-between">
-          <div className="h-4 w-20 bg-dark-700 rounded" />
-          <div className="h-4 w-4 bg-dark-700 rounded" />
+          <div className="h-4 w-20 bg-app-card rounded" />
+          <div className="h-4 w-4 bg-app-card rounded" />
         </div>
       </div>
     </div>

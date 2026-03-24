@@ -34,7 +34,7 @@ export function XPEventsTable() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-left text-gray-400">
+              <tr className="border-b border-white/10 text-left text-app-muted">
                 <th className="py-2 px-3">Event type</th>
                 <th className="py-2 px-3">Base MP</th>
                 <th className="py-2 px-3">Multiplier</th>
@@ -44,16 +44,16 @@ export function XPEventsTable() {
             <tbody>
               {events.map((ev) => (
                 <tr key={ev.type} className="border-b border-white/5">
-                  <td className="py-2 px-3 text-white">{ev.label}</td>
-                  <td className="py-2 px-3 text-gray-400">{ev.baseXp}</td>
-                  <td className="py-2 px-3 text-gray-400">{ev.multiplier}x</td>
-                  <td className="py-2 px-3 text-gray-500 text-xs">Edit (read-only)</td>
+                  <td className="py-2 px-3 text-app-text">{ev.label}</td>
+                  <td className="py-2 px-3 text-app-muted">{ev.baseXp}</td>
+                  <td className="py-2 px-3 text-app-muted">{ev.multiplier}x</td>
+                  <td className="py-2 px-3 text-app-muted text-xs">Edit (read-only)</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-500 mt-3">Read-only. Edit and save when backend xp-config API is available.</p>
+        <p className="text-xs text-app-muted mt-3">Read-only. Edit and save when backend xp-config API is available.</p>
       </CardContent>
     </Card>
   );

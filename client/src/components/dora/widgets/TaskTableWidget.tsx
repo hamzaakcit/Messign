@@ -535,8 +535,8 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
         className="rounded-lg border border-white/10 bg-white/5 p-6 text-center space-y-3"
         style={{ marginTop: 12 }}
       >
-        <p className="text-white/50 text-sm">No tasks found matching your criteria.</p>
-        <p className="text-white/35 text-xs">Try a different status filter or ask about a specific project.</p>
+        <p className="text-app-text/50 text-sm">No tasks found matching your criteria.</p>
+        <p className="text-app-text/35 text-xs">Try a different status filter or ask about a specific project.</p>
         {onSendMessage && (
           <div className="flex flex-wrap justify-center gap-2 pt-1">
             <button

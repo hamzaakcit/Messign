@@ -109,7 +109,7 @@ export function ContentEmailUnlayerControls({
             }
           </div>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => setWizardOpen(true)} title="Design email" className="h-7 px-2.5 rounded-md text-xs font-medium bg-primary-500 text-white hover:bg-primary-600 inline-flex items-center gap-1">
+            <button type="button" onClick={() => setWizardOpen(true)} title="Design email" className="h-7 px-2.5 rounded-md text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600 inline-flex items-center gap-1">
               <Wand2 className="w-3 h-3" /> Design
             </button>
             <button type="button" onClick={openBuilderWithSaved} title="Open builder" className="h-7 w-7 flex items-center justify-center rounded-md bg-white/[0.06] text-app-muted hover:text-app-text hover:bg-white/10">
@@ -338,7 +338,7 @@ export function ContentEmailUnlayerControls({
               type="button"
               disabled={saving || applyAiBusy}
               onClick={() => void handleSave()}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save to content'}
             </button>

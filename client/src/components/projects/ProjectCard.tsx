@@ -36,13 +36,13 @@ export function ProjectCard({ project, viewMode, onClick, isActive }: ProjectCar
 
         {/* Name & Description */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-white truncate">{project.name}</h3>
-          <p className="text-sm text-gray-500 truncate">{project.description}</p>
+          <h3 className="font-semibold text-app-text truncate">{project.name}</h3>
+          <p className="text-sm text-app-muted truncate">{project.description}</p>
         </div>
 
         {/* Progress */}
         <div className="w-32">
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <div className="flex justify-between text-xs text-app-muted mb-1">
             <span>Progress</span>
             <span>{project.progress}%</span>
           </div>
@@ -62,7 +62,7 @@ export function ProjectCard({ project, viewMode, onClick, isActive }: ProjectCar
             />
           ))}
           {project.team.length > 4 && (
-            <div className="w-8 h-8 rounded-full bg-dark-600 flex items-center justify-center text-xs text-gray-400 ring-2 ring-dark-900">
+            <div className="w-8 h-8 rounded-full bg-app-hover flex items-center justify-center text-xs text-app-muted ring-2 ring-dark-900">
               +{project.team.length - 4}
             </div>
           )}
@@ -70,7 +70,7 @@ export function ProjectCard({ project, viewMode, onClick, isActive }: ProjectCar
 
         {/* Due Date */}
         {project.dueDate && (
-          <div className="flex items-center gap-1 text-sm text-gray-500">
+          <div className="flex items-center gap-1 text-sm text-app-muted">
             <Calendar className="w-4 h-4" />
             {formatDate(project.dueDate)}
           </div>
@@ -97,19 +97,19 @@ export function ProjectCard({ project, viewMode, onClick, isActive }: ProjectCar
         }>
           {project.type}
         </Badge>
-        <div className="flex items-center gap-1 text-sm text-gray-500">
+        <div className="flex items-center gap-1 text-sm text-app-muted">
           <Users className="w-4 h-4" />
           {project.capacity.current}/{project.capacity.max}
         </div>
       </div>
 
       {/* Title & Description */}
-      <h3 className="font-semibold text-white mb-1">{project.name}</h3>
-      <p className="text-sm text-gray-500 line-clamp-2 mb-4">{project.description}</p>
+      <h3 className="font-semibold text-app-text mb-1">{project.name}</h3>
+      <p className="text-sm text-app-muted line-clamp-2 mb-4">{project.description}</p>
 
       {/* Progress */}
       <div className="mb-4">
-        <div className="flex justify-between text-xs text-gray-400 mb-1">
+        <div className="flex justify-between text-xs text-app-muted mb-1">
           <span>Progress</span>
           <span>{project.progress}%</span>
         </div>
@@ -131,7 +131,7 @@ export function ProjectCard({ project, viewMode, onClick, isActive }: ProjectCar
             />
           ))}
           {project.team.length > 4 && (
-            <div className="w-8 h-8 rounded-full bg-dark-600 flex items-center justify-center text-xs text-gray-400 ring-2 ring-dark-800">
+            <div className="w-8 h-8 rounded-full bg-app-hover flex items-center justify-center text-xs text-app-muted ring-2 ring-dark-800">
               +{project.team.length - 4}
             </div>
           )}
@@ -139,7 +139,7 @@ export function ProjectCard({ project, viewMode, onClick, isActive }: ProjectCar
 
         {/* Due Date */}
         {project.dueDate && (
-          <div className="flex items-center gap-1 text-xs text-gray-500">
+          <div className="flex items-center gap-1 text-xs text-app-muted">
             <Calendar className="w-3 h-3" />
             {formatDate(project.dueDate)}
           </div>

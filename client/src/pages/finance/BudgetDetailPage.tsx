@@ -235,7 +235,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
                 Cancel
               </button>
               <button onClick={handleTopUp} disabled={topUpLoading || !topUpAmount || isNaN(parseFloat(topUpAmount)) || parseFloat(topUpAmount) <= 0}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
                 <Plus className="h-4 w-4" /> {topUpLoading ? 'Updating...' : 'Top Up'}
               </button>
             </div>

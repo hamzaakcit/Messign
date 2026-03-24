@@ -16,15 +16,15 @@ export function RightSidebarPreview({ activeTab }: RightSidebarPreviewProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-gray-500 mb-3">How changes will appear:</p>
+        <p className="text-sm text-app-muted mb-3">How changes will appear:</p>
         {activeTab === 'xp' ? (
           <div className="p-3 bg-white/5 rounded-lg border border-white/10">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-white">Sample Employee</span>
-              <span className="text-xs text-gray-400">L12</span>
+              <span className="text-sm font-medium text-app-text">Sample Employee</span>
+              <span className="text-xs text-app-muted">L12</span>
             </div>
             <ProgressBar value={2450} max={5700} variant="xp" size="sm" />
-            <p className="text-xs text-gray-500 mt-1">2,450 / 5,700 MP to next level</p>
+            <p className="text-xs text-app-muted mt-1">2,450 / 5,700 MP to next level</p>
           </div>
         ) : (
           <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-3">
@@ -32,8 +32,8 @@ export function RightSidebarPreview({ activeTab }: RightSidebarPreviewProps) {
               ✓
             </div>
             <div>
-              <p className="text-sm font-medium text-white">Task Master</p>
-              <p className="text-xs text-gray-500">Rare badge</p>
+              <p className="text-sm font-medium text-app-text">Task Master</p>
+              <p className="text-xs text-app-muted">Rare badge</p>
             </div>
           </div>
         )}

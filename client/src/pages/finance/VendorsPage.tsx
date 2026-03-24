@@ -121,7 +121,7 @@ export function VendorsPage({ onViewVendor }: Props) {
           </button>
           {isAdmin && (
             <button onClick={() => setShowCreateForm(!showCreateForm)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">
               <Plus className="h-4 w-4" /> New Vendor
             </button>
           )}
@@ -156,7 +156,7 @@ export function VendorsPage({ onViewVendor }: Props) {
           </div>
           <div className="flex gap-2">
             <button onClick={handleCreate} disabled={!formData.name || creating}
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+              className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
               {creating ? 'Creating...' : 'Create Vendor'}
             </button>
             <button onClick={() => setShowCreateForm(false)}
