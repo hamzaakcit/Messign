@@ -78,6 +78,7 @@ export function MarketingHub(): JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const accessToken = useAuthStore((s) => s.accessToken);
   const userId = user?.authUserId || user?.id || '';
 
   const [mode, setModeState] = useState<ViewMode>('board');
@@ -107,11 +108,11 @@ export function MarketingHub(): JSX.Element {
   const [brandList, setBrandList] = useState<BrandProfileClient[]>([]);
 
   const { items: approvalItems, approve: approveItem } = useMarketingApprovalQueue(
-    userId || undefined,
+    userId && accessToken ? userId : undefined,
   );
 
   const fetchData = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !accessToken) return;
     setMetricsLoading(true);
     try {
       const [bootstrap, funnelData, brands] = await Promise.all([
@@ -131,7 +132,7 @@ export function MarketingHub(): JSX.Element {
     } finally {
       setMetricsLoading(false);
     }
-  }, [userId]);
+  }, [userId, accessToken]);
 
   useEffect(() => {
     fetchData();

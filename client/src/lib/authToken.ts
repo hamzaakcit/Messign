@@ -11,7 +11,12 @@ export function registerAccessTokenReader(fn: () => string | null): void {
 }
 
 export function getAccessToken(): string | null {
-  return readTokenFromStore?.() ?? accessToken;
+  // When the store reader is registered, it is the only source of truth — do not fall back to
+  // the module cache, or a stale Bearer can be sent after logout or rehydrate (401 → login loop).
+  if (readTokenFromStore != null) {
+    return readTokenFromStore();
+  }
+  return accessToken;
 }
 
 export function setAccessToken(token: string | null): void {
