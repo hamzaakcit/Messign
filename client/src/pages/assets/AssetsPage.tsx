@@ -211,7 +211,7 @@ export function AssetsPage({ initialTab = 'equipment' }: Props) {
                   return (
                     <div key={license.id} className="flex items-center gap-3">
                       <div className="w-52 truncate text-sm text-app-text">{license.software_name}</div>
-                      <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div className="flex-1 h-2 rounded-full bg-app-surface-tertiary overflow-hidden">
                         <div className="h-full bg-primary-500" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
                       </div>
                       <div className="w-20 text-right text-sm text-app-muted">{pct.toFixed(1)}%</div>
@@ -258,7 +258,7 @@ function AssetDetail({ assetId, userId, onUpdated }: { assetId: string; userId: 
         <button className="px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 text-sm" onClick={() => void assetsAPI.retireAsset(userId, asset.id, 'Retired from asset panel').then(onUpdated)}>
           Retire
         </button>
-        <button className="px-3 py-2 rounded-lg bg-white/10 text-app-text text-sm" onClick={() => void assetsAPI.returnAsset(userId, asset.id, 'good').then(onUpdated)}>
+        <button className="px-3 py-2 rounded-lg bg-app-surface-tertiary text-app-text text-sm" onClick={() => void assetsAPI.returnAsset(userId, asset.id, 'good').then(onUpdated)}>
           Return
         </button>
       </div>

@@ -146,7 +146,7 @@ export function RecruitmentPipelinePage() {
                             draggable
                             onDragStart={() => setDraggedApplication(application)}
                             onClick={() => setSelectedApplicationId(application.id)}
-                            className="w-full text-left rounded-lg border border-app-border bg-app-card p-3 hover:bg-white/5 transition-colors"
+                            className="w-full text-left rounded-lg border border-app-border bg-app-card p-3 hover:bg-app-nav-hover transition-colors"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>

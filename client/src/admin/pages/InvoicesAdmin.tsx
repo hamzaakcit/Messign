@@ -78,7 +78,7 @@ interface BankDetails {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  draft: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  draft: 'bg-gray-500/20 text-app-muted border-gray-500/30',
   signed: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   finalized: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   revision: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -292,7 +292,7 @@ export function InvoicesAdmin() {
       {loading ? (
         <div className="p-8 text-center text-app-muted">Loading...</div>
       ) : invoices.length === 0 ? (
-        <div className="rounded-xl border border-app-border bg-dark-800 p-12 text-center text-app-muted">
+        <div className="rounded-xl border border-app-border bg-app-sidebar p-12 text-center text-app-muted">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="font-semibold">No invoices yet.</p>
           <p className="text-sm mt-1">Select a billing period above and generate invoices.</p>
@@ -302,7 +302,7 @@ export function InvoicesAdmin() {
           {invoices.map((inv) => (
             <div
               key={inv.id}
-              className="rounded-xl border border-app-border bg-dark-800 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+              className="rounded-xl border border-app-border bg-app-sidebar p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
             >
               <div className="flex items-center gap-4 min-w-0 flex-1">
                 <div
@@ -314,7 +314,7 @@ export function InvoicesAdmin() {
                   <FileText
                     className={cn(
                       'w-5 h-5',
-                      inv.status === 'finalized' ? 'text-blue-400' : inv.status === 'signed' ? 'text-cyan-400' : inv.status === 'revision' ? 'text-amber-400' : inv.status === 'paid' ? 'text-emerald-400' : 'text-gray-400'
+                      inv.status === 'finalized' ? 'text-blue-400' : inv.status === 'signed' ? 'text-cyan-400' : inv.status === 'revision' ? 'text-amber-400' : inv.status === 'paid' ? 'text-emerald-400' : 'text-app-muted'
                     )}
                   />
                 </div>
@@ -373,7 +373,7 @@ export function InvoicesAdmin() {
                     </button>
                   )}
                   {inv.status === 'draft' && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-500/10 text-gray-400 border border-gray-500/20">
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-500/10 text-app-muted border border-gray-500/20">
                       Awaiting employee signature
                     </span>
                   )}
@@ -437,7 +437,7 @@ export function InvoicesAdmin() {
                   <Download className="w-4 h-4" />
                   Download PDF
                 </button>
-                <button onClick={() => setPreviewInvoice(null)} className="p-1 text-gray-400 hover:text-gray-600">
+                <button onClick={() => setPreviewInvoice(null)} className="p-1 text-app-muted hover:text-gray-600">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -454,7 +454,7 @@ export function InvoicesAdmin() {
                   </svg>
                   <div>
                     <div className="font-extrabold text-xl text-gray-900">Messign</div>
-                    <div className="text-[10px] text-gray-400 uppercase tracking-widest">Communications</div>
+                    <div className="text-[10px] text-app-muted uppercase tracking-widest">Communications</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -466,10 +466,10 @@ export function InvoicesAdmin() {
               {/* From (contractor) / Bill To (Messign) */}
               <div className="grid grid-cols-2 gap-8 mb-7">
                 <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">From</div>
+                  <div className="text-[10px] font-bold text-app-muted uppercase tracking-widest mb-1">From</div>
                   <div className="text-sm font-bold text-gray-900">{previewInvoice.employee_name}</div>
                   {previewBank && (
-                    <div className="text-[11px] text-gray-400 mt-1">
+                    <div className="text-[11px] text-app-muted mt-1">
                       {previewBank.bank_name && <div>{previewBank.bank_name}</div>}
                       {previewBank.iban && <div>IBAN: {previewBank.iban}</div>}
                       {previewBank.swift_bic && <div>SWIFT: {previewBank.swift_bic}</div>}
@@ -477,27 +477,27 @@ export function InvoicesAdmin() {
                   )}
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Bill To</div>
+                  <div className="text-[10px] font-bold text-app-muted uppercase tracking-widest mb-1">Bill To</div>
                   <div className="text-sm font-bold text-gray-900">{COMPANY.name}</div>
-                  <div className="text-xs text-gray-500">{COMPANY.address}</div>
-                  <div className="text-xs text-gray-400 mt-1">Reg: {COMPANY.regNumber} · VAT: {COMPANY.vatNumber}</div>
+                  <div className="text-xs text-app-muted">{COMPANY.address}</div>
+                  <div className="text-xs text-app-muted mt-1">Reg: {COMPANY.regNumber} · VAT: {COMPANY.vatNumber}</div>
                 </div>
               </div>
 
               {/* Details row */}
               <div className="grid grid-cols-3 gap-3 bg-gray-50 rounded-lg p-3 mb-7 text-xs">
                 <div>
-                  <div className="text-gray-400 font-semibold uppercase">Invoice Date</div>
+                  <div className="text-app-muted font-semibold uppercase">Invoice Date</div>
                   <div className="font-semibold text-gray-900">{String(previewInvoice.generated_date).slice(0, 10)}</div>
                 </div>
                 <div>
-                  <div className="text-gray-400 font-semibold uppercase">Period</div>
+                  <div className="text-app-muted font-semibold uppercase">Period</div>
                   <div className="font-semibold text-gray-900">
                     {periodLabel(previewInvoice.period_year, previewInvoice.period_month)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-gray-400 font-semibold uppercase">Currency</div>
+                  <div className="text-app-muted font-semibold uppercase">Currency</div>
                   <div className="font-semibold text-gray-900">EUR</div>
                 </div>
               </div>
@@ -506,8 +506,8 @@ export function InvoicesAdmin() {
               <table className="w-full text-xs mb-5">
                 <thead>
                   <tr className="border-b-2 border-gray-200">
-                    <th className="pb-2 text-left text-gray-400 font-bold uppercase">Description</th>
-                    <th className="pb-2 text-right text-gray-400 font-bold uppercase">Amount (EUR)</th>
+                    <th className="pb-2 text-left text-app-muted font-bold uppercase">Description</th>
+                    <th className="pb-2 text-right text-app-muted font-bold uppercase">Amount (EUR)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -516,7 +516,7 @@ export function InvoicesAdmin() {
                       <td className="py-2.5 text-gray-600">
                         {item.description}
                         {item.original_currency && item.original_amount && (
-                          <span className="text-gray-400 ml-1">
+                          <span className="text-app-muted ml-1">
                             (orig: {fmt(item.original_amount, item.original_currency)})
                           </span>
                         )}
@@ -526,7 +526,7 @@ export function InvoicesAdmin() {
                   ))}
                   {items.length === 0 && (
                     <tr>
-                      <td colSpan={2} className="py-4 text-center text-gray-400 italic">No line items</td>
+                      <td colSpan={2} className="py-4 text-center text-app-muted italic">No line items</td>
                     </tr>
                   )}
                 </tbody>
@@ -535,11 +535,11 @@ export function InvoicesAdmin() {
               {/* Totals */}
               <div className="border-t-2 border-gray-900 pt-3 flex justify-end">
                 <div className="w-60">
-                  <div className="flex justify-between py-1 text-sm text-gray-500">
+                  <div className="flex justify-between py-1 text-sm text-app-muted">
                     <span>Consultation Fee</span>
                     <span className="font-semibold text-gray-800">{fmt(previewInvoice.base_retainer)}</span>
                   </div>
-                  <div className="flex justify-between py-1 text-sm text-gray-500">
+                  <div className="flex justify-between py-1 text-sm text-app-muted">
                     <span>Expenses ({Math.max(0, items.length - 1)} items)</span>
                     <span className="font-semibold text-gray-800">{fmt(previewInvoice.total_expenses)}</span>
                   </div>
@@ -567,7 +567,7 @@ export function InvoicesAdmin() {
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div>
                               <p className="font-semibold text-gray-900">{exp.title}</p>
-                              <p className="text-gray-500 text-xs mt-0.5">
+                              <p className="text-app-muted text-xs mt-0.5">
                                 {exp.category_name ?? '—'} · {String(exp.expense_date).slice(0, 10)}
                               </p>
                               {exp.description && (
@@ -577,7 +577,7 @@ export function InvoicesAdmin() {
                             <div className="text-right shrink-0">
                               <p className="font-semibold text-gray-800">{fmt(eb.line_item.amount_eur)}</p>
                               {exp.original_currency && exp.original_currency !== 'EUR' && (
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-app-muted">
                                   orig. {fmt(exp.original_amount, exp.original_currency)}
                                 </p>
                               )}
@@ -585,7 +585,7 @@ export function InvoicesAdmin() {
                           </div>
                           {docs.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-gray-200">
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                              <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-2 flex items-center gap-1">
                                 <Paperclip className="w-3.5 h-3.5" />
                                 Attachments ({docs.length})
                               </p>
@@ -619,7 +619,7 @@ export function InvoicesAdmin() {
                   <div className="text-center">
                     <img src={previewInvoice.signature_snapshot || previewSig || ''} alt="Signature" className="max-h-12 mb-1" />
                     <div className="border-t border-gray-900 pt-1 text-xs font-semibold">{previewInvoice.employee_name}</div>
-                    <div className="text-[10px] text-gray-400">
+                    <div className="text-[10px] text-app-muted">
                       Digital Signature
                       {previewInvoice.signed_at && (
                         <span> · Signed {new Date(previewInvoice.signed_at).toLocaleDateString()}</span>
@@ -630,7 +630,7 @@ export function InvoicesAdmin() {
               )}
 
               {/* Footer */}
-              <div className="mt-8 pt-4 border-t border-gray-100 text-center text-[10px] text-gray-400">
+              <div className="mt-8 pt-4 border-t border-gray-100 text-center text-[10px] text-app-muted">
                 {COMPANY.name} · {COMPANY.address} · Reg: {COMPANY.regNumber} · VAT: {COMPANY.vatNumber}
               </div>
             </div>

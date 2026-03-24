@@ -76,7 +76,7 @@ export function KnowledgeSidebar({ onSelectDocument, onSelectTag, onSearch }: Pr
           <div className="flex flex-wrap gap-1.5">
             {tags.slice(0, 12).map(tag => (
               <button key={tag.id} onClick={() => onSelectTag?.(tag.slug)}
-                className="px-2.5 py-1 rounded-full text-xs font-medium bg-app-hover text-app-muted hover:text-app hover:bg-dark-600 transition-colors">
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-app-hover text-app-muted hover:text-app hover:bg-app-hover transition-colors">
                 {tag.name}
                 {tag.document_count ? <span className="ml-1 opacity-60">({tag.document_count})</span> : null}
               </button>

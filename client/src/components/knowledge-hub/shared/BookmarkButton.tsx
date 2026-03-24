@@ -32,7 +32,7 @@ export function BookmarkButton({ documentId, isBookmarked: initialBookmarked, cl
       disabled={loading}
       className={cn(
         'p-1.5 rounded-lg transition-colors',
-        bookmarked ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-400 hover:text-yellow-400',
+        bookmarked ? 'text-yellow-400 hover:text-yellow-300' : 'text-app-muted hover:text-yellow-400',
         className
       )}
       title={bookmarked ? 'Remove bookmark' : 'Add bookmark'}

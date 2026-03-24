@@ -107,7 +107,7 @@ export function CRMForecastPage() {
                   'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
                   period === key
                     ? 'bg-primary-500/20 text-primary-400'
-                    : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                    : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
                 )}
               >
                 {label}
@@ -135,7 +135,7 @@ export function CRMForecastPage() {
           ) : (
             <div className="space-y-6">
               {/* Forecast Chart */}
-              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
                 <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" /> Forecast Breakdown
                 </h3>
@@ -155,14 +155,14 @@ export function CRMForecastPage() {
               </div>
 
               {/* Forecast by Owner */}
-              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
                 <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" /> Forecast by Owner
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-white/10">
+                      <tr className="border-b border-app-border">
                         <th className="pb-2 text-[11px] uppercase tracking-wider text-app-muted font-semibold">Name</th>
                         <th className="pb-2 text-[11px] uppercase tracking-wider text-app-muted font-semibold text-right">Deals</th>
                         <th className="pb-2 text-[11px] uppercase tracking-wider text-app-muted font-semibold text-right">Pipeline</th>
@@ -171,7 +171,7 @@ export function CRMForecastPage() {
                     </thead>
                     <tbody>
                       {owners.map(owner => (
-                        <tr key={owner.owner_id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <tr key={owner.owner_id} className="border-b border-app-border hover:bg-app-nav-hover transition-colors">
                           <td className="py-2.5 text-app-text font-medium flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full bg-primary-500/20 flex items-center justify-center text-[10px] font-semibold text-primary-400 shrink-0">
                               {(owner.owner_name ?? '?').charAt(0).toUpperCase()}
@@ -201,7 +201,7 @@ export function CRMForecastPage() {
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-sm"
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-app-text text-sm"
                     style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}
                   >
                     ✦
@@ -273,9 +273,9 @@ function ForecastSkeleton() {
   return (
     <div className="space-y-6">
       {[1, 2, 3].map(i => (
-        <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-5 animate-pulse">
-          <div className="h-4 bg-white/10 rounded w-48 mb-4" />
-          <div className="h-60 bg-white/10 rounded" />
+        <div key={i} className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 animate-pulse">
+          <div className="h-4 bg-app-surface-tertiary rounded w-48 mb-4" />
+          <div className="h-60 bg-app-surface-tertiary rounded" />
         </div>
       ))}
     </div>

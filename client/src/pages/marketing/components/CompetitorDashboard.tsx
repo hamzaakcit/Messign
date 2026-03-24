@@ -43,7 +43,7 @@ const SIGNIFICANCE_OPTIONS = [
 
 const TIER_COLORS: Record<string, string> = {
   direct: 'bg-blue-500/15 text-blue-400',
-  indirect: 'bg-gray-500/15 text-gray-400',
+  indirect: 'bg-gray-500/15 text-app-muted',
   aspirational: 'bg-purple-500/15 text-purple-400',
 };
 

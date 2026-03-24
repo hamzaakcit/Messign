@@ -93,8 +93,8 @@ export function SearchBar({ onSearch, onSelectDocument }: Props) {
         <div className={cn(
           'flex items-center gap-3 px-4 py-3 rounded-xl border transition-all',
           focused
-            ? 'border-primary-500 bg-dark-700 shadow-lg shadow-primary-500/10'
-            : 'border-app-border bg-dark-800 hover:border-app-border-hover'
+            ? 'border-primary-500 bg-app-card shadow-lg shadow-primary-500/10'
+            : 'border-app-border bg-app-sidebar hover:border-app-border-hover'
         )}>
           <Search className="w-5 h-5 text-app-muted shrink-0" />
           <input
@@ -117,7 +117,7 @@ export function SearchBar({ onSearch, onSelectDocument }: Props) {
       </form>
 
       {showDropdown && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-xl border border-app-border bg-dark-800 shadow-xl overflow-hidden max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-xl border border-app-border bg-app-sidebar shadow-xl overflow-hidden max-h-80 overflow-y-auto">
           {!query && recentSearches.length > 0 && (
             <div className="p-3">
               <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-2 flex items-center gap-1">

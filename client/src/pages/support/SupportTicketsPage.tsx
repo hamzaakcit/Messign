@@ -270,7 +270,7 @@ export function SupportTicketsPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 mb-4 space-y-4">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 mb-4 space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-1 overflow-x-auto">
                 {FILTER_TABS.map((filterTab) => (
@@ -286,7 +286,7 @@ export function SupportTicketsPage() {
                       'px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                       tab === filterTab.id
                         ? 'bg-primary-500/20 text-primary-400'
-                        : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                        : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
                     )}
                   >
                     {filterTab.label}

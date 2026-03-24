@@ -255,13 +255,13 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
 
   const inputClass = (field: string) =>
     cn(
-      'w-full px-3 py-2 rounded-lg bg-white/5 border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none',
-      fieldConfidence[field] ? confidenceBorder[fieldConfidence[field]!] : 'border-white/10',
+      'w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none',
+      fieldConfidence[field] ? confidenceBorder[fieldConfidence[field]!] : 'border-app-border',
     );
 
   return (
     <div className="p-6 space-y-6">
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary-500/10 p-2.5">
             {expenseType === 'mileage' ? <MapPin className="h-5 w-5 text-primary-500" /> : <Receipt className="h-5 w-5 text-primary-500" />}
@@ -277,7 +277,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
               type="button"
               onClick={() => { setExpenseType('receipt'); setMileageAmount(null); }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                expenseType === 'receipt' ? 'bg-primary-500/15 border-primary-500/40 text-primary-400' : 'bg-white/5 border-white/10 text-app-muted hover:bg-white/10'
+                expenseType === 'receipt' ? 'bg-primary-500/15 border-primary-500/40 text-primary-400' : 'bg-app-surface-tertiary border-app-border text-app-muted hover:bg-app-hover'
               }`}
             >
               <Receipt className="h-4 w-4" /> Receipt / Standard
@@ -286,7 +286,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
               type="button"
               onClick={() => { setExpenseType('mileage'); setForm((p) => ({ ...p, category_slug: 'travel_ground' })); }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                expenseType === 'mileage' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' : 'bg-white/5 border-white/10 text-app-muted hover:bg-white/10'
+                expenseType === 'mileage' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' : 'bg-app-surface-tertiary border-app-border text-app-muted hover:bg-app-hover'
               }`}
             >
               <MapPin className="h-4 w-4" /> Mileage Claim
@@ -303,7 +303,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
           <div>
             <label className="block text-xs font-medium text-app-muted mb-2">Receipt</label>
             {receiptDoc ? (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-app-surface-tertiary border border-app-border">
                 <Image className="h-5 w-5 text-emerald-400" />
                 <span className="text-sm text-app-text flex-1">Receipt uploaded</span>
                 {ocrProcessing && <span className="text-xs text-primary-400 animate-pulse flex items-center gap-1"><Sparkles className="h-3 w-3" /> Extracting data...</span>}
@@ -320,10 +320,10 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
               <div className="mt-2 p-3 rounded-lg bg-primary-500/5 border border-primary-500/20 text-xs space-y-1">
                 <p className="text-primary-400 font-medium flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI extracted fields (review below)</p>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {ocrResult.vendor_name && <span className="px-2 py-0.5 rounded bg-white/5 text-app-muted">Vendor: {ocrResult.vendor_name}</span>}
-                  {ocrResult.amount != null && <span className="px-2 py-0.5 rounded bg-white/5 text-app-muted">Amount: {ocrResult.currency} {ocrResult.amount}</span>}
-                  {ocrResult.date && <span className="px-2 py-0.5 rounded bg-white/5 text-app-muted">Date: {ocrResult.date}</span>}
-                  {ocrResult.category && <span className="px-2 py-0.5 rounded bg-white/5 text-app-muted">Category: {ocrResult.category}</span>}
+                  {ocrResult.vendor_name && <span className="px-2 py-0.5 rounded bg-app-surface-tertiary text-app-muted">Vendor: {ocrResult.vendor_name}</span>}
+                  {ocrResult.amount != null && <span className="px-2 py-0.5 rounded bg-app-surface-tertiary text-app-muted">Amount: {ocrResult.currency} {ocrResult.amount}</span>}
+                  {ocrResult.date && <span className="px-2 py-0.5 rounded bg-app-surface-tertiary text-app-muted">Date: {ocrResult.date}</span>}
+                  {ocrResult.category && <span className="px-2 py-0.5 rounded bg-app-surface-tertiary text-app-muted">Category: {ocrResult.category}</span>}
                 </div>
               </div>
             )}
@@ -392,8 +392,8 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
                 value={form.currency}
                 onChange={(e) => handleChange('currency', e.target.value)}
                 disabled={expenseType === 'mileage'}
-                className={cn('w-24 px-2 py-2 rounded-lg bg-white/5 border text-sm text-app-text focus:border-primary-500 focus:outline-none',
-                  fieldConfidence.currency ? confidenceBorder[fieldConfidence.currency!] : 'border-white/10',
+                className={cn('w-24 px-2 py-2 rounded-lg bg-app-surface-tertiary border text-sm text-app-text focus:border-primary-500 focus:outline-none',
+                  fieldConfidence.currency ? confidenceBorder[fieldConfidence.currency!] : 'border-app-border',
                   expenseType === 'mileage' && 'opacity-60 cursor-not-allowed')}
               >
                 <option value="USD">USD</option>
@@ -496,7 +496,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
               onChange={(e) => handleChange('description', e.target.value)}
               rows={3}
               placeholder={expenseType === 'mileage' ? 'Purpose of the trip...' : 'Brief description of the expense...'}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
             />
           </div>
 
@@ -507,7 +507,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
               onChange={(e) => handleChange('notes', e.target.value)}
               rows={2}
               placeholder="Any additional notes..."
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
             />
           </div>
         </div>
@@ -517,7 +517,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
             data-testid="expense-save-draft"
             onClick={() => handleSubmit(true)}
             disabled={submitting}
-            className="px-6 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-app-text hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg bg-app-surface-tertiary border border-app-border text-sm font-medium text-app-text hover:bg-app-hover transition-colors disabled:opacity-50"
           >
             Save as Draft
           </button>
@@ -525,7 +525,7 @@ export function ExpenseCreatePanel({ onClose: _onClose, onCreated }: ExpenseCrea
             data-testid="expense-submit"
             onClick={() => handleSubmit(false)}
             disabled={submitting}
-            className="px-6 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
           >
             {submitting ? 'Creating...' : 'Submit for Approval'}
           </button>

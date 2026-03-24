@@ -165,19 +165,19 @@ export function DocumentTemplates({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-2xl mx-4 rounded-2xl border border-app-border bg-dark-800 shadow-2xl">
+      <div className="relative w-full max-w-2xl mx-4 rounded-2xl border border-app-border bg-app-sidebar shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b border-app-border">
           <div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-app-text">
               Choose a Template
             </h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-app-muted mt-1">
               Pick a starting template for your document
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-dark-700 text-gray-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg hover:bg-app-hover text-app-muted hover:text-app-text transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -193,7 +193,7 @@ export function DocumentTemplates({
                   onClick={() => onSelect(template)}
                   className={cn(
                     'flex flex-col items-center gap-3 p-5 rounded-xl border border-app-border',
-                    'bg-dark-900 hover:bg-dark-700 hover:border-primary-500/50',
+                    'bg-app-bg hover:bg-app-hover hover:border-primary-500/50',
                     'transition-all text-center group',
                   )}
                 >
@@ -201,10 +201,10 @@ export function DocumentTemplates({
                     <Icon className="w-6 h-6 text-primary-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-medium text-app-text">
                       {template.name}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-app-muted mt-1">
                       {template.description}
                     </p>
                   </div>

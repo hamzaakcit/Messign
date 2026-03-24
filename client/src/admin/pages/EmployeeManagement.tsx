@@ -133,9 +133,9 @@ export function EmployeeManagement() {
           const role = info.getValue() as string;
           const roleClass =
             role === 'admin'
-              ? 'px-2 py-0.5 rounded text-xs font-medium bg-primary-500 text-white'
+              ? 'px-2 py-0.5 rounded text-xs font-medium bg-primary-500 text-app-text'
               : role === 'manager'
-                ? 'px-2 py-0.5 rounded text-xs font-medium bg-accent-500 text-white'
+                ? 'px-2 py-0.5 rounded text-xs font-medium bg-accent-500 text-app-text'
                 : 'px-2 py-0.5 rounded text-xs font-medium bg-app-surface-tertiary text-app-muted';
           return <span className={roleClass}>{role ?? '—'}</span>;
         },
@@ -168,7 +168,7 @@ export function EmployeeManagement() {
                 ? 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400'
                 : status === 'busy'
                   ? 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-orange-100 dark:bg-orange-500/20 text-orange-800 dark:text-orange-400'
-                  : 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-400';
+                  : 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-app-muted';
           return <span className={cn('capitalize', statusClass)}>{status ?? '—'}</span>;
         },
         enableSorting: true,
@@ -389,9 +389,9 @@ export function EmployeeManagement() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-4 p-4 border-b border-white/10">
+      <div className="flex flex-wrap items-center gap-4 p-4 border-b border-app-border">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none z-10" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted pointer-events-none z-10" />
           <Input
             type="search"
             placeholder="Search employees..."
@@ -528,13 +528,13 @@ export function EmployeeManagement() {
               filteredData.map((emp) => (
               <div
                 key={emp.id}
-                className="glass-card p-4 rounded-xl border border-white/10 flex items-center gap-4"
+                className="glass-card p-4 rounded-xl border border-app-border flex items-center gap-4"
               >
                 <Avatar src={emp.avatar} name={emp.name} size="lg" status={emp.status} />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-white truncate">{emp.name}</p>
-                  <p className="text-sm text-gray-400 truncate">{emp.jobTitle}</p>
-                  <p className="text-xs text-gray-500 truncate">{emp.department}</p>
+                  <p className="font-semibold text-app-text truncate">{emp.name}</p>
+                  <p className="text-sm text-app-muted truncate">{emp.jobTitle}</p>
+                  <p className="text-xs text-app-muted truncate">{emp.department}</p>
                 </div>
                 <div className="flex gap-1">
                   <button

@@ -10,7 +10,7 @@ interface PageSkeletonProps {
 function ShimmerBar({ className }: { className?: string }) {
   return (
     <div
-      className={cn('h-full rounded bg-white/10', className)}
+      className={cn('h-full rounded bg-app-surface-tertiary', className)}
       style={{
         background: 'linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.08) 100%)',
         backgroundSize: '200% 100%',

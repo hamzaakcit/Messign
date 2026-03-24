@@ -52,9 +52,9 @@ export function AIChartRenderer({ chart }: AIChartRendererProps) {
   const strokeColor = '#3f3f3f';
 
   return (
-    <div className="my-4 p-4 bg-dark-800 rounded-xl border border-dark-700">
+    <div className="my-4 p-4 bg-app-sidebar rounded-xl border border-app-border">
       {title && (
-        <h4 className="text-sm font-semibold text-gray-300 mb-3">{title}</h4>
+        <h4 className="text-sm font-semibold text-app-muted mb-3">{title}</h4>
       )}
 
       <div className="w-full" style={{ height: chartType === 'pie' ? 300 : 280 }}>

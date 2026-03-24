@@ -366,7 +366,7 @@ export function MarketingHub(): JSX.Element {
           <select
             value={brandFilter || ''}
             onChange={(e) => setBrandFilter(e.target.value || null)}
-            className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1 text-xs text-app-text min-w-[140px]"
+            className="bg-app-surface-tertiary border border-white/[0.08] rounded-lg px-2 py-1 text-xs text-app-text min-w-[140px]"
           >
             <option value="">All brands</option>
             {brandList.map((b) => (
@@ -521,7 +521,7 @@ export function MarketingHub(): JSX.Element {
       <button
         type="button"
         onClick={() => setBrandManagerOpen(true)}
-        className={`fixed bottom-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-white/5 transition-colors ${
+        className={`fixed bottom-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-app-nav-hover transition-colors ${
           doraOpen && mode === 'board' ? 'right-[300px]' : 'right-6'
         }`}
       >

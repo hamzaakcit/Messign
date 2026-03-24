@@ -98,7 +98,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
         <p className="text-sm text-app-muted mt-2">Owned by {campaign.owner_name ?? 'Unassigned'}</p>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-app-muted">Budget vs Spend</span>
           <span className="text-sm text-app-text">
@@ -117,7 +117,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
           ['CPL', formatCurrency(campaign.cost_per_lead ?? 0, campaign.currency)],
           ['ROI', `${(campaign.roi ?? 0).toFixed(2)}x`],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div key={label} className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
             <p className="text-xs uppercase tracking-wide text-app-muted">{label}</p>
             <p className="text-xl font-semibold text-app-text mt-2">{value}</p>
           </div>
@@ -130,7 +130,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm ${tab === item.id ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-white/5'}`}
+              className={`px-3 py-1.5 rounded-lg text-sm ${tab === item.id ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover'}`}
             >
               {item.label}
             </button>
@@ -158,7 +158,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
           >
             <CheckCircle2 className="w-4 h-4" /> Complete
           </button>
-          <button className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-app-text flex items-center gap-1.5">
+          <button className="px-3 py-1.5 rounded-lg text-sm bg-app-surface-tertiary text-app-text flex items-center gap-1.5">
             <PencilLine className="w-4 h-4" /> Edit
           </button>
         </div>
@@ -180,13 +180,13 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h4 className="text-sm font-semibold text-app-text">Spend Entries</h4>
-            <button onClick={() => setSpendFormOpen((value) => !value)} className="px-3 py-1.5 rounded-lg text-sm bg-primary-500 text-white flex items-center gap-1.5">
+            <button onClick={() => setSpendFormOpen((value) => !value)} className="px-3 py-1.5 rounded-lg text-sm bg-primary-500 text-app-text flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> Record Spend
             </button>
           </div>
           {spendFormOpen && (
             <form
-              className="rounded-xl border border-white/10 bg-white/5 p-4 grid grid-cols-1 md:grid-cols-4 gap-3"
+              className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 grid grid-cols-1 md:grid-cols-4 gap-3"
               onSubmit={(event) => {
                 event.preventDefault();
                 void mutate(async () => {
@@ -212,7 +212,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
               <input className={inputClass} type="date" value={spendForm.date} onChange={(e) => setSpendForm((current) => ({ ...current, date: e.target.value }))} />
               <input className={inputClass} placeholder="Description" value={spendForm.description} onChange={(e) => setSpendForm((current) => ({ ...current, description: e.target.value }))} />
               <div className="md:col-span-4 flex justify-end">
-                <button type="submit" className="px-3 py-2 rounded-lg text-sm bg-primary-500 text-white">Save Spend</button>
+                <button type="submit" className="px-3 py-2 rounded-lg text-sm bg-primary-500 text-app-text">Save Spend</button>
               </div>
             </form>
           )}
@@ -221,7 +221,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
               <p className="text-sm text-app-muted">No spend entries yet.</p>
             ) : (
               spendEntries.map((entry) => (
-                <div key={entry.id} className="rounded-xl border border-white/10 bg-white/5 p-4 flex items-center justify-between gap-3">
+                <div key={entry.id} className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-app-text">{entry.category ?? 'Spend'}</p>
                     <p className="text-xs text-app-muted">{entry.description || 'No description'} • {new Date(entry.date).toLocaleDateString()}</p>
@@ -243,7 +243,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
             <p className="text-sm text-app-muted">No linked content yet.</p>
           ) : (
             content.map((item) => (
-              <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div key={item.id} className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant="blue">{item.content_type}</Badge>
                   <Badge variant="default">{item.status}</Badge>
@@ -262,7 +262,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
             <p className="text-sm text-app-muted">No attributed leads yet.</p>
           ) : (
             leads.map((lead) => (
-              <div key={lead.id} className="rounded-xl border border-white/10 bg-white/5 p-4 flex items-center justify-between gap-3">
+              <div key={lead.id} className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-app-text">{[lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.email}</p>
                   <p className="text-xs text-app-muted">{lead.company_name || 'No company'} • {lead.source}</p>
@@ -282,7 +282,7 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
       <p className="text-xs uppercase tracking-wide text-app-muted mb-2">{title}</p>
       <div className="text-sm text-app-text">{children}</div>
     </div>

@@ -83,7 +83,7 @@ export function AIAssistantPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-dark-900">
+    <div className="flex flex-col h-full bg-app-bg">
       {/* Header */}
       <div className="px-6 py-4 border-b border-app-border">
         <div className="flex items-center gap-3">
@@ -91,10 +91,10 @@ export function AIAssistantPanel() {
             <Bot className="w-5 h-5 text-primary-400" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-white">
+            <h2 className="text-sm font-semibold text-app-text">
               AI Assistant
             </h2>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-app-muted">
               Smart search in knowledge base
             </p>
           </div>
@@ -112,7 +112,7 @@ export function AIAssistantPanel() {
             )}
           >
             {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-lg bg-dark-700 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-app-card flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4 text-primary-400" />
               </div>
             )}
@@ -120,8 +120,8 @@ export function AIAssistantPanel() {
               className={cn(
                 'max-w-[75%] rounded-2xl px-4 py-3',
                 msg.role === 'user'
-                  ? 'bg-primary-500 text-white rounded-br-md'
-                  : 'bg-dark-700 text-gray-300 rounded-bl-md',
+                  ? 'bg-primary-500 text-app-text rounded-br-md'
+                  : 'bg-app-card text-app-muted rounded-bl-md',
               )}
             >
               <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
@@ -131,10 +131,10 @@ export function AIAssistantPanel() {
                     <Link
                       key={doc.id}
                       to={`/knowledge/${doc.slug}`}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-800 hover:bg-dark-600 transition-colors group"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-sidebar hover:bg-app-hover transition-colors group"
                     >
-                      <FileText className="w-4 h-4 text-gray-500 group-hover:text-primary-400" />
-                      <span className="text-sm text-gray-300 group-hover:text-white truncate">
+                      <FileText className="w-4 h-4 text-app-muted group-hover:text-primary-400" />
+                      <span className="text-sm text-app-muted group-hover:text-app-text truncate">
                         {doc.title}
                       </span>
                     </Link>
@@ -151,10 +151,10 @@ export function AIAssistantPanel() {
         ))}
         {isLoading && (
           <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-lg bg-dark-700 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-app-card flex items-center justify-center shrink-0">
               <Bot className="w-4 h-4 text-primary-400" />
             </div>
-            <div className="bg-dark-700 rounded-2xl rounded-bl-md px-4 py-3">
+            <div className="bg-app-card rounded-2xl rounded-bl-md px-4 py-3">
               <div className="flex gap-1">
                 <span className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" />
                 <span className="w-2 h-2 rounded-full bg-gray-500 animate-bounce [animation-delay:150ms]" />
@@ -168,7 +168,7 @@ export function AIAssistantPanel() {
 
       {/* Input */}
       <div className="px-6 py-4 border-t border-app-border">
-        <div className="flex items-center gap-3 bg-dark-800 rounded-xl border border-app-border px-4 py-2 focus-within:border-primary-500 transition-colors">
+        <div className="flex items-center gap-3 bg-app-sidebar rounded-xl border border-app-border px-4 py-2 focus-within:border-primary-500 transition-colors">
           <input
             type="text"
             value={input}
@@ -180,7 +180,7 @@ export function AIAssistantPanel() {
               }
             }}
             placeholder="Ask something in the knowledge base..."
-            className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-600 outline-none"
+            className="flex-1 bg-transparent text-sm text-app-text placeholder:text-gray-600 outline-none"
           />
           <button
             onClick={handleSend}
@@ -188,8 +188,8 @@ export function AIAssistantPanel() {
             className={cn(
               'p-2 rounded-lg transition-colors',
               input.trim()
-                ? 'bg-primary-500 text-white hover:bg-primary-600'
-                : 'bg-dark-700 text-gray-600 cursor-not-allowed',
+                ? 'bg-primary-500 text-app-text hover:bg-primary-600'
+                : 'bg-app-card text-gray-600 cursor-not-allowed',
             )}
           >
             <Send className="w-4 h-4" />

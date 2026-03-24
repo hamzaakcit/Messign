@@ -121,15 +121,15 @@ export function AIAssistantPage() {
       ) : (
         <>
           {/* Header */}
-          <div className="flex-shrink-0 px-4 py-3 border-b border-dark-700 bg-dark-900">
+          <div className="flex-shrink-0 px-4 py-3 border-b border-app-border bg-app-bg">
             <div className="flex items-center justify-between max-w-4xl mx-auto">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
-                  <Brain size={18} className="text-white" />
+                  <Brain size={18} className="text-app-text" />
                 </div>
                 <div>
-                  <h1 className="text-base font-semibold text-white">AI Assistant</h1>
-                  <p className="text-xs text-gray-500">Ask anything about Messign</p>
+                  <h1 className="text-base font-semibold text-app-text">AI Assistant</h1>
+                  <p className="text-xs text-app-muted">Ask anything about Messign</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -138,7 +138,7 @@ export function AIAssistantPage() {
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                     conciseMode
                       ? 'bg-primary-500/20 text-primary-400 border border-primary-500/40'
-                      : 'bg-dark-700 text-gray-500 hover:text-gray-300'
+                      : 'bg-app-card text-app-muted hover:text-app-muted'
                   }`}
                   title={
                     conciseMode
@@ -159,7 +159,7 @@ export function AIAssistantPage() {
                       clearChat();
                       setRecentIntentIds([]);
                     }}
-                    className="p-1.5 rounded-lg hover:bg-dark-700 text-gray-500 hover:text-danger-500 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-app-hover text-app-muted hover:text-danger-500 transition-colors"
                     title="Clear chat"
                   >
                     <Trash2 size={16} />
@@ -177,10 +177,10 @@ export function AIAssistantPage() {
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center mb-6">
                     <Sparkles size={28} className="text-primary-400" />
                   </div>
-                  <h2 className="text-xl font-semibold text-white mb-2">
+                  <h2 className="text-xl font-semibold text-app-text mb-2">
                     What would you like to know?
                   </h2>
-                  <p className="text-sm text-gray-500 mb-8 text-center max-w-md">
+                  <p className="text-sm text-app-muted mb-8 text-center max-w-md">
                     I can access company data including performance metrics, project
                     status, tasks, finances, knowledge base, and more.
                   </p>
@@ -198,7 +198,7 @@ export function AIAssistantPage() {
                         handleCreatePresentation(PRESENTATION_SUGGESTION.topic)
                       }
                       disabled={presentationLoading}
-                      className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-dark-800 border border-dark-700 text-sm text-gray-300 hover:border-primary-500/40 hover:text-white hover:bg-dark-800/80 transition-all disabled:opacity-60 w-full justify-center"
+                      className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-app-sidebar border border-app-border text-sm text-app-muted hover:border-primary-500/40 hover:text-app-text hover:bg-app-hover/80 transition-all disabled:opacity-60 w-full justify-center"
                     >
                       {presentationLoading ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-400" />
@@ -246,7 +246,7 @@ export function AIAssistantPage() {
           </div>
 
           {/* Input Area */}
-          <div className="flex-shrink-0 px-4 py-3 border-t border-dark-700 bg-dark-900">
+          <div className="flex-shrink-0 px-4 py-3 border-t border-app-border bg-app-bg">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-end gap-2">
                 <div className="flex-1 relative">
@@ -256,8 +256,8 @@ export function AIAssistantPage() {
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask about projects, performance, tasks, documents, finances..."
-                    className="w-full px-4 py-2.5 pr-12 rounded-xl border border-dark-600
-                      bg-dark-800 text-sm text-white placeholder-gray-500
+                    className="w-full px-4 py-2.5 pr-12 rounded-xl border border-app-border
+                      bg-app-sidebar text-sm text-app-text placeholder-gray-500
                       focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500/50
                       resize-none overflow-hidden transition-colors"
                     rows={1}
@@ -267,7 +267,7 @@ export function AIAssistantPage() {
                 {isStreaming ? (
                   <button
                     onClick={abortStream}
-                    className="flex-shrink-0 p-2.5 rounded-xl bg-danger-500 hover:bg-danger-600 text-white transition-colors"
+                    className="flex-shrink-0 p-2.5 rounded-xl bg-danger-500 hover:bg-danger-600 text-app-text transition-colors"
                     title="Stop generating"
                   >
                     <StopCircle size={18} />
@@ -277,15 +277,15 @@ export function AIAssistantPage() {
                     onClick={handleSend}
                     disabled={!inputValue.trim() || isLoading}
                     className="flex-shrink-0 p-2.5 rounded-xl bg-primary-500 hover:bg-primary-600
-                      disabled:bg-dark-600 disabled:cursor-not-allowed
-                      text-white transition-colors"
+                      disabled:bg-app-hover disabled:cursor-not-allowed
+                      text-app-text transition-colors"
                     title="Send message"
                   >
                     <Send size={18} />
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-1.5 text-center">
+              <p className="text-xs text-app-muted mt-1.5 text-center">
                 AI answers are based on company data. Always verify critical
                 decisions.
               </p>

@@ -228,12 +228,12 @@ export function useEmailBuilderState({
   const stripClass =
     surface === 'cockpit'
       ? 'flex flex-wrap items-center gap-2 border-b border-white/[0.06] bg-[#0c0f14]/80 px-3 py-1.5 text-[11px] text-slate-400'
-      : 'flex flex-wrap items-center gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-app-muted';
+      : 'flex flex-wrap items-center gap-2 border-b border-app-border bg-app-surface-tertiary px-3 py-1.5 text-xs text-app-muted';
 
   const loadingClass =
     surface === 'cockpit'
       ? 'flex items-center gap-2 border-b border-white/[0.06] bg-cyan-950/40 px-3 py-1.5 text-[11px] text-cyan-200/90'
-      : 'flex items-center gap-2 border-b border-white/10 bg-primary-500/10 px-3 py-1.5 text-xs text-app-text';
+      : 'flex items-center gap-2 border-b border-app-border bg-primary-500/10 px-3 py-1.5 text-xs text-app-text';
 
   return {
     user,

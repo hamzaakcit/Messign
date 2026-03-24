@@ -10,7 +10,7 @@ export function AdminLayout() {
     <div className="flex h-screen bg-app text-app transition-colors duration-200">
       <a
         href="#admin-main"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-[300px] focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-500 focus:text-white focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-500"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-[300px] focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-500 focus:text-app-text focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-500"
       >
         Skip to main content
       </a>

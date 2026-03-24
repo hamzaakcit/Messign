@@ -58,7 +58,7 @@ export function Va2DiagnosticsPanel({
           type="button"
           disabled={isResolvingImage}
           onClick={() => void onRegenerateHeroImage()}
-          className="text-[10px] px-2 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 disabled:opacity-40 transition-colors"
+          className="text-[10px] px-2 py-0.5 rounded bg-app-surface-tertiary hover:bg-app-hover text-slate-300 disabled:opacity-40 transition-colors"
         >
           {isResolvingImage ? 'Generating…' : 'Regen hero image'}
         </button>
@@ -69,7 +69,7 @@ export function Va2DiagnosticsPanel({
               `Regenerate this ${manifest.theme} email about "${manifest.subject}" with improved copy.`,
             )
           }
-          className="text-[10px] px-2 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 transition-colors"
+          className="text-[10px] px-2 py-0.5 rounded bg-app-surface-tertiary hover:bg-app-hover text-slate-300 transition-colors"
         >
           Ask Dora to regen
         </button>

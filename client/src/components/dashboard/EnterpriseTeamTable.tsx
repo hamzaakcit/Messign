@@ -47,7 +47,7 @@ export function EnterpriseTeamTable({ members, onAction }: EnterpriseTeamTablePr
           </thead>
           <tbody>
             {members.map((m) => (
-              <tr key={m.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
+              <tr key={m.id} className="border-b border-gray-800/50 hover:bg-app-nav-hover transition-colors">
                 <td className="py-2 px-3">
                   {m.rank <= 3 ? (
                     <span className="text-lg" aria-label={`Rank ${m.rank}`}>

@@ -94,7 +94,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
           type="button"
           onClick={onCancel}
           title="Close wizard"
-          className="rounded-lg p-1.5 text-app-muted hover:text-app-text hover:bg-white/10 transition-colors"
+          className="rounded-lg p-1.5 text-app-muted hover:text-app-text hover:bg-app-hover transition-colors"
         >
           <X className="h-4 w-4" />
         </button>
@@ -106,10 +106,10 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
             <div
               className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
                 s === step
-                  ? 'bg-primary-500 text-white'
+                  ? 'bg-primary-500 text-app-text'
                   : s < step
                     ? 'bg-primary-500/20 text-primary-400'
-                    : 'bg-white/10 text-app-muted'
+                    : 'bg-app-surface-tertiary text-app-muted'
               }`}
             >
               {s}
@@ -139,7 +139,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
                 className={`text-left rounded-xl border p-3 transition-all ${
                   goal === g.id
                     ? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500/30'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    : 'border-app-border bg-app-surface-tertiary hover:bg-app-hover'
                 }`}
               >
                 <div className="text-lg mb-1">{g.icon}</div>
@@ -153,7 +153,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
               type="button"
               disabled={!goal}
               onClick={() => setStep(2)}
-              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-opacity disabled:opacity-40 hover:bg-primary-600"
+              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text transition-opacity disabled:opacity-40 hover:bg-primary-600"
             >
               Next <ArrowRight className="h-3.5 w-3.5" />
             </button>
@@ -173,13 +173,13 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
                 className={`text-left rounded-xl border p-3 transition-all ${
                   theme === t.name
                     ? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500/30'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    : 'border-app-border bg-app-surface-tertiary hover:bg-app-hover'
                 }`}
               >
                 <div className="flex gap-1.5 mb-2">
-                  <div className="h-4 w-4 rounded-full border border-white/20" style={{ background: t.colors.primary }} />
-                  <div className="h-4 w-4 rounded-full border border-white/20" style={{ background: t.colors.accent }} />
-                  <div className="h-4 w-4 rounded-full border border-white/20" style={{ background: t.colors.background }} />
+                  <div className="h-4 w-4 rounded-full border border-app-border-strong" style={{ background: t.colors.primary }} />
+                  <div className="h-4 w-4 rounded-full border border-app-border-strong" style={{ background: t.colors.accent }} />
+                  <div className="h-4 w-4 rounded-full border border-app-border-strong" style={{ background: t.colors.background }} />
                 </div>
                 <p className="text-sm font-medium text-app-text">{t.label}</p>
                 <p className="text-[10px] text-app-muted mt-0.5 leading-snug">{t.description}</p>
@@ -190,7 +190,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-app-muted hover:text-app-text hover:bg-white/10 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-app-border px-4 py-2 text-sm font-medium text-app-muted hover:text-app-text hover:bg-app-hover transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back
             </button>
@@ -198,7 +198,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
               type="button"
               disabled={!theme}
               onClick={() => setStep(3)}
-              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-opacity disabled:opacity-40 hover:bg-primary-600"
+              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text transition-opacity disabled:opacity-40 hover:bg-primary-600"
             >
               Next <ArrowRight className="h-3.5 w-3.5" />
             </button>
@@ -218,7 +218,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
                 className={`text-left rounded-xl border p-4 transition-all ${
                   density === d.id
                     ? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500/30'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    : 'border-app-border bg-app-surface-tertiary hover:bg-app-hover'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1.5">
@@ -230,12 +230,12 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 cursor-pointer hover:bg-white/10 transition-colors">
+          <label className="flex items-center gap-3 rounded-xl border border-app-border bg-app-surface-tertiary p-3 cursor-pointer hover:bg-app-hover transition-colors">
             <input
               type="checkbox"
               checked={generateAbVariant}
               onChange={(e) => setGenerateAbVariant(e.target.checked)}
-              className="h-4 w-4 rounded border-white/20 bg-white/10 text-primary-500 focus:ring-primary-500/40"
+              className="h-4 w-4 rounded border-app-border-strong bg-app-surface-tertiary text-primary-500 focus:ring-primary-500/40"
             />
             <div>
               <p className="text-sm font-medium text-app-text">Generate A/B variant</p>
@@ -243,7 +243,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
             </div>
           </label>
           {hasAiDraft && (
-            <p className="text-[11px] text-app-muted rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 leading-relaxed">
+            <p className="text-[11px] text-app-muted rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 leading-relaxed">
               <span className="font-medium text-app-text">Apply AI draft</span> builds the layout from your text (best when you want the copy to drive structure).{' '}
               <span className="font-medium text-app-text">Use template</span> loads a professional starter and merges your subject/body into it (fixes mismatched themes like Mother’s Day vs generic “product launch”).
             </p>
@@ -252,7 +252,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-app-muted hover:text-app-text hover:bg-white/10 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-app-border px-4 py-2 text-sm font-medium text-app-muted hover:text-app-text hover:bg-app-hover transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back
             </button>
@@ -261,7 +261,7 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
                 <button
                   type="button"
                   onClick={() => handleFinish('ai')}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text hover:bg-primary-600 transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" /> Apply AI draft
                 </button>
@@ -271,8 +271,8 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
                 onClick={() => handleFinish('template')}
                 className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                   hasAiDraft
-                    ? 'border border-white/15 bg-white/5 text-app-text hover:bg-white/10'
-                    : 'bg-primary-500 text-white hover:bg-primary-600'
+                    ? 'border border-app-border bg-app-surface-tertiary text-app-text hover:bg-app-hover'
+                    : 'bg-primary-500 text-app-text hover:bg-primary-600'
                 }`}
               >
                 Use template

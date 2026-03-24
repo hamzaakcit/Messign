@@ -60,14 +60,14 @@ export function AIMetadataBar({ metadata }: AIMetadataBarProps) {
     const display = TOOL_DISPLAY_MAP[toolName] ?? {
       label: toolName.replace(/^get_/, '').replace(/_/g, ' '),
       icon: 'Database',
-      color: 'text-gray-400',
+      color: 'text-app-muted',
     };
     const IconComponent = ICON_MAP[display.icon] ?? Database;
 
     return (
       <span
         key={toolName}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-dark-700 text-xs font-medium text-gray-400"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-app-card text-xs font-medium text-app-muted"
         title={`Tool: ${toolName}`}
       >
         <IconComponent size={12} className={display.color} />
@@ -83,7 +83,7 @@ export function AIMetadataBar({ metadata }: AIMetadataBarProps) {
     : null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-dark-600">
+    <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-app-border">
       <div className="flex flex-wrap items-center gap-1.5">
         <Database size={12} className="dora-chat-text-tertiary flex-shrink-0" />
         {toolChips}

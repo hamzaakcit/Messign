@@ -45,10 +45,10 @@ export function PermissionMatrix({
     <div className={cn('overflow-x-auto', className)}>
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-white/10">
-            <th className="text-left py-2 px-3 text-gray-400 font-medium">Module</th>
+          <tr className="border-b border-app-border">
+            <th className="text-left py-2 px-3 text-app-muted font-medium">Module</th>
             {ACTIONS.map((a) => (
-              <th key={a} className="py-2 px-2 text-gray-400 font-medium capitalize text-center">
+              <th key={a} className="py-2 px-2 text-app-muted font-medium capitalize text-center">
                 {a}
               </th>
             ))}
@@ -56,8 +56,8 @@ export function PermissionMatrix({
         </thead>
         <tbody>
           {MODULES.map((module) => (
-            <tr key={module} className="border-b border-white/5">
-              <td className="py-2 px-3 text-white capitalize">{module}</td>
+            <tr key={module} className="border-b border-app-border">
+              <td className="py-2 px-3 text-app-text capitalize">{module}</td>
               {ACTIONS.map((action) => (
                 <td key={action} className="py-2 px-2 text-center">
                   {readOnly ? (

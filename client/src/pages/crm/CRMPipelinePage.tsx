@@ -146,7 +146,7 @@ export function CRMPipelinePage() {
               <button
                 data-testid="crm-new-deal"
                 onClick={() => setNewDealOpen(true)}
-                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary-500 text-app-text hover:bg-primary-600 transition-colors flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 New Deal

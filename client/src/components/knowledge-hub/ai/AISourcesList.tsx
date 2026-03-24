@@ -10,7 +10,7 @@ export function AISourcesList({ sources }: AISourcesListProps) {
   if (!sources || sources.length === 0) return null;
 
   return (
-    <div className="mt-3 pt-2 border-t border-dark-600">
+    <div className="mt-3 pt-2 border-t border-app-border">
       <p className="text-xs font-medium dora-chat-text-tertiary mb-1.5">
         Sources ({sources.length}):
       </p>
@@ -20,9 +20,9 @@ export function AISourcesList({ sources }: AISourcesListProps) {
             key={source.id}
             to={`/knowledge-hub/documents/${source.slug ?? source.id}`}
             className="inline-flex items-center gap-1 px-2 py-1 rounded-md
-              bg-dark-700/50 text-primary-400 text-xs font-medium
-              hover:bg-dark-600 hover:text-primary-300
-              transition-colors border border-dark-600"
+              bg-app-card/50 text-primary-400 text-xs font-medium
+              hover:bg-app-hover hover:text-primary-300
+              transition-colors border border-app-border"
           >
             <FileText size={11} className="flex-shrink-0" />
             <span className="truncate max-w-[180px]">{source.title}</span>

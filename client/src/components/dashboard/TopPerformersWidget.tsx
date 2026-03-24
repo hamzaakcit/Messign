@@ -88,7 +88,7 @@ export function TopPerformersWidget() {
               <a
                 key={showcase.id}
                 href="/projects"
-                className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-app-nav-hover transition-colors"
               >
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"

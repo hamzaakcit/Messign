@@ -52,8 +52,8 @@ export function XPGainNotification({ amount, show }: XPGainNotificationProps) {
         <Zap className="w-5 h-5 text-yellow-400" strokeWidth={2.5} />
       </div>
       <div className="flex flex-col min-w-0">
-        <span className="text-sm font-semibold text-white">MP Awarded</span>
-        <span className="text-xs font-medium text-white/70">+{amount} MP</span>
+        <span className="text-sm font-semibold text-app-text">MP Awarded</span>
+        <span className="text-xs font-medium text-app-text/70">+{amount} MP</span>
       </div>
     </div>
   );

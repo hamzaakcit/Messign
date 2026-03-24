@@ -106,7 +106,7 @@ export function AdminSidebar() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-app truncate">{user.name}</span>
-              <span className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-primary-500 text-white">
+              <span className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-primary-500 text-app-text">
                 ADMIN
               </span>
             </div>

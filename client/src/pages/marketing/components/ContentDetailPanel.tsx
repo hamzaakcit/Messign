@@ -172,7 +172,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
                   'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors capitalize',
                   igFormat === fmt
                     ? 'border-pink-500/40 bg-pink-500/10 text-pink-300'
-                    : 'border-white/[0.08] bg-white/[0.04] text-slate-400 hover:border-white/20',
+                    : 'border-white/[0.08] bg-app-surface-tertiary text-slate-400 hover:border-app-border-strong',
                 )}
               >
                 {fmt}
@@ -234,7 +234,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
             }}
           />
         ) : (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
             <div className="text-sm text-app-text whitespace-pre-wrap">{content.body || 'No body yet.'}</div>
           </div>
         )}
@@ -242,7 +242,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
         {(content.tags?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1">
             {content.tags?.map((tag) => (
-              <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-white/[0.06] text-app-muted">{tag}</span>
+              <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-app-surface-tertiary text-app-muted">{tag}</span>
             ))}
           </div>
         )}
@@ -293,7 +293,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
 
         {/* Schedule editor */}
         {showScheduleEditor && (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 space-y-3">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pick date & time</p>
             <div className="flex items-center gap-3">
               <input
@@ -313,7 +313,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
               <button
                 onClick={() => void handleManualSchedule()}
                 disabled={!scheduleDate}
-                className="rounded-lg bg-cyan-600/80 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-40"
+                className="rounded-lg bg-cyan-600/80 px-4 py-2 text-sm font-medium text-app-text hover:bg-cyan-500 disabled:opacity-40"
               >
                 Confirm
               </button>

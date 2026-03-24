@@ -28,13 +28,13 @@ export function LoginPage() {
   const displayError = typeof (loginError?.message ?? error) === 'string' ? (loginError?.message ?? error) : null;
 
   return (
-    <div className="login-page-autofill min-h-screen bg-neutral-950 relative overflow-hidden">
+    <div className="login-page-autofill min-h-screen bg-app-bg relative overflow-hidden">
       <MatrixRain />
       <ParticleEffect />
       <FloatingBadges />
 
       <div
-        className="absolute inset-0 pointer-events-none bg-neutral-950/70"
+        className="absolute inset-0 pointer-events-none bg-app-bg/70"
         style={{ zIndex: 3 }}
       />
 
@@ -46,9 +46,9 @@ export function LoginPage() {
         <div className="w-full max-w-md">
           <div
             className="
-              bg-[#1C1C1E]
+              bg-app-sidebar
               rounded-2xl shadow-lg shadow-black/40
-              border border-neutral-800
+              border border-app-border
               p-8 md:p-10
               relative overflow-hidden
             "
@@ -65,14 +65,14 @@ export function LoginPage() {
                     playOnHover={false}
                   />
                 </div>
-                <h1 className="text-2xl font-bold text-neutral-50 tracking-tight mt-3">
+                <h1 className="text-2xl font-bold text-app-text tracking-tight mt-3">
                   Messign
                 </h1>
               </div>
 
               <div className="text-center mb-8">
-                <h2 className="text-xl font-semibold text-neutral-50">Welcome back</h2>
-                <p className="text-neutral-400 text-sm mt-1">Sign in to access your workspace</p>
+                <h2 className="text-xl font-semibold text-app-text">Welcome back</h2>
+                <p className="text-app-muted text-sm mt-1">Sign in to access your workspace</p>
               </div>
 
               {displayError && (
@@ -87,8 +87,8 @@ export function LoginPage() {
                     )}
                   </div>
                   {import.meta.env.DEV && (
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Local dev: use an email ending with @messign.com. Ensure the server is running on port 3001 and the DB is seeded (e.g. <code className="bg-neutral-800 px-1 rounded text-neutral-300">npm run db:seed</code> in server). Seed users use the default password from <code className="bg-neutral-800 px-1 rounded text-neutral-300">server/src/types/auth.ts</code>.
+                    <p className="text-xs text-app-muted mt-1">
+                      Local dev: use an email ending with @messign.com. Ensure the server is running on port 3001 and the DB is seeded (e.g. <code className="bg-app-card px-1 rounded text-app-muted">npm run db:seed</code> in server). Seed users use the default password from <code className="bg-app-card px-1 rounded text-app-muted">server/src/types/auth.ts</code>.
                     </p>
                   )}
                 </div>
@@ -96,10 +96,10 @@ export function LoginPage() {
 
               <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-300">Email Address</label>
+                  <label className="block text-sm font-medium text-app-muted">Email Address</label>
                   <div className="group relative rounded-xl transition-colors duration-300">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-[1]">
-                      <Mail className="w-5 h-5 text-neutral-400 transition-colors group-focus-within:text-blue-400" />
+                      <Mail className="w-5 h-5 text-app-muted transition-colors group-focus-within:text-blue-400" />
                     </div>
                     <input
                       data-testid="login-email"
@@ -111,8 +111,8 @@ export function LoginPage() {
                       autoComplete="email"
                       className="
                         w-full pl-12 pr-4 py-4 rounded-xl
-                        bg-neutral-800 border border-neutral-700
-                        text-neutral-100 placeholder:text-neutral-500
+                        bg-app-card border border-app-border
+                        text-app-text placeholder:text-app-muted
                         focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 focus:outline-none
                         transition-all duration-300
                       "
@@ -121,10 +121,10 @@ export function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-300">Password</label>
+                  <label className="block text-sm font-medium text-app-muted">Password</label>
                   <div className="group relative rounded-xl transition-colors duration-300">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-[1]">
-                      <Lock className="w-5 h-5 text-neutral-400 transition-colors group-focus-within:text-blue-400" />
+                      <Lock className="w-5 h-5 text-app-muted transition-colors group-focus-within:text-blue-400" />
                     </div>
                     <input
                       data-testid="login-password"
@@ -136,8 +136,8 @@ export function LoginPage() {
                       autoComplete="current-password"
                       className="
                         w-full pl-12 pr-12 py-4 rounded-xl
-                        bg-neutral-800 border border-neutral-700
-                        text-neutral-100 placeholder:text-neutral-500
+                        bg-app-card border border-app-border
+                        text-app-text placeholder:text-app-muted
                         focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 focus:outline-none
                         transition-all duration-300
                       "
@@ -145,7 +145,7 @@ export function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-400 hover:text-blue-400 transition-colors z-[1]"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-app-muted hover:text-blue-400 transition-colors z-[1]"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -159,9 +159,9 @@ export function LoginPage() {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-neutral-600 bg-neutral-900 text-blue-500 focus:ring-blue-500 focus:ring-offset-neutral-900"
+                      className="w-4 h-4 rounded border-app-border bg-app-bg text-blue-500 focus:ring-blue-500 focus:ring-offset-app-card"
                     />
-                    <span className="text-sm text-neutral-400">Remember me</span>
+                    <span className="text-sm text-app-muted">Remember me</span>
                   </label>
                 </div>
 
@@ -171,7 +171,7 @@ export function LoginPage() {
                   disabled={isLoading}
                   className="
                     w-full py-3.5 px-6 rounded-xl
-                    bg-blue-600 text-white font-medium text-base
+                    bg-blue-600 text-app-text font-medium text-base
                     shadow-lg shadow-blue-900/40
                     hover:bg-blue-700 active:bg-blue-800
                     disabled:opacity-50 disabled:cursor-not-allowed
@@ -192,7 +192,7 @@ export function LoginPage() {
                   )}
                 </button>
 
-                <p className="text-center text-sm text-neutral-400 mt-4">
+                <p className="text-center text-sm text-app-muted mt-4">
                   Don&apos;t have an account?{' '}
                   <Link to="/signup" className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
                     Sign Up
@@ -200,12 +200,12 @@ export function LoginPage() {
                 </p>
               </form>
 
-              <div className="mt-6 p-4 rounded-xl bg-neutral-800/70 border border-neutral-600/60">
+              <div className="mt-6 p-4 rounded-xl bg-app-card/70 border border-app-border/60">
                 <div className="flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-neutral-500 mt-0.5 shrink-0" />
+                  <Sparkles className="w-5 h-5 text-app-muted mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm text-neutral-400">
-                      <span className="font-medium text-neutral-200">Need help?</span>
+                    <p className="text-sm text-app-muted">
+                      <span className="font-medium text-app-text">Need help?</span>
                       <br />
                       Contact your administrator to reset your password.
                     </p>
@@ -214,15 +214,15 @@ export function LoginPage() {
               </div>
 
               {/* Footer label: subtle, neutral, does not compete with primary actions */}
-              <p className="mt-8 pt-6 text-center text-xs text-neutral-500 border-t border-neutral-800">
+              <p className="mt-8 pt-6 text-center text-xs text-app-muted border-t border-app-border">
                 Messign Workspace
               </p>
             </div>
           </div>
 
           <div className="mt-6 text-center">
-            <p className="text-neutral-500 text-sm">© 2026 Messign. All rights reserved.</p>
-            <div className="mt-2 flex items-center justify-center gap-4 text-xs text-neutral-500">
+            <p className="text-app-muted text-sm">© 2026 Messign. All rights reserved.</p>
+            <div className="mt-2 flex items-center justify-center gap-4 text-xs text-app-muted">
               <a href="#" className="hover:text-blue-400 transition-colors">
                 Privacy
               </a>

@@ -86,7 +86,7 @@ export function XPSettingsCard({ userId, initialSettings, onSaved }: XPSettingsC
             step={0.1}
             value={form.globalMultiplier}
             onChange={(e) => setForm((p) => ({ ...p, globalMultiplier: Number(e.target.value) }))}
-            className="w-full h-2 rounded-lg appearance-none bg-white/10 accent-primary-500"
+            className="w-full h-2 rounded-lg appearance-none bg-app-surface-tertiary accent-primary-500"
             aria-label="Global MP multiplier"
           />
           <div className="flex justify-between text-xs text-app-muted mt-1">
@@ -117,7 +117,7 @@ export function XPSettingsCard({ userId, initialSettings, onSaved }: XPSettingsC
             onChange={(v) => setForm((p) => ({ ...p, xpDecayEnabled: v }))}
           />
           {form.xpDecayEnabled && (
-            <div className="pl-4 border-l-2 border-white/10">
+            <div className="pl-4 border-l-2 border-app-border">
               <label className="text-sm text-app-muted block mb-1">Decay after (days)</label>
               <input
                 type="number"
@@ -162,7 +162,7 @@ function ToggleRow({
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={`relative w-11 h-6 rounded-full transition-colors ${
-          checked ? 'bg-primary-500' : 'bg-white/20'
+          checked ? 'bg-primary-500' : 'bg-app-hover'
         }`}
       >
         <span

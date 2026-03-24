@@ -69,16 +69,16 @@ function DetailSkeleton() {
   return (
     <div className="p-6 space-y-6 animate-pulse">
       <div className="space-y-3">
-        <div className="h-6 bg-white/10 rounded w-2/3" />
-        <div className="h-4 bg-white/10 rounded w-1/3" />
-        <div className="h-8 bg-white/10 rounded w-1/4 mt-2" />
+        <div className="h-6 bg-app-surface-tertiary rounded w-2/3" />
+        <div className="h-4 bg-app-surface-tertiary rounded w-1/3" />
+        <div className="h-8 bg-app-surface-tertiary rounded w-1/4 mt-2" />
       </div>
       <div className="grid grid-cols-4 gap-3">
-        {[1,2,3,4].map(i => <div key={i} className="h-16 bg-white/10 rounded-lg" />)}
+        {[1,2,3,4].map(i => <div key={i} className="h-16 bg-app-surface-tertiary rounded-lg" />)}
       </div>
-      <div className="h-10 bg-white/10 rounded-lg" />
+      <div className="h-10 bg-app-surface-tertiary rounded-lg" />
       <div className="space-y-3">
-        {[1,2,3].map(i => <div key={i} className="h-20 bg-white/10 rounded-lg" />)}
+        {[1,2,3].map(i => <div key={i} className="h-20 bg-app-surface-tertiary rounded-lg" />)}
       </div>
     </div>
   );
@@ -97,7 +97,7 @@ function StageTimeline({ history }: { history: StageHistoryEntry[] }) {
         <div key={entry.id} className="flex gap-3">
           <div className="flex flex-col items-center">
             <div className="w-2.5 h-2.5 rounded-full bg-primary-500 mt-1.5 shrink-0" />
-            {i < history.length - 1 && <div className="w-px flex-1 bg-white/10 my-1" />}
+            {i < history.length - 1 && <div className="w-px flex-1 bg-app-surface-tertiary my-1" />}
           </div>
           <div className="pb-4 flex-1 min-w-0">
             <div className="flex items-center gap-1.5 text-xs">
@@ -134,8 +134,8 @@ function ActivityItem({ activity }: { activity: ActivityDetail }) {
   const Icon = ACTIVITY_ICONS[activity.type] ?? StickyNote;
 
   return (
-    <div className="flex gap-3 py-3 border-b border-white/5 last:border-0">
-      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+    <div className="flex gap-3 py-3 border-b border-app-border last:border-0">
+      <div className="w-8 h-8 rounded-full bg-app-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
         <Icon className="w-4 h-4 text-app-muted" />
       </div>
       <div className="flex-1 min-w-0">
@@ -172,7 +172,7 @@ function LogActivityForm({ onSubmit, onCancel }: { onSubmit: (data: CreateActivi
   const inputClass = 'w-full rounded-lg border border-app-border bg-app-inputBg px-3 py-1.5 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-primary-500';
 
   return (
-    <div className="rounded-lg border border-app-border bg-white/5 p-3 space-y-2">
+    <div className="rounded-lg border border-app-border bg-app-surface-tertiary p-3 space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <select value={type} onChange={e => setType(e.target.value as CreateActivityInput['type'])} className={inputClass}>
           <option value="call">Call</option>
@@ -190,7 +190,7 @@ function LogActivityForm({ onSubmit, onCancel }: { onSubmit: (data: CreateActivi
         <button
           type="button"
           onClick={() => onSubmit({ type, subject: subject || undefined, description: description || undefined, outcome: outcome || undefined })}
-          className="px-3 py-1 text-xs font-medium rounded-md bg-primary-500 text-white hover:bg-primary-600"
+          className="px-3 py-1 text-xs font-medium rounded-md bg-primary-500 text-app-text hover:bg-primary-600"
         >
           Log
         </button>
@@ -335,7 +335,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
         {/* ── Key Info Row ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {deal.owner_name && (
-            <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+            <div className="rounded-lg border border-app-border bg-app-surface-tertiary p-3">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-primary-500/20 flex items-center justify-center text-[10px] font-medium text-primary-400">
                   {getInitials(deal.owner_name)}
@@ -348,7 +348,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             </div>
           )}
           {deal.company_name && (
-            <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+            <div className="rounded-lg border border-app-border bg-app-surface-tertiary p-3">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-app-muted shrink-0" />
                 <div className="min-w-0">
@@ -359,7 +359,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             </div>
           )}
           {deal.expected_close_date && (
-            <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+            <div className="rounded-lg border border-app-border bg-app-surface-tertiary p-3">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-app-muted shrink-0" />
                 <div className="min-w-0">
@@ -370,7 +370,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             </div>
           )}
           {deal.contact_name && (
-            <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+            <div className="rounded-lg border border-app-border bg-app-surface-tertiary p-3">
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-app-muted shrink-0" />
                 <div className="min-w-0">
@@ -402,7 +402,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1">
                 <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px]"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-app-text text-[10px]"
                   style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}
                 >
                   ✦
@@ -446,7 +446,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
                   <h4 className="text-xs font-medium text-app-muted mb-1">Tags</h4>
                   <div className="flex flex-wrap gap-1">
                     {deal.tags.map(tag => (
-                      <span key={tag} className="px-2 py-0.5 text-[11px] bg-white/10 text-gray-400 rounded-full">{tag}</span>
+                      <span key={tag} className="px-2 py-0.5 text-[11px] bg-app-surface-tertiary text-app-muted rounded-full">{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -515,7 +515,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
               <div className="space-y-0 divide-y divide-white/5">
                 {contacts.map(c => (
                   <div key={c.id} className="py-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-medium text-app-muted shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-app-surface-tertiary flex items-center justify-center text-[11px] font-medium text-app-muted shrink-0">
                       {getInitials(`${c.first_name} ${c.last_name}`)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -587,7 +587,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             <button
               onClick={handleLose}
               disabled={actionLoading}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-app-text hover:bg-red-600 disabled:opacity-50 transition-colors"
             >
               Confirm
             </button>
@@ -611,7 +611,7 @@ export function DealDetailPanel({ dealId, stages, onDealUpdated }: DealDetailPan
             <button
               onClick={handleWin}
               disabled={actionLoading}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500 text-app-text hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-1.5"
             >
               <Trophy className="w-3.5 h-3.5" />
               Won

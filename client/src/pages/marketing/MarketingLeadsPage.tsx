@@ -84,7 +84,7 @@ export function MarketingLeadsPage() {
             <span>{Number(value)}</span>
             <span>/100</span>
           </div>
-          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-2 rounded-full bg-app-surface-tertiary overflow-hidden">
             <div className={`h-full ${scoreColor(Number(value))}`} style={{ width: `${Math.min(Number(value), 100)}%` }} />
           </div>
         </div>
@@ -121,13 +121,13 @@ export function MarketingLeadsPage() {
         <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-4">
           <DoraInsightBar module="marketing" />
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-5 mb-6">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 mb-6">
             <h3 className="text-lg font-semibold text-app-text mb-4">Lead Funnel</h3>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               {funnelStages.map((stage) => {
                 const value = funnel?.[stage] ?? 0;
                 return (
-                  <div key={stage} className="rounded-xl border border-white/10 bg-app-card p-4">
+                  <div key={stage} className="rounded-xl border border-app-border bg-app-card p-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs uppercase tracking-wide text-app-muted">{stage}</p>
                       <span className="text-sm font-semibold text-app-text">{value}</span>

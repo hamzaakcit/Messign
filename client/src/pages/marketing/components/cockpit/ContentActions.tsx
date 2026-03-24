@@ -27,7 +27,7 @@ export function ContentActions({
   if (s === 'published' || publishedAt) {
     return (
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]')}>
+        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-app-surface-tertiary text-slate-200 hover:bg-app-hover')}>
           Edit
         </button>
         <p className="w-full text-[10px] text-slate-500">Published — updates create a new revision path from the editor.</p>
@@ -38,7 +38,7 @@ export function ContentActions({
   if (s === 'approved') {
     return (
       <div className="space-y-2">
-        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]')}>
+        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-app-surface-tertiary text-slate-200 hover:bg-app-hover')}>
           Edit
         </button>
         <p className="text-[10px] text-slate-500">Approved — awaiting publish or schedule from the full editor.</p>
@@ -67,7 +67,7 @@ export function ContentActions({
           {actionLoading === 'reject' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           Reject
         </button>
-        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]')}>
+        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-app-surface-tertiary text-slate-200 hover:bg-app-hover')}>
           Edit
         </button>
         {!approvalId && <p className="w-full text-[10px] text-amber-400/80">No pending approval row — refresh or open the approvals queue.</p>}
@@ -78,7 +78,7 @@ export function ContentActions({
   if (s === 'rejected') {
     return (
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]')}>
+        <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-app-surface-tertiary text-slate-200 hover:bg-app-hover')}>
           Edit &amp; resubmit
         </button>
       </div>
@@ -97,7 +97,7 @@ export function ContentActions({
         {actionLoading === 'review' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
         Send to review
       </button>
-      <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]')}>
+      <button type="button" onClick={onEdit} className={cn(btn, 'border border-white/[0.08] bg-app-surface-tertiary text-slate-200 hover:bg-app-hover')}>
         Edit
       </button>
     </div>

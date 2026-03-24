@@ -150,10 +150,10 @@ export function CeoDashboard() {
           </p>
         </div>
         <div className="flex gap-3 mt-2">
-          <button type="button" onClick={() => navigate('/marketing')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors">
+          <button type="button" onClick={() => navigate('/marketing')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600 transition-colors">
             Create Content
           </button>
-          <button type="button" onClick={() => navigate('/marketing/intelligence')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-app-card border border-app-border text-app-text hover:bg-white/5 transition-colors">
+          <button type="button" onClick={() => navigate('/marketing/intelligence')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-app-card border border-app-border text-app-text hover:bg-app-nav-hover transition-colors">
             Add Competitor
           </button>
         </div>
@@ -202,7 +202,7 @@ export function CeoDashboard() {
           type="button"
           onClick={() => void handleRefresh()}
           disabled={isRefreshing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-app-card border border-app-border text-app-text hover:bg-white/5 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-app-card border border-app-border text-app-text hover:bg-app-nav-hover transition-colors disabled:opacity-50"
         >
           <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} />
           {isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -299,7 +299,7 @@ export function CeoDashboard() {
             ] as const).map((stage) => (
               <div key={stage.label} className="flex items-center gap-2">
                 <span className="text-xs text-app-muted w-16 shrink-0">{stage.label}</span>
-                <div className="flex-1 h-5 rounded bg-white/[0.04] overflow-hidden">
+                <div className="flex-1 h-5 rounded bg-app-surface-tertiary overflow-hidden">
                   <div
                     className={cn('h-full rounded transition-all', stage.color)}
                     style={{ width: pipelineTotal > 0 ? `${(stage.value / pipelineTotal) * 100}%` : '0%' }}
@@ -321,7 +321,7 @@ export function CeoDashboard() {
               {channelEntries.slice(0, 6).map(([channel, rate]) => (
                 <div key={channel} className="flex items-center gap-2">
                   <span className="text-xs text-app-muted w-16 shrink-0 capitalize truncate">{channel}</span>
-                  <div className="flex-1 h-4 rounded bg-white/[0.04] overflow-hidden">
+                  <div className="flex-1 h-4 rounded bg-app-surface-tertiary overflow-hidden">
                     <div className="h-full rounded bg-primary-500/80 transition-all" style={{ width: `${Math.round(rate * 100)}%` }} />
                   </div>
                   <span className="text-xs font-medium text-app-text w-10 text-right">{Math.round(rate * 100)}%</span>

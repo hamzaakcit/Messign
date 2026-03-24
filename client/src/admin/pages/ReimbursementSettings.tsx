@@ -146,7 +146,7 @@ export function ReimbursementSettings() {
 
   const inputClass = 'input-theme max-w-xs';
 
-  const sectionClass = 'rounded-xl border border-app-border bg-dark-800 overflow-hidden';
+  const sectionClass = 'rounded-xl border border-app-border bg-app-sidebar overflow-hidden';
   const sectionHeaderClass = 'px-4 py-3 border-b border-app-border text-app font-semibold';
   const sectionBodyClass = 'p-4 space-y-4';
 

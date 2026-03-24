@@ -54,7 +54,7 @@ export function ChangeDepartmentModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Users className="w-6 h-6 text-primary-400" />
@@ -63,18 +63,18 @@ export function ChangeDepartmentModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-app-hover rounded-lg text-gray-400 hover:text-app"
+            className="p-2 hover:bg-app-hover rounded-lg text-app-muted hover:text-app"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-gray-400 mb-4">
+        <p className="text-app-muted mb-4">
           Updating {selectedEmployees.length} employee(s)
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-app-muted mb-2">
               New Department
             </label>
             <select
@@ -102,7 +102,7 @@ export function ChangeDepartmentModal({
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-white disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-app-text disabled:opacity-50"
             >
               {loading ? 'Updating...' : 'Update'}
             </button>
@@ -149,7 +149,7 @@ export function ChangeRoleModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Shield className="w-6 h-6 text-primary-400" />
@@ -158,18 +158,18 @@ export function ChangeRoleModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-app-hover rounded-lg text-gray-400 hover:text-app"
+            className="p-2 hover:bg-app-hover rounded-lg text-app-muted hover:text-app"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-gray-400 mb-4">
+        <p className="text-app-muted mb-4">
           Updating {selectedEmployees.length} employee(s)
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-app-muted mb-2">
               New Role
             </label>
             <select
@@ -197,7 +197,7 @@ export function ChangeRoleModal({
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-white disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-app-text disabled:opacity-50"
             >
               {loading ? 'Updating...' : 'Update'}
             </button>
@@ -255,7 +255,7 @@ export function AdjustXPModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Zap className="w-6 h-6 text-amber-400" />
@@ -264,13 +264,13 @@ export function AdjustXPModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-app-hover rounded-lg text-gray-400 hover:text-app"
+            className="p-2 hover:bg-app-hover rounded-lg text-app-muted hover:text-app"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-gray-400 mb-4">
+        <p className="text-app-muted mb-4">
           Adjusting MP for {selectedEmployees.length} employee(s)
         </p>
         <div className="space-y-4">
@@ -279,7 +279,7 @@ export function AdjustXPModal({
               type="button"
               onClick={() => setIsAdding(true)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${
-                isAdding ? 'bg-success-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-white/10'
+                isAdding ? 'bg-success-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-app-hover'
               }`}
             >
               Add MP
@@ -288,14 +288,14 @@ export function AdjustXPModal({
               type="button"
               onClick={() => setIsAdding(false)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${
-                !isAdding ? 'bg-danger-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-white/10'
+                !isAdding ? 'bg-danger-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-app-hover'
               }`}
             >
               Remove MP
             </button>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-app-muted mb-2">
               Amount
             </label>
             <input
@@ -308,7 +308,7 @@ export function AdjustXPModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-app-muted mb-2">
               Reason *
             </label>
             <textarea
@@ -331,7 +331,7 @@ export function AdjustXPModal({
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-white disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-app-text disabled:opacity-50"
             >
               {loading ? 'Updating...' : 'Adjust MP'}
             </button>
@@ -377,7 +377,7 @@ export function AwardBadgeModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Award className="w-6 h-6 text-amber-400" />
@@ -386,18 +386,18 @@ export function AwardBadgeModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-app-hover rounded-lg text-gray-400 hover:text-app"
+            className="p-2 hover:bg-app-hover rounded-lg text-app-muted hover:text-app"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-gray-400 mb-4">
+        <p className="text-app-muted mb-4">
           Awarding badge to {selectedEmployees.length} employee(s)
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-app-muted mb-2">
               Select Badge
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -430,7 +430,7 @@ export function AwardBadgeModal({
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-white disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-app-text disabled:opacity-50"
             >
               {loading ? 'Awarding...' : 'Award Badge'}
             </button>
@@ -481,7 +481,7 @@ export function SendMessageModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Mail className="w-6 h-6 text-success-400" />
@@ -490,18 +490,18 @@ export function SendMessageModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-app-hover rounded-lg text-gray-400 hover:text-app"
+            className="p-2 hover:bg-app-hover rounded-lg text-app-muted hover:text-app"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-gray-400 mb-4">
+        <p className="text-app-muted mb-4">
           Sending to {selectedEmployees.length} employee(s)
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-app-muted mb-2">
               Subject
             </label>
             <input
@@ -513,7 +513,7 @@ export function SendMessageModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-app-muted mb-2">
               Message
             </label>
             <textarea
@@ -536,7 +536,7 @@ export function SendMessageModal({
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-success-500 hover:bg-success-600 rounded-lg text-white disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-success-500 hover:bg-success-600 rounded-lg text-app-text disabled:opacity-50"
             >
               {loading ? 'Sending...' : 'Send Message'}
             </button>

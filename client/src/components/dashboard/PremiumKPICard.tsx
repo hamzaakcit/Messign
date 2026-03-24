@@ -88,7 +88,7 @@ export function PremiumKPICard({ metric, index, onCardClick }: PremiumKPICardPro
 
       {/* Trend arrow watermark */}
       <div
-        className="absolute bottom-2 right-4 text-white/[0.03] pointer-events-none"
+        className="absolute bottom-2 right-4 text-app-text/[0.03] pointer-events-none"
         style={{ fontSize: '4rem' }}
         aria-hidden
       >
@@ -96,7 +96,7 @@ export function PremiumKPICard({ metric, index, onCardClick }: PremiumKPICardPro
       </div>
 
       {/* Micro-sparkline top-right */}
-      <div className="absolute top-5 right-5 w-20 h-8 rounded-lg overflow-hidden bg-white/5">
+      <div className="absolute top-5 right-5 w-20 h-8 rounded-lg overflow-hidden bg-app-surface-tertiary">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={sparklineChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <defs>
@@ -142,13 +142,13 @@ export function PremiumKPICard({ metric, index, onCardClick }: PremiumKPICardPro
           boxShadow: `0 0 24px ${color}40`,
         }}
       >
-        <div className="absolute inset-0 backdrop-blur-[20px] bg-white/10" aria-hidden />
-        <IconComponent className="relative w-7 h-7 text-white" aria-hidden />
+        <div className="absolute inset-0 backdrop-blur-[20px] bg-app-surface-tertiary" aria-hidden />
+        <IconComponent className="relative w-7 h-7 text-app-text" aria-hidden />
       </div>
 
       {/* Main metric - gradient text */}
       <p
-        className="text-white font-extrabold tracking-tight leading-tight mt-1"
+        className="text-app-text font-extrabold tracking-tight leading-tight mt-1"
         style={{
           fontSize: 'clamp(2.25rem, 5vw, 3rem)',
           letterSpacing: '-0.02em',
@@ -162,11 +162,11 @@ export function PremiumKPICard({ metric, index, onCardClick }: PremiumKPICardPro
       </p>
 
       {/* Label */}
-      <p className="mt-2 text-lg font-medium text-white/90">{name}</p>
+      <p className="mt-2 text-lg font-medium text-app-text/90">{name}</p>
 
       {/* Comparison */}
       {comparisonValue != null && comparisonPeriod && (
-        <p className="mt-1 text-[13px] text-white/50">
+        <p className="mt-1 text-[13px] text-app-text/50">
           {comparisonPeriod}: {format(comparisonValue)}
         </p>
       )}
@@ -174,7 +174,7 @@ export function PremiumKPICard({ metric, index, onCardClick }: PremiumKPICardPro
       {/* Progress ring (when target exists) */}
       {target != null && (
         <div
-          className="absolute bottom-5 left-5 w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold text-white/80"
+          className="absolute bottom-5 left-5 w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold text-app-text/80"
           aria-label={`${Math.round(progressToTarget ?? 0)}% to target`}
         >
           <svg className="absolute inset-0 w-10 h-10 -rotate-90" viewBox="0 0 40 40">

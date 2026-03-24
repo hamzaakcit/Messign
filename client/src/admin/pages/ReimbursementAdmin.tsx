@@ -137,7 +137,7 @@ export function ReimbursementAdmin() {
         </div>
         <Link
           to="/admin/reimbursements/settings"
-          className="px-4 py-2 rounded-lg bg-dark-800 border border-app-border text-app text-sm font-medium hover:bg-app-hover transition-colors"
+          className="px-4 py-2 rounded-lg bg-app-sidebar border border-app-border text-app text-sm font-medium hover:bg-app-hover transition-colors"
         >
           Settings
         </Link>
@@ -148,7 +148,7 @@ export function ReimbursementAdmin() {
           <div
             key={label}
             className={cn(
-              'flex items-center gap-4 flex-1 min-w-0 rounded-xl border border-app-border bg-dark-800 p-4 border-l-4',
+              'flex items-center gap-4 flex-1 min-w-0 rounded-xl border border-app-border bg-app-sidebar p-4 border-l-4',
               borderClass
             )}
           >
@@ -163,7 +163,7 @@ export function ReimbursementAdmin() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-app-border bg-dark-800 overflow-hidden">
+      <div className="rounded-xl border border-app-border bg-app-sidebar overflow-hidden">
         <div className="p-4 border-b border-app-border flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-lg font-semibold text-app">Approval Queue</h2>
           {selected.size > 0 && (
@@ -271,7 +271,7 @@ export function ReimbursementAdmin() {
           onClick={() => !bulkLoading && setRejectModal(null)}
         >
           <div
-            className="rounded-xl border border-app-border bg-dark-800 w-full max-w-md p-5 shadow-xl"
+            className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-md p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-app mb-2">Reject {rejectModal.stepIds.length === 1 ? 'request' : 'selected'}</h3>

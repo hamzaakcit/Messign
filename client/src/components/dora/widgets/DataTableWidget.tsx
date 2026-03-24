@@ -74,7 +74,7 @@ export default function DataTableWidget({
         subtitle="No tabular rows in this result"
         delay={delay}
       >
-        <p className="text-sm text-white/45">The tool returned data in a shape we couldn&apos;t tabulate. See the text summary above.</p>
+        <p className="text-sm text-app-text/45">The tool returned data in a shape we couldn&apos;t tabulate. See the text summary above.</p>
       </DoraWidgetShell>
     );
   }
@@ -91,17 +91,17 @@ export default function DataTableWidget({
         <button
           type="button"
           onClick={exportCsv}
-          className="inline-flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-white/70 hover:bg-white/10 hover:text-white"
+          className="inline-flex items-center gap-1 rounded-lg border border-app-border bg-app-surface-tertiary px-2 py-1 text-[11px] text-app-text/70 hover:bg-app-hover hover:text-app-text"
         >
           <Download size={12} />
           CSV
         </button>
       }
     >
-      <div className="overflow-x-auto rounded-lg border border-white/10 max-h-[320px] overflow-y-auto">
+      <div className="overflow-x-auto rounded-lg border border-app-border max-h-[320px] overflow-y-auto">
         <table className="w-full text-left text-[11px]">
           <thead className="sticky top-0 bg-slate-900/95 z-[1]">
-            <tr className="border-b border-white/10 text-white/45">
+            <tr className="border-b border-app-border text-app-text/45">
               {columns.map((c) => (
                 <th key={c} className="py-2 px-2 font-medium whitespace-nowrap">
                   {c.replace(/_/g, ' ')}
@@ -111,7 +111,7 @@ export default function DataTableWidget({
           </thead>
           <tbody>
             {displayRows.map((row, ri) => (
-              <tr key={ri} className="border-b border-white/5 text-white/75">
+              <tr key={ri} className="border-b border-app-border text-app-text/75">
                 {columns.map((c) => (
                   <td key={c} className="py-1.5 px-2 max-w-[200px] truncate" title={formatCell(row[c])}>
                     {formatCell(row[c])}

@@ -46,7 +46,7 @@ export function AccountingPage() {
               'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
               tab === id
                 ? 'bg-primary-500/20 text-primary-400'
-                : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
             )}
           >
             <Icon className="h-4 w-4" />

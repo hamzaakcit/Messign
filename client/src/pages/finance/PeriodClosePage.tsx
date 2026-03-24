@@ -83,8 +83,8 @@ export function PeriodClosePage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-20 rounded-xl bg-white/5 animate-pulse" />
-        <div className="h-64 rounded-xl bg-white/5 animate-pulse" />
+        <div className="h-20 rounded-xl bg-app-surface-tertiary animate-pulse" />
+        <div className="h-64 rounded-xl bg-app-surface-tertiary animate-pulse" />
       </div>
     );
   }
@@ -95,7 +95,7 @@ export function PeriodClosePage() {
         <select
           value={selectedPeriod}
           onChange={e => setSelectedPeriod(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+          className="px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
         >
           {periodOptions.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -109,12 +109,12 @@ export function PeriodClosePage() {
 
       {periodClose && (
         <>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-app-text">Period Close Progress</h3>
               <span className="text-sm text-app-muted">{completedCount}/{totalCount} tasks</span>
             </div>
-            <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden">
+            <div className="w-full h-3 rounded-full bg-app-surface-tertiary overflow-hidden">
               <div
                 className={cn('h-full rounded-full transition-all duration-500',
                   progressPct === 100 ? 'bg-green-500' : progressPct > 50 ? 'bg-yellow-500' : 'bg-blue-500')}
@@ -123,12 +123,12 @@ export function PeriodClosePage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/5">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary divide-y divide-white/5">
             {tasks.map(task => (
               <div
                 key={task.task_key}
                 className={cn('flex items-center gap-4 px-5 py-4 transition-colors',
-                  isEditable ? 'cursor-pointer hover:bg-white/5' : '',
+                  isEditable ? 'cursor-pointer hover:bg-app-nav-hover' : '',
                   (task.is_completed ?? false) && 'opacity-70')}
                 onClick={() => isEditable && toggleTask(task.task_key, task.is_completed ?? false)}
               >
@@ -179,7 +179,7 @@ export function PeriodClosePage() {
               <button
                 onClick={() => handleAction('close')}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-app-text rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
                 <CalendarCheck className="h-4 w-4" /> Close Period
               </button>
@@ -195,14 +195,14 @@ export function PeriodClosePage() {
                 <button
                   onClick={() => handleAction('lock')}
                   disabled={actionLoading}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-app-text rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                 >
                   <Lock className="h-4 w-4" /> Lock Period
                 </button>
                 <button
                   onClick={() => handleAction('reopen')}
                   disabled={actionLoading}
-                  className="flex items-center gap-2 px-5 py-2.5 text-app-muted border border-white/10 rounded-lg text-sm font-medium hover:bg-white/5 disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2.5 text-app-muted border border-app-border rounded-lg text-sm font-medium hover:bg-app-nav-hover disabled:opacity-50"
                 >
                   <Unlock className="h-4 w-4" /> Reopen
                 </button>

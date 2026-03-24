@@ -43,7 +43,7 @@ export function DoraDecisionCard({
         <AIScoreBadge score={confidence} type="confidence" />
       </div>
 
-      <div className="text-xs text-app-muted bg-white/5 rounded-lg p-3">{reasoning}</div>
+      <div className="text-xs text-app-muted bg-app-surface-tertiary rounded-lg p-3">{reasoning}</div>
 
       <div className="flex items-center justify-between text-xs text-app-muted">
         <div className="flex items-center gap-3">
@@ -62,7 +62,7 @@ export function DoraDecisionCard({
       </div>
 
       {onFeedback && (
-        <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+        <div className="flex items-center gap-2 pt-1 border-t border-app-border">
           <span className="text-xs text-app-muted">Was this helpful?</span>
           <button
             onClick={() => onFeedback(5)}

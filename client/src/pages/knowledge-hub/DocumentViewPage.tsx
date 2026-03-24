@@ -58,14 +58,14 @@ export function DocumentViewPage({ docId }: { docId: string }) {
 
     if (content && typeof content === 'object' && content.type === 'doc') {
       return (
-        <div className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-gray-300 prose-a:text-primary-400 prose-code:text-primary-300 prose-strong:text-white">
+        <div className="prose prose-invert max-w-none prose-headings:text-app-text prose-p:text-app-muted prose-a:text-primary-400 prose-code:text-primary-300 prose-strong:text-app-text">
           <TipTapRenderer content={content} />
         </div>
       );
     }
 
     if (doc.plain_text) {
-      return <div className="prose prose-invert max-w-none whitespace-pre-wrap text-gray-300">{doc.plain_text}</div>;
+      return <div className="prose prose-invert max-w-none whitespace-pre-wrap text-app-muted">{doc.plain_text}</div>;
     }
 
     if (attachments.length > 0) {
@@ -85,34 +85,34 @@ export function DocumentViewPage({ docId }: { docId: string }) {
                 <span className="truncate">{pdfAttachment.fileName}</span>
                 <Download className="w-3.5 h-3.5 shrink-0" />
               </a>
-              <div className="flex items-center gap-1 rounded-lg bg-dark-700 p-1">
+              <div className="flex items-center gap-1 rounded-lg bg-app-card p-1">
                 <button
                   onClick={() => setPdfZoom(z => (z === 'fit' ? 100 : Math.max(50, (typeof z === 'number' ? z : 100) - 25)))}
-                  className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-dark-600 transition-colors"
+                  className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover transition-colors"
                   title="Zoom out"
                 >
                   <ZoomOut className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setPdfZoom('fit')}
-                  className={cn('px-2 py-1 rounded text-xs font-medium transition-colors', pdfZoom === 'fit' ? 'bg-primary-500 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-600')}
+                  className={cn('px-2 py-1 rounded text-xs font-medium transition-colors', pdfZoom === 'fit' ? 'bg-primary-500 text-app-text' : 'text-app-muted hover:text-app-text hover:bg-app-hover')}
                   title="Fit page"
                 >
                   Fit
                 </button>
                 <button
                   onClick={() => setPdfZoom(z => (z === 'fit' ? 125 : Math.min(200, (typeof z === 'number' ? z : 100) + 25)))}
-                  className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-dark-600 transition-colors"
+                  className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover transition-colors"
                   title="Zoom in"
                 >
                   <ZoomIn className="w-4 h-4" />
                 </button>
-                <span className="px-2 text-xs text-gray-500 tabular-nums">
+                <span className="px-2 text-xs text-app-muted tabular-nums">
                   {pdfZoom === 'fit' ? 'Fit' : `${pdfZoom}%`}
                 </span>
               </div>
             </div>
-            <div className="flex-1 min-h-0 rounded-xl border border-dark-600 bg-dark-800 overflow-hidden">
+            <div className="flex-1 min-h-0 rounded-xl border border-app-border bg-app-sidebar overflow-hidden">
               <iframe
                 src={pdfSrc}
                 title={pdfAttachment.fileName}
@@ -125,7 +125,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
 
       return (
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-300">Attachments</h3>
+          <h3 className="text-sm font-medium text-app-muted">Attachments</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             {attachments.map((a) => {
               const href = a.url.startsWith('http') ? a.url : `${origin}${a.url}`;
@@ -136,7 +136,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
               const isAudio = ['audio', 'mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ft);
               const Icon = isImage ? Image : isVideo ? Video : isAudio ? Music : isPdf ? FileText : File;
               return (
-                <div key={a.url} className="rounded-xl border border-dark-600 bg-dark-800 p-4">
+                <div key={a.url} className="rounded-xl border border-app-border bg-app-sidebar p-4">
                   {isImage && (
                     <a href={href} target="_blank" rel="noopener noreferrer" className="block mb-3">
                       <img src={href} alt={a.fileName} className="w-full max-h-64 object-contain rounded-lg" />
@@ -164,11 +164,11 @@ export function DocumentViewPage({ docId }: { docId: string }) {
       );
     }
 
-    return <p className="text-gray-500 italic">No content yet</p>;
+    return <p className="text-app-muted italic">No content yet</p>;
   };
 
-  if (loading) return <div className="flex items-center justify-center h-full text-gray-500">Loading document...</div>;
-  if (!doc) return <div className="flex items-center justify-center h-full text-gray-500">Document not found</div>;
+  if (loading) return <div className="flex items-center justify-center h-full text-app-muted">Loading document...</div>;
+  if (!doc) return <div className="flex items-center justify-center h-full text-app-muted">Document not found</div>;
 
   const origin = (import.meta as { env?: { VITE_API_ORIGIN?: string } }).env?.VITE_API_ORIGIN ?? window.location.origin;
   const typeMeta = DOCUMENT_TYPE_META[doc.document_type];
@@ -185,11 +185,11 @@ export function DocumentViewPage({ docId }: { docId: string }) {
           <>
             <div className="flex items-center justify-between gap-3 mb-2 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <button onClick={() => navigate('/knowledge-hub/documents')} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white shrink-0 transition-colors">
+                <button onClick={() => navigate('/knowledge-hub/documents')} className="flex items-center gap-1.5 text-sm text-app-muted hover:text-app-text shrink-0 transition-colors">
                   <ArrowLeft className="w-4 h-4" /> Back
                 </button>
-                <h1 className="text-lg font-bold text-white truncate">{doc.title}</h1>
-                <span className="text-xs text-gray-500 shrink-0">{doc.author_name} · {new Date(doc.updated_at).toLocaleDateString()}</span>
+                <h1 className="text-lg font-bold text-app-text truncate">{doc.title}</h1>
+                <span className="text-xs text-app-muted shrink-0">{doc.author_name} · {new Date(doc.updated_at).toLocaleDateString()}</span>
               </div>
               <WorkflowStatusBar doc={doc} onStatusChange={(updated) => setDoc(updated)} />
             </div>
@@ -197,7 +197,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
           </>
         ) : (
           <>
-            <button onClick={() => navigate('/knowledge-hub/documents')} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white mb-4 transition-colors">
+            <button onClick={() => navigate('/knowledge-hub/documents')} className="flex items-center gap-1.5 text-sm text-app-muted hover:text-app-text mb-4 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
 
@@ -207,13 +207,13 @@ export function DocumentViewPage({ docId }: { docId: string }) {
               <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: typeMeta?.color + '20', color: typeMeta?.color }}>{typeMeta?.label}</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: statusMeta?.color + '20', color: statusMeta?.color }}>{statusMeta?.label}</span>
               {doc.category_name && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-dark-700 text-gray-400">{doc.category_name}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-app-card text-app-muted">{doc.category_name}</span>
               )}
             </div>
 
-            <h1 className="text-2xl font-bold text-white mb-2">{doc.title}</h1>
+            <h1 className="text-2xl font-bold text-app-text mb-2">{doc.title}</h1>
 
-            <div className="flex items-center gap-4 text-sm text-gray-400 mb-6">
+            <div className="flex items-center gap-4 text-sm text-app-muted mb-6">
               <span>By {doc.author_name}</span>
               <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {new Date(doc.updated_at).toLocaleDateString()}</span>
               <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {doc.view_count} views</span>
@@ -222,34 +222,34 @@ export function DocumentViewPage({ docId }: { docId: string }) {
             {doc.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-6">
                 {doc.tags.map(tag => (
-                  <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-dark-700 text-gray-300">
+                  <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-app-card text-app-muted">
                     <Tag className="w-3 h-3 inline mr-1" />{tag.name}
                   </span>
                 ))}
               </div>
             )}
 
-            <div className="border-t border-dark-700 pt-6">{renderContent()}</div>
+            <div className="border-t border-app-border pt-6">{renderContent()}</div>
           </>
         )}
       </div>
 
       {/* Right sidebar */}
-      <div className="w-72 shrink-0 relative z-10 border-l border-dark-700 bg-dark-800 overflow-y-auto p-4 space-y-6 flex flex-col">
+      <div className="w-72 shrink-0 relative z-10 border-l border-app-border bg-app-sidebar overflow-y-auto p-4 space-y-6 flex flex-col">
         <div className="flex flex-col gap-2">
-          <button onClick={toggleBookmark} className={cn('flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors', bookmarked ? 'bg-yellow-500/10 text-yellow-400' : 'bg-dark-700 text-gray-300 hover:bg-dark-600')}>
+          <button onClick={toggleBookmark} className={cn('flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors', bookmarked ? 'bg-yellow-500/10 text-yellow-400' : 'bg-app-card text-app-muted hover:bg-app-hover')}>
             {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
             {bookmarked ? 'Bookmarked' : 'Bookmark'}
           </button>
           {isAuthor && (
-            <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/edit`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-dark-700 text-gray-300 hover:bg-dark-600 transition-colors">
+            <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/edit`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover transition-colors">
               <Edit className="w-4 h-4" /> Edit
             </button>
           )}
-          <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-dark-700 text-gray-300 hover:bg-dark-600 transition-colors">
+          <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover transition-colors">
             <MessageSquare className="w-4 h-4" /> Comments ({comments.length})
           </button>
-          <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/versions`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-dark-700 text-gray-300 hover:bg-dark-600 transition-colors">
+          <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/versions`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover transition-colors">
             <Clock className="w-4 h-4" /> Versions ({versions.length})
           </button>
         </div>
@@ -257,7 +257,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
         {/* Attachments (sidebar) */}
         {getAttachments().length > 0 && (
           <div>
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Attachments</h3>
+            <h3 className="text-xs font-medium text-app-muted uppercase tracking-wider mb-2">Attachments</h3>
             <div className="space-y-1">
               {getAttachments().map((a) => {
                 const href = a.url.startsWith('http') ? a.url : `${origin}${a.url}`;
@@ -268,7 +268,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
                 const isPdf = ft === 'pdf';
                 const Icon = isImage ? Image : isVideo ? Video : isAudio ? Music : isPdf ? FileText : File;
                 return (
-                  <a key={a.url} href={href} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-gray-400 hover:text-white hover:bg-dark-700 transition-colors">
+                  <a key={a.url} href={href} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-app-muted hover:text-app-text hover:bg-app-hover transition-colors">
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{a.fileName}</span>
                   </a>
@@ -281,10 +281,10 @@ export function DocumentViewPage({ docId }: { docId: string }) {
         {/* Backlinks */}
         {backlinks.length > 0 && (
           <div>
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Linked From</h3>
+            <h3 className="text-xs font-medium text-app-muted uppercase tracking-wider mb-2">Linked From</h3>
             <div className="space-y-1">
               {backlinks.map(bl => (
-                <button key={bl.id} onClick={() => navigate(`/knowledge-hub/documents/${bl.slug}`)} className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-sm text-gray-400 hover:text-white hover:bg-dark-700 transition-colors">
+                <button key={bl.id} onClick={() => navigate(`/knowledge-hub/documents/${bl.slug}`)} className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-sm text-app-muted hover:text-app-text hover:bg-app-hover transition-colors">
                   <Link2 className="w-3.5 h-3.5" /> <span className="truncate">{bl.title}</span>
                 </button>
               ))}
@@ -295,11 +295,11 @@ export function DocumentViewPage({ docId }: { docId: string }) {
         {/* Version history preview */}
         {versions.length > 0 && (
           <div>
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Recent Versions</h3>
+            <h3 className="text-xs font-medium text-app-muted uppercase tracking-wider mb-2">Recent Versions</h3>
             <div className="space-y-1">
               {versions.map(v => (
-                <div key={v.id} className="text-xs text-gray-500 px-2 py-1">
-                  <span className="text-gray-300">v{v.version_number}</span> · {v.author_name} · {new Date(v.created_at).toLocaleDateString()}
+                <div key={v.id} className="text-xs text-app-muted px-2 py-1">
+                  <span className="text-app-muted">v{v.version_number}</span> · {v.author_name} · {new Date(v.created_at).toLocaleDateString()}
                 </div>
               ))}
             </div>

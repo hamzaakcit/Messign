@@ -188,51 +188,51 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
             placeholder="Search invoices..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
           />
         </div>
         <button onClick={() => setShowFilters(!showFilters)}
           className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
-            showFilters ? 'bg-primary-500/10 border-primary-500/30 text-primary-400' : 'bg-white/5 border-white/10 text-app-muted hover:bg-white/10')}>
+            showFilters ? 'bg-primary-500/10 border-primary-500/30 text-primary-400' : 'bg-app-surface-tertiary border-app-border text-app-muted hover:bg-app-hover')}>
           <Filter className="h-4 w-4" /> Filters
         </button>
         <button onClick={handleExportCSV}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-muted hover:bg-white/10 hover:text-app-text">
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-muted hover:bg-app-hover hover:text-app-text">
           <Download className="h-4 w-4" /> Export CSV
         </button>
         <button onClick={onCreateNew}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors">
           <Plus className="h-4 w-4" /> New Invoice
         </button>
       </div>
 
       {showFilters && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div>
               <label className="block text-xs text-app-muted mb-1">Date From</label>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Date To</label>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Amount Min ($)</label>
               <input type="number" placeholder="0" value={amountMin} onChange={(e) => setAmountMin(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Amount Max ($)</label>
               <input type="number" placeholder="No limit" value={amountMax} onChange={(e) => setAmountMax(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Client</label>
               <input type="text" placeholder="Filter by client" value={clientFilter} onChange={(e) => setClientFilter(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
           </div>
           {(dateFrom || dateTo || amountMin || amountMax || clientFilter) && (
@@ -259,7 +259,7 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
               'px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors',
               statusFilter === tab.id
                 ? 'bg-primary-500/20 text-primary-400'
-                : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
             )}
           >
             {tab.label}
@@ -269,10 +269,10 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
 
       {/* Recurring Tab View */}
       {statusFilter === 'recurring' ? (
-        <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-xs text-app-muted uppercase tracking-wide">
+              <tr className="border-b border-app-border text-xs text-app-muted uppercase tracking-wide">
                 <th className="px-4 py-3 text-left">Template</th>
                 <th className="px-4 py-3 text-left">Client</th>
                 <th className="px-4 py-3 text-right">Amount</th>
@@ -295,7 +295,7 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
                   const config = (inv as unknown as { recurring_config?: { frequency?: string; next_date?: string; paused?: boolean } }).recurring_config;
                   const isPaused = config?.paused ?? false;
                   return (
-                    <tr key={inv.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <tr key={inv.id} className="border-b border-app-border hover:bg-app-nav-hover transition-colors">
                       <td className="px-4 py-3 font-mono font-medium text-primary-400">{inv.invoice_number}</td>
                       <td className="px-4 py-3 text-app-text">{inv.to_name}</td>
                       <td className="px-4 py-3 text-right font-medium text-app-text">{fmt(inv.grand_total, inv.currency)}</td>
@@ -308,10 +308,10 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => handlePauseResume(inv.id, isPaused)} className="p-1 hover:bg-white/10 rounded" title={isPaused ? 'Resume' : 'Pause'}>
+                          <button onClick={() => handlePauseResume(inv.id, isPaused)} className="p-1 hover:bg-app-hover rounded" title={isPaused ? 'Resume' : 'Pause'}>
                             {isPaused ? <Play className="h-3.5 w-3.5 text-emerald-400" /> : <Pause className="h-3.5 w-3.5 text-amber-400" />}
                           </button>
-                          <button onClick={() => handleGenerate(inv.id)} className="p-1 hover:bg-white/10 rounded" title="Generate Next">
+                          <button onClick={() => handleGenerate(inv.id)} className="p-1 hover:bg-app-hover rounded" title="Generate Next">
                             <Send className="h-3.5 w-3.5 text-primary-400" />
                           </button>
                         </div>
@@ -327,10 +327,10 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
       <>
 
       {/* Table */}
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10 text-xs text-app-muted uppercase tracking-wide">
+            <tr className="border-b border-app-border text-xs text-app-muted uppercase tracking-wide">
               <th className="p-3 text-left w-10">
                 <button onClick={() => {
                   if (selectedIds.length === invoices.length) clearSelection();
@@ -352,9 +352,9 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
           <tbody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-b border-white/5">
+                <tr key={i} className="border-b border-app-border">
                   <td colSpan={8} className="px-4 py-4">
-                    <div className="h-4 bg-white/10 rounded animate-pulse w-full" />
+                    <div className="h-4 bg-app-surface-tertiary rounded animate-pulse w-full" />
                   </td>
                 </tr>
               ))
@@ -379,7 +379,7 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
                   <tr
                     key={inv.id}
                     onClick={() => onViewInvoice(inv.id)}
-                    className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                    className="border-b border-app-border hover:bg-app-nav-hover cursor-pointer transition-colors"
                   >
                     <td className="p-3" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => toggleSelection(inv.id)}>
@@ -432,14 +432,14 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30"
+              className="p-1.5 rounded hover:bg-app-hover disabled:opacity-30"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={(page + 1) * PAGE_SIZE >= total}
-              className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30"
+              className="p-1.5 rounded hover:bg-app-hover disabled:opacity-30"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -449,12 +449,12 @@ export function FinanceInvoicesPage({ onCreateNew, onViewInvoice }: FinanceInvoi
 
       {/* Batch action bar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl bg-app-card border border-white/10 shadow-xl backdrop-blur-xl z-50">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl bg-app-card border border-app-border shadow-xl backdrop-blur-xl z-50">
           <span className="text-sm text-app-text font-medium">{selectedIds.length} selected</span>
           <button onClick={handleBulkSend} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary-500/20 text-primary-400 text-sm font-medium hover:bg-primary-500/30">
             <Send className="h-3.5 w-3.5" /> Send Selected
           </button>
-          <button onClick={clearSelection} className="px-4 py-1.5 rounded-lg bg-white/5 text-app-muted text-sm hover:bg-white/10">
+          <button onClick={clearSelection} className="px-4 py-1.5 rounded-lg bg-app-surface-tertiary text-app-muted text-sm hover:bg-app-hover">
             Clear
           </button>
         </div>
@@ -469,7 +469,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-xs text-primary-400">
       {label}
-      <button onClick={onRemove} className="hover:text-white transition-colors"><X className="h-3 w-3" /></button>
+      <button onClick={onRemove} className="hover:text-app-text transition-colors"><X className="h-3 w-3" /></button>
     </span>
   );
 }

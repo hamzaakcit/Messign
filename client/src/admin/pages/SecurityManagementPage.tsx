@@ -155,7 +155,7 @@ export function SecurityManagementPage() {
                   'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
                   s === 'active' && 'bg-green-500/10 text-green-500',
                   s === 'locked' && 'bg-red-500/10 text-red-500',
-                  s === 'inactive' && 'bg-gray-500/10 text-gray-400',
+                  s === 'inactive' && 'bg-gray-500/10 text-app-muted',
                   s === 'pending' && 'bg-yellow-500/10 text-yellow-500'
                 )}
               >

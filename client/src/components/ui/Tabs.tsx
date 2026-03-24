@@ -39,7 +39,7 @@ interface TabsListProps {
 
 export function TabsList({ children, className }: TabsListProps) {
   return (
-    <div className={cn('flex gap-1 p-1 bg-dark-700 rounded-lg', className)}>
+    <div className={cn('flex gap-1 p-1 bg-app-card rounded-lg', className)}>
       {children}
     </div>
   );
@@ -65,8 +65,8 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
       className={cn(
         'px-4 py-2 rounded-md text-sm font-medium transition-all duration-200',
         isActive
-          ? 'bg-white/10 text-white'
-          : 'text-gray-400 hover:text-white hover:bg-white/5',
+          ? 'bg-app-surface-tertiary text-app-text'
+          : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
         className
       )}
     >

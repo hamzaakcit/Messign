@@ -99,7 +99,7 @@ export function ChannelList({ onRetry }: ChannelListProps) {
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="truncate flex-1 text-left text-sm">{getDisplayName(channel)}</span>
               {channel.unreadCount > 0 && (
-                <span className="px-1.5 py-0.5 text-xs font-medium bg-primary-500 text-white rounded-full">
+                <span className="px-1.5 py-0.5 text-xs font-medium bg-primary-500 text-app-text rounded-full">
                   {channel.unreadCount}
                 </span>
               )}

@@ -108,7 +108,7 @@ export function SlaBar({
         : 'green';
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs uppercase tracking-wide text-app-muted">{label}</p>
         <span
@@ -154,7 +154,7 @@ export function TimelineMarker({ emphasized = false }: { emphasized?: boolean })
   return (
     <span className={cn(
       'w-2.5 h-2.5 rounded-full mt-1.5 shrink-0',
-      emphasized ? 'bg-primary-400' : 'bg-white/20',
+      emphasized ? 'bg-primary-400' : 'bg-app-hover',
     )}
     />
   );

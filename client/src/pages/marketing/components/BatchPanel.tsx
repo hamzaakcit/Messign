@@ -200,7 +200,7 @@ export function BatchPanel({ heroContent, onClose }: BatchPanelProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg px-3 py-2 text-[12px] font-medium border border-white/[0.08] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08] transition-colors"
+                className="rounded-lg px-3 py-2 text-[12px] font-medium border border-white/[0.08] bg-app-surface-tertiary text-slate-200 hover:bg-app-hover transition-colors"
               >
                 Cancel
               </button>
@@ -208,7 +208,7 @@ export function BatchPanel({ heroContent, onClose }: BatchPanelProps) {
                 type="button"
                 disabled={selectedChannels.length === 0 || isSubmitting}
                 onClick={() => void handleSubmit()}
-                className="rounded-lg px-3 py-2 text-[12px] font-medium bg-purple-500 text-white hover:bg-purple-600 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                className="rounded-lg px-3 py-2 text-[12px] font-medium bg-purple-500 text-app-text hover:bg-purple-600 transition-colors disabled:opacity-40 flex items-center gap-1.5"
               >
                 {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {getAtomizeButtonText(selectedChannels.length)}
@@ -230,7 +230,7 @@ export function BatchPanel({ heroContent, onClose }: BatchPanelProps) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2 text-[12px] font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+              className="rounded-lg px-3 py-2 text-[12px] font-medium bg-primary-500 text-app-text hover:bg-primary-600 transition-colors"
             >
               Close
             </button>
@@ -272,13 +272,13 @@ function SelectState({
         return (
           <label
             key={channel}
-            className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-white/[0.04] transition-colors"
+            className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-app-hover transition-colors"
           >
             <input
               type="checkbox"
               checked={checked}
               onChange={() => onToggle(channel)}
-              className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500/30"
+              className="w-4 h-4 rounded border-app-border-strong bg-app-surface-tertiary text-purple-500 focus:ring-purple-500/30"
             />
             <span className="text-[13px] text-slate-200">
               {CHANNEL_LABELS[channel] || channel}
@@ -312,7 +312,7 @@ function ProcessingState({
             <span className="text-[11px] text-slate-500">{elapsed}</span>
           )}
         </div>
-        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div className="h-1.5 rounded-full bg-app-surface-tertiary overflow-hidden">
           <div
             className="h-full rounded-full bg-purple-500 transition-all duration-500 ease-out"
             style={{ width: `${pct}%` }}
@@ -321,7 +321,7 @@ function ProcessingState({
       </div>
 
       {/* Channel rows */}
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.04]">
+      <div className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary divide-y divide-white/[0.04]">
         {batchJob.results.map((r) => (
           <BatchChannelRow
             key={r.channel}
@@ -387,7 +387,7 @@ function ResultsState({
       </div>
 
       {/* Channel rows */}
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.04]">
+      <div className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary divide-y divide-white/[0.04]">
         {batchJob.results.map((r) => (
           <BatchChannelRow
             key={r.channel}

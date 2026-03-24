@@ -292,14 +292,14 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
           <button
             onClick={() => handleSave(false)}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-app-text rounded-lg text-sm font-medium hover:bg-white/10 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-app-surface-tertiary border border-app-border text-app-text rounded-lg text-sm font-medium hover:bg-app-hover disabled:opacity-50"
           >
             <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save Draft'}
           </button>
           <button
             onClick={() => handleSave(true)}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
           >
             <Send className="h-4 w-4" /> Save & Send
           </button>
@@ -318,7 +318,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
 
       {/* Dora Invoice Scan */}
       {!isEdit && (
-        <div className="rounded-xl border border-white/10 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent backdrop-blur-sm p-5">
+        <div className="rounded-xl border border-app-border bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent backdrop-blur-sm p-5">
           {scanConfidence != null && scanFieldCount > 0 ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -332,7 +332,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                   <p className="text-xs text-app-muted mt-0.5">Review the auto-filled fields below and make corrections if needed</p>
                 </div>
               </div>
-              <button onClick={dismissScan} className="p-1.5 rounded-lg hover:bg-white/10 text-app-muted hover:text-app-text transition-colors">
+              <button onClick={dismissScan} className="p-1.5 rounded-lg hover:bg-app-hover text-app-muted hover:text-app-text transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -349,7 +349,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                 onClick={() => scanFileRef.current?.click()}
                 className={cn(
                   'relative rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all',
-                  scanDragOver ? 'border-purple-500 bg-purple-500/10' : 'border-white/20 hover:border-white/30 hover:bg-white/5',
+                  scanDragOver ? 'border-purple-500 bg-purple-500/10' : 'border-app-border-strong hover:border-white/30 hover:bg-app-nav-hover',
                 )}
               >
                 <input ref={scanFileRef} type="file" accept="image/*,application/pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleScanFile(f); }} className="hidden" />
@@ -361,14 +361,14 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                   </div>
                 ) : scanPreview ? (
                   <div className="flex items-center gap-4">
-                    <img src={scanPreview} alt="Scanned" className="h-16 rounded-lg border border-white/10" />
+                    <img src={scanPreview} alt="Scanned" className="h-16 rounded-lg border border-app-border" />
                     <p className="text-sm text-app-muted">Processing complete. Upload another to re-scan.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 py-2">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-full bg-white/5"><Upload className="h-5 w-5 text-app-muted" /></div>
-                      <div className="p-2.5 rounded-full bg-white/5"><Camera className="h-5 w-5 text-app-muted" /></div>
+                      <div className="p-2.5 rounded-full bg-app-surface-tertiary"><Upload className="h-5 w-5 text-app-muted" /></div>
+                      <div className="p-2.5 rounded-full bg-app-surface-tertiary"><Camera className="h-5 w-5 text-app-muted" /></div>
                     </div>
                     <p className="text-sm text-app-text font-medium">Drop your invoice document here</p>
                     <p className="text-xs text-app-muted">or click to browse. Supports JPG, PNG, PDF</p>
@@ -382,14 +382,14 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
 
       {/* From / To */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-3">
           <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide">From</h3>
           <Field label="Name" value={fromName} onChange={setFromName} />
           <Field label="Email" value={fromEmail} onChange={setFromEmail} type="email" />
           <Field label="Address" value={fromAddress} onChange={setFromAddress} multiline />
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-3">
           <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide">Bill To</h3>
           <Field label="Name *" value={toName} onChange={setToName} confidence={fieldConfidence('toName')} />
           <Field label="Email" value={toEmail} onChange={setToEmail} type="email" confidence={fieldConfidence('toEmail')} />
@@ -398,7 +398,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
       </div>
 
       {/* Invoice Details Row */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
         <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide mb-3">Details</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -406,7 +406,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
             <select
               value={invoiceType}
               onChange={(e) => setInvoiceType(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+              className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
             >
               <option value="standard">Standard</option>
               <option value="credit_note">Credit Note</option>
@@ -418,7 +418,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+              className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
             >
               {['USD', 'EUR', 'GBP', 'TRY', 'CAD', 'AUD'].map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -430,7 +430,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
             <select
               value={paymentTerms}
               onChange={(e) => setPaymentTerms(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+              className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
             >
               {['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90'].map((t) => (
                 <option key={t} value={t}>{t}</option>
@@ -443,14 +443,14 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+              className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Line Items */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide">Line Items</h3>
           <button
@@ -485,7 +485,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                   value={li.description}
                   onChange={(e) => updateLine(li.key, 'description', e.target.value)}
                   placeholder="Item description"
-                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
+                  className="px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
                 />
                 <input
                   type="number"
@@ -493,7 +493,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                   step={1}
                   value={li.quantity}
                   onChange={(e) => updateLine(li.key, 'quantity', Number(e.target.value))}
-                  className="px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text text-center focus:border-primary-500 focus:outline-none"
+                  className="px-2 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text text-center focus:border-primary-500 focus:outline-none"
                 />
                 <input
                   type="number"
@@ -501,7 +501,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                   step={0.01}
                   value={li.unit_price}
                   onChange={(e) => updateLine(li.key, 'unit_price', Number(e.target.value))}
-                  className="px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text text-right focus:border-primary-500 focus:outline-none"
+                  className="px-2 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text text-right focus:border-primary-500 focus:outline-none"
                 />
                 <input
                   type="number"
@@ -510,7 +510,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                   step={0.5}
                   value={li.tax_rate}
                   onChange={(e) => updateLine(li.key, 'tax_rate', Number(e.target.value))}
-                  className="px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text text-center focus:border-primary-500 focus:outline-none"
+                  className="px-2 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text text-center focus:border-primary-500 focus:outline-none"
                 />
                 <div className="text-right text-sm font-medium text-app-text pr-1">
                   {fmt(lineTotal + lineTax)}
@@ -528,7 +528,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
         </div>
 
         {/* Totals */}
-        <div className="mt-4 pt-4 border-t border-white/10 flex justify-end">
+        <div className="mt-4 pt-4 border-t border-app-border flex justify-end">
           <div className="w-72 space-y-2 text-sm">
             <div className="flex justify-between text-app-muted">
               <span>Subtotal</span>
@@ -550,7 +550,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                   step={0.5}
                   value={discountPct}
                   onChange={(e) => setDiscountPct(Number(e.target.value))}
-                  className="w-16 px-2 py-1 rounded bg-white/5 border border-white/10 text-xs text-app-text text-center focus:border-primary-500 focus:outline-none"
+                  className="w-16 px-2 py-1 rounded bg-app-surface-tertiary border border-app-border text-xs text-app-text text-center focus:border-primary-500 focus:outline-none"
                 />
                 <span className="text-xs">%</span>
                 {totals.discountAmt > 0 && (
@@ -558,7 +558,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
                 )}
               </div>
             </div>
-            <div className="flex justify-between pt-2 border-t border-white/10 text-base font-bold text-app-text">
+            <div className="flex justify-between pt-2 border-t border-app-border text-base font-bold text-app-text">
               <span>Total</span>
               <span>{fmt(totals.grandTotal)}</span>
             </div>
@@ -567,12 +567,12 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
       </div>
 
       {/* Recurring Configuration */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide">Recurring Invoice</h3>
           <button
             onClick={() => setIsRecurring(!isRecurring)}
-            className={cn('w-10 h-5 rounded-full relative transition-colors', isRecurring ? 'bg-primary-500' : 'bg-white/20')}
+            className={cn('w-10 h-5 rounded-full relative transition-colors', isRecurring ? 'bg-primary-500' : 'bg-app-hover')}
           >
             <div className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all', isRecurring ? 'right-0.5' : 'left-0.5')} />
           </button>
@@ -582,7 +582,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
             <div>
               <label className="block text-xs text-app-muted mb-1">Frequency</label>
               <select value={recurringFrequency} onChange={(e) => setRecurringFrequency(e.target.value as typeof recurringFrequency)}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none">
+                className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none">
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -592,7 +592,7 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
             <div>
               <label className="block text-xs text-app-muted mb-1">End Date (optional)</label>
               <input type="date" value={recurringEndDate} onChange={(e) => setRecurringEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+                className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
             </div>
             <div className="flex items-end pb-1">
               <label className="flex items-center gap-2 text-sm text-app-text cursor-pointer">
@@ -607,37 +607,37 @@ export function InvoiceFormPage({ invoiceId, onBack, onSaved }: InvoiceFormPageP
 
       {/* Notes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-3">
           <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide">Notes (visible to client)</h3>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             placeholder="Payment terms, thank-you message, etc."
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
+            className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
           />
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-3">
           <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide">Payment Instructions</h3>
           <textarea
             value={paymentInstructions}
             onChange={(e) => setPaymentInstructions(e.target.value)}
             rows={3}
             placeholder="Bank details, wire instructions, etc."
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
+            className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
           />
         </div>
       </div>
 
       {/* Internal Notes */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-3">
         <h3 className="text-sm font-semibold text-app-text uppercase tracking-wide">Internal Notes (not visible to client)</h3>
         <textarea
           value={internalNotes}
           onChange={(e) => setInternalNotes(e.target.value)}
           rows={2}
           placeholder="Internal tracking, PO reference, etc."
-          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
+          className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none resize-none"
         />
       </div>
     </div>
@@ -661,7 +661,7 @@ function Field({
 }) {
   const borderColor = confidence === 'high' ? 'border-l-emerald-500' : confidence === 'medium' ? 'border-l-amber-500' : confidence === 'low' ? 'border-l-red-500' : '';
   const cls = cn(
-    'w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none',
+    'w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none',
     confidence && `border-l-2 ${borderColor}`,
   );
   return (

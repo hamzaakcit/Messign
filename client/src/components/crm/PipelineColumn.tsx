@@ -31,7 +31,7 @@ export function PipelineColumn({ stage, deals, onDealClick }: PipelineColumnProp
         'flex flex-col rounded-lg border border-app-border overflow-hidden shrink-0',
         'w-[280px] min-w-[280px] max-h-full',
       )}
-      style={{ backgroundColor: 'var(--app-bg)' }}
+      style={{ backgroundColor: 'var(--app-card)' }}
     >
       <div
         className="px-3 py-2.5 border-b border-app-border flex items-center gap-2 shrink-0 cursor-pointer select-none"
@@ -42,7 +42,7 @@ export function PipelineColumn({ stage, deals, onDealClick }: PipelineColumnProp
           style={{ backgroundColor: stage.color }}
         />
         <h3 className="font-semibold text-sm text-app-text truncate flex-1">{stage.name}</h3>
-        <span className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-gray-400 shrink-0 tabular-nums">
+        <span className="px-1.5 py-0.5 bg-app-surface-tertiary rounded text-[10px] text-app-muted shrink-0 tabular-nums">
           {deals.length}
         </span>
         {totalValue > 0 && (

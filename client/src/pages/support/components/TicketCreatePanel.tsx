@@ -307,7 +307,7 @@ export function TicketCreatePanel({ onCreated, onCancel }: TicketCreatePanelProp
         </div>
       )}
 
-      <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-4">
+      <div className="rounded-xl border border-dashed border-app-border bg-app-surface-tertiary p-4">
         <div className="flex items-center gap-2 text-sm text-app-text mb-2">
           <Paperclip className="w-4 h-4" />
           Attachments

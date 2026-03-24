@@ -70,7 +70,7 @@ export function ProfitLossPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-xl bg-white/5 animate-pulse" />)}
+        {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-xl bg-app-surface-tertiary animate-pulse" />)}
       </div>
     );
   }
@@ -78,13 +78,13 @@ export function ProfitLossPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex rounded-lg border border-white/10 overflow-hidden">
+        <div className="flex rounded-lg border border-app-border overflow-hidden">
           {(['month', 'quarter', 'year'] as const).map(t => (
             <button
               key={t}
               onClick={() => setPeriodType(t)}
               className={cn('px-4 py-2 text-sm font-medium transition-colors capitalize',
-                periodType === t ? 'bg-primary-500 text-white' : 'text-app-muted hover:text-app-text bg-white/5')}
+                periodType === t ? 'bg-primary-500 text-app-text' : 'text-app-muted hover:text-app-text bg-app-surface-tertiary')}
             >
               {t}
             </button>
@@ -93,7 +93,7 @@ export function ProfitLossPage() {
         <select
           value={selectedPeriod}
           onChange={e => setSelectedPeriod(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+          className="px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
         >
           {periodOptions.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -102,7 +102,7 @@ export function ProfitLossPage() {
       {report && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
               <p className="text-xs text-app-muted mb-1">Total Revenue</p>
               <p className="text-2xl font-bold text-green-400">${(report.totalRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               <div className="flex items-center gap-1 mt-1 text-xs text-app-muted">
@@ -110,7 +110,7 @@ export function ProfitLossPage() {
                 {pctChange(report.totalRevenue ?? 0, report.previousPeriod?.totalRevenue ?? 0).toFixed(1)}% vs prior
               </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
               <p className="text-xs text-app-muted mb-1">Total Expenses</p>
               <p className="text-2xl font-bold text-red-400">${(report.totalExpenses ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               <div className="flex items-center gap-1 mt-1 text-xs text-app-muted">
@@ -131,8 +131,8 @@ export function ProfitLossPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-            <div className="px-5 py-3 border-b border-white/10">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
+            <div className="px-5 py-3 border-b border-app-border">
               <h3 className="text-sm font-semibold text-green-400">Revenue</h3>
             </div>
             <table className="w-full text-sm">
@@ -145,7 +145,7 @@ export function ProfitLossPage() {
               </thead>
               <tbody>
                 {report.revenue.length > 0 ? report.revenue.map((r: any, i: number) => (
-                  <tr key={i} className="border-t border-white/5">
+                  <tr key={i} className="border-t border-app-border">
                     <td className="px-5 py-2.5 font-mono text-app-muted">{r.code}</td>
                     <td className="px-5 py-2.5 text-app-text">{r.name}</td>
                     <td className="px-5 py-2.5 text-right font-mono text-green-400">${r.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -153,7 +153,7 @@ export function ProfitLossPage() {
                 )) : (
                   <tr><td colSpan={3} className="px-5 py-4 text-center text-app-muted">No revenue recorded</td></tr>
                 )}
-                <tr className="border-t border-white/10 font-semibold">
+                <tr className="border-t border-app-border font-semibold">
                   <td colSpan={2} className="px-5 py-2.5 text-app-text">Total Revenue</td>
                   <td className="px-5 py-2.5 text-right font-mono text-green-400">${(report.totalRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
@@ -161,8 +161,8 @@ export function ProfitLossPage() {
             </table>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-            <div className="px-5 py-3 border-b border-white/10">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
+            <div className="px-5 py-3 border-b border-app-border">
               <h3 className="text-sm font-semibold text-red-400">Expenses</h3>
             </div>
             <table className="w-full text-sm">
@@ -175,7 +175,7 @@ export function ProfitLossPage() {
               </thead>
               <tbody>
                 {report.expenses.length > 0 ? report.expenses.map((r: any, i: number) => (
-                  <tr key={i} className="border-t border-white/5">
+                  <tr key={i} className="border-t border-app-border">
                     <td className="px-5 py-2.5 font-mono text-app-muted">{r.code}</td>
                     <td className="px-5 py-2.5 text-app-text">{r.name}</td>
                     <td className="px-5 py-2.5 text-right font-mono text-red-400">${r.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -183,7 +183,7 @@ export function ProfitLossPage() {
                 )) : (
                   <tr><td colSpan={3} className="px-5 py-4 text-center text-app-muted">No expenses recorded</td></tr>
                 )}
-                <tr className="border-t border-white/10 font-semibold">
+                <tr className="border-t border-app-border font-semibold">
                   <td colSpan={2} className="px-5 py-2.5 text-app-text">Total Expenses</td>
                   <td className="px-5 py-2.5 text-right font-mono text-red-400">${(report.totalExpenses ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>

@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  draft: { label: 'Draft', color: 'text-gray-400', bg: 'bg-gray-500/20' },
+  draft: { label: 'Draft', color: 'text-app-muted', bg: 'bg-gray-500/20' },
   submitted: { label: 'Submitted', color: 'text-blue-400', bg: 'bg-blue-500/20' },
   ai_reviewing: { label: 'AI Reviewing', color: 'text-purple-400', bg: 'bg-purple-500/20' },
   ai_approved: { label: 'AI Approved', color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
@@ -19,13 +19,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   failed: { label: 'Failed', color: 'text-red-400', bg: 'bg-red-500/20' },
   paid: { label: 'Paid', color: 'text-teal-400', bg: 'bg-teal-500/20' },
   reimbursed: { label: 'Reimbursed', color: 'text-teal-400', bg: 'bg-teal-500/20' },
-  voided: { label: 'Voided', color: 'text-gray-500', bg: 'bg-gray-500/20' },
+  voided: { label: 'Voided', color: 'text-app-muted', bg: 'bg-gray-500/20' },
   overdue: { label: 'Overdue', color: 'text-red-400', bg: 'bg-red-500/20' },
   sent: { label: 'Sent', color: 'text-blue-400', bg: 'bg-blue-500/20' },
   partially_paid: { label: 'Partially Paid', color: 'text-amber-400', bg: 'bg-amber-500/20' },
   active: { label: 'Active', color: 'text-green-400', bg: 'bg-green-500/20' },
   frozen: { label: 'Frozen', color: 'text-blue-300', bg: 'bg-blue-500/20' },
-  closed: { label: 'Closed', color: 'text-gray-400', bg: 'bg-gray-500/20' },
+  closed: { label: 'Closed', color: 'text-app-muted', bg: 'bg-gray-500/20' },
   pending: { label: 'Pending', color: 'text-amber-400', bg: 'bg-amber-500/20' },
   completed: { label: 'Completed', color: 'text-green-400', bg: 'bg-green-500/20' },
 };
@@ -38,7 +38,7 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = STATUS_CONFIG[status] ?? {
     label: status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-    color: 'text-gray-400',
+    color: 'text-app-muted',
     bg: 'bg-gray-500/20',
   };
 

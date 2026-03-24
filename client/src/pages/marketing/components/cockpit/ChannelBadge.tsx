@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils';
 const CHANNEL_STYLES: Record<string, string> = {
   linkedin: 'bg-blue-500/15 text-blue-200 border-blue-500/25',
   instagram: 'bg-gradient-to-r from-pink-500/20 via-purple-500/15 to-amber-500/15 text-pink-100 border-pink-500/20',
-  x: 'bg-white/[0.06] text-slate-200 border-white/10',
-  twitter: 'bg-white/[0.06] text-slate-200 border-white/10',
+  x: 'bg-app-surface-tertiary text-slate-200 border-app-border',
+  twitter: 'bg-app-surface-tertiary text-slate-200 border-app-border',
   email: 'bg-teal-500/15 text-teal-200 border-teal-500/25',
   blog: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/25',
   ad: 'bg-amber-500/15 text-amber-200 border-amber-500/25',

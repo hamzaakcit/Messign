@@ -32,7 +32,7 @@ export function SettingsView() {
                   className={cn(
                     'flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors',
                     theme === t
-                      ? 'bg-primary-500 text-white'
+                      ? 'bg-primary-500 text-app-text'
                       : 'text-app-muted hover:text-app hover:bg-app-hover'
                   )}
                   aria-pressed={theme === t}

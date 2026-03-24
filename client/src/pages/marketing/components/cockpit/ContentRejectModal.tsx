@@ -33,7 +33,7 @@ export function ContentRejectModal({
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-lg px-2.5 py-1.5 text-[11px] text-slate-400 hover:bg-white/[0.06] hover:text-slate-200"
+            className="rounded-lg px-2.5 py-1.5 text-[11px] text-slate-400 hover:bg-app-hover hover:text-slate-200"
           >
             Cancel
           </button>

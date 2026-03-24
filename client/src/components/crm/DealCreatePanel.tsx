@@ -391,14 +391,14 @@ export function DealCreatePanel({ pipelineId, stages, onCreated, onCancel }: Dea
         <button
           type="submit"
           disabled={submitting}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 transition-colors"
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50 transition-colors"
         >
           {submitting ? 'Creating…' : 'Create Deal'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium rounded-lg text-app-muted hover:text-app-text hover:bg-white/5 transition-colors"
+          className="px-4 py-2 text-sm font-medium rounded-lg text-app-muted hover:text-app-text hover:bg-app-nav-hover transition-colors"
         >
           Cancel
         </button>

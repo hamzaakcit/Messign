@@ -36,13 +36,13 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
       <button
         type="button"
         onClick={() => setExpanded((o) => !o)}
-        className="flex items-center gap-3 w-full px-4 h-10 hover:bg-white/[0.02] transition-colors"
+        className="flex items-center gap-3 w-full px-4 h-10 hover:bg-app-hover transition-colors"
       >
         <Filter className="w-3.5 h-3.5 text-app-muted shrink-0" />
         <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto no-scrollbar">
           {STAGES.map((stage, i) => (
             <span key={stage.key} className="flex items-center gap-1 shrink-0">
-              {i > 0 && <ChevronRight className="w-2.5 h-2.5 text-white/20" />}
+              {i > 0 && <ChevronRight className="w-2.5 h-2.5 text-app-text/20" />}
               <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold', stage.color)}>
                 {funnel[stage.key] ?? 0}
               </span>
@@ -78,12 +78,12 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
                 {STAGES.map((stage) => {
                   const value = funnel[stage.key] ?? 0;
                   return (
-                    <div key={stage.key} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">
+                    <div key={stage.key} className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary p-2.5">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[10px] uppercase tracking-wide text-app-muted">{stage.label}</span>
                         <span className="text-sm font-semibold text-app-text">{value}</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-app-surface-tertiary overflow-hidden">
                         <div
                           className={cn('h-full rounded-full transition-all', stage.color.split(' ')[0])}
                           style={{ width: `${(value / maxVal) * 100}%` }}
@@ -101,7 +101,7 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
                       key={lead.id}
                       type="button"
                       onClick={() => onLeadClick(lead.id)}
-                      className="flex items-center gap-2 shrink-0 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 hover:bg-white/[0.04] transition-colors min-w-0"
+                      className="flex items-center gap-2 shrink-0 rounded-lg border border-white/[0.06] bg-app-surface-tertiary px-3 py-2 hover:bg-app-hover transition-colors min-w-0"
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-app-text truncate max-w-[120px]">
@@ -112,7 +112,7 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
                         </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <div className="w-8 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div className="w-8 h-1.5 rounded-full bg-app-surface-tertiary overflow-hidden">
                           <div
                             className={cn('h-full rounded-full', scoreColor(lead.score))}
                             style={{ width: `${Math.min(lead.score, 100)}%` }}

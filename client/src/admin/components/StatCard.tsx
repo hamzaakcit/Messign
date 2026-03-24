@@ -13,7 +13,7 @@ interface StatCardProps {
 export function StatCard({ title, value, icon: Icon, trend, className }: StatCardProps) {
   return (
     <Card className={cn('flex items-start gap-4', className)}>
-      <div className="p-2 rounded-lg bg-primary-50 dark:bg-white/10">
+      <div className="p-2 rounded-lg bg-primary-50 dark:bg-app-surface-tertiary">
         <Icon className="w-6 h-6 text-primary-500 dark:text-primary-400" aria-hidden />
       </div>
       <div className="flex-1 min-w-0">

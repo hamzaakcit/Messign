@@ -14,7 +14,7 @@ export function KPICard({ title, value, subtitle, icon: Icon, trend, className }
   return (
     <div
       className={cn(
-        'rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 transition-all hover:bg-white/[0.07]',
+        'rounded-xl border border-app-border bg-app-surface-tertiary backdrop-blur-sm p-5 transition-all hover:bg-app-hover',
         className,
       )}
     >

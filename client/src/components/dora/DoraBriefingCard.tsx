@@ -76,15 +76,15 @@ export function DoraBriefingCard({
 
   return (
     <div
-      className="w-full rounded-[14px] border border-sky-500/12 bg-dark-900/40 p-4 text-left shadow-[0_0_24px_rgba(56,189,248,0.06)] backdrop-blur-md"
+      className="w-full rounded-[14px] border border-sky-500/12 bg-app-bg/40 p-4 text-left shadow-[0_0_24px_rgba(56,189,248,0.06)] backdrop-blur-md"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}
     >
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-medium text-white">
+          <p className="text-sm font-medium text-app-text">
             {greetingName(userFirstName)} <span className="opacity-90">👋</span>
           </p>
-          <p className="mt-0.5 text-[11px] text-gray-500">Live snapshot from your workspace</p>
+          <p className="mt-0.5 text-[11px] text-app-muted">Live snapshot from your workspace</p>
         </div>
         {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-sky-400/70" />}
       </div>
@@ -97,50 +97,50 @@ export function DoraBriefingCard({
             <button
               type="button"
               onClick={onOpenTasks}
-              className="rounded-lg border border-dark-700/80 bg-dark-800/50 px-3 py-2 text-left transition-colors hover:border-sky-500/25 hover:bg-dark-800"
+              className="rounded-lg border border-app-border/80 bg-app-sidebar/50 px-3 py-2 text-left transition-colors hover:border-sky-500/25 hover:bg-app-hover"
             >
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">Tasks</p>
+              <p className="text-[11px] uppercase tracking-wide text-app-muted">Tasks</p>
               <p className="text-sm text-gray-200">
                 📊{' '}
-                <span className="font-semibold text-white">{data.tasksDueToday}</span> due today
+                <span className="font-semibold text-app-text">{data.tasksDueToday}</span> due today
               </p>
             </button>
             <button
               type="button"
               onClick={onOpenFinance}
-              className="rounded-lg border border-dark-700/80 bg-dark-800/50 px-3 py-2 text-left transition-colors hover:border-emerald-500/25 hover:bg-dark-800"
+              className="rounded-lg border border-app-border/80 bg-app-sidebar/50 px-3 py-2 text-left transition-colors hover:border-emerald-500/25 hover:bg-app-hover"
             >
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">Finance</p>
+              <p className="text-[11px] uppercase tracking-wide text-app-muted">Finance</p>
               <p className="text-sm text-gray-200">
                 💰{' '}
-                <span className="font-semibold text-white">{data.unpaidInvoices}</span> unpaid
+                <span className="font-semibold text-app-text">{data.unpaidInvoices}</span> unpaid
                 invoices ({formatMoney(data.unpaidInvoiceTotal)})
               </p>
             </button>
             <button
               type="button"
               onClick={onOpenProjects}
-              className="rounded-lg border border-dark-700/80 bg-dark-800/50 px-3 py-2 text-left transition-colors hover:border-violet-500/25 hover:bg-dark-800"
+              className="rounded-lg border border-app-border/80 bg-app-sidebar/50 px-3 py-2 text-left transition-colors hover:border-violet-500/25 hover:bg-app-hover"
             >
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">Projects</p>
+              <p className="text-[11px] uppercase tracking-wide text-app-muted">Projects</p>
               <p className="text-sm text-gray-200">
                 📁{' '}
-                <span className="font-semibold text-white">{data.projectsAttention}</span> projects
+                <span className="font-semibold text-app-text">{data.projectsAttention}</span> projects
                 need attention
               </p>
             </button>
-            <div className="rounded-lg border border-dark-700/80 bg-dark-800/40 px-3 py-2">
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">Time</p>
+            <div className="rounded-lg border border-app-border/80 bg-app-sidebar/40 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-app-muted">Time</p>
               <p className="text-sm text-gray-200">
                 🕐 You tracked{' '}
-                <span className="font-semibold text-white">{data.hoursYesterday.toFixed(1)}h</span>{' '}
+                <span className="font-semibold text-app-text">{data.hoursYesterday.toFixed(1)}h</span>{' '}
                 yesterday
               </p>
             </div>
           </div>
 
           {expanded && (
-            <ul className="mt-3 space-y-1 border-t border-white/5 pt-3 text-[11px] text-gray-400">
+            <ul className="mt-3 space-y-1 border-t border-app-border pt-3 text-[11px] text-app-muted">
               <li>Tasks due today counts assignments with a due date of today (open states).</li>
               <li>Finance uses outstanding invoice totals for sent / partially paid invoices.</li>
               <li>Projects &ldquo;need attention&rdquo; = distinct projects with overdue open tasks assigned to you.</li>
@@ -152,14 +152,14 @@ export function DoraBriefingCard({
             <button
               type="button"
               onClick={onStartDay}
-              className="rounded-full bg-sky-500/90 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-400"
+              className="rounded-full bg-sky-500/90 px-4 py-1.5 text-xs font-medium text-app-text transition-colors hover:bg-sky-400"
             >
               Start my day
             </button>
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-full border border-dark-600 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-sky-500/30 hover:text-white"
+              className="inline-flex items-center gap-1 rounded-full border border-app-border px-3 py-1.5 text-xs text-app-muted transition-colors hover:border-sky-500/30 hover:text-app-text"
             >
               {expanded ? (
                 <>

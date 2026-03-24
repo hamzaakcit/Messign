@@ -237,20 +237,20 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             {editing ? (
               <div className="space-y-2">
                 <input value={editForm.title} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
-                  className="text-xl font-semibold bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-app-text w-full focus:outline-none focus:border-primary-500" />
+                  className="text-xl font-semibold bg-app-surface-tertiary border border-app-border rounded-lg px-3 py-1 text-app-text w-full focus:outline-none focus:border-primary-500" />
                 <div className="flex items-center gap-2">
                   <input type="number" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))}
-                    className="w-32 bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-sm text-app-text focus:outline-none focus:border-primary-500" />
+                    className="w-32 bg-app-surface-tertiary border border-app-border rounded-lg px-3 py-1 text-sm text-app-text focus:outline-none focus:border-primary-500" />
                   <span className="text-sm text-app-muted">{expense.original_currency}</span>
                 </div>
                 <textarea value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} rows={2}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-sm text-app-text focus:outline-none focus:border-primary-500 resize-none" placeholder="Description..." />
+                  className="w-full bg-app-surface-tertiary border border-app-border rounded-lg px-3 py-1 text-sm text-app-text focus:outline-none focus:border-primary-500 resize-none" placeholder="Description..." />
               </div>
             ) : (
               <>
@@ -284,7 +284,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
       </div>
 
       {/* Receipt Section */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
         <h3 className="text-sm font-semibold text-app-text mb-4 flex items-center gap-2">
           <Image className="h-4 w-4" /> Receipts
         </h3>
@@ -297,7 +297,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
                   imageUrl: r.file_url, fileName: r.file_name,
                   extractedData: r.ocr_processed ? { vendor: r.extracted_vendor, amount: r.extracted_amount, date: r.extracted_date } : undefined,
                 })}
-                className="aspect-square rounded-lg border border-white/10 bg-white/5 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-colors overflow-hidden"
+                className="aspect-square rounded-lg border border-app-border bg-app-surface-tertiary flex flex-col items-center justify-center gap-2 hover:bg-app-hover transition-colors overflow-hidden"
               >
                 <Eye className="h-5 w-5 text-app-muted" />
                 <span className="text-xs text-app-muted truncate max-w-full px-2">{r.file_name}</span>
@@ -317,7 +317,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
       {/* Approval Timeline + Dora Analysis */}
       <div className="space-y-6">
         {/* Approval Timeline */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-app-text">Approval Timeline</h3>
             {slaStatus && (
@@ -353,7 +353,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
         </div>
 
         {/* Dora AI Analysis */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
           <h3 className="text-sm font-semibold text-app-text mb-4 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary-500" /> Dora AI Analysis
           </h3>
@@ -437,7 +437,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
       </div>
 
       {/* Comments Section */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
         <h3 className="text-sm font-semibold text-app-text mb-4 flex items-center gap-2">
           <MessageSquare className="h-4 w-4" /> Comments ({expense.comments?.length ?? 0})
         </h3>
@@ -455,12 +455,12 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Add a comment..."
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitComment(); } }}
-            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
+            className="flex-1 px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
           />
           <button
             onClick={handleSubmitComment}
             disabled={commentSubmitting || !newComment.trim()}
-            className="p-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="p-2 rounded-lg bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50 transition-colors"
           >
             <Send className="h-4 w-4" />
           </button>
@@ -496,7 +496,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
             onChange={(e) => setApproveComment(e.target.value)}
             placeholder="Optional comment..."
             rows={3}
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
+            className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
           />
           {actionError && (
             <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3">{actionError}</p>
@@ -504,7 +504,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
           <div className="flex justify-end gap-2">
             <button onClick={() => { setShowApproveModal(false); setActionError(null); }} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleApprove} disabled={actionLoading}
-              className="px-5 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2">
+              className="px-5 py-2 rounded-lg bg-emerald-500 text-app-text text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2">
               <CheckCircle className="h-4 w-4" /> {actionLoading ? 'Approving...' : 'Approve'}
             </button>
           </div>
@@ -520,7 +520,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="Reason for rejection (required)..."
             rows={3}
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
+            className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
           />
           {actionError && (
             <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3">{actionError}</p>
@@ -528,7 +528,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
           <div className="flex justify-end gap-2">
             <button onClick={() => { setShowRejectModal(false); setActionError(null); }} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleReject} disabled={actionLoading || !rejectReason.trim()}
-              className="px-5 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 flex items-center gap-2">
+              className="px-5 py-2 rounded-lg bg-red-500 text-app-text text-sm font-medium hover:bg-red-600 disabled:opacity-50 flex items-center gap-2">
               <XCircle className="h-4 w-4" /> {actionLoading ? 'Rejecting...' : 'Reject'}
             </button>
           </div>
@@ -544,12 +544,12 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
             onChange={(e) => setInfoMessage(e.target.value)}
             placeholder="What information do you need?"
             rows={3}
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
+            className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:outline-none resize-none mb-4"
           />
           <div className="flex justify-end gap-2">
             <button onClick={() => setShowInfoModal(false)} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             <button onClick={handleRequestInfo} disabled={actionLoading || !infoMessage.trim()}
-              className="px-5 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
+              className="px-5 py-2 rounded-lg bg-amber-500 text-app-text text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
               <Info className="h-4 w-4" /> {actionLoading ? 'Sending...' : 'Request Info'}
             </button>
           </div>
@@ -574,7 +574,7 @@ export function ExpenseDetailPanel({ expenseId, onClose }: ExpenseDetailPanelPro
 function InlineModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-xl border border-app-border bg-[#1a1a2e] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-semibold text-app-text mb-4">{title}</h3>
         {children}
       </div>
@@ -599,22 +599,22 @@ function ActionBar({
   if (!hasActions) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-white/10 bg-white/5">
+    <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-app-border bg-app-surface-tertiary">
       {(isDraft || isInfoRequested) && isOwner && (
         <>
           {editing ? (
             <>
-              <button onClick={onSaveEdit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+              <button onClick={onSaveEdit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
                 <Save className="h-4 w-4" /> Save
               </button>
               <button onClick={onCancelEdit} className="px-4 py-2 text-sm text-app-muted hover:text-app-text">Cancel</button>
             </>
           ) : (
             <>
-              <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text hover:bg-white/10">
+              <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text hover:bg-app-hover">
                 <Edit3 className="h-4 w-4" /> Edit
               </button>
-              <button onClick={onSubmit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
+              <button onClick={onSubmit} disabled={actionLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 disabled:opacity-50">
                 <Send className="h-4 w-4" /> {isInfoRequested ? 'Resubmit' : 'Submit'}
               </button>
               {isDraft && (
@@ -630,7 +630,7 @@ function ActionBar({
       {canApprove && (
         <>
           <button onClick={onApprove} disabled={actionLoading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-app-text text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
             <CheckCircle className="h-4 w-4" /> Approve
           </button>
           <button onClick={onReject} disabled={actionLoading}
@@ -646,7 +646,7 @@ function ActionBar({
 
       {canMarkPaid && (
         <button onClick={onMarkPaid} disabled={actionLoading}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 text-app-text text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
           <DollarSign className="h-4 w-4" /> Mark as Paid
         </button>
       )}
@@ -661,7 +661,7 @@ function CommentBubble({ comment, isCurrentUser }: { comment: ExpenseComment; is
       <div className={cn('max-w-[80%] rounded-xl px-4 py-2.5',
         isSystem ? 'bg-amber-500/10 border border-amber-500/20' :
         isCurrentUser ? 'bg-primary-500/15 border border-primary-500/20' :
-        'bg-white/5 border border-white/10',
+        'bg-app-surface-tertiary border border-app-border',
       )}>
         {!isCurrentUser && (
           <p className="text-xs font-medium text-primary-400 mb-0.5">{comment.author_name || 'Unknown'}</p>
@@ -707,7 +707,7 @@ function BudgetImpact({ budgetId, amount, userId }: { budgetId: string; amount: 
   return (
     <div>
       <p className="text-xs font-medium text-app-muted mb-1">Budget Impact</p>
-      <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-xs space-y-1">
+      <div className="p-2 rounded-lg bg-app-surface-tertiary border border-app-border text-xs space-y-1">
         <p className="text-app-muted">Budget: <span className="text-app-text">{budget.name || budget.department || 'Unknown'}</span></p>
         <p className="text-app-muted">Remaining before: <span className="text-app-text">${remainingBefore.toFixed(2)}</span></p>
         <p className={cn('font-medium', overBudget ? 'text-red-400' : 'text-emerald-400')}>
@@ -735,7 +735,7 @@ function DoraFeedback({ expenseId, userId }: { expenseId: string; userId: string
   }
 
   return (
-    <div className="flex items-center gap-3 pt-2 border-t border-white/5">
+    <div className="flex items-center gap-3 pt-2 border-t border-app-border">
       <span className="text-xs text-app-muted">Was this analysis helpful?</span>
       <button onClick={() => handleFeedback(1)} className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-app-muted hover:text-emerald-400 transition-colors">
         <ThumbsUp className="h-4 w-4" />

@@ -108,7 +108,7 @@ export function JobCreatePanel({ onCreated, onCancel }: JobCreatePanelProps) {
       </div>
       <div className="flex items-center justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel} className="px-3 py-2 rounded-lg text-sm text-app-muted hover:text-app-text">Cancel</button>
-        <button type="submit" disabled={submitting} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60">
+        <button type="submit" disabled={submitting} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-60">
           {submitting ? 'Creating…' : 'Create Job'}
         </button>
       </div>

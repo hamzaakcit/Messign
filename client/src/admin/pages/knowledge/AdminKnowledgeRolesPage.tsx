@@ -83,17 +83,17 @@ export function AdminKnowledgeRolesPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+      <h1 className="text-xl font-bold text-app-text mb-6 flex items-center gap-2">
         <Shield className="w-5 h-5 text-purple-400" /> Knowledge Roles
       </h1>
 
       {loading ? (
-        <div className="text-center py-10 text-gray-500">Loading...</div>
+        <div className="text-center py-10 text-app-muted">Loading...</div>
       ) : (
-        <div className="rounded-xl border border-dark-700 overflow-hidden">
+        <div className="rounded-xl border border-app-border overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="bg-dark-800 text-xs text-gray-500 uppercase">
+              <tr className="bg-app-sidebar text-xs text-app-muted uppercase">
                 <th className="text-left px-4 py-3">User</th>
                 <th className="text-left px-4 py-3">Email</th>
                 <th className="text-left px-4 py-3">Role</th>
@@ -101,15 +101,15 @@ export function AdminKnowledgeRolesPage() {
             </thead>
             <tbody className="divide-y divide-dark-700">
               {users.map(u => (
-                <tr key={u.id} className="bg-dark-800/50 hover:bg-dark-800">
-                  <td className="px-4 py-3 text-sm text-white">{u.full_name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-400">{u.email}</td>
+                <tr key={u.id} className="bg-app-sidebar/50 hover:bg-app-hover">
+                  <td className="px-4 py-3 text-sm text-app-text">{u.full_name}</td>
+                  <td className="px-4 py-3 text-sm text-app-muted">{u.email}</td>
                   <td className="px-4 py-3">
                     <select
                       value={u.role}
                       disabled={saving === (u.auth_user_id || u.id)}
                       onChange={(e) => handleRoleChange(u, e.target.value)}
-                      className="px-2 py-1 rounded bg-dark-700 border border-dark-600 text-sm text-white disabled:opacity-50"
+                      className="px-2 py-1 rounded bg-app-card border border-app-border text-sm text-app-text disabled:opacity-50"
                     >
                       {ROLES.map(r => (
                         <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>

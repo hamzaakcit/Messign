@@ -88,8 +88,8 @@ export function DashboardKPIRow({ metrics }: DashboardKPIRowProps) {
               'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
               'bg-[#13151a] border-gray-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
               isActive
-                ? 'ring-1 ring-[#2dd4bf] bg-white/5 border-[var(--card-color)] shadow-[0_0_20px_var(--card-glow)]'
-                : 'hover:border-white/20 hover:bg-white/[0.03]'
+                ? 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary border-[var(--card-color)] shadow-[0_0_20px_var(--card-glow)]'
+                : 'hover:border-app-border-strong hover:bg-app-hover'
             )}
             style={
               isActive
@@ -110,11 +110,11 @@ export function DashboardKPIRow({ metrics }: DashboardKPIRowProps) {
               <Icon className="w-4 h-4" style={{ color: config.color }} aria-hidden />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white tracking-tight">
+              <p className="text-sm font-bold text-app-text tracking-tight">
                 {config.format(animatedValue)}
               </p>
-              <p className="text-xs text-gray-400">{config.label}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-app-muted">{config.label}</p>
+              <p className="text-xs text-app-muted">
                 {change >= 0 ? '+' : ''}{change}% vs last quarter
               </p>
             </div>

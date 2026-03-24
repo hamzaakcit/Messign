@@ -316,7 +316,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
               <span className="text-sm font-medium flex-1 text-left truncate">{navItem.label}</span>
               <DoraInsightCountBadge count={insightBadge} />
               {badge > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-primary-500 text-white text-[10px] font-medium">
+                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-primary-500 text-app-text text-[10px] font-medium">
                   {badge > 99 ? '99+' : badge}
                 </span>
               )}

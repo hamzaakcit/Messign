@@ -54,7 +54,7 @@ export function DoraInsightBar({ insights, className }: DoraInsightBarProps) {
         {primaryInsight.actionLabel && primaryInsight.onAction && (
           <button
             onClick={primaryInsight.onAction}
-            className={cn('px-3 py-1 rounded-lg text-xs font-medium border', textColors[primaryInsight.type], 'border-current/20 hover:bg-white/5')}
+            className={cn('px-3 py-1 rounded-lg text-xs font-medium border', textColors[primaryInsight.type], 'border-current/20 hover:bg-app-nav-hover')}
           >
             {primaryInsight.actionLabel}
           </button>
@@ -69,7 +69,7 @@ export function DoraInsightBar({ insights, className }: DoraInsightBarProps) {
         </button>
       </div>
       {expanded && insights.length > 1 && (
-        <div className="border-t border-white/10 px-4 py-2 space-y-2">
+        <div className="border-t border-app-border px-4 py-2 space-y-2">
           {insights.slice(1).map((insight, i) => (
             <div key={i} className="flex items-center gap-3 text-sm">
               <div className={cn('h-1.5 w-1.5 rounded-full', textColors[insight.type].replace('text-', 'bg-'))} />

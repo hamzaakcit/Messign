@@ -44,10 +44,10 @@ function MetricCard({
   alert?: boolean;
 }) {
   return (
-    <div className="rounded-md bg-white/5 p-2 text-center">
-      <div className={`text-lg font-bold ${alert ? 'text-red-400' : 'text-white'}`}>{value}</div>
-      <div className="text-[10px] text-white/40 uppercase tracking-wider">{label}</div>
-      <div className="text-[10px] text-white/30">{sub}</div>
+    <div className="rounded-md bg-app-surface-tertiary p-2 text-center">
+      <div className={`text-lg font-bold ${alert ? 'text-red-400' : 'text-app-text'}`}>{value}</div>
+      <div className="text-[10px] text-app-text/40 uppercase tracking-wider">{label}</div>
+      <div className="text-[10px] text-app-text/30">{sub}</div>
     </div>
   );
 }
@@ -63,8 +63,8 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
         icon={<TrendingUp size={14} className="text-amber-400" />}
         subtitle="No rows returned for this query"
       >
-        <p className="text-sm text-white/50 mb-2">No performance data available for this view.</p>
-        <p className="text-xs text-white/35">
+        <p className="text-sm text-app-text/50 mb-2">No performance data available for this view.</p>
+        <p className="text-xs text-app-text/35">
           If you expected metrics, check the person exists and has tasks or activity in the chosen period.
         </p>
       </DoraWidgetShell>
@@ -91,10 +91,10 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
         return (
           <div
             key={i}
-            className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3"
+            className="rounded-lg border border-app-border bg-app-surface-tertiary p-4 space-y-3"
           >
             <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-white">{emp.full_name}</h4>
+              <h4 className="font-semibold text-app-text">{emp.full_name}</h4>
               <span className="text-xs px-2 py-1 rounded-full bg-primary-500/20 text-primary-300">
                 {xpVal.toLocaleString()} XP
               </span>
@@ -124,7 +124,7 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
               />
             </div>
 
-            <div className="w-full bg-white/10 rounded-full h-2">
+            <div className="w-full bg-app-surface-tertiary rounded-full h-2">
               <div
                 className="h-2 rounded-full transition-all"
                 style={{
@@ -136,7 +136,7 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
             </div>
 
             {teamAvg && (
-              <p className="text-xs text-white/40">
+              <p className="text-xs text-app-text/40">
                 Team avg: {avgTasks.toFixed(1)} tasks completed, {avgXp.toLocaleString()} XP
               </p>
             )}

@@ -94,7 +94,7 @@ export function InvoicePreviewCard({ block, delay = 0 }: InvoicePreviewCardProps
               Line items ({data.lineItems!.length})
             </button>
             {linesOpen && (
-              <ul className="mt-2 space-y-1 rounded-lg border border-white/10 p-2 text-xs" role="list">
+              <ul className="mt-2 space-y-1 rounded-lg border border-app-border p-2 text-xs" role="list">
                 {data.lineItems!.map((line, i) => (
                   <li key={i} className="flex justify-between gap-2" style={{ color: 'var(--dora-text-2, #cbd5e1)' }}>
                     <span className="truncate">{line.description}</span>

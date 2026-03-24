@@ -21,9 +21,9 @@ import { ComplianceDetailPanel } from '../ComplianceDetailPanel';
 function PanelSkeleton() {
   return (
     <div className="flex h-full flex-col gap-3 p-3 animate-pulse">
-      <div className="h-4 w-1/2 rounded bg-white/[0.06]" />
-      <div className="h-24 rounded-lg bg-white/[0.04]" />
-      <div className="h-32 rounded-lg bg-white/[0.04]" />
+      <div className="h-4 w-1/2 rounded bg-app-surface-tertiary" />
+      <div className="h-24 rounded-lg bg-app-surface-tertiary" />
+      <div className="h-32 rounded-lg bg-app-surface-tertiary" />
     </div>
   );
 }
@@ -316,7 +316,7 @@ export function ContentDetailPanel({
                     if (onSelectContent) onSelectContent(ch.id);
                     else navigate(`/marketing/content?contentId=${encodeURIComponent(ch.id)}`);
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-white/[0.04]"
+                  className="flex w-full items-center gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-app-hover"
                 >
                   <ChannelBadge channel={ch.channel} size="sm" />
                   <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">{ch.title}</span>
@@ -364,12 +364,12 @@ export function ContentDetailPanel({
                         'group relative overflow-hidden rounded-lg border transition-all',
                         content.image_url === v.image_url
                           ? 'border-cyan-400/60 ring-1 ring-cyan-400/30'
-                          : 'border-white/[0.08] hover:border-white/20',
+                          : 'border-white/[0.08] hover:border-app-border-strong',
                       )}
                     >
                       <img src={v.image_url} alt="" className="aspect-square w-full object-cover" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
-                        <span className="text-[9px] font-medium text-white/80">
+                        <span className="text-[9px] font-medium text-app-text/80">
                           {v.style_preset.replace(/_/g, ' ')}
                         </span>
                       </div>
@@ -394,7 +394,7 @@ export function ContentDetailPanel({
                   setShowRegenerate((v) => !v);
                 }}
                 disabled={isRegenerating || isGeneratingVariants}
-                className="rounded-md border border-white/[0.1] bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-medium text-slate-200 hover:bg-white/[0.08] disabled:opacity-40"
+                className="rounded-md border border-white/[0.1] bg-app-surface-tertiary px-2.5 py-1.5 text-[10px] font-medium text-slate-200 hover:bg-app-hover disabled:opacity-40"
               >
                 {showRegenerate ? 'Hide' : 'Regen image'}
               </button>
@@ -415,7 +415,7 @@ export function ContentDetailPanel({
                     ))}
                   </div>
                   <input value={regenPrompt} onChange={(e) => setRegenPrompt(e.target.value)} placeholder="Prompt…" className="flex-1 min-w-[120px] h-7 rounded-md border border-white/[0.08] bg-black/30 px-2 text-[10px] text-slate-200 placeholder:text-slate-600" />
-                  <button type="button" onClick={() => void handleRegenerateImage()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md bg-cyan-600/80 text-[10px] font-medium text-white hover:bg-cyan-500 disabled:opacity-40">{isRegenerating ? '…' : 'Go'}</button>
+                  <button type="button" onClick={() => void handleRegenerateImage()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md bg-cyan-600/80 text-[10px] font-medium text-app-text hover:bg-cyan-500 disabled:opacity-40">{isRegenerating ? '…' : 'Go'}</button>
                   <button type="button" onClick={() => void handleGenerateVariants()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md border border-purple-500/30 bg-purple-500/10 text-[10px] font-medium text-purple-300 hover:bg-purple-500/20 disabled:opacity-40">{isGeneratingVariants ? '…' : 'A/B'}</button>
                 </div>
               )}

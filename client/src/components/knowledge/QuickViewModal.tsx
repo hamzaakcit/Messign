@@ -58,8 +58,8 @@ export function QuickViewModal({ document: doc, onClose, onDownload, onPin, onAc
     }
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg">
-        <FileText className="w-16 h-16 text-gray-300 mb-4" />
-        <p className="text-gray-500 font-medium">{doc.file_type?.toUpperCase() ?? 'Document'}</p>
+        <FileText className="w-16 h-16 text-app-muted mb-4" />
+        <p className="text-app-muted font-medium">{doc.file_type?.toUpperCase() ?? 'Document'}</p>
         {fileUrl && (
           <Button onClick={() => onDownload(doc)} className="mt-4 gap-2">
             <Download className="w-4 h-4" /> Download to view
@@ -76,16 +76,16 @@ export function QuickViewModal({ document: doc, onClose, onDownload, onPin, onAc
         <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
           <h3 className="font-bold text-gray-900 text-lg truncate pr-4">{doc.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={() => onDownload(doc)} className="p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Download">
+            <button onClick={() => onDownload(doc)} className="p-2 rounded-lg text-app-muted hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Download">
               <Download className="w-5 h-5" />
             </button>
-            <button onClick={handleCopyLink} className="p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Copy Link">
+            <button onClick={handleCopyLink} className="p-2 rounded-lg text-app-muted hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Copy Link">
               <Link2 className="w-5 h-5" />
             </button>
-            <button onClick={() => onPin(doc)} className={cn('p-2 rounded-lg transition-colors', doc.user_pinned ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50')} title={doc.user_pinned ? 'Unpin' : 'Pin'}>
+            <button onClick={() => onPin(doc)} className={cn('p-2 rounded-lg transition-colors', doc.user_pinned ? 'text-indigo-600 bg-indigo-50' : 'text-app-muted hover:text-indigo-600 hover:bg-indigo-50')} title={doc.user_pinned ? 'Unpin' : 'Pin'}>
               <Pin className="w-5 h-5" fill={doc.user_pinned ? 'currentColor' : 'none'} />
             </button>
-            <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <button onClick={onClose} className="p-2 rounded-lg text-app-muted hover:text-gray-600 hover:bg-gray-100 transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -101,24 +101,24 @@ export function QuickViewModal({ document: doc, onClose, onDownload, onPin, onAc
           {/* Metadata */}
           <div className="space-y-3 text-sm">
             {doc.version_label && (
-              <div className="flex gap-3"><span className="text-gray-400 w-24 shrink-0">Version</span><span className="text-gray-900 font-medium">{doc.version_label}</span></div>
+              <div className="flex gap-3"><span className="text-app-muted w-24 shrink-0">Version</span><span className="text-gray-900 font-medium">{doc.version_label}</span></div>
             )}
             {doc.category_name && (
-              <div className="flex gap-3"><span className="text-gray-400 w-24 shrink-0">Category</span>
+              <div className="flex gap-3"><span className="text-app-muted w-24 shrink-0">Category</span>
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium border" style={doc.category_color ? { borderColor: doc.category_color + '40', color: doc.category_color } : undefined}>
                   {doc.category_name}
                 </span>
               </div>
             )}
-            <div className="flex gap-3"><span className="text-gray-400 w-24 shrink-0">Updated</span><span className="text-gray-900">{doc.author_name} on {formatDate(doc.updated_at)}</span></div>
+            <div className="flex gap-3"><span className="text-app-muted w-24 shrink-0">Updated</span><span className="text-gray-900">{doc.author_name} on {formatDate(doc.updated_at)}</span></div>
             {doc.description && (
-              <div className="flex gap-3"><span className="text-gray-400 w-24 shrink-0">Description</span><span className="text-gray-700">{doc.description}</span></div>
+              <div className="flex gap-3"><span className="text-app-muted w-24 shrink-0">Description</span><span className="text-gray-700">{doc.description}</span></div>
             )}
-            <div className="flex gap-3"><span className="text-gray-400 w-24 shrink-0">File</span>
+            <div className="flex gap-3"><span className="text-app-muted w-24 shrink-0">File</span>
               <span className="text-gray-700 uppercase">{doc.file_type ?? doc.type}{doc.file_size_bytes ? ` · ${formatSize(doc.file_size_bytes)}` : ''} · Downloaded {doc.download_count} times</span>
             </div>
             {tags.length > 0 && (
-              <div className="flex gap-3"><span className="text-gray-400 w-24 shrink-0">Tags</span>
+              <div className="flex gap-3"><span className="text-app-muted w-24 shrink-0">Tags</span>
                 <div className="flex flex-wrap gap-1">
                   {tags.map(t => (
                     <span key={t.id} className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{t.name}</span>
@@ -138,7 +138,7 @@ export function QuickViewModal({ document: doc, onClose, onDownload, onPin, onAc
                   <span className="text-sm text-amber-900">I have read and acknowledge this document</span>
                 </label>
                 <Button onClick={() => { onAcknowledge(doc); setAckChecked(false); }} disabled={!ackChecked}
-                  className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white gap-2">
+                  className="shrink-0 bg-amber-600 hover:bg-amber-500 text-app-text gap-2">
                   <CheckCircle className="w-4 h-4" /> Submit
                 </Button>
               </div>

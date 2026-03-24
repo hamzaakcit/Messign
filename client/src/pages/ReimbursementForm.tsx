@@ -236,7 +236,7 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
       <div className="max-w-2xl mx-auto p-6 space-y-6">
         <h2 className="text-xl font-semibold text-app">{id ? 'Edit Reimbursement' : 'New Reimbursement Request'}</h2>
 
-        <div className="rounded-xl border border-app-border bg-dark-800 overflow-hidden">
+        <div className="rounded-xl border border-app-border bg-app-sidebar overflow-hidden">
           <div className="p-5 space-y-5">
             {!id && (
               <>
@@ -248,7 +248,7 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
                       type="button"
                       onClick={() => setExpenseType(type)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
-                        expenseType === type ? 'bg-primary-500 text-white' : 'bg-app-hover text-app-muted hover:text-app'
+                        expenseType === type ? 'bg-primary-500 text-app-text' : 'bg-app-hover text-app-muted hover:text-app'
                       }`}
                     >
                       {type}
@@ -346,7 +346,7 @@ export function ReimbursementForm({ id, onSuccess, onCancel }: ReimbursementForm
         </div>
 
         {(effectiveId || expenseType === 'receipt' || expenseType === 'invoice') && (
-          <div className="rounded-xl border border-app-border bg-dark-800 p-5">
+          <div className="rounded-xl border border-app-border bg-app-sidebar p-5">
             <p className="text-xs font-semibold text-app-muted uppercase tracking-wide mb-3">Documents</p>
             <DocumentUploader
               reimbursementId={effectiveId ?? undefined}

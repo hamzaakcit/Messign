@@ -27,7 +27,7 @@ export function CollectionCard({ collection: col, onClick }: Props) {
   return (
     <div
       onClick={() => onClick(col)}
-      className="group rounded-xl border border-app-border bg-dark-800 p-5 cursor-pointer hover:border-app-border-hover hover:shadow-lg hover:shadow-black/10 transition-all"
+      className="group rounded-xl border border-app-border bg-app-sidebar p-5 cursor-pointer hover:border-app-border-hover hover:shadow-lg hover:shadow-black/10 transition-all"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="w-11 h-11 rounded-xl bg-indigo-500/20 flex items-center justify-center">

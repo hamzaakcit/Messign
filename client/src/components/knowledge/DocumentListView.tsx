@@ -30,7 +30,7 @@ export function DocumentListView({ documents, onView, onPin, onDownload }: Props
     <div className="rounded-xl border border-app-border overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-dark-700 text-app-muted text-xs uppercase tracking-wider">
+          <tr className="bg-app-card text-app-muted text-xs uppercase tracking-wider">
             <th className="text-left py-3 px-4 font-semibold">Document</th>
             <th className="text-left py-3 px-3 font-semibold hidden md:table-cell">Category</th>
             <th className="text-left py-3 px-3 font-semibold hidden lg:table-cell">Author</th>
@@ -44,7 +44,7 @@ export function DocumentListView({ documents, onView, onPin, onDownload }: Props
             const IconComp = FILE_ICONS[doc.file_type ?? doc.type] ?? FileText;
             const isNew = doc.new_badge_until && new Date(doc.new_badge_until) > new Date();
             return (
-              <tr key={doc.id} className="border-t border-app-border hover:bg-dark-700/50 transition-colors">
+              <tr key={doc.id} className="border-t border-app-border hover:bg-app-hover/50 transition-colors">
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-primary-500/10')}>

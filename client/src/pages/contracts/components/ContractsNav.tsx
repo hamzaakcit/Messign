@@ -25,7 +25,7 @@ export function ContractsNav() {
             onClick={() => navigate(tab.path)}
             className={cn(
               'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap',
-              isActive ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-white/5',
+              isActive ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
             )}
           >
             <Icon className="w-4 h-4" />

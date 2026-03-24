@@ -36,7 +36,7 @@ export function RightSidebarInsights({ totalEmployees, lowLevelCount = 0 }: Righ
       <CardContent>
         <ul className="space-y-2">
           {insights.slice(0, 3).map((item, i) => (
-            <li key={i} className="text-sm text-gray-400 flex flex-col gap-1">
+            <li key={i} className="text-sm text-app-muted flex flex-col gap-1">
               <span>{item.text}</span>
               {item.action && (
                 <button type="button" className="text-primary-400 hover:text-primary-300 text-xs text-left w-fit">

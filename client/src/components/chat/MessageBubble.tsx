@@ -30,12 +30,12 @@ export function MessageBubble({ message, user, showAvatar }: MessageBubbleProps)
       <div className="flex-1 min-w-0">
         {showAvatar && (
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-white">{displayName}</span>
-            <span className="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
+            <span className="font-semibold text-app-text">{displayName}</span>
+            <span className="text-xs text-app-muted">{formatTime(message.timestamp)}</span>
           </div>
         )}
         
-        <div className="text-gray-300 break-words">
+        <div className="text-app-muted break-words">
           {formatMessageContent(message.content)}
         </div>
 

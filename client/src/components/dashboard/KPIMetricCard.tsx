@@ -60,7 +60,7 @@ export function KPIMetricCard({ data, index, onCardClick }: KPIMetricCardProps) 
         'backdrop-blur-[10px]',
         'shadow-[0_4px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]',
         'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-        'hover:scale-[1.02] hover:border-white/10',
+        'hover:scale-[1.02] hover:border-app-border',
         'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
         'cursor-pointer',
         'animate-kpi-enter',
@@ -98,7 +98,7 @@ export function KPIMetricCard({ data, index, onCardClick }: KPIMetricCardProps) 
 
       {/* Main metric (count-up) */}
       <p
-        className="text-white font-bold tracking-tight leading-tight mt-2"
+        className="text-app-text font-bold tracking-tight leading-tight mt-2"
         style={{
           fontSize: 'clamp(1.75rem, 2.8vw, 2.45rem)',
           letterSpacing: '-0.02em',
@@ -108,8 +108,8 @@ export function KPIMetricCard({ data, index, onCardClick }: KPIMetricCardProps) 
       </p>
 
       {/* Labels */}
-      <p className="mt-2 text-base font-medium text-white/70">{label}</p>
-      <p className="mt-1 text-[13px] font-normal text-white/40">{sublabel}</p>
+      <p className="mt-2 text-base font-medium text-app-text/70">{label}</p>
+      <p className="mt-1 text-[13px] font-normal text-app-text/40">{sublabel}</p>
     </article>
   );
 }

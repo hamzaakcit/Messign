@@ -54,7 +54,7 @@ export function RolePermissions() {
                   'w-full flex items-center gap-3 p-4 rounded-xl text-left transition-colors',
                   selectedRole?.id === role.id
                     ? 'bg-primary-500/20 border border-primary-500/30'
-                    : 'glass-card border border-white/10 hover:bg-white/5'
+                    : 'glass-card border border-app-border hover:bg-app-nav-hover'
                 )}
               >
                 <Shield className="w-5 h-5 text-primary-400 shrink-0" />

@@ -11,7 +11,7 @@ export function DoraInsightCountBadge({ count = 0, className }: DoraInsightCount
   return (
     <span
       className={cn(
-        'min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-primary-500 text-white text-xs font-medium',
+        'min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-primary-500 text-app-text text-xs font-medium',
         className,
       )}
     >

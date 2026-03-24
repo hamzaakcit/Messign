@@ -74,7 +74,7 @@ export function InstagramPreview({
       <div className="relative aspect-square w-full bg-black/40">
         {isGenerating ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-            <div className="h-10 w-10 animate-pulse rounded-full bg-white/[0.08]" />
+            <div className="h-10 w-10 animate-pulse rounded-full bg-app-surface-tertiary" />
             <p className="text-[11px] text-slate-500">Generating visuals…</p>
           </div>
         ) : currentImage && !imgLoadError ? (
@@ -87,7 +87,7 @@ export function InstagramPreview({
                     type="button"
                     title="Previous slide"
                     onClick={() => setSlideIndex((i) => i - 1)}
-                    className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white/80 hover:bg-black/70"
+                    className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-app-text/80 hover:bg-black/70"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
@@ -97,7 +97,7 @@ export function InstagramPreview({
                     type="button"
                     title="Next slide"
                     onClick={() => setSlideIndex((i) => i + 1)}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white/80 hover:bg-black/70"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-app-text/80 hover:bg-black/70"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>

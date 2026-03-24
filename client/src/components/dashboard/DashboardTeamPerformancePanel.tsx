@@ -61,30 +61,30 @@ export function DashboardTeamPerformancePanel({
   return (
     <div className="h-full flex flex-col rounded-xl border border-gray-800 bg-[#13151a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden">
       <div className="shrink-0 flex flex-col gap-3 px-4 py-3 border-b border-gray-800">
-        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-app-text flex items-center gap-2">
           <Trophy className="w-4 h-4 text-yellow-400" />
           Team Performance
         </h2>
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-muted" />
           <input
             type="search"
             placeholder="Search members..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-700 bg-white/5 text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#2dd4bf] focus:border-[#2dd4bf]"
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-700 bg-app-surface-tertiary text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-[#2dd4bf] focus:border-[#2dd4bf]"
             aria-label="Search team members"
           />
         </div>
-        <div className="flex rounded-lg border border-gray-700 bg-white/5 p-1">
+        <div className="flex rounded-lg border border-gray-700 bg-app-surface-tertiary p-1">
           <button
             type="button"
             onClick={() => onViewChange('enterprise')}
             className={cn(
               'flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
               view === 'enterprise'
-                ? 'bg-primary-500 text-white shadow-sm'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-primary-500 text-app-text shadow-sm'
+                : 'text-app-muted hover:text-app-text'
             )}
           >
             Enterprise
@@ -95,8 +95,8 @@ export function DashboardTeamPerformancePanel({
             className={cn(
               'flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
               view === 'wholesale'
-                ? 'bg-primary-500 text-white shadow-sm'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-primary-500 text-app-text shadow-sm'
+                : 'text-app-muted hover:text-app-text'
             )}
           >
             Wholesale
@@ -109,12 +109,12 @@ export function DashboardTeamPerformancePanel({
             {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 p-2 rounded-lg bg-white/5 animate-pulse"
+                className="flex items-center gap-2 p-2 rounded-lg bg-app-surface-tertiary animate-pulse"
               >
-                <div className="w-8 h-8 rounded-lg bg-white/10 shrink-0" />
+                <div className="w-8 h-8 rounded-lg bg-app-surface-tertiary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="h-3 w-20 rounded bg-white/10" />
-                  <div className="h-2.5 w-14 rounded bg-white/5 mt-1" />
+                  <div className="h-3 w-20 rounded bg-app-surface-tertiary" />
+                  <div className="h-2.5 w-14 rounded bg-app-surface-tertiary mt-1" />
                 </div>
               </div>
             ))}
@@ -122,7 +122,7 @@ export function DashboardTeamPerformancePanel({
         ) : error && members.length === 0 ? (
           <p className="text-xs text-red-400 py-4 text-center">{error}</p>
         ) : filteredMembers.length === 0 ? (
-          <p className="text-xs text-gray-500 py-4 text-center">
+          <p className="text-xs text-app-muted py-4 text-center">
             {search ? 'No members match your search' : 'No team data yet'}
           </p>
         ) : (
@@ -134,16 +134,16 @@ export function DashboardTeamPerformancePanel({
               className={cn(
                 'w-full flex items-center gap-2 p-2 rounded-lg transition-all duration-200 text-left',
                 activeEntity === 'company'
-                  ? 'ring-1 ring-[#2dd4bf] bg-white/5'
-                  : 'hover:bg-white/5'
+                  ? 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary'
+                  : 'hover:bg-app-nav-hover'
               )}
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-primary-500/20">
                 <Building2 className="w-4 h-4 text-primary-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white">Company</p>
-                <p className="text-xs text-gray-400">Aggregate view</p>
+                <p className="text-sm font-medium text-app-text">Company</p>
+                <p className="text-xs text-app-muted">Aggregate view</p>
               </div>
             </button>
             {filteredMembers.map((member) => {
@@ -159,8 +159,8 @@ export function DashboardTeamPerformancePanel({
                   className={cn(
                     'w-full flex items-center gap-2 p-2 rounded-lg transition-all duration-200 text-left',
                     isActive
-                      ? 'ring-1 ring-[#2dd4bf] bg-white/5'
-                      : 'hover:bg-white/5'
+                      ? 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary'
+                      : 'hover:bg-app-nav-hover'
                   )}
                 >
                   <div
@@ -168,7 +168,7 @@ export function DashboardTeamPerformancePanel({
                       'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
                       member.rank <= 3
                         ? ''
-                        : 'bg-white/5'
+                        : 'bg-app-surface-tertiary'
                     )}
                     style={
                       member.rank <= 3
@@ -196,7 +196,7 @@ export function DashboardTeamPerformancePanel({
                         }}
                       />
                     ) : (
-                      <span className="text-xs font-medium text-white">
+                      <span className="text-xs font-medium text-app-text">
                         {member.rank}
                       </span>
                     )}
@@ -209,14 +209,14 @@ export function DashboardTeamPerformancePanel({
                     className="shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
+                    <p className="text-sm font-medium text-app-text truncate">
                       {member.name}
                     </p>
-                    <p className="text-xs text-gray-400 truncate">
+                    <p className="text-xs text-app-muted truncate">
                       {member.role}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-white shrink-0 tabular-nums">
+                  <span className="text-xs font-semibold text-app-text shrink-0 tabular-nums">
                     {primaryMetric}
                   </span>
                 </button>

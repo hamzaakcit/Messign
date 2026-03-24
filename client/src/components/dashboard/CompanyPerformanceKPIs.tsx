@@ -112,8 +112,8 @@ export function CompanyPerformanceKPIs({
               'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
               'border-gray-800/50 bg-gray-900/40 backdrop-blur-md',
               isActive
-                ? 'border-[var(--card-color)] shadow-[0_0_24px_var(--card-glow)] bg-white/[0.06]'
-                : 'hover:border-white/20 hover:bg-white/[0.05]'
+                ? 'border-[var(--card-color)] shadow-[0_0_24px_var(--card-glow)] bg-app-surface-tertiary'
+                : 'hover:border-app-border-strong hover:bg-app-hover'
             )}
             style={
               isActive
@@ -149,13 +149,13 @@ export function CompanyPerformanceKPIs({
                 <Icon className="w-4 h-4" style={{ color: config.color }} aria-hidden />
               </div>
               <p
-                className="text-xl md:text-2xl font-bold text-white tracking-tight"
+                className="text-xl md:text-2xl font-bold text-app-text tracking-tight"
                 style={{ letterSpacing: '-0.02em' }}
               >
                 {config.format(animatedValue)}
               </p>
-              <p className="mt-0.5 text-xs font-medium text-white/70">{config.label}</p>
-              <p className="mt-0.5 text-xs text-white/50">
+              <p className="mt-0.5 text-xs font-medium text-app-text/70">{config.label}</p>
+              <p className="mt-0.5 text-xs text-app-text/50">
                 {change >= 0 ? '+' : ''}{change}% vs last quarter
               </p>
             </div>

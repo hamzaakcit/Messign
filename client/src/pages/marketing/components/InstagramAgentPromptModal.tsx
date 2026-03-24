@@ -172,7 +172,7 @@ export function InstagramAgentPromptModal({
           <button
             type="button"
             onClick={() => handleSubmit('send')}
-            className="px-4 py-2 rounded-lg text-sm bg-pink-600 text-white hover:bg-pink-500 font-medium"
+            className="px-4 py-2 rounded-lg text-sm bg-pink-600 text-app-text hover:bg-pink-500 font-medium"
           >
             Send to agent
           </button>

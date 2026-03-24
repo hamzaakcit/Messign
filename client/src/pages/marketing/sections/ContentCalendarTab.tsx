@@ -53,7 +53,7 @@ function channelBg(channel?: string | null): string {
   if (c === 'twitter' || c === 'x') return 'bg-sky-500/15 text-sky-300 border-sky-500/20';
   if (c === 'linkedin') return 'bg-blue-500/15 text-blue-300 border-blue-500/20';
   if (c === 'facebook') return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20';
-  return 'bg-white/[0.06] text-slate-300 border-white/[0.08]';
+  return 'bg-app-surface-tertiary text-slate-300 border-white/[0.08]';
 }
 
 function startOfCalendarMonth(year: number, monthIndex: number): Date {
@@ -205,7 +205,7 @@ export function ContentCalendarTab(): JSX.Element {
     return (
       <div key={day.date} className={cn('min-h-[120px] border-r border-b border-white/[0.06] p-1.5 transition-colors', day.inMonth ? 'bg-[#0c0f14]' : 'bg-[#080a0e] opacity-50', draggedContentId && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)} onClick={(e) => { if (e.target === e.currentTarget) setCreateDate(day.date); }}>
         <div className="flex items-center justify-between mb-1">
-          <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium', isToday ? 'bg-cyan-500 text-white' : 'text-slate-500')}>{new Date(day.date + 'T12:00:00').getDate()}</span>
+          <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-500')}>{new Date(day.date + 'T12:00:00').getDate()}</span>
           {hasWarning && <AlertTriangle className="h-3 w-3 text-amber-400/80" />}
         </div>
         <div className="space-y-0.5">
@@ -218,21 +218,21 @@ export function ContentCalendarTab(): JSX.Element {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3">
-      <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden mb-4">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden mb-4">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-2">
-            <button title="Previous" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() - 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-1.5 text-slate-400 hover:bg-white/[0.08] hover:text-slate-200"><ChevronLeft className="h-4 w-4" /></button>
+            <button title="Previous" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() - 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-1.5 text-slate-400 hover:bg-app-hover hover:text-slate-200"><ChevronLeft className="h-4 w-4" /></button>
             <h2 className="min-w-[180px] text-center text-sm font-semibold text-slate-100">
               {viewMode === 'week'
                 ? `${weekDays[0] ? new Date(weekDays[0].date + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' }) : ''} \u2013 ${weekDays[6] ? new Date(weekDays[6].date + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}`
                 : anchorDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </h2>
-            <button title="Next" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() + 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-1.5 text-slate-400 hover:bg-white/[0.08] hover:text-slate-200"><ChevronRight className="h-4 w-4" /></button>
-            <button onClick={() => setAnchorDate(new Date())} className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-medium text-slate-400 hover:bg-white/[0.08] hover:text-slate-200">Today</button>
+            <button title="Next" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() + 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-1.5 text-slate-400 hover:bg-app-hover hover:text-slate-200"><ChevronRight className="h-4 w-4" /></button>
+            <button onClick={() => setAnchorDate(new Date())} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary px-2.5 py-1.5 text-[10px] font-medium text-slate-400 hover:bg-app-hover hover:text-slate-200">Today</button>
           </div>
-          <div className="flex rounded-lg border border-white/[0.08] bg-white/[0.02] p-0.5">
+          <div className="flex rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-0.5">
             {([{ id: 'month' as const, icon: CalendarDays, label: 'Month' }, { id: 'week' as const, icon: LayoutGrid, label: 'Week' }, { id: 'list' as const, icon: List, label: 'List' }]).map(({ id, icon: Icon, label }) => (
-              <button key={id} type="button" onClick={() => setViewMode(id)} title={label} className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors', viewMode === id ? 'bg-white/[0.08] text-slate-100' : 'text-slate-500 hover:text-slate-300')}><Icon className="h-3.5 w-3.5" />{label}</button>
+              <button key={id} type="button" onClick={() => setViewMode(id)} title={label} className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors', viewMode === id ? 'bg-app-surface-tertiary text-slate-100' : 'text-slate-500 hover:text-slate-300')}><Icon className="h-3.5 w-3.5" />{label}</button>
             ))}
           </div>
         </div>
@@ -249,7 +249,7 @@ export function ContentCalendarTab(): JSX.Element {
         {viewMode === 'week' && (
           <div>
             <div className="grid grid-cols-7 border-b border-white/[0.06]">
-              {weekDays.map((day) => { const d = new Date(day.date + 'T12:00:00'); const isToday = day.date === todayKey; return (<div key={day.date} className="border-r border-white/[0.06] px-2 py-2 last:border-r-0 text-center"><div className="text-[10px] uppercase tracking-wider text-slate-600">{d.toLocaleDateString('en', { weekday: 'short' })}</div><div className={cn('mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium', isToday ? 'bg-cyan-500 text-white' : 'text-slate-300')}>{d.getDate()}</div></div>); })}
+              {weekDays.map((day) => { const d = new Date(day.date + 'T12:00:00'); const isToday = day.date === todayKey; return (<div key={day.date} className="border-r border-white/[0.06] px-2 py-2 last:border-r-0 text-center"><div className="text-[10px] uppercase tracking-wider text-slate-600">{d.toLocaleDateString('en', { weekday: 'short' })}</div><div className={cn('mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-300')}>{d.getDate()}</div></div>); })}
             </div>
             <div className="grid grid-cols-7 min-h-[300px]">
               {weekDays.map((day) => (<div key={day.date} className={cn('border-r border-white/[0.06] p-2 last:border-r-0', draggedContentId && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)} onClick={(e) => { if (e.target === e.currentTarget) setCreateDate(day.date); }}><div className="space-y-1">{day.items.map(renderCalendarItem)}</div>{day.items.length === 0 && <p className="mt-8 text-center text-[9px] text-slate-700">Click to add</p>}</div>))}

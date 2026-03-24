@@ -178,7 +178,7 @@ export function FloatingTimer() {
                   type="button"
                   onClick={handleStop}
                   disabled={busy}
-                  className="flex-1 rounded-lg bg-red-500/90 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
+                  className="flex-1 rounded-lg bg-red-500/90 px-3 py-2 text-sm font-medium text-app-text hover:bg-red-500"
                 >
                   <span className="inline-flex items-center gap-1"><Square className="w-4 h-4" />Stop</span>
                 </button>

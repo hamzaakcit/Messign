@@ -16,7 +16,7 @@ export function Va2VariantToggle({
   if (variants.length < 2) return null;
 
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-md bg-white/[0.06] p-0.5">
+    <span className="inline-flex items-center gap-0.5 rounded-md bg-app-surface-tertiary p-0.5">
       {(['A', 'B'] as const).map((v) => (
         <button
           key={v}
@@ -26,7 +26,7 @@ export function Va2VariantToggle({
           className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
             activeVariant === v
               ? 'bg-primary-500/30 text-primary-300'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-app-hover'
           } disabled:opacity-40`}
         >
           {v}

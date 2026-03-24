@@ -129,22 +129,22 @@ export function BadgeCard({
       >
         {isEarned ? (
           <Icon
-            className="w-12 h-12 text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12"
+            className="w-12 h-12 text-app-text transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12"
             style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}
             strokeWidth={2}
             aria-hidden
           />
         ) : (
           <>
-            <Lock className="absolute w-8 h-8 text-white/60 z-10" aria-hidden />
-            <Icon className="w-10 h-10 text-white/30" strokeWidth={1.5} aria-hidden />
+            <Lock className="absolute w-8 h-8 text-app-text/60 z-10" aria-hidden />
+            <Icon className="w-10 h-10 text-app-text/30" strokeWidth={1.5} aria-hidden />
           </>
         )}
       </div>
 
       {/* Badge name */}
       <h3
-        className="mt-5 px-4 text-xl font-bold text-white leading-tight tracking-tight"
+        className="mt-5 px-4 text-xl font-bold text-app-text leading-tight tracking-tight"
         style={{ textShadow: '0 2px 8px rgba(0,0,0,0.3)', letterSpacing: '-0.02em' }}
       >
         {badge.name}
@@ -164,7 +164,7 @@ export function BadgeCard({
             {badge.rarity}
           </span>
         ) : (
-          <span className="text-xs text-white/50 px-3 py-2 line-clamp-2">
+          <span className="text-xs text-app-text/50 px-3 py-2 line-clamp-2">
             {badge.criteria ?? 'Complete criteria to unlock'}
           </span>
         )}
@@ -173,11 +173,11 @@ export function BadgeCard({
       {/* Earned date (earned) or progress bar (locked) */}
       <div className="mt-auto pb-4 w-full px-4">
         {isEarned && displayDate && (
-          <p className="text-[12px] text-white/50">Earned {displayDate}</p>
+          <p className="text-[12px] text-app-text/50">Earned {displayDate}</p>
         )}
         {!isEarned && progress && progress.total > 0 && (
           <div className="rounded-lg bg-black/30 p-3 mt-2">
-            <p className="text-xs text-white/60 mb-1">
+            <p className="text-xs text-app-text/60 mb-1">
               {progress.current} / {progress.total} completed
             </p>
             <ProgressBar

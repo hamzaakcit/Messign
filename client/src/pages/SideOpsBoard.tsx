@@ -37,7 +37,7 @@ const CATEGORY_ICONS: Record<SideOpCategory, string> = {
 };
 
 const URGENCY_STYLES: Record<SideOpUrgency, string> = {
-  LOW: 'bg-gray-500/20 text-gray-400',
+  LOW: 'bg-gray-500/20 text-app-muted',
   NORMAL: 'bg-blue-500/20 text-blue-400',
   HIGH: 'bg-orange-500/20 text-orange-400',
   CRITICAL: 'bg-red-500/20 text-red-400',

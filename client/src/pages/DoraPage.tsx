@@ -291,7 +291,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
 
   /* ───────────────────────── MODE: Ask / Analyze / Act ───────────────────────── */
   const ModeToggle = (
-    <div className="flex items-center gap-0.5 rounded-full border border-dark-600 bg-dark-800 p-0.5">
+    <div className="flex items-center gap-0.5 rounded-full border border-app-border bg-app-sidebar p-0.5">
       {([
         { mode: 'ask' as const, icon: MessageSquare, label: 'Ask', title: 'Q&A — concise answers & tools' },
         { mode: 'analyze' as const, icon: LineChart, label: 'Analyze', title: 'Deeper insights, comparisons, charts' },
@@ -310,7 +310,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
               ? mode === 'act'
                 ? 'border border-amber-500/40 bg-amber-500/15 text-amber-200'
                 : 'border border-primary-500/40 bg-primary-500/15 text-primary-300'
-              : 'border border-transparent text-gray-500 hover:text-gray-300'
+              : 'border border-transparent text-app-muted hover:text-app-muted'
           }`}
           title={title}
         >
@@ -340,7 +340,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
           onChange={handleInputChange}
           onKeyDown={handleInputKeyDown}
           placeholder="Ask Dora anything..."
-          className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-gray-600
+          className="w-full px-4 py-2.5 rounded-xl text-sm text-app-text placeholder-gray-600
             focus:outline-none resize-none overflow-hidden transition-all"
           style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(56,189,248,0.12)', backdropFilter: 'blur(12px)', boxShadow: '0 0 0 0 rgba(56,189,248,0)' }}
           onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(56,189,248,0.35)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(56,189,248,0.08)'; }}
@@ -352,7 +352,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
       {isStreaming ? (
         <button
           onClick={abortStream}
-          className="flex-shrink-0 p-2.5 rounded-xl bg-danger-500 hover:bg-danger-600 text-white transition-colors"
+          className="flex-shrink-0 p-2.5 rounded-xl bg-danger-500 hover:bg-danger-600 text-app-text transition-colors"
           title="Stop generating"
         >
           <StopCircle size={18} />
@@ -363,8 +363,8 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
           onClick={handleSend}
           disabled={!inputValue.trim() || isLoading}
           className="flex-shrink-0 p-2.5 rounded-xl bg-primary-500 hover:bg-primary-600
-            disabled:bg-dark-600 disabled:cursor-not-allowed
-            text-white transition-colors"
+            disabled:bg-app-hover disabled:cursor-not-allowed
+            text-app-text transition-colors"
           title="Send message"
         >
           <Send size={18} />
@@ -374,7 +374,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
   );
 
   return (
-    <div className="flex flex-col flex-1 h-full overflow-hidden" style={{ background: '#020817' }}>
+    <div data-theme="dark" className="flex flex-col flex-1 h-full overflow-hidden" style={{ background: '#020817' }}>
       {presentation ? (
         <PresentationViewer
           presentation={presentation}
@@ -613,13 +613,13 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
               <div className="flex items-center gap-2">
                 <DoraChatAvatar size={28} isThinking={isStreaming} />
                 <div>
-                  <h1 className="text-base font-semibold text-white">Dora</h1>
-                  <p className="text-xs text-gray-500">Your AI Pilot</p>
+                  <h1 className="text-base font-semibold text-app-text">Dora</h1>
+                  <p className="text-xs text-app-muted">Your AI Pilot</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {ModeToggle}
-                <button onClick={handleNewChat} className="p-1.5 rounded-lg hover:bg-dark-700 text-gray-500 hover:text-danger-500 transition-colors" title="New chat">
+                <button onClick={handleNewChat} className="p-1.5 rounded-lg hover:bg-app-hover text-app-muted hover:text-danger-500 transition-colors" title="New chat">
                   <Trash2 size={16} />
                 </button>
               </div>

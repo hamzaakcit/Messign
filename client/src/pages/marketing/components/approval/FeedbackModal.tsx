@@ -36,7 +36,7 @@ export function FeedbackModal({ isOpen, onClose, contentTitle, onSubmit }: Feedb
       <select
         value={reason}
         onChange={(e) => setReason(e.target.value as RejectionReason)}
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-app-text mb-4"
+        className="w-full bg-app-surface-tertiary border border-app-border rounded-lg px-3 py-2 text-sm text-app-text mb-4"
       >
         {REASONS.map((r) => (
           <option key={r.value} value={r.value}>
@@ -50,13 +50,13 @@ export function FeedbackModal({ isOpen, onClose, contentTitle, onSubmit }: Feedb
         onChange={(e) => setFeedback(e.target.value)}
         rows={5}
         placeholder="What should change before regeneration?"
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-app-text placeholder:text-app-muted resize-y min-h-[120px]"
+        className="w-full bg-app-surface-tertiary border border-app-border rounded-lg px-3 py-2 text-sm text-app-text placeholder:text-app-muted resize-y min-h-[120px]"
       />
       <div className="flex justify-end gap-2 mt-4">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 rounded-lg text-sm text-app-muted hover:text-app-text hover:bg-white/5"
+          className="px-4 py-2 rounded-lg text-sm text-app-muted hover:text-app-text hover:bg-app-nav-hover"
         >
           Cancel
         </button>

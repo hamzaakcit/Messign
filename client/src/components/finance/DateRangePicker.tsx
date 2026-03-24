@@ -15,14 +15,14 @@ export function DateRangePicker({ from, to, onChange, className }: DateRangePick
         type="date"
         value={from ?? ''}
         onChange={(e) => onChange(e.target.value, to ?? '')}
-        className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:border-primary-500 focus:outline-none"
+        className="px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:border-primary-500 focus:outline-none"
       />
       <span className="text-xs text-app-muted">to</span>
       <input
         type="date"
         value={to ?? ''}
         onChange={(e) => onChange(from ?? '', e.target.value)}
-        className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:border-primary-500 focus:outline-none"
+        className="px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:border-primary-500 focus:outline-none"
       />
     </div>
   );

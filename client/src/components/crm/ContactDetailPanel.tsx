@@ -156,7 +156,7 @@ function ActivityRow({ activity }: { activity: ActivityDetail }) {
     call: 'text-blue-400 bg-blue-500/15',
     email: 'text-amber-400 bg-amber-500/15',
     meeting: 'text-purple-400 bg-purple-500/15',
-    note: 'text-app-muted bg-white/10',
+    note: 'text-app-muted bg-app-surface-tertiary',
     task: 'text-emerald-400 bg-emerald-500/15',
   };
   const cls = typeColors[activity.type] ?? typeColors.note;
@@ -180,18 +180,18 @@ function ContactDetailSkeleton() {
   return (
     <div className="p-6 space-y-6 animate-pulse">
       <div className="space-y-2">
-        <div className="h-6 bg-white/10 rounded w-48" />
-        <div className="h-4 bg-white/10 rounded w-32" />
+        <div className="h-6 bg-app-surface-tertiary rounded w-48" />
+        <div className="h-4 bg-app-surface-tertiary rounded w-32" />
       </div>
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-5 bg-white/10 rounded w-full" />
+          <div key={i} className="h-5 bg-app-surface-tertiary rounded w-full" />
         ))}
       </div>
       <div className="space-y-2">
-        <div className="h-4 bg-white/10 rounded w-24" />
-        <div className="h-12 bg-white/10 rounded w-full" />
-        <div className="h-12 bg-white/10 rounded w-full" />
+        <div className="h-4 bg-app-surface-tertiary rounded w-24" />
+        <div className="h-12 bg-app-surface-tertiary rounded w-full" />
+        <div className="h-12 bg-app-surface-tertiary rounded w-full" />
       </div>
     </div>
   );

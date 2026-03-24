@@ -157,7 +157,7 @@
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-all duration-200 border border-white/10;
+    @apply px-4 py-2 bg-app-hover hover:bg-app-surface-tertiary text-app-text font-medium rounded-lg transition-all duration-200 border border-app-border;
   }
 
   .btn-accent {
@@ -166,7 +166,7 @@
 
   /* Input styles (theme-aware) */
   .input-dark {
-    @apply w-full px-4 py-2.5 bg-dark-700 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all duration-200;
+    @apply w-full px-4 py-2.5 bg-app-card border border-app-border rounded-lg text-app-text placeholder:text-app-muted focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all duration-200;
   }
 
   .input-theme {
@@ -234,7 +234,7 @@
 
   /* XP Progress bar */
   .xp-bar {
-    @apply h-2 bg-dark-600 rounded-full overflow-hidden;
+    @apply h-2 bg-app-hover rounded-full overflow-hidden;
   }
 
   .xp-bar-fill {
@@ -243,16 +243,16 @@
 
   /* Sidebar navigation */
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-200 cursor-pointer;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-nav-hover transition-all duration-200 cursor-pointer;
   }
 
   .nav-item-active {
-    @apply nav-item text-white bg-white/10 border-l-2 border-primary-500;
+    @apply nav-item text-app-text bg-app-nav-hover border-l-2 border-primary-500;
   }
 
   /* Avatar with status */
   .avatar-ring {
-    @apply ring-2 ring-offset-2 ring-offset-dark-900;
+    @apply ring-2 ring-offset-2 ring-offset-app-bg;
   }
 
   .avatar-online {

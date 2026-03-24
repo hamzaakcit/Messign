@@ -107,7 +107,7 @@ export function ReportsPage() {
             onClick={() => setReportView('charts')}
             className={cn(
               'px-3 py-1.5 text-sm flex items-center gap-1.5 transition',
-              reportView === 'charts' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white',
+              reportView === 'charts' ? 'bg-primary-600 text-app-text' : 'bg-app-surface-tertiary text-app-muted hover:text-app-text',
             )}
           >
             <LayoutGrid className="w-4 h-4" />
@@ -117,7 +117,7 @@ export function ReportsPage() {
             onClick={() => setReportView('flow')}
             className={cn(
               'px-3 py-1.5 text-sm flex items-center gap-1.5 transition',
-              reportView === 'flow' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white',
+              reportView === 'flow' ? 'bg-primary-600 text-app-text' : 'bg-app-surface-tertiary text-app-muted hover:text-app-text',
             )}
           >
             <GitBranch className="w-4 h-4" />
@@ -150,7 +150,7 @@ export function ReportsPage() {
       )}
 
       {/* Budget Forecast */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
         <h3 className="text-lg font-semibold text-app-text flex items-center gap-2 mb-4">
           <TrendingUp className="h-5 w-5" />
           Budget Forecasts
@@ -189,7 +189,7 @@ export function ReportsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden relative">
+                    <div className="flex-1 h-2.5 bg-app-surface-tertiary rounded-full overflow-hidden relative">
                       <div
                         className={cn('h-full rounded-full', f.will_exceed ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500')}
                         style={{ width: `${barPct}%` }}
@@ -216,7 +216,7 @@ export function ReportsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cash Flow Forecast */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
           <h3 className="text-sm font-semibold text-app-text flex items-center gap-2 mb-4">
             <DollarSign className="h-4 w-4" />
             Cash Flow Forecast (3 months)
@@ -226,7 +226,7 @@ export function ReportsPage() {
           ) : (
             <div className="space-y-3">
               {paymentForecasts.map((pf) => (
-                <div key={pf.month} className="flex items-center justify-between text-sm p-3 rounded-lg bg-white/5">
+                <div key={pf.month} className="flex items-center justify-between text-sm p-3 rounded-lg bg-app-surface-tertiary">
                   <span className="text-app-text font-medium">{pf.month}</span>
                   <div className="flex items-center gap-4 text-xs">
                     <span className="text-red-400">-${pf.expected_payables.toLocaleString()}</span>
@@ -243,7 +243,7 @@ export function ReportsPage() {
         </div>
 
         {/* Spend by Category */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
           <h3 className="text-sm font-semibold text-app-text flex items-center gap-2 mb-4">
             <BarChart3 className="h-4 w-4" />
             Spend by Category
@@ -261,7 +261,7 @@ export function ReportsPage() {
                       <span className="text-app-text">{cat.name}</span>
                       <span className="text-app-muted">${cat.total.toLocaleString()} ({cat.count})</span>
                     </div>
-                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-app-surface-tertiary rounded-full overflow-hidden">
                       <div className="h-full bg-primary-500 rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                   </div>

@@ -46,7 +46,7 @@ export function LevelProgressionCard() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-left text-gray-400">
+              <tr className="border-b border-app-border text-left text-app-muted">
                 <th className="py-2 px-3">Level</th>
                 <th className="py-2 px-3">MP required</th>
               </tr>
@@ -55,9 +55,9 @@ export function LevelProgressionCard() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30].map((level) => {
                 const xp = level <= LEVEL_THRESHOLDS.length ? LEVEL_THRESHOLDS[level - 1] : undefined;
                 return (
-                  <tr key={level} className="border-b border-white/5">
-                    <td className="py-2 px-3 text-white">{level}</td>
-                    <td className="py-2 px-3 text-gray-400">{xp !== undefined ? xp.toLocaleString() : '—'}</td>
+                  <tr key={level} className="border-b border-app-border">
+                    <td className="py-2 px-3 text-app-text">{level}</td>
+                    <td className="py-2 px-3 text-app-muted">{xp !== undefined ? xp.toLocaleString() : '—'}</td>
                   </tr>
                 );
               })}
@@ -65,7 +65,7 @@ export function LevelProgressionCard() {
           </table>
         </div>
 
-        <p className="text-xs text-gray-500">Read-only. Edit thresholds and templates can be wired when backend supports it.</p>
+        <p className="text-xs text-app-muted">Read-only. Edit thresholds and templates can be wired when backend supports it.</p>
       </CardContent>
     </Card>
   );

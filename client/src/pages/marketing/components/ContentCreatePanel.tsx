@@ -162,7 +162,7 @@ export function ContentCreatePanel({
         <button type="button" onClick={onCancel} className="px-3 py-2 rounded-lg text-sm text-app-muted hover:text-app-text">
           Cancel
         </button>
-        <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50">
+        <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50">
           {saving ? 'Saving…' : 'Create Content'}
         </button>
       </div>

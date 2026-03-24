@@ -59,7 +59,7 @@ export function LeaderboardList({ block, delay = 0 }: LeaderboardListProps) {
         {shown.map((e) => (
           <li
             key={`${e.rank}-${e.userId ?? e.name}`}
-            className="flex items-center gap-3 border-b border-white/5 py-2 last:border-0"
+            className="flex items-center gap-3 border-b border-app-border py-2 last:border-0"
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"

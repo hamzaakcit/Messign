@@ -80,7 +80,7 @@ export function RepurposeModal({
                   className={`rounded-lg border p-2.5 text-left text-xs transition-colors ${
                     selected.includes(ch.id)
                       ? 'border-purple-500/40 bg-purple-500/10 text-purple-200'
-                      : 'border-white/[0.08] bg-white/[0.02] text-slate-400 hover:bg-white/[0.04]'
+                      : 'border-white/[0.08] bg-app-surface-tertiary text-slate-400 hover:bg-app-hover'
                   }`}
                 >
                   <span className="text-sm">{ch.icon}</span>
@@ -108,7 +108,7 @@ export function RepurposeModal({
             {results.map((v) => (
               <div
                 key={v.content_id}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2"
+                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-app-surface-tertiary p-2"
               >
                 <span className="text-xs font-medium text-slate-300">{v.channel}</span>
                 <span className="truncate text-[10px] text-slate-500">{v.title}</span>

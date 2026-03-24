@@ -127,7 +127,7 @@ export function ApplicationDetailPanel({ applicationId, onUpdated }: Application
                 await load();
                 onUpdated();
               }}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600"
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600"
             >
               Move
             </button>
@@ -150,7 +150,7 @@ export function ApplicationDetailPanel({ applicationId, onUpdated }: Application
                 await load();
                 onUpdated();
               }}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-white/5 text-app-text hover:bg-white/10"
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-app-surface-tertiary text-app-text hover:bg-app-hover"
             >
               Schedule
             </button>
@@ -173,7 +173,7 @@ export function ApplicationDetailPanel({ applicationId, onUpdated }: Application
                 await load();
                 onUpdated();
               }}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500"
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-app-text hover:bg-emerald-500"
             >
               Send
             </button>

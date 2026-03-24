@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-500/20 text-amber-400',
   reviewed: 'bg-blue-500/20 text-blue-400',
   resolved: 'bg-emerald-500/20 text-emerald-400',
-  dismissed: 'bg-gray-500/20 text-gray-400',
+  dismissed: 'bg-gray-500/20 text-app-muted',
 };
 
 export function KnowledgeFlagsAdmin() {
@@ -72,7 +72,7 @@ export function KnowledgeFlagsAdmin() {
       {loading ? (
         <div className="p-12 text-center text-app-muted">Loading...</div>
       ) : flags.length === 0 ? (
-        <div className="rounded-xl border border-app-border bg-dark-800 p-12 text-center text-app-muted">
+        <div className="rounded-xl border border-app-border bg-app-sidebar p-12 text-center text-app-muted">
           <Flag className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="font-semibold">No flags found.</p>
         </div>
@@ -80,7 +80,7 @@ export function KnowledgeFlagsAdmin() {
         <div className="rounded-xl border border-app-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-dark-700 text-app-muted text-xs uppercase tracking-wider">
+              <tr className="bg-app-card text-app-muted text-xs uppercase tracking-wider">
                 <th className="text-left py-3 px-4">Document</th>
                 <th className="text-left py-3 px-3">Flagged By</th>
                 <th className="text-left py-3 px-3">Reason</th>
@@ -91,7 +91,7 @@ export function KnowledgeFlagsAdmin() {
             </thead>
             <tbody>
               {flags.map(flag => (
-                <tr key={flag.id} className="border-t border-app-border hover:bg-dark-700/50">
+                <tr key={flag.id} className="border-t border-app-border hover:bg-app-hover/50">
                   <td className="py-3 px-4 font-medium text-app">{flag.document_title ?? flag.document_id}</td>
                   <td className="py-3 px-3 text-app-muted text-xs">{flag.flagged_by_name ?? flag.flagged_by}</td>
                   <td className="py-3 px-3 text-app-muted text-xs max-w-xs truncate">{flag.reason}</td>
@@ -113,7 +113,7 @@ export function KnowledgeFlagsAdmin() {
                           <CheckCircle className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setResolveModal({ flag, action: 'dismissed' }); setNote(''); }}
-                          className="p-1.5 rounded text-app-muted hover:text-gray-400 hover:bg-app-hover" title="Dismiss">
+                          className="p-1.5 rounded text-app-muted hover:text-app-muted hover:bg-app-hover" title="Dismiss">
                           <XCircle className="w-4 h-4" />
                         </button>
                       </div>
@@ -132,7 +132,7 @@ export function KnowledgeFlagsAdmin() {
       {/* Resolve Modal */}
       {resolveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setResolveModal(null)}>
-          <div className="rounded-xl border border-app-border bg-dark-800 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="rounded-xl border border-app-border bg-app-sidebar w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-app-border flex items-center justify-between">
               <h3 className="font-bold text-app capitalize">{resolveModal.action} Flag</h3>
               <button onClick={() => setResolveModal(null)} className="text-app-muted hover:text-app"><X className="w-5 h-5" /></button>
@@ -141,7 +141,7 @@ export function KnowledgeFlagsAdmin() {
               <p className="text-sm text-app-muted mb-3">Flag on: <span className="font-medium text-app">{resolveModal.flag.document_title}</span></p>
               <p className="text-sm text-app-muted mb-4">Reason: {resolveModal.flag.reason}</p>
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Resolution note (optional)..."
-                className="w-full h-20 px-3 py-2 rounded-lg border border-app-border bg-dark-700 text-app text-sm resize-none focus:outline-none focus:border-primary-500" />
+                className="w-full h-20 px-3 py-2 rounded-lg border border-app-border bg-app-card text-app text-sm resize-none focus:outline-none focus:border-primary-500" />
             </div>
             <div className="px-6 py-4 border-t border-app-border flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setResolveModal(null)}>Cancel</Button>

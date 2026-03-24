@@ -43,7 +43,7 @@ export function PersonalRankingCard({ stats }: PersonalRankingCardProps) {
 
   return (
     <div className="glass-card p-6">
-      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+      <h3 className="text-lg font-semibold text-app-text mb-4 flex items-center gap-2">
         <Trophy className="w-5 h-5 text-warning-500" />
         Your ranking
       </h3>
@@ -54,26 +54,26 @@ export function PersonalRankingCard({ stats }: PersonalRankingCardProps) {
           <div
             key={p.label}
             className={cn(
-              'rounded-xl p-4 border border-white/5',
+              'rounded-xl p-4 border border-app-border',
               p.bgColor
             )}
           >
             <p.icon className={cn('w-5 h-5 mb-2', p.color)} />
-            <p className="text-2xl font-bold text-white tabular-nums">
+            <p className="text-2xl font-bold text-app-text tabular-nums">
               {formatPoints(p.value)}
             </p>
-            <p className="text-sm text-gray-500">{p.label}</p>
+            <p className="text-sm text-app-muted">{p.label}</p>
           </div>
         ))}
       </div>
 
       {/* Rank & progress */}
-      <div className="pt-4 border-t border-white/10">
+      <div className="pt-4 border-t border-app-border">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-gray-400">Current rank</span>
-          <span className="text-xl font-bold text-white">
+          <span className="text-app-muted">Current rank</span>
+          <span className="text-xl font-bold text-app-text">
             #{stats.currentRank}
-            <span className="text-gray-500 font-normal text-sm ml-1">
+            <span className="text-app-muted font-normal text-sm ml-1">
               of {stats.totalEmployees}
             </span>
           </span>
@@ -84,7 +84,7 @@ export function PersonalRankingCard({ stats }: PersonalRankingCardProps) {
           size="md"
           className="mb-3"
         />
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-app-muted">
           {stats.progressToNextRank}% to next rank
         </p>
         {stats.rankChange !== 0 && (

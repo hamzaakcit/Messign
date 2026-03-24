@@ -162,7 +162,7 @@ export function BadgeUnlockCelebration({
       >
         <div className="flex flex-col items-center max-w-full px-4">
           <p
-            className="text-sm font-semibold tracking-[0.2em] uppercase text-white/60 mb-6 animate-[fadeIn_0.5s_ease_0.3s_both]"
+            className="text-sm font-semibold tracking-[0.2em] uppercase text-app-text/60 mb-6 animate-[fadeIn_0.5s_ease_0.3s_both]"
             style={{ letterSpacing: '0.2em' }}
           >
             🎉 Achievement Unlocked! 🎉
@@ -211,13 +211,13 @@ export function BadgeUnlockCelebration({
                   boxShadow: `0 0 48px ${theme.glow}`,
                 }}
               >
-                <Icon className="w-14 h-14 text-white" strokeWidth={2} />
+                <Icon className="w-14 h-14 text-app-text" strokeWidth={2} />
               </div>
             </div>
 
             {badge && (
               <>
-                <h3 className="relative text-2xl font-bold text-white mb-2 text-center drop-shadow-lg">
+                <h3 className="relative text-2xl font-bold text-app-text mb-2 text-center drop-shadow-lg">
                   {badge.name}
                 </h3>
                 <span
@@ -230,7 +230,7 @@ export function BadgeUnlockCelebration({
                 >
                   {badge.rarity}
                 </span>
-                <p className="relative text-sm text-white/75 text-center mb-4 max-w-[260px] leading-relaxed">
+                <p className="relative text-sm text-app-text/75 text-center mb-4 max-w-[260px] leading-relaxed">
                   {badge.description}
                 </p>
                 <div className="relative flex items-center justify-center gap-2 text-amber-400 font-semibold text-base mb-2">
@@ -242,7 +242,7 @@ export function BadgeUnlockCelebration({
 
             <button
               type="button"
-              className="relative mt-8 px-10 py-3.5 rounded-xl font-semibold text-white border-2 border-white/30 bg-white/10 hover:bg-white/20 transition-all duration-300 animate-[fadeIn_0.6s_ease_1s_both]"
+              className="relative mt-8 px-10 py-3.5 rounded-xl font-semibold text-app-text border-2 border-white/30 bg-app-surface-tertiary hover:bg-app-hover transition-all duration-300 animate-[fadeIn_0.6s_ease_1s_both]"
               onClick={onClose}
             >
               Continue

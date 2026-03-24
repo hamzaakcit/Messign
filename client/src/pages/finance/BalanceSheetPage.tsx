@@ -88,13 +88,13 @@ export function BalanceSheetPage() {
               type="date"
               value={asOfDate}
               onChange={(e) => setAsOfDate(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+              className="px-3 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
             />
           </div>
           <button
             onClick={handleExport}
             disabled={!data}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-app-muted hover:text-app-text hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-muted hover:text-app-text hover:bg-app-hover transition-colors disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" /> Export CSV
           </button>
@@ -120,8 +120,8 @@ export function BalanceSheetPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Assets */}
-          <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-            <div className="px-5 py-3 border-b border-white/10 bg-blue-500/5">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
+            <div className="px-5 py-3 border-b border-app-border bg-blue-500/5">
               <h4 className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Assets</h4>
             </div>
             <div className="divide-y divide-white/5">
@@ -139,7 +139,7 @@ export function BalanceSheetPage() {
                 ))
               )}
             </div>
-            <div className="px-5 py-3 border-t border-white/10 flex justify-between items-center bg-blue-500/5">
+            <div className="px-5 py-3 border-t border-app-border flex justify-between items-center bg-blue-500/5">
               <span className="text-sm font-semibold text-blue-400">Total Assets</span>
               <span className="text-sm font-bold text-blue-400">{fmt(data.totalAssets)}</span>
             </div>
@@ -147,8 +147,8 @@ export function BalanceSheetPage() {
 
           {/* Liabilities + Equity */}
           <div className="space-y-6">
-            <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-              <div className="px-5 py-3 border-b border-white/10 bg-amber-500/5">
+            <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
+              <div className="px-5 py-3 border-b border-app-border bg-amber-500/5">
                 <h4 className="text-sm font-semibold text-amber-400 uppercase tracking-wide">Liabilities</h4>
               </div>
               <div className="divide-y divide-white/5">
@@ -166,14 +166,14 @@ export function BalanceSheetPage() {
                   ))
                 )}
               </div>
-              <div className="px-5 py-3 border-t border-white/10 flex justify-between items-center bg-amber-500/5">
+              <div className="px-5 py-3 border-t border-app-border flex justify-between items-center bg-amber-500/5">
                 <span className="text-sm font-semibold text-amber-400">Total Liabilities</span>
                 <span className="text-sm font-bold text-amber-400">{fmt(data.totalLiabilities)}</span>
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-              <div className="px-5 py-3 border-b border-white/10 bg-emerald-500/5">
+            <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
+              <div className="px-5 py-3 border-b border-app-border bg-emerald-500/5">
                 <h4 className="text-sm font-semibold text-emerald-400 uppercase tracking-wide">Equity</h4>
               </div>
               <div className="divide-y divide-white/5">
@@ -191,13 +191,13 @@ export function BalanceSheetPage() {
                   ))
                 )}
               </div>
-              <div className="px-5 py-3 border-t border-white/10 flex justify-between items-center bg-emerald-500/5">
+              <div className="px-5 py-3 border-t border-app-border flex justify-between items-center bg-emerald-500/5">
                 <span className="text-sm font-semibold text-emerald-400">Total Equity</span>
                 <span className="text-sm font-bold text-emerald-400">{fmt(data.totalEquity)}</span>
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 flex justify-between items-center">
+            <div className="rounded-xl border border-app-border bg-app-surface-tertiary px-5 py-3 flex justify-between items-center">
               <span className="text-sm font-semibold text-app-text">Total Liabilities + Equity</span>
               <span className="text-sm font-bold text-app-text">{fmt(data.totalLiabilitiesAndEquity)}</span>
             </div>

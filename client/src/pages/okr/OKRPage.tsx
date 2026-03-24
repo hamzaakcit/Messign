@@ -56,20 +56,20 @@ function CheckInForm({ kr, userId, onDone }: { kr: KeyResult; userId: string; on
     <div className="mt-2 p-3 rounded-lg bg-[var(--app-bg)] border border-[var(--app-border)]">
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <label className="text-[11px] text-gray-400 mb-1 block">Value</label>
+          <label className="text-[11px] text-app-muted mb-1 block">Value</label>
           <input
             type="number"
             value={value}
             onChange={e => setValue(e.target.value)}
-            className="w-full bg-white/5 border border-[var(--app-border)] rounded px-2 py-1 text-sm text-white"
+            className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded px-2 py-1 text-sm text-app-text"
           />
         </div>
         <div className="flex-1">
-          <label className="text-[11px] text-gray-400 mb-1 block">Confidence</label>
+          <label className="text-[11px] text-app-muted mb-1 block">Confidence</label>
           <select
             value={confidence}
             onChange={e => setConfidence(e.target.value as 'high' | 'medium' | 'low')}
-            className="w-full bg-white/5 border border-[var(--app-border)] rounded px-2 py-1 text-sm text-white"
+            className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded px-2 py-1 text-sm text-app-text"
           >
             <option value="high">High</option>
             <option value="medium">Medium</option>
@@ -79,7 +79,7 @@ function CheckInForm({ kr, userId, onDone }: { kr: KeyResult; userId: string; on
         <button
           onClick={submit}
           disabled={submitting}
-          className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white rounded text-sm flex items-center gap-1 disabled:opacity-50"
+          className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-app-text rounded text-sm flex items-center gap-1 disabled:opacity-50"
         >
           <Send className="w-3 h-3" />
           {submitting ? '...' : 'Submit'}
@@ -90,7 +90,7 @@ function CheckInForm({ kr, userId, onDone }: { kr: KeyResult; userId: string; on
           placeholder="Add a note..."
           value={note}
           onChange={e => setNote(e.target.value)}
-          className="w-full bg-white/5 border border-[var(--app-border)] rounded px-2 py-1 text-sm text-white placeholder-gray-500"
+          className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded px-2 py-1 text-sm text-app-text placeholder-gray-500"
         />
       </div>
     </div>
@@ -106,8 +106,8 @@ function KeyResultItem({ kr, userId, onUpdated }: { kr: KeyResult; userId: strin
   return (
     <div className="py-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-300 flex-1">{kr.title}</span>
-        <span className="text-xs text-gray-400 mx-2 whitespace-nowrap">
+        <span className="text-sm text-app-muted flex-1">{kr.title}</span>
+        <span className="text-xs text-app-muted mx-2 whitespace-nowrap">
           {kr.current_value} / {kr.target_value} {kr.unit || ''}
         </span>
         <button
@@ -117,7 +117,7 @@ function KeyResultItem({ kr, userId, onUpdated }: { kr: KeyResult; userId: strin
           Check-in
         </button>
       </div>
-      <div className="mt-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+      <div className="mt-1 h-1.5 bg-app-surface-tertiary rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${progressBarColor(pct)}`}
           style={{ width: `${Math.min(pct, 100)}%` }}
@@ -161,7 +161,7 @@ function GoalCard({
           {/* Expand/Collapse */}
           <button
             onClick={() => setExpanded(!expanded)}
-            className="mt-0.5 text-gray-400 hover:text-white transition"
+            className="mt-0.5 text-app-muted hover:text-app-text transition"
           >
             {hasChildren ? (
               expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
@@ -178,31 +178,31 @@ function GoalCard({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => onSelectGoal(goal)}
-                className="text-sm font-medium text-white hover:text-primary-400 transition text-left"
+                className="text-sm font-medium text-app-text hover:text-primary-400 transition text-left"
               >
                 {goal.title}
               </button>
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${status.bg} ${status.color.replace('bg-', 'text-')}`}>
                 {status.label}
               </span>
-              <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded-full">
+              <span className="text-[10px] text-app-muted bg-app-surface-tertiary px-1.5 py-0.5 rounded-full">
                 {LEVEL_LABELS[goal.level]}
               </span>
             </div>
 
             {goal.owner_name && (
-              <p className="text-xs text-gray-500 mt-0.5">{goal.owner_name}</p>
+              <p className="text-xs text-app-muted mt-0.5">{goal.owner_name}</p>
             )}
 
             {/* Progress bar */}
             <div className="flex items-center gap-2 mt-2">
-              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-app-surface-tertiary rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${progressBarColor(pct)}`}
                   style={{ width: `${Math.min(pct, 100)}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-400 w-10 text-right">{pct.toFixed(0)}%</span>
+              <span className="text-xs text-app-muted w-10 text-right">{pct.toFixed(0)}%</span>
             </div>
 
             {/* Key Results */}
@@ -256,8 +256,8 @@ function GoalDetailPanel({ goalId, userId, onClose: _onClose }: { goalId: string
 
   useEffect(() => { fetchGoal(); }, [fetchGoal]);
 
-  if (loading) return <div className="p-6 text-gray-400 animate-pulse">Loading goal...</div>;
-  if (!goal) return <div className="p-6 text-gray-400">Goal not found</div>;
+  if (loading) return <div className="p-6 text-app-muted animate-pulse">Loading goal...</div>;
+  if (!goal) return <div className="p-6 text-app-muted">Goal not found</div>;
 
   const status = STATUS_CONFIG[goal.status] || STATUS_CONFIG.on_track;
   const pct = Number(goal.progress) || 0;
@@ -271,28 +271,28 @@ function GoalDetailPanel({ goalId, userId, onClose: _onClose }: { goalId: string
             <span className={`text-xs px-2 py-0.5 rounded-full ${status.bg} ${status.color.replace('bg-', 'text-')}`}>
               {status.label}
             </span>
-            <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
+            <span className="text-xs text-app-muted bg-app-surface-tertiary px-2 py-0.5 rounded-full">
               {LEVEL_LABELS[goal.level]}
             </span>
           </div>
-          <h2 className="text-xl font-semibold text-white">{goal.title}</h2>
+          <h2 className="text-xl font-semibold text-app-text">{goal.title}</h2>
           {goal.owner_name && (
-            <p className="text-sm text-gray-400 mt-1">Owned by {goal.owner_name}</p>
+            <p className="text-sm text-app-muted mt-1">Owned by {goal.owner_name}</p>
           )}
         </div>
       </div>
 
       {goal.description && (
-        <p className="text-sm text-gray-300 leading-relaxed">{goal.description}</p>
+        <p className="text-sm text-app-muted leading-relaxed">{goal.description}</p>
       )}
 
       {/* Progress */}
       <div>
         <div className="flex justify-between text-sm mb-1">
-          <span className="text-gray-400">Progress</span>
-          <span className="text-white font-medium">{pct.toFixed(1)}%</span>
+          <span className="text-app-muted">Progress</span>
+          <span className="text-app-text font-medium">{pct.toFixed(1)}%</span>
         </div>
-        <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+        <div className="h-3 bg-app-surface-tertiary rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all ${progressBarColor(pct)}`}
             style={{ width: `${Math.min(pct, 100)}%` }}
@@ -303,19 +303,19 @@ function GoalDetailPanel({ goalId, userId, onClose: _onClose }: { goalId: string
       {/* Key Results */}
       {goal.key_results && goal.key_results.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-white mb-3">Key Results</h3>
+          <h3 className="text-sm font-medium text-app-text mb-3">Key Results</h3>
           <div className="space-y-4">
             {goal.key_results.map(kr => {
               const krPct = Number(kr.progress) || 0;
               return (
                 <div key={kr.id} className="bg-[var(--app-bg)] rounded-lg p-4 border border-[var(--app-border)]">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-white">{kr.title}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-sm font-medium text-app-text">{kr.title}</span>
+                    <span className="text-xs text-app-muted">
                       {kr.current_value} / {kr.target_value} {kr.unit || ''}
                     </span>
                   </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden mb-3">
+                  <div className="h-2 bg-app-surface-tertiary rounded-full overflow-hidden mb-3">
                     <div
                       className={`h-full rounded-full transition-all ${progressBarColor(krPct)}`}
                       style={{ width: `${Math.min(krPct, 100)}%` }}
@@ -325,12 +325,12 @@ function GoalDetailPanel({ goalId, userId, onClose: _onClose }: { goalId: string
                   {/* Check-ins */}
                   {kr.check_ins && kr.check_ins.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-xs text-gray-500 font-medium">Recent Check-ins</p>
+                      <p className="text-xs text-app-muted font-medium">Recent Check-ins</p>
                       {kr.check_ins.slice(0, 5).map(ci => (
                         <div key={ci.id} className="flex justify-between items-center text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-300">{ci.user_name || 'Unknown'}</span>
-                            <span className="text-gray-500">→ {ci.value}</span>
+                            <span className="text-app-muted">{ci.user_name || 'Unknown'}</span>
+                            <span className="text-app-muted">→ {ci.value}</span>
                             {ci.confidence && (
                               <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                                 ci.confidence === 'high' ? 'bg-emerald-400/10 text-emerald-400'
@@ -339,7 +339,7 @@ function GoalDetailPanel({ goalId, userId, onClose: _onClose }: { goalId: string
                               }`}>{ci.confidence}</span>
                             )}
                           </div>
-                          <span className="text-gray-500">
+                          <span className="text-app-muted">
                             {new Date(ci.created_at).toLocaleDateString()}
                           </span>
                         </div>
@@ -417,25 +417,25 @@ function GoalCreatePanel({
 
   return (
     <div className="p-6 space-y-4">
-      <h2 className="text-lg font-semibold text-white">New Goal</h2>
+      <h2 className="text-lg font-semibold text-app-text">New Goal</h2>
 
       <div>
-        <label className="text-xs text-gray-400 mb-1 block">Period</label>
+        <label className="text-xs text-app-muted mb-1 block">Period</label>
         <select
           value={periodId}
           onChange={e => setPeriodId(e.target.value)}
-          className="w-full bg-white/5 border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-white"
+          className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-app-text"
         >
           {periods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
       <div>
-        <label className="text-xs text-gray-400 mb-1 block">Level</label>
+        <label className="text-xs text-app-muted mb-1 block">Level</label>
         <select
           value={level}
           onChange={e => setLevel(e.target.value as typeof level)}
-          className="w-full bg-white/5 border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-white"
+          className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-app-text"
         >
           {Object.entries(LEVEL_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
@@ -443,46 +443,46 @@ function GoalCreatePanel({
 
       {(level === 'department' || level === 'team') && (
         <div>
-          <label className="text-xs text-gray-400 mb-1 block">Department</label>
+          <label className="text-xs text-app-muted mb-1 block">Department</label>
           <input
             value={departmentId}
             onChange={e => setDepartmentId(e.target.value)}
             placeholder="e.g. Engineering"
-            className="w-full bg-white/5 border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
+            className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-app-text placeholder-gray-500"
           />
         </div>
       )}
 
       <div>
-        <label className="text-xs text-gray-400 mb-1 block">Title *</label>
+        <label className="text-xs text-app-muted mb-1 block">Title *</label>
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
           placeholder="e.g. Increase MRR to €100K"
-          className="w-full bg-white/5 border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
+          className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-app-text placeholder-gray-500"
         />
       </div>
 
       <div>
-        <label className="text-xs text-gray-400 mb-1 block">Description</label>
+        <label className="text-xs text-app-muted mb-1 block">Description</label>
         <textarea
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={3}
-          className="w-full bg-white/5 border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 resize-none"
+          className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-app-text placeholder-gray-500 resize-none"
         />
       </div>
 
       {/* Key Results builder */}
       <div className="border-t border-[var(--app-border)] pt-4">
-        <h3 className="text-sm font-medium text-white mb-3">Key Results</h3>
+        <h3 className="text-sm font-medium text-app-text mb-3">Key Results</h3>
 
         {krs.length > 0 && (
           <div className="space-y-2 mb-3">
             {krs.map((kr, i) => (
-              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                <span className="text-sm text-gray-300">{kr.title}</span>
-                <span className="text-xs text-gray-400">Target: {kr.target_value} {kr.unit || ''}</span>
+              <div key={i} className="flex items-center justify-between bg-app-surface-tertiary rounded-lg px-3 py-2">
+                <span className="text-sm text-app-muted">{kr.title}</span>
+                <span className="text-xs text-app-muted">Target: {kr.target_value} {kr.unit || ''}</span>
               </div>
             ))}
           </div>
@@ -494,7 +494,7 @@ function GoalCreatePanel({
               value={krTitle}
               onChange={e => setKrTitle(e.target.value)}
               placeholder="KR title"
-              className="w-full bg-white/5 border border-[var(--app-border)] rounded px-2 py-1.5 text-sm text-white placeholder-gray-500"
+              className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded px-2 py-1.5 text-sm text-app-text placeholder-gray-500"
             />
           </div>
           <div className="w-20">
@@ -503,7 +503,7 @@ function GoalCreatePanel({
               value={krTarget}
               onChange={e => setKrTarget(e.target.value)}
               placeholder="Target"
-              className="w-full bg-white/5 border border-[var(--app-border)] rounded px-2 py-1.5 text-sm text-white placeholder-gray-500"
+              className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded px-2 py-1.5 text-sm text-app-text placeholder-gray-500"
             />
           </div>
           <div className="w-16">
@@ -511,12 +511,12 @@ function GoalCreatePanel({
               value={krUnit}
               onChange={e => setKrUnit(e.target.value)}
               placeholder="Unit"
-              className="w-full bg-white/5 border border-[var(--app-border)] rounded px-2 py-1.5 text-sm text-white placeholder-gray-500"
+              className="w-full bg-app-surface-tertiary border border-[var(--app-border)] rounded px-2 py-1.5 text-sm text-app-text placeholder-gray-500"
             />
           </div>
           <button
             onClick={addKR}
-            className="px-2 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded text-sm"
+            className="px-2 py-1.5 bg-app-surface-tertiary hover:bg-app-hover text-app-muted rounded text-sm"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -526,7 +526,7 @@ function GoalCreatePanel({
       <button
         onClick={submit}
         disabled={saving || !title.trim() || !periodId}
-        className="w-full px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition"
+        className="w-full px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-app-text rounded-lg text-sm font-medium disabled:opacity-50 transition"
       >
         {saving ? 'Creating...' : 'Create Goal'}
       </button>
@@ -634,13 +634,13 @@ export function OKRPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Target className="w-5 h-5 text-primary-400" />
-          <h2 className="text-lg font-semibold text-white">OKRs & Goals</h2>
+          <h2 className="text-lg font-semibold text-app-text">OKRs & Goals</h2>
           {!loading && goals.length > 0 && (
             <div className="flex rounded-lg border border-[var(--app-border)] overflow-hidden">
               <button
                 onClick={() => setViewMode('list')}
                 className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition ${
-                  viewMode === 'list' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white'
+                  viewMode === 'list' ? 'bg-primary-600 text-app-text' : 'bg-app-surface-tertiary text-app-muted hover:text-app-text'
                 }`}
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -649,7 +649,7 @@ export function OKRPage() {
               <button
                 onClick={() => setViewMode('tree')}
                 className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition ${
-                  viewMode === 'tree' ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white'
+                  viewMode === 'tree' ? 'bg-primary-600 text-app-text' : 'bg-app-surface-tertiary text-app-muted hover:text-app-text'
                 }`}
               >
                 <GitBranch className="w-4 h-4" />
@@ -661,7 +661,7 @@ export function OKRPage() {
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value)}
-              className="ml-4 bg-white/5 border border-[var(--app-border)] rounded-lg px-3 py-1.5 text-sm text-white"
+              className="ml-4 bg-app-surface-tertiary border border-[var(--app-border)] rounded-lg px-3 py-1.5 text-sm text-app-text"
               aria-label="Select OKR period"
             >
               {periods.map(p => (
@@ -674,7 +674,7 @@ export function OKRPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-app-text rounded-lg text-sm font-medium flex items-center gap-2 transition"
         >
           <Plus className="w-4 h-4" />
           New Goal
@@ -687,11 +687,11 @@ export function OKRPage() {
           {[1, 2, 3].map(i => (
             <div key={i} className="bg-[var(--app-card)] rounded-lg border border-[var(--app-border)] p-4 animate-pulse">
               <div className="flex items-center gap-3">
-                <div className="w-4 h-4 rounded bg-white/10" />
-                <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
+                <div className="w-4 h-4 rounded bg-app-surface-tertiary" />
+                <div className="w-2.5 h-2.5 rounded-full bg-app-surface-tertiary" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-white/10 rounded w-1/3" />
-                  <div className="h-2 bg-white/10 rounded w-full" />
+                  <div className="h-4 bg-app-surface-tertiary rounded w-1/3" />
+                  <div className="h-2 bg-app-surface-tertiary rounded w-full" />
                 </div>
               </div>
             </div>
