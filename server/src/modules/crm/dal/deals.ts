@@ -513,6 +513,41 @@ export async function deleteDeal(tenantId: string, dealId: string): Promise<void
   });
 }
 
+/**
+ * Maps CRM period labels (from tools and API) to a calendar start date for `d.created_at >= $1::date`.
+ * Previously `month`/`quarter`/`year` were passed through to PostgreSQL as raw strings, which is invalid
+ * for `::date` and caused runtime errors (e.g. Dora calling `crm:get_pipeline_status` with period "month").
+ */
+/** YYYY-MM-DD in local calendar (avoid UTC shift from `toISOString()` on period boundaries). */
+function formatLocalDateYmd(d: Date): string {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${day}`;
+}
+
+export function resolveSalesMetricsPeriodStart(period?: string): string | undefined {
+  if (period == null || period === '' || period === 'default') return undefined;
+  const p = period.trim().toLowerCase();
+  if (p === 'month' || p === 'monthly') {
+    const now = new Date();
+    return formatLocalDateYmd(new Date(now.getFullYear(), now.getMonth(), 1));
+  }
+  if (p === 'quarter' || p === 'quarterly') {
+    const now = new Date();
+    const m = Math.floor(now.getMonth() / 3) * 3;
+    return formatLocalDateYmd(new Date(now.getFullYear(), m, 1));
+  }
+  if (p === 'year' || p === 'yearly' || p === 'annual') {
+    const now = new Date();
+    return formatLocalDateYmd(new Date(now.getFullYear(), 0, 1));
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(p)) return p.slice(0, 10);
+  const parsed = Date.parse(period);
+  if (!Number.isNaN(parsed)) return formatLocalDateYmd(new Date(parsed));
+  return undefined;
+}
+
 export async function getDealsByStage(
   ctx: CallerContext,
   pipelineId: string,
@@ -568,9 +603,10 @@ export async function getSalesMetrics(
     const params: unknown[] = [];
     let idx = 1;
 
-    if (period) {
+    const periodStart = resolveSalesMetricsPeriodStart(period);
+    if (periodStart) {
       conditions.push(`d.created_at >= $${idx++}::date`);
-      params.push(period);
+      params.push(periodStart);
     }
 
     const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
