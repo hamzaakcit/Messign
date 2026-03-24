@@ -60,7 +60,7 @@ export function DoraFollowUpChips({
               opacity: 0,
             }}
             onClick={() => onSendMessage(s.query, s.id.startsWith('generic.') ? undefined : s.id)}
-            className="text-[11px] px-3 py-2 rounded-full bg-white/5 text-sky-300/90 border border-white/10
+            className="text-[11px] px-3 py-2 rounded-full bg-app-surface-tertiary text-sky-300/90 border border-app-border
               hover:bg-sky-500/10 hover:border-sky-500/40 hover:scale-[1.02] transition-all duration-200
               inline-flex items-center gap-1"
           >

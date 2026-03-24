@@ -52,7 +52,7 @@ interface SparkChipProps {
 
 function SparkChip({ label, value, sparkData, color = '#3b82f6' }: SparkChipProps): JSX.Element {
   return (
-    <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] min-w-0">
+    <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-app-surface-tertiary border border-white/[0.08] min-w-0">
       <div className="min-w-0">
         <p className="text-[10px] text-app-muted leading-none truncate">{label}</p>
         <p className="text-sm font-semibold text-app-text leading-tight">{value}</p>
@@ -108,7 +108,7 @@ export function SparkBar({
       {loading ? (
         <div className="flex gap-3 flex-1">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-10 w-32 rounded-lg bg-white/[0.04] animate-pulse" />
+            <div key={i} className="h-10 w-32 rounded-lg bg-app-surface-tertiary animate-pulse" />
           ))}
         </div>
       ) : (
@@ -147,7 +147,7 @@ export function SparkBar({
             'p-2 rounded-lg transition-colors',
             mode === 'board'
               ? 'bg-primary-500/20 text-primary-400'
-              : 'text-app-muted hover:text-app-text hover:bg-white/5',
+              : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
         >
           <LayoutGrid className="w-4 h-4" />
@@ -160,7 +160,7 @@ export function SparkBar({
             'p-2 rounded-lg transition-colors',
             mode === 'calendar'
               ? 'bg-primary-500/20 text-primary-400'
-              : 'text-app-muted hover:text-app-text hover:bg-white/5',
+              : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
         >
           <CalendarDays className="w-4 h-4" />
@@ -173,7 +173,7 @@ export function SparkBar({
             'p-2 rounded-lg transition-colors',
             mode === 'intelligence'
               ? 'bg-primary-500/20 text-primary-400'
-              : 'text-app-muted hover:text-app-text hover:bg-white/5',
+              : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
         >
           <Radar className="w-4 h-4" />
@@ -186,13 +186,13 @@ export function SparkBar({
             'p-2 rounded-lg transition-colors',
             mode === 'executive'
               ? 'bg-primary-500/20 text-primary-400'
-              : 'text-app-muted hover:text-app-text hover:bg-white/5',
+              : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
         >
           <TrendingUp className="w-4 h-4" />
         </button>
 
-        <div className="w-px h-5 bg-white/[0.08] mx-1" />
+        <div className="w-px h-5 bg-app-surface-tertiary mx-1" />
 
         <button
           type="button"
@@ -202,7 +202,7 @@ export function SparkBar({
             'p-2 rounded-lg transition-colors',
             doraOpen
               ? 'bg-purple-500/20 text-purple-400'
-              : 'text-app-muted hover:text-app-text hover:bg-white/5',
+              : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
         >
           <Sparkles className="w-4 h-4" />
@@ -221,18 +221,18 @@ export function SparkBar({
           {createOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-white/10 bg-[#12151c] shadow-xl py-1">
+              <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-app-border bg-[#12151c] shadow-xl py-1">
                 <button
                   type="button"
                   onClick={() => { onCreateCampaign(); setCreateOpen(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                 >
                   <Megaphone className="w-3.5 h-3.5 text-app-muted" /> Campaign
                 </button>
                 <button
                   type="button"
                   onClick={() => { onCreateContent(); setCreateOpen(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                 >
                   <Target className="w-3.5 h-3.5 text-app-muted" /> Content
                 </button>
@@ -240,7 +240,7 @@ export function SparkBar({
                   <button
                     type="button"
                     onClick={() => { onInstagramDraftAi(); setCreateOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                   >
                     <Instagram className="w-3.5 h-3.5 text-pink-300" /> Instagram (AI)
                   </button>
@@ -249,7 +249,7 @@ export function SparkBar({
                   <button
                     type="button"
                     onClick={() => { onCreateInstagramContent(); setCreateOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                   >
                     <Instagram className="w-3.5 h-3.5 text-pink-300/80" /> Instagram content
                   </button>
@@ -257,14 +257,14 @@ export function SparkBar({
                 <button
                   type="button"
                   onClick={() => { onCreateEmail(); setCreateOpen(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                 >
                   <Mail className="w-3.5 h-3.5 text-app-muted" /> Email
                 </button>
                 <button
                   type="button"
                   onClick={() => { navigate('/marketing/builder'); setCreateOpen(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                 >
                   <TrendingUp className="w-3.5 h-3.5 text-app-muted" /> Builder
                 </button>

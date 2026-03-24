@@ -57,7 +57,7 @@ export function AdminTeamsPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={handleCreate} className="px-3 py-1.5 rounded-lg text-sm bg-primary-500 text-app-text">Create</button>
-            <button onClick={() => setShowNew(false)} className="px-3 py-1.5 rounded-lg text-sm bg-app-card text-gray-300">Cancel</button>
+            <button onClick={() => setShowNew(false)} className="px-3 py-1.5 rounded-lg text-sm bg-app-card text-app-muted">Cancel</button>
           </div>
         </div>
       )}

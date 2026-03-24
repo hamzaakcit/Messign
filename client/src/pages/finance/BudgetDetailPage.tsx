@@ -68,7 +68,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
     }
   };
 
-  if (loading) return <div className="animate-pulse space-y-4"><div className="h-20 bg-white/5 rounded-xl" /><div className="h-40 bg-white/5 rounded-xl" /></div>;
+  if (loading) return <div className="animate-pulse space-y-4"><div className="h-20 bg-app-surface-tertiary rounded-xl" /><div className="h-40 bg-app-surface-tertiary rounded-xl" /></div>;
   if (!budget) return <div className="text-center text-app-muted py-10">Budget not found</div>;
 
   const pct = Math.min(budget.utilizationPct * 100, 100);
@@ -89,7 +89,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
         <ArrowLeft className="h-4 w-4" /> Back to Budgets
       </button>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-lg bg-primary-500/20 flex items-center justify-center">
@@ -125,21 +125,21 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
             <span className="text-app-muted">{budget.currency} {budget.spent.toFixed(2)} of {budget.currency} {budget.allocatedAmount.toFixed(2)}</span>
             <span className={cn('font-bold text-lg', textColor)}>{pct.toFixed(1)}%</span>
           </div>
-          <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-3 bg-app-surface-tertiary rounded-full overflow-hidden">
             <div className={cn('h-full rounded-full transition-all duration-500', color)} style={{ width: `${pct}%` }} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-lg bg-white/5 p-3 text-center">
+          <div className="rounded-lg bg-app-surface-tertiary p-3 text-center">
             <p className="text-xl font-bold text-app-text">{budget.currency} {budget.remaining.toFixed(2)}</p>
             <p className="text-xs text-app-muted">Remaining</p>
           </div>
-          <div className="rounded-lg bg-white/5 p-3 text-center">
+          <div className="rounded-lg bg-app-surface-tertiary p-3 text-center">
             <p className="text-xl font-bold text-app-text">{expenses.length}</p>
             <p className="text-xs text-app-muted">Expenses</p>
           </div>
-          <div className="rounded-lg bg-white/5 p-3 text-center">
+          <div className="rounded-lg bg-app-surface-tertiary p-3 text-center">
             <p className="text-xl font-bold text-app-text">{(budget.alertThreshold * 100).toFixed(0)}%</p>
             <p className="text-xs text-app-muted">Alert Threshold</p>
           </div>
@@ -164,7 +164,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
       )}
 
       {catEntries.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4" /> Spend by Category
           </h3>
@@ -175,7 +175,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
                   <span className="text-app-text">{cat}</span>
                   <span className="text-app-muted">{budget.currency} {amount.toFixed(2)}</span>
                 </div>
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-2 bg-app-surface-tertiary rounded-full overflow-hidden">
                   <div className="h-full bg-primary-500 rounded-full" style={{ width: `${(amount / maxCatAmount) * 100}%` }} />
                 </div>
               </div>
@@ -185,11 +185,11 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
       )}
 
       {expenses.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <h3 className="font-semibold text-app-text mb-3">Linked Expenses</h3>
           <div className="space-y-2">
             {expenses.slice(0, 20).map((e) => (
-              <div key={e.id as string} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/5 text-sm">
+              <div key={e.id as string} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-app-nav-hover text-sm">
                 <div>
                   <span className="text-app-text font-medium">{e.title as string}</span>
                   <span className="text-app-muted text-xs ml-2">{e.submitter_name as string}</span>
@@ -208,7 +208,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
 
       {showTopUp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1a2e] p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-xl border border-app-border bg-[#1a1a2e] p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-app-text mb-1">Top Up Budget</h3>
             <p className="text-sm text-app-muted mb-4">
               Current allocation: {budget.currency} {budget.allocatedAmount.toFixed(2)}
@@ -221,7 +221,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
               value={topUpAmount}
               onChange={(e) => setTopUpAmount(e.target.value)}
               placeholder="e.g. 5000"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-app-text text-sm focus:outline-none focus:border-primary-500 mb-1"
+              className="w-full rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 text-app-text text-sm focus:outline-none focus:border-primary-500 mb-1"
               autoFocus
             />
             {topUpAmount && !isNaN(parseFloat(topUpAmount)) && parseFloat(topUpAmount) > 0 && (

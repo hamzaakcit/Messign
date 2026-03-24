@@ -79,7 +79,7 @@ export function MarketingApprovalQueuePage() {
         <h1 className="text-xl font-semibold text-app">Approval queue</h1>
         <p className="text-sm text-app-muted max-w-3xl">
           Human-in-the-loop review for AI drafts. Pending items load from{' '}
-          <code className="text-xs bg-white/10 px-1 rounded">GET /api/marketing/approvals?status=pending</code>.
+          <code className="text-xs bg-app-surface-tertiary px-1 rounded">GET /api/marketing/approvals?status=pending</code>.
         </p>
       </div>
 

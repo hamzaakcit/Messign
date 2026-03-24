@@ -54,7 +54,7 @@ export function ChangeDepartmentModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Users className="w-6 h-6 text-primary-400" />
@@ -149,7 +149,7 @@ export function ChangeRoleModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Shield className="w-6 h-6 text-primary-400" />
@@ -255,7 +255,7 @@ export function AdjustXPModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Zap className="w-6 h-6 text-amber-400" />
@@ -279,7 +279,7 @@ export function AdjustXPModal({
               type="button"
               onClick={() => setIsAdding(true)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${
-                isAdding ? 'bg-success-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-white/10'
+                isAdding ? 'bg-success-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-app-hover'
               }`}
             >
               Add MP
@@ -288,7 +288,7 @@ export function AdjustXPModal({
               type="button"
               onClick={() => setIsAdding(false)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${
-                !isAdding ? 'bg-danger-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-white/10'
+                !isAdding ? 'bg-danger-500 text-app' : 'bg-app-surface-tertiary text-app-muted hover:bg-app-hover'
               }`}
             >
               Remove MP
@@ -377,7 +377,7 @@ export function AwardBadgeModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Award className="w-6 h-6 text-amber-400" />
@@ -481,7 +481,7 @@ export function SendMessageModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-white/10">
+      <div className="bg-app-sidebar rounded-xl p-6 w-full max-w-md border border-app-border">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Mail className="w-6 h-6 text-success-400" />

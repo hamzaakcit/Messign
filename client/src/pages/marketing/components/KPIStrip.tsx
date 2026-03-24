@@ -16,7 +16,7 @@ export function KPIStrip({ metrics, loading }: KPIStripProps): JSX.Element {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4 animate-pulse">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-[88px] rounded-xl border border-white/10 bg-white/5" />
+          <div key={i} className="h-[88px] rounded-xl border border-app-border bg-app-surface-tertiary" />
         ))}
       </div>
     );

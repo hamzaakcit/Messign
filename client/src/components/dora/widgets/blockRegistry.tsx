@@ -47,7 +47,7 @@ export function registerBlockType(type: AIWidgetType, def: BlockDef) {
 function BlockSkeleton() {
   return (
     <div
-      className="dora-glass mt-3 h-28 animate-pulse rounded-2xl border border-white/5"
+      className="dora-glass mt-3 h-28 animate-pulse rounded-2xl border border-app-border"
       style={{ borderRadius: 'var(--dora-r-widget, 16px)' }}
       aria-hidden
     />

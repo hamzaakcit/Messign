@@ -15,7 +15,7 @@ export function PersonalOverviewCard({ user, onClick }: PersonalOverviewCardProp
       onClick={onClick}
       className={cn(
         'w-full text-left glass-card p-2.5 sm:p-3 transition-colors rounded-lg overflow-hidden',
-        'hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
+        'hover:bg-app-hover focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
         onClick && 'cursor-pointer'
       )}
       aria-label="Open personal overview details"
@@ -46,7 +46,7 @@ export function PersonalOverviewCard({ user, onClick }: PersonalOverviewCardProp
             {[user.jobTitle, user.department].filter(Boolean).join(' · ') || '—'}
           </p>
           {/* Single compact stat row */}
-          <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-white/10">
+          <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-app-border">
             <span className="flex items-center gap-0.5 text-[10px] text-app-muted">
               <Briefcase className="w-3 h-3 text-primary-400" />
               <span className="font-medium text-app-text">{user.stats?.projectsContributed ?? 0}</span>

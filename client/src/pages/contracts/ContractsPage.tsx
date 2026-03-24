@@ -257,7 +257,7 @@ function ContractDetail({ contractId, userId, onUpdated }: { contractId: string;
         <button className="px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 text-sm" onClick={() => void contractsAPI.extractTerms(userId, contract.id).then(onUpdated)}>
           Extract Terms with Dora
         </button>
-        <button className="px-3 py-2 rounded-lg bg-white/10 text-app-text text-sm" onClick={() => void contractsAPI.activateContract(userId, contract.id).then(onUpdated)}>
+        <button className="px-3 py-2 rounded-lg bg-app-surface-tertiary text-app-text text-sm" onClick={() => void contractsAPI.activateContract(userId, contract.id).then(onUpdated)}>
           Activate
         </button>
       </div>

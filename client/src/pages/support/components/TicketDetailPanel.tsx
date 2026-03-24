@@ -62,18 +62,18 @@ function DetailSkeleton() {
   return (
     <div className="p-6 space-y-5 animate-pulse">
       <div className="space-y-3">
-        <div className="h-5 bg-white/10 rounded w-28" />
-        <div className="h-8 bg-white/10 rounded w-3/4" />
-        <div className="h-5 bg-white/10 rounded w-40" />
+        <div className="h-5 bg-app-surface-tertiary rounded w-28" />
+        <div className="h-8 bg-app-surface-tertiary rounded w-3/4" />
+        <div className="h-5 bg-app-surface-tertiary rounded w-40" />
       </div>
       <div className="grid grid-cols-1 gap-3">
-        <div className="h-28 rounded-xl bg-white/10" />
-        <div className="h-28 rounded-xl bg-white/10" />
+        <div className="h-28 rounded-xl bg-app-surface-tertiary" />
+        <div className="h-28 rounded-xl bg-app-surface-tertiary" />
       </div>
-      <div className="h-48 rounded-xl bg-white/10" />
+      <div className="h-48 rounded-xl bg-app-surface-tertiary" />
       <div className="space-y-3">
-        <div className="h-24 rounded-xl bg-white/10" />
-        <div className="h-20 rounded-xl bg-white/10" />
+        <div className="h-24 rounded-xl bg-app-surface-tertiary" />
+        <div className="h-20 rounded-xl bg-app-surface-tertiary" />
       </div>
     </div>
   );
@@ -104,7 +104,7 @@ function MessageBubble({
           'max-w-[85%] rounded-2xl border px-4 py-3',
           isInternal && 'bg-amber-500/10 border-amber-500/30 border-dashed',
           isCustomer && 'bg-blue-500/10 border-blue-500/20',
-          !isCustomer && !isInternal && 'bg-white/5 border-white/10',
+          !isCustomer && !isInternal && 'bg-app-surface-tertiary border-app-border',
         )}
       >
         <div className="flex items-center gap-2 text-xs mb-1">
@@ -262,7 +262,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
           <SlaBar label="Resolution SLA" detail={ticket.slaDetails?.resolution} summary={resolutionSummary} />
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <div className="flex items-center gap-2 mb-4">
             <UserCircle2 className="w-4 h-4 text-primary-400" />
             <h4 className="font-semibold text-app-text">Customer</h4>
@@ -365,7 +365,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
           </div>
         )}
 
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <div className="flex items-center gap-2 mb-4">
             <MessageSquare className="w-4 h-4 text-primary-400" />
             <h4 className="font-semibold text-app-text">Conversation</h4>
@@ -381,7 +381,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
             )}
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-app-bg p-4 space-y-3">
+          <div className="rounded-xl border border-app-border bg-app-bg p-4 space-y-3">
             <textarea
               value={reply}
               onChange={(event) => setReply(event.target.value)}
@@ -432,7 +432,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
           </div>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <button
             type="button"
             onClick={() => setHistoryOpen((current) => !current)}
@@ -454,7 +454,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
                     <div key={entry.id} className="flex gap-3">
                       <div className="flex flex-col items-center">
                         <TimelineMarker emphasized={index === 0} />
-                        {index < (ticket.history?.length ?? 0) - 1 && <div className="w-px flex-1 bg-white/10 my-1" />}
+                        {index < (ticket.history?.length ?? 0) - 1 && <div className="w-px flex-1 bg-app-surface-tertiary my-1" />}
                       </div>
                       <div className="pb-4 min-w-0 flex-1">
                         <p className="text-sm text-app-text">

@@ -88,10 +88,10 @@ export default function TeamComparisonWidget({
         </ResponsiveContainer>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-white/10">
+      <div className="overflow-x-auto rounded-lg border border-app-border">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-white/10 text-app-text/45 uppercase tracking-wide">
+            <tr className="border-b border-app-border text-app-text/45 uppercase tracking-wide">
               <th className="py-2 px-2">Team</th>
               <th className="py-2 px-2">Members</th>
               <th className="py-2 px-2">Done / Total</th>
@@ -105,7 +105,7 @@ export default function TeamComparisonWidget({
               const done = num(ts?.completed);
               const total = num(ts?.total);
               return (
-                <tr key={t.id ?? i} className="border-b border-white/5 text-app-text/80">
+                <tr key={t.id ?? i} className="border-b border-app-border text-app-text/80">
                   <td className="py-2 px-2 font-medium text-app-text">{t.name}</td>
                   <td className="py-2 px-2">{num(t.memberCount)}</td>
                   <td className="py-2 px-2">

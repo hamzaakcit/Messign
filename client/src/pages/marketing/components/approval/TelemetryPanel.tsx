@@ -18,7 +18,7 @@ const DIM_ORDER: BrandDimensionKey[] = [
 function Bar({ value, max = 20 }: { value: number; max?: number }) {
   const pct = Math.min(100, Math.round((value / max) * 100));
   return (
-    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+    <div className="h-2 rounded-full bg-app-surface-tertiary overflow-hidden">
       <div
         className={cn('h-full rounded-full transition-all', pct >= 75 ? 'bg-emerald-500/80' : pct >= 50 ? 'bg-amber-500/80' : 'bg-red-500/70')}
         style={{ width: `${pct}%` }}

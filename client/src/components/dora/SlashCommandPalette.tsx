@@ -96,7 +96,7 @@ export function SlashCommandPalette({
             onMouseEnter={() => onActiveIndexChange(i)}
             onClick={() => onSelect(entry)}
             className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-              active ? 'bg-sky-500/15 text-app-text' : 'text-gray-300 hover:bg-app-hover'
+              active ? 'bg-sky-500/15 text-app-text' : 'text-app-muted hover:bg-app-hover'
             }`}
           >
             {Icon && <Icon size={16} className="shrink-0 text-app-muted" />}

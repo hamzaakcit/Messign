@@ -137,7 +137,7 @@ export function ExecutiveDashboardPage() {
           <div key={kpi.label} data-testid={`executive-kpi-${kpi.label.replace(/\s/g, '-')}`} className="min-w-[170px] rounded-lg border border-app bg-app-card p-2.5">
             <div className="text-xs text-app-muted">{kpi.label}</div>
             <div className="mt-1 text-lg font-semibold text-app">{kpi.value}</div>
-            <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="mt-2 h-1.5 rounded-full bg-app-surface-tertiary overflow-hidden">
               <div className="h-full w-2/3 bg-blue-400/70 rounded-full" />
             </div>
           </div>
@@ -152,7 +152,7 @@ export function ExecutiveDashboardPage() {
               {data.revenue.monthlyTrend.slice(-12).map((m) => (
                 <div key={m.month} className="flex items-center gap-3">
                   <div className="w-16 text-xs text-app-muted">{m.month}</div>
-                  <div className="flex-1 h-2 rounded bg-white/10">
+                  <div className="flex-1 h-2 rounded bg-app-surface-tertiary">
                     <div className="h-2 rounded bg-emerald-400" style={{ width: `${Math.min(100, (m.value / (data.revenue.totalYTD || 1)) * 400)}%` }} />
                   </div>
                   <div className="w-20 text-right text-xs text-app">€{(m.value / 1000).toFixed(0)}k</div>
@@ -182,7 +182,7 @@ export function ExecutiveDashboardPage() {
             <div className="text-sm font-semibold text-app mb-3">OKR Progress</div>
             <div className="space-y-2">
               <div className="text-xs text-app-muted">On Track: {data.okrs.onTrack} | At Risk: {data.okrs.atRisk} | Behind: {data.okrs.behind}</div>
-              <div className="h-2 rounded bg-white/10">
+              <div className="h-2 rounded bg-app-surface-tertiary">
                 <div className="h-2 rounded bg-cyan-400" style={{ width: `${Math.max(3, data.okrs.overallProgress)}%` }} />
               </div>
             </div>

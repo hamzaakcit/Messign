@@ -34,7 +34,7 @@ export function XPEventsTable() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-left text-app-muted">
+              <tr className="border-b border-app-border text-left text-app-muted">
                 <th className="py-2 px-3">Event type</th>
                 <th className="py-2 px-3">Base MP</th>
                 <th className="py-2 px-3">Multiplier</th>
@@ -43,7 +43,7 @@ export function XPEventsTable() {
             </thead>
             <tbody>
               {events.map((ev) => (
-                <tr key={ev.type} className="border-b border-white/5">
+                <tr key={ev.type} className="border-b border-app-border">
                   <td className="py-2 px-3 text-app-text">{ev.label}</td>
                   <td className="py-2 px-3 text-app-muted">{ev.baseXp}</td>
                   <td className="py-2 px-3 text-app-muted">{ev.multiplier}x</td>

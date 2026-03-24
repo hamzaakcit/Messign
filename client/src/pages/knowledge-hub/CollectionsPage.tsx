@@ -53,7 +53,7 @@ export function CollectionsPage() {
           <textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Description (optional)..." className="w-full px-3 py-2 rounded-lg bg-app-card border border-app-border text-sm text-app-text placeholder-gray-500 resize-none h-16" />
           <div className="flex gap-2">
             <button onClick={handleCreate} className="px-3 py-1.5 rounded-lg text-sm bg-primary-500 text-app-text hover:bg-primary-600">Create</button>
-            <button onClick={() => setShowNew(false)} className="px-3 py-1.5 rounded-lg text-sm bg-app-card text-gray-300 hover:bg-app-hover">Cancel</button>
+            <button onClick={() => setShowNew(false)} className="px-3 py-1.5 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover">Cancel</button>
           </div>
         </div>
       )}

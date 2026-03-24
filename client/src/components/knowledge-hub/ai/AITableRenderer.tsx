@@ -27,7 +27,7 @@ export function AITableRenderer({ table }: AITableRendererProps) {
     <div className="my-4 overflow-hidden rounded-xl border border-app-border">
       {title && (
         <div className="px-4 py-2.5 bg-app-card/50 border-b border-app-border">
-          <h4 className="text-sm font-semibold text-gray-300">{title}</h4>
+          <h4 className="text-sm font-semibold text-app-muted">{title}</h4>
         </div>
       )}
 
@@ -55,7 +55,7 @@ export function AITableRenderer({ table }: AITableRendererProps) {
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={`px-4 py-2.5 text-gray-300 whitespace-nowrap
+                    className={`px-4 py-2.5 text-app-muted whitespace-nowrap
                       ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'}`}
                   >
                     {formatCellValue(row[col.key])}

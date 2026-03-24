@@ -140,7 +140,7 @@ export function ContactCreatePanel({ onCreated, onCancel }: ContactCreatePanelPr
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium rounded-lg text-app-muted hover:text-app-text hover:bg-white/5 transition-colors"
+          className="px-4 py-2 text-sm font-medium rounded-lg text-app-muted hover:text-app-text hover:bg-app-nav-hover transition-colors"
         >
           Cancel
         </button>

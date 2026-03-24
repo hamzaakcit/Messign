@@ -65,8 +65,8 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
       className={cn(
         'px-4 py-2 rounded-md text-sm font-medium transition-all duration-200',
         isActive
-          ? 'bg-white/10 text-app-text'
-          : 'text-app-muted hover:text-app-text hover:bg-white/5',
+          ? 'bg-app-surface-tertiary text-app-text'
+          : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
         className
       )}
     >

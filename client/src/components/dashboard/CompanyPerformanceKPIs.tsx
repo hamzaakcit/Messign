@@ -112,8 +112,8 @@ export function CompanyPerformanceKPIs({
               'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
               'border-gray-800/50 bg-gray-900/40 backdrop-blur-md',
               isActive
-                ? 'border-[var(--card-color)] shadow-[0_0_24px_var(--card-glow)] bg-white/[0.06]'
-                : 'hover:border-white/20 hover:bg-white/[0.05]'
+                ? 'border-[var(--card-color)] shadow-[0_0_24px_var(--card-glow)] bg-app-surface-tertiary'
+                : 'hover:border-app-border-strong hover:bg-app-hover'
             )}
             style={
               isActive

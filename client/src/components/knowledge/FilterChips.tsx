@@ -44,7 +44,7 @@ export function FilterChips({ categories, activeSlug, onSelect }: Props) {
           {cat.document_count !== undefined && (
             <span className={cn(
               'text-xs px-1.5 py-0.5 rounded-full',
-              activeSlug === cat.slug ? 'bg-white/10' : 'bg-app-hover'
+              activeSlug === cat.slug ? 'bg-app-surface-tertiary' : 'bg-app-hover'
             )}>
               {cat.document_count}
             </span>

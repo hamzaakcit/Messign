@@ -72,7 +72,7 @@ export function SearchResultsPage() {
         {suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-app-sidebar border border-app-border rounded-xl shadow-xl z-10 overflow-hidden">
             {suggestions.map(s => (
-              <button key={s.id} onClick={() => { navigate(`/knowledge-hub/documents/${s.slug}`); setSuggestions([]); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-app-hover hover:text-app-text flex items-center gap-2">
+              <button key={s.id} onClick={() => { navigate(`/knowledge-hub/documents/${s.slug}`); setSuggestions([]); }} className="w-full text-left px-4 py-2.5 text-sm text-app-muted hover:bg-app-hover hover:text-app-text flex items-center gap-2">
                 <FileText className="w-4 h-4 text-app-muted" />
                 {s.title}
               </button>
@@ -84,7 +84,7 @@ export function SearchResultsPage() {
       {(query || tagFilter) && (
         <div className="flex items-center gap-2 mb-4 text-sm text-app-muted">
           {total} results {query && <>for "<span className="text-app-text">{query}</span>"</>}
-          {tagFilter && <span className="px-2 py-0.5 rounded-full bg-app-card text-gray-300 flex items-center gap-1">tag: {tagFilter} <button onClick={() => setSearchParams({})}><X className="w-3 h-3" /></button></span>}
+          {tagFilter && <span className="px-2 py-0.5 rounded-full bg-app-card text-app-muted flex items-center gap-1">tag: {tagFilter} <button onClick={() => setSearchParams({})}><X className="w-3 h-3" /></button></span>}
         </div>
       )}
 

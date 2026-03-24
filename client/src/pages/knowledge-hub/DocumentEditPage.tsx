@@ -154,7 +154,7 @@ export function DocumentEditPage({ docId }: { docId?: string }) {
             {lastSaved && <span className="text-xs text-gray-600 flex items-center gap-1"><Clock className="w-3 h-3" /> Saved {lastSaved.toLocaleTimeString()}</span>}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => handleSave()} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-app-card text-gray-300 hover:bg-app-hover disabled:opacity-50">
+            <button onClick={() => handleSave()} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover disabled:opacity-50">
               <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Draft'}
             </button>
             <button onClick={() => handleSave('in_review')} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50">
@@ -188,7 +188,7 @@ export function DocumentEditPage({ docId }: { docId?: string }) {
               setContent({ type: 'doc', content: e.target.value.split('\n\n').map(p => ({ type: 'paragraph', content: p ? [{ type: 'text', text: p }] : [] })) });
             }}
             placeholder="Start writing..."
-            className="w-full min-h-[400px] text-gray-300 bg-transparent border-none outline-none resize-none placeholder-gray-600 text-sm leading-relaxed"
+            className="w-full min-h-[400px] text-app-muted bg-transparent border-none outline-none resize-none placeholder-gray-600 text-sm leading-relaxed"
           />
         </div>
       </div>
@@ -216,7 +216,7 @@ export function DocumentEditPage({ docId }: { docId?: string }) {
             {selectedTags.map(tid => {
               const tag = tags.find(t => t.id === tid);
               return tag ? (
-                <span key={tid} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-app-hover text-gray-300">
+                <span key={tid} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-app-hover text-app-muted">
                   {tag.name}
                   <button onClick={() => setSelectedTags(prev => prev.filter(t => t !== tid))} className="hover:text-app-text"><X className="w-3 h-3" /></button>
                 </span>
@@ -261,7 +261,7 @@ export function DocumentEditPage({ docId }: { docId?: string }) {
               type="button"
               onClick={() => coverInputRef.current?.click()}
               disabled={coverUploading}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-app-border text-sm text-app-muted hover:border-app-border hover:text-gray-300 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-app-border text-sm text-app-muted hover:border-app-border hover:text-app-muted disabled:opacity-50"
             >
               {coverUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {coverUploading ? 'Uploading…' : 'Choose image'}
@@ -282,7 +282,7 @@ export function DocumentEditPage({ docId }: { docId?: string }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={fileUploading}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-app-border text-sm text-app-muted hover:border-app-border hover:text-gray-300 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-app-border text-sm text-app-muted hover:border-app-border hover:text-app-muted disabled:opacity-50"
           >
             {fileUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             {fileUploading ? 'Uploading…' : 'Add file'}
@@ -292,7 +292,7 @@ export function DocumentEditPage({ docId }: { docId?: string }) {
               {attachments.map((a) => (
                 <li key={a.url} className="flex items-center gap-2 px-2 py-1.5 rounded bg-app-card text-xs">
                   <FileText className="w-3.5 h-3.5 text-app-muted shrink-0" />
-                  <span className="truncate flex-1 text-gray-300">{a.fileName}</span>
+                  <span className="truncate flex-1 text-app-muted">{a.fileName}</span>
                   <button type="button" onClick={() => removeAttachment(a.url)} className="p-0.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover" title="Remove">
                     <X className="w-3 h-3" />
                   </button>
@@ -303,15 +303,15 @@ export function DocumentEditPage({ docId }: { docId?: string }) {
         </div>
 
         <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-app-muted cursor-pointer">
             <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="rounded bg-app-card border-app-border" />
             Public
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-app-muted cursor-pointer">
             <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} className="rounded bg-app-card border-app-border" />
             Pinned
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-app-muted cursor-pointer">
             <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="rounded bg-app-card border-app-border" />
             Featured
           </label>

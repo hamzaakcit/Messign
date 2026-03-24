@@ -72,11 +72,11 @@ export function DashboardTeamPerformancePanel({
             placeholder="Search members..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-700 bg-white/5 text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-[#2dd4bf] focus:border-[#2dd4bf]"
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-700 bg-app-surface-tertiary text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-[#2dd4bf] focus:border-[#2dd4bf]"
             aria-label="Search team members"
           />
         </div>
-        <div className="flex rounded-lg border border-gray-700 bg-white/5 p-1">
+        <div className="flex rounded-lg border border-gray-700 bg-app-surface-tertiary p-1">
           <button
             type="button"
             onClick={() => onViewChange('enterprise')}
@@ -109,12 +109,12 @@ export function DashboardTeamPerformancePanel({
             {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 p-2 rounded-lg bg-white/5 animate-pulse"
+                className="flex items-center gap-2 p-2 rounded-lg bg-app-surface-tertiary animate-pulse"
               >
-                <div className="w-8 h-8 rounded-lg bg-white/10 shrink-0" />
+                <div className="w-8 h-8 rounded-lg bg-app-surface-tertiary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="h-3 w-20 rounded bg-white/10" />
-                  <div className="h-2.5 w-14 rounded bg-white/5 mt-1" />
+                  <div className="h-3 w-20 rounded bg-app-surface-tertiary" />
+                  <div className="h-2.5 w-14 rounded bg-app-surface-tertiary mt-1" />
                 </div>
               </div>
             ))}
@@ -134,8 +134,8 @@ export function DashboardTeamPerformancePanel({
               className={cn(
                 'w-full flex items-center gap-2 p-2 rounded-lg transition-all duration-200 text-left',
                 activeEntity === 'company'
-                  ? 'ring-1 ring-[#2dd4bf] bg-white/5'
-                  : 'hover:bg-white/5'
+                  ? 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary'
+                  : 'hover:bg-app-nav-hover'
               )}
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-primary-500/20">
@@ -159,8 +159,8 @@ export function DashboardTeamPerformancePanel({
                   className={cn(
                     'w-full flex items-center gap-2 p-2 rounded-lg transition-all duration-200 text-left',
                     isActive
-                      ? 'ring-1 ring-[#2dd4bf] bg-white/5'
-                      : 'hover:bg-white/5'
+                      ? 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary'
+                      : 'hover:bg-app-nav-hover'
                   )}
                 >
                   <div
@@ -168,7 +168,7 @@ export function DashboardTeamPerformancePanel({
                       'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
                       member.rank <= 3
                         ? ''
-                        : 'bg-white/5'
+                        : 'bg-app-surface-tertiary'
                     )}
                     style={
                       member.rank <= 3

@@ -77,7 +77,7 @@ export function DealCard({ deal, isDragging, isWonColumn, onClick }: DealCardPro
           {deal.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 text-[10px] bg-white/10 text-app-muted rounded"
+              className="px-1.5 py-0.5 text-[10px] bg-app-surface-tertiary text-app-muted rounded"
             >
               {tag}
             </span>
@@ -85,7 +85,7 @@ export function DealCard({ deal, isDragging, isWonColumn, onClick }: DealCardPro
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-app-border">
         <div className="flex items-center gap-1.5">
           {deal.owner_name ? (
             <div

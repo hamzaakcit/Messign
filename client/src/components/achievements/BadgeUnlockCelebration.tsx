@@ -242,7 +242,7 @@ export function BadgeUnlockCelebration({
 
             <button
               type="button"
-              className="relative mt-8 px-10 py-3.5 rounded-xl font-semibold text-app-text border-2 border-white/30 bg-white/10 hover:bg-white/20 transition-all duration-300 animate-[fadeIn_0.6s_ease_1s_both]"
+              className="relative mt-8 px-10 py-3.5 rounded-xl font-semibold text-app-text border-2 border-white/30 bg-app-surface-tertiary hover:bg-app-hover transition-all duration-300 animate-[fadeIn_0.6s_ease_1s_both]"
               onClick={onClose}
             >
               Continue

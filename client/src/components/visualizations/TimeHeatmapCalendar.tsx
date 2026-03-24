@@ -101,13 +101,13 @@ export function TimeHeatmapCalendar({ data, weeks = 26, onDayClick }: TimeHeatma
         <div className="flex rounded-lg border border-[var(--app-border)] overflow-hidden">
           <button
             onClick={() => setBillableMode(false)}
-            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-white/5 text-app-muted' : 'bg-primary-600 text-app-text'}`}
+            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-app-surface-tertiary text-app-muted' : 'bg-primary-600 text-app-text'}`}
           >
             Total Hours
           </button>
           <button
             onClick={() => setBillableMode(true)}
-            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-primary-600 text-app-text' : 'bg-white/5 text-app-muted'}`}
+            className={`px-2.5 py-1 text-xs transition ${billableMode ? 'bg-primary-600 text-app-text' : 'bg-app-surface-tertiary text-app-muted'}`}
           >
             Billable Only
           </button>

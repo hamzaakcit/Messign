@@ -192,7 +192,7 @@ export function ExpensesPage() {
               'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
               (expenseFilters.status ?? '') === tab.id
                 ? 'bg-primary-500/20 text-primary-400'
-                : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
             )}
           >
             {tab.label}
@@ -210,7 +210,7 @@ export function ExpensesPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
+            className="w-full pl-9 pr-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none"
           />
         </div>
         <button
@@ -219,7 +219,7 @@ export function ExpensesPage() {
             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
             showFilters || activeFilterCount > 0
               ? 'bg-primary-500/10 border-primary-500/30 text-primary-400'
-              : 'bg-white/5 border-white/10 text-app-muted hover:bg-white/10',
+              : 'bg-app-surface-tertiary border-app-border text-app-muted hover:bg-app-hover',
           )}
         >
           <Filter className="h-4 w-4" />
@@ -239,14 +239,14 @@ export function ExpensesPage() {
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div>
               <label className="block text-xs text-app-muted mb-1">Category</label>
               <select
                 value={expenseFilters.category_slug || ''}
                 onChange={(e) => { setExpenseFilters({ category_slug: e.target.value || undefined }); setPage(0); }}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none"
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none"
               >
                 {CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.label}</option>)}
               </select>
@@ -257,7 +257,7 @@ export function ExpensesPage() {
                 type="date"
                 value={expenseFilters.date_from || ''}
                 onChange={(e) => { setExpenseFilters({ date_from: e.target.value || undefined }); setPage(0); }}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none"
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none"
               />
             </div>
             <div>
@@ -266,7 +266,7 @@ export function ExpensesPage() {
                 type="date"
                 value={expenseFilters.date_to || ''}
                 onChange={(e) => { setExpenseFilters({ date_to: e.target.value || undefined }); setPage(0); }}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none"
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none"
               />
             </div>
             <div>
@@ -276,14 +276,14 @@ export function ExpensesPage() {
                   type="number" placeholder="Min"
                   value={expenseFilters.amount_min || ''}
                   onChange={(e) => { setExpenseFilters({ amount_min: e.target.value || undefined }); setPage(0); }}
-                  className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none"
+                  className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none"
                 />
                 <span className="text-xs text-app-muted">—</span>
                 <input
                   type="number" placeholder="Max"
                   value={expenseFilters.amount_max || ''}
                   onChange={(e) => { setExpenseFilters({ amount_max: e.target.value || undefined }); setPage(0); }}
-                  className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none"
+                  className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none"
                 />
               </div>
             </div>
@@ -292,7 +292,7 @@ export function ExpensesPage() {
               <select
                 value={expenseFilters.risk_level || ''}
                 onChange={(e) => { setExpenseFilters({ risk_level: e.target.value || undefined }); setPage(0); }}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none"
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none"
               >
                 {RISK_LEVELS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>
@@ -335,10 +335,10 @@ export function ExpensesPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/10 text-xs text-app-muted uppercase tracking-wide">
+            <tr className="border-b border-app-border text-xs text-app-muted uppercase tracking-wide">
               <th className="p-3 text-left w-10">
                 <button onClick={allSelected ? clearExpenseSelection : selectAllExpenses}>
                   {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
@@ -369,7 +369,7 @@ export function ExpensesPage() {
                 <tr
                   key={expense.id}
                   onClick={() => openDetail(expense.id)}
-                  className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                  className="border-b border-app-border hover:bg-app-nav-hover cursor-pointer transition-colors"
                 >
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => toggleExpenseSelection(expense.id)}>
@@ -416,16 +416,16 @@ export function ExpensesPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-app-border">
             <span className="text-xs text-app-muted">
               Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, expensesTotal)} of {expensesTotal}
             </span>
             <div className="flex items-center gap-2">
-              <button disabled={page === 0} onClick={() => setPage(page - 1)} className="p-1 rounded hover:bg-white/10 disabled:opacity-30">
+              <button disabled={page === 0} onClick={() => setPage(page - 1)} className="p-1 rounded hover:bg-app-hover disabled:opacity-30">
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <span className="text-sm text-app-text">{page + 1} / {totalPages}</span>
-              <button disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} className="p-1 rounded hover:bg-white/10 disabled:opacity-30">
+              <button disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} className="p-1 rounded hover:bg-app-hover disabled:opacity-30">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -435,7 +435,7 @@ export function ExpensesPage() {
 
       {/* Bulk action bar */}
       {selectedExpenseIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl bg-app-card border border-white/10 shadow-xl backdrop-blur-xl z-50">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl bg-app-card border border-app-border shadow-xl backdrop-blur-xl z-50">
           <span className="text-sm text-app-text font-medium">{selectedExpenseIds.length} selected</span>
           <button onClick={handleBulkApprove} className="px-4 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30">
             Approve Selected
@@ -443,10 +443,10 @@ export function ExpensesPage() {
           <button onClick={handleBulkReject} className="px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30">
             Reject Selected
           </button>
-          <button onClick={handleExportCSV} className="px-4 py-1.5 rounded-lg bg-white/10 text-app-muted text-sm font-medium hover:bg-white/15">
+          <button onClick={handleExportCSV} className="px-4 py-1.5 rounded-lg bg-app-surface-tertiary text-app-muted text-sm font-medium hover:bg-app-hover">
             Export CSV
           </button>
-          <button onClick={clearExpenseSelection} className="px-4 py-1.5 rounded-lg bg-white/5 text-app-muted text-sm hover:bg-white/10">
+          <button onClick={clearExpenseSelection} className="px-4 py-1.5 rounded-lg bg-app-surface-tertiary text-app-muted text-sm hover:bg-app-hover">
             Clear
           </button>
         </div>
@@ -514,7 +514,7 @@ function AIScoreTooltip({ expense }: { expense: Expense }) {
   const hasDups = duplicateRefs && duplicateRefs.length > 0;
 
   return (
-    <div className="absolute right-0 top-full mt-1 z-50 w-56 p-3 rounded-lg bg-[#1a1a2e] border border-white/10 shadow-xl text-left" onClick={(e) => e.stopPropagation()}>
+    <div className="absolute right-0 top-full mt-1 z-50 w-56 p-3 rounded-lg bg-[#1a1a2e] border border-app-border shadow-xl text-left" onClick={(e) => e.stopPropagation()}>
       <p className="text-xs font-medium text-app-text mb-2 flex items-center gap-1"><Shield className="h-3 w-3 text-primary-400" /> AI Analysis</p>
       <div className="space-y-1.5 text-xs">
         <div className="flex justify-between">

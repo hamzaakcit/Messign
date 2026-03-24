@@ -35,7 +35,7 @@ export function MessageBubble({ message, user, showAvatar }: MessageBubbleProps)
           </div>
         )}
         
-        <div className="text-gray-300 break-words">
+        <div className="text-app-muted break-words">
           {formatMessageContent(message.content)}
         </div>
 

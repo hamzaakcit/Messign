@@ -43,7 +43,7 @@ export const PerformanceChart = React.memo(function PerformanceChart({ monthlyDa
             className={cn(
               'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               range === 'monthly'
-                ? 'bg-white/10 text-app-text'
+                ? 'bg-app-surface-tertiary text-app-text'
                 : 'text-app-muted hover:text-app-text'
             )}
           >
@@ -54,7 +54,7 @@ export const PerformanceChart = React.memo(function PerformanceChart({ monthlyDa
             className={cn(
               'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               range === 'yearly'
-                ? 'bg-white/10 text-app-text'
+                ? 'bg-app-surface-tertiary text-app-text'
                 : 'text-app-muted hover:text-app-text'
             )}
           >

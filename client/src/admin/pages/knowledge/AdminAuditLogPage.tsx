@@ -64,7 +64,7 @@ export function AdminAuditLogPage() {
               {entries.map(entry => (
                 <tr key={entry.id} className="bg-app-sidebar/50">
                   <td className="px-4 py-2 text-xs text-app-muted">{new Date(entry.created_at).toLocaleString()}</td>
-                  <td className="px-4 py-2 text-xs text-gray-300">{entry.user_id}</td>
+                  <td className="px-4 py-2 text-xs text-app-muted">{entry.user_id}</td>
                   <td className="px-4 py-2 text-xs text-app-text">{entry.action}</td>
                   <td className="px-4 py-2 text-xs text-app-muted">{entry.entity_type}/{entry.entity_id.slice(0, 8)}</td>
                   <td className="px-4 py-2 text-xs text-app-muted">{JSON.stringify(entry.details)}</td>

@@ -54,12 +54,12 @@ export function TipTapEditor({
       attributes: {
         class:
           'prose prose-invert max-w-none min-h-[400px] px-6 py-4 focus:outline-none ' +
-          'text-app-text prose-headings:text-app-text prose-p:text-gray-300 ' +
-          'prose-strong:text-app-text prose-em:text-gray-300 ' +
+          'text-app-text prose-headings:text-app-text prose-p:text-app-muted ' +
+          'prose-strong:text-app-text prose-em:text-app-muted ' +
           'prose-a:text-blue-400 prose-blockquote:text-app-muted prose-blockquote:border-gray-600 ' +
           'prose-code:text-emerald-400 prose-code:bg-app-card prose-code:px-1 prose-code:py-0.5 prose-code:rounded ' +
           'prose-pre:bg-app-card prose-pre:border prose-pre:border-app-border ' +
-          'prose-li:text-gray-300 prose-hr:border-app-border ' +
+          'prose-li:text-app-muted prose-hr:border-app-border ' +
           'prose-img:rounded-lg',
       },
     },

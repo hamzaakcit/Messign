@@ -17,11 +17,11 @@ export function TeamRightSidebar() {
           <Users className="w-4 h-4 text-primary-400" /> Team Statistics
         </h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="p-2 rounded bg-white/5">
+          <div className="p-2 rounded bg-app-surface-tertiary">
             <p className="text-app-muted text-xs">Total members</p>
             <p className="text-app-text font-semibold">{teamStats.totalMembers}</p>
           </div>
-          <div className="p-2 rounded bg-white/5">
+          <div className="p-2 rounded bg-app-surface-tertiary">
             <p className="text-app-muted text-xs">Average level</p>
             <p className="text-app-text font-semibold">{teamStats.averageLevel}</p>
           </div>
@@ -71,7 +71,7 @@ export function TeamRightSidebar() {
               return u ? (
                 <li key={b.userId} className="flex items-center gap-2">
                   <Avatar src={u.avatar} name={u.name} size="sm" showStatus={false} />
-                  <span className="text-sm text-gray-300">{b.name}</span>
+                  <span className="text-sm text-app-muted">{b.name}</span>
                   <span className="text-xs text-app-muted ml-auto">{b.date}</span>
                 </li>
               ) : null;

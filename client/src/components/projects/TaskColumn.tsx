@@ -16,9 +16,9 @@ export function TaskColumn({ id, title, color, count, tooltipContent, children }
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col bg-app-sidebar rounded-xl border border-white/5 overflow-hidden">
+    <div className="flex-1 min-w-0 flex flex-col bg-app-sidebar rounded-xl border border-app-border overflow-hidden">
       {/* Column Header */}
-      <div className="p-2 border-b border-white/5 flex items-center gap-2 min-w-0">
+      <div className="p-2 border-b border-app-border flex items-center gap-2 min-w-0">
         <div className={cn('w-2.5 h-2.5 rounded-full shrink-0', color)} />
         <h3 className="font-semibold text-app-text text-sm truncate min-w-0 flex items-center gap-1">
           {title}
@@ -26,7 +26,7 @@ export function TaskColumn({ id, title, color, count, tooltipContent, children }
             <InfoTooltip content={tooltipContent} aria-label={`Definition: ${title}`} />
           )}
         </h3>
-        <span className="ml-auto px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-app-muted shrink-0 tabular-nums">
+        <span className="ml-auto px-1.5 py-0.5 bg-app-surface-tertiary rounded text-[10px] text-app-muted shrink-0 tabular-nums">
           {count}
         </span>
       </div>

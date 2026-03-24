@@ -207,7 +207,7 @@ export function CRMDashboardPage() {
                     <p className="text-sm text-app-muted">No open deals.</p>
                   ) : (
                     topDeals.map(deal => (
-                      <div key={deal.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                      <div key={deal.id} className="flex items-center justify-between py-2 border-b border-app-border last:border-0">
                         <div className="min-w-0">
                           <p className="text-sm text-app-text font-medium truncate">{deal.title}</p>
                           <div className="flex items-center gap-2 mt-0.5">
@@ -235,7 +235,7 @@ export function CRMDashboardPage() {
                     <p className="text-sm text-app-muted">No stale deals. Great follow-up!</p>
                   ) : (
                     staleDeals.map(deal => (
-                      <div key={deal.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                      <div key={deal.id} className="flex items-center justify-between py-2 border-b border-app-border last:border-0">
                         <div className="min-w-0">
                           <p className="text-sm text-app-text font-medium truncate">{deal.title}</p>
                           <p className="text-[11px] text-app-muted">
@@ -256,7 +256,7 @@ export function CRMDashboardPage() {
                     <p className="text-sm text-app-muted">No sales data yet.</p>
                   ) : (
                     owners.slice(0, 5).map((owner, i) => (
-                      <div key={owner.owner_id} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+                      <div key={owner.owner_id} className="flex items-center gap-3 py-2 border-b border-app-border last:border-0">
                         <span className="text-xs font-bold text-app-muted w-5 text-center">
                           {i + 1}
                         </span>
@@ -287,7 +287,7 @@ const STAGE_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#6
 
 function ChartSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
       <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
         <Icon className="h-4 w-4" /> {title}
       </h3>
@@ -298,7 +298,7 @@ function ChartSection({ title, icon: Icon, children }: { title: string; icon: Re
 
 function ListSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
       <h3 className="font-semibold text-app-text mb-3 flex items-center gap-2">
         <Icon className="h-4 w-4" /> {title}
       </h3>
@@ -352,19 +352,19 @@ function DashboardSkeleton() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
         {[1, 2, 3].map(i => (
-          <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-5 animate-pulse">
-            <div className="h-4 bg-white/10 rounded w-40 mb-4" />
-            <div className="h-56 bg-white/10 rounded" />
+          <div key={i} className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 animate-pulse">
+            <div className="h-4 bg-app-surface-tertiary rounded w-40 mb-4" />
+            <div className="h-56 bg-app-surface-tertiary rounded" />
           </div>
         ))}
       </div>
       <div className="space-y-6">
         {[1, 2, 3].map(i => (
-          <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-5 animate-pulse">
-            <div className="h-4 bg-white/10 rounded w-32 mb-3" />
+          <div key={i} className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 animate-pulse">
+            <div className="h-4 bg-app-surface-tertiary rounded w-32 mb-3" />
             <div className="space-y-3">
               {[1, 2, 3].map(j => (
-                <div key={j} className="h-10 bg-white/10 rounded" />
+                <div key={j} className="h-10 bg-app-surface-tertiary rounded" />
               ))}
             </div>
           </div>

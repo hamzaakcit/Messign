@@ -47,8 +47,8 @@ export function ApprovalList({
   campaigns,
 }: ApprovalListProps) {
   return (
-    <div className="flex flex-col h-full min-h-0 border border-white/10 rounded-xl bg-white/[0.02] overflow-hidden">
-      <div className="p-3 border-b border-white/10 space-y-3 shrink-0">
+    <div className="flex flex-col h-full min-h-0 border border-app-border rounded-xl bg-app-surface-tertiary overflow-hidden">
+      <div className="p-3 border-b border-app-border space-y-3 shrink-0">
         <div className="flex items-center gap-2 text-app-muted text-xs uppercase tracking-wide">
           <Filter className="w-3.5 h-3.5" />
           Queue
@@ -58,7 +58,7 @@ export function ApprovalList({
           <select
             value={campaignFilter}
             onChange={(e) => onCampaignFilter(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-app-text"
+            className="bg-app-surface-tertiary border border-app-border rounded-lg px-2 py-1.5 text-sm text-app-text"
           >
             <option value="">All campaigns</option>
             {campaigns.map((c) => (
@@ -71,7 +71,7 @@ export function ApprovalList({
           <select
             value={channelFilter}
             onChange={(e) => onChannelFilter(e.target.value as TargetChannel | 'all')}
-            className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-app-text"
+            className="bg-app-surface-tertiary border border-app-border rounded-lg px-2 py-1.5 text-sm text-app-text"
           >
             <option value="all">All channels</option>
             <option value="blog">Blog</option>
@@ -86,7 +86,7 @@ export function ApprovalList({
           <select
             value={riskFilter}
             onChange={(e) => onRiskFilter(e.target.value as RiskFilter)}
-            className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-app-text"
+            className="bg-app-surface-tertiary border border-app-border rounded-lg px-2 py-1.5 text-sm text-app-text"
           >
             <option value="all">All</option>
             <option value="high">High</option>
@@ -118,7 +118,7 @@ export function ApprovalList({
                   onClick={() => onSelect(item.id)}
                   className={cn(
                     'w-full text-left p-3 transition-colors',
-                    selected ? 'bg-primary-500/15 border-l-2 border-l-primary-400' : 'hover:bg-white/5 border-l-2 border-l-transparent',
+                    selected ? 'bg-primary-500/15 border-l-2 border-l-primary-400' : 'hover:bg-app-nav-hover border-l-2 border-l-transparent',
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">

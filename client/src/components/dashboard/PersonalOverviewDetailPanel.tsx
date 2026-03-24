@@ -117,7 +117,7 @@ export function PersonalOverviewDetailPanel({
       <div
         className={cn(
           'fixed inset-y-0 right-0 w-full max-w-lg z-50 flex flex-col',
-          'bg-app-sidebar border-l border-white/10 shadow-xl',
+          'bg-app-sidebar border-l border-app-border shadow-xl',
           'animate-slide-in-right'
         )}
         role="dialog"
@@ -125,12 +125,12 @@ export function PersonalOverviewDetailPanel({
       >
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-app-border shrink-0">
           <h2 className="text-lg font-semibold text-app-text">Personal overview</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/10 text-app-muted hover:text-app-text transition-colors"
+            className="p-2 rounded-lg hover:bg-app-hover text-app-muted hover:text-app-text transition-colors"
             aria-label="Close panel"
           >
             <X className="w-5 h-5" />
@@ -205,23 +205,23 @@ export function PersonalOverviewDetailPanel({
               <h4 className="text-sm font-semibold text-app-text">Your ranking & points</h4>
             </div>
             <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="rounded-xl p-3 border border-white/5 bg-primary-500/10">
+              <div className="rounded-xl p-3 border border-app-border bg-primary-500/10">
                 <Calendar className="w-5 h-5 text-primary-400 mb-1.5" aria-hidden />
                 <p className="text-xl font-bold text-app-text tabular-nums">{formatPoints(monthlyPoints)}</p>
                 <p className="text-xs text-app-muted">Monthly</p>
               </div>
-              <div className="rounded-xl p-3 border border-white/5 bg-accent-500/10">
+              <div className="rounded-xl p-3 border border-app-border bg-accent-500/10">
                 <Award className="w-5 h-5 text-accent-400 mb-1.5" aria-hidden />
                 <p className="text-xl font-bold text-app-text tabular-nums">{formatPoints(yearlyPoints)}</p>
                 <p className="text-xs text-app-muted">Yearly</p>
               </div>
-              <div className="rounded-xl p-3 border border-white/5 bg-warning-500/10">
+              <div className="rounded-xl p-3 border border-app-border bg-warning-500/10">
                 <Trophy className="w-5 h-5 text-warning-500 mb-1.5" aria-hidden />
                 <p className="text-xl font-bold text-app-text tabular-nums">{formatPoints(totalPoints)}</p>
                 <p className="text-xs text-app-muted">Total</p>
               </div>
             </div>
-            <div className="pt-3 border-t border-white/10">
+            <div className="pt-3 border-t border-app-border">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-app-muted text-sm">Current rank</span>
                 <span className="text-lg font-bold text-app-text">
@@ -315,7 +315,7 @@ export function PersonalOverviewDetailPanel({
               {personalKPIs.map((kpi) => (
                 <div
                   key={kpi.label}
-                  className="flex items-center justify-between py-2 border-b border-white/5 last:border-0"
+                  className="flex items-center justify-between py-2 border-b border-app-border last:border-0"
                 >
                   <dt className="text-sm text-app-muted">{kpi.label}</dt>
                   <dd className="flex items-center gap-2 text-sm font-medium text-app-text">

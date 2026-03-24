@@ -18,7 +18,7 @@ export function RightSidebarPreview({ activeTab }: RightSidebarPreviewProps) {
       <CardContent>
         <p className="text-sm text-app-muted mb-3">How changes will appear:</p>
         {activeTab === 'xp' ? (
-          <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+          <div className="p-3 bg-app-surface-tertiary rounded-lg border border-app-border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-app-text">Sample Employee</span>
               <span className="text-xs text-app-muted">L12</span>
@@ -27,7 +27,7 @@ export function RightSidebarPreview({ activeTab }: RightSidebarPreviewProps) {
             <p className="text-xs text-app-muted mt-1">2,450 / 5,700 MP to next level</p>
           </div>
         ) : (
-          <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-3">
+          <div className="p-3 bg-app-surface-tertiary rounded-lg border border-app-border flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center text-2xl">
               ✓
             </div>

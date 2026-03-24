@@ -121,7 +121,7 @@ export function DoraContextBar({
           <button
             type="button"
             onClick={() => onResendIntent(s.intentId, s.sendQuery)}
-            className="max-w-[200px] truncate rounded-md px-1.5 py-0.5 text-left text-gray-300 transition-colors hover:bg-app-hover hover:text-sky-300"
+            className="max-w-[200px] truncate rounded-md px-1.5 py-0.5 text-left text-app-muted transition-colors hover:bg-app-hover hover:text-sky-300"
             title="Repeat this intent"
           >
             {s.label}

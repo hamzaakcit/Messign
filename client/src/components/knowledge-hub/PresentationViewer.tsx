@@ -120,7 +120,7 @@ export function PresentationViewer({ presentation, onClose }: Props) {
               <h2 className="text-2xl font-bold text-app-text mb-6">{currentSlide.title}</h2>
               <ul className="space-y-3">
                 {currentSlide.bullets.map((bullet, i) => (
-                  <li key={i} className="flex gap-3 text-gray-300">
+                  <li key={i} className="flex gap-3 text-app-muted">
                     <span className="text-primary-400 shrink-0">•</span>
                     <span>{bullet}</span>
                   </li>

@@ -175,7 +175,7 @@ export function BuilderSection(): JSX.Element {
                 onClick={() => handleFilterChange(chip.id)}
                 className={cn(
                   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                  isActive ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                  isActive ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -196,7 +196,7 @@ export function BuilderSection(): JSX.Element {
           {createDropdownOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setCreateDropdownOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-white/10 bg-[#12151c] shadow-xl py-1">
+              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-app-border bg-[#12151c] shadow-xl py-1">
                 {FILTER_CHIPS.filter((c) => c.id !== 'all').map((c) => {
                   const Icon = c.icon;
                   return (
@@ -206,7 +206,7 @@ export function BuilderSection(): JSX.Element {
                         setCreateType(c.id as Exclude<BuilderType, 'all'>);
                         setCreateDropdownOpen(false);
                       }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                     >
                       <Icon className="w-4 h-4 text-app-muted" />
                       {c.label}
@@ -356,7 +356,7 @@ function BuilderDetailPanel({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="lg:col-span-1 space-y-3 rounded-xl border border-app-border bg-app-surface-tertiary p-4">
           <h3 className="text-sm font-medium text-app-text">Details</h3>
           <div><label className="block text-xs text-app-muted mb-1">Name</label><input className={inputClass} value={meta.name} onChange={(e) => setMeta((m) => ({ ...m, name: e.target.value }))} /></div>
           {item.type === 'email' && (
@@ -505,7 +505,7 @@ function BuilderCreatePanel({
         )}
       </div>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-white/15 text-app-text hover:bg-white/5">Cancel</button>
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-app-border text-app-text hover:bg-app-nav-hover">Cancel</button>
         <button type="submit" className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text flex items-center gap-1.5">Create {typeLabel(type)}</button>
       </div>
     </form>

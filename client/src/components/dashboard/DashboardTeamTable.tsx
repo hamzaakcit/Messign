@@ -63,7 +63,7 @@ export function DashboardTeamTable({
           return rank <= 3 ? (
             <span className="text-lg">{rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}</span>
           ) : (
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-app-text text-sm font-medium">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-app-surface-tertiary text-app-text text-sm font-medium">
               {rank}
             </span>
           );
@@ -141,7 +141,7 @@ export function DashboardTeamTable({
           return (
             <div>
               <p className="text-sm text-app-text font-medium">{rate}%</p>
-              <div className="mt-1 h-1.5 w-full rounded-full bg-white/10 overflow-hidden max-w-[60px]">
+              <div className="mt-1 h-1.5 w-full rounded-full bg-app-surface-tertiary overflow-hidden max-w-[60px]">
                 <div
                   className="h-full rounded-full bg-primary-500"
                   style={{ width: `${Math.min(100, rate * 8)}%` }}
@@ -161,7 +161,7 @@ export function DashboardTeamTable({
             <span
               className={cn(
                 'inline-flex px-2 py-0.5 rounded text-xs font-medium border',
-                statusColors[status] ?? 'bg-white/5 text-app-muted'
+                statusColors[status] ?? 'bg-app-surface-tertiary text-app-muted'
               )}
             >
               {row.original.statusLabel}
@@ -191,7 +191,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'view')}
-              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover"
               aria-label="View"
             >
               <Eye className="w-4 h-4" />
@@ -199,7 +199,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'edit')}
-              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover"
               aria-label="Edit"
             >
               <Pencil className="w-4 h-4" />
@@ -207,7 +207,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'more')}
-              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover"
               aria-label="More"
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -229,7 +229,7 @@ export function DashboardTeamTable({
           return rank <= 3 ? (
             <span className="text-lg">{rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}</span>
           ) : (
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-app-text text-sm font-medium">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-app-surface-tertiary text-app-text text-sm font-medium">
               {rank}
             </span>
           );
@@ -304,7 +304,7 @@ export function DashboardTeamTable({
           <span
             className={cn(
               'inline-flex px-2 py-0.5 rounded text-xs font-medium border',
-              statusColors[row.original.status] ?? 'bg-white/5 text-app-muted'
+              statusColors[row.original.status] ?? 'bg-app-surface-tertiary text-app-muted'
             )}
           >
             {row.original.statusLabel}
@@ -333,7 +333,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'view')}
-              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover"
               aria-label="View"
             >
               <Eye className="w-4 h-4" />
@@ -341,7 +341,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'edit')}
-              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover"
               aria-label="Edit"
             >
               <Pencil className="w-4 h-4" />
@@ -349,7 +349,7 @@ export function DashboardTeamTable({
             <button
               type="button"
               onClick={() => onAction?.(row.original.id, 'more')}
-              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-white/10"
+              className="p-1.5 rounded text-app-muted hover:text-app-text hover:bg-app-hover"
               aria-label="More"
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -421,8 +421,8 @@ export function DashboardTeamTable({
                 }
               }}
               className={cn(
-                'border-b border-gray-800/50 hover:bg-white/5 transition-colors cursor-pointer',
-                isActive && 'ring-1 ring-[#2dd4bf] bg-white/5'
+                'border-b border-gray-800/50 hover:bg-app-nav-hover transition-colors cursor-pointer',
+                isActive && 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary'
               )}
             >
               {row.getVisibleCells().map((cell) => (

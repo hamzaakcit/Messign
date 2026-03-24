@@ -78,7 +78,7 @@ export function FileUploader({ documentId, onFileUploaded, className }: Props) {
           {uploadedFiles.map(file => (
             <div key={file.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-card">
               <File className="w-4 h-4 text-app-muted shrink-0" />
-              <span className="text-sm text-gray-300 truncate flex-1">{file.fileName}</span>
+              <span className="text-sm text-app-muted truncate flex-1">{file.fileName}</span>
               <button onClick={() => removeFile(file.id)} className="p-0.5 rounded text-app-muted hover:text-app-text">
                 <X className="w-3.5 h-3.5" />
               </button>

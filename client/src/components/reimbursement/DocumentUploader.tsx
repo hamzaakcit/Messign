@@ -166,7 +166,7 @@ export function DocumentUploader({
         onDrop={handleDrop}
         className={cn(
           'border-2 border-dashed rounded-lg p-6 text-center transition-colors border-gray-700/50',
-          dragging ? 'border-primary-500 bg-primary-500/10' : 'bg-white/5',
+          dragging ? 'border-primary-500 bg-primary-500/10' : 'bg-app-surface-tertiary',
           disabled && 'opacity-50 pointer-events-none'
         )}
       >
@@ -215,7 +215,7 @@ export function DocumentUploader({
           {documents.map((doc: any) => (
             <li
               key={doc.id}
-              className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-white/5 border border-gray-700/50"
+              className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-app-surface-tertiary border border-gray-700/50"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="w-5 h-5 text-app-muted flex-shrink-0" />
@@ -247,7 +247,7 @@ export function DocumentUploader({
                         <button
                           type="button"
                           onClick={() => {}}
-                          className="text-xs text-app-muted hover:text-gray-300 flex items-center gap-1"
+                          className="text-xs text-app-muted hover:text-app-muted flex items-center gap-1"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                           Edit Manually

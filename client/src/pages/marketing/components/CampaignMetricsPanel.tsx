@@ -144,11 +144,11 @@ export function CampaignMetricsPanel({
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-app-text hover:bg-white/5 rounded-xl"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-app-text hover:bg-app-nav-hover rounded-xl"
       >
         <span className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-primary-400" />
@@ -261,7 +261,7 @@ export function CampaignMetricsPanel({
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-app-text">
                   <thead>
-                    <tr className="border-b border-white/10 text-app-muted">
+                    <tr className="border-b border-app-border text-app-muted">
                       <th className="text-left pb-1 pr-2">Date</th>
                       <th className="text-right pb-1 pr-2">Open</th>
                       <th className="text-right pb-1 pr-2">CTR</th>
@@ -271,7 +271,7 @@ export function CampaignMetricsPanel({
                   </thead>
                   <tbody>
                     {history.slice(0, 10).map((r) => (
-                      <tr key={r.id} className="border-b border-white/5">
+                      <tr key={r.id} className="border-b border-app-border">
                         <td className="py-1 pr-2">
                           {new Date(r.recorded_at).toLocaleDateString()}
                         </td>
@@ -312,7 +312,7 @@ export function CampaignMetricsPanel({
                   : 'View calibration data'}
             </button>
             {calibrationOpen && calibration && (
-              <div className="mt-2 rounded-lg bg-white/5 border border-white/10 p-3 text-xs text-app-muted space-y-1">
+              <div className="mt-2 rounded-lg bg-app-surface-tertiary border border-app-border p-3 text-xs text-app-muted space-y-1">
                 <p className="text-app-text font-medium">
                   Based on {calibration.based_on_records} campaigns
                 </p>

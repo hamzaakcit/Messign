@@ -57,7 +57,7 @@ export function CockpitApprovalsList({
                 if (!item.contentId) return;
                 onSelect({ type: 'approval', id: item.id, contentId: item.contentId });
               }}
-              className={`w-full px-3 py-3 text-left transition-colors hover:bg-white/[0.04] ${
+              className={`w-full px-3 py-3 text-left transition-colors hover:bg-app-hover ${
                 selected ? 'bg-cyan-500/[0.08]' : ''
               }`}
             >

@@ -58,14 +58,14 @@ export function DocumentViewPage({ docId }: { docId: string }) {
 
     if (content && typeof content === 'object' && content.type === 'doc') {
       return (
-        <div className="prose prose-invert max-w-none prose-headings:text-app-text prose-p:text-gray-300 prose-a:text-primary-400 prose-code:text-primary-300 prose-strong:text-app-text">
+        <div className="prose prose-invert max-w-none prose-headings:text-app-text prose-p:text-app-muted prose-a:text-primary-400 prose-code:text-primary-300 prose-strong:text-app-text">
           <TipTapRenderer content={content} />
         </div>
       );
     }
 
     if (doc.plain_text) {
-      return <div className="prose prose-invert max-w-none whitespace-pre-wrap text-gray-300">{doc.plain_text}</div>;
+      return <div className="prose prose-invert max-w-none whitespace-pre-wrap text-app-muted">{doc.plain_text}</div>;
     }
 
     if (attachments.length > 0) {
@@ -125,7 +125,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
 
       return (
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-300">Attachments</h3>
+          <h3 className="text-sm font-medium text-app-muted">Attachments</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             {attachments.map((a) => {
               const href = a.url.startsWith('http') ? a.url : `${origin}${a.url}`;
@@ -222,7 +222,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
             {doc.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-6">
                 {doc.tags.map(tag => (
-                  <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-app-card text-gray-300">
+                  <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-app-card text-app-muted">
                     <Tag className="w-3 h-3 inline mr-1" />{tag.name}
                   </span>
                 ))}
@@ -237,19 +237,19 @@ export function DocumentViewPage({ docId }: { docId: string }) {
       {/* Right sidebar */}
       <div className="w-72 shrink-0 relative z-10 border-l border-app-border bg-app-sidebar overflow-y-auto p-4 space-y-6 flex flex-col">
         <div className="flex flex-col gap-2">
-          <button onClick={toggleBookmark} className={cn('flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors', bookmarked ? 'bg-yellow-500/10 text-yellow-400' : 'bg-app-card text-gray-300 hover:bg-app-hover')}>
+          <button onClick={toggleBookmark} className={cn('flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors', bookmarked ? 'bg-yellow-500/10 text-yellow-400' : 'bg-app-card text-app-muted hover:bg-app-hover')}>
             {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
             {bookmarked ? 'Bookmarked' : 'Bookmark'}
           </button>
           {isAuthor && (
-            <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/edit`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-gray-300 hover:bg-app-hover transition-colors">
+            <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/edit`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover transition-colors">
               <Edit className="w-4 h-4" /> Edit
             </button>
           )}
-          <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-gray-300 hover:bg-app-hover transition-colors">
+          <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover transition-colors">
             <MessageSquare className="w-4 h-4" /> Comments ({comments.length})
           </button>
-          <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/versions`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-gray-300 hover:bg-app-hover transition-colors">
+          <button onClick={() => navigate(`/knowledge-hub/documents/${doc.id}/versions`)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-app-card text-app-muted hover:bg-app-hover transition-colors">
             <Clock className="w-4 h-4" /> Versions ({versions.length})
           </button>
         </div>
@@ -299,7 +299,7 @@ export function DocumentViewPage({ docId }: { docId: string }) {
             <div className="space-y-1">
               {versions.map(v => (
                 <div key={v.id} className="text-xs text-app-muted px-2 py-1">
-                  <span className="text-gray-300">v{v.version_number}</span> · {v.author_name} · {new Date(v.created_at).toLocaleDateString()}
+                  <span className="text-app-muted">v{v.version_number}</span> · {v.author_name} · {new Date(v.created_at).toLocaleDateString()}
                 </div>
               ))}
             </div>

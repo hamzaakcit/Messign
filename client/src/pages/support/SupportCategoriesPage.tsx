@@ -109,7 +109,7 @@ export function SupportCategoriesPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 mb-5">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 mb-5">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <input
                 value={draft.name}
@@ -154,7 +154,7 @@ export function SupportCategoriesPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-2">
             <DataTable
               data={categories}
               columns={[

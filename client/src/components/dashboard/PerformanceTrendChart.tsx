@@ -65,7 +65,7 @@ function ChartTooltip({
   const value = payload[0]?.value ?? 0;
   return (
     <div
-      className="rounded-xl border border-white/10 bg-[rgba(20,20,28,0.95)] px-4 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md min-w-[160px]"
+      className="rounded-xl border border-app-border bg-[rgba(20,20,28,0.95)] px-4 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md min-w-[160px]"
       role="tooltip"
     >
       <p className="text-sm font-semibold text-app-text/80 mb-2">{label}</p>
@@ -130,14 +130,14 @@ export function PerformanceTrendChart() {
             <button
               type="button"
               onClick={clearEntitySelection}
-              className="text-xs px-2 py-1 rounded-md bg-white/10 text-app-muted hover:text-app-text hover:bg-white/15 transition-colors"
+              className="text-xs px-2 py-1 rounded-md bg-app-surface-tertiary text-app-muted hover:text-app-text hover:bg-app-hover transition-colors"
             >
               Clear selection
             </button>
           )}
         </div>
         <div
-          className="flex flex-wrap rounded-full p-1 bg-white/5 border border-white/10 gap-0.5"
+          className="flex flex-wrap rounded-full p-1 bg-app-surface-tertiary border border-app-border gap-0.5"
           role="group"
           aria-label="Time period"
         >
@@ -150,7 +150,7 @@ export function PerformanceTrendChart() {
                 'px-2.5 py-1.5 text-xs font-medium rounded-full transition-all duration-200',
                 timeRange === r
                   ? 'bg-indigo-500/20 border border-indigo-500/40 text-app-text'
-                  : 'text-app-text/50 hover:bg-white/10'
+                  : 'text-app-text/50 hover:bg-app-hover'
               )}
             >
               {RANGE_LABELS[r]}
@@ -161,9 +161,9 @@ export function PerformanceTrendChart() {
 
       <div className="flex-1 min-h-[180px] w-full">
         {loading ? (
-          <div className="h-full w-full flex items-center justify-center bg-white/5 rounded-lg animate-pulse">
+          <div className="h-full w-full flex items-center justify-center bg-app-surface-tertiary rounded-lg animate-pulse">
             <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-8 border-2 border-white/20 border-t-primary-500 rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-app-border-strong border-t-primary-500 rounded-full animate-spin" />
               <p className="text-xs text-app-muted">Loading chart...</p>
             </div>
           </div>

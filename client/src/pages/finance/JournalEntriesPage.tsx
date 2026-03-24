@@ -145,7 +145,7 @@ export function JournalEntriesPage() {
     return (
       <div className="space-y-3">
         {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="h-14 rounded-lg bg-white/5 animate-pulse" />
+          <div key={i} className="h-14 rounded-lg bg-app-surface-tertiary animate-pulse" />
         ))}
       </div>
     );
@@ -167,13 +167,13 @@ export function JournalEntriesPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search entries..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
           />
         </div>
         <select
           value={filters.period || ''}
           onChange={e => setFilters(f => ({ ...f, period: e.target.value }))}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+          className="px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
         >
           <option value="">All Periods</option>
           {periodOptions.map(p => <option key={p} value={p}>{p}</option>)}
@@ -181,7 +181,7 @@ export function JournalEntriesPage() {
         <select
           value={filters.source_type || ''}
           onChange={e => setFilters(f => ({ ...f, source_type: e.target.value }))}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+          className="px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
         >
           <option value="">All Sources</option>
           {Object.entries(SOURCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -189,7 +189,7 @@ export function JournalEntriesPage() {
         <select
           value={filters.status || ''}
           onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+          className="px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
         >
           <option value="">All Statuses</option>
           <option value="posted">Posted</option>
@@ -200,10 +200,10 @@ export function JournalEntriesPage() {
 
       <p className="text-xs text-app-muted">{total} entries found</p>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-app-muted text-xs border-b border-white/10">
+            <tr className="text-app-muted text-xs border-b border-app-border">
               <th className="text-left px-4 py-3 font-medium w-8"></th>
               <th className="text-left px-4 py-3 font-medium">Entry #</th>
               <th className="text-left px-4 py-3 font-medium">Date</th>
@@ -220,7 +220,7 @@ export function JournalEntriesPage() {
               <>
                 <tr
                   key={entry.id}
-                  className={cn('border-t border-white/5 hover:bg-white/5 cursor-pointer transition-colors',
+                  className={cn('border-t border-app-border hover:bg-app-nav-hover cursor-pointer transition-colors',
                     entry.status === 'voided' && 'opacity-50')}
                   onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
                 >
@@ -236,7 +236,7 @@ export function JournalEntriesPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs text-app-muted px-2 py-0.5 rounded bg-white/5">
+                    <span className="text-xs text-app-muted px-2 py-0.5 rounded bg-app-surface-tertiary">
                       {(SOURCE_LABELS[entry.source_type ?? ''] || entry.source_type) ?? ''}
                     </span>
                   </td>
@@ -257,7 +257,7 @@ export function JournalEntriesPage() {
                 </tr>
                 {expandedId === entry.id && entry.lines && (
                   <tr key={`${entry.id}-lines`}>
-                    <td colSpan={9} className="px-8 py-3 bg-white/[0.02]">
+                    <td colSpan={9} className="px-8 py-3 bg-app-surface-tertiary">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="text-app-muted">
@@ -270,7 +270,7 @@ export function JournalEntriesPage() {
                         </thead>
                         <tbody>
                           {entry.lines.map((line, i) => (
-                            <tr key={i} className="border-t border-white/5">
+                            <tr key={i} className="border-t border-app-border">
                               <td className="py-1.5 font-mono">{line.gl_code}</td>
                               <td className="py-1.5 text-app-text">{line.gl_name}</td>
                               <td className="py-1.5 text-app-muted">{line.description || '-'}</td>
@@ -295,10 +295,10 @@ export function JournalEntriesPage() {
       {/* New Journal Entry Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
-          <div className="bg-app-card border border-white/10 rounded-xl p-6 w-full max-w-2xl shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-app-card border border-app-border rounded-xl p-6 w-full max-w-2xl shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-app-text">New Journal Entry</h3>
-              <button onClick={() => setModalOpen(false)} className="p-1 rounded hover:bg-white/10 text-app-muted"><X className="h-4 w-4" /></button>
+              <button onClick={() => setModalOpen(false)} className="p-1 rounded hover:bg-app-hover text-app-muted"><X className="h-4 w-4" /></button>
             </div>
 
             {jeError && <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400">{jeError}</div>}
@@ -307,18 +307,18 @@ export function JournalEntriesPage() {
               <div className="col-span-2">
                 <label className="block text-xs text-app-muted mb-1">Description *</label>
                 <input type="text" value={jeForm.description} onChange={(e) => setJeForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
                   placeholder="e.g. Monthly rent accrual" />
               </div>
               <div>
                 <label className="block text-xs text-app-muted mb-1">Date</label>
                 <input type="date" value={jeForm.entry_date} onChange={(e) => setJeForm(f => ({ ...f, entry_date: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+                  className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
               </div>
               <div>
                 <label className="block text-xs text-app-muted mb-1">Reference</label>
                 <input type="text" value={jeForm.reference} onChange={(e) => setJeForm(f => ({ ...f, reference: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
                   placeholder="Optional reference" />
               </div>
             </div>
@@ -330,10 +330,10 @@ export function JournalEntriesPage() {
               </button>
             </div>
 
-            <div className="rounded-lg border border-white/10 overflow-hidden mb-4">
+            <div className="rounded-lg border border-app-border overflow-hidden mb-4">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-app-muted border-b border-white/10 bg-white/[0.02]">
+                  <tr className="text-xs text-app-muted border-b border-app-border bg-app-surface-tertiary">
                     <th className="text-left px-3 py-2 font-medium">Account</th>
                     <th className="text-left px-3 py-2 font-medium w-24">Debit</th>
                     <th className="text-left px-3 py-2 font-medium w-24">Credit</th>
@@ -346,7 +346,7 @@ export function JournalEntriesPage() {
                     <tr key={line.key}>
                       <td className="px-3 py-1.5">
                         <select value={line.gl_code} onChange={(e) => updateLine(line.key, 'gl_code', e.target.value)}
-                          className="w-full px-2 py-1 rounded bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none">
+                          className="w-full px-2 py-1 rounded bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none">
                           <option value="">Select account...</option>
                           {glAccounts.map(a => <option key={a.id} value={a.code}>{a.code} — {a.name}</option>)}
                         </select>
@@ -354,17 +354,17 @@ export function JournalEntriesPage() {
                       <td className="px-3 py-1.5">
                         <input type="number" min={0} step={0.01} value={line.debit || ''} placeholder="0.00"
                           onChange={(e) => updateLine(line.key, 'debit', Number(e.target.value) || 0)}
-                          className="w-full px-2 py-1 rounded bg-white/5 border border-white/10 text-sm text-app-text text-right focus:border-primary-500 focus:outline-none" />
+                          className="w-full px-2 py-1 rounded bg-app-surface-tertiary border border-app-border text-sm text-app-text text-right focus:border-primary-500 focus:outline-none" />
                       </td>
                       <td className="px-3 py-1.5">
                         <input type="number" min={0} step={0.01} value={line.credit || ''} placeholder="0.00"
                           onChange={(e) => updateLine(line.key, 'credit', Number(e.target.value) || 0)}
-                          className="w-full px-2 py-1 rounded bg-white/5 border border-white/10 text-sm text-app-text text-right focus:border-primary-500 focus:outline-none" />
+                          className="w-full px-2 py-1 rounded bg-app-surface-tertiary border border-app-border text-sm text-app-text text-right focus:border-primary-500 focus:outline-none" />
                       </td>
                       <td className="px-3 py-1.5">
                         <input type="text" value={line.description} placeholder="Line memo"
                           onChange={(e) => updateLine(line.key, 'description', e.target.value)}
-                          className="w-full px-2 py-1 rounded bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+                          className="w-full px-2 py-1 rounded bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
                       </td>
                       <td className="px-1 py-1.5">
                         {jeLines.length > 2 && (
@@ -375,7 +375,7 @@ export function JournalEntriesPage() {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-white/10 bg-white/[0.02]">
+                  <tr className="border-t border-app-border bg-app-surface-tertiary">
                     <td className="px-3 py-2 text-xs font-medium text-app-muted text-right">Totals</td>
                     <td className="px-3 py-2 text-sm font-mono text-right text-app-text">${totalDebit.toFixed(2)}</td>
                     <td className="px-3 py-2 text-sm font-mono text-right text-app-text">${totalCredit.toFixed(2)}</td>
@@ -393,7 +393,7 @@ export function JournalEntriesPage() {
             </div>
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-muted hover:text-app-text hover:bg-white/10 transition-colors">Cancel</button>
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-muted hover:text-app-text hover:bg-app-hover transition-colors">Cancel</button>
               <button onClick={handleSaveEntry} disabled={jeSaving || !isBalanced}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-app-text text-sm font-medium hover:bg-primary-600 disabled:opacity-50 transition-colors">
                 {jeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}

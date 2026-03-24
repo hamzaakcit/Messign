@@ -53,16 +53,16 @@ export function AllDocumentsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-app-text">All Documents</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowFilters(!showFilters)} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors', showFilters ? 'bg-primary-500/20 text-primary-400' : 'bg-app-card text-gray-300 hover:bg-app-hover')}>
+          <button onClick={() => setShowFilters(!showFilters)} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors', showFilters ? 'bg-primary-500/20 text-primary-400' : 'bg-app-card text-app-muted hover:bg-app-hover')}>
             <Filter className="w-4 h-4" />
             Filters
             {activeFilterCount > 0 && <span className="w-5 h-5 rounded-full bg-primary-500 text-app-text text-xs flex items-center justify-center">{activeFilterCount}</span>}
           </button>
           <div className="flex rounded-lg overflow-hidden border border-app-border">
-            <button onClick={() => setViewMode('grid')} className={cn('p-1.5', viewMode === 'grid' ? 'bg-app-hover text-app-text' : 'text-app-muted hover:text-gray-300')}>
+            <button onClick={() => setViewMode('grid')} className={cn('p-1.5', viewMode === 'grid' ? 'bg-app-hover text-app-text' : 'text-app-muted hover:text-app-muted')}>
               <LayoutGrid className="w-4 h-4" />
             </button>
-            <button onClick={() => setViewMode('list')} className={cn('p-1.5', viewMode === 'list' ? 'bg-app-hover text-app-text' : 'text-app-muted hover:text-gray-300')}>
+            <button onClick={() => setViewMode('list')} className={cn('p-1.5', viewMode === 'list' ? 'bg-app-hover text-app-text' : 'text-app-muted hover:text-app-muted')}>
               <List className="w-4 h-4" />
             </button>
           </div>
@@ -73,7 +73,7 @@ export function AllDocumentsPage() {
       {showFilters && (
         <div className="mb-6 p-4 rounded-xl bg-app-sidebar border border-app-border space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-300">Filter Documents</span>
+            <span className="text-sm font-medium text-app-muted">Filter Documents</span>
             {activeFilterCount > 0 && (
               <button onClick={() => { setFilters({ category: '', tag: '', type: '' as DocumentType, status: '' as DocumentStatus }); }} className="text-xs text-primary-400 hover:text-primary-300">Clear all</button>
             )}

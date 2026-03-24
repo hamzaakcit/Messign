@@ -58,7 +58,7 @@ export function QuickViewModal({ document: doc, onClose, onDownload, onPin, onAc
     }
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg">
-        <FileText className="w-16 h-16 text-gray-300 mb-4" />
+        <FileText className="w-16 h-16 text-app-muted mb-4" />
         <p className="text-app-muted font-medium">{doc.file_type?.toUpperCase() ?? 'Document'}</p>
         {fileUrl && (
           <Button onClick={() => onDownload(doc)} className="mt-4 gap-2">

@@ -44,7 +44,7 @@ function MetricCard({
   alert?: boolean;
 }) {
   return (
-    <div className="rounded-md bg-white/5 p-2 text-center">
+    <div className="rounded-md bg-app-surface-tertiary p-2 text-center">
       <div className={`text-lg font-bold ${alert ? 'text-red-400' : 'text-app-text'}`}>{value}</div>
       <div className="text-[10px] text-app-text/40 uppercase tracking-wider">{label}</div>
       <div className="text-[10px] text-app-text/30">{sub}</div>
@@ -91,7 +91,7 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
         return (
           <div
             key={i}
-            className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3"
+            className="rounded-lg border border-app-border bg-app-surface-tertiary p-4 space-y-3"
           >
             <div className="flex items-center justify-between">
               <h4 className="font-semibold text-app-text">{emp.full_name}</h4>
@@ -124,7 +124,7 @@ export default function PerformanceOverviewWidget({ data }: { data: PerformanceD
               />
             </div>
 
-            <div className="w-full bg-white/10 rounded-full h-2">
+            <div className="w-full bg-app-surface-tertiary rounded-full h-2">
               <div
                 className="h-2 rounded-full transition-all"
                 style={{

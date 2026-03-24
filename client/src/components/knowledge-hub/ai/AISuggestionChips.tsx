@@ -174,7 +174,7 @@ export function AISuggestionChips({
               opacity: 0,
             }}
             className={`group inline-flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-full
-              bg-app-sidebar border border-app-border border-l-2 ${borderClass} text-sm text-gray-300
+              bg-app-sidebar border border-app-border border-l-2 ${borderClass} text-sm text-app-muted
               hover:border-primary-500/50 hover:bg-app-hover/80 hover:scale-[1.02]
               hover:text-app-text transition-all duration-200 cursor-pointer`}
           >

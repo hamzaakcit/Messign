@@ -119,7 +119,7 @@ export function PaymentsPage() {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-app-text">Payments</h3>
         <button onClick={handleExportCSV}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-muted hover:bg-white/10 hover:text-app-text">
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-muted hover:bg-app-hover hover:text-app-text">
           <Download className="h-4 w-4" /> Export CSV
         </button>
       </div>
@@ -128,18 +128,18 @@ export function PaymentsPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-app-muted" />
           <input type="text" placeholder="Search payments..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none" />
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text placeholder:text-app-muted focus:border-primary-500 focus:outline-none" />
         </div>
         <button onClick={() => setShowFilters(!showFilters)}
           className={cn('flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors',
-            showFilters || activeFilterCount > 0 ? 'bg-primary-500/10 border-primary-500/30 text-primary-400' : 'bg-white/5 border-white/10 text-app-muted')}>
+            showFilters || activeFilterCount > 0 ? 'bg-primary-500/10 border-primary-500/30 text-primary-400' : 'bg-app-surface-tertiary border-app-border text-app-muted')}>
           <Filter className="h-4 w-4" /> Filters {activeFilterCount > 0 && <span className="px-1.5 py-0.5 rounded-full bg-primary-500 text-app-text text-xs">{activeFilterCount}</span>}
         </button>
         <div className="flex items-center gap-1">
           {STATUS_TABS.map((tab) => (
             <button key={tab.id} onClick={() => setStatusFilter(tab.id)}
               className={cn('px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors',
-                statusFilter === tab.id ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-white/5')}>
+                statusFilter === tab.id ? 'bg-primary-500/20 text-primary-400' : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover')}>
               {tab.label}
             </button>
           ))}
@@ -147,32 +147,32 @@ export function PaymentsPage() {
       </div>
 
       {showFilters && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div>
               <label className="block text-xs text-app-muted mb-1">Date From</label>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Date To</label>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Amount Min</label>
               <input type="number" placeholder="0" value={amountMin} onChange={(e) => setAmountMin(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Amount Max</label>
               <input type="number" placeholder="No limit" value={amountMax} onChange={(e) => setAmountMax(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none" />
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Method</label>
               <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}
-                className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-app-text focus:outline-none">
+                className="w-full px-2 py-1.5 rounded-lg bg-app-surface-tertiary border border-app-border text-xs text-app-text focus:outline-none">
                 <option value="">All Methods</option>
                 <option value="bank_transfer">Bank Transfer</option>
                 <option value="credit_card">Credit Card</option>
@@ -184,10 +184,10 @@ export function PaymentsPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10 text-xs text-app-muted uppercase tracking-wide">
+            <tr className="border-b border-app-border text-xs text-app-muted uppercase tracking-wide">
               <th className="p-3 text-left w-10">
                 <button onClick={() => allSelected ? clearSelection() : setSelectedIds(filteredPayments.map((p) => p.id))}>
                   {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
@@ -207,8 +207,8 @@ export function PaymentsPage() {
           <tbody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-b border-white/5">
-                  <td colSpan={10} className="px-4 py-4"><div className="h-4 bg-white/10 rounded animate-pulse w-full" /></td>
+                <tr key={i} className="border-b border-app-border">
+                  <td colSpan={10} className="px-4 py-4"><div className="h-4 bg-app-surface-tertiary rounded animate-pulse w-full" /></td>
                 </tr>
               ))
             ) : filteredPayments.length === 0 ? (
@@ -223,7 +223,7 @@ export function PaymentsPage() {
                 const isExpanded = expandedId === pay.id;
                 return (
                   <tr key={pay.id} onClick={() => setExpandedId(isExpanded ? null : pay.id)}
-                    className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors">
+                    className="border-b border-app-border hover:bg-app-nav-hover cursor-pointer transition-colors">
                     <td className="p-3" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => toggleSelection(pay.id)}>
                         {selectedIds.includes(pay.id) ? <CheckSquare className="h-4 w-4 text-primary-400" /> : <Square className="h-4 w-4 text-app-muted" />}
@@ -256,24 +256,24 @@ export function PaymentsPage() {
           </tbody>
         </table>
         {filteredPayments.length > 0 && (
-          <div className="px-4 py-3 border-t border-white/10 text-xs text-app-muted">
+          <div className="px-4 py-3 border-t border-app-border text-xs text-app-muted">
             Showing {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
           </div>
         )}
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl bg-app-card border border-white/10 shadow-xl backdrop-blur-xl z-50">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl bg-app-card border border-app-border shadow-xl backdrop-blur-xl z-50">
           <span className="text-sm text-app-text font-medium">{selectedIds.length} selected</span>
           <button onClick={handleBulkComplete}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-sm font-medium hover:bg-green-500/30">
             <CheckCircle className="h-3.5 w-3.5" /> Complete Selected
           </button>
           <button onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-white/10 text-app-muted text-sm font-medium hover:bg-white/15">
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-app-surface-tertiary text-app-muted text-sm font-medium hover:bg-app-hover">
             <Download className="h-3.5 w-3.5" /> Export Selected
           </button>
-          <button onClick={clearSelection} className="px-4 py-1.5 rounded-lg bg-white/5 text-app-muted text-sm hover:bg-white/10">Clear</button>
+          <button onClick={clearSelection} className="px-4 py-1.5 rounded-lg bg-app-surface-tertiary text-app-muted text-sm hover:bg-app-hover">Clear</button>
         </div>
       )}
     </div>

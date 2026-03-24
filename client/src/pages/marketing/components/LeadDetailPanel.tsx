@@ -76,7 +76,7 @@ export function LeadDetailPanel({ leadId, onUpdated }: LeadDetailPanelProps) {
         <p className="text-sm text-app-muted mt-2">{lead.company_name || 'No company'} • {lead.job_title || 'No title'}</p>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm text-app-muted">Lead Score</span>
           <span className="text-2xl font-semibold text-app-text">{lead.score}/100</span>
@@ -124,14 +124,14 @@ export function LeadDetailPanel({ leadId, onUpdated }: LeadDetailPanelProps) {
         <p>Converted: {lead.converted_at ? new Date(lead.converted_at).toLocaleString() : 'Not converted'}</p>
       </InfoCard>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 space-y-3">
         <div className="flex items-center gap-3">
           <select className="rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" value={selectedSignal} onChange={(e) => setSelectedSignal(e.target.value)}>
             {signalOptions.map((signal) => (
               <option key={signal} value={signal}>{signal}</option>
             ))}
           </select>
-          <button onClick={() => { void mutate(() => marketingAPI.scoreLead(userId, lead.id, selectedSignal)); }} className="px-3 py-2 rounded-lg text-sm bg-white/5 text-app-text">
+          <button onClick={() => { void mutate(() => marketingAPI.scoreLead(userId, lead.id, selectedSignal)); }} className="px-3 py-2 rounded-lg text-sm bg-app-surface-tertiary text-app-text">
             Score
           </button>
         </div>
@@ -153,7 +153,7 @@ export function LeadDetailPanel({ leadId, onUpdated }: LeadDetailPanelProps) {
 
 function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
       <p className="text-xs uppercase tracking-wide text-app-muted mb-3">{title}</p>
       <div className="space-y-2 text-sm text-app-text">{children}</div>
     </div>

@@ -160,7 +160,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
       </div>
 
       {/* Invoice Header Card */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-app-text">{invoice.invoice_number}</h2>
@@ -184,7 +184,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg bg-white/5 p-4">
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg bg-app-surface-tertiary p-4">
           <MetaItem label="Date" value={new Date(invoice.created_at).toLocaleDateString()} />
           <MetaItem label="Due Date" value={invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'} warn={!!isOverdue} />
           <MetaItem label="Payment Terms" value={invoice.payment_terms || 'Net 30'} />
@@ -193,10 +193,10 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
       </div>
 
       {/* Line Items */}
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10 text-xs text-app-muted uppercase tracking-wide">
+            <tr className="border-b border-app-border text-xs text-app-muted uppercase tracking-wide">
               <th className="px-4 py-3 text-left">Description</th>
               <th className="px-4 py-3 text-center">Qty</th>
               <th className="px-4 py-3 text-right">Unit Price</th>
@@ -206,7 +206,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
           </thead>
           <tbody>
             {(invoice.line_items || []).map((li, i) => (
-              <tr key={li.id || i} className="border-b border-white/5">
+              <tr key={li.id || i} className="border-b border-app-border">
                 <td className="px-4 py-3 text-app-text">{li.description}</td>
                 <td className="px-4 py-3 text-center text-app-muted">{Number(li.quantity)}</td>
                 <td className="px-4 py-3 text-right text-app-muted">{fmt(li.unit_price, cur)}</td>
@@ -221,7 +221,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
       </div>
 
       {/* Totals */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6">
         <div className="flex justify-end">
           <div className="w-80 space-y-2 text-sm">
             <Row label="Subtotal" value={fmt(invoice.subtotal, cur)} />
@@ -233,14 +233,14 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
                 valueClass="text-green-400"
               />
             )}
-            <div className="border-t border-white/10 pt-2 flex justify-between text-base font-bold text-app-text">
+            <div className="border-t border-app-border pt-2 flex justify-between text-base font-bold text-app-text">
               <span>Grand Total</span>
               <span>{fmt(grandTotal, cur)}</span>
             </div>
             {amountPaid > 0 && (
               <>
                 <Row label="Amount Paid" value={`-${fmt(amountPaid, cur)}`} valueClass="text-green-400" />
-                <div className="border-t border-white/10 pt-2 flex justify-between font-bold">
+                <div className="border-t border-app-border pt-2 flex justify-between font-bold">
                   <span className="text-app-text">Balance Due</span>
                   <span className={balanceDue > 0 ? 'text-red-400' : 'text-green-400'}>{fmt(balanceDue, cur)}</span>
                 </div>
@@ -254,7 +254,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
       {(invoice.notes || invoice.payment_instructions) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {invoice.notes && (
-            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
               <h3 className="text-xs font-semibold text-app-muted uppercase tracking-wide mb-2">Notes</h3>
               <p className="text-sm text-app-text whitespace-pre-line">{invoice.notes}</p>
             </div>
@@ -271,7 +271,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
       {/* Record Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-[#1a1d24] rounded-xl border border-white/10 p-6 w-full max-w-md shadow-xl">
+          <div className="bg-[#1a1d24] rounded-xl border border-app-border p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-app-text flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-primary-400" /> Record Payment
@@ -305,7 +305,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
                   onChange={(e) => { setPaymentAmount(e.target.value); setPaymentError(''); }}
                   placeholder={balanceDue.toFixed(2)}
                   autoFocus
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
                 />
               </div>
 
@@ -316,7 +316,7 @@ export function InvoiceDetailPage({ invoiceId, onBack, onEdit }: InvoiceDetailPa
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={() => { setPaymentAmount(balanceDue.toFixed(2)); }}
-                  className="px-3 py-2 bg-white/5 border border-white/10 text-app-text rounded-lg text-sm hover:bg-white/10"
+                  className="px-3 py-2 bg-app-surface-tertiary border border-app-border text-app-text rounded-lg text-sm hover:bg-app-hover"
                 >
                   Full Balance
                 </button>
@@ -364,7 +364,7 @@ function ActionBtn({
         'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50',
         variant === 'primary' && 'bg-primary-500 text-app-text hover:bg-primary-600',
         variant === 'danger' && 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20',
-        variant === 'default' && 'bg-white/5 border border-white/10 text-app-text hover:bg-white/10',
+        variant === 'default' && 'bg-app-surface-tertiary border border-app-border text-app-text hover:bg-app-hover',
       )}
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}

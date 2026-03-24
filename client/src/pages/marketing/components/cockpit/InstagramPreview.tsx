@@ -74,7 +74,7 @@ export function InstagramPreview({
       <div className="relative aspect-square w-full bg-black/40">
         {isGenerating ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-            <div className="h-10 w-10 animate-pulse rounded-full bg-white/[0.08]" />
+            <div className="h-10 w-10 animate-pulse rounded-full bg-app-surface-tertiary" />
             <p className="text-[11px] text-slate-500">Generating visuals…</p>
           </div>
         ) : currentImage && !imgLoadError ? (

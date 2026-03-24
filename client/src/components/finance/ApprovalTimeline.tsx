@@ -41,7 +41,7 @@ export function ApprovalTimeline({ steps, className }: ApprovalTimelineProps) {
           <div key={step.id} className="flex gap-3">
             <div className="flex flex-col items-center">
               {statusIcon}
-              {!isLast && <div className="w-px h-full bg-white/10 min-h-[24px]" />}
+              {!isLast && <div className="w-px h-full bg-app-surface-tertiary min-h-[24px]" />}
             </div>
             <div className="pb-4 flex-1">
               <div className="flex items-center justify-between">

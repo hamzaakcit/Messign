@@ -62,7 +62,7 @@ export function InlineCommentThread({ documentId, comments, onClose, onCommentsC
         {comments.map(comment => (
           <div key={comment.id} className={cn('rounded-lg p-3', comment.is_resolved ? 'bg-app-card/50 opacity-60' : 'bg-app-card')}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-gray-300">{comment.author_name ?? comment.author_id}</span>
+              <span className="text-xs font-medium text-app-muted">{comment.author_name ?? comment.author_id}</span>
               {!comment.is_resolved && (
                 <button onClick={() => handleResolve(comment.id)} className="p-0.5 rounded text-app-muted hover:text-green-400" title="Resolve">
                   <CheckCircle className="w-3.5 h-3.5" />
@@ -72,7 +72,7 @@ export function InlineCommentThread({ documentId, comments, onClose, onCommentsC
             {comment.selected_text && (
               <div className="text-xs text-yellow-400/70 bg-yellow-400/5 px-2 py-1 rounded mb-1.5 italic">"{comment.selected_text}"</div>
             )}
-            <p className="text-sm text-gray-300">{comment.content}</p>
+            <p className="text-sm text-app-muted">{comment.content}</p>
             <span className="text-xs text-app-muted mt-1 block">{new Date(comment.created_at).toLocaleDateString()}</span>
 
             {/* Replies */}

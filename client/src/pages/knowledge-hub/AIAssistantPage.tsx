@@ -138,7 +138,7 @@ export function AIAssistantPage() {
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                     conciseMode
                       ? 'bg-primary-500/20 text-primary-400 border border-primary-500/40'
-                      : 'bg-app-card text-app-muted hover:text-gray-300'
+                      : 'bg-app-card text-app-muted hover:text-app-muted'
                   }`}
                   title={
                     conciseMode
@@ -198,7 +198,7 @@ export function AIAssistantPage() {
                         handleCreatePresentation(PRESENTATION_SUGGESTION.topic)
                       }
                       disabled={presentationLoading}
-                      className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-app-sidebar border border-app-border text-sm text-gray-300 hover:border-primary-500/40 hover:text-app-text hover:bg-app-hover/80 transition-all disabled:opacity-60 w-full justify-center"
+                      className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-app-sidebar border border-app-border text-sm text-app-muted hover:border-primary-500/40 hover:text-app-text hover:bg-app-hover/80 transition-all disabled:opacity-60 w-full justify-center"
                     >
                       {presentationLoading ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-400" />

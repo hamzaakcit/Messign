@@ -83,7 +83,7 @@ export function DocumentVersionsPage({ docId }: { docId: string }) {
             {selectedVersion.change_note && (
               <p className="text-sm text-app-muted mb-4 p-3 rounded-lg bg-app-sidebar border border-app-border">{selectedVersion.change_note}</p>
             )}
-            <div className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap">
+            <div className="prose prose-invert max-w-none text-app-muted whitespace-pre-wrap">
               {selectedVersion.plain_text || JSON.stringify(selectedVersion.content, null, 2)}
             </div>
           </div>

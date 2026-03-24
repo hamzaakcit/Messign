@@ -59,11 +59,11 @@ export function DashboardTopPerformers() {
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 animate-pulse">
-                <div className="w-9 h-9 rounded-lg bg-white/10" />
+              <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-app-surface-tertiary animate-pulse">
+                <div className="w-9 h-9 rounded-lg bg-app-surface-tertiary" />
                 <div className="flex-1">
-                  <div className="h-3 w-20 rounded bg-white/10" />
-                  <div className="h-2.5 w-14 rounded bg-white/5 mt-1" />
+                  <div className="h-3 w-20 rounded bg-app-surface-tertiary" />
+                  <div className="h-2.5 w-14 rounded bg-app-surface-tertiary mt-1" />
                 </div>
               </div>
             ))}
@@ -83,8 +83,8 @@ export function DashboardTopPerformers() {
                   className={cn(
                     'w-full flex items-center gap-2 p-2 rounded-lg transition-colors text-left',
                     isActive
-                      ? 'ring-1 ring-[#2dd4bf] bg-white/5'
-                      : 'hover:bg-white/5'
+                      ? 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary'
+                      : 'hover:bg-app-nav-hover'
                   )}
                 >
                   <div

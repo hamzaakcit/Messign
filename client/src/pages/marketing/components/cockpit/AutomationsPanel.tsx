@@ -157,7 +157,7 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
               <button
                 key={chip}
                 type="button"
-                className="rounded border border-white/[0.06] px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-white/[0.06]"
+                className="rounded border border-white/[0.06] px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-app-hover"
                 onClick={() => setPrompt((p) => (p ? `${p} ${chip}` : chip))}
               >
                 {chip}
@@ -207,7 +207,7 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
                 <div>
                   <div className="font-medium text-slate-100">{row.name}</div>
                   <div className="mt-0.5 text-[10px] text-slate-500">
-                    <span className="rounded bg-white/[0.06] px-1 py-0.5 text-slate-400">{row.trigger_type}</span>
+                    <span className="rounded bg-app-surface-tertiary px-1 py-0.5 text-slate-400">{row.trigger_type}</span>
                     {row.fire_count > 0 && (
                       <span className="ml-2">
                         Fires: {row.fire_count}
@@ -220,7 +220,7 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
                   <button
                     type="button"
                     title={row.enabled ? 'Disable' : 'Enable'}
-                    className="rounded p-1 text-slate-400 hover:bg-white/[0.06]"
+                    className="rounded p-1 text-slate-400 hover:bg-app-hover"
                     disabled={busyId === row.id}
                     onClick={() => void toggle(row)}
                   >
@@ -229,7 +229,7 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
                   <button
                     type="button"
                     title="Fire now"
-                    className="rounded p-1 text-amber-300/90 hover:bg-white/[0.06]"
+                    className="rounded p-1 text-amber-300/90 hover:bg-app-hover"
                     disabled={busyId === row.id}
                     onClick={() => void fire(row.id)}
                   >
@@ -238,7 +238,7 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
                   <button
                     type="button"
                     title="Delete"
-                    className="rounded p-1 text-red-300/80 hover:bg-white/[0.06]"
+                    className="rounded p-1 text-red-300/80 hover:bg-app-hover"
                     disabled={busyId === row.id}
                     onClick={() => void remove(row.id)}
                   >

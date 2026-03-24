@@ -70,7 +70,7 @@ export function BadgeDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-xl text-app-text/70 hover:text-app-text hover:bg-white/10 transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 rounded-xl text-app-text/70 hover:text-app-text hover:bg-app-hover transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
@@ -119,7 +119,7 @@ export function BadgeDetailModal({
           </div>
 
           {holderUsers.length > 0 && (
-            <div className="w-full border-t border-white/10 pt-4">
+            <div className="w-full border-t border-app-border pt-4">
               <p className="text-xs text-app-text/50 uppercase tracking-wider mb-3">
                 {holderUsers.length} {holderUsers.length === 1 ? 'holder' : 'holders'}
               </p>
@@ -145,7 +145,7 @@ export function BadgeDetailModal({
 
           <button
             type="button"
-            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-app-text text-sm font-medium transition-colors border border-white/20"
+            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-app-surface-tertiary hover:bg-app-hover text-app-text text-sm font-medium transition-colors border border-app-border-strong"
             onClick={() => {
               if (navigator.share && badge) {
                 navigator.share({

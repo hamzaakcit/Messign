@@ -138,7 +138,7 @@ export function NotificationPanel() {
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg text-app-muted hover:text-app-text hover:bg-white/5 transition-all duration-200 group"
+        className="relative p-2 rounded-lg text-app-muted hover:text-app-text hover:bg-app-nav-hover transition-all duration-200 group"
         aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
       >
         <Bell
@@ -188,7 +188,7 @@ export function NotificationPanel() {
                   navigate('/settings');
                   setIsOpen(false);
                 }}
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-app-text/60 hover:text-app-text hover:bg-white/5 active:scale-95 transition-all duration-200"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-app-text/60 hover:text-app-text hover:bg-app-nav-hover active:scale-95 transition-all duration-200"
                 title="Notification settings"
                 aria-label="Notification settings"
               >
@@ -197,7 +197,7 @@ export function NotificationPanel() {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-app-text/60 hover:text-app-text hover:bg-white/5 active:scale-95 transition-all duration-200"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-app-text/60 hover:text-app-text hover:bg-app-nav-hover active:scale-95 transition-all duration-200"
                 title="Close"
                 aria-label="Close"
               >
@@ -385,7 +385,7 @@ export function NotificationPanel() {
               <button
                 type="button"
                 onClick={clearAll}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 bg-white/5 text-app-text/80 border border-white/10 hover:bg-white/[0.08] hover:-translate-y-0.5 active:translate-y-0"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 bg-app-surface-tertiary text-app-text/80 border border-app-border hover:bg-app-hover hover:-translate-y-0.5 active:translate-y-0"
               >
                 <Trash2 className="w-4 h-4" />
                 Clear all

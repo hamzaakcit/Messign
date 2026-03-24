@@ -105,7 +105,7 @@ export function InsightsPanel({
         {quickStats.map((stat) => (
           <div
             key={stat.label}
-            className="rounded-lg p-3 border border-white/[0.05] bg-white/[0.03]"
+            className="rounded-lg p-3 border border-white/[0.05] bg-app-surface-tertiary"
           >
             <p className="text-[11px] uppercase tracking-wider text-app-text/50">{stat.label}</p>
             <p className="text-base font-bold text-app-text mt-0.5">{stat.value}</p>
@@ -114,12 +114,12 @@ export function InsightsPanel({
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-white/5">
+      <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-app-border">
         {onViewReport && (
           <button
             type="button"
             onClick={onViewReport}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-app-text/80 hover:bg-white/10 hover:text-app-text transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-app-text/80 hover:bg-app-hover hover:text-app-text transition-colors"
           >
             <FileText className="w-4 h-4" />
             View Full Report
@@ -129,7 +129,7 @@ export function InsightsPanel({
           <button
             type="button"
             onClick={onSetAlerts}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-app-text/80 hover:bg-white/10 hover:text-app-text transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-app-text/80 hover:bg-app-hover hover:text-app-text transition-colors"
           >
             <Bell className="w-4 h-4" />
             Set Alerts
@@ -139,7 +139,7 @@ export function InsightsPanel({
           <button
             type="button"
             onClick={onExport}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-app-text/80 hover:bg-white/10 hover:text-app-text transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-app-text/80 hover:bg-app-hover hover:text-app-text transition-colors"
           >
             <Download className="w-4 h-4" />
             Export Data

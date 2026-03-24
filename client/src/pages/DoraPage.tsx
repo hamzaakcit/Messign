@@ -310,7 +310,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
               ? mode === 'act'
                 ? 'border border-amber-500/40 bg-amber-500/15 text-amber-200'
                 : 'border border-primary-500/40 bg-primary-500/15 text-primary-300'
-              : 'border border-transparent text-app-muted hover:text-gray-300'
+              : 'border border-transparent text-app-muted hover:text-app-muted'
           }`}
           title={title}
         >
@@ -374,7 +374,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
   );
 
   return (
-    <div className="flex flex-col flex-1 h-full overflow-hidden" style={{ background: '#020817' }}>
+    <div data-theme="dark" className="flex flex-col flex-1 h-full overflow-hidden" style={{ background: '#020817' }}>
       {presentation ? (
         <PresentationViewer
           presentation={presentation}

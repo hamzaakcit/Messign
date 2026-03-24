@@ -21,8 +21,8 @@ export function ReceiptViewer({ imageUrl, fileName, extractedData, isVerified, v
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div className="relative max-w-4xl w-full mx-4 grid grid-cols-1 lg:grid-cols-2 gap-4" onClick={(e) => e.stopPropagation()}>
         {/* Image */}
-        <div className="rounded-xl border border-white/10 bg-black overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+        <div className="rounded-xl border border-app-border bg-black overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-app-border">
             <span className="text-sm text-app-text font-medium truncate">{fileName}</span>
             <div className="flex items-center gap-2">
               <a href={imageUrl} target="_blank" rel="noopener" className="p-1 text-app-muted hover:text-app-text">
@@ -38,7 +38,7 @@ export function ReceiptViewer({ imageUrl, fileName, extractedData, isVerified, v
 
         {/* OCR Results */}
         {extractedData && (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-app-text">Extracted Data</h3>
               {isVerified != null && (

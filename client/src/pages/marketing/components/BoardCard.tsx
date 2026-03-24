@@ -46,7 +46,7 @@ function RiskDot({ level }: { level?: RiskLevel }): JSX.Element | null {
 function CardThumbnail({ url, channel }: { url?: string | null; channel?: string | null }): JSX.Element {
   if (url) {
     return (
-      <div className="relative w-full h-14 rounded-t overflow-hidden bg-white/[0.03]">
+      <div className="relative w-full h-14 rounded-t overflow-hidden bg-app-surface-tertiary">
         <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
       </div>
     );
@@ -105,7 +105,7 @@ export function BoardCard({ card, onClick, overlay }: BoardCardProps): JSX.Eleme
       {...listeners}
       onClick={() => onClick(card)}
       className={cn(
-        'rounded-lg border border-white/[0.08] bg-[#0c0f14] cursor-grab active:cursor-grabbing transition-shadow hover:border-white/15 hover:shadow-lg',
+        'rounded-lg border border-white/[0.08] bg-[#0c0f14] cursor-grab active:cursor-grabbing transition-shadow hover:border-app-border hover:shadow-lg',
         isDragging && 'opacity-40',
       )}
     >

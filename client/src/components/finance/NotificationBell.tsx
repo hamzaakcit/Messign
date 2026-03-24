@@ -91,7 +91,7 @@ export function NotificationBell({ onNavigate }: Props) {
     <div ref={ref} className="relative">
       <button
         onClick={() => { setOpen(!open); if (!open) fetchNotifications(); }}
-        className="relative p-2 text-app-muted hover:text-app-text hover:bg-white/5 rounded-lg transition-colors"
+        className="relative p-2 text-app-muted hover:text-app-text hover:bg-app-nav-hover rounded-lg transition-colors"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -102,8 +102,8 @@ export function NotificationBell({ onNavigate }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-96 max-h-[480px] overflow-hidden rounded-xl border border-white/10 bg-[#1a1a2e] shadow-xl z-50 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <div className="absolute right-0 top-full mt-2 w-96 max-h-[480px] overflow-hidden rounded-xl border border-app-border bg-[#1a1a2e] shadow-xl z-50 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
             <h4 className="text-sm font-semibold text-app-text">Notifications</h4>
             {unreadCount > 0 && (
               <button onClick={handleMarkAllRead} className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300">
@@ -123,14 +123,14 @@ export function NotificationBell({ onNavigate }: Props) {
                     key={n.id}
                     onClick={() => handleClick(n)}
                     className={cn(
-                      'w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-white/5 transition-colors border-b border-white/5',
+                      'w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-app-nav-hover transition-colors border-b border-app-border',
                       !n.is_read && 'bg-primary-500/5',
                     )}
                   >
                     <div className={cn('mt-0.5 p-1.5 rounded-lg shrink-0',
                       n.priority === 'high' ? 'bg-red-500/20 text-red-400' :
                       n.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' :
-                      'bg-white/10 text-app-muted'
+                      'bg-app-surface-tertiary text-app-muted'
                     )}>
                       <Icon className="h-3.5 w-3.5" />
                     </div>

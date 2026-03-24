@@ -26,7 +26,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
 
   if (!item) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[320px] text-app-muted text-sm border border-dashed border-white/15 rounded-xl">
+      <div className="flex items-center justify-center h-full min-h-[320px] text-app-muted text-sm border border-dashed border-app-border rounded-xl">
         Select an item from the queue to review.
       </div>
     );
@@ -35,8 +35,8 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
   const hasRevisions = item.revisions && item.revisions.length > 0;
 
   return (
-    <div className="flex flex-col h-full min-h-0 border border-white/10 rounded-xl bg-white/[0.02] overflow-hidden">
-      <div className="p-4 border-b border-white/10 shrink-0">
+    <div className="flex flex-col h-full min-h-0 border border-app-border rounded-xl bg-app-surface-tertiary overflow-hidden">
+      <div className="p-4 border-b border-app-border shrink-0">
         <div className="flex items-start gap-3">
           <ChannelIcon channel={item.targetChannel} className="w-5 h-5 text-primary-300 mt-0.5" />
           <div className="min-w-0 flex-1">
@@ -53,7 +53,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
           </div>
         </div>
 
-        <div className="mt-4 rounded-lg bg-white/5 border border-white/10 p-3">
+        <div className="mt-4 rounded-lg bg-app-surface-tertiary border border-app-border p-3">
           <p className="text-[11px] uppercase tracking-wide text-app-muted mb-1">Original brief</p>
           <p className="text-sm text-app-text/90">{item.userBrief}</p>
         </div>
@@ -65,14 +65,14 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
               onClick={() => setShowRevisions((v) => !v)}
               className={cn(
                 'inline-flex items-center gap-2 text-xs font-medium px-2 py-1 rounded-lg border transition-colors',
-                showRevisions ? 'bg-primary-500/20 border-primary-500/40 text-primary-200' : 'border-white/10 text-app-muted hover:bg-white/5',
+                showRevisions ? 'bg-primary-500/20 border-primary-500/40 text-primary-200' : 'border-app-border text-app-muted hover:bg-app-nav-hover',
               )}
             >
               <GitCompare className="w-3.5 h-3.5" />
               Revision history {showRevisions ? '(hide)' : '(mock v1 → v2)'}
             </button>
             {showRevisions && (
-              <ul className="mt-2 space-y-2 text-xs text-app-muted border border-white/10 rounded-lg p-2 max-h-40 overflow-y-auto">
+              <ul className="mt-2 space-y-2 text-xs text-app-muted border border-app-border rounded-lg p-2 max-h-40 overflow-y-auto">
                 {item.revisions!.map((r) => (
                   <li key={r.version}>
                     <span className="text-app-text font-medium">v{r.version}</span> {r.label} · {new Date(r.savedAt).toLocaleString()}
@@ -90,7 +90,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
           <p className="text-[11px] uppercase tracking-wide text-app-muted mb-2">Draft preview</p>
           <div
             className={cn(
-              'rounded-xl border border-white/10 bg-black/20 p-4 prose prose-invert prose-sm max-w-none',
+              'rounded-xl border border-app-border bg-black/20 p-4 prose prose-invert prose-sm max-w-none',
               previewWidthClass(item.targetChannel),
             )}
           >
@@ -102,7 +102,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
         </aside>
       </div>
 
-      <div className="p-4 border-t border-white/10 flex flex-wrap gap-2 justify-end shrink-0 bg-black/20">
+      <div className="p-4 border-t border-app-border flex flex-wrap gap-2 justify-end shrink-0 bg-black/20">
         <button
           type="button"
           onClick={onRequestRevision}

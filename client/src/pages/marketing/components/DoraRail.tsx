@@ -105,7 +105,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
         <button
           type="button"
           onClick={() => { clearChat(); setInputValue(''); }}
-          className="p-1 rounded text-app-muted hover:text-app-text hover:bg-white/5"
+          className="p-1 rounded text-app-muted hover:text-app-text hover:bg-app-nav-hover"
           title="Clear"
         >
           <Trash2 className="w-3 h-3" />
@@ -113,7 +113,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
       </div>
 
       {selectedCard && (
-        <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.02] shrink-0">
+        <div className="px-3 py-2 border-b border-white/[0.06] bg-app-surface-tertiary shrink-0">
           <p className="text-[10px] text-app-muted uppercase tracking-wider mb-1">Selected</p>
           <p className="text-xs font-medium text-app-text truncate">{selectedCard.title}</p>
           <div className="flex items-center gap-2 mt-1 text-[10px] text-app-muted">

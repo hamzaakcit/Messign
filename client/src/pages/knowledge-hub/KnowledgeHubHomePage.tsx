@@ -166,7 +166,7 @@ export function KnowledgeHubHomePage() {
               <button
                 key={tag.id}
                 onClick={() => navigate(`/knowledge-hub/search?tag=${tag.slug}`)}
-                className="px-3 py-1.5 rounded-full text-xs font-medium bg-app-card text-gray-300 hover:bg-primary-500/20 hover:text-primary-400 transition-colors"
+                className="px-3 py-1.5 rounded-full text-xs font-medium bg-app-card text-app-muted hover:bg-primary-500/20 hover:text-primary-400 transition-colors"
                 style={tag.color ? { borderColor: tag.color, borderWidth: 1 } : {}}
               >
                 {tag.name}

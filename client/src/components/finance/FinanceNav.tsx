@@ -55,8 +55,8 @@ export function FinanceNav() {
   const { activeView, setActiveView } = useFinanceStore();
 
   return (
-    <nav className="w-56 shrink-0 border-r border-white/10 flex flex-col h-full overflow-y-auto">
-      <div className="px-4 py-5 border-b border-white/10">
+    <nav className="w-56 shrink-0 border-r border-app-border flex flex-col h-full overflow-y-auto">
+      <div className="px-4 py-5 border-b border-app-border">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg bg-primary-500/15">
             <DollarSign className="h-5 w-5 text-primary-400" />
@@ -85,7 +85,7 @@ export function FinanceNav() {
                     'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150',
                     activeView === id
                       ? 'bg-primary-500/15 text-primary-400'
-                      : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                      : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />

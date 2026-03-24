@@ -60,7 +60,7 @@ export function KPIMetricCard({ data, index, onCardClick }: KPIMetricCardProps) 
         'backdrop-blur-[10px]',
         'shadow-[0_4px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]',
         'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-        'hover:scale-[1.02] hover:border-white/10',
+        'hover:scale-[1.02] hover:border-app-border',
         'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
         'cursor-pointer',
         'animate-kpi-enter',

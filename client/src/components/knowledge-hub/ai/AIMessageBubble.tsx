@@ -93,7 +93,7 @@ export function AIMessageBubble({
             <ThinkingIndicator />
           ) : (
             <div className="dora-glass px-4 py-3 rounded-2xl rounded-tl-md">
-              <div className="max-w-3xl text-sm text-gray-300 leading-relaxed whitespace-pre-wrap [&_strong]:text-app-text [&_h1]:text-app-text [&_h2]:text-app-text [&_h3]:text-app-text [&_ul]:my-1 [&_li]:text-gray-300">
+              <div className="max-w-3xl text-sm text-app-muted leading-relaxed whitespace-pre-wrap [&_strong]:text-app-text [&_h1]:text-app-text [&_h2]:text-app-text [&_h3]:text-app-text [&_ul]:my-1 [&_li]:text-app-muted">
                 <DoraReactMarkdown content={message.content} />
                 {message.isStreaming && (
                   <span
@@ -124,7 +124,7 @@ export function AIMessageBubble({
                   <button
                     type="button"
                     onClick={() => onCancelAct(message.id)}
-                    className="rounded-lg border border-app-border px-4 py-2 text-xs text-gray-300 hover:border-app-border hover:text-app-text"
+                    className="rounded-lg border border-app-border px-4 py-2 text-xs text-app-muted hover:border-app-border hover:text-app-text"
                   >
                     Cancel
                   </button>
@@ -208,7 +208,7 @@ export function AIMessageBubble({
             <div className="flex items-center gap-1 mt-1.5 ml-1">
               <button
                 onClick={handleCopy}
-                className="p-1 rounded hover:bg-app-hover dora-chat-text-tertiary hover:text-gray-300 transition-colors"
+                className="p-1 rounded hover:bg-app-hover dora-chat-text-tertiary hover:text-app-muted transition-colors"
                 title="Copy response"
               >
                 {copied ? (
@@ -300,7 +300,7 @@ function DoraReactMarkdown({ content }: { content: string }) {
         p: ({ children }) => <p className="my-1">{children}</p>,
         ul: ({ children }) => <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal pl-4 my-1 space-y-0.5">{children}</ol>,
-        li: ({ children }) => <li className="text-gray-300">{children}</li>,
+        li: ({ children }) => <li className="text-app-muted">{children}</li>,
         a: ({ href, children }) => (
           <a href={href} className="text-primary-400 underline" target="_blank" rel="noopener noreferrer">
             {children}
@@ -332,7 +332,7 @@ function DoraReactMarkdown({ content }: { content: string }) {
           <th className="border border-app-border px-2 py-1 text-left text-app-muted font-semibold">{children}</th>
         ),
         td: ({ children }) => (
-          <td className="border border-app-border px-2 py-1 text-gray-300">{children}</td>
+          <td className="border border-app-border px-2 py-1 text-app-muted">{children}</td>
         ),
         hr: () => <hr className="my-3 border-app-border" />,
       }}

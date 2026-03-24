@@ -117,7 +117,7 @@ export function ProjectCard({ project, viewMode, onClick, isActive }: ProjectCar
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+      <div className="flex items-center justify-between pt-3 border-t border-app-border">
         {/* Team Avatars */}
         <div className="flex -space-x-2">
           {teamMembers.map(member => member && (

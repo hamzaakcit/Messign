@@ -354,7 +354,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
             <button
               type="button"
               onClick={() => setPickedStarterId(null)}
-              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 text-app-text hover:bg-white/15"
+              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-app-surface-tertiary text-app-text hover:bg-app-hover"
             >
               Change template
             </button>

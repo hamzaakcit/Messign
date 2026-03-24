@@ -24,7 +24,7 @@ export function Va2ThemeSwitcher({
         type="button"
         disabled={isAssembling}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 disabled:opacity-40 transition-colors"
+        className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-app-surface-tertiary hover:bg-app-hover text-slate-300 disabled:opacity-40 transition-colors"
       >
         <Palette className="w-3 h-3" />
         {current?.label ?? currentTheme}
@@ -33,7 +33,7 @@ export function Va2ThemeSwitcher({
       {open ? (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-white/10 bg-[#141720] shadow-xl py-1 max-h-64 overflow-y-auto">
+          <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-app-border bg-[#141720] shadow-xl py-1 max-h-64 overflow-y-auto">
             {themes.map((theme) => {
               const isActive = theme.name === currentTheme;
               return (
@@ -47,7 +47,7 @@ export function Va2ThemeSwitcher({
                   className={`w-full text-left px-3 py-1.5 text-[12px] flex items-center gap-2 transition-colors ${
                     isActive
                       ? 'bg-primary-500/20 text-primary-300'
-                      : 'text-slate-300 hover:bg-white/[0.06]'
+                      : 'text-slate-300 hover:bg-app-hover'
                   }`}
                 >
                   {isActive ? (

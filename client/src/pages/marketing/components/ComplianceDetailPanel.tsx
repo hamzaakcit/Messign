@@ -97,7 +97,7 @@ export function ComplianceDetailPanel({ contentId, brandProfileName, onRescan }:
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+      <div className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary p-3">
         <p className="text-xs text-slate-500 animate-pulse">Loading compliance data…</p>
       </div>
     );
@@ -105,14 +105,14 @@ export function ComplianceDetailPanel({ contentId, brandProfileName, onRescan }:
 
   if (!scan) {
     return (
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+      <div className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary p-3">
         <div className="flex items-center justify-between">
           <span className="text-xs text-slate-500">No brand compliance scan yet</span>
           <button
             type="button"
             onClick={() => void handleRescan()}
             disabled={rescanning}
-            className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[10px] font-medium text-slate-300 hover:bg-white/[0.1] disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-md bg-app-surface-tertiary px-2 py-1 text-[10px] font-medium text-slate-300 hover:bg-app-hover disabled:opacity-40"
           >
             <RefreshCw className={cn('w-3 h-3', rescanning && 'animate-spin')} />
             Scan now
@@ -126,7 +126,7 @@ export function ComplianceDetailPanel({ contentId, brandProfileName, onRescan }:
   const warnings = scan.flags.filter((f: ComplianceFlag) => f.severity === 'warning');
 
   return (
-    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02]">
+    <div className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary">
       {/* Summary bar */}
       <button
         type="button"
@@ -153,7 +153,7 @@ export function ComplianceDetailPanel({ contentId, brandProfileName, onRescan }:
             type="button"
             onClick={(e) => { e.stopPropagation(); void handleRescan(); }}
             disabled={rescanning}
-            className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-slate-400 hover:bg-white/[0.1] disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-md bg-app-surface-tertiary px-1.5 py-0.5 text-[10px] font-medium text-slate-400 hover:bg-app-hover disabled:opacity-40"
           >
             <RefreshCw className={cn('w-3 h-3', rescanning && 'animate-spin')} />
             Rescan
@@ -167,15 +167,15 @@ export function ComplianceDetailPanel({ contentId, brandProfileName, onRescan }:
         <div className="border-t border-white/[0.06] px-3 py-3 space-y-3">
           {/* Score breakdown */}
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-lg bg-white/[0.03] p-2">
+            <div className="rounded-lg bg-app-surface-tertiary p-2">
               <p className={cn('text-lg font-bold', scoreColor(scan.score))}>{scan.score}</p>
               <p className="text-[9px] text-slate-500 uppercase tracking-wider">Overall</p>
             </div>
-            <div className="rounded-lg bg-white/[0.03] p-2">
+            <div className="rounded-lg bg-app-surface-tertiary p-2">
               <p className="text-lg font-bold text-slate-300">{scan.ruleScore}</p>
               <p className="text-[9px] text-slate-500 uppercase tracking-wider">Rules (40%)</p>
             </div>
-            <div className="rounded-lg bg-white/[0.03] p-2">
+            <div className="rounded-lg bg-app-surface-tertiary p-2">
               <p className="text-lg font-bold text-slate-300">{scan.llmScore !== null ? scan.llmScore : 'N/A'}</p>
               <p className="text-[9px] text-slate-500 uppercase tracking-wider">Tone (60%)</p>
             </div>
@@ -210,7 +210,7 @@ export function ComplianceDetailPanel({ contentId, brandProfileName, onRescan }:
           {historyOpen && history.length > 0 && (
             <div className="space-y-1">
               {history.map((h, i) => (
-                <div key={i} className="flex items-center justify-between rounded bg-white/[0.02] px-2 py-1 text-[10px]">
+                <div key={i} className="flex items-center justify-between rounded bg-app-surface-tertiary px-2 py-1 text-[10px]">
                   <span className="text-slate-500">{h.scanned_at ? timeSinceScan(h.scanned_at) : '—'}</span>
                   <span className={cn('font-medium', scoreColor(h.score))}>{h.score}</span>
                   <span className={h.passed ? 'text-emerald-400' : 'text-red-400'}>{h.passed ? 'Pass' : 'Fail'}</span>
@@ -231,7 +231,7 @@ function FlagGroup({ label, flags, borderColor }: { label: string; flags: Compli
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">{label}</p>
       <div className="space-y-1">
         {flags.map((flag, i) => (
-          <div key={i} className={cn('rounded-md border-l-2 bg-white/[0.02] px-2.5 py-1.5', borderColor)}>
+          <div key={i} className={cn('rounded-md border-l-2 bg-app-surface-tertiary px-2.5 py-1.5', borderColor)}>
             <div className="flex items-center gap-1.5">
               <span className={cn(
                 'rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider',

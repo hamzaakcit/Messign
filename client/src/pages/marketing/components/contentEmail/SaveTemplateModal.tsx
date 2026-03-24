@@ -18,7 +18,7 @@ export function SaveTemplateModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-xl border border-white/10 bg-app-bg p-6 space-y-4 shadow-xl">
+      <div className="w-full max-w-md rounded-xl border border-app-border bg-app-bg p-6 space-y-4 shadow-xl">
         <h3 className="text-sm font-semibold text-app-text">Save as template</h3>
         <div className="space-y-3">
           <div>
@@ -59,7 +59,7 @@ export function SaveTemplateModal({
               className="w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none"
             />
           </div>
-          <div className="rounded-lg bg-white/[0.03] px-3 py-2 text-xs text-app-muted space-y-0.5">
+          <div className="rounded-lg bg-app-surface-tertiary px-3 py-2 text-xs text-app-muted space-y-0.5">
             <div>
               Theme: <span className="text-app-text">{va2Manifest.theme}</span>
             </div>
@@ -74,7 +74,7 @@ export function SaveTemplateModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm bg-white/5 text-app-text hover:bg-white/10"
+            className="px-4 py-2 rounded-lg text-sm bg-app-surface-tertiary text-app-text hover:bg-app-hover"
           >
             Cancel
           </button>

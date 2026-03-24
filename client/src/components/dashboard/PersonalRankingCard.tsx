@@ -54,7 +54,7 @@ export function PersonalRankingCard({ stats }: PersonalRankingCardProps) {
           <div
             key={p.label}
             className={cn(
-              'rounded-xl p-4 border border-white/5',
+              'rounded-xl p-4 border border-app-border',
               p.bgColor
             )}
           >
@@ -68,7 +68,7 @@ export function PersonalRankingCard({ stats }: PersonalRankingCardProps) {
       </div>
 
       {/* Rank & progress */}
-      <div className="pt-4 border-t border-white/10">
+      <div className="pt-4 border-t border-app-border">
         <div className="flex items-center justify-between mb-2">
           <span className="text-app-muted">Current rank</span>
           <span className="text-xl font-bold text-app-text">

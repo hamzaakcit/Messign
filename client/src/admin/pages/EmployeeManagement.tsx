@@ -389,7 +389,7 @@ export function EmployeeManagement() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-4 p-4 border-b border-white/10">
+      <div className="flex flex-wrap items-center gap-4 p-4 border-b border-app-border">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted pointer-events-none z-10" />
           <Input
@@ -528,7 +528,7 @@ export function EmployeeManagement() {
               filteredData.map((emp) => (
               <div
                 key={emp.id}
-                className="glass-card p-4 rounded-xl border border-white/10 flex items-center gap-4"
+                className="glass-card p-4 rounded-xl border border-app-border flex items-center gap-4"
               >
                 <Avatar src={emp.avatar} name={emp.name} size="lg" status={emp.status} />
                 <div className="flex-1 min-w-0">

@@ -85,7 +85,7 @@ function channelBg(channel?: string | null): string {
   if (c === 'twitter' || c === 'x') return 'bg-sky-500/15 text-sky-300 border-sky-500/20';
   if (c === 'linkedin') return 'bg-blue-500/15 text-blue-300 border-blue-500/20';
   if (c === 'facebook') return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20';
-  return 'bg-white/[0.06] text-slate-300 border-white/[0.08]';
+  return 'bg-app-surface-tertiary text-slate-300 border-white/[0.08]';
 }
 
 function startOfCalendarMonth(year: number, monthIndex: number): Date {
@@ -127,7 +127,7 @@ export function CampaignsSection(): JSX.Element {
               'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
               subTab === t
                 ? 'bg-primary-500/20 text-primary-400'
-                : 'text-app-muted hover:text-app-text hover:bg-white/5',
+                : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
             )}
           >
             {t === 'campaigns' ? 'Campaigns' : 'Content Calendar'}
@@ -427,22 +427,22 @@ function ContentCalendarTab({ userId }: { userId: string }): JSX.Element {
 
   return (
     <>
-      <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden mb-6">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden mb-6">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-2">
-            <button title="Previous" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() - 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-1.5 text-slate-400 hover:bg-white/[0.08] hover:text-slate-200"><ChevronLeft className="h-4 w-4" /></button>
+            <button title="Previous" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() - 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-1.5 text-slate-400 hover:bg-app-hover hover:text-slate-200"><ChevronLeft className="h-4 w-4" /></button>
             <h2 className="min-w-[180px] text-center text-sm font-semibold text-slate-100">
               {viewMode === 'week'
                 ? `${weekDays[0] ? new Date(weekDays[0].date + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' }) : ''} \u2013 ${weekDays[6] ? new Date(weekDays[6].date + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}`
                 : anchorDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </h2>
-            <button title="Next" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() + 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-1.5 text-slate-400 hover:bg-white/[0.08] hover:text-slate-200"><ChevronRight className="h-4 w-4" /></button>
-            <button onClick={() => setAnchorDate(new Date())} className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-medium text-slate-400 hover:bg-white/[0.08] hover:text-slate-200">Today</button>
+            <button title="Next" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() + 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-1.5 text-slate-400 hover:bg-app-hover hover:text-slate-200"><ChevronRight className="h-4 w-4" /></button>
+            <button onClick={() => setAnchorDate(new Date())} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary px-2.5 py-1.5 text-[10px] font-medium text-slate-400 hover:bg-app-hover hover:text-slate-200">Today</button>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="flex rounded-lg border border-white/[0.08] bg-white/[0.02] p-0.5">
+            <div className="flex rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-0.5">
               {([{ id: 'month' as const, icon: CalendarDays, label: 'Month' }, { id: 'week' as const, icon: LayoutGrid, label: 'Week' }, { id: 'list' as const, icon: List, label: 'List' }]).map(({ id, icon: Icon, label }) => (
-                <button key={id} type="button" onClick={() => setViewMode(id)} title={label} className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors', viewMode === id ? 'bg-white/[0.08] text-slate-100' : 'text-slate-500 hover:text-slate-300')}><Icon className="h-3.5 w-3.5" />{label}</button>
+                <button key={id} type="button" onClick={() => setViewMode(id)} title={label} className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors', viewMode === id ? 'bg-app-surface-tertiary text-slate-100' : 'text-slate-500 hover:text-slate-300')}><Icon className="h-3.5 w-3.5" />{label}</button>
               ))}
             </div>
           </div>

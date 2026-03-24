@@ -121,7 +121,7 @@ export function AIAssistantPanel() {
                 'max-w-[75%] rounded-2xl px-4 py-3',
                 msg.role === 'user'
                   ? 'bg-primary-500 text-app-text rounded-br-md'
-                  : 'bg-app-card text-gray-300 rounded-bl-md',
+                  : 'bg-app-card text-app-muted rounded-bl-md',
               )}
             >
               <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
@@ -134,7 +134,7 @@ export function AIAssistantPanel() {
                       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-sidebar hover:bg-app-hover transition-colors group"
                     >
                       <FileText className="w-4 h-4 text-app-muted group-hover:text-primary-400" />
-                      <span className="text-sm text-gray-300 group-hover:text-app-text truncate">
+                      <span className="text-sm text-app-muted group-hover:text-app-text truncate">
                         {doc.title}
                       </span>
                     </Link>

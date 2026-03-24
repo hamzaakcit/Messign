@@ -49,7 +49,7 @@ export function CategoryPage({ categoryId }: { categoryId: string }) {
           <h2 className="text-sm font-medium text-app-muted mb-2">Subcategories</h2>
           <div className="flex flex-wrap gap-2">
             {category.children.map(sub => (
-              <button key={sub.id} onClick={() => navigate(`/knowledge-hub/categories/${sub.id}`)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-sidebar border border-app-border hover:border-primary-500/30 text-sm text-gray-300 hover:text-app-text transition-colors">
+              <button key={sub.id} onClick={() => navigate(`/knowledge-hub/categories/${sub.id}`)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-sidebar border border-app-border hover:border-primary-500/30 text-sm text-app-muted hover:text-app-text transition-colors">
                 <FolderOpen className="w-3.5 h-3.5" />
                 {sub.name}
                 <span className="text-xs text-app-muted">{sub.document_count ?? 0}</span>

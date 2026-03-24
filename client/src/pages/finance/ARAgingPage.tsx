@@ -40,9 +40,9 @@ export function ARAgingPage() {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-20 rounded-xl bg-white/5 animate-pulse" />)}
+          {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-20 rounded-xl bg-app-surface-tertiary animate-pulse" />)}
         </div>
-        <div className="h-64 rounded-xl bg-white/5 animate-pulse" />
+        <div className="h-64 rounded-xl bg-app-surface-tertiary animate-pulse" />
       </div>
     );
   }
@@ -58,20 +58,20 @@ export function ARAgingPage() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {Object.entries(BUCKET_LABELS).map(([key, label], i) => (
-          <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div key={key} className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
             <p className="text-xs text-app-muted">{label}</p>
             <p className="text-xl font-bold text-app-text" style={{ color: BUCKET_COLORS[i] }}>
               ${((report.totals as Record<string, number>)[key] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </p>
           </div>
         ))}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
           <p className="text-xs text-app-muted">Total AR</p>
           <p className="text-xl font-bold text-app-text">${report.totals.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
         <h3 className="text-sm font-semibold text-app-text mb-4">Aging Distribution</h3>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={chartData}>
@@ -88,10 +88,10 @@ export function ARAgingPage() {
         </ResponsiveContainer>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-app-muted text-xs border-b border-white/10">
+            <tr className="text-app-muted text-xs border-b border-app-border">
               <th className="text-left px-4 py-3 font-medium w-8"></th>
               <th className="text-left px-4 py-3 font-medium">Client</th>
               <th className="text-right px-4 py-3 font-medium">Current</th>
@@ -107,7 +107,7 @@ export function ARAgingPage() {
               <>
                 <tr
                   key={bucket.name}
-                  className="border-t border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                  className="border-t border-app-border hover:bg-app-nav-hover cursor-pointer transition-colors"
                   onClick={() => setExpandedClient(expandedClient === bucket.name ? null : bucket.name)}
                 >
                   <td className="px-4 py-3">
@@ -123,7 +123,7 @@ export function ARAgingPage() {
                 </tr>
                 {expandedClient === bucket.name && (
                   <tr key={`${bucket.name}-invoices`}>
-                    <td colSpan={8} className="px-8 py-3 bg-white/[0.02]">
+                    <td colSpan={8} className="px-8 py-3 bg-app-surface-tertiary">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="text-app-muted">
@@ -137,7 +137,7 @@ export function ARAgingPage() {
                         </thead>
                         <tbody>
                           {bucket.invoices.map((inv: any) => (
-                            <tr key={inv.id} className="border-t border-white/5">
+                            <tr key={inv.id} className="border-t border-app-border">
                               <td className="py-1.5 font-mono">{inv.invoice_number}</td>
                               <td className="py-1.5 text-right font-mono">${inv.grand_total.toFixed(2)}</td>
                               <td className="py-1.5 text-right font-mono">${inv.amount_paid.toFixed(2)}</td>
@@ -165,7 +165,7 @@ export function ARAgingPage() {
               <tr><td colSpan={8} className="px-4 py-12 text-center text-app-muted">No outstanding receivables</td></tr>
             )}
             {report.buckets.length > 0 && (
-              <tr className="border-t-2 border-white/10 font-semibold">
+              <tr className="border-t-2 border-app-border font-semibold">
                 <td></td>
                 <td className="px-4 py-3 text-app-text">Total</td>
                 <td className="px-4 py-3 text-right font-mono">${report.totals.current.toFixed(2)}</td>

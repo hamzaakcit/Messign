@@ -78,7 +78,7 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
           {task.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 text-[10px] bg-white/10 text-app-muted rounded"
+              className="px-1.5 py-0.5 text-[10px] bg-app-surface-tertiary text-app-muted rounded"
             >
               {tag}
             </span>
@@ -87,7 +87,7 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5">
+      <div className="flex items-center justify-between mt-3 pt-2 border-t border-app-border">
         <div className="flex items-center gap-2">
           {/* Priority */}
           <Badge className={cn('text-[10px]', getPriorityColor(task.priority))}>

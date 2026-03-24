@@ -109,7 +109,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                   clearChat();
                   setInputValue('');
                 }}
-                className="p-1.5 rounded-md text-app-muted hover:text-app-text hover:bg-white/5"
+                className="p-1.5 rounded-md text-app-muted hover:text-app-text hover:bg-app-nav-hover"
                 title="Clear chat"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -117,7 +117,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-md text-app-muted hover:text-app-text hover:bg-white/5"
+                className="p-1.5 rounded-md text-app-muted hover:text-app-text hover:bg-app-nav-hover"
                 title="Close"
               >
                 <X className="w-4 h-4" />
@@ -184,7 +184,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                     setInputValue(q.text);
                     inputRef.current?.focus();
                   }}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-white/10 bg-white/[0.04] text-app-muted hover:text-app-text hover:bg-white/[0.08] disabled:opacity-40"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-app-border bg-app-surface-tertiary text-app-muted hover:text-app-text hover:bg-app-hover disabled:opacity-40"
                 >
                   {q.icon === 'linkedin' ? <Linkedin className="w-2.5 h-2.5 shrink-0 text-blue-300" /> : null}
                   {q.icon === 'mail' ? <Mail className="w-2.5 h-2.5 shrink-0 text-emerald-300" /> : null}

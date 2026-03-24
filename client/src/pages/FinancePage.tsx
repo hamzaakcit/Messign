@@ -196,7 +196,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
           <Receipt className="h-4 w-4" /> New Invoice
         </button>
         <button onClick={() => onNavigate('reports')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/5 text-app-muted text-sm font-medium hover:bg-white/10 hover:text-app-text transition-colors">
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-app-surface-tertiary text-app-muted text-sm font-medium hover:bg-app-hover hover:text-app-text transition-colors">
           <BarChart3 className="h-4 w-4" /> View Reports
         </button>
       </div>
@@ -234,7 +234,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
       )}
 
       {/* Spending Trend */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+      <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
         <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
           <TrendingUp className="h-4 w-4" /> Spending Trend (6 months)
         </h3>
@@ -243,7 +243,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
 
       {/* Department Comparison */}
       {budgets.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
             <BarChart3 className="h-4 w-4" /> Department Budget Comparison
           </h3>
@@ -254,7 +254,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
               return (
                 <div key={b.id} className="flex items-center gap-3">
                   <span className="text-xs text-app-muted w-28 truncate shrink-0">{b.department}</span>
-                  <div className="flex-1 h-5 bg-white/5 rounded-full overflow-hidden relative">
+                  <div className="flex-1 h-5 bg-app-surface-tertiary rounded-full overflow-hidden relative">
                     <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${pct}%` }} />
                     <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-app-text/80">
                       ${b.spent.toLocaleString()} / ${b.allocatedAmount.toLocaleString()}
@@ -272,7 +272,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pending Approvals */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
             <ClipboardList className="h-4 w-4" /> Pending Approvals
           </h3>
@@ -281,7 +281,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
           ) : (
             <div className="space-y-3">
               {pendingApprovals.slice(0, 5).map((a) => (
-                <button key={a.id} onClick={() => onNavigate('expenses', a.id)} className="w-full text-left hover:bg-white/5 rounded-lg p-2 transition-colors">
+                <button key={a.id} onClick={() => onNavigate('expenses', a.id)} className="w-full text-left hover:bg-app-nav-hover rounded-lg p-2 transition-colors">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-app-text font-medium truncate">{a.title}</span>
                     <span className="text-app-text font-medium shrink-0 ml-2">${parseFloat(String(a.amount)).toFixed(2)}</span>
@@ -294,7 +294,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
         </div>
 
         {/* Budget Health */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
             <PiggyBank className="h-4 w-4" /> Budget Health
           </h3>
@@ -311,7 +311,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
                       <span className="text-app-text font-medium">{b.department}</span>
                       <span className="text-app-text font-medium">{pct.toFixed(1)}%</span>
                     </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-2 bg-app-surface-tertiary rounded-full overflow-hidden">
                       <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${pct}%` }} />
                     </div>
                   </button>
@@ -322,7 +322,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
         </div>
 
         {/* Recent Activity */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
           <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
             <FileText className="h-4 w-4" /> Recent Activity
           </h3>
@@ -333,7 +333,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (view: FinanceView, id?: stri
               {activity.slice(0, 6).map((a) => (
                 <button key={`${a.type}-${a.id}`}
                   onClick={() => onNavigate(a.type === 'expense' ? 'expenses' : 'invoices', a.id)}
-                  className="w-full flex items-center justify-between text-sm hover:bg-white/5 rounded-lg p-1 transition-colors">
+                  className="w-full flex items-center justify-between text-sm hover:bg-app-nav-hover rounded-lg p-1 transition-colors">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium uppercase',
                       a.type === 'expense' ? 'text-blue-400 bg-blue-500/20' : 'text-green-400 bg-green-500/20')}>{a.type === 'expense' ? 'EXP' : 'INV'}</span>
@@ -357,9 +357,9 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-5 animate-pulse">
-          <div className="h-4 bg-white/10 rounded w-1/3 mb-3" />
-          <div className="h-3 bg-white/10 rounded w-2/3" />
+        <div key={i} className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 animate-pulse">
+          <div className="h-4 bg-app-surface-tertiary rounded w-1/3 mb-3" />
+          <div className="h-3 bg-app-surface-tertiary rounded w-2/3" />
         </div>
       ))}
     </div>

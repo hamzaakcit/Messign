@@ -112,7 +112,7 @@ export function ChartOfAccountsPage() {
     return (
       <div className="space-y-3">
         {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="h-12 rounded-lg bg-white/5 animate-pulse" />
+          <div key={i} className="h-12 rounded-lg bg-app-surface-tertiary animate-pulse" />
         ))}
       </div>
     );
@@ -122,15 +122,15 @@ export function ChartOfAccountsPage() {
     <div className="space-y-4">
       {trialBalance && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
             <p className="text-xs text-app-muted">Total Debits</p>
             <p className="text-xl font-bold text-app-text">${(trialBalance.totalDebit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
             <p className="text-xs text-app-muted">Total Credits</p>
             <p className="text-xl font-bold text-app-text">${(trialBalance.totalCredit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
             <p className="text-xs text-app-muted">Balance Status</p>
             <p className={cn('text-xl font-bold', trialBalance.isBalanced ? 'text-green-400' : 'text-red-400')}>
               {trialBalance.isBalanced ? 'Balanced' : 'Out of Balance'}
@@ -147,7 +147,7 @@ export function ChartOfAccountsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search accounts..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none"
           />
         </div>
         <button
@@ -159,30 +159,30 @@ export function ChartOfAccountsPage() {
       </div>
 
       {showAddForm && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
+        <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-4">
           <h4 className="font-semibold text-app-text">New GL Account</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs text-app-muted mb-1">Code</label>
               <input value={formData.code} onChange={e => setFormData(p => ({ ...p, code: e.target.value }))}
-                placeholder="e.g. 6800" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+                placeholder="e.g. 6800" className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Name</label>
               <input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Utilities" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+                placeholder="e.g. Utilities" className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Type</label>
               <select value={formData.type} onChange={e => setFormData(p => ({ ...p, type: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none">
+                className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none">
                 {TYPE_ORDER.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-app-muted mb-1">Parent (optional)</label>
               <select value={formData.parent_id} onChange={e => setFormData(p => ({ ...p, parent_id: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none">
+                className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none">
                 <option value="">None</option>
                 {accounts.filter(a => a.type === formData.type).map(a => (
                   <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
@@ -193,7 +193,7 @@ export function ChartOfAccountsPage() {
           <div>
             <label className="block text-xs text-app-muted mb-1">Description (optional)</label>
             <input value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-app-text focus:border-primary-500 focus:outline-none" />
+              className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
           </div>
           <div className="flex gap-2">
             <button onClick={handleCreate} className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">Create Account</button>
@@ -210,10 +210,10 @@ export function ChartOfAccountsPage() {
           const typeTotal = typeAccounts.reduce((s, a) => s + (parseFloat(String(a.computed_balance ?? a.balance)) || 0), 0);
 
           return (
-            <div key={type} className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+            <div key={type} className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden">
               <button
                 onClick={() => toggleType(type)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-app-nav-hover transition-colors"
               >
                 <div className="flex items-center gap-3">
                   {isExpanded ? <ChevronDown className="h-4 w-4 text-app-muted" /> : <ChevronRight className="h-4 w-4 text-app-muted" />}
@@ -228,7 +228,7 @@ export function ChartOfAccountsPage() {
               </button>
 
               {isExpanded && (
-                <div className="border-t border-white/5">
+                <div className="border-t border-app-border">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-app-muted text-xs">
@@ -242,12 +242,12 @@ export function ChartOfAccountsPage() {
                     </thead>
                     <tbody>
                       {typeAccounts.map(account => (
-                        <tr key={account.id} className="border-t border-white/5 hover:bg-white/5">
+                        <tr key={account.id} className="border-t border-app-border hover:bg-app-nav-hover">
                           <td className="px-4 py-2 font-mono text-app-text">{account.code}</td>
                           <td className="px-4 py-2">
                             {editingId === account.id ? (
                               <input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                                className="px-2 py-1 rounded bg-white/10 border border-white/20 text-sm text-app-text focus:outline-none w-full" />
+                                className="px-2 py-1 rounded bg-app-surface-tertiary border border-app-border-strong text-sm text-app-text focus:outline-none w-full" />
                             ) : (
                               <span className={cn('text-app-text', account.parent_id && 'pl-4')}>
                                 {account.parent_id && '└ '}{account.name}

@@ -144,16 +144,16 @@ function Lane({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col flex-1 min-w-[180px] border-t-2 rounded-t-lg bg-white/[0.01]',
+        'flex flex-col flex-1 min-w-[180px] border-t-2 rounded-t-lg bg-app-surface-tertiary',
         config.borderColor,
-        isOver && 'bg-white/[0.03] ring-1 ring-inset ring-white/10',
+        isOver && 'bg-app-surface-tertiary ring-1 ring-inset ring-white/10',
       )}
     >
       <div className="flex items-center gap-2 px-3 py-2 shrink-0">
         <Icon className={cn('w-3.5 h-3.5', config.accent)} />
         <span className={cn(
           'w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold',
-          cards.length > 0 ? 'bg-white/[0.08] text-app-text' : 'bg-transparent text-app-muted',
+          cards.length > 0 ? 'bg-app-surface-tertiary text-app-text' : 'bg-transparent text-app-muted',
         )}>
           {cards.length}
         </span>
@@ -178,18 +178,18 @@ function BoardSkeleton(): JSX.Element {
   return (
     <div className="flex gap-2 flex-1 min-h-0 px-3 py-3">
       {LANE_CONFIG.map((config) => (
-        <div key={config.id} className={cn('flex flex-col flex-1 min-w-[180px] border-t-2 rounded-t-lg bg-white/[0.01]', config.borderColor)}>
+        <div key={config.id} className={cn('flex flex-col flex-1 min-w-[180px] border-t-2 rounded-t-lg bg-app-surface-tertiary', config.borderColor)}>
           <div className="flex items-center gap-2 px-3 py-2 shrink-0">
-            <div className="w-3.5 h-3.5 rounded bg-white/[0.06] animate-pulse" />
-            <div className="w-5 h-5 rounded-full bg-white/[0.06] animate-pulse" />
+            <div className="w-3.5 h-3.5 rounded bg-app-surface-tertiary animate-pulse" />
+            <div className="w-5 h-5 rounded-full bg-app-surface-tertiary animate-pulse" />
           </div>
           <div className="flex-1 px-2 pb-2 space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="rounded-lg border border-white/[0.06] bg-white/[0.02] animate-pulse">
-                <div className="w-full h-10 rounded-t bg-white/[0.03]" />
+              <div key={i} className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary animate-pulse">
+                <div className="w-full h-10 rounded-t bg-app-surface-tertiary" />
                 <div className="px-2.5 py-2 space-y-1.5">
-                  <div className="h-3 w-3/4 rounded bg-white/[0.06]" />
-                  <div className="h-2 w-1/2 rounded bg-white/[0.04]" />
+                  <div className="h-3 w-3/4 rounded bg-app-surface-tertiary" />
+                  <div className="h-2 w-1/2 rounded bg-app-surface-tertiary" />
                 </div>
               </div>
             ))}

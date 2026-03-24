@@ -157,7 +157,7 @@ export function MarketplaceNavBar({
                   <span
                     className={cn(
                       'ml-1 px-1.5 py-0.5 text-xs rounded-full shrink-0',
-                      activeFilter === filter.id ? 'bg-white/20 text-app-text' : 'bg-app-hover text-app-muted'
+                      activeFilter === filter.id ? 'bg-app-hover text-app-text' : 'bg-app-hover text-app-muted'
                     )}
                   >
                     {myItemsCount}

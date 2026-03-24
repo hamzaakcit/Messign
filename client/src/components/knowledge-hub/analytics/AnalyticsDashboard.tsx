@@ -81,7 +81,7 @@ export function AnalyticsDashboard() {
               {contributors.map((c, i) => (
                 <div key={c.author_id} className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full bg-app-hover flex items-center justify-center text-xs text-app-muted font-medium">{i + 1}</span>
-                  <span className="flex-1 text-sm text-gray-300 truncate">{c.name}</span>
+                  <span className="flex-1 text-sm text-app-muted truncate">{c.name}</span>
                   <span className="text-sm font-medium text-app-text">{c.doc_count}</span>
                 </div>
               ))}
@@ -98,7 +98,7 @@ export function AnalyticsDashboard() {
             <div className="space-y-2">
               {topSearches.slice(0, 8).map(s => (
                 <div key={s.query} className="flex items-center gap-3">
-                  <span className="flex-1 text-sm text-gray-300 truncate">"{s.query}"</span>
+                  <span className="flex-1 text-sm text-app-muted truncate">"{s.query}"</span>
                   <span className="text-xs text-app-muted">{s.count}x</span>
                   <span className="text-xs text-app-muted">{s.avg_results} results</span>
                 </div>
@@ -116,7 +116,7 @@ export function AnalyticsDashboard() {
             <div className="space-y-2">
               {failedSearches.slice(0, 8).map(s => (
                 <div key={s.query} className="flex items-center gap-3">
-                  <span className="flex-1 text-sm text-gray-300 truncate">"{s.query}"</span>
+                  <span className="flex-1 text-sm text-app-muted truncate">"{s.query}"</span>
                   <span className="text-xs text-app-muted">{s.count}x searched</span>
                 </div>
               ))}

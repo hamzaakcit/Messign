@@ -484,7 +484,7 @@ export function FloatingWidget() {
                   ? mode === 'search'
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-blue-500/20 text-blue-400'
-                  : 'text-app-muted hover:text-gray-300'
+                  : 'text-app-muted hover:text-app-muted'
               }`}
             >
               {mode === 'search' ? 'Web' : mode.charAt(0).toUpperCase() + mode.slice(1)}
@@ -533,7 +533,7 @@ export function FloatingWidget() {
                       opacity: 0,
                     }}
                     className="text-xs px-4 py-2 rounded-full border border-gray-700 inline-flex items-center gap-1
-                           text-gray-300 hover:border-blue-500 hover:text-blue-400 hover:scale-[1.02]
+                           text-app-muted hover:border-blue-500 hover:text-blue-400 hover:scale-[1.02]
                            hover:bg-blue-500/5 transition-all duration-200"
                   >
                     {Icon && <Icon size={12} className="opacity-70 shrink-0" />}

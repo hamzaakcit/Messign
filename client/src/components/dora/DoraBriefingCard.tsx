@@ -140,7 +140,7 @@ export function DoraBriefingCard({
           </div>
 
           {expanded && (
-            <ul className="mt-3 space-y-1 border-t border-white/5 pt-3 text-[11px] text-app-muted">
+            <ul className="mt-3 space-y-1 border-t border-app-border pt-3 text-[11px] text-app-muted">
               <li>Tasks due today counts assignments with a due date of today (open states).</li>
               <li>Finance uses outstanding invoice totals for sent / partially paid invoices.</li>
               <li>Projects &ldquo;need attention&rdquo; = distinct projects with overdue open tasks assigned to you.</li>
@@ -159,7 +159,7 @@ export function DoraBriefingCard({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-full border border-app-border px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-sky-500/30 hover:text-app-text"
+              className="inline-flex items-center gap-1 rounded-full border border-app-border px-3 py-1.5 text-xs text-app-muted transition-colors hover:border-sky-500/30 hover:text-app-text"
             >
               {expanded ? (
                 <>

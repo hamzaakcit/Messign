@@ -78,7 +78,7 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-20 shrink-0 text-[10px] text-slate-400">{label}</span>
-      <div className="h-1.5 flex-1 rounded-full bg-white/[0.06]">
+      <div className="h-1.5 flex-1 rounded-full bg-app-surface-tertiary">
         <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${value}%` }} />
       </div>
       <span className="w-6 text-right text-[10px] font-medium text-slate-300">{value}</span>
@@ -208,7 +208,7 @@ export function InstagramIntelligencePanel({
             className={cn(
               'flex-1 rounded-md px-2 py-1.5 text-[10px] font-medium transition-colors',
               tab === t.id
-                ? 'bg-white/[0.08] text-slate-100 shadow-sm'
+                ? 'bg-app-surface-tertiary text-slate-100 shadow-sm'
                 : 'text-slate-500 hover:text-slate-300',
             )}
           >
@@ -331,7 +331,7 @@ export function InstagramIntelligencePanel({
             {bestTimeData.topSlots.map((slot, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2"
+                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-app-surface-tertiary px-2.5 py-2"
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500/10">
                   <span className="text-[10px] font-bold text-cyan-400">{i + 1}</span>
@@ -343,7 +343,7 @@ export function InstagramIntelligencePanel({
                   <p className="text-[9px] text-slate-500">{slot.reason}</p>
                 </div>
                 <div className="shrink-0">
-                  <div className="h-1.5 w-12 rounded-full bg-white/[0.06]">
+                  <div className="h-1.5 w-12 rounded-full bg-app-surface-tertiary">
                     <div
                       className="h-full rounded-full bg-cyan-500/60"
                       style={{ width: `${slot.score}%` }}
@@ -392,7 +392,7 @@ export function InstagramIntelligencePanel({
               setCaptionVariants([]);
               void fetchTab('captions');
             }}
-            className="w-full rounded-lg border border-white/[0.08] py-1.5 text-[10px] text-slate-500 hover:bg-white/[0.04] hover:text-slate-300"
+            className="w-full rounded-lg border border-white/[0.08] py-1.5 text-[10px] text-slate-500 hover:bg-app-hover hover:text-slate-300"
           >
             Regenerate variants
           </button>

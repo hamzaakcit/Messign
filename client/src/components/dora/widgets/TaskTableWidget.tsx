@@ -532,7 +532,7 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
   if (tasks.length === 0) {
     return (
       <div
-        className="rounded-lg border border-white/10 bg-white/5 p-6 text-center space-y-3"
+        className="rounded-lg border border-app-border bg-app-surface-tertiary p-6 text-center space-y-3"
         style={{ marginTop: 12 }}
       >
         <p className="text-app-text/50 text-sm">No tasks found matching your criteria.</p>

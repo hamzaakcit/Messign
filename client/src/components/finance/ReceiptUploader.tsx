@@ -57,7 +57,7 @@ export function ReceiptUploader({ onUpload, className }: ReceiptUploaderProps) {
           'relative rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-all',
           dragOver
             ? 'border-primary-500 bg-primary-500/10'
-            : 'border-white/20 hover:border-white/30 hover:bg-white/5',
+            : 'border-app-border-strong hover:border-white/30 hover:bg-app-nav-hover',
         )}
       >
         <input
@@ -87,10 +87,10 @@ export function ReceiptUploader({ onUpload, className }: ReceiptUploaderProps) {
         ) : (
           <div className="flex flex-col items-center gap-3">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-white/5">
+              <div className="p-3 rounded-full bg-app-surface-tertiary">
                 <Upload className="h-6 w-6 text-app-muted" />
               </div>
-              <div className="p-3 rounded-full bg-white/5">
+              <div className="p-3 rounded-full bg-app-surface-tertiary">
                 <Camera className="h-6 w-6 text-app-muted" />
               </div>
             </div>

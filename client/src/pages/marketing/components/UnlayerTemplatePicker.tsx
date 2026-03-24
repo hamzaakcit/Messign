@@ -54,7 +54,7 @@ export function UnlayerTemplatePicker({ templates, onSelect }: Props) {
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               activeFilter === f.id
                 ? 'bg-primary-500 text-app-text'
-                : 'bg-white/5 text-app-muted hover:bg-white/10 hover:text-app-text'
+                : 'bg-app-surface-tertiary text-app-muted hover:bg-app-hover hover:text-app-text'
             }`}
           >
             {f.label}
@@ -68,9 +68,9 @@ export function UnlayerTemplatePicker({ templates, onSelect }: Props) {
             key={t.id}
             type="button"
             onClick={() => onSelect(t.id)}
-            className="group text-left rounded-xl border border-white/10 bg-white/5 p-3 transition-all hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+            className="group text-left rounded-xl border border-app-border bg-app-surface-tertiary p-3 transition-all hover:bg-app-hover hover:border-app-border-strong hover:scale-[1.02] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-500/40"
           >
-            <div className="aspect-[4/3] rounded-lg overflow-hidden mb-2.5 border border-white/10 bg-gradient-to-br from-primary-500/15 to-slate-900/40 flex items-center justify-center relative">
+            <div className="aspect-[4/3] rounded-lg overflow-hidden mb-2.5 border border-app-border bg-gradient-to-br from-primary-500/15 to-slate-900/40 flex items-center justify-center relative">
               {t.thumbnailSrc ? (
                 <img src={t.thumbnailSrc} alt="" className="w-full h-full object-cover" />
               ) : (

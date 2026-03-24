@@ -32,7 +32,7 @@ export function UnknownWidgetFallback({
       <p className="m-0 dora-font" style={{ color: 'var(--dora-text-2, #cbd5e1)' }}>
         Unsupported widget type{' '}
         <code
-          className="rounded bg-white/10 px-1 py-0.5 text-[11px]"
+          className="rounded bg-app-surface-tertiary px-1 py-0.5 text-[11px]"
           style={{ color: 'var(--dora-text-1, #f1f5f9)' }}
         >
           {widgetType}
@@ -50,7 +50,7 @@ export function UnknownWidgetFallback({
       </button>
       {open && (
         <pre
-          className="mt-2 max-h-48 overflow-auto rounded-lg border border-white/10 p-2 text-[10px] leading-relaxed dora-mono"
+          className="mt-2 max-h-48 overflow-auto rounded-lg border border-app-border p-2 text-[10px] leading-relaxed dora-mono"
           style={{ color: 'var(--dora-text-2, #cbd5e1)' }}
         >
           {truncated}

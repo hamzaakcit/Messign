@@ -96,7 +96,7 @@ export function PremiumKPICard({ metric, index, onCardClick }: PremiumKPICardPro
       </div>
 
       {/* Micro-sparkline top-right */}
-      <div className="absolute top-5 right-5 w-20 h-8 rounded-lg overflow-hidden bg-white/5">
+      <div className="absolute top-5 right-5 w-20 h-8 rounded-lg overflow-hidden bg-app-surface-tertiary">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={sparklineChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <defs>
@@ -142,7 +142,7 @@ export function PremiumKPICard({ metric, index, onCardClick }: PremiumKPICardPro
           boxShadow: `0 0 24px ${color}40`,
         }}
       >
-        <div className="absolute inset-0 backdrop-blur-[20px] bg-white/10" aria-hidden />
+        <div className="absolute inset-0 backdrop-blur-[20px] bg-app-surface-tertiary" aria-hidden />
         <IconComponent className="relative w-7 h-7 text-app-text" aria-hidden />
       </div>
 

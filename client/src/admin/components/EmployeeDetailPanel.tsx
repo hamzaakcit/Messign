@@ -28,20 +28,20 @@ export function EmployeeDetailPanel({
   if (!employee) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-app-sidebar border-l border-white/10 shadow-xl flex flex-col z-20">
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
+    <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-app-sidebar border-l border-app-border shadow-xl flex flex-col z-20">
+      <div className="flex items-center justify-between p-4 border-b border-app-border">
         <h2 className="text-lg font-semibold text-app-text">Employee Profile</h2>
         <button
           type="button"
           onClick={onClose}
-          className="p-2 rounded-lg hover:bg-white/10 text-app-muted hover:text-app-text"
+          className="p-2 rounded-lg hover:bg-app-hover text-app-muted hover:text-app-text"
           aria-label="Close panel"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="p-4 border-b border-white/10">
+      <div className="p-4 border-b border-app-border">
         <div className="flex items-center gap-4">
           <Avatar src={employee.avatar} name={employee.name} size="lg" status={employee.status} />
           <div>
@@ -111,7 +111,7 @@ export function EmployeeDetailPanel({
         </div>
       </Tabs>
 
-      <div className="flex items-center gap-2 p-4 border-t border-white/10">
+      <div className="flex items-center gap-2 p-4 border-t border-app-border">
         <Button variant="primary" size="sm" onClick={() => onSave?.(employee)}>Save</Button>
         <Button variant="danger" size="sm" onClick={() => onDelete?.(employee.id)}>Delete</Button>
         <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>

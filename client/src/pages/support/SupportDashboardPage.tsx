@@ -57,7 +57,7 @@ function ChartSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
       <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
         <Icon className="h-4 w-4" />
         {title}
@@ -77,7 +77,7 @@ function ListSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
       <h3 className="font-semibold text-app-text mb-3 flex items-center gap-2">
         <Icon className="h-4 w-4" />
         {title}
@@ -180,14 +180,14 @@ export function SupportDashboardPage() {
           {loading ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
               <div className="lg:col-span-2 space-y-6">
-                <div className="h-72 rounded-xl bg-white/10" />
-                <div className="h-72 rounded-xl bg-white/10" />
-                <div className="h-72 rounded-xl bg-white/10" />
+                <div className="h-72 rounded-xl bg-app-surface-tertiary" />
+                <div className="h-72 rounded-xl bg-app-surface-tertiary" />
+                <div className="h-72 rounded-xl bg-app-surface-tertiary" />
               </div>
               <div className="space-y-6">
-                <div className="h-72 rounded-xl bg-white/10" />
-                <div className="h-72 rounded-xl bg-white/10" />
-                <div className="h-72 rounded-xl bg-white/10" />
+                <div className="h-72 rounded-xl bg-app-surface-tertiary" />
+                <div className="h-72 rounded-xl bg-app-surface-tertiary" />
+                <div className="h-72 rounded-xl bg-app-surface-tertiary" />
               </div>
             </div>
           ) : (
@@ -251,7 +251,7 @@ export function SupportDashboardPage() {
                     <p className="text-sm text-app-muted">No agent workload data yet.</p>
                   ) : (
                     workload.slice(0, 6).map((agent) => (
-                      <div key={agent.assigneeId} className="py-3 border-b border-white/5 last:border-0">
+                      <div key={agent.assigneeId} className="py-3 border-b border-app-border last:border-0">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm text-app-text font-medium truncate">{agent.name}</p>
@@ -264,7 +264,7 @@ export function SupportDashboardPage() {
                             <p className="text-xs text-app-muted">{agent.resolvedThisWeek} resolved</p>
                           </div>
                         </div>
-                        <div className="mt-2 h-2 rounded-full bg-white/5 overflow-hidden">
+                        <div className="mt-2 h-2 rounded-full bg-app-surface-tertiary overflow-hidden">
                           <div
                             className="h-full rounded-full bg-primary-500"
                             style={{ width: `${Math.min(agent.openTickets * 10, 100)}%` }}
@@ -280,7 +280,7 @@ export function SupportDashboardPage() {
                     <p className="text-sm text-app-muted">No at-risk customers right now.</p>
                   ) : (
                     atRiskCustomers.map((customer) => (
-                      <div key={customer.id} className="py-3 border-b border-white/5 last:border-0">
+                      <div key={customer.id} className="py-3 border-b border-app-border last:border-0">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm text-app-text font-medium truncate">
@@ -305,7 +305,7 @@ export function SupportDashboardPage() {
                     <p className="text-sm text-app-muted">No breached tickets. Nice work.</p>
                   ) : (
                     breaches.map((ticket) => (
-                      <div key={ticket.id} className="py-3 border-b border-white/5 last:border-0">
+                      <div key={ticket.id} className="py-3 border-b border-app-border last:border-0">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm text-app-text font-medium truncate">
