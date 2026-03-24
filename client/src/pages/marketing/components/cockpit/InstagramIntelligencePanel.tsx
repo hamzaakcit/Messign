@@ -14,6 +14,9 @@ type EngagementData = Awaited<ReturnType<typeof marketingAPI.predictEngagement>>
 
 type Tab = 'hashtags' | 'timing' | 'captions' | 'engagement';
 
+/** Must match `server/src/routes/marketing/instagram.ts` POST /predict-engagement validation. */
+const MIN_CAPTION_CHARS_ENGAGEMENT = 5;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -108,6 +111,11 @@ export function InstagramIntelligencePanel({
 
   // --- Auto-run engagement prediction on mount / content change ---
   const runEngagement = useCallback(async () => {
+    const trimmed = caption.trim();
+    if (trimmed.length < MIN_CAPTION_CHARS_ENGAGEMENT) {
+      setEngagementData(null);
+      return;
+    }
     setLoading(true);
     try {
       const res = await marketingAPI.predictEngagement(userId, {
@@ -215,7 +223,13 @@ export function InstagramIntelligencePanel({
         </div>
       )}
 
-      {/* Engagement score */}
+      {/* Engagement score — server requires caption ≥ 5 chars; avoid 400 when body is empty/short */}
+      {!loading && tab === 'engagement' && !engagementData && caption.trim().length < MIN_CAPTION_CHARS_ENGAGEMENT && (
+        <p className="rounded-lg border border-white/[0.06] bg-[#0c0f14] px-3 py-2 text-[10px] text-slate-500">
+          Add at least {MIN_CAPTION_CHARS_ENGAGEMENT} characters of caption to see the engagement score.
+        </p>
+      )}
+
       {!loading && tab === 'engagement' && engagementData && (
         <div className="space-y-3 rounded-lg border border-white/[0.06] bg-[#0c0f14] p-3">
           <div className="flex items-center gap-3">
