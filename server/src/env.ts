@@ -36,7 +36,14 @@ if (process.env.NODE_ENV === 'production') {
     process.exit(1);
   }
 
-  const recommended = ['REDIS_URL', 'JWT_SECRET', 'CORS_ORIGIN'];
+  if (!process.env.JWT_SECRET?.trim() && !process.env.JWT_ACCESS_SECRET?.trim()) {
+    console.error('[FATAL] JWT_SECRET or JWT_ACCESS_SECRET must be set in production.');
+    console.error('       Railway: Service that runs `npm run start` → Variables → add JWT_SECRET (e.g. output of: openssl rand -hex 32).');
+    console.error('       If you use a separate "server" vs "Messign" service, each deploy target needs its own variables (or use Shared Variables).');
+    process.exit(1);
+  }
+
+  const recommended = ['REDIS_URL', 'CLIENT_URL', 'ADDITIONAL_CORS_ORIGINS'];
   const absent = recommended.filter((k) => !process.env[k]);
   if (absent.length > 0) {
     console.warn(`[server] Recommended env vars not set: ${absent.join(', ')}`);
