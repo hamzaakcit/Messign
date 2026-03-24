@@ -7,7 +7,6 @@
 
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
-import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 
 const projectStatusTool: Tool = {
@@ -62,35 +61,28 @@ Use this tool when someone asks:
     const includeTaskList = (args.include_task_list as string) || 'no';
     const includeMembers = (args.include_members as string) || 'yes';
 
-    const orgId = await resolveOrgIdForTool(context);
-    if (!orgId) {
-      return { success: false, data: null, summary: 'Unable to determine organization context.' };
-    }
-
     const identifier = projectName.toLowerCase().trim();
 
     let projectsResult: { rows: Record<string, unknown>[] };
 
     if (['all', 'active', 'all active', 'every'].includes(identifier)) {
       projectsResult = await query(
-        `SELECT * FROM projects WHERE organization_id = $1 AND status != 'archived' ORDER BY updated_at DESC LIMIT 15`,
-        [orgId]
+        `SELECT * FROM projects WHERE status != 'archived' ORDER BY updated_at DESC LIMIT 15`,
       );
     } else if (['my', 'mine', 'my projects'].includes(identifier)) {
       projectsResult = await query(
         `SELECT DISTINCT p.* FROM projects p
          LEFT JOIN tasks t ON t.project_id = p.id
-         WHERE p.organization_id = $1
-           AND (t.assignees @> jsonb_build_array($2) OR (p.team IS NOT NULL AND p.team @> jsonb_build_array($2)))
+         WHERE (t.assignees @> jsonb_build_array($1) OR (p.team IS NOT NULL AND p.team @> jsonb_build_array($1)))
            AND p.status != 'archived'
          ORDER BY p.updated_at DESC
          LIMIT 15`,
-        [orgId, context.userId]
+        [context.userId]
       );
     } else {
       projectsResult = await query(
-        `SELECT * FROM projects WHERE organization_id = $1 AND LOWER(name) LIKE LOWER($2) AND status != 'archived' ORDER BY updated_at DESC LIMIT 5`,
-        [orgId, `%${identifier}%`]
+        `SELECT * FROM projects WHERE LOWER(name) LIKE LOWER($1) AND status != 'archived' ORDER BY updated_at DESC LIMIT 5`,
+        [`%${identifier}%`]
       );
     }
 
