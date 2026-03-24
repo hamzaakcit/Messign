@@ -75,14 +75,14 @@ export function ExecutiveDashboardPage() {
   const kpis = useMemo(() => {
     if (!data) return [];
     return [
-      { label: 'Revenue YTD', value: `€${(data.revenue.totalYTD / 1_000_000).toFixed(1)}M` },
-      { label: 'Pipeline', value: `€${(data.revenue.weightedPipeline / 1_000_000).toFixed(1)}M weighted` },
-      { label: 'Open Tickets', value: `${data.support.openTickets} (${data.support.slaCompliance.toFixed(0)}% SLA)` },
-      { label: 'OKR Progress', value: `${data.okrs.overallProgress.toFixed(0)}%` },
-      { label: 'Team Utilization', value: `${data.people.avgUtilization.toFixed(0)}%` },
-      { label: 'Budget Health', value: `${data.finance.budgetHealthAvg.toFixed(0)}%` },
-      { label: 'Open Positions', value: `${data.people.openPositions}` },
-      { label: 'Culture Score', value: '86 (placeholder)' },
+      { label: 'Revenue YTD', value: `€${(data.revenue.totalYTD / 1_000_000).toFixed(1)}M`, accent: 'accent-card-emerald', bar: 'bg-emerald-400' },
+      { label: 'Pipeline', value: `€${(data.revenue.weightedPipeline / 1_000_000).toFixed(1)}M weighted`, accent: 'accent-card-blue', bar: 'bg-blue-400' },
+      { label: 'Open Tickets', value: `${data.support.openTickets} (${data.support.slaCompliance.toFixed(0)}% SLA)`, accent: 'accent-card-amber', bar: 'bg-amber-400' },
+      { label: 'OKR Progress', value: `${data.okrs.overallProgress.toFixed(0)}%`, accent: 'accent-card-violet', bar: 'bg-violet-400' },
+      { label: 'Team Utilization', value: `${data.people.avgUtilization.toFixed(0)}%`, accent: 'accent-card-cyan', bar: 'bg-cyan-400' },
+      { label: 'Budget Health', value: `${data.finance.budgetHealthAvg.toFixed(0)}%`, accent: 'accent-card-rose', bar: 'bg-rose-400' },
+      { label: 'Open Positions', value: `${data.people.openPositions}`, accent: 'accent-card-blue', bar: 'bg-blue-400' },
+      { label: 'Culture Score', value: '86', accent: 'accent-card-emerald', bar: 'bg-emerald-400' },
     ];
   }, [data]);
 
@@ -134,11 +134,11 @@ export function ExecutiveDashboardPage() {
 
       <div data-testid="executive-kpis" className="flex gap-2.5 overflow-x-auto pb-2">
         {kpis.map((kpi) => (
-          <div key={kpi.label} data-testid={`executive-kpi-${kpi.label.replace(/\s/g, '-')}`} className="min-w-[170px] rounded-lg border border-app bg-app-card p-2.5">
+          <div key={kpi.label} data-testid={`executive-kpi-${kpi.label.replace(/\s/g, '-')}`} className={`min-w-[170px] rounded-lg border border-app bg-app-card p-2.5 ${kpi.accent}`}>
             <div className="text-xs text-app-muted">{kpi.label}</div>
             <div className="mt-1 text-lg font-semibold text-app">{kpi.value}</div>
             <div className="mt-2 h-1.5 rounded-full bg-app-surface-tertiary overflow-hidden">
-              <div className="h-full w-2/3 bg-blue-400/70 rounded-full" />
+              <div className={`h-full w-2/3 ${kpi.bar}/70 rounded-full`} />
             </div>
           </div>
         ))}
@@ -146,7 +146,7 @@ export function ExecutiveDashboardPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
         <div className="xl:col-span-3 space-y-3">
-          <div data-testid="executive-chart" className="rounded-lg border border-app bg-app-card p-4">
+          <div data-testid="executive-chart" className="rounded-lg border border-app bg-app-card p-4 accent-card-emerald">
             <div className="text-sm font-semibold text-app mb-3">Revenue Trend</div>
             <div className="space-y-2">
               {data.revenue.monthlyTrend.slice(-12).map((m) => (
@@ -161,7 +161,7 @@ export function ExecutiveDashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-app bg-app-card p-4">
+          <div className="rounded-lg border border-app bg-app-card p-4 accent-card-blue">
             <div className="text-sm font-semibold text-app mb-3">Department Overview</div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {modules.map((m) => (
@@ -178,7 +178,7 @@ export function ExecutiveDashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-app bg-app-card p-4">
+          <div className="rounded-lg border border-app bg-app-card p-4 accent-card-violet">
             <div className="text-sm font-semibold text-app mb-3">OKR Progress</div>
             <div className="space-y-2">
               <div className="text-xs text-app-muted">On Track: {data.okrs.onTrack} | At Risk: {data.okrs.atRisk} | Behind: {data.okrs.behind}</div>
@@ -190,7 +190,7 @@ export function ExecutiveDashboardPage() {
         </div>
 
         <div className="xl:col-span-2 space-y-3">
-          <div className="rounded-lg border border-app bg-app-card p-4">
+          <div className="rounded-lg border border-app bg-app-card p-4 accent-card-amber">
             <div className="text-sm font-semibold text-app mb-2">Pending Actions</div>
             <ul className="space-y-2 text-sm text-app-muted">
               <li>Expense approvals: {data.finance.pendingApprovals}</li>
@@ -200,7 +200,7 @@ export function ExecutiveDashboardPage() {
             </ul>
           </div>
 
-          <div data-testid="executive-activity" className="rounded-lg border border-app bg-app-card p-4">
+          <div data-testid="executive-activity" className="rounded-lg border border-app bg-app-card p-4 accent-card-cyan">
             <div className="text-sm font-semibold text-app mb-2">Recent Activity</div>
             <div className="space-y-2">
               {data.recentActivity.slice(0, 15).map((a) => (
@@ -215,7 +215,7 @@ export function ExecutiveDashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-app bg-app-card p-4">
+          <div className="rounded-lg border border-app bg-app-card p-4 accent-card-violet">
             <div className="text-sm font-semibold text-app mb-2">Dora Insights</div>
             <div className="text-xs text-app-muted">
               Critical: {data.doraInsights.criticalCount} · Warning: {data.doraInsights.warningCount} · Unread: {data.doraInsights.totalUnread}

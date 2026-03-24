@@ -86,7 +86,7 @@ export function DashboardKPIRow({ metrics }: DashboardKPIRowProps) {
               'flex items-center gap-2.5 rounded-xl p-3 h-[72px] text-left overflow-hidden',
               'border transition-all duration-200',
               'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-900',
-              'bg-[#13151a] border-gray-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
+              'bg-app-card border-app-border',
               isActive
                 ? 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary border-[var(--card-color)] shadow-[0_0_20px_var(--card-glow)]'
                 : 'hover:border-app-border-strong hover:bg-app-hover'

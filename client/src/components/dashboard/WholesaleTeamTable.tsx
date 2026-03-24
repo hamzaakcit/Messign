@@ -29,11 +29,11 @@ function rateBadge(rate: number): string {
 
 export function WholesaleTeamTable({ members, onAction }: WholesaleTeamTableProps) {
   return (
-    <div className="rounded-xl border border-gray-800/50 overflow-hidden bg-gray-900/40">
+    <div className="rounded-xl border border-app-border overflow-hidden bg-app-card">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px]" role="table" aria-label="Wholesale SMS team members">
           <thead>
-            <tr className="bg-[#252536] border-b border-gray-800/50">
+            <tr className="bg-app-surface-tertiary border-b border-app-border">
               <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[50px]">Rank</th>
               <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[200px]">Member</th>
               <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-app-muted w-[120px]">Revenue</th>
@@ -48,7 +48,7 @@ export function WholesaleTeamTable({ members, onAction }: WholesaleTeamTableProp
           </thead>
           <tbody>
             {members.map((m) => (
-              <tr key={m.id} className="border-b border-gray-800/50 hover:bg-app-nav-hover transition-colors">
+              <tr key={m.id} className="border-b border-app-border hover:bg-app-nav-hover transition-colors">
                 <td className="py-2 px-3">
                   {m.rank <= 3 ? (
                     <span className="text-lg" aria-label={`Rank ${m.rank}`}>

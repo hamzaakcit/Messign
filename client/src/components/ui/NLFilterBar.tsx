@@ -101,7 +101,7 @@ export function NLFilterBar({ placeholder, onFiltersApplied, availableFields, mo
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') parseFilters(); }}
           placeholder={placeholder ?? 'Try: "expenses over €500 from last month"'}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-800/50 py-2 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+          className="w-full rounded-lg border border-app-border bg-app-card py-2 pl-10 pr-4 text-sm text-app-text placeholder-app-muted focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
           disabled={loading}
         />
       </div>
@@ -124,7 +124,7 @@ export function NLFilterBar({ placeholder, onFiltersApplied, availableFields, mo
           ))}
           <button
             onClick={clearAll}
-            className="text-xs text-zinc-500 hover:text-zinc-300"
+            className="text-xs text-app-muted hover:text-app-text"
           >
             Clear all
           </button>
@@ -132,7 +132,7 @@ export function NLFilterBar({ placeholder, onFiltersApplied, availableFields, mo
       )}
 
       {interpretation && chips.length > 0 && (
-        <p className="text-xs text-zinc-500 italic">{interpretation}</p>
+        <p className="text-xs text-app-muted italic">{interpretation}</p>
       )}
     </div>
   );

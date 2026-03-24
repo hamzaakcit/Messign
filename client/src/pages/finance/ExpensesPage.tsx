@@ -514,7 +514,7 @@ function AIScoreTooltip({ expense }: { expense: Expense }) {
   const hasDups = duplicateRefs && duplicateRefs.length > 0;
 
   return (
-    <div className="absolute right-0 top-full mt-1 z-50 w-56 p-3 rounded-lg bg-[#1a1a2e] border border-app-border shadow-xl text-left" onClick={(e) => e.stopPropagation()}>
+    <div className="absolute right-0 top-full mt-1 z-50 w-56 p-3 rounded-lg bg-app-card border border-app-border shadow-xl text-left" onClick={(e) => e.stopPropagation()}>
       <p className="text-xs font-medium text-app-text mb-2 flex items-center gap-1"><Shield className="h-3 w-3 text-primary-400" /> AI Analysis</p>
       <div className="space-y-1.5 text-xs">
         <div className="flex justify-between">

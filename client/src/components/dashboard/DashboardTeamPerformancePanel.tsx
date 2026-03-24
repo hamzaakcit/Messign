@@ -59,8 +59,8 @@ export function DashboardTeamPerformancePanel({
   }, [members, search]);
 
   return (
-    <div className="h-full flex flex-col rounded-xl border border-gray-800 bg-[#13151a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden">
-      <div className="shrink-0 flex flex-col gap-3 px-4 py-3 border-b border-gray-800">
+    <div className="h-full flex flex-col rounded-xl border border-app-border bg-app-card overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-3 px-4 py-3 border-b border-app-border">
         <h2 className="text-sm font-semibold text-app-text flex items-center gap-2">
           <Trophy className="w-4 h-4 text-yellow-400" />
           Team Performance
@@ -72,11 +72,11 @@ export function DashboardTeamPerformancePanel({
             placeholder="Search members..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-700 bg-app-surface-tertiary text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-[#2dd4bf] focus:border-[#2dd4bf]"
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-app-border bg-app-surface-tertiary text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-[#2dd4bf] focus:border-[#2dd4bf]"
             aria-label="Search team members"
           />
         </div>
-        <div className="flex rounded-lg border border-gray-700 bg-app-surface-tertiary p-1">
+        <div className="flex rounded-lg border border-app-border bg-app-surface-tertiary p-1">
           <button
             type="button"
             onClick={() => onViewChange('enterprise')}

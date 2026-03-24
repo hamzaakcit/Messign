@@ -274,7 +274,7 @@ export function NotificationPanel() {
                         handleNotificationClick(notification);
                       }
                     }}
-                    className={`group relative px-5 py-4 cursor-pointer transition-all duration-150 border-b hover:translate-x-0.5 active:scale-[0.99] border-l-[3px] hover:!bg-[#334155] ${
+                    className={`group relative px-5 py-4 cursor-pointer transition-all duration-150 border-b hover:translate-x-0.5 active:scale-[0.99] border-l-[3px] hover:!bg-app-nav-hover ${
                       !notification.read ? 'border-l-blue-500' : 'border-l-transparent'
                     }`}
                     style={{

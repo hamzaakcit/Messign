@@ -208,7 +208,7 @@ export function BudgetDetailPage({ budgetId, onBack }: Props) {
 
       {showTopUp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl border border-app-border bg-[#1a1a2e] p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-xl border border-app-border bg-app-card p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-app-text mb-1">Top Up Budget</h3>
             <p className="text-sm text-app-muted mb-4">
               Current allocation: {budget.currency} {budget.allocatedAmount.toFixed(2)}

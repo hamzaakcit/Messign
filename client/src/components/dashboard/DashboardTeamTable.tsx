@@ -390,7 +390,7 @@ export function DashboardTeamTable({
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
       <table className="w-full min-w-[900px] border-collapse" role="table">
-        <thead className="sticky top-0 z-10 bg-[#252536] border-b border-gray-800 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+        <thead className="sticky top-0 z-10 bg-app-surface-tertiary border-b border-app-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
@@ -421,7 +421,7 @@ export function DashboardTeamTable({
                 }
               }}
               className={cn(
-                'border-b border-gray-800/50 hover:bg-app-nav-hover transition-colors cursor-pointer',
+                'border-b border-app-border hover:bg-app-nav-hover transition-colors cursor-pointer',
                 isActive && 'ring-1 ring-[#2dd4bf] bg-app-surface-tertiary'
               )}
             >

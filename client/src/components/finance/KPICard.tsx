@@ -6,15 +6,16 @@ interface KPICardProps {
   value: string | number;
   subtitle?: string;
   icon: LucideIcon;
+  iconClassName?: string;
   trend?: { value: number; label: string };
   className?: string;
 }
 
-export function KPICard({ title, value, subtitle, icon: Icon, trend, className }: KPICardProps) {
+export function KPICard({ title, value, subtitle, icon: Icon, iconClassName, trend, className }: KPICardProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-app-border bg-app-surface-tertiary backdrop-blur-sm p-5 transition-all hover:bg-app-hover',
+        'rounded-xl border border-app-border bg-app-card backdrop-blur-sm p-5 transition-all hover:bg-app-hover',
         className,
       )}
     >
@@ -23,8 +24,8 @@ export function KPICard({ title, value, subtitle, icon: Icon, trend, className }
           <p className="text-xs font-medium text-app-muted uppercase tracking-wide">{title}</p>
           <p className="text-2xl font-bold text-app-text">{value}</p>
         </div>
-        <div className="rounded-lg bg-primary-500/10 p-2.5">
-          <Icon className="h-5 w-5 text-primary-500" />
+        <div className={cn('rounded-lg p-2.5', iconClassName ?? 'icon-badge-blue')}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
       {(subtitle || trend) && (

@@ -104,7 +104,7 @@ export function DashboardView() {
 
         <motion.div
           variants={item}
-          className="min-h-[420px] h-[55vh] overflow-hidden rounded-xl border border-gray-800 bg-[#13151a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] p-4"
+          className="min-h-[420px] h-[55vh] overflow-hidden rounded-xl border border-app-border bg-app-card p-4"
         >
           <PerformanceTrendChart />
         </motion.div>

@@ -76,9 +76,8 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        borderRight: collapsed ? 'none' : '1px solid rgba(100,140,255,0.1)',
-        background: 'rgba(10,15,30,0.6)',
-        backdropFilter: 'blur(8px)',
+        borderRight: collapsed ? 'none' : '1px solid var(--app-border)',
+        background: 'var(--app-sidebar)',
         position: 'relative',
       }}
     >
@@ -94,9 +93,9 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
           width: 28,
           height: 28,
           borderRadius: '50%',
-          border: '1px solid rgba(100,140,255,0.18)',
-          background: 'rgba(20,30,60,0.95)',
-          color: '#64748b',
+          border: '1px solid var(--app-border-strong)',
+          background: 'var(--panel-bg)',
+          color: 'var(--app-text-muted)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -116,12 +115,12 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              borderBottom: '1px solid rgba(100,140,255,0.08)',
+              borderBottom: '1px solid var(--app-border)',
               flexShrink: 0,
             }}
           >
-            <MessageSquare size={14} color="#64748b" />
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', flex: 1 }}>
+            <MessageSquare size={14} style={{ color: 'var(--app-text-muted)' }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--app-text-muted)', flex: 1 }}>
               History
             </span>
             <button
@@ -130,9 +129,9 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 padding: '4px 8px', borderRadius: 6,
-                border: '1px solid rgba(59,130,246,0.25)',
-                background: 'rgba(59,130,246,0.08)',
-                color: '#60a5fa', fontSize: 11, fontWeight: 600,
+                border: '1px solid rgba(59,130,246,0.35)',
+                background: 'rgba(59,130,246,0.10)',
+                color: '#3b82f6', fontSize: 11, fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
@@ -146,7 +145,7 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
               <div
                 style={{
                   textAlign: 'center', padding: '32px 12px',
-                  color: '#475569', fontSize: 12, fontStyle: 'italic',
+                  color: 'var(--app-text-tertiary)', fontSize: 12, fontStyle: 'italic',
                 }}
               >
                 No conversations yet.<br />Ask Dora something!
@@ -170,12 +169,12 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
                       cursor: 'pointer',
                       marginBottom: 2,
                       background: isActive
-                        ? 'rgba(59,130,246,0.12)'
+                        ? 'var(--app-nav-active-bg)'
                         : isHovered
-                        ? 'rgba(100,140,255,0.06)'
+                        ? 'var(--app-nav-hover)'
                         : 'transparent',
                       border: isActive
-                        ? '1px solid rgba(59,130,246,0.2)'
+                        ? '1px solid rgba(59,130,246,0.25)'
                         : '1px solid transparent',
                       transition: 'background 0.15s, border-color 0.15s',
                       position: 'relative',
@@ -185,7 +184,7 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
                     <div
                       style={{
                         fontSize: 12, fontWeight: isActive ? 600 : 400,
-                        color: isActive ? '#e2e8f0' : '#94a3b8',
+                        color: isActive ? 'var(--app-text)' : 'var(--app-text-muted)',
                         overflow: 'hidden', textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         paddingRight: 24,
@@ -196,12 +195,12 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
 
                     {/* Preview + time */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <Clock size={9} color="#475569" />
-                      <span style={{ fontSize: 10, color: '#475569' }}>
+                      <Clock size={9} style={{ color: 'var(--app-text-tertiary)' }} />
+                      <span style={{ fontSize: 10, color: 'var(--app-text-tertiary)' }}>
                         {formatRelativeTime(session.updatedAt)}
                       </span>
                       {session.messages.length > 0 && (
-                        <span style={{ fontSize: 10, color: '#374151' }}>
+                        <span style={{ fontSize: 10, color: 'var(--app-text-tertiary)' }}>
                           · {Math.ceil(session.messages.length / 2)} msg{session.messages.length !== 2 ? 's' : ''}
                         </span>
                       )}
@@ -210,7 +209,7 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
                     {lastMsg && (
                       <div
                         style={{
-                          fontSize: 10, color: '#374151', marginTop: 2,
+                          fontSize: 10, color: 'var(--app-text-tertiary)', marginTop: 2,
                           overflow: 'hidden', textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
                         }}
@@ -229,7 +228,7 @@ export function DoraHistorySidebar({ collapsed, onToggle, onNewChat, onSelectSes
                           width: 20, height: 20, borderRadius: 4,
                           border: 'none',
                           background: isConfirmDelete ? 'rgba(239,68,68,0.2)' : 'transparent',
-                          color: isConfirmDelete ? '#ef4444' : '#475569',
+                          color: isConfirmDelete ? '#ef4444' : 'var(--app-text-tertiary)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           cursor: 'pointer',
                         }}

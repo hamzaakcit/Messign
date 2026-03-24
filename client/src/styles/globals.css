@@ -50,7 +50,7 @@
 
 /* Theme: light (high contrast) */
 [data-theme="light"] {
-  --app-bg: #F8FAFC;
+  --app-bg: #F1F5F9;
   --app-sidebar: #FFFFFF;
   --app-card: #FFFFFF;
   --app-card-border: #E2E8F0;
@@ -81,12 +81,21 @@
   --glass-bg: #FFFFFF;
   --glass-border: #E2E8F0;
   --glass-hover: #F1F5F9;
-  --app-hover: #F1F5F9;
+  --app-hover: #EFF6FF;
   --input-bg: #FFFFFF;
   --input-border: #E2E8F0;
   --input-text: #0F172A;
   --input-placeholder: #94A3B8;
   --panel-bg: #F1F5F9;
+  --app-card-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --app-card-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.10), 0 2px 4px rgba(15, 23, 42, 0.06);
+}
+
+/* Dark theme shadow variables */
+:root,
+[data-theme="dark"] {
+  --app-card-shadow: none;
+  --app-card-shadow-md: none;
 }
 
 @layer base {
@@ -293,6 +302,75 @@
   }
   .kpi-card-mail:hover {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(34, 197, 94, 0.25);
+  }
+
+  /* Light-theme card enhancements: shadow + border */
+  [data-theme="light"] .rounded-lg.border,
+  [data-theme="light"] .rounded-xl.border {
+    box-shadow: var(--app-card-shadow);
+  }
+  [data-theme="light"] .rounded-lg.border:hover,
+  [data-theme="light"] .rounded-xl.border:hover {
+    box-shadow: var(--app-card-shadow-md);
+  }
+
+  /* Colored top-border accent cards for light theme */
+  .accent-card-blue {
+    border-top: 3px solid #3B82F6 !important;
+  }
+  .accent-card-emerald {
+    border-top: 3px solid #10B981 !important;
+  }
+  .accent-card-violet {
+    border-top: 3px solid #8B5CF6 !important;
+  }
+  .accent-card-amber {
+    border-top: 3px solid #F59E0B !important;
+  }
+  .accent-card-cyan {
+    border-top: 3px solid #06B6D4 !important;
+  }
+  .accent-card-rose {
+    border-top: 3px solid #F43F5E !important;
+  }
+
+  /* Colored icon badge backgrounds */
+  .icon-badge-blue {
+    @apply bg-blue-100 text-blue-600;
+  }
+  .icon-badge-emerald {
+    @apply bg-emerald-100 text-emerald-600;
+  }
+  .icon-badge-violet {
+    @apply bg-violet-100 text-violet-600;
+  }
+  .icon-badge-amber {
+    @apply bg-amber-100 text-amber-600;
+  }
+  .icon-badge-cyan {
+    @apply bg-cyan-100 text-cyan-600;
+  }
+  .icon-badge-rose {
+    @apply bg-rose-100 text-rose-600;
+  }
+
+  [data-theme="dark"] .icon-badge-blue {
+    @apply bg-blue-500/15 text-blue-400;
+  }
+  [data-theme="dark"] .icon-badge-emerald {
+    @apply bg-emerald-500/15 text-emerald-400;
+  }
+  [data-theme="dark"] .icon-badge-violet {
+    @apply bg-violet-500/15 text-violet-400;
+  }
+  [data-theme="dark"] .icon-badge-amber {
+    @apply bg-amber-500/15 text-amber-400;
+  }
+  [data-theme="dark"] .icon-badge-cyan {
+    @apply bg-cyan-500/15 text-cyan-400;
+  }
+  [data-theme="dark"] .icon-badge-rose {
+    @apply bg-rose-500/15 text-rose-400;
   }
 }
 

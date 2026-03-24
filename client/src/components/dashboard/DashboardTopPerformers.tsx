@@ -42,8 +42,8 @@ export function DashboardTopPerformers() {
   if (!user?.id) return null;
 
   return (
-    <div className="h-full flex flex-col rounded-xl border border-gray-800 bg-[#13151a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
+    <div className="h-full flex flex-col rounded-xl border border-app-border bg-app-card overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
         <h2 className="text-sm font-semibold text-app-text flex items-center gap-2">
           <Trophy className="w-4 h-4 text-yellow-400" />
           Top Performers

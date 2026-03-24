@@ -138,11 +138,11 @@ export function ContractsPage({ initialTab = 'contracts' }: Props) {
           <DoraInsightBar module="contracts" fallback="Dora tracks renewals and extracts key terms from your contracts." />
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6">
-            <KPICard title="Active Contracts" value={metrics.totalActive ?? 0} icon={FileText} />
-            <KPICard title="Total Value" value={`€${Number(metrics.totalValue ?? 0).toLocaleString()}`} icon={FileSignature} />
-            <KPICard title="Expiring This Month" value={metrics.expiringThisMonth ?? 0} icon={BellRing} />
-            <KPICard title="Pending Signatures" value={pendingSignatures} icon={CheckCheck} />
-            <KPICard title="Compliance Due" value={metrics.complianceDue ?? 0} icon={ClipboardList} />
+            <KPICard title="Active Contracts" value={metrics.totalActive ?? 0} icon={FileText} className="accent-card-blue" iconClassName="icon-badge-blue" />
+            <KPICard title="Total Value" value={`€${Number(metrics.totalValue ?? 0).toLocaleString()}`} icon={FileSignature} className="accent-card-emerald" iconClassName="icon-badge-emerald" />
+            <KPICard title="Expiring This Month" value={metrics.expiringThisMonth ?? 0} icon={BellRing} className="accent-card-amber" iconClassName="icon-badge-amber" />
+            <KPICard title="Pending Signatures" value={pendingSignatures} icon={CheckCheck} className="accent-card-violet" iconClassName="icon-badge-violet" />
+            <KPICard title="Compliance Due" value={metrics.complianceDue ?? 0} icon={ClipboardList} className="accent-card-rose" iconClassName="icon-badge-rose" />
           </div>
 
           {tab === 'contracts' && (

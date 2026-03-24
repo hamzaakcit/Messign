@@ -102,7 +102,7 @@ export function NotificationBell({ onNavigate }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-96 max-h-[480px] overflow-hidden rounded-xl border border-app-border bg-[#1a1a2e] shadow-xl z-50 flex flex-col">
+        <div className="absolute right-0 top-full mt-2 w-96 max-h-[480px] overflow-hidden rounded-xl border border-app-border bg-app-card shadow-xl z-50 flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
             <h4 className="text-sm font-semibold text-app-text">Notifications</h4>
             {unreadCount > 0 && (
