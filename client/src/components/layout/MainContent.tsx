@@ -1,10 +1,9 @@
 import React, { Suspense } from 'react';
 import { useUIStore } from '@/stores/uiStore';
-import { useLocation, Navigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { PageSkeleton } from '@/components/ui';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Header } from './Header';
-import { useAuthStore } from '@/stores/authStore';
 
 const DashboardView = React.lazy(() => import('@/pages/DashboardView').then((m) => ({ default: m.DashboardView })));
 const ChatView = React.lazy(() => import('@/pages/ChatView').then((m) => ({ default: m.ChatView })));
@@ -37,9 +36,7 @@ export function MainContent() {
   const currentView = useUIStore((s) => s.currentView);
   const focusMode = useUIStore((s) => s.focusMode);
   const location = useLocation();
-  const user = useAuthStore((s) => s.user);
   const isKnowledgeHub = location.pathname.startsWith('/knowledge-hub');
-  const isLeader = ['admin', 'manager', 'dept_head', 'system_admin'].includes(String(user?.role ?? ''));
 
   const wrap = (key: string, node: React.ReactNode): React.ReactNode => (
     <ErrorBoundary resetKey={`${key}-${location.pathname}`}>{node}</ErrorBoundary>
@@ -48,9 +45,6 @@ export function MainContent() {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        if (isLeader && (location.pathname === '/' || location.pathname === '/dashboard')) {
-          return <Navigate to="/executive" replace />;
-        }
         return wrap('dashboard', <DashboardView />);
       case 'executive':
         return wrap('executive', <ExecutiveDashboardPage />);
