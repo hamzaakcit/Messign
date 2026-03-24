@@ -344,9 +344,21 @@ function TipTapRenderer({ content }: { content: unknown }) {
     case 'doc': return <>{children}</>;
     case 'paragraph': return <p>{children}</p>;
     case 'heading': {
-      const level = (node.attrs?.level as number) ?? 2;
-      const H = `h${level}` as keyof JSX.IntrinsicElements;
-      return <H>{children}</H>;
+      const level = Math.min(6, Math.max(1, (node.attrs?.level as number) ?? 2));
+      switch (level) {
+        case 1:
+          return <h1>{children}</h1>;
+        case 2:
+          return <h2>{children}</h2>;
+        case 3:
+          return <h3>{children}</h3>;
+        case 4:
+          return <h4>{children}</h4>;
+        case 5:
+          return <h5>{children}</h5>;
+        default:
+          return <h6>{children}</h6>;
+      }
     }
     case 'bulletList': return <ul>{children}</ul>;
     case 'orderedList': return <ol>{children}</ol>;
