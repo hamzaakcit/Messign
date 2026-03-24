@@ -6,10 +6,11 @@ async function fetchReimbursementAPI<T>(
   userId: string,
   options?: RequestInit
 ): Promise<T> {
+  const { headers: optHeaders, ...restOpts } = options ?? {};
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...restOpts,
     credentials: 'include',
-    headers: { ...authHeaders(userId), ...(options?.headers as Record<string, string>) },
-    ...options,
+    headers: { ...authHeaders(userId), ...(optHeaders as Record<string, string>) },
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

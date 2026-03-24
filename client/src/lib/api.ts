@@ -57,10 +57,11 @@ export function authHeaders(userId?: string): Record<string, string> {
 }
 
 export async function fetchWithUserId<T>(endpoint: string, userId: string, options?: RequestInit): Promise<T> {
+  const { headers: optHeaders, ...restOpts } = options ?? {};
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...restOpts,
     credentials: 'include',
-    headers: { ...authHeaders(userId), ...(options?.headers as Record<string, string>) },
-    ...options,
+    headers: { ...authHeaders(userId), ...(optHeaders as Record<string, string>) },
   });
   if (!response.ok) throw new Error(`API error: ${response.statusText}`);
   return response.json();
@@ -99,13 +100,14 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const { headers: optHeaders, ...restOpts } = options ?? {};
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...restOpts,
     credentials: 'include',
-    headers: { ...headers, ...(options?.headers as Record<string, string>) },
-    ...options,
+    headers: { ...headers, ...(optHeaders as Record<string, string>) },
   });
 
   if (!response.ok) {
@@ -120,9 +122,9 @@ export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Prom
         const newToken = getAccessToken();
         if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
         const retryResponse = await fetch(`${API_BASE}${endpoint}`, {
+          ...restOpts,
           credentials: 'include',
-          headers: { ...retryHeaders, ...(options?.headers as Record<string, string>) },
-          ...options,
+          headers: { ...retryHeaders, ...(optHeaders as Record<string, string>) },
         });
         if (retryResponse.ok) return retryResponse.json();
       }
@@ -142,10 +144,11 @@ export async function fetchAdminAPI<T>(
   userId: string,
   options?: RequestInit
 ): Promise<T> {
+  const { headers: optHeaders, ...restOpts } = options ?? {};
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...restOpts,
     credentials: 'include',
-    headers: { ...authHeaders(userId), ...(options?.headers as Record<string, string>) },
-    ...options,
+    headers: { ...authHeaders(userId), ...(optHeaders as Record<string, string>) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
