@@ -13,6 +13,7 @@ import type {
   CalendarRecordForPublish,
   ContentPayloadForPublish,
 } from '../types.js';
+import { validateInstagramImageUrlStruct, verifyInstagramImageUrlReachable } from './instagramImageUrl.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -56,6 +57,21 @@ export async function publishInstagramPost(
 
   if (!imageUrl?.trim()) {
     console.warn('[PUB] Skipping Instagram publish — no image_url (generate in cockpit or set image_url)');
+    return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
+  }
+
+  const struct = validateInstagramImageUrlStruct(imageUrl);
+  if (!struct.ok) {
+    console.warn('[instagramAdapter] Skipping publish — bad image_url', { reason: struct.reason, preview: imageUrl.slice(0, 120) });
+    return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
+  }
+
+  const reachable = await verifyInstagramImageUrlReachable(imageUrl);
+  if (!reachable.ok) {
+    console.warn('[instagramAdapter] Skipping publish — image not fetchable (Meta needs public HTTPS image)', {
+      reason: reachable.reason,
+      preview: imageUrl.slice(0, 120),
+    });
     return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
   }
 

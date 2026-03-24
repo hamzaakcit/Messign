@@ -69,6 +69,8 @@ The Marketing Instagram flow calls LiteLLM for image generation and uploads to S
 3. **Server env** — Add the variables to `server/.env` locally or to your host’s secrets (Railway/Vercel **server** runtime). See commented blocks in `server/.env.example`. Restart the API after changing env.
 4. **Verify** — Regenerate a marketing image; logs should not show `No Supabase config — returning mock URL`, and the returned `image_url` should start with your `SUPABASE_URL` and include `/storage/v1/object/public/`.
 
+**Instagram feed publishing (Meta):** The publisher sends `marketing_content.image_url` to Meta as the photo. Meta’s crawlers must fetch that URL over **HTTPS** from the public internet (same requirement as a normal `<img src>`). If the URL is `storage.mock.local`, non-public storage, or returns HTML/errors, the post can go live with a **black or broken image**. The API skips publishing when the URL fails a preflight check — ensure the bucket is **public** and `META_GRAPH_ACCESS_TOKEN` / `INSTAGRAM_BUSINESS_ACCOUNT_ID` are set on the server.
+
 Optional model override: `IMAGE_GEN_MODEL` (e.g. if your LiteLLM alias differs from the default).
 
 ### Optional (invoices / company)
