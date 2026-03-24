@@ -54,7 +54,7 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   dashboard: '/marketing',
   'creative-hub': '/marketing',
   automation: '/marketing',
-  content: '/marketing/campaigns?tab=content',
+  /** Do not redirect `/marketing/content` — it is used for deep links (`?contentId=`). */
   leads: '/marketing',
   approvals: '/marketing',
 };
@@ -138,12 +138,21 @@ export function MarketingHub(): JSX.Element {
     fetchData();
   }, [fetchData]);
 
+  const segment = location.pathname.split('/').filter(Boolean)[1];
+
+  /** Deep link: `/marketing/content?contentId=<uuid>` opens the content slide-over (cockpit & "Open full page" rely on this). */
+  useEffect(() => {
+    if (segment !== 'content') return;
+    const id = new URLSearchParams(location.search).get('contentId');
+    if (id) {
+      setDetail({ type: 'content', id });
+    }
+  }, [segment, location.search]);
+
   const filteredContent = useMemo(() => {
     if (!brandFilter) return content;
     return content.filter((c) => c.brand_profile_id === brandFilter);
   }, [content, brandFilter]);
-
-  const segment = location.pathname.split('/').filter(Boolean)[1];
 
   if (segment === 'builder') {
     return (
@@ -361,7 +370,13 @@ export function MarketingHub(): JSX.Element {
       {/* Detail panels */}
       <SlideOverPanel
         isOpen={detail?.type === 'content'}
-        onClose={() => { setDetail(null); setSelectedCard(null); }}
+        onClose={() => {
+          setDetail(null);
+          setSelectedCard(null);
+          if (segment === 'content') {
+            navigate('/marketing', { replace: true });
+          }
+        }}
         title="Content Detail"
         width={1200}
       >

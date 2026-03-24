@@ -194,6 +194,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
         {isInstagram ? (
           <InstagramCockpit
             caption={content.body ?? ''}
+            contentTitle={content.title}
             imageUrl={content.image_url ?? null}
             imagePrompt={content.image_prompt ?? null}
             altText={content.visual_description ?? null}

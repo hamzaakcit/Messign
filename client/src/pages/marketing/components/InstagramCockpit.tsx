@@ -40,7 +40,20 @@ export interface InstagramCockpitProps {
   onApprove?: () => void;
   /** Content ID for reference */
   contentId?: string;
+  /** Post title — used to build a default image prompt when the agent did not set `image_prompt`. */
+  contentTitle?: string | null;
   className?: string;
+}
+
+/** Server requires ≥10 chars for regenerate-image; used when `image_prompt` is missing. */
+function buildFallbackImagePrompt(caption: string, title?: string | null): string {
+  const c = caption.trim();
+  if (c.length >= 10) return c.slice(0, 500);
+  const t = (title ?? '').trim();
+  if (t.length > 0) {
+    return `Eye-catching Instagram square image for "${t.slice(0, 120)}": premium brand aesthetic, bold composition, soft lighting, no text in the image.`;
+  }
+  return 'Premium Instagram feed image: bold composition, brand-safe, square 1:1, cinematic lighting, no overlaid text in frame.';
 }
 
 // ---------------------------------------------------------------------------
@@ -71,18 +84,20 @@ export function InstagramCockpit({
   onCaptionEdit: _onCaptionEdit,
   onApprove,
   contentId,
+  contentTitle,
   className,
 }: InstagramCockpitProps) {
   const [isPromptEditorOpen, setPromptEditorOpen] = useState(false);
-  const [editedPrompt, setEditedPrompt] = useState(imagePrompt ?? '');
+  const [editedPrompt, setEditedPrompt] = useState(() => imagePrompt ?? buildFallbackImagePrompt(caption, contentTitle));
   const [selectedStyle, setSelectedStyle] = useState('modern_noir');
   const [isExpanded, setIsExpanded] = useState(false);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Sync external prompt changes
+  // Sync from server; when `image_prompt` is absent, pre-fill a valid prompt so Regenerate works (server min 10 chars).
   useEffect(() => {
     if (imagePrompt) setEditedPrompt(imagePrompt);
-  }, [imagePrompt]);
+    else setEditedPrompt(buildFallbackImagePrompt(caption, contentTitle));
+  }, [imagePrompt, caption, contentTitle, contentId]);
 
   useEffect(() => {
     const id = 'messign-ig-pulse-keyframes';
@@ -222,7 +237,7 @@ export function InstagramCockpit({
                 <p style={styles.placeholderText}>
                   {imagePrompt
                     ? 'Image prompt ready — click Regenerate to generate'
-                    : 'No image prompt — agent will generate one'}
+                    : 'No image from agent yet — open Regenerate image to generate (prompt is pre-filled from title/caption).'}
                 </p>
               </div>
             )}
