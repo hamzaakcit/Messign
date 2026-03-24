@@ -13,6 +13,7 @@ import type {
   CompetitorClient,
   CompetitorEventClient,
   CompetitorScrapeStatus,
+  CompetitorStatsResponse,
   CeoDashboardSnapshot,
   CeoDashboardTrend,
   MpTriggerClient,
@@ -338,6 +339,11 @@ export const workflowMethods = {
       {},
       userId,
     );
+  },
+
+  getCompetitorStats: (userId: string, since?: string) => {
+    const qs = since ? `?since=${encodeURIComponent(since)}` : '';
+    return marketingRequest<CompetitorStatsResponse>(`/competitors/stats${qs}`, {}, userId);
   },
 
   createCompetitor: (userId: string, data: Partial<Omit<CompetitorClient, 'id' | 'organization_id' | 'created_at' | 'updated_at'>>) =>

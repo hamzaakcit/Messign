@@ -283,6 +283,10 @@ export async function repurposeContent(input: RepurposeInput): Promise<Repurpose
             rawDraft: variantText,
             caller: ctx,
             stylePreset: 'modern_noir',
+            intentContext: {
+              title: sourceContent.title,
+              userBrief: sourceContent.user_brief ?? null,
+            },
           });
         } catch (e) {
           console.warn('[REPURPOSE] Image gen failed (non-fatal):', e instanceof Error ? e.message : e);

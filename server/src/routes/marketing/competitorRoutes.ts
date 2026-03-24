@@ -15,6 +15,7 @@ import {
   getCompetitorEventCounts,
 } from '../../services/marketing/competitorService.js';
 import type { EventType, SignificanceLevel } from '../../services/marketing/competitorService.js';
+import { isJobQueueUnavailableError } from '../../services/jobQueue.js';
 import { triggerScrape, scheduleRecurringScrape } from '../../services/marketing/competitorScraper.js';
 
 const router = Router();
@@ -54,6 +55,25 @@ router.post('/', async (req: ReimbursementRequest, res: Response) => {
   } catch (err) {
     console.error('[competitorRoutes] POST / error:', err);
     res.status(500).json({ error: 'Failed to create competitor' });
+  }
+});
+
+/** GET /stats — event counts per competitor since (for dashboard KPI chips). */
+router.get('/stats', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const ctx = buildCtx(req);
+    if (!ctx.organizationId) {
+      res.status(400).json({ error: 'Organization required' });
+      return;
+    }
+    const since =
+      (req.query.since as string) || new Date(Date.now() - 30 * 86400000).toISOString();
+    const rows = await getCompetitorEventCounts(ctx.organizationId, since, db);
+    const totalEvents = rows.reduce((s, r) => s + r.event_count, 0);
+    res.json({ since, per_competitor: rows, total_events: totalEvents });
+  } catch (err) {
+    console.error('[competitorRoutes] GET /stats error:', err);
+    res.status(500).json({ error: 'Failed to load stats' });
   }
 });
 
@@ -131,13 +151,29 @@ router.post('/scrape-all', async (req: ReimbursementRequest, res: Response) => {
     const active = competitors.filter((c) => c.monitor_urls.length > 0);
 
     for (const competitor of active) {
-      await triggerScrape(competitor.id, ctx.organizationId);
+      const jobId = await triggerScrape(competitor.id, ctx.organizationId);
+      if (jobId == null) {
+        res.status(503).json({
+          error:
+          'Job queue unavailable. Set ENABLE_PG_BOSS=true, ensure Postgres is reachable, and use DATABASE_URL or PG_BOSS_DATABASE_URL (direct DB, not transaction-pooler).',
+          code: 'QUEUE_UNAVAILABLE',
+        });
+        return;
+      }
     }
 
     await scheduleRecurringScrape(ctx.organizationId);
 
     res.json({ message: `Scrape queued for ${active.length} competitors` });
   } catch (err) {
+    if (isJobQueueUnavailableError(err)) {
+      res.status(503).json({
+        error:
+          'Job queue unavailable. Set ENABLE_PG_BOSS=true, ensure Postgres is reachable, and use DATABASE_URL or PG_BOSS_DATABASE_URL (direct DB, not transaction-pooler).',
+        code: 'QUEUE_UNAVAILABLE',
+      });
+      return;
+    }
     console.error('[competitorRoutes] POST /scrape-all error:', err);
     res.status(500).json({ error: 'Failed to trigger bulk scrape' });
   }
@@ -200,8 +236,24 @@ router.post('/:id/scrape', async (req: ReimbursementRequest, res: Response) => {
     }
 
     const jobId = await triggerScrape(competitor.id, ctx.organizationId);
+    if (jobId == null) {
+      res.status(503).json({
+        error:
+          'Job queue unavailable. Set ENABLE_PG_BOSS=true, ensure Postgres is reachable, and use DATABASE_URL or PG_BOSS_DATABASE_URL (direct DB, not transaction-pooler).',
+        code: 'QUEUE_UNAVAILABLE',
+      });
+      return;
+    }
     res.json({ job_id: jobId, message: 'Scrape queued' });
   } catch (err) {
+    if (isJobQueueUnavailableError(err)) {
+      res.status(503).json({
+        error:
+          'Job queue unavailable. Set ENABLE_PG_BOSS=true, ensure Postgres is reachable, and use DATABASE_URL or PG_BOSS_DATABASE_URL (direct DB, not transaction-pooler).',
+        code: 'QUEUE_UNAVAILABLE',
+      });
+      return;
+    }
     console.error('[competitorRoutes] POST /:id/scrape error:', err);
     res.status(500).json({ error: 'Failed to trigger scrape' });
   }
@@ -233,6 +285,7 @@ router.get('/:id/scrape-status', async (req: ReimbursementRequest, res: Response
       competitor_id: competitor.id,
       competitor_name: competitor.name,
       last_scraped_at: competitor.last_scraped_at,
+      last_scrape_summary: competitor.last_scrape_summary ?? null,
       total_events: competitorCount?.event_count ?? 0,
       recent_events: competitorEvents.slice(0, 5),
     });

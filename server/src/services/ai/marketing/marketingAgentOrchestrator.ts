@@ -454,7 +454,11 @@ export async function executeContentWorkflow(
     let imagePrompt: string | null = null;
     let visualDesc: string | null = null;
     if (isInstagram) {
-      const parsed = parseInstagramDraft(draft);
+      const igIntent = {
+        title: brief.title ?? contentRow.title,
+        userBrief: contentRow.user_brief ?? brief.userQuery ?? null,
+      };
+      const parsed = parseInstagramDraft(draft, igIntent);
       validationText = parsed.caption || draft;
       imagePrompt = parsed.imagePrompt;
       visualDesc = parsed.visualDescription;
@@ -561,6 +565,10 @@ export async function executeContentWorkflow(
         rawDraft: draft,
         caller,
         stylePreset: 'modern_noir',
+        intentContext: {
+          title: brief.title ?? contentRow.title,
+          userBrief: contentRow.user_brief ?? brief.userQuery ?? null,
+        },
       });
       log('instagram_image_gen', {
         success: igResult.success,

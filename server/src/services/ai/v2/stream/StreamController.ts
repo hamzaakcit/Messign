@@ -23,7 +23,15 @@ export class StreamController {
     if (type === 'done') {
       this.doneEmitted = true;
     }
-    const payload = JSON.stringify({ type, data });
+    let payload: string;
+    try {
+      payload = JSON.stringify({ type, data });
+    } catch {
+      payload = JSON.stringify({
+        type: 'error',
+        data: { code: 'sse_payload', message: 'Response payload could not be serialized.' },
+      });
+    }
     this.res.write(`data: ${payload}\n\n`);
   }
 

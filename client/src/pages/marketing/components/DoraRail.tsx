@@ -7,16 +7,11 @@ import { DoraChatAvatar } from '@/components/dora/DoraPilot';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import type { BoardCardData } from './BoardCard';
+import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
 
 const noop = (): void => {};
 
-const QUICK_PROMPTS: { label: string; text: string; icon?: 'instagram' | 'linkedin' | 'mail'; accent: string }[] = [
-  {
-    label: 'Instagram',
-    icon: 'instagram',
-    accent: 'from-pink-500/30 to-rose-600/20 border-pink-500/25',
-    text: 'Draft an Instagram post for [topic]. Include: a strong hook (first line), short paragraphs with line breaks, a clear CTA, 10\u201315 relevant hashtags, and a separate block exactly in this format for the hero image:\n\n[IMAGE_PROMPT]\nDescribe subject, lighting, colors, mood, and style. Square 1:1, no text in the image unless I ask.\n[/IMAGE_PROMPT]',
-  },
+const QUICK_PROMPTS_LINKEDIN_EMAIL: { label: string; text: string; icon: 'linkedin' | 'mail'; accent: string }[] = [
   {
     label: 'LinkedIn',
     icon: 'linkedin',
@@ -33,9 +28,11 @@ const QUICK_PROMPTS: { label: string; text: string; icon?: 'instagram' | 'linked
 
 interface DoraRailProps {
   selectedCard: BoardCardData | null;
+  /** Increment to open the Instagram agent modal (e.g. SparkBar “Instagram (AI)”). */
+  instagramModalSignal?: number;
 }
 
-export function DoraRail({ selectedCard }: DoraRailProps): JSX.Element {
+export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailProps): JSX.Element {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const userRole = user?.role ?? 'member';
@@ -61,12 +58,17 @@ export function DoraRail({ selectedCard }: DoraRailProps): JSX.Element {
   }, [sendMessage]);
 
   const [inputValue, setInputValue] = useState('');
+  const [igModalOpen, setIgModalOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (instagramModalSignal > 0) setIgModalOpen(true);
+  }, [instagramModalSignal]);
 
   const handleSend = useCallback(async () => {
     const q = inputValue.trim();
@@ -85,6 +87,16 @@ export function DoraRail({ selectedCard }: DoraRailProps): JSX.Element {
 
   return (
     <div className="flex flex-col h-full w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden">
+      <InstagramAgentPromptModal
+        isOpen={igModalOpen}
+        onClose={() => setIgModalOpen(false)}
+        onSend={(msg) => void sendMessage(msg)}
+        onApplyToComposer={(msg) => {
+          setInputValue(msg);
+          inputRef.current?.focus();
+        }}
+        defaultTopic={selectedCard?.title ?? null}
+      />
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-1.5">
           <DoraChatAvatar size={20} />
@@ -148,14 +160,27 @@ export function DoraRail({ selectedCard }: DoraRailProps): JSX.Element {
         <div ref={chatEndRef} />
       </div>
 
-      <div className="p-2 border-t border-white/[0.06] space-y-1 bg-[#0a0c10] shrink-0">
+      <div className="relative z-20 p-2 border-t border-white/[0.06] space-y-1 bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
         <div className="grid grid-cols-3 gap-1">
-          {QUICK_PROMPTS.map((q) => (
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => setIgModalOpen(true)}
+            title="Instagram"
+            className="flex flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-1 py-2 text-[9px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
+          >
+            <Instagram className="w-4 h-4 text-pink-300" />
+            <span className="leading-none">Instagram</span>
+          </button>
+          {QUICK_PROMPTS_LINKEDIN_EMAIL.map((q) => (
             <button
               key={q.label}
               type="button"
               disabled={isLoading}
-              onClick={() => { setInputValue(q.text); inputRef.current?.focus(); }}
+              onClick={() => {
+                setInputValue(q.text);
+                inputRef.current?.focus();
+              }}
               title={q.label}
               className={`
                 flex flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-1 py-2
@@ -163,7 +188,6 @@ export function DoraRail({ selectedCard }: DoraRailProps): JSX.Element {
                 ${q.accent}
               `}
             >
-              {q.icon === 'instagram' ? <Instagram className="w-4 h-4 text-pink-300" /> : null}
               {q.icon === 'linkedin' ? <Linkedin className="w-4 h-4 text-blue-300" /> : null}
               {q.icon === 'mail' ? <Mail className="w-4 h-4 text-emerald-300" /> : null}
               <span className="leading-none">{q.label}</span>

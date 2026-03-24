@@ -57,6 +57,12 @@ export interface InstagramImageGenResult {
   carouselImages?: CarouselSlideImage[];
 }
 
+/** Optional: original user ask — used to align image gen when the draft lacks [IMAGE_PROMPT] or is generic. */
+export interface InstagramPromptIntentContext {
+  title?: string | null;
+  userBrief?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Step 1: Parse draft → caption + image prompt(s)
 // ---------------------------------------------------------------------------
@@ -65,8 +71,14 @@ export interface InstagramImageGenResult {
  * Parse an Instagram draft from the Content Strategist into caption, image prompt(s),
  * and visual description. When no [IMAGE_PROMPT] block is found, auto-synthesizes
  * a visual brief from the caption text so image generation always has a prompt.
+ *
+ * @param intentContext When set, the user's title/brief is used to bias synthesis (and
+ *   to prepend alignment when the extracted [IMAGE_PROMPT] is thin vs. the original ask).
  */
-export function parseInstagramDraft(rawDraft: string): InstagramDraftParseResult {
+export function parseInstagramDraft(
+  rawDraft: string,
+  intentContext?: InstagramPromptIntentContext,
+): InstagramDraftParseResult {
   const caption = extractCaption(rawDraft);
   const prompts = extractImagePrompts(rawDraft);
   const altText = extractAltText(rawDraft);
@@ -74,22 +86,29 @@ export function parseInstagramDraft(rawDraft: string): InstagramDraftParseResult
   const extractedPrompt = prompts[0]?.prompt ?? null;
 
   if (extractedPrompt) {
+    const carouselMerged = prompts.map((p, i) =>
+      i === 0
+        ? { ...p, prompt: mergeIntentWithExtractedPrompt(p.prompt, intentContext) }
+        : p,
+    );
+    const merged = carouselMerged[0]!.prompt;
     console.log(`${LOG} parse_ok`, {
-      promptLen: extractedPrompt.length,
+      promptLen: merged.length,
       captionLen: caption.length,
       carouselSlides: prompts.length,
+      intentMerged: merged !== extractedPrompt,
     });
     return {
       caption: caption || rawDraft.trim(),
-      imagePrompt: extractedPrompt,
-      allImagePrompts: prompts,
-      visualDescription: altText ?? extractedPrompt,
+      imagePrompt: merged,
+      allImagePrompts: carouselMerged,
+      visualDescription: altText ?? merged,
       autoSynthesized: false,
     };
   }
 
   // Auto-synthesize: build a visual prompt from the caption text
-  const synthesized = synthesizeImagePromptFromCaption(caption || rawDraft.trim());
+  const synthesized = synthesizeImagePromptFromCaption(caption || rawDraft.trim(), intentContext);
   console.warn(`${LOG} no_image_prompt_block — auto-synthesized from caption`, {
     captionLen: (caption || rawDraft).length,
     synthesizedLen: synthesized.length,
@@ -105,30 +124,68 @@ export function parseInstagramDraft(rawDraft: string): InstagramDraftParseResult
 }
 
 /**
- * Build a reasonable image generation prompt from a caption when the LLM
- * forgot to include [IMAGE_PROMPT]. Extracts the core topic/hook and wraps
- * it in standard visual directions.
+ * When the strategist's [IMAGE_PROMPT] is present but misses the user's stated topic,
+ * prepend the original ask so the image model stays aligned.
  */
-function synthesizeImagePromptFromCaption(caption: string): string {
-  const hookLine = caption.split('\n').find((l) => l.trim().length > 10) ?? caption.slice(0, 200);
-  const topicCore = hookLine
+function mergeIntentWithExtractedPrompt(
+  extracted: string,
+  intentContext?: InstagramPromptIntentContext,
+): string {
+  const title = intentContext?.title?.trim() ?? '';
+  const brief = intentContext?.userBrief?.trim() ?? '';
+  const combined = [title, brief].filter(Boolean).join(' — ');
+  if (combined.length < 12) return extracted;
+
+  const extLower = extracted.toLowerCase();
+  const words = combined
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 4);
+  if (words.length === 0) return extracted;
+  const matches = words.filter((w) => extLower.includes(w)).length;
+  if (matches >= Math.min(4, Math.max(1, words.length))) return extracted;
+
+  return [
+    "User's request — the image must reflect this:",
+    combined.slice(0, 800),
+    '',
+    'Scene / composition to generate:',
+    extracted.trim(),
+  ].join('\n');
+}
+
+function buildIntentTopicLine(intent?: InstagramPromptIntentContext): string {
+  const parts = [intent?.title?.trim(), intent?.userBrief?.trim()].filter(Boolean);
+  return parts.join(' — ').replace(/\s+/g, ' ').trim().slice(0, 600);
+}
+
+/**
+ * Build a reasonable image generation prompt from a caption when the LLM
+ * forgot to include [IMAGE_PROMPT]. Prefer the user's title/brief when provided,
+ * then the caption hook — and ask for **literal** subjects (not abstract metaphors).
+ */
+function synthesizeImagePromptFromCaption(caption: string, intent?: InstagramPromptIntentContext): string {
+  const fromIntent = buildIntentTopicLine(intent);
+  const hookLine = caption.split('\n').find((l) => l.trim().length > 10) ?? caption.slice(0, 220);
+  const fromCaption = hookLine
     .replace(/#[\w\u00C0-\u024F]+/g, '')
     .replace(/[^\w\s.,!?'-]/g, '')
     .trim()
-    .slice(0, 180);
+    .slice(0, 220);
+
+  const primaryTopic =
+    fromIntent.length >= 15 ? fromIntent : fromCaption || 'the subject described in the post caption';
 
   return [
-    `Professional marketing visual for an Instagram post about: "${topicCore}"`,
+    `Create a photorealistic or polished marketing photograph that literally depicts: ${primaryTopic}.`,
+    'Show concrete, recognizable subjects (people, product, place, or object) that match the topic — avoid unrelated generic office stock unless the topic is about that.',
     '',
     'Visual direction:',
-    '- Subject: abstract conceptual representation of the topic',
-    '- Composition: centered, clean, modern layout with negative space',
-    '- Lighting: soft studio glow, subtle purple accent highlights',
-    '- Color palette: deep charcoal (#1a1a2e), electric purple (#c084fc), soft white highlights',
-    '- Mood: confident, professional, aspirational',
-    '- Style: Modern Noir, professional SaaS aesthetic',
-    '- No text overlay, no watermarks',
-    '- Technical: square 1:1 aspect ratio, professional marketing photography quality',
+    '- Scene must communicate the topic at a glance.',
+    '- Composition: balanced, scroll-stopping, square 1:1 frame for Instagram feed.',
+    '- Lighting and color: appropriate to the scene (do not force a purple/dark “tech” palette unless it fits the topic).',
+    '- No overlaid text, logos, or watermarks in the frame.',
+    '- Sharp focus on the main subject; professional marketing quality.',
   ].join('\n');
 }
 
@@ -160,10 +217,12 @@ export async function runInstagramImageGeneration(opts: {
   caller: CallerContext;
   stylePreset?: StylePreset;
   aspectRatio?: AspectRatio;
+  /** Optional: original user ask — improves prompt alignment when the draft is generic. */
+  intentContext?: InstagramPromptIntentContext;
 }): Promise<InstagramImageGenResult> {
-  const { orgId, contentId, rawDraft, caller, stylePreset = 'modern_noir', aspectRatio } = opts;
+  const { orgId, contentId, rawDraft, caller, stylePreset = 'modern_noir', aspectRatio, intentContext } = opts;
 
-  const parsed = parseInstagramDraft(rawDraft);
+  const parsed = parseInstagramDraft(rawDraft, intentContext);
 
   if (!parsed.imagePrompt) {
     console.warn(`${LOG} gen_skipped — no prompt even after synthesis`, { contentId });

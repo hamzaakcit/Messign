@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 import { getAllTools, getFullToolDefinition } from '../../toolRegistry.js';
+import { isDisallowedToolForLlmDiscovery } from '../../tools/llmToolPolicy.js';
 import type { ToolParameterSchema } from '../../types.js';
 import type { Domain, ToolDefinitionV2 } from '../types.js';
 
@@ -92,9 +93,16 @@ export const DOMAIN_TOOL_MAP: Record<Domain, string[]> = {
 
 export function selectTools(domain: Domain, overrideTools?: string[]): ToolDefinitionV2[] {
   const extra = DOMAIN_TOOL_MAP[domain] ?? [];
-  const toolNames = overrideTools?.length
-    ? [...new Set([...BASE_TOOLS, ...overrideTools])]
-    : [...new Set([...BASE_TOOLS, ...extra])];
+  let toolNames: string[];
+  if (overrideTools !== undefined && overrideTools.length > 0) {
+    const filteredOverrides = overrideTools.filter((n) => !isDisallowedToolForLlmDiscovery(n));
+    toolNames =
+      filteredOverrides.length > 0
+        ? [...new Set([...BASE_TOOLS, ...filteredOverrides])]
+        : [...new Set([...BASE_TOOLS, ...extra])];
+  } else {
+    toolNames = [...new Set([...BASE_TOOLS, ...extra])];
+  }
 
   const out: ToolDefinitionV2[] = [];
   for (const name of toolNames) {
@@ -119,10 +127,12 @@ export interface ToolIndexEntry {
   descriptionShort: string;
 }
 
-/** Compact index for planning prompt (~ name + one line). */
+/** Compact index for planning prompt (~ name + one line). Excludes write/HITL tools. */
 export function getToolIndex(): ToolIndexEntry[] {
-  return getAllTools().map((t) => ({
-    name: t.name,
-    descriptionShort: (t.description ?? t.name).split('\n')[0]!.slice(0, 120),
-  }));
+  return getAllTools()
+    .filter((t) => !isDisallowedToolForLlmDiscovery(t.name))
+    .map((t) => ({
+      name: t.name,
+      descriptionShort: (t.description ?? t.name).split('\n')[0]!.slice(0, 120),
+    }));
 }

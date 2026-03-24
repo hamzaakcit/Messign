@@ -23,7 +23,7 @@ import type { BoardCardData } from './components/BoardCard';
 import type { ApprovalQueueItem } from './approvalQueue/types';
 import { CampaignDetailPanel } from './components/CampaignDetailPanel';
 import { CampaignCreatePanel } from './components/CampaignCreatePanel';
-import { ContentCreatePanel } from './components/ContentCreatePanel';
+import { ContentCreatePanel, type ContentCreatePreset } from './components/ContentCreatePanel';
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
 import { EmailCampaignDetailPanel } from './components/EmailCampaignDetailPanel';
@@ -103,6 +103,8 @@ export function MarketingHub(): JSX.Element {
   const [detail, setDetail] = useState<DetailTarget>(null);
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const [createContentOpen, setCreateContentOpen] = useState(false);
+  const [contentCreatePreset, setContentCreatePreset] = useState<ContentCreatePreset>('default');
+  const [igModalSignal, setIgModalSignal] = useState(0);
   const [brandManagerOpen, setBrandManagerOpen] = useState(false);
   const [brandFilter, setBrandFilter] = useState<string | null>(null);
   const [brandList, setBrandList] = useState<BrandProfileClient[]>([]);
@@ -138,6 +140,50 @@ export function MarketingHub(): JSX.Element {
     fetchData();
   }, [fetchData]);
 
+  const openCreateContentDefault = useCallback(() => {
+    setContentCreatePreset('default');
+    setCreateContentOpen(true);
+  }, []);
+
+  const handleInstagramDraftAi = useCallback(() => {
+    setDoraOpen(true);
+    setIgModalSignal((k) => k + 1);
+  }, []);
+
+  const handleCreateInstagramContent = useCallback(() => {
+    setContentCreatePreset('instagram');
+    setCreateContentOpen(true);
+  }, []);
+
+  const handleDraftWithMarketingFromPanel = useCallback(() => {
+    setCreateContentOpen(false);
+    setContentCreatePreset('default');
+    setDoraOpen(true);
+    setIgModalSignal((k) => k + 1);
+  }, []);
+
+  const sparkInstagramFromSubsegment = useMemo(
+    () => ({
+      onInstagramDraftAi: () => navigate('/marketing', { state: { openInstagramAi: true } }),
+      onCreateInstagramContent: () => navigate('/marketing', { state: { openInstagramContent: true } }),
+    }),
+    [navigate],
+  );
+
+  useEffect(() => {
+    const st = location.state as { openInstagramAi?: boolean; openInstagramContent?: boolean } | null;
+    if (!st || (!st.openInstagramAi && !st.openInstagramContent)) return;
+    if (st.openInstagramAi) {
+      setDoraOpen(true);
+      setIgModalSignal((k) => k + 1);
+    }
+    if (st.openInstagramContent) {
+      setContentCreatePreset('instagram');
+      setCreateContentOpen(true);
+    }
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+  }, [location.state, location.pathname, location.search, navigate]);
+
   const segment = location.pathname.split('/').filter(Boolean)[1];
 
   /** Deep link: `/marketing/content?contentId=<uuid>` opens the content slide-over (cockpit & "Open full page" rely on this). */
@@ -166,8 +212,9 @@ export function MarketingHub(): JSX.Element {
             doraOpen={doraOpen}
             onToggleDora={() => setDoraOpen((o) => !o)}
             onCreateCampaign={() => setCreateCampaignOpen(true)}
-            onCreateContent={() => setCreateContentOpen(true)}
+            onCreateContent={openCreateContentDefault}
             onCreateEmail={() => setMode('builder')}
+            {...sparkInstagramFromSubsegment}
           />
         </div>
         <main className="flex-1 min-h-0 overflow-y-auto">
@@ -193,8 +240,9 @@ export function MarketingHub(): JSX.Element {
             doraOpen={doraOpen}
             onToggleDora={() => setDoraOpen((o) => !o)}
             onCreateCampaign={() => setCreateCampaignOpen(true)}
-            onCreateContent={() => setCreateContentOpen(true)}
+            onCreateContent={openCreateContentDefault}
             onCreateEmail={() => setMode('builder')}
+            {...sparkInstagramFromSubsegment}
           />
         </div>
         <main className="flex-1 min-h-0 overflow-hidden">
@@ -220,8 +268,9 @@ export function MarketingHub(): JSX.Element {
             doraOpen={doraOpen}
             onToggleDora={() => setDoraOpen((o) => !o)}
             onCreateCampaign={() => setCreateCampaignOpen(true)}
-            onCreateContent={() => setCreateContentOpen(true)}
+            onCreateContent={openCreateContentDefault}
             onCreateEmail={() => setMode('builder')}
+            {...sparkInstagramFromSubsegment}
           />
         </div>
         <main className="flex-1 min-h-0 overflow-hidden">
@@ -305,8 +354,10 @@ export function MarketingHub(): JSX.Element {
         doraOpen={doraOpen}
         onToggleDora={() => setDoraOpen((o) => !o)}
         onCreateCampaign={() => setCreateCampaignOpen(true)}
-        onCreateContent={() => setCreateContentOpen(true)}
+        onCreateContent={openCreateContentDefault}
         onCreateEmail={() => setMode('builder')}
+        onInstagramDraftAi={handleInstagramDraftAi}
+        onCreateInstagramContent={handleCreateInstagramContent}
       />
 
       {brandList.length > 0 && mode === 'board' && (
@@ -356,7 +407,9 @@ export function MarketingHub(): JSX.Element {
           </ErrorBoundary>
         )}
 
-        {doraOpen && mode === 'board' && <DoraRail selectedCard={selectedCard} />}
+        {doraOpen && mode === 'board' && (
+          <DoraRail selectedCard={selectedCard} instagramModalSignal={igModalSignal} />
+        )}
       </div>
 
       {mode === 'board' && (
@@ -434,13 +487,25 @@ export function MarketingHub(): JSX.Element {
 
       <SlideOverPanel
         isOpen={createContentOpen}
-        onClose={() => setCreateContentOpen(false)}
-        title="New Content"
+        onClose={() => {
+          setCreateContentOpen(false);
+          setContentCreatePreset('default');
+        }}
+        title={contentCreatePreset === 'instagram' ? 'New Instagram content' : 'New Content'}
         width={560}
       >
         <ContentCreatePanel
-          onCreated={() => { setCreateContentOpen(false); void fetchData(); }}
-          onCancel={() => setCreateContentOpen(false)}
+          preset={contentCreatePreset}
+          onDraftWithMarketingAgent={handleDraftWithMarketingFromPanel}
+          onCreated={() => {
+            setCreateContentOpen(false);
+            setContentCreatePreset('default');
+            void fetchData();
+          }}
+          onCancel={() => {
+            setCreateContentOpen(false);
+            setContentCreatePreset('default');
+          }}
         />
       </SlideOverPanel>
 
@@ -456,7 +521,9 @@ export function MarketingHub(): JSX.Element {
       <button
         type="button"
         onClick={() => setBrandManagerOpen(true)}
-        className="fixed bottom-6 right-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-white/5 transition-colors"
+        className={`fixed bottom-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-white/5 transition-colors ${
+          doraOpen && mode === 'board' ? 'right-[300px]' : 'right-6'
+        }`}
       >
         Brands
       </button>

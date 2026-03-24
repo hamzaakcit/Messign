@@ -214,8 +214,19 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
                   setContent((c) =>
                     c ? { ...c, image_url: r.image_url, image_prompt: newPrompt, visual_description: newPrompt } : c,
                   );
+                  toast.success('Image generated');
                   onUpdated();
+                } else {
+                  toast.error('Image generation failed', {
+                    description:
+                      r.error ??
+                      'Check server env: set OPENAI_API_KEY, LITELLM_MASTER_KEY, or GOOGLE_GEMINI_API_KEY for image models.',
+                  });
                 }
+              } catch (e) {
+                toast.error('Image generation failed', {
+                  description: e instanceof Error ? e.message : 'Request failed',
+                });
               } finally {
                 setIsGeneratingImage(false);
                 setImageGenProgress('');

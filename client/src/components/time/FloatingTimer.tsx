@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Play, Square, Trash2, Minimize2, Expand } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { timeApi } from '@/lib/timeApi';
@@ -21,8 +22,11 @@ function formatDuration(seconds: number): string {
 }
 
 export function FloatingTimer() {
+  const { pathname } = useLocation();
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
+  /** Board view uses a fixed Dora rail on the right; shift timer left so it does not cover the composer. */
+  const marketingHubPath = pathname.replace(/\/$/, '') === '/marketing';
   const [timer, setTimer] = useState<ActiveTimer | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -121,7 +125,9 @@ export function FloatingTimer() {
   if (!userId) return null;
 
   return (
-    <div className="fixed bottom-[80px] right-5 z-40">
+    <div
+      className={`fixed bottom-[80px] z-40 ${marketingHubPath ? 'right-[300px]' : 'right-5'}`}
+    >
       {!timer ? (
         <button
           data-testid="timer-start"

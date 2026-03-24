@@ -27,6 +27,50 @@ function formatFreshness(lastScraped: string | null): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function safeHostname(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/** Non-blocking hints for the form (https preferred, valid URL per tag). */
+function monitorUrlHints(urls: string[]): string | null {
+  const parts: string[] = [];
+  for (const raw of urls) {
+    const u = raw.trim();
+    if (!u) continue;
+    try {
+      const p = new URL(u);
+      if (p.protocol !== 'https:' && p.protocol !== 'http:') {
+        parts.push(`"${u.slice(0, 40)}${u.length > 40 ? '…' : ''}" must start with https://`);
+      } else if (p.protocol === 'http:') {
+        parts.push('Prefer https:// for monitor URLs.');
+      }
+    } catch {
+      parts.push(`Invalid URL: "${u.slice(0, 48)}${u.length > 48 ? '…' : ''}"`);
+    }
+  }
+  if (parts.length === 0) return null;
+  return parts.slice(0, 3).join(' ');
+}
+
+function validateMonitorUrlsStrict(urls: string[]): boolean {
+  for (const raw of urls) {
+    const u = raw.trim();
+    if (!u) continue;
+    try {
+      const p = new URL(u);
+      if (p.protocol !== 'https:' && p.protocol !== 'http:') return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 interface TagInputProps {
   tags: string[];
   onChange: (tags: string[]) => void;
@@ -121,7 +165,9 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
     try {
       const res = await marketingAPI.listCompetitors(userId, { include_inactive: true });
       setCompetitors(res.competitors);
-    } catch { /* non-critical */ }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load competitors');
+    }
     setLoading(false);
   }, [userId]);
 
@@ -131,6 +177,10 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
 
   const handleSave = async () => {
     if (!userId || !form.name.trim()) return;
+    if (!validateMonitorUrlsStrict(form.monitor_urls)) {
+      toast.error('Each monitor URL must be a valid https:// or http:// address.');
+      return;
+    }
     setSaving(true);
     try {
       if (creating) {
@@ -142,7 +192,9 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
       }
       cancel();
       await fetchCompetitors();
-    } catch { toast.error('Failed to save competitor'); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save competitor');
+    }
     setSaving(false);
   };
 
@@ -155,7 +207,9 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
       cancel();
       await fetchCompetitors();
       toast.success('Competitor removed');
-    } catch { toast.error('Failed to delete'); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete');
+    }
     setSaving(false);
   };
 
@@ -165,7 +219,9 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
     try {
       await marketingAPI.triggerCompetitorScrape(userId, id);
       toast.success('Scrape queued');
-    } catch { toast.error('Scrape failed'); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Scrape failed');
+    }
     setScraping(null);
   };
 
@@ -175,7 +231,9 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
     try {
       const res = await marketingAPI.triggerScrapeAll(userId);
       toast.success(res.message);
-    } catch { toast.error('Bulk scrape failed'); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Bulk scrape failed');
+    }
     setScraping(null);
   };
 
@@ -190,6 +248,7 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
   }
 
   if (isEditing) {
+    const monitorUrlHintText = monitorUrlHints(form.monitor_urls);
     return (
       <div className="p-6 space-y-4">
         <h3 className="text-base font-medium text-app-text">{creating ? 'Add Competitor' : 'Edit Competitor'}</h3>
@@ -219,7 +278,15 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
         </div>
         <div>
           <label className="block text-sm text-app-muted mb-1">Monitor URLs</label>
-          <TagInput tags={form.monitor_urls} onChange={(t) => setForm((f) => ({ ...f, monitor_urls: t }))} placeholder="https://competitor.com/blog" />
+          <p className="text-[11px] text-app-muted/80 mb-1">One full URL per tag — use https:// (e.g. blog or changelog pages).</p>
+          <TagInput
+            tags={form.monitor_urls}
+            onChange={(t) => setForm((f) => ({ ...f, monitor_urls: t }))}
+            placeholder="https://competitor.com/blog"
+          />
+          {monitorUrlHintText && (
+            <p className="text-[11px] text-amber-400/90 mt-1">{monitorUrlHintText}</p>
+          )}
         </div>
         <div className="flex gap-6">
           <label className="inline-flex items-center gap-2 text-sm text-app-text">
@@ -294,11 +361,35 @@ export function CompetitorManager({ onViewEvents }: CompetitorManagerProps) {
                 </div>
               </div>
               <div className="flex items-center gap-3 text-[11px] text-app-muted mb-2">
-                {c.website_url && <span>{new URL(c.website_url).hostname}</span>}
+                {safeHostname(c.website_url) && <span>{safeHostname(c.website_url)}</span>}
                 {c.industry && <span>{c.industry}</span>}
                 <span>{c.monitor_urls.length} URLs</span>
                 <span>{formatFreshness(c.last_scraped_at)}</span>
               </div>
+              {c.last_scrape_summary && (
+                <div className="text-[10px] text-app-muted mb-2 rounded border border-app-border/60 bg-app-hover/30 px-2 py-1.5 space-y-0.5">
+                  <p>
+                    Last run: {new Date(c.last_scrape_summary.finishedAt).toLocaleString()} · scraped{' '}
+                    {c.last_scrape_summary.urlsScraped}, failed {c.last_scrape_summary.urlsFailed} · +{c.last_scrape_summary.eventsNew}{' '}
+                    new events
+                    {(c.last_scrape_summary.classificationErrors ?? 0) > 0 && (
+                      <span className="text-amber-400">
+                        {' '}
+                        · {c.last_scrape_summary.classificationErrors} classification issue(s)
+                      </span>
+                    )}
+                  </p>
+                  {c.last_scrape_summary.errors?.length ? (
+                    <ul className="list-disc list-inside text-red-400/90 max-h-16 overflow-y-auto">
+                      {c.last_scrape_summary.errors.slice(0, 5).map((err, i) => (
+                        <li key={i} className="truncate" title={`${err.url} — ${err.error}`}>
+                          {err.url}: {err.error}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => handleScrape(c.id)} disabled={scraping === c.id} className="px-2 py-1 rounded text-[11px] bg-app-hover text-app-muted hover:text-app-text disabled:opacity-50">
                   {scraping === c.id ? 'Scraping…' : 'Scrape Now'}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractContentItems,
+  fallbackPageItem,
   parseClassificationResponse,
   stripHtml,
   resolveUrl,
@@ -149,6 +150,20 @@ describe('extractContentItems', () => {
     const items = extractContentItems(xml, 'https://example.com/rss');
     expect(items.length).toBeGreaterThanOrEqual(1);
     expect(items[0].title).toBe('RSS Item Title One');
+  });
+});
+
+describe('fallbackPageItem', () => {
+  it('uses title tag when structured extraction would return nothing', () => {
+    const html = '<html><head><title>My Blog — Home</title></head><body></body></html>';
+    const item = fallbackPageItem(html, 'https://blog.example.com/');
+    expect(item).not.toBeNull();
+    expect(item!.url).toBe('https://blog.example.com/');
+    expect(item!.title.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('returns null when title too short', () => {
+    expect(fallbackPageItem('<html><title>Hi</title></html>', 'https://x.com')).toBeNull();
   });
 });
 
@@ -313,6 +328,7 @@ describe('ScrapeResult type', () => {
       eventsFound: 15,
       eventsNew: 8,
       eventsDuplicate: 7,
+      classificationErrors: 0,
       errors: [{ url: 'https://fail.com', error: 'timeout' }],
       durationMs: 5200,
     };
@@ -329,6 +345,7 @@ describe('ScrapeResult type', () => {
       eventsFound: 0,
       eventsNew: 0,
       eventsDuplicate: 0,
+      classificationErrors: 0,
       errors: [],
       durationMs: 120,
     };

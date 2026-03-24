@@ -8,7 +8,16 @@
 
 import type { DbClient } from './performanceCollector.js';
 import type { Competitor, CreateEventInput, EventType, SignificanceLevel } from './competitorService.js';
-import { recordEvent, markScraped, getCompetitor, listCompetitors, queryEvents, updateEventAnalysis } from './competitorService.js';
+import {
+  recordEvent,
+  markScraped,
+  getCompetitor,
+  listCompetitors,
+  queryEvents,
+  updateEventAnalysis,
+  updateLastScrapeSummary,
+  type LastScrapeSummary,
+} from './competitorService.js';
 import { buildEventAnalysisPrompt } from './competitorAnalysisPrompts.js';
 
 // ── Types ──
@@ -21,6 +30,7 @@ export interface ScrapeResult {
   eventsFound: number;
   eventsNew: number;
   eventsDuplicate: number;
+  classificationErrors: number;
   errors: Array<{ url: string; error: string }>;
   durationMs: number;
 }
@@ -69,6 +79,7 @@ export async function scrapeCompetitor(
     eventsFound: 0,
     eventsNew: 0,
     eventsDuplicate: 0,
+    classificationErrors: 0,
     errors: [],
     durationMs: 0,
   };
@@ -78,7 +89,11 @@ export async function scrapeCompetitor(
       const html = await fetchPage(url);
       result.urlsScraped++;
 
-      const items = extractContentItems(html, url);
+      let items = extractContentItems(html, url);
+      if (items.length === 0) {
+        const fb = fallbackPageItem(html, url);
+        if (fb) items = [fb];
+      }
       result.eventsFound += items.length;
 
       const itemsToProcess = items.slice(0, 10);
@@ -104,6 +119,7 @@ export async function scrapeCompetitor(
           if (stored.isNew) result.eventsNew++;
           else result.eventsDuplicate++;
         } catch (itemError) {
+          result.classificationErrors++;
           console.warn(`[Scraper] Failed to process item "${item.title}":`, itemError);
         }
       }
@@ -121,7 +137,58 @@ export async function scrapeCompetitor(
   await enrichHighSignificanceEvents(competitor, callLLM, db);
 
   result.durationMs = Date.now() - startTime;
+  await persistScrapeSummary(competitor.id, result, db);
   return result;
+}
+
+function scrapeResultToSummary(r: ScrapeResult): LastScrapeSummary {
+  return {
+    urlsScraped: r.urlsScraped,
+    urlsFailed: r.urlsFailed,
+    eventsFound: r.eventsFound,
+    eventsNew: r.eventsNew,
+    eventsDuplicate: r.eventsDuplicate,
+    classificationErrors: r.classificationErrors,
+    errors: r.errors,
+    finishedAt: new Date().toISOString(),
+    durationMs: r.durationMs,
+  };
+}
+
+async function persistScrapeSummary(
+  competitorId: string,
+  result: ScrapeResult,
+  db: DbClient,
+): Promise<void> {
+  try {
+    await updateLastScrapeSummary(competitorId, scrapeResultToSummary(result), db);
+  } catch (e) {
+    console.warn('[Scraper] Failed to persist last_scrape_summary:', e);
+  }
+}
+
+/** Persist a failed run so the UI shows why scraping did not complete (LLM down, DB, etc.). */
+async function persistScrapeJobFailure(
+  competitorId: string,
+  err: unknown,
+  db: DbClient,
+): Promise<void> {
+  const competitor = await getCompetitor(competitorId, db);
+  if (!competitor) return;
+  const msg = err instanceof Error ? err.message : String(err);
+  const failed: ScrapeResult = {
+    competitorId: competitor.id,
+    competitorName: competitor.name,
+    urlsScraped: 0,
+    urlsFailed: Math.max(1, competitor.monitor_urls.length),
+    eventsFound: 0,
+    eventsNew: 0,
+    eventsDuplicate: 0,
+    classificationErrors: 0,
+    errors: [{ url: '*', error: msg }],
+    durationMs: 0,
+  };
+  await persistScrapeSummary(competitor.id, failed, db);
 }
 
 export async function scrapeAllCompetitors(
@@ -143,7 +210,7 @@ export async function scrapeAllCompetitors(
       results.push(result);
     } catch (error) {
       console.error(`[Scraper] Failed to scrape ${competitor.name}:`, error);
-      results.push({
+      const failed: ScrapeResult = {
         competitorId: competitor.id,
         competitorName: competitor.name,
         urlsScraped: 0,
@@ -151,9 +218,12 @@ export async function scrapeAllCompetitors(
         eventsFound: 0,
         eventsNew: 0,
         eventsDuplicate: 0,
+        classificationErrors: 0,
         errors: [{ url: '*', error: error instanceof Error ? error.message : String(error) }],
         durationMs: 0,
-      });
+      };
+      results.push(failed);
+      await persistScrapeSummary(competitor.id, failed, db);
     }
   }
 
@@ -279,6 +349,18 @@ export function extractContentItems(html: string, pageUrl: string): ExtractedIte
     seen.add(key);
     return true;
   });
+}
+
+/**
+ * When structured extraction finds nothing, use document title or first h1 as one item
+ * so the LLM can still classify the page.
+ */
+export function fallbackPageItem(html: string, pageUrl: string): ExtractedItem | null {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  const raw = stripHtml(titleMatch?.[1] || h1Match?.[1] || '').trim();
+  if (raw.length < 5) return null;
+  return { title: raw.slice(0, 300), url: pageUrl };
 }
 
 function parseArticleBlock(html: string, baseUrl: string): ExtractedItem | null {
@@ -419,8 +501,14 @@ export async function registerScrapeJobHandler(
 
       if (competitorId) {
         console.info(`[Scraper] Scraping competitor ${competitorId}`);
-        const result = await scrapeCompetitor(competitorId, callLLM, db);
-        console.info(`[Scraper] Completed: ${result.eventsNew} new, ${result.eventsDuplicate} duplicates`);
+        try {
+          const result = await scrapeCompetitor(competitorId, callLLM, db);
+          console.info(`[Scraper] Completed: ${result.eventsNew} new, ${result.eventsDuplicate} duplicates`);
+        } catch (runErr) {
+          console.error(`[Scraper] Job failed for competitor ${competitorId}:`, runErr);
+          await persistScrapeJobFailure(competitorId, runErr, db);
+          // Do not rethrow: avoid infinite pg-boss retries; user sees last_scrape_summary + logs.
+        }
       } else if (organizationId) {
         console.info(`[Scraper] Scraping all competitors for org ${organizationId}`);
         const results = await scrapeAllCompetitors(organizationId, callLLM, db);

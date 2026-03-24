@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   ChevronDown,
+  Instagram,
   LayoutGrid,
   Mail,
   Megaphone,
@@ -28,6 +29,10 @@ interface SparkBarProps {
   onCreateCampaign: () => void;
   onCreateContent: () => void;
   onCreateEmail: () => void;
+  /** Marketing hub: open Dora + Instagram AI prompt modal */
+  onInstagramDraftAi?: () => void;
+  /** Open “New content” with Instagram channel preset */
+  onCreateInstagramContent?: () => void;
 }
 
 function formatCurrency(value: number): string {
@@ -89,6 +94,8 @@ export function SparkBar({
   onCreateCampaign,
   onCreateContent,
   onCreateEmail,
+  onInstagramDraftAi,
+  onCreateInstagramContent,
 }: SparkBarProps): JSX.Element {
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
@@ -229,6 +236,24 @@ export function SparkBar({
                 >
                   <Target className="w-3.5 h-3.5 text-app-muted" /> Content
                 </button>
+                {onInstagramDraftAi && (
+                  <button
+                    type="button"
+                    onClick={() => { onInstagramDraftAi(); setCreateOpen(false); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                  >
+                    <Instagram className="w-3.5 h-3.5 text-pink-300" /> Instagram (AI)
+                  </button>
+                )}
+                {onCreateInstagramContent && (
+                  <button
+                    type="button"
+                    onClick={() => { onCreateInstagramContent(); setCreateOpen(false); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-white/5"
+                  >
+                    <Instagram className="w-3.5 h-3.5 text-pink-300/80" /> Instagram content
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => { onCreateEmail(); setCreateOpen(false); }}

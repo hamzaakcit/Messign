@@ -145,3 +145,10 @@ export {
 } from './paperPlaneAssets';
 
 export * from './types';
+
+export {
+  buildInstagramAgentMessage,
+  validateInstagramAgentForm,
+  MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH,
+} from './buildInstagramAgentMessage';
+export type { InstagramAgentFormValues } from './buildInstagramAgentMessage';

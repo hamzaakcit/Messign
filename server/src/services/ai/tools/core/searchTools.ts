@@ -7,6 +7,7 @@
 
 import Fuse from 'fuse.js';
 import { registerTool } from '../../toolRegistry.js';
+import { isDisallowedToolForLlmDiscovery } from '../llmToolPolicy.js';
 import { toolIndex, buildParameterHints, type ToolMetadata } from '../toolIndex.js';
 import type { Tool, ToolContext, ToolResult } from '../../types.js';
 
@@ -57,6 +58,8 @@ export function searchTools(
   return results
     .map((r) => r.item)
     .filter((tool) => {
+      const fullName = `${tool.namespace}:${tool.name}`;
+      if (isDisallowedToolForLlmDiscovery(fullName)) return false;
       const roles = tool.requiredRoles ?? [];
       if (roles.length === 0) return true;
       return roles.some((role) => userRoles.includes(role));

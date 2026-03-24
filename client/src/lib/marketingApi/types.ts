@@ -504,6 +504,19 @@ export type SubmitApprovalReviewPayload = {
 
 // ── Competitor Intelligence ──
 
+/** Mirrors server `LastScrapeSummary` (competitors.last_scrape_summary). */
+export interface CompetitorLastScrapeSummary {
+  urlsScraped: number;
+  urlsFailed: number;
+  eventsFound: number;
+  eventsNew: number;
+  eventsDuplicate: number;
+  classificationErrors?: number;
+  errors: Array<{ url: string; error: string }>;
+  finishedAt: string;
+  durationMs: number;
+}
+
 export interface CompetitorClient {
   id: string;
   organization_id: string;
@@ -518,8 +531,16 @@ export interface CompetitorClient {
   tier: 'direct' | 'indirect' | 'aspirational';
   active: boolean;
   last_scraped_at: string | null;
+  last_scrape_summary?: CompetitorLastScrapeSummary | null;
   created_at: string;
   updated_at: string;
+}
+
+/** GET /competitors/stats */
+export interface CompetitorStatsResponse {
+  since: string;
+  per_competitor: Array<{ competitor_id: string; competitor_name: string; event_count: number }>;
+  total_events: number;
 }
 
 export interface CompetitorEventClient {
@@ -542,6 +563,7 @@ export interface CompetitorScrapeStatus {
   competitor_id: string;
   competitor_name: string;
   last_scraped_at: string | null;
+  last_scrape_summary?: CompetitorLastScrapeSummary | null;
   total_events: number;
   recent_events: CompetitorEventClient[];
 }

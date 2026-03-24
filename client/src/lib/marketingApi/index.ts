@@ -32,6 +32,8 @@ export type {
   CompetitorClient,
   CompetitorEventClient,
   CompetitorScrapeStatus,
+  CompetitorStatsResponse,
+  CompetitorLastScrapeSummary,
   CeoDashboardSnapshot,
   CeoDashboardTrend,
   MpTriggerClient,

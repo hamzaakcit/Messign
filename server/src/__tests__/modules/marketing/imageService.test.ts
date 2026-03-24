@@ -59,7 +59,7 @@ describe('generateImage', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('generativelanguage.googleapis.com');
     expect(url).toContain('generateContent');
-    expect(url).toMatch(/gemini-flash-latest/);
+    expect(url).toMatch(/gemini-2\.0-flash-preview-image-generation/);
     expect(url).not.toMatch(/[?&]key=/);
     const hdrs = init.headers as Record<string, string>;
     expect(hdrs['X-goog-api-key']).toBe('test-gemini-key');
@@ -115,5 +115,9 @@ describe('generateImage', () => {
     const [openAiUrl] = fetchMock.mock.calls[0] as [string];
     expect(openAiUrl).toBe('https://api.openai.com/v1/images/generations');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, openAiInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const openAiBody = JSON.parse(openAiInit.body as string) as { quality?: string; model?: string };
+    expect(openAiBody.model).toBe('dall-e-3');
+    expect(openAiBody.quality).toBe('hd');
   });
 });

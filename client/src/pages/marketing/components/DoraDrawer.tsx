@@ -1,27 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Instagram, Loader2, Send, StopCircle, Trash2, X } from 'lucide-react';
+import { Instagram, Linkedin, Loader2, Mail, Send, StopCircle, Trash2, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { DoraChatAvatar } from '@/components/dora/DoraPilot';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
+import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
 
 const noop = (): void => {};
 
-const QUICK_PROMPTS: { label: string; text: string; icon?: 'instagram' }[] = [
-  {
-    label: 'Instagram + image brief',
-    icon: 'instagram',
-    text: 'Draft an Instagram post for [topic]. Include: a strong hook (first line), short paragraphs with line breaks, a clear CTA, 10\u201315 relevant hashtags, and a separate block exactly in this format for the hero image:\n\n[IMAGE_PROMPT]\nDescribe subject, lighting, colors, mood, and style. Square 1:1, no text in the image unless I ask.\n[/IMAGE_PROMPT]',
-  },
+const QUICK_PROMPTS_LINKEDIN_EMAIL: { label: string; text: string; icon: 'linkedin' | 'mail' }[] = [
   {
     label: 'LinkedIn post',
+    icon: 'linkedin',
     text: 'Draft a LinkedIn post for [topic]: hook in the first two lines, short paragraphs, minimal emoji (0\u20132), and a professional CTA.',
   },
   {
     label: 'Email promo',
+    icon: 'mail',
     text: 'Draft a short marketing email: subject line (~55 chars), preview text, body with one primary CTA, plain-language tone.',
   },
 ];
@@ -57,6 +55,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
   }, [sendMessage]);
 
   const [inputValue, setInputValue] = useState('');
+  const [igModalOpen, setIgModalOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -89,6 +88,15 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
           transition={{ duration: 0.2, ease: 'easeInOut' }}
           className="flex flex-col h-full border-l border-white/[0.06] bg-[#080a0e] overflow-hidden shrink-0 w-96"
         >
+          <InstagramAgentPromptModal
+            isOpen={igModalOpen}
+            onClose={() => setIgModalOpen(false)}
+            onSend={(msg) => void sendMessage(msg)}
+            onApplyToComposer={(msg) => {
+              setInputValue(msg);
+              inputRef.current?.focus();
+            }}
+          />
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
             <div className="flex items-center gap-2">
               <DoraChatAvatar size={24} />
@@ -158,7 +166,16 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
 
           <div className="p-2 border-t border-white/[0.06] space-y-1.5 bg-[#0a0c10]">
             <div className="flex flex-wrap gap-1">
-              {QUICK_PROMPTS.map((q) => (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => setIgModalOpen(true)}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-pink-500/25 bg-pink-500/10 text-pink-200/90 hover:bg-pink-500/15 disabled:opacity-40"
+              >
+                <Instagram className="w-2.5 h-2.5 shrink-0" />
+                Instagram
+              </button>
+              {QUICK_PROMPTS_LINKEDIN_EMAIL.map((q) => (
                 <button
                   key={q.label}
                   type="button"
@@ -169,7 +186,8 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                   }}
                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-white/10 bg-white/[0.04] text-app-muted hover:text-app-text hover:bg-white/[0.08] disabled:opacity-40"
                 >
-                  {q.icon === 'instagram' ? <Instagram className="w-2.5 h-2.5 shrink-0" /> : null}
+                  {q.icon === 'linkedin' ? <Linkedin className="w-2.5 h-2.5 shrink-0 text-blue-300" /> : null}
+                  {q.icon === 'mail' ? <Mail className="w-2.5 h-2.5 shrink-0 text-emerald-300" /> : null}
                   {q.label}
                 </button>
               ))}

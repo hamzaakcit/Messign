@@ -156,6 +156,8 @@ Use this when moving from a local PostgreSQL database to Railway.
 
 ## Deploy steps (Render / Railway)
 
+**Auto-deploy from GitHub:** In Railway, connect this repository and deploy from branch `main` with **Root Directory** `server`. Each push to `main` builds and deploys the API without a separate webhook. Optional: add `RAILWAY_DEPLOY_HOOK` in GitHub Actions only if you use Railway’s deploy-hook URL instead of (or in addition to) Git integration—avoid double deploys on the same service.
+
 1. Connect the repo; set **Root Directory** to **`server`** (or build/start from the `server` folder).
 2. **Build command:** `npm install && npm run build`
 3. **Start command:** `npm run start`

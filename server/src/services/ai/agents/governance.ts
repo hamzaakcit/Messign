@@ -45,8 +45,8 @@ const IRREVERSIBLE_PATTERNS = [
  */
 const GENERATE_NAME_BUT_AUTO_EXECUTE = new Set(['creative:generate_image_brief']);
 
-/** Tools that must always go to HITL (matches actionInterceptor) */
-const ALWAYS_HITL_NAMES = new Set([
+/** Tools that must always go to HITL (matches actionInterceptor). Exported for planner/discovery policy. */
+export const HITL_MANAGED_TOOL_NAMES = new Set([
   'projects:create_task', 'projects:update_task_status', 'projects:update_task',
   'finance:draft_invoice', 'finance:approve_expense', 'finance:flag_expense',
   'finance:create_budget_alert', 'finance:create_budget', 'finance:update_budget',
@@ -56,6 +56,9 @@ const ALWAYS_HITL_NAMES = new Set([
   'crm:create_deal', 'support:create_ticket', 'assets:assign_asset',
   'contracts:send_renewal_reminder', 'marketing:create_campaign', 'recruitment:post_job',
 ]);
+
+/** @deprecated Use HITL_MANAGED_TOOL_NAMES */
+const ALWAYS_HITL_NAMES = HITL_MANAGED_TOOL_NAMES;
 
 /** Default threshold for value/amount escalation to irreversible (e.g. 1000 EUR) */
 const VALUE_THRESHOLD = 1000;

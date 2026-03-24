@@ -118,7 +118,16 @@ app.use(helmet({
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(cookieParser());
-app.use(compression({ threshold: 1024 }));
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      const accept = String(req.headers.accept ?? '');
+      if (accept.includes('text/event-stream')) return false;
+      return compression.filter(req, res);
+    },
+  }),
+);
 app.use(express.json({ limit: '1mb', type: 'application/json' }));
 if (process.env.NODE_ENV === 'production') {
   const resolvedUploadDir = resolve(UPLOAD_DIR);
@@ -336,12 +345,22 @@ if (workersEnabled) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn('[Server] BullMQ workers failed to start (Redis unavailable?):', message);
-    console.warn('[Server] Async jobs will not be processed. Events will still fire synchronously.');
+    console.warn('[Server] BullMQ async jobs will not be processed. Events will still fire synchronously.');
   }
+} else {
+  console.log('[Server] BullMQ workers disabled (ENABLE_WORKERS=false).');
+}
 
+/** Postgres-backed pg-boss (marketing batch + competitor scrape) — independent of Redis/BullMQ. */
+const pgBossEnabled = process.env.ENABLE_PG_BOSS !== 'false';
+if (pgBossEnabled) {
   try {
+    // Prefer DATABASE_URL (private/direct) over DATABASE_PUBLIC_URL — pooler URLs (Neon PgBouncer
+    // transaction mode, some proxies) break pg-boss long-lived workers. Override with PG_BOSS_DATABASE_URL.
     const pgBossUrl =
-      process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL ||
+      process.env.PG_BOSS_DATABASE_URL?.trim() ||
+      process.env.DATABASE_URL?.trim() ||
+      process.env.DATABASE_PUBLIC_URL?.trim() ||
       (process.env.NODE_ENV !== 'production' ? `postgresql://${process.env.USER}@localhost:5432/messign` : undefined);
     if (pgBossUrl) {
       const { startJobQueue } = await import('./services/jobQueue.js');
@@ -373,13 +392,15 @@ if (workersEnabled) {
       }
 
       console.log('[Server] pg-boss job queue + batch handler initialized');
+    } else {
+      console.warn('[Server] pg-boss skipped: no DATABASE_URL / DATABASE_PUBLIC_URL');
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn('[Server] pg-boss init failed (non-fatal):', message);
   }
 } else {
-  console.log('[Server] Workers disabled (ENABLE_WORKERS=false). BullMQ, pg-boss, and Dora scheduler skipped.');
+  console.log('[Server] pg-boss disabled (ENABLE_PG_BOSS=false). Marketing batch jobs and competitor scrape queue unavailable.');
 }
 
 let ragInterval: ReturnType<typeof setInterval> | undefined;

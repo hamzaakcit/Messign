@@ -12,6 +12,19 @@ import type { DbClient } from './performanceCollector.js';
 
 // ── Types: Competitor Profile ──
 
+/** Stored on `competitors.last_scrape_summary` after each scrape job completes. */
+export interface LastScrapeSummary {
+  urlsScraped: number;
+  urlsFailed: number;
+  eventsFound: number;
+  eventsNew: number;
+  eventsDuplicate: number;
+  classificationErrors?: number;
+  errors: Array<{ url: string; error: string }>;
+  finishedAt: string;
+  durationMs: number;
+}
+
 export interface Competitor {
   id: string;
   organization_id: string;
@@ -26,6 +39,7 @@ export interface Competitor {
   tier: 'direct' | 'indirect' | 'aspirational';
   active: boolean;
   last_scraped_at: string | null;
+  last_scrape_summary: LastScrapeSummary | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -287,6 +301,26 @@ export async function deleteCompetitor(
     [competitorId],
   );
   return result.rows.length > 0;
+}
+
+/**
+ * Persist scrape outcome for dashboard / manager (errors, counts).
+ * Safe if column missing (migration not applied): no-op.
+ */
+export async function updateLastScrapeSummary(
+  competitorId: string,
+  summary: LastScrapeSummary,
+  db: DbClient,
+): Promise<void> {
+  try {
+    await db.query(
+      `UPDATE competitors SET last_scrape_summary = $2::jsonb, updated_at = now() WHERE id = $1`,
+      [competitorId, JSON.stringify(summary)],
+    );
+  } catch (err) {
+    if (isMissingSchemaObjectError(err)) return;
+    throw err;
+  }
 }
 
 // ══════════════════════════════════════════════════════════

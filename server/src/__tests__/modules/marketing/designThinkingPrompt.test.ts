@@ -49,10 +49,11 @@ describe('enhanceImagePrompt', () => {
     expect(result).toContain('no readable text');
   });
 
-  it('preserves the raw prompt at the beginning', () => {
+  it('keeps the raw prompt before the style block (subject-first)', () => {
     const raw = 'A beautiful mountain landscape at golden hour';
     const result = enhanceImagePrompt(raw);
-    expect(result.startsWith(raw)).toBe(true);
+    expect(result.indexOf(raw)).toBeLessThan(result.indexOf('STYLE DIRECTION'));
+    expect(result).toContain('PRIMARY SUBJECT');
   });
 
   it('applies the specified style preset', () => {

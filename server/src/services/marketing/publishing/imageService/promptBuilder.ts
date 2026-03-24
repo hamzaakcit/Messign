@@ -134,11 +134,14 @@ export function enhanceImagePrompt(
       ? '- Cinematic wide shot, dramatic lighting, text-safe negative space in center third.'
       : '';
 
+  const trimmed = rawPrompt.trim();
+
   return [
-    rawPrompt.trim(),
+    'PRIMARY SUBJECT — literal depiction (match this scene; do not replace with an unrelated generic stock concept):',
+    trimmed,
     '',
     '---',
-    'STYLE DIRECTION:',
+    'STYLE DIRECTION (mood/lighting only — keep the subject matter from above):',
     styleDirective,
     '',
     'TECHNICAL REQUIREMENTS:',

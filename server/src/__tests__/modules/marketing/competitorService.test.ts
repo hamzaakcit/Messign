@@ -22,7 +22,7 @@ describe('Type Contracts', () => {
       logo_url: null, monitor_urls: ['https://acme.com/blog'],
       monitor_email: false, monitor_social: false,
       industry: 'SaaS', tier: 'direct', active: true,
-      last_scraped_at: null, created_by: null,
+      last_scraped_at: null, last_scrape_summary: null, created_by: null,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
     expect(comp.name).toBe('Acme Corp');

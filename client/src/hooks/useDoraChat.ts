@@ -28,9 +28,9 @@ function generateMessageId(): string {
 }
 
 function parseSseJsonLine(line: string): Record<string, unknown> | null {
-  const t = line.trim();
-  if (!t.startsWith('data: ')) return null;
-  const jsonStr = t.slice(6);
+  const t = line.trim().replace(/^\uFEFF/, '');
+  if (!t.startsWith('data:')) return null;
+  const jsonStr = t.slice(5).trimStart();
   if (!jsonStr || jsonStr === '[DONE]') return null;
   try {
     return JSON.parse(jsonStr) as Record<string, unknown>;

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useWidgetContext } from '@/hooks/useWidgetContext';
 import { INTENT_ICON_MAP } from '@/components/knowledge-hub/ai/AISuggestionChips';
 import { useAuthStore } from '@/stores/authStore';
@@ -40,6 +41,9 @@ interface WidgetMessage {
 type WidgetState = 'collapsed' | 'expanded';
 
 export function FloatingWidget() {
+  const { pathname } = useLocation();
+  /** Marketing Command Center embeds Dora in the right rail — hide duplicate global pilot. */
+  const hideOnMarketingHub = pathname.replace(/\/$/, '') === '/marketing';
   const user = useAuthStore((s) => s.user);
   const userRole = user?.role || 'employee';
   const userName = user?.name?.split(' ')[0] || 'there';
@@ -437,6 +441,10 @@ export function FloatingWidget() {
       abortControllerRef.current?.abort();
     };
   }, []);
+
+  if (hideOnMarketingHub) {
+    return null;
+  }
 
   if (widgetState === 'collapsed') {
     return (

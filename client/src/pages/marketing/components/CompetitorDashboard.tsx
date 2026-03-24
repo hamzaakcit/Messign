@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Radar, Settings2, ChevronDown } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Radar, Settings2, ChevronDown, Download, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { marketingAPI, type CompetitorClient, type CompetitorEventClient } from '@/lib/marketingApi';
+import {
+  marketingAPI,
+  type CompetitorClient,
+  type CompetitorEventClient,
+  type CompetitorStatsResponse,
+} from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { CompetitorEventCard } from './CompetitorEventCard';
@@ -28,6 +33,14 @@ const EVENT_TYPE_OPTIONS = [
   { value: 'other', label: 'Other' },
 ] as const;
 
+const SIGNIFICANCE_OPTIONS = [
+  { value: '', label: 'All significance' },
+  { value: 'low', label: 'Low' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'High' },
+  { value: 'critical', label: 'Critical' },
+] as const;
+
 const TIER_COLORS: Record<string, string> = {
   direct: 'bg-blue-500/15 text-blue-400',
   indirect: 'bg-gray-500/15 text-gray-400',
@@ -47,6 +60,35 @@ function formatFreshness(lastScraped: string | null): string {
 }
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_TICKS = 20;
+
+function escapeCsvCell(s: string): string {
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function exportEventsCsv(events: CompetitorEventClient[], filename: string): void {
+  const header = ['discovered_at', 'competitor', 'type', 'significance', 'title', 'summary', 'source_url'];
+  const rows = events.map((e) => [
+    e.discovered_at,
+    e.competitor_name ?? '',
+    e.event_type,
+    e.significance,
+    e.title,
+    e.summary ?? '',
+    e.source_url ?? '',
+  ]);
+  const csv = [header.join(','), ...rows.map((r) => r.map((c) => escapeCsvCell(String(c))).join(','))].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function CompetitorDashboard() {
   const { user } = useAuthStore();
@@ -55,68 +97,186 @@ export function CompetitorDashboard() {
   const [timeRange, setTimeRange] = useState<string>('last_month');
   const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
   const [selectedEventType, setSelectedEventType] = useState<string>('');
+  const [significanceFilter, setSignificanceFilter] = useState<string>('');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchDebounced, setSearchDebounced] = useState('');
   const [events, setEvents] = useState<CompetitorEventClient[]>([]);
   const [totalEvents, setTotalEvents] = useState(0);
   const [competitors, setCompetitors] = useState<CompetitorClient[]>([]);
+  const [stats, setStats] = useState<CompetitorStatsResponse | null>(null);
+  const [significantEvents, setSignificantEvents] = useState<CompetitorEventClient[]>([]);
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const rangeDays = useMemo(() => TIME_RANGES.find((r) => r.value === timeRange)?.days ?? 30, [timeRange]);
+  const sinceIso = useMemo(() => sinceFromRange(rangeDays), [rangeDays]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setSearchDebounced(searchInput.trim()), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
 
   const fetchCompetitors = useCallback(async () => {
     if (!userId) return;
     try {
       const res = await marketingAPI.listCompetitors(userId);
       setCompetitors(res.competitors);
-    } catch { /* swallow */ }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load competitors');
+    }
   }, [userId]);
 
-  const fetchEvents = useCallback(async (reset = true) => {
+  const fetchStats = useCallback(async () => {
     if (!userId) return;
-    if (reset) setIsLoading(true);
-    else setLoadingMore(true);
-
     try {
-      const res = await marketingAPI.queryCompetitorEvents(userId, {
-        competitor_id: selectedCompetitor || undefined,
-        event_type: selectedEventType || undefined,
-        since: sinceFromRange(rangeDays),
-        limit: PAGE_SIZE,
-        offset: reset ? 0 : events.length,
-      });
-      if (reset) {
-        setEvents(res.events);
-      } else {
-        setEvents((prev) => [...prev, ...res.events]);
-      }
-      setTotalEvents(res.total);
-    } catch {
-      toast.error('Failed to load events');
+      const res = await marketingAPI.getCompetitorStats(userId, sinceIso);
+      setStats(res);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load stats');
     }
+  }, [userId, sinceIso]);
 
-    setIsLoading(false);
-    setLoadingMore(false);
-  }, [userId, selectedCompetitor, selectedEventType, rangeDays, events.length]);
+  const fetchSignificantStrip = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const res = await marketingAPI.getSignificantCompetitorEvents(userId, sinceIso);
+      setSignificantEvents(res.events.slice(0, 8));
+    } catch {
+      setSignificantEvents([]);
+    }
+  }, [userId, sinceIso]);
 
-  useEffect(() => { fetchCompetitors(); }, [fetchCompetitors]);
-  useEffect(() => { fetchEvents(true); }, [userId, selectedCompetitor, selectedEventType, rangeDays]); // eslint-disable-line react-hooks/exhaustive-deps
+  const eventsOffsetRef = useRef(0);
+
+  const fetchEvents = useCallback(
+    async (reset = true) => {
+      if (!userId) return;
+      if (reset) {
+        setIsLoading(true);
+        eventsOffsetRef.current = 0;
+      } else {
+        setLoadingMore(true);
+      }
+
+      const offset = reset ? 0 : eventsOffsetRef.current;
+
+      try {
+        const res = await marketingAPI.queryCompetitorEvents(userId, {
+          competitor_id: selectedCompetitor || undefined,
+          event_type: selectedEventType || undefined,
+          significance: significanceFilter || undefined,
+          since: sinceIso,
+          limit: PAGE_SIZE,
+          offset,
+        });
+        if (reset) {
+          setEvents(res.events);
+        } else {
+          setEvents((prev) => [...prev, ...res.events]);
+        }
+        eventsOffsetRef.current = offset + res.events.length;
+        setTotalEvents(res.total);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Failed to load events');
+      }
+
+      setIsLoading(false);
+      setLoadingMore(false);
+    },
+    [userId, selectedCompetitor, selectedEventType, significanceFilter, sinceIso],
+  );
+
+  useEffect(() => {
+    fetchCompetitors();
+  }, [fetchCompetitors]);
+
+  useEffect(() => {
+    fetchStats();
+    fetchSignificantStrip();
+  }, [fetchStats, fetchSignificantStrip]);
+
+  useEffect(() => {
+    void fetchEvents(true);
+  }, [fetchEvents]);
+
+  const stopPostScrapePoll = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const startPostScrapePoll = useCallback(
+    async (baselineFingerprint: string) => {
+      stopPostScrapePoll();
+      let ticks = 0;
+      pollTimerRef.current = setInterval(async () => {
+        ticks += 1;
+        try {
+          const list = await marketingAPI.listCompetitors(userId);
+          setCompetitors(list.competitors);
+          const fp = list.competitors.map((c) => `${c.id}:${c.last_scraped_at}:${c.last_scrape_summary?.finishedAt ?? ''}`).join('|');
+          await fetchStats();
+          await fetchSignificantStrip();
+          await fetchEvents(true);
+          if (fp !== baselineFingerprint || ticks >= POLL_MAX_TICKS) {
+            stopPostScrapePoll();
+          }
+        } catch {
+          if (ticks >= POLL_MAX_TICKS) stopPostScrapePoll();
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [userId, fetchStats, fetchSignificantStrip, fetchEvents, stopPostScrapePoll],
+  );
 
   const handleScrapeAll = async () => {
     if (!userId) return;
     try {
+      const pre = await marketingAPI.listCompetitors(userId);
+      const baselineFingerprint = pre.competitors
+        .map((c) => `${c.id}:${c.last_scraped_at}:${c.last_scrape_summary?.finishedAt ?? ''}`)
+        .join('|');
       const res = await marketingAPI.triggerScrapeAll(userId);
       toast.success(res.message);
-    } catch { toast.error('Scrape failed'); }
+      await startPostScrapePoll(baselineFingerprint);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Scrape failed');
+    }
   };
 
   const eventCountByCompetitor = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const e of events) {
-      counts[e.competitor_id] = (counts[e.competitor_id] || 0) + 1;
+    const map = new Map<string, number>();
+    if (stats?.per_competitor) {
+      for (const row of stats.per_competitor) {
+        map.set(row.competitor_id, row.event_count);
+      }
     }
-    return counts;
-  }, [events]);
+    return map;
+  }, [stats]);
+
+  const filteredEvents = useMemo(() => {
+    if (!searchDebounced) return events;
+    const q = searchDebounced.toLowerCase();
+    return events.filter((ev) => {
+      const title = (ev.title || '').toLowerCase();
+      const summary = (ev.summary || '').toLowerCase();
+      const name = (ev.competitor_name || '').toLowerCase();
+      return title.includes(q) || summary.includes(q) || name.includes(q);
+    });
+  }, [events, searchDebounced]);
+
+  const significantInRangeCount = significantEvents.length;
+
+  const totalForAllChip = stats?.total_events ?? totalEvents;
 
   const hasMore = events.length < totalEvents;
 
@@ -127,24 +287,58 @@ export function CompetitorDashboard() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-app-text">Competitor Intelligence</h2>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setIsManagerOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-app-hover text-app-text hover:bg-app-card">
+            <button
+              type="button"
+              onClick={() => setIsManagerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-app-hover text-app-text hover:bg-app-card"
+            >
               <Settings2 className="w-3.5 h-3.5" /> Manage
             </button>
-            <button type="button" onClick={handleScrapeAll} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500/10 text-primary-400 hover:bg-primary-500/20">
+            <button
+              type="button"
+              onClick={handleScrapeAll}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500/10 text-primary-400 hover:bg-primary-500/20"
+            >
               <Radar className="w-3.5 h-3.5" /> Scrape All
             </button>
           </div>
         </div>
 
+        {/* KPI row */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+            <div className="rounded-lg border border-app-border bg-app-card/40 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-app-muted">Events in range</p>
+              <p className="text-lg font-semibold text-app-text">{stats.total_events}</p>
+            </div>
+            <div className="rounded-lg border border-app-border bg-app-card/40 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-app-muted">Tracked</p>
+              <p className="text-lg font-semibold text-app-text">{competitors.length}</p>
+            </div>
+            <div className="rounded-lg border border-app-border bg-app-card/40 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-app-muted">High / critical (strip)</p>
+              <p className="text-lg font-semibold text-app-text">{significantInRangeCount}</p>
+            </div>
+            <div className="rounded-lg border border-app-border bg-app-card/40 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-app-muted">Listed below</p>
+              <p className="text-lg font-semibold text-app-text">{filteredEvents.length}</p>
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
               className="appearance-none rounded-lg border border-app-border bg-app-card px-3 py-1.5 pr-7 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
-              {TIME_RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              {TIME_RANGES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-app-muted pointer-events-none" />
           </div>
@@ -154,12 +348,73 @@ export function CompetitorDashboard() {
               onChange={(e) => setSelectedEventType(e.target.value)}
               className="appearance-none rounded-lg border border-app-border bg-app-card px-3 py-1.5 pr-7 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
-              {EVENT_TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {EVENT_TYPE_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-app-muted pointer-events-none" />
           </div>
+          <div className="relative">
+            <select
+              value={significanceFilter}
+              onChange={(e) => setSignificanceFilter(e.target.value)}
+              className="appearance-none rounded-lg border border-app-border bg-app-card px-3 py-1.5 pr-7 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              {SIGNIFICANCE_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-app-muted pointer-events-none" />
+          </div>
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search title, summary…"
+            className="rounded-lg border border-app-border bg-app-card px-3 py-1.5 text-xs text-app-text placeholder:text-app-muted/60 focus:outline-none focus:ring-1 focus:ring-primary-500 min-w-[180px] flex-1 max-w-xs"
+          />
+          {filteredEvents.length > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                exportEventsCsv(
+                  filteredEvents,
+                  `competitor-events-${new Date().toISOString().slice(0, 10)}.csv`,
+                )
+              }
+              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-app-muted hover:text-app-text border border-app-border"
+            >
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Significant events strip */}
+      {significantEvents.length > 0 && (
+        <div className="shrink-0 px-6 py-2 border-b border-app-border bg-primary-500/5">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-3.5 h-3.5 text-primary-400" />
+            <span className="text-xs font-medium text-app-text">Significant this period</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {significantEvents.map((ev) => (
+              <div
+                key={ev.id}
+                className="shrink-0 max-w-[220px] rounded-lg border border-app-border bg-app-card/80 px-2 py-1.5"
+              >
+                <p className="text-[10px] text-app-muted truncate">{ev.competitor_name ?? 'Competitor'}</p>
+                <p className="text-xs text-app-text line-clamp-2">{ev.title}</p>
+                <span className="text-[9px] text-primary-400">{ev.significance}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Competitor Cards Row */}
       {competitors.length > 0 && (
@@ -174,7 +429,7 @@ export function CompetitorDashboard() {
                   : 'border-app-border bg-app-card/50 text-app-muted hover:bg-app-card'
               }`}
             >
-              All ({totalEvents})
+              All ({totalForAllChip})
             </button>
             {competitors.map((c) => (
               <button
@@ -189,10 +444,12 @@ export function CompetitorDashboard() {
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className="text-xs font-medium text-app-text">{c.name}</span>
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${TIER_COLORS[c.tier] || TIER_COLORS.indirect}`}>{c.tier}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${TIER_COLORS[c.tier] || TIER_COLORS.indirect}`}>
+                    {c.tier}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] text-app-muted">
-                  <span>{eventCountByCompetitor[c.id] || 0} events</span>
+                  <span>{eventCountByCompetitor.get(c.id) ?? 0} events</span>
                   <span>{formatFreshness(c.last_scraped_at)}</span>
                 </div>
               </button>
@@ -207,26 +464,24 @@ export function CompetitorDashboard() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-5 w-5 animate-spin text-primary-400" />
           </div>
-        ) : events.length === 0 ? (
+        ) : filteredEvents.length === 0 ? (
           <div className="text-center py-16">
             <Radar className="w-10 h-10 mx-auto mb-3 text-app-muted/40" />
             <p className="text-sm text-app-muted mb-1">No competitor events found</p>
             <p className="text-xs text-app-muted/60">
               {competitors.length === 0
                 ? 'Add competitors and run a scrape to start monitoring.'
-                : 'Try expanding the time range or adjusting filters.'}
+                : searchDebounced
+                  ? 'No matches for your search in this list. Load more or clear search.'
+                  : 'Try expanding the time range or adjusting filters.'}
             </p>
           </div>
         ) : (
           <div className="space-y-3 max-w-2xl">
-            {events.map((event) => (
-              <CompetitorEventCard
-                key={event.id}
-                event={event}
-                showCompetitorName={!selectedCompetitor}
-              />
+            {filteredEvents.map((event) => (
+              <CompetitorEventCard key={event.id} event={event} showCompetitorName={!selectedCompetitor} />
             ))}
-            {hasMore && (
+            {hasMore && !searchDebounced && (
               <div className="text-center pt-2">
                 <button
                   type="button"
@@ -244,8 +499,22 @@ export function CompetitorDashboard() {
       </div>
 
       {/* Manager Slide-Over */}
-      <SlideOverPanel isOpen={isManagerOpen} onClose={() => { setIsManagerOpen(false); fetchCompetitors(); fetchEvents(true); }} title="Manage Competitors">
-        <CompetitorManager onViewEvents={(id) => { setSelectedCompetitor(id); setIsManagerOpen(false); }} />
+      <SlideOverPanel
+        isOpen={isManagerOpen}
+        onClose={() => {
+          setIsManagerOpen(false);
+          fetchCompetitors();
+          fetchStats();
+          fetchEvents(true);
+        }}
+        title="Manage Competitors"
+      >
+        <CompetitorManager
+          onViewEvents={(id) => {
+            setSelectedCompetitor(id);
+            setIsManagerOpen(false);
+          }}
+        />
       </SlideOverPanel>
     </div>
   );

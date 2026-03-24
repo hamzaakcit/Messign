@@ -11,6 +11,8 @@
 //   GOOGLE_GEMINI_API_KEY — direct Gemini image gen when LiteLLM is not configured
 //   OPENAI_API_KEY — optional; when set, OpenAI Images is tried first
 //   OPENAI_IMAGE_MODEL — optional (default dall-e-3)
+//   OPENAI_IMAGE_QUALITY — dall-e-3 only: standard | hd (default hd)
+//   OPENAI_IMAGE_STYLE — dall-e-3 only: vivid | natural (optional; API default if unset)
 //   GEMINI_IMAGE_GEN_MODEL — optional; if unset, tries several candidate ids
 //   IMAGE_GEN_MODEL      — LiteLLM model id (default gemini/gemini-2.0-flash-exp)
 //   IMAGE_GEN_DEV_FALLBACK — "true"/"1" → immediate placehold.co
@@ -47,6 +49,19 @@ function getOpenAiImageModel(): string {
   return process.env.OPENAI_IMAGE_MODEL?.trim() || 'dall-e-3';
 }
 
+/** DALL·E 3 only: `hd` = finer detail (default for marketing); `standard` = faster/cheaper. */
+function getOpenAiImageQualityForDalle3(): 'standard' | 'hd' {
+  const q = process.env.OPENAI_IMAGE_QUALITY?.trim().toLowerCase();
+  return q === 'standard' ? 'standard' : 'hd';
+}
+
+/** DALL·E 3 only: optional `vivid` | `natural`; unset = API default (vivid). */
+function getOpenAiImageStyleForDalle3(): 'vivid' | 'natural' | undefined {
+  const s = process.env.OPENAI_IMAGE_STYLE?.trim().toLowerCase();
+  if (s === 'vivid' || s === 'natural') return s;
+  return undefined;
+}
+
 /**
  * Preferred native `generateContent` model (IMAGE modality). If unset,
  * {@link geminiImageModelCandidates} tries several ids.
@@ -55,9 +70,10 @@ const GEMINI_IMAGE_GEN_MODEL_EXPLICIT = process.env.GEMINI_IMAGE_GEN_MODEL?.trim
 
 function geminiImageModelCandidates(): string[] {
   if (GEMINI_IMAGE_GEN_MODEL_EXPLICIT) return [GEMINI_IMAGE_GEN_MODEL_EXPLICIT];
+  // Prefer native image-generation preview first, then latest Flash aliases (quality / availability varies by region).
   return [
-    'gemini-flash-latest',
     'gemini-2.0-flash-preview-image-generation',
+    'gemini-flash-latest',
     'gemini-2.0-flash-exp',
     'gemini-2.0-flash-001',
     'gemini-2.0-flash',
@@ -350,6 +366,19 @@ async function callOpenAIImagesGeneration(imagePrompt: string, resolution: strin
   }
   const size = openaiImageSizeFromResolution(resolution);
   const prompt = imagePrompt.slice(0, 4000);
+  const model = getOpenAiImageModel();
+  const payload: Record<string, unknown> = {
+    model,
+    prompt,
+    n: 1,
+    size,
+    response_format: 'b64_json',
+  };
+  if (model === 'dall-e-3') {
+    payload.quality = getOpenAiImageQualityForDalle3();
+    const style = getOpenAiImageStyleForDalle3();
+    if (style) payload.style = style;
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS);
@@ -360,13 +389,7 @@ async function callOpenAIImagesGeneration(imagePrompt: string, resolution: strin
         'Content-Type': 'application/json',
         Authorization: `Bearer ${openaiKey}`,
       },
-      body: JSON.stringify({
-        model: getOpenAiImageModel(),
-        prompt,
-        n: 1,
-        size,
-        response_format: 'b64_json',
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
 

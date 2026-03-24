@@ -120,11 +120,21 @@ describe('parseInstagramDraft', () => {
     expect(result.caption).toContain('marketing post');
   });
 
-  it('auto-synthesized prompt includes style directions', () => {
+  it('auto-synthesized prompt asks for literal scene and 1:1 frame', () => {
     const draft = `Short caption about marketing.`;
     const result = parseInstagramDraft(draft);
     expect(result.autoSynthesized).toBe(true);
     expect(result.imagePrompt).toContain('square 1:1');
-    expect(result.imagePrompt).toContain('Modern Noir');
+    expect(result.imagePrompt).toMatch(/photorealistic|polished marketing photograph/i);
+  });
+
+  it('prioritizes title/brief over caption when [IMAGE_PROMPT] is missing', () => {
+    const draft = `Generic hook line.\n\n#tag`;
+    const result = parseInstagramDraft(draft, {
+      title: 'Electric scooter launch',
+      userBrief: 'Show a red scooter on a city street at dusk',
+    });
+    expect(result.autoSynthesized).toBe(true);
+    expect(result.imagePrompt!.toLowerCase()).toContain('scooter');
   });
 });

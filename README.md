@@ -154,6 +154,8 @@ The project is configured for split deployment:
 
 When deploying the client, set `VITE_API_URL` in Vercel environment variables to point at your Railway API host.
 
+**CI:** On push to `main`, [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) can trigger a Vercel production deploy via the `VERCEL_DEPLOY_HOOK` secret; Railway typically auto-deploys when the repo is connected in Railway (see `VERCEL_DEPLOY.md` and `server/DEPLOYMENT.md`).
+
 ## Further Reading
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how the codebase is organized, how data flows, how the AI works

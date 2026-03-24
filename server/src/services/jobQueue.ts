@@ -102,10 +102,20 @@ export async function enqueueJob(
   data: Record<string, unknown>,
   options?: SendOptions,
 ): Promise<string | null> {
-  const queue = getQueue();
-  const jobId = await queue.send(jobName, data, options);
-  console.info(`[JobQueue] Enqueued ${jobName}:${jobId}`);
-  return jobId;
+  try {
+    const queue = getQueue();
+    const jobId = await queue.send(jobName, data, options);
+    if (jobId == null) {
+      console.warn(`[JobQueue] send() returned null for ${jobName}`);
+      return null;
+    }
+    console.info(`[JobQueue] Enqueued ${jobName}:${jobId}`);
+    return jobId;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[JobQueue] Enqueue failed for ${jobName}:`, message);
+    return null;
+  }
 }
 
 /** Cancel a job by queue name and ID. */
@@ -113,4 +123,10 @@ export async function cancelJob(jobName: JobName, jobId: string): Promise<void> 
   const queue = getQueue();
   await queue.cancel(jobName, jobId);
   console.info(`[JobQueue] Cancelled ${jobName}:${jobId}`);
+}
+
+/** True when pg-boss was never started or getQueue() cannot be used (e.g. ENABLE_PG_BOSS=false). */
+export function isJobQueueUnavailableError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return /pg-boss not initialized|JobQueue.*not initialized|\[JobQueue\]/i.test(err.message);
 }

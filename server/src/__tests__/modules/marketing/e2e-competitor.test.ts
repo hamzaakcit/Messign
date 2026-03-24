@@ -27,7 +27,7 @@ function makeComp(overrides: Partial<Competitor> = {}): Competitor {
     website_url: 'https://rival.co', description: 'Direct competitor',
     logo_url: null, monitor_urls: ['https://rival.co/blog'],
     monitor_email: false, monitor_social: false, industry: 'SaaS',
-    tier: 'direct', active: true, last_scraped_at: null, created_by: null,
+    tier: 'direct', active: true, last_scraped_at: null, last_scrape_summary: null, created_by: null,
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     ...overrides,
   };

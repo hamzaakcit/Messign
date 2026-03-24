@@ -111,6 +111,66 @@ describe('CompetitorDashboard logic', () => {
       expect(total - loaded).toBe(25);
     });
   });
+
+  describe('significance filter', () => {
+    const significanceOptions = [
+      { value: '', label: 'All significance' },
+      { value: 'low', label: 'Low' },
+      { value: 'normal', label: 'Normal' },
+      { value: 'high', label: 'High' },
+      { value: 'critical', label: 'Critical' },
+    ];
+
+    it('includes All plus four levels', () => {
+      expect(significanceOptions).toHaveLength(5);
+      expect(significanceOptions[0].value).toBe('');
+    });
+  });
+
+  describe('stats-based chip counts', () => {
+    it('maps per_competitor rows to competitor id', () => {
+      const perCompetitor = [
+        { competitor_id: 'c1', competitor_name: 'A', event_count: 3 },
+        { competitor_id: 'c2', competitor_name: 'B', event_count: 7 },
+      ];
+      const map = new Map<string, number>();
+      for (const row of perCompetitor) {
+        map.set(row.competitor_id, row.event_count);
+      }
+      expect(map.get('c1')).toBe(3);
+      expect(map.get('c2')).toBe(7);
+    });
+  });
+
+  describe('client search filter', () => {
+    it('filters events by title or summary substring', () => {
+      const events = [
+        { title: 'Alpha launch', summary: 'Shipped v1', competitor_name: 'Acme' },
+        { title: 'Beta', summary: 'Nothing here', competitor_name: 'Other' },
+      ];
+      const q = 'launch';
+      const filtered = events.filter((ev) => {
+        const title = (ev.title || '').toLowerCase();
+        const summary = (ev.summary || '').toLowerCase();
+        const name = (ev.competitor_name || '').toLowerCase();
+        return title.includes(q) || summary.includes(q) || name.includes(q);
+      });
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].title).toBe('Alpha launch');
+    });
+  });
+
+  describe('CSV escaping', () => {
+    it('quotes cells with commas', () => {
+      const escapeCsvCell = (s: string): string => {
+        if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      };
+      expect(escapeCsvCell('hello')).toBe('hello');
+      expect(escapeCsvCell('a,b')).toBe('"a,b"');
+      expect(escapeCsvCell('say "hi"')).toBe('"say ""hi"""');
+    });
+  });
 });
 
 describe('CompetitorEventCard logic', () => {

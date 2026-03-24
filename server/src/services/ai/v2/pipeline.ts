@@ -396,5 +396,20 @@ export async function runPipelineHandler(req: Request, res: Response): Promise<v
   }
 
   const body = req.body as PipelineRequest;
-  await runDoraPipeline(req, res, body, { userId, role, organizationId });
+  try {
+    await runDoraPipeline(req, res, body, { userId, role, organizationId });
+  } catch (err) {
+    console.error('[runPipelineHandler] Unhandled pipeline error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'AI pipeline failed' });
+      return;
+    }
+    if (!res.writableEnded) {
+      try {
+        res.end();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 }

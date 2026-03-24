@@ -24,6 +24,7 @@ function makeCompetitor(overrides: Partial<Competitor> = {}): Competitor {
     tier: 'direct',
     active: true,
     last_scraped_at: null,
+    last_scrape_summary: null,
     created_by: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

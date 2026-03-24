@@ -575,6 +575,7 @@ export async function registerBatchJobHandler(): Promise<string> {
                   rawDraft: output.body,
                   caller: callerCtx,
                   stylePreset: 'modern_noir',
+                  intentContext: { title: output.title, userBrief: null },
                 }).catch((err) => {
                   console.warn('[BatchHandler] Instagram image gen failed (non-fatal):', err);
                   return null;
@@ -731,6 +732,7 @@ export async function retryBatchChannel(
         rawDraft: output.body,
         caller: callerCtx,
         stylePreset: 'modern_noir',
+        intentContext: { title: output.title, userBrief: null },
       }).catch((err) => {
         console.warn('[BatchRetry] Instagram image gen failed (non-fatal):', err);
       });

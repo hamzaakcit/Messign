@@ -7,6 +7,7 @@
 
 import { registerTool } from '../../toolRegistry.js';
 import { getFullToolDefinition } from '../../toolRegistry.js';
+import { isDisallowedToolForLlmDiscovery } from '../llmToolPolicy.js';
 import { buildParameterHints } from '../toolIndex.js';
 import type { Tool, ToolContext, ToolResult } from '../../types.js';
 
@@ -24,6 +25,13 @@ export function activateTool(
   session: ToolSession,
   userRoles: string[],
 ): { success: boolean; tool?: object; error?: string } {
+  if (isDisallowedToolForLlmDiscovery(toolName)) {
+    return {
+      success: false,
+      error:
+        `Tool "${toolName}" is not available from chat. Use the Finance or Marketing hub for actions (invoices, campaigns, publishing).`,
+    };
+  }
   const fullDef = getFullToolDefinition(toolName);
   if (!fullDef) {
     return { success: false, error: `Tool "${toolName}" not found.` };
