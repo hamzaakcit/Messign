@@ -76,7 +76,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
                 {item.revisions!.map((r) => (
                   <li key={r.version}>
                     <span className="text-app-text font-medium">v{r.version}</span> {r.label} · {new Date(r.savedAt).toLocaleString()}
-                    <pre className="mt-1 text-[10px] whitespace-pre-wrap text-app-muted/90 font-mono bg-black/20 p-2 rounded">{r.body.slice(0, 400)}{r.body.length > 400 ? '…' : ''}</pre>
+                    <pre className="mt-1 text-[10px] whitespace-pre-wrap text-app-muted/90 font-mono bg-app-surface-tertiary p-2 rounded">{r.body.slice(0, 400)}{r.body.length > 400 ? '…' : ''}</pre>
                   </li>
                 ))}
               </ul>
@@ -90,7 +90,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
           <p className="text-[11px] uppercase tracking-wide text-app-muted mb-2">Draft preview</p>
           <div
             className={cn(
-              'rounded-xl border border-app-border bg-black/20 p-4 prose prose-invert prose-sm max-w-none',
+              'rounded-xl border border-app-border bg-app-surface-tertiary p-4 prose prose-invert prose-sm max-w-none',
               previewWidthClass(item.targetChannel),
             )}
           >
@@ -102,7 +102,7 @@ export function ReviewDetail({ item, onApprove, onRequestRevision }: ReviewDetai
         </aside>
       </div>
 
-      <div className="p-4 border-t border-app-border flex flex-wrap gap-2 justify-end shrink-0 bg-black/20">
+      <div className="p-4 border-t border-app-border flex flex-wrap gap-2 justify-end shrink-0 bg-app-surface-tertiary">
         <button
           type="button"
           onClick={onRequestRevision}

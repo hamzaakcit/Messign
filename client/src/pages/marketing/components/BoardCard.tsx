@@ -33,7 +33,7 @@ function ChannelIcon({ channel, className }: { channel?: string | null; classNam
   if (c === 'linkedin') return <Linkedin className={cn('text-blue-400', className)} />;
   if (c === 'twitter' || c === 'x') return <Twitter className={cn('text-sky-400', className)} />;
   if (c === 'email') return <Mail className={cn('text-emerald-400', className)} />;
-  return <Megaphone className={cn('text-slate-400', className)} />;
+  return <Megaphone className={cn('text-app-muted', className)} />;
 }
 
 function RiskDot({ level }: { level?: RiskLevel }): JSX.Element | null {
@@ -84,7 +84,7 @@ export function BoardCard({ card, onClick, overlay }: BoardCardProps): JSX.Eleme
 
   if (overlay) {
     return (
-      <div className="rounded-lg border border-primary-400/40 bg-[#0c0f14] shadow-xl ring-2 ring-primary-400/30 w-full">
+      <div className="rounded-lg border border-primary-400/40 bg-app-card shadow-xl ring-2 ring-primary-400/30 w-full">
         <CardThumbnail url={card.thumbnailUrl} channel={card.channel} />
         <div className="px-2.5 py-2">
           <div className="flex items-center gap-1.5 mb-1">
@@ -105,7 +105,7 @@ export function BoardCard({ card, onClick, overlay }: BoardCardProps): JSX.Eleme
       {...listeners}
       onClick={() => onClick(card)}
       className={cn(
-        'rounded-lg border border-white/[0.08] bg-[#0c0f14] cursor-grab active:cursor-grabbing transition-shadow hover:border-app-border hover:shadow-lg',
+        'rounded-lg border border-app-border bg-app-card cursor-grab active:cursor-grabbing transition-shadow hover:border-app-border hover:shadow-lg',
         isDragging && 'opacity-40',
       )}
     >

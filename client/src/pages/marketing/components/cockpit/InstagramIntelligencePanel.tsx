@@ -77,11 +77,11 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
     value >= 70 ? 'bg-emerald-500/60' : value >= 40 ? 'bg-amber-500/60' : 'bg-red-500/60';
   return (
     <div className="flex items-center gap-2">
-      <span className="w-20 shrink-0 text-[10px] text-slate-400">{label}</span>
+      <span className="w-20 shrink-0 text-[10px] text-app-muted">{label}</span>
       <div className="h-1.5 flex-1 rounded-full bg-app-surface-tertiary">
         <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${value}%` }} />
       </div>
-      <span className="w-6 text-right text-[10px] font-medium text-slate-300">{value}</span>
+      <span className="w-6 text-right text-[10px] font-medium text-app-text">{value}</span>
     </div>
   );
 }
@@ -194,12 +194,12 @@ export function InstagramIntelligencePanel({
 
   return (
     <div className="space-y-2">
-      <h4 className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      <h4 className="text-[10px] font-semibold uppercase tracking-wide text-app-muted">
         Instagram Intelligence
       </h4>
 
       {/* Tab bar */}
-      <div className="flex gap-1 rounded-lg border border-white/[0.06] bg-[#0a0d12] p-0.5">
+      <div className="flex gap-1 rounded-lg border border-app-border bg-app-card p-0.5">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -209,7 +209,7 @@ export function InstagramIntelligencePanel({
               'flex-1 rounded-md px-2 py-1.5 text-[10px] font-medium transition-colors',
               tab === t.id
                 ? 'bg-app-surface-tertiary text-slate-100 shadow-sm'
-                : 'text-slate-500 hover:text-slate-300',
+                : 'text-app-muted hover:text-app-text',
             )}
           >
             {t.label}
@@ -225,18 +225,18 @@ export function InstagramIntelligencePanel({
 
       {/* Engagement score — server requires caption ≥ 5 chars; avoid 400 when body is empty/short */}
       {!loading && tab === 'engagement' && !engagementData && caption.trim().length < MIN_CAPTION_CHARS_ENGAGEMENT && (
-        <p className="rounded-lg border border-white/[0.06] bg-[#0c0f14] px-3 py-2 text-[10px] text-slate-500">
+        <p className="rounded-lg border border-app-border bg-app-card px-3 py-2 text-[10px] text-app-muted">
           Add at least {MIN_CAPTION_CHARS_ENGAGEMENT} characters of caption to see the engagement score.
         </p>
       )}
 
       {!loading && tab === 'engagement' && engagementData && (
-        <div className="space-y-3 rounded-lg border border-white/[0.06] bg-[#0c0f14] p-3">
+        <div className="space-y-3 rounded-lg border border-app-border bg-app-card p-3">
           <div className="flex items-center gap-3">
             <ScoreRing score={engagementData.overallScore} />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-slate-200">Engagement Score</p>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-xs font-medium text-app-text">Engagement Score</p>
+              <p className="text-[10px] text-app-muted">
                 Est. likes: {formatNumber(engagementData.estimatedLikes.low)}–{formatNumber(engagementData.estimatedLikes.high)}
                 &nbsp;·&nbsp;comments: {formatNumber(engagementData.estimatedComments.low)}–{formatNumber(engagementData.estimatedComments.high)}
                 &nbsp;·&nbsp;saves: {formatNumber(engagementData.estimatedSaves.low)}–{formatNumber(engagementData.estimatedSaves.high)}
@@ -252,9 +252,9 @@ export function InstagramIntelligencePanel({
           </div>
           {engagementData.tips.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[10px] font-medium text-slate-400">Tips to improve</p>
+              <p className="text-[10px] font-medium text-app-muted">Tips to improve</p>
               {engagementData.tips.map((tip, i) => (
-                <p key={i} className="text-[10px] leading-snug text-slate-500">
+                <p key={i} className="text-[10px] leading-snug text-app-muted">
                   • {tip}
                 </p>
               ))}
@@ -265,12 +265,12 @@ export function InstagramIntelligencePanel({
 
       {/* Hashtag analysis */}
       {!loading && tab === 'hashtags' && hashtagData && (
-        <div className="space-y-3 rounded-lg border border-white/[0.06] bg-[#0c0f14] p-3">
+        <div className="space-y-3 rounded-lg border border-app-border bg-app-card p-3">
           <div className="flex items-center gap-3">
             <ScoreRing score={hashtagData.overallScore} />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-slate-200">Hashtag Strategy</p>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-xs font-medium text-app-text">Hashtag Strategy</p>
+              <p className="text-[10px] text-app-muted">
                 Est. reach: {formatNumber(hashtagData.estimatedReach.low)}–{formatNumber(hashtagData.estimatedReach.high)}
               </p>
             </div>
@@ -316,7 +316,7 @@ export function InstagramIntelligencePanel({
           {hashtagData.suggestions.length > 0 && (
             <div className="space-y-1">
               {hashtagData.suggestions.map((s, i) => (
-                <p key={i} className="text-[10px] leading-snug text-slate-500">💡 {s}</p>
+                <p key={i} className="text-[10px] leading-snug text-app-muted">💡 {s}</p>
               ))}
             </div>
           )}
@@ -325,22 +325,22 @@ export function InstagramIntelligencePanel({
 
       {/* Best time to post */}
       {!loading && tab === 'timing' && bestTimeData && (
-        <div className="space-y-3 rounded-lg border border-white/[0.06] bg-[#0c0f14] p-3">
-          <p className="text-[10px] text-slate-400">{bestTimeData.audienceInsight}</p>
+        <div className="space-y-3 rounded-lg border border-app-border bg-app-card p-3">
+          <p className="text-[10px] text-app-muted">{bestTimeData.audienceInsight}</p>
           <div className="space-y-1.5">
             {bestTimeData.topSlots.map((slot, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-app-surface-tertiary px-2.5 py-2"
+                className="flex items-center gap-2 rounded-lg border border-app-border bg-app-surface-tertiary px-2.5 py-2"
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500/10">
                   <span className="text-[10px] font-bold text-cyan-400">{i + 1}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium text-slate-200">
+                  <p className="text-[11px] font-medium text-app-text">
                     {slot.day} · {slot.timeSlot}
                   </p>
-                  <p className="text-[9px] text-slate-500">{slot.reason}</p>
+                  <p className="text-[9px] text-app-muted">{slot.reason}</p>
                 </div>
                 <div className="shrink-0">
                   <div className="h-1.5 w-12 rounded-full bg-app-surface-tertiary">
@@ -362,7 +362,7 @@ export function InstagramIntelligencePanel({
           {captionVariants.map((v) => (
             <div
               key={v.id}
-              className="space-y-1.5 rounded-lg border border-white/[0.06] bg-[#0c0f14] p-3"
+              className="space-y-1.5 rounded-lg border border-app-border bg-app-card p-3"
             >
               <div className="flex items-center justify-between">
                 <span className="rounded-md bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-purple-300">
@@ -378,10 +378,10 @@ export function InstagramIntelligencePanel({
                   </button>
                 )}
               </div>
-              <p className="text-[10px] italic text-slate-500">{v.strategy}</p>
-              <div className="rounded-md bg-black/30 p-2">
-                <p className="text-[11px] font-medium text-slate-200">{v.hook}</p>
-                <p className="mt-1 text-[10px] text-slate-400 line-clamp-3">{v.body}</p>
+              <p className="text-[10px] italic text-app-muted">{v.strategy}</p>
+              <div className="rounded-md bg-app-surface-tertiary p-2">
+                <p className="text-[11px] font-medium text-app-text">{v.hook}</p>
+                <p className="mt-1 text-[10px] text-app-muted line-clamp-3">{v.body}</p>
                 <p className="mt-1 text-[10px] font-medium text-cyan-400/80">{v.cta}</p>
               </div>
             </div>
@@ -392,7 +392,7 @@ export function InstagramIntelligencePanel({
               setCaptionVariants([]);
               void fetchTab('captions');
             }}
-            className="w-full rounded-lg border border-white/[0.08] py-1.5 text-[10px] text-slate-500 hover:bg-app-hover hover:text-slate-300"
+            className="w-full rounded-lg border border-app-border py-1.5 text-[10px] text-app-muted hover:bg-app-hover hover:text-app-text"
           >
             Regenerate variants
           </button>

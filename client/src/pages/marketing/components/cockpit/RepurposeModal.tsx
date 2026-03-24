@@ -63,9 +63,9 @@ export function RepurposeModal({
   };
 
   return (
-    <div className="border-t border-white/[0.06]">
+    <div className="border-t border-app-border">
       <div className="p-3">
-        <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-app-muted">
           Repurpose to other channels
         </h4>
 
@@ -80,7 +80,7 @@ export function RepurposeModal({
                   className={`rounded-lg border p-2.5 text-left text-xs transition-colors ${
                     selected.includes(ch.id)
                       ? 'border-purple-500/40 bg-purple-500/10 text-purple-200'
-                      : 'border-white/[0.08] bg-app-surface-tertiary text-slate-400 hover:bg-app-hover'
+                      : 'border-app-border bg-app-surface-tertiary text-app-muted hover:bg-app-hover'
                   }`}
                 >
                   <span className="text-sm">{ch.icon}</span>
@@ -102,19 +102,19 @@ export function RepurposeModal({
           </>
         ) : (
           <div className="space-y-2">
-            <p className="mb-2 text-xs text-slate-500">
+            <p className="mb-2 text-xs text-app-muted">
               {results.length} variant{results.length === 1 ? '' : 's'} created
             </p>
             {results.map((v) => (
               <div
                 key={v.content_id}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-app-surface-tertiary p-2"
+                className="flex items-center gap-2 rounded-lg border border-app-border bg-app-surface-tertiary p-2"
               >
-                <span className="text-xs font-medium text-slate-300">{v.channel}</span>
-                <span className="truncate text-[10px] text-slate-500">{v.title}</span>
+                <span className="text-xs font-medium text-app-text">{v.channel}</span>
+                <span className="truncate text-[10px] text-app-muted">{v.title}</span>
                 <span
                   className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] ${
-                    v.status === 'in_review' ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-500/10 text-slate-400'
+                    v.status === 'in_review' ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-500/10 text-app-muted'
                   }`}
                 >
                   {v.status}
@@ -124,7 +124,7 @@ export function RepurposeModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-300"
+              className="w-full py-1.5 text-xs text-app-muted hover:text-app-text"
             >
               Done
             </button>

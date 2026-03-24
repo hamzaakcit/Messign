@@ -250,7 +250,7 @@ export function ContentDetailPanel({
 
   if (!content) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-slate-500">
+      <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-app-muted">
         <p>Content not found.</p>
         <button type="button" onClick={onClose} className="text-cyan-400/90 hover:text-cyan-300">
           ← Back
@@ -264,17 +264,17 @@ export function ContentDetailPanel({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-3 py-2">
-        <button type="button" onClick={onClose} className="text-[11px] text-slate-500 hover:text-slate-200">
+      <div className="flex shrink-0 items-center justify-between border-b border-app-border px-3 py-2">
+        <button type="button" onClick={onClose} className="text-[11px] text-app-muted hover:text-app-text">
           ← Back
         </button>
-        <button type="button" onClick={openFull} className="text-[11px] text-slate-500 hover:text-slate-200">
+        <button type="button" onClick={openFull} className="text-[11px] text-app-muted hover:text-app-text">
           Open full page →
         </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="border-b border-white/[0.06] px-3 py-3">
+        <div className="border-b border-app-border px-3 py-3">
           <div className="flex items-start gap-2">
             <ChannelBadge channel={content.channel} size="sm" />
             <div className="min-w-0 flex-1">
@@ -287,8 +287,8 @@ export function ContentDetailPanel({
         </div>
 
         {content.parent_content_id ? (
-          <div className="border-b border-white/[0.06] px-3 py-2">
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Derived from</p>
+          <div className="border-b border-app-border px-3 py-2">
+            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-app-muted">Derived from</p>
             <button
               type="button"
               onClick={() => {
@@ -303,8 +303,8 @@ export function ContentDetailPanel({
         ) : null}
 
         {childVariants.length > 0 ? (
-          <div className="border-b border-white/[0.06] px-3 py-3">
-            <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          <div className="border-b border-app-border px-3 py-3">
+            <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-app-muted">
               Repurposed variants ({childVariants.length})
             </h4>
             <div className="space-y-1">
@@ -319,7 +319,7 @@ export function ContentDetailPanel({
                   className="flex w-full items-center gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-app-hover"
                 >
                   <ChannelBadge channel={ch.channel} size="sm" />
-                  <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">{ch.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-app-text">{ch.title}</span>
                   <StatusBadge status={ch.status} />
                 </button>
               ))}
@@ -329,7 +329,7 @@ export function ContentDetailPanel({
 
         {isInstagram && (
           <>
-            <div className="border-b border-white/[0.06] px-3 py-3">
+            <div className="border-b border-app-border px-3 py-3">
               <InstagramPreview
                 caption={content.body ?? ''}
                 imageUrl={content.image_url}
@@ -341,8 +341,8 @@ export function ContentDetailPanel({
 
             {/* Image variants grid */}
             {content.image_variants && content.image_variants.length > 0 && (
-              <div className="border-b border-white/[0.06] px-3 py-3">
-                <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <div className="border-b border-app-border px-3 py-3">
+                <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-app-muted">
                   Image variants ({content.image_variants.length})
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
@@ -364,7 +364,7 @@ export function ContentDetailPanel({
                         'group relative overflow-hidden rounded-lg border transition-all',
                         content.image_url === v.image_url
                           ? 'border-cyan-400/60 ring-1 ring-cyan-400/30'
-                          : 'border-white/[0.08] hover:border-app-border-strong',
+                          : 'border-app-border hover:border-app-border-strong',
                       )}
                     >
                       <img src={v.image_url} alt="" className="aspect-square w-full object-cover" />
@@ -386,7 +386,7 @@ export function ContentDetailPanel({
               </div>
             )}
 
-            <div className="border-b border-white/[0.06] px-3 py-2">
+            <div className="border-b border-app-border px-3 py-2">
               <button
                 type="button"
                 onClick={() => {
@@ -394,13 +394,13 @@ export function ContentDetailPanel({
                   setShowRegenerate((v) => !v);
                 }}
                 disabled={isRegenerating || isGeneratingVariants}
-                className="rounded-md border border-white/[0.1] bg-app-surface-tertiary px-2.5 py-1.5 text-[10px] font-medium text-slate-200 hover:bg-app-hover disabled:opacity-40"
+                className="rounded-md border border-app-border bg-app-surface-tertiary px-2.5 py-1.5 text-[10px] font-medium text-app-text hover:bg-app-hover disabled:opacity-40"
               >
                 {showRegenerate ? 'Hide' : 'Regen image'}
               </button>
               {showRegenerate && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <select value={regenStyle} onChange={(e) => setRegenStyle(e.target.value)} title="Style" className="h-7 rounded-md border border-white/[0.08] bg-black/30 px-1.5 text-[10px] text-slate-200">
+                  <select value={regenStyle} onChange={(e) => setRegenStyle(e.target.value)} title="Style" className="h-7 rounded-md border border-app-border bg-app-surface-tertiary px-1.5 text-[10px] text-app-text">
                     <option value="modern_noir">Noir</option>
                     <option value="vibrant_lifestyle">Vibrant</option>
                     <option value="minimal_flat">Flat</option>
@@ -411,10 +411,10 @@ export function ContentDetailPanel({
                   </select>
                   <div className="flex gap-0.5">
                     {(['1:1', '4:5', '9:16', '16:9'] as const).map((ratio) => (
-                      <button key={ratio} type="button" onClick={() => setRegenAspectRatio(ratio)} className={cn('rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors', regenAspectRatio === ratio ? 'bg-cyan-500/15 text-cyan-300' : 'text-slate-500 hover:text-slate-300')}>{ratio}</button>
+                      <button key={ratio} type="button" onClick={() => setRegenAspectRatio(ratio)} className={cn('rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors', regenAspectRatio === ratio ? 'bg-cyan-500/15 text-cyan-300' : 'text-app-muted hover:text-app-text')}>{ratio}</button>
                     ))}
                   </div>
-                  <input value={regenPrompt} onChange={(e) => setRegenPrompt(e.target.value)} placeholder="Prompt…" className="flex-1 min-w-[120px] h-7 rounded-md border border-white/[0.08] bg-black/30 px-2 text-[10px] text-slate-200 placeholder:text-slate-600" />
+                  <input value={regenPrompt} onChange={(e) => setRegenPrompt(e.target.value)} placeholder="Prompt…" className="flex-1 min-w-[120px] h-7 rounded-md border border-app-border bg-app-surface-tertiary px-2 text-[10px] text-app-text placeholder:text-slate-600" />
                   <button type="button" onClick={() => void handleRegenerateImage()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md bg-cyan-600/80 text-[10px] font-medium text-app-text hover:bg-cyan-500 disabled:opacity-40">{isRegenerating ? '…' : 'Go'}</button>
                   <button type="button" onClick={() => void handleGenerateVariants()} disabled={isRegenerating || isGeneratingVariants} className="h-7 px-2 rounded-md border border-purple-500/30 bg-purple-500/10 text-[10px] font-medium text-purple-300 hover:bg-purple-500/20 disabled:opacity-40">{isGeneratingVariants ? '…' : 'A/B'}</button>
                 </div>
@@ -422,7 +422,7 @@ export function ContentDetailPanel({
             </div>
 
             {/* Instagram Intelligence Panel */}
-            <div className="border-b border-white/[0.06] px-3 py-3">
+            <div className="border-b border-app-border px-3 py-3">
               <InstagramIntelligencePanel
                 userId={userId}
                 content={content}
@@ -445,7 +445,7 @@ export function ContentDetailPanel({
 
         {/* Email: VA2 manifest + cockpit assembly details — ContentEmailUnlayerControls */}
         {isEmail ? (
-          <div className="border-b border-white/[0.06] px-3 py-3">
+          <div className="border-b border-app-border px-3 py-3">
             <ContentEmailUnlayerControls
               content={content}
               surface="cockpit"
@@ -458,14 +458,14 @@ export function ContentDetailPanel({
           </div>
         ) : null}
 
-        <div className="border-b border-white/[0.06] px-3 py-2">
-          <div className="max-h-[180px] overflow-y-auto rounded-lg border border-white/[0.06] bg-[#0c0f14] p-2.5">
+        <div className="border-b border-app-border px-3 py-2">
+          <div className="max-h-[180px] overflow-y-auto rounded-lg border border-app-border bg-app-card p-2.5">
             <ContentRenderer body={content.body ?? content.body_html ?? ''} />
           </div>
         </div>
 
-        <div className="border-b border-white/[0.06] px-3 py-3">
-          <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Validation</h4>
+        <div className="border-b border-app-border px-3 py-3">
+          <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-app-muted">Validation</h4>
           <ValidationScores
             truthRaw={content.truth_validation ?? gatekeeperSnapshot?.productTruth}
             brandRaw={content.brand_voice_check ?? gatekeeperSnapshot?.brandVoice}
@@ -473,13 +473,13 @@ export function ContentDetailPanel({
           />
         </div>
 
-        <div className="border-b border-white/[0.06] px-3 py-3">
-          <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Brand compliance</h4>
+        <div className="border-b border-app-border px-3 py-3">
+          <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-app-muted">Brand compliance</h4>
           <ComplianceDetailPanel contentId={contentId} />
         </div>
 
         {!isInstagram && content.image_url ? (
-          <div className="border-b border-white/[0.06] px-3 py-2">
+          <div className="border-b border-app-border px-3 py-2">
             <img
               src={content.image_url}
               alt={content.visual_description ?? 'Generated image'}
@@ -489,7 +489,7 @@ export function ContentDetailPanel({
         ) : null}
 
         {(content.body ?? '').trim().length > 0 ? (
-          <div className="border-b border-white/[0.06] px-3 py-2">
+          <div className="border-b border-app-border px-3 py-2">
             <button
               type="button"
               onClick={() => setRepurposeOpen((o) => !o)}
@@ -524,7 +524,7 @@ export function ContentDetailPanel({
         ) : null}
       </div>
 
-      <div className="shrink-0 border-t border-white/[0.06] bg-[#080a0e] px-3 py-2.5">
+      <div className="shrink-0 border-t border-app-border bg-app-surface-tertiary px-3 py-2.5">
         <ContentActions
           status={content.status}
           approvalId={approvalId}

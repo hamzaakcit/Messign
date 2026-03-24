@@ -162,7 +162,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
         {/* Instagram format selector */}
         {isInstagram && (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Format</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-app-muted">Format</span>
             {(['feed', 'story', 'reel'] as const).map((fmt) => (
               <button
                 key={fmt}
@@ -172,7 +172,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
                   'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors capitalize',
                   igFormat === fmt
                     ? 'border-pink-500/40 bg-pink-500/10 text-pink-300'
-                    : 'border-white/[0.08] bg-app-surface-tertiary text-slate-400 hover:border-app-border-strong',
+                    : 'border-app-border bg-app-surface-tertiary text-app-muted hover:border-app-border-strong',
                 )}
               >
                 {fmt}
@@ -294,21 +294,21 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
         {/* Schedule editor */}
         {showScheduleEditor && (
           <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pick date & time</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-app-muted">Pick date & time</p>
             <div className="flex items-center gap-3">
               <input
                 type="date"
                 title="Schedule date"
                 value={scheduleDate || content.scheduled_date || ''}
                 onChange={(e) => setScheduleDate(e.target.value)}
-                className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-slate-200"
+                className="rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 text-sm text-app-text"
               />
               <input
                 type="time"
                 title="Schedule time"
                 value={scheduleTime || content.scheduled_time || ''}
                 onChange={(e) => setScheduleTime(e.target.value)}
-                className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-slate-200"
+                className="rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 text-sm text-app-text"
               />
               <button
                 onClick={() => void handleManualSchedule()}
@@ -328,7 +328,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
 
       {/* Right column: Instagram Intelligence */}
       {isInstagram && (
-        <div className="w-[340px] shrink-0 overflow-y-auto border-l border-white/[0.06] bg-[#0a0d12] p-4">
+        <div className="w-[340px] shrink-0 overflow-y-auto border-l border-app-border bg-app-card p-4">
           <InstagramIntelligencePanel
             userId={userId}
             content={content}

@@ -45,7 +45,7 @@ const LANE_CONFIG: Array<{
   accent: string;
   borderColor: string;
 }> = [
-  { id: 'draft', icon: Pencil, accent: 'text-slate-400', borderColor: 'border-t-slate-500' },
+  { id: 'draft', icon: Pencil, accent: 'text-app-muted', borderColor: 'border-t-slate-500' },
   { id: 'review', icon: Eye, accent: 'text-amber-400', borderColor: 'border-t-amber-500' },
   { id: 'ready', icon: CheckCircle, accent: 'text-emerald-400', borderColor: 'border-t-emerald-500' },
   { id: 'scheduled', icon: Clock, accent: 'text-cyan-400', borderColor: 'border-t-cyan-500' },
@@ -185,7 +185,7 @@ function BoardSkeleton(): JSX.Element {
           </div>
           <div className="flex-1 px-2 pb-2 space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary animate-pulse">
+              <div key={i} className="rounded-lg border border-app-border bg-app-surface-tertiary animate-pulse">
                 <div className="w-full h-10 rounded-t bg-app-surface-tertiary" />
                 <div className="px-2.5 py-2 space-y-1.5">
                   <div className="h-3 w-3/4 rounded bg-app-surface-tertiary" />

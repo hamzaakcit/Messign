@@ -174,7 +174,7 @@ export function ContentEmailUnlayerControls({
                     onThemeChange={themeEffects.handleLegacyThemeSwitch}
                     isAssembling={va2IsAssembling}
                   />
-                  <span className="text-slate-500">Plain draft — theme drives plane asset</span>
+                  <span className="text-app-muted">Plain draft — theme drives plane asset</span>
                 </>
               ) : va2AssemblyResult && va2Manifest ? (
                 <>
@@ -208,7 +208,7 @@ export function ContentEmailUnlayerControls({
                   type="button"
                   disabled={va2IsAssembling}
                   onClick={() => themeEffects.setEffectsOpen((v) => !v)}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-app-surface-tertiary hover:bg-app-hover text-slate-300 disabled:opacity-40 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-app-surface-tertiary hover:bg-app-hover text-app-text disabled:opacity-40 transition-colors"
                 >
                   <Wand2 className="w-3 h-3" />
                   {themeEffects.activeEffectLabel}
@@ -217,7 +217,7 @@ export function ContentEmailUnlayerControls({
                 {themeEffects.effectsOpen ? (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => themeEffects.setEffectsOpen(false)} />
-                    <div className="absolute left-0 top-full z-50 mt-1 w-40 rounded-lg border border-app-border bg-[#141720] shadow-xl py-1">
+                    <div className="absolute left-0 top-full z-50 mt-1 w-40 rounded-lg border border-app-border bg-app-card shadow-xl py-1">
                       {EASTER_EGG_OPTIONS.map((opt) => {
                         const isActive = themeEffects.displayedEasterEgg === opt.value;
                         return (
@@ -228,7 +228,7 @@ export function ContentEmailUnlayerControls({
                             className={`w-full text-left px-3 py-1.5 text-[12px] flex items-center gap-2 transition-colors ${
                               isActive
                                 ? 'bg-primary-500/20 text-primary-300'
-                                : 'text-slate-300 hover:bg-app-hover'
+                                : 'text-app-text hover:bg-app-hover'
                             }`}
                           >
                             {isActive ? (

@@ -32,7 +32,7 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
   const maxVal = Math.max(1, ...STAGES.map((s) => funnel[s.key] ?? 0));
 
   return (
-    <div className="border-t border-white/[0.06] bg-[#080a0e] shrink-0">
+    <div className="border-t border-app-border bg-app-surface-tertiary shrink-0">
       <button
         type="button"
         onClick={() => setExpanded((o) => !o)}
@@ -78,7 +78,7 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
                 {STAGES.map((stage) => {
                   const value = funnel[stage.key] ?? 0;
                   return (
-                    <div key={stage.key} className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary p-2.5">
+                    <div key={stage.key} className="rounded-lg border border-app-border bg-app-surface-tertiary p-2.5">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[10px] uppercase tracking-wide text-app-muted">{stage.label}</span>
                         <span className="text-sm font-semibold text-app-text">{value}</span>
@@ -101,7 +101,7 @@ export function FunnelStrip({ funnel, hotLeads, onLeadClick }: FunnelStripProps)
                       key={lead.id}
                       type="button"
                       onClick={() => onLeadClick(lead.id)}
-                      className="flex items-center gap-2 shrink-0 rounded-lg border border-white/[0.06] bg-app-surface-tertiary px-3 py-2 hover:bg-app-hover transition-colors min-w-0"
+                      className="flex items-center gap-2 shrink-0 rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 hover:bg-app-hover transition-colors min-w-0"
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-app-text truncate max-w-[120px]">

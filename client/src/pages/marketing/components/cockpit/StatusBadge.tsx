@@ -18,7 +18,7 @@ export function StatusBadge({ status }: { status: string | null | undefined }) {
   const s = (status ?? '').toLowerCase().trim();
   const m = STATUS_MAP[s] ?? { dot: 'bg-slate-500', label: status ?? '—' };
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300">
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-app-text">
       <span className={cn('h-2 w-2 rounded-full', m.dot)} aria-hidden />
       {m.label}
     </span>

@@ -70,7 +70,7 @@ export function CockpitContextPanel({
     const campaign = campaigns.find((c) => c.id === selectedItem.id);
     if (!campaign) {
       return (
-        <div className="flex h-full items-center justify-center p-4 text-[11px] text-slate-500">
+        <div className="flex h-full items-center justify-center p-4 text-[11px] text-app-muted">
           Campaign not found in the loaded list.
         </div>
       );
@@ -91,7 +91,7 @@ export function CockpitContextPanel({
     const lead = leadsList.find((l) => l.id === selectedItem.id);
     if (!lead) {
       return (
-        <div className="flex h-full items-center justify-center p-4 text-[11px] text-slate-500">
+        <div className="flex h-full items-center justify-center p-4 text-[11px] text-app-muted">
           Lead not found in the loaded list.
         </div>
       );

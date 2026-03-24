@@ -87,7 +87,7 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-white/[0.08] bg-gradient-to-r from-emerald-950/40 to-[#0c0f14] px-6 py-5">
+      <div className="shrink-0 border-b border-app-border bg-gradient-to-r from-emerald-950/40 to-[#0c0f14] px-6 py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/25">
@@ -135,16 +135,16 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
           ].map((cell) => (
             <div
               key={cell.label}
-              className="rounded-lg border border-white/[0.06] bg-black/20 px-2 py-2"
+              className="rounded-lg border border-app-border bg-app-surface-tertiary px-2 py-2"
             >
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">{cell.label}</p>
+              <p className="text-[10px] uppercase tracking-wide text-app-muted">{cell.label}</p>
               <p className="text-sm font-semibold text-app-text tabular-nums">{cell.value}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto bg-[#0a0c10] p-3">
+      <div className="flex-1 min-h-0 overflow-auto bg-app-card p-3">
         {html ? (
           <div
             className="min-h-[320px] rounded-lg border border-black/10 bg-white p-4 text-left shadow-inner [&_img]:max-w-full"

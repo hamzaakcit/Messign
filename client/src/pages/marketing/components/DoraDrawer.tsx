@@ -86,7 +86,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '100%', opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="flex flex-col h-full border-l border-white/[0.06] bg-[#080a0e] overflow-hidden shrink-0 w-96"
+          className="flex flex-col h-full border-l border-app-border bg-app-surface-tertiary overflow-hidden shrink-0 w-96"
         >
           <InstagramAgentPromptModal
             isOpen={igModalOpen}
@@ -97,7 +97,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
               inputRef.current?.focus();
             }}
           />
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
             <div className="flex items-center gap-2">
               <DoraChatAvatar size={24} />
               <span className="text-sm font-semibold text-app-text">Marketing Agent</span>
@@ -164,7 +164,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
             <div ref={chatEndRef} />
           </div>
 
-          <div className="p-2 border-t border-white/[0.06] space-y-1.5 bg-[#0a0c10]">
+          <div className="p-2 border-t border-app-border space-y-1.5 bg-app-card">
             <div className="flex flex-wrap gap-1">
               <button
                 type="button"

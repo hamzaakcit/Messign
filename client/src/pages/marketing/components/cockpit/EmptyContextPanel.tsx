@@ -10,16 +10,16 @@ export function EmptyContextPanel() {
         </div>
       </div>
       <div className="flex flex-wrap justify-center gap-2 max-w-[280px]">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface-tertiary px-2.5 py-1 text-[10px] text-slate-400">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface-tertiary px-2.5 py-1 text-[10px] text-app-muted">
           <MousePointerClick className="h-3 w-3 text-emerald-400/80" />
           Tap a row
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface-tertiary px-2.5 py-1 text-[10px] text-slate-400">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface-tertiary px-2.5 py-1 text-[10px] text-app-muted">
           <Sparkles className="h-3 w-3 text-amber-400/80" />
           Preview here
         </span>
       </div>
-      <p className="text-[11px] text-slate-500">Workspace</p>
+      <p className="text-[11px] text-app-muted">Workspace</p>
     </div>
   );
 }

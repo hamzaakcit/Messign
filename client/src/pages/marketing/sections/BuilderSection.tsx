@@ -196,7 +196,7 @@ export function BuilderSection(): JSX.Element {
           {createDropdownOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setCreateDropdownOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-app-border bg-[#12151c] shadow-xl py-1">
+              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-app-border bg-app-card shadow-xl py-1">
                 {FILTER_CHIPS.filter((c) => c.id !== 'all').map((c) => {
                   const Icon = c.icon;
                   return (

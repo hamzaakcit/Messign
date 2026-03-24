@@ -86,7 +86,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
   };
 
   return (
-    <div className="flex flex-col h-full w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden">
+    <div className="flex flex-col h-full w-[280px] shrink-0 border-l border-app-border bg-app-surface-tertiary overflow-hidden">
       <InstagramAgentPromptModal
         isOpen={igModalOpen}
         onClose={() => setIgModalOpen(false)}
@@ -97,7 +97,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
         }}
         defaultTopic={selectedCard?.title ?? null}
       />
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06] shrink-0">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
         <div className="flex items-center gap-1.5">
           <DoraChatAvatar size={20} />
           <span className="text-xs font-semibold text-app-text">Dora</span>
@@ -113,7 +113,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
       </div>
 
       {selectedCard && (
-        <div className="px-3 py-2 border-b border-white/[0.06] bg-app-surface-tertiary shrink-0">
+        <div className="px-3 py-2 border-b border-app-border bg-app-surface-tertiary shrink-0">
           <p className="text-[10px] text-app-muted uppercase tracking-wider mb-1">Selected</p>
           <p className="text-xs font-medium text-app-text truncate">{selectedCard.title}</p>
           <div className="flex items-center gap-2 mt-1 text-[10px] text-app-muted">
@@ -132,7 +132,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
                 <DoraChatAvatar size={36} />
               </div>
             </div>
-            <p className="text-[10px] text-slate-500">Quick start</p>
+            <p className="text-[10px] text-app-muted">Quick start</p>
           </div>
         )}
 
@@ -160,7 +160,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
         <div ref={chatEndRef} />
       </div>
 
-      <div className="relative z-20 p-2 border-t border-white/[0.06] space-y-1 bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
+      <div className="relative z-20 p-2 border-t border-app-border space-y-1 bg-app-card shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
         <div className="grid grid-cols-3 gap-1">
           <button
             type="button"

@@ -361,12 +361,12 @@ export function MarketingHub(): JSX.Element {
       />
 
       {brandList.length > 0 && mode === 'board' && (
-        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/[0.06] bg-[#0a0d12] shrink-0">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider">Brand</span>
+        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-app-border bg-app-card shrink-0">
+          <span className="text-[10px] text-app-muted uppercase tracking-wider">Brand</span>
           <select
             value={brandFilter || ''}
             onChange={(e) => setBrandFilter(e.target.value || null)}
-            className="bg-app-surface-tertiary border border-white/[0.08] rounded-lg px-2 py-1 text-xs text-app-text min-w-[140px]"
+            className="bg-app-surface-tertiary border border-app-border rounded-lg px-2 py-1 text-xs text-app-text min-w-[140px]"
           >
             <option value="">All brands</option>
             {brandList.map((b) => (
@@ -377,7 +377,7 @@ export function MarketingHub(): JSX.Element {
             <button
               type="button"
               onClick={() => setBrandFilter(null)}
-              className="text-[10px] text-slate-500 hover:text-slate-300"
+              className="text-[10px] text-app-muted hover:text-app-text"
             >
               Clear
             </button>

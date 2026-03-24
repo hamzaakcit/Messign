@@ -29,7 +29,7 @@ function getFlagSummary(flags: Array<{ severity: string }>): string {
 }
 
 const STATUS_STYLES: Record<BadgeStatus, { dot: string; bg: string; text: string }> = {
-  not_scanned: { dot: 'bg-slate-400', bg: 'bg-slate-500/10', text: 'text-slate-400' },
+  not_scanned: { dot: 'bg-slate-400', bg: 'bg-slate-500/10', text: 'text-app-muted' },
   passed: { dot: 'bg-emerald-400', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
   warning: { dot: 'bg-amber-400', bg: 'bg-amber-500/10', text: 'text-amber-400' },
   failed: { dot: 'bg-red-400', bg: 'bg-red-500/10', text: 'text-red-400' },

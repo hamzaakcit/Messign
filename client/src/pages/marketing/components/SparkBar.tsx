@@ -52,7 +52,7 @@ interface SparkChipProps {
 
 function SparkChip({ label, value, sparkData, color = '#3b82f6' }: SparkChipProps): JSX.Element {
   return (
-    <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-app-surface-tertiary border border-white/[0.08] min-w-0">
+    <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-app-surface-tertiary border border-app-border min-w-0">
       <div className="min-w-0">
         <p className="text-[10px] text-app-muted leading-none truncate">{label}</p>
         <p className="text-sm font-semibold text-app-text leading-tight">{value}</p>
@@ -104,7 +104,7 @@ export function SparkBar({
   const spendSpark = metrics?.monthlyTrend.map((t) => ({ v: t.spend })) ?? [];
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] bg-[#080a0e] shrink-0">
+    <div className="flex items-center gap-3 px-4 py-2 border-b border-app-border bg-app-surface-tertiary shrink-0">
       {loading ? (
         <div className="flex gap-3 flex-1">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -221,7 +221,7 @@ export function SparkBar({
           {createOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-app-border bg-[#12151c] shadow-xl py-1">
+              <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-app-border bg-app-card shadow-xl py-1">
                 <button
                   type="button"
                   onClick={() => { onCreateCampaign(); setCreateOpen(false); }}

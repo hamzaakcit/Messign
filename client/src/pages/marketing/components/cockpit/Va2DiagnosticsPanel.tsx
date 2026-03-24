@@ -17,10 +17,10 @@ export function Va2DiagnosticsPanel({
   onRegenerateHeroImage,
 }: Va2DiagnosticsPanelProps) {
   return (
-    <div className="space-y-2 text-[11px] text-slate-400 px-1 py-2">
+    <div className="space-y-2 text-[11px] text-app-muted px-1 py-2">
       <div className="flex items-center justify-between">
-        <span className="font-medium text-slate-300">VA2 Diagnostics</span>
-        <span className="text-[10px] text-slate-500">
+        <span className="font-medium text-app-text">VA2 Diagnostics</span>
+        <span className="text-[10px] text-app-muted">
           {assemblyResult.metadata.theme} · {assemblyResult.metadata.sectionCount} sections
         </span>
       </div>
@@ -58,7 +58,7 @@ export function Va2DiagnosticsPanel({
           type="button"
           disabled={isResolvingImage}
           onClick={() => void onRegenerateHeroImage()}
-          className="text-[10px] px-2 py-0.5 rounded bg-app-surface-tertiary hover:bg-app-hover text-slate-300 disabled:opacity-40 transition-colors"
+          className="text-[10px] px-2 py-0.5 rounded bg-app-surface-tertiary hover:bg-app-hover text-app-text disabled:opacity-40 transition-colors"
         >
           {isResolvingImage ? 'Generating…' : 'Regen hero image'}
         </button>
@@ -69,7 +69,7 @@ export function Va2DiagnosticsPanel({
               `Regenerate this ${manifest.theme} email about "${manifest.subject}" with improved copy.`,
             )
           }
-          className="text-[10px] px-2 py-0.5 rounded bg-app-surface-tertiary hover:bg-app-hover text-slate-300 transition-colors"
+          className="text-[10px] px-2 py-0.5 rounded bg-app-surface-tertiary hover:bg-app-hover text-app-text transition-colors"
         >
           Ask Dora to regen
         </button>

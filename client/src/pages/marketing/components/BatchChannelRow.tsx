@@ -14,9 +14,9 @@ interface BatchChannelRowProps {
 const STATUS_CONFIG = {
   pending: {
     icon: Circle,
-    iconClass: 'text-slate-500',
+    iconClass: 'text-app-muted',
     label: 'Waiting',
-    labelClass: 'text-slate-500',
+    labelClass: 'text-app-muted',
   },
   processing: {
     icon: Loader2,
@@ -52,11 +52,11 @@ export function BatchChannelRow({
   const label = CHANNEL_LABELS[channel] || channel;
 
   return (
-    <div className="flex items-center justify-between py-2 px-1 border-b border-white/[0.04] last:border-0">
+    <div className="flex items-center justify-between py-2 px-1 border-b border-app-border last:border-0">
       <div className="flex items-center gap-2.5 min-w-0">
         <Icon className={`w-4 h-4 shrink-0 ${cfg.iconClass}`} />
         <div className="min-w-0">
-          <span className="text-[13px] font-medium text-slate-200">{label}</span>
+          <span className="text-[13px] font-medium text-app-text">{label}</span>
           <span className={`ml-2 text-[11px] ${cfg.labelClass}`}>{cfg.label}</span>
           {error && status === 'failed' && (
             <p className="text-[10px] text-red-400/70 truncate mt-0.5">{error}</p>

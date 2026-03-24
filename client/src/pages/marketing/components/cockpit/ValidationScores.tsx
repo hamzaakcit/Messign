@@ -47,7 +47,7 @@ export function ValidationScores({
 
   const hasAny = truthRaw != null || brandRaw != null || complianceRaw != null;
   if (!hasAny) {
-    return <p className="text-[11px] text-slate-500">Not validated — this row may have been created outside the agent pipeline.</p>;
+    return <p className="text-[11px] text-app-muted">Not validated — this row may have been created outside the agent pipeline.</p>;
   }
 
   const t = truthRaw != null ? truthFromUnknown(truthRaw) : null;
@@ -59,42 +59,42 @@ export function ValidationScores({
   return (
     <div className="space-y-2">
       <div className="grid gap-2 text-[11px]">
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-[#0c0f14] px-2.5 py-2">
-          <span className="text-slate-400">Product truth</span>
-          <span className="flex items-center gap-2 tabular-nums text-slate-200">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-app-border bg-app-card px-2.5 py-2">
+          <span className="text-app-muted">Product truth</span>
+          <span className="flex items-center gap-2 tabular-nums text-app-text">
             {t ? (
               <>
                 {verdictIcon(t.pass)}
                 {t.pass ? <span>{t.score ?? '—'}/100</span> : <span className="text-red-300/90">Fail</span>}
               </>
             ) : (
-              <span className="text-slate-500">—</span>
+              <span className="text-app-muted">—</span>
             )}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-[#0c0f14] px-2.5 py-2">
-          <span className="text-slate-400">Brand voice</span>
-          <span className="flex items-center gap-2 tabular-nums text-slate-200">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-app-border bg-app-card px-2.5 py-2">
+          <span className="text-app-muted">Brand voice</span>
+          <span className="flex items-center gap-2 tabular-nums text-app-text">
             {b ? (
               <>
                 {verdictIcon(b.pass)}
                 <span>{b.score}/100</span>
               </>
             ) : (
-              <span className="text-slate-500">—</span>
+              <span className="text-app-muted">—</span>
             )}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-[#0c0f14] px-2.5 py-2">
-          <span className="text-slate-400">Compliance</span>
-          <span className="flex items-center gap-2 text-slate-200">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-app-border bg-app-card px-2.5 py-2">
+          <span className="text-app-muted">Compliance</span>
+          <span className="flex items-center gap-2 text-app-text">
             {c ? (
               <>
                 {verdictIcon(!c.warn, c.warn)}
                 <span>{c.warn ? `${c.issueCount} issue(s)` : 'Clear'}</span>
               </>
             ) : (
-              <span className="text-slate-500">Not stored</span>
+              <span className="text-app-muted">Not stored</span>
             )}
           </span>
         </div>
@@ -103,14 +103,14 @@ export function ValidationScores({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center gap-1 text-left text-[10px] font-medium text-slate-500 hover:text-slate-300"
+          className="flex w-full items-center gap-1 text-left text-[10px] font-medium text-app-muted hover:text-app-text"
         >
           {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           Show details
         </button>
       )}
       {open && detailHints.length > 0 && (
-        <ul className="space-y-1 rounded-lg border border-white/[0.05] bg-black/20 px-2.5 py-2 text-[10px] text-slate-400">
+        <ul className="space-y-1 rounded-lg border border-app-border bg-app-surface-tertiary px-2.5 py-2 text-[10px] text-app-muted">
           {detailHints.map((h, i) => (
             <li key={i} className="leading-snug">
               — {h}

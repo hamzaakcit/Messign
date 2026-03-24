@@ -151,15 +151,15 @@ export function BatchPanel({ heroContent, onClose }: BatchPanelProps) {
     <SlideOverPanel isOpen onClose={onClose} title={title} width={480}>
       <div className="flex flex-col h-full">
         {/* Hero preview */}
-        <div className="px-5 pt-4 pb-3 border-b border-white/[0.06]">
+        <div className="px-5 pt-4 pb-3 border-b border-app-border">
           <div className="flex items-center gap-2 mb-1">
             <Layers className="w-4 h-4 text-purple-400 shrink-0" />
-            <span className="text-[13px] font-medium text-slate-200 truncate">
+            <span className="text-[13px] font-medium text-app-text truncate">
               {heroContent.title}
             </span>
           </div>
           {heroContent.body && (
-            <p className="text-[11px] text-slate-500 line-clamp-2 ml-6">
+            <p className="text-[11px] text-app-muted line-clamp-2 ml-6">
               {heroContent.body.slice(0, 200)}
             </p>
           )}
@@ -194,13 +194,13 @@ export function BatchPanel({ heroContent, onClose }: BatchPanelProps) {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-white/[0.06] px-5 py-3 flex items-center justify-end gap-2">
+        <div className="shrink-0 border-t border-app-border px-5 py-3 flex items-center justify-end gap-2">
           {panelState === 'select' && (
             <>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg px-3 py-2 text-[12px] font-medium border border-white/[0.08] bg-app-surface-tertiary text-slate-200 hover:bg-app-hover transition-colors"
+                className="rounded-lg px-3 py-2 text-[12px] font-medium border border-app-border bg-app-surface-tertiary text-app-text hover:bg-app-hover transition-colors"
               >
                 Cancel
               </button>
@@ -255,7 +255,7 @@ function SelectState({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[12px] text-slate-400 uppercase tracking-wide">
+        <span className="text-[12px] text-app-muted uppercase tracking-wide">
           Target Channels
         </span>
         <button
@@ -280,7 +280,7 @@ function SelectState({
               onChange={() => onToggle(channel)}
               className="w-4 h-4 rounded border-app-border-strong bg-app-surface-tertiary text-purple-500 focus:ring-purple-500/30"
             />
-            <span className="text-[13px] text-slate-200">
+            <span className="text-[13px] text-app-text">
               {CHANNEL_LABELS[channel] || channel}
             </span>
           </label>
@@ -307,9 +307,9 @@ function ProcessingState({
       {/* Progress bar */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] text-slate-400">{pct}% complete</span>
+          <span className="text-[11px] text-app-muted">{pct}% complete</span>
           {elapsed && (
-            <span className="text-[11px] text-slate-500">{elapsed}</span>
+            <span className="text-[11px] text-app-muted">{elapsed}</span>
           )}
         </div>
         <div className="h-1.5 rounded-full bg-app-surface-tertiary overflow-hidden">
@@ -321,7 +321,7 @@ function ProcessingState({
       </div>
 
       {/* Channel rows */}
-      <div className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary divide-y divide-white/[0.04]">
+      <div className="rounded-lg border border-app-border bg-app-surface-tertiary divide-y divide-white/[0.04]">
         {batchJob.results.map((r) => (
           <BatchChannelRow
             key={r.channel}
@@ -352,7 +352,7 @@ function ResultsState({
     green: 'text-emerald-400',
     amber: 'text-amber-400',
     red: 'text-red-400',
-    gray: 'text-slate-400',
+    gray: 'text-app-muted',
   };
 
   return (
@@ -360,18 +360,18 @@ function ResultsState({
       {/* Status header */}
       <div className="flex items-center justify-between">
         <span
-          className={`text-[13px] font-medium ${colorMap[header.color] || 'text-slate-400'}`}
+          className={`text-[13px] font-medium ${colorMap[header.color] || 'text-app-muted'}`}
         >
           {header.text}
         </span>
         {elapsed && (
-          <span className="text-[11px] text-slate-500">{elapsed}</span>
+          <span className="text-[11px] text-app-muted">{elapsed}</span>
         )}
       </div>
 
       {/* Summary row */}
       <div className="flex gap-3 text-[11px]">
-        <span className="text-slate-400">
+        <span className="text-app-muted">
           {batchJob.total_channels} total
         </span>
         {batchJob.completed_channels > 0 && (
@@ -387,7 +387,7 @@ function ResultsState({
       </div>
 
       {/* Channel rows */}
-      <div className="rounded-lg border border-white/[0.06] bg-app-surface-tertiary divide-y divide-white/[0.04]">
+      <div className="rounded-lg border border-app-border bg-app-surface-tertiary divide-y divide-white/[0.04]">
         {batchJob.results.map((r) => (
           <BatchChannelRow
             key={r.channel}

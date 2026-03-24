@@ -18,14 +18,14 @@ export function ContentRejectModal({
   if (!open) return null;
   return (
     <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/50 p-3 backdrop-blur-[1px]">
-      <div className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[#0c0f14] p-3 shadow-xl">
-        <p className="text-[11px] font-medium text-slate-300">Reject draft</p>
-        <p className="mt-1 text-[10px] text-slate-500">Short note for the team (optional).</p>
+      <div className="w-full max-w-sm rounded-xl border border-app-border bg-app-card p-3 shadow-xl">
+        <p className="text-[11px] font-medium text-app-text">Reject draft</p>
+        <p className="mt-1 text-[10px] text-app-muted">Short note for the team (optional).</p>
         <textarea
           value={reason}
           onChange={(e) => onReasonChange(e.target.value)}
           rows={3}
-          className="mt-2 w-full resize-none rounded-lg border border-white/[0.08] bg-black/30 px-2 py-1.5 text-[11px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+          className="mt-2 w-full resize-none rounded-lg border border-app-border bg-app-surface-tertiary px-2 py-1.5 text-[11px] text-app-text placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-red-500/30"
           placeholder="Why reject?"
         />
         <div className="mt-2 flex justify-end gap-2">
@@ -33,7 +33,7 @@ export function ContentRejectModal({
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-lg px-2.5 py-1.5 text-[11px] text-slate-400 hover:bg-app-hover hover:text-slate-200"
+            className="rounded-lg px-2.5 py-1.5 text-[11px] text-app-muted hover:bg-app-hover hover:text-app-text"
           >
             Cancel
           </button>

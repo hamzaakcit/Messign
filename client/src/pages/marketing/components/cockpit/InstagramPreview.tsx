@@ -62,20 +62,20 @@ export function InstagramPreview({
   const totalSlides = isCarousel ? carouselImages.length : 1;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0f14] shadow-lg">
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-2">
+    <div className="overflow-hidden rounded-xl border border-app-border bg-app-card shadow-lg">
+      <div className="flex items-center justify-between border-b border-app-border px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-purple-500/40 to-pink-500/30 ring-1 ring-white/10" />
           <span className="truncate text-[12px] font-semibold text-slate-100">@{username}</span>
         </div>
-        <span className="text-slate-500">•••</span>
+        <span className="text-app-muted">•••</span>
       </div>
 
       <div className="relative aspect-square w-full bg-black/40">
         {isGenerating ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
             <div className="h-10 w-10 animate-pulse rounded-full bg-app-surface-tertiary" />
-            <p className="text-[11px] text-slate-500">Generating visuals…</p>
+            <p className="text-[11px] text-app-muted">Generating visuals…</p>
           </div>
         ) : currentImage && !imgLoadError ? (
           <>
@@ -119,13 +119,13 @@ export function InstagramPreview({
         ) : currentImage && imgLoadError ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
             <ImageOff className="h-7 w-7 text-slate-600" strokeWidth={1.5} />
-            <p className="text-[10px] text-slate-500 text-center">
+            <p className="text-[10px] text-app-muted text-center">
               Image could not be loaded — regenerate to create a new one.
             </p>
           </div>
         ) : (
           <div className="flex h-full flex-col justify-end p-3">
-            <p className="text-[10px] leading-relaxed text-slate-500 line-clamp-[12]">
+            <p className="text-[10px] leading-relaxed text-app-muted line-clamp-[12]">
               {imagePrompt?.trim() ||
                 'No image — add a prompt and generate, or wait for the pipeline to produce a visual.'}
             </p>
@@ -133,7 +133,7 @@ export function InstagramPreview({
         )}
       </div>
 
-      <div className="flex items-center gap-4 border-b border-white/[0.05] px-3 py-2 text-slate-300">
+      <div className="flex items-center gap-4 border-b border-app-border px-3 py-2 text-app-text">
         <Heart className="h-5 w-5" strokeWidth={1.5} />
         <MessageCircle className="h-5 w-5" strokeWidth={1.5} />
         <Send className="h-5 w-5" strokeWidth={1.5} />
@@ -141,10 +141,10 @@ export function InstagramPreview({
       </div>
 
       <div className="space-y-1.5 px-3 py-3 text-[12px] leading-relaxed">
-        <p className="text-slate-200">
+        <p className="text-app-text">
           <span className="font-semibold text-slate-100">@{username}</span>{' '}
           <span className="whitespace-pre-wrap">{visible}</span>
-          {more && <span className="text-slate-500"> …more</span>}
+          {more && <span className="text-app-muted"> …more</span>}
         </p>
         {hashtags.length > 0 && (
           <p className="text-[11px] leading-snug">

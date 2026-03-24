@@ -125,18 +125,18 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">{error}</div>
       )}
 
-      <div className="rounded-lg border border-white/[0.08] bg-[#0c0f14] p-3">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Create automation</div>
+      <div className="rounded-lg border border-app-border bg-app-card p-3">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-app-muted">Create automation</div>
         <div className="mt-2 grid gap-2">
           <input
-            className="rounded-md border border-white/[0.08] bg-[#080a0e] px-2 py-1.5 text-xs text-slate-200"
+            className="rounded-md border border-app-border bg-app-surface-tertiary px-2 py-1.5 text-xs text-app-text"
             placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <label className="text-[10px] text-slate-500">When (event)</label>
+          <label className="text-[10px] text-app-muted">When (event)</label>
           <select
-            className="rounded-md border border-white/[0.08] bg-[#080a0e] px-2 py-1.5 text-xs text-slate-200"
+            className="rounded-md border border-app-border bg-app-surface-tertiary px-2 py-1.5 text-xs text-app-text"
             value={eventName}
             onChange={(e) => setEventName(e.target.value)}
           >
@@ -146,9 +146,9 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
               </option>
             ))}
           </select>
-          <label className="text-[10px] text-slate-500">Prompt template</label>
+          <label className="text-[10px] text-app-muted">Prompt template</label>
           <textarea
-            className="min-h-[72px] rounded-md border border-white/[0.08] bg-[#080a0e] px-2 py-1.5 text-xs text-slate-200"
+            className="min-h-[72px] rounded-md border border-app-border bg-app-surface-tertiary px-2 py-1.5 text-xs text-app-text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
@@ -157,16 +157,16 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
               <button
                 key={chip}
                 type="button"
-                className="rounded border border-white/[0.06] px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-app-hover"
+                className="rounded border border-app-border px-1.5 py-0.5 text-[10px] text-app-muted hover:bg-app-hover"
                 onClick={() => setPrompt((p) => (p ? `${p} ${chip}` : chip))}
               >
                 {chip}
               </button>
             ))}
           </div>
-          <label className="text-[10px] text-slate-500">Channel</label>
+          <label className="text-[10px] text-app-muted">Channel</label>
           <select
-            className="rounded-md border border-white/[0.08] bg-[#080a0e] px-2 py-1.5 text-xs text-slate-200"
+            className="rounded-md border border-app-border bg-app-surface-tertiary px-2 py-1.5 text-xs text-app-text"
             value={channel}
             onChange={(e) => setChannel(e.target.value)}
           >
@@ -190,24 +190,24 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
 
       <div className="min-h-0 flex-1 overflow-auto">
         {loading && (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-app-muted">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
         )}
         {!loading && items.length === 0 && (
-          <p className="text-xs text-slate-500">No automations yet. Create one above or use the API.</p>
+          <p className="text-xs text-app-muted">No automations yet. Create one above or use the API.</p>
         )}
         <ul className="space-y-2">
           {items.map((row) => (
             <li
               key={row.id}
-              className="rounded-lg border border-white/[0.08] bg-[#0c0f14] px-3 py-2 text-xs text-slate-200"
+              className="rounded-lg border border-app-border bg-app-card px-3 py-2 text-xs text-app-text"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div className="font-medium text-slate-100">{row.name}</div>
-                  <div className="mt-0.5 text-[10px] text-slate-500">
-                    <span className="rounded bg-app-surface-tertiary px-1 py-0.5 text-slate-400">{row.trigger_type}</span>
+                  <div className="mt-0.5 text-[10px] text-app-muted">
+                    <span className="rounded bg-app-surface-tertiary px-1 py-0.5 text-app-muted">{row.trigger_type}</span>
                     {row.fire_count > 0 && (
                       <span className="ml-2">
                         Fires: {row.fire_count}
@@ -220,7 +220,7 @@ export function AutomationsPanel({ userId, onDataChanged }: Props) {
                   <button
                     type="button"
                     title={row.enabled ? 'Disable' : 'Enable'}
-                    className="rounded p-1 text-slate-400 hover:bg-app-hover"
+                    className="rounded p-1 text-app-muted hover:bg-app-hover"
                     disabled={busyId === row.id}
                     onClick={() => void toggle(row)}
                   >

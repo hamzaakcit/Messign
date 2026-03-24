@@ -50,8 +50,8 @@ export function ContentRenderer({
   const text = body ?? '';
   const nodes = useMemo(() => splitWithHighlights(text), [text]);
   return (
-    <div className={cn('whitespace-pre-wrap break-words text-[13px] leading-relaxed text-slate-200', className)}>
-      {nodes.length > 0 ? nodes : <span className="text-slate-500">No body text.</span>}
+    <div className={cn('whitespace-pre-wrap break-words text-[13px] leading-relaxed text-app-text', className)}>
+      {nodes.length > 0 ? nodes : <span className="text-app-muted">No body text.</span>}
     </div>
   );
 }

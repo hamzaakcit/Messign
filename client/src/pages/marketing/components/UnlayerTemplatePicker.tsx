@@ -20,7 +20,7 @@ const CATEGORY_COLORS: Record<TemplateCategory, string> = {
   nurture: 'bg-blue-500/20 text-blue-300',
   announce: 'bg-amber-500/20 text-amber-300',
   engage: 'bg-purple-500/20 text-purple-300',
-  general: 'bg-slate-500/20 text-slate-300',
+  general: 'bg-slate-500/20 text-app-text',
 };
 
 function getSubtitle(t: UnlayerStarterTemplate): string {
