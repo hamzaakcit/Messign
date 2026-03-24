@@ -350,7 +350,7 @@ aiRouter.get('/answer/claude-status', async (req: Request, res: Response) => {
 aiRouter.post('/answer', validateAIAnswerInput, aiAnswerRateLimit, async (req: Request, res: Response) => {
   const marketingAgentMode =
     (req.body as { marketingAgentMode?: boolean }).marketingAgentMode === true;
-  if (process.env.DORA_V2_ENABLED === 'true' || marketingAgentMode) {
+  if (process.env.DORA_V2_ENABLED !== 'false') {
     const { runPipelineHandler } = await import('../../services/ai/v2/pipeline.js');
     await runPipelineHandler(req, res);
     return;
