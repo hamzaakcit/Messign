@@ -13,6 +13,7 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/authToken', () => ({
   getAccessToken: vi.fn(() => null),
   setAccessToken: vi.fn(),
+  registerAccessTokenReader: vi.fn(),
 }));
 
 import { useAuthStore } from '@/stores/authStore';

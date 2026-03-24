@@ -4,7 +4,7 @@ import type { StateStorage } from 'zustand/middleware';
 import type { User } from '@/types';
 import { authAPI } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
-import { setAccessToken } from '@/lib/authToken';
+import { registerAccessTokenReader, setAccessToken } from '@/lib/authToken';
 
 const AUTH_PERSIST_NAME = 'messign-auth';
 
@@ -211,6 +211,7 @@ export const useAuthStore = create<AuthState>()(
 );
 
 /** Keep in-memory Bearer (used by api.ts fetch) in sync with persisted store — avoids stale rehydrate overwriting a fresh login token. */
+registerAccessTokenReader(() => useAuthStore.getState().accessToken);
 setAccessToken(useAuthStore.getState().accessToken);
 useAuthStore.subscribe((state) => {
   setAccessToken(state.accessToken);
