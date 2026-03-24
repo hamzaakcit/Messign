@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requireJwt } from '../../../middleware/authMiddleware.js';
 import { reimbursementAuth } from '../../../middleware/reimbursementAuth.js';
 import campaignsRouter from '../../../routes/marketing/campaigns.js';
 import contentRouter from '../../../routes/marketing/content.js';
@@ -24,6 +25,8 @@ import executiveDashboardRouter from '../../../routes/marketing/dashboardRoutes.
 
 const router = Router();
 
+/** After global optionalJwt, require a valid Bearer so req.userId is set (optionalJwt skips invalid/fingerprint-mismatch tokens silently). */
+router.use(requireJwt);
 router.use(reimbursementAuth);
 router.use('/campaigns', campaignsRouter);
 router.use('/content', contentRouter);
