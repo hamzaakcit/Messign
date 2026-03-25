@@ -44,8 +44,11 @@ type WidgetState = 'collapsed' | 'expanded';
 
 export function FloatingWidget() {
   const { pathname } = useLocation();
+  const pathNorm = pathname.replace(/\/$/, '') || '/';
   /** Marketing Command Center embeds Dora in the right rail — hide duplicate global pilot. */
-  const hideOnMarketingHub = pathname.replace(/\/$/, '') === '/marketing';
+  const hideOnMarketingHub = pathNorm === '/marketing';
+  /** Executive dashboard embeds Ask Dora — hide duplicate floating pilot and avoid overlap. */
+  const hideOnExecutive = pathNorm === '/executive';
   const user = useAuthStore((s) => s.user);
   const userRole = user?.role || 'employee';
   const userName = user?.name?.split(' ')[0] || 'there';
@@ -478,7 +481,7 @@ export function FloatingWidget() {
     };
   }, []);
 
-  if (hideOnMarketingHub) {
+  if (hideOnMarketingHub || hideOnExecutive) {
     return null;
   }
 

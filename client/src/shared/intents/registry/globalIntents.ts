@@ -119,7 +119,7 @@ export const GLOBAL_INTENTS: IntentEntry[] = [
     modules: 'all',
     priority: 3,
     handler: 'preset:performance_me',
-    followUpIntents: ['time.utilization_me', 'quick.open_tasks'],
+    followUpIntents: ['okr.progress', 'quick.open_tasks'],
   },
   {
     id: 'performance.team',

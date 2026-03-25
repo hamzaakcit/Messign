@@ -15,8 +15,6 @@ const triggerOptions = [
   { value: 'crm.deal.lost', label: 'Sales: Deal Lost' },
   { value: 'project.task.completed', label: 'Projects: Task Completed' },
   { value: 'project.sprint.completed', label: 'Projects: Sprint Completed' },
-  { value: 'time.timesheet.submitted', label: 'Time: Timesheet Submitted' },
-  { value: 'time.overtime.detected', label: 'Time: Overtime Detected' },
 ];
 
 const actionOptions = [

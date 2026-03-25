@@ -21,7 +21,6 @@ export type Domain =
   | 'finance'
   | 'support'
   | 'marketing'
-  | 'time'
   | 'okr'
   | 'assets'
   | 'contracts'

@@ -134,11 +134,10 @@ export function getToolsForLLM(): LLMToolDefinition[] {
 /**
  * Specialists can access tools from related namespaces.
  * Fixes the mismatch where hr specialist needs people:* tools
- * and time specialist needs projects:* tools.
+ * and similar cross-namespace access for other specialists.
  */
 const NAMESPACE_ALIASES: Record<string, string[]> = {
   hr: ['hr', 'people'],
-  time: ['time', 'projects'],
   finance: ['finance'],
   executive: ['executive', 'analytics'],
   crm: ['crm'],
@@ -152,7 +151,7 @@ const NAMESPACE_ALIASES: Record<string, string[]> = {
 
 /**
  * Get all tools for a given namespace (for specialist agents).
- * Uses NAMESPACE_ALIASES so hr gets people:* and time gets projects:*.
+ * Uses NAMESPACE_ALIASES so hr gets people:*.
  * Filters by userRoles for RBAC.
  */
 export function getToolsForNamespace(namespace: string, userRoles: string[]): LLMToolDefinition[] {

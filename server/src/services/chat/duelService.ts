@@ -1,6 +1,14 @@
 import { randomInt } from 'node:crypto';
 
+/** Bumps when RNG or scoring rules change (client can show for fair replay). */
+export const DUEL_SEED_VERSION = '1' as const;
+
 export type RpsMove = 'rock' | 'paper' | 'scissors';
+
+export interface DuelMetadata {
+  seedVersion: typeof DUEL_SEED_VERSION;
+  modeId: 'rps' | 'coin' | 'chamber';
+}
 
 export interface RpsDuelResult {
   you: RpsMove;
@@ -8,6 +16,7 @@ export interface RpsDuelResult {
   outcome: 'win' | 'lose' | 'draw';
   headline: string;
   taskHint: string;
+  metadata: DuelMetadata;
 }
 
 export interface CoinDuelResult {
@@ -16,6 +25,7 @@ export interface CoinDuelResult {
   youWin: boolean;
   headline: string;
   taskHint: string;
+  metadata: DuelMetadata;
 }
 
 export interface ChamberDuelResult {
@@ -24,6 +34,7 @@ export interface ChamberDuelResult {
   hit: boolean;
   headline: string;
   taskHint: string;
+  metadata: DuelMetadata;
 }
 
 const MOVES: RpsMove[] = ['rock', 'paper', 'scissors'];
@@ -60,7 +71,14 @@ export function playRpsDuel(you: RpsMove): RpsDuelResult {
         ? 'Create a task: “Lost RPS duel — pick up the next channel follow-up.”'
         : 'Optional: create a task for the rematch.';
 
-  return { you, house, outcome, headline, taskHint };
+  return {
+    you,
+    house,
+    outcome,
+    headline,
+    taskHint,
+    metadata: { seedVersion: DUEL_SEED_VERSION, modeId: 'rps' },
+  };
 }
 
 /**
@@ -73,7 +91,14 @@ export function playCoinDuel(call: 'heads' | 'tails'): CoinDuelResult {
   const taskHint = youWin
     ? 'Create a task: “Coin flip win — delegate something tiny.”'
     : 'Create a task: “Lost coin flip — own the next checklist item.”';
-  return { call, result, youWin, headline, taskHint };
+  return {
+    call,
+    result,
+    youWin,
+    headline,
+    taskHint,
+    metadata: { seedVersion: DUEL_SEED_VERSION, modeId: 'coin' },
+  };
 }
 
 /**
@@ -89,5 +114,12 @@ export function playChamberDuel(yourChamber: number): ChamberDuelResult {
   const taskHint = hit
     ? 'Create a task: “Chamber duel — splashed! Do one small thing for the team.”'
     : 'No task debt — or create one for whoever chickened out.';
-  return { yourChamber: slot, dangerChamber, hit, headline, taskHint };
+  return {
+    yourChamber: slot,
+    dangerChamber,
+    hit,
+    headline,
+    taskHint,
+    metadata: { seedVersion: DUEL_SEED_VERSION, modeId: 'chamber' },
+  };
 }

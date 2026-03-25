@@ -67,7 +67,6 @@ const ROUTE_PATTERNS: RoutePattern[] = [
   { pattern: /^\/assets/, module: 'assets' },
   { pattern: /^\/contracts/, module: 'contracts' },
   { pattern: /^\/support/, module: 'support' },
-  { pattern: /^\/time/, module: 'time' },
   { pattern: /^\/okr/, module: 'okr' },
 ];
 
@@ -175,7 +174,6 @@ export function useWidgetContext(userRole: string = 'member') {
       assets: 'Assets',
       contracts: 'Contracts',
       support: 'Support',
-      time: 'Time Tracking',
       okr: 'OKRs & Goals',
       executive: 'Executive',
       reports: 'Reports',

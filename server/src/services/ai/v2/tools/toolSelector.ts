@@ -59,7 +59,6 @@ export const DOMAIN_TOOL_MAP: Record<Domain, string[]> = {
     'marketing:competitor_social_listen',
     'marketing:propose_brand_voice_patch',
   ],
-  time: ['time:get_time_summary', 'time:get_utilization_report', 'time:suggest_time_allocation'],
   okr: ['okr:get_okr_metrics', 'okr:list_goals', 'okr:get_goal_tree'],
   assets: ['assets:get_asset_summary', 'assets:get_license_utilization'],
   contracts: ['contracts:get_contract_renewals', 'contracts:extract_contract_terms'],

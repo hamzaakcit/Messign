@@ -220,15 +220,15 @@ export async function createBudget(
   return runInTenant(tenantId, async (client) => {
     const result = await client.query(
       `INSERT INTO finance_budgets
-       (organization_id, name, description, department, budget_code,
+       (organization_id, tenant_id, name, description, department, budget_code,
         team_id, project_id, owner_id, allocated_amount, currency,
         period_start, period_end, period_type,
         warning_threshold, critical_threshold, hard_limit,
         requires_approval, approval_threshold, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'active')
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'active')
        RETURNING *`,
       [
-        tenantId, data.name, data.description ?? null, data.department,
+        tenantId, tenantId, data.name, data.description ?? null, data.department,
         data.budget_code ?? null, data.team_id ?? null, data.project_id ?? null,
         data.owner_id, data.allocated_amount, data.currency ?? 'USD',
         data.period_start, data.period_end, data.period_type ?? 'monthly',

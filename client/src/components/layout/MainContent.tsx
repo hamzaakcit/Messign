@@ -18,7 +18,6 @@ const CRMLayout = React.lazy(() => import('@/pages/crm/CRMLayout').then((m) => (
 const MarketingLayout = React.lazy(() => import('@/pages/marketing/MarketingLayout').then((m) => ({ default: m.MarketingLayout })));
 const RecruitmentLayout = React.lazy(() => import('@/pages/recruitment/RecruitmentLayout').then((m) => ({ default: m.RecruitmentLayout })));
 const SupportLayout = React.lazy(() => import('@/pages/support/SupportLayout').then((m) => ({ default: m.SupportLayout })));
-const TimeTrackingPage = React.lazy(() => import('@/pages/time/TimeTrackingPage').then((m) => ({ default: m.TimeTrackingPage })));
 const OKRPage = React.lazy(() => import('@/pages/okr/OKRPage').then((m) => ({ default: m.OKRPage })));
 const AssetsLayout = React.lazy(() => import('@/pages/assets/AssetsLayout').then((m) => ({ default: m.AssetsLayout })));
 const ContractsLayout = React.lazy(() => import('@/pages/contracts/ContractsLayout').then((m) => ({ default: m.ContractsLayout })));
@@ -30,7 +29,6 @@ const AutomationLogPage = React.lazy(() => import('@/pages/dora/AutomationLogPag
 const DailyBriefingPage = React.lazy(() => import('@/pages/dora/DailyBriefingPage').then((m) => ({ default: m.DailyBriefingPage })));
 const ExecutiveDashboardPage = React.lazy(() => import('@/pages/executive/ExecutiveDashboardPage').then((m) => ({ default: m.ExecutiveDashboardPage })));
 const ReportHubPage = React.lazy(() => import('@/pages/reports/ReportHubPage').then((m) => ({ default: m.ReportHubPage })));
-const NotificationsPage = React.lazy(() => import('@/pages/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 
 export function MainContent() {
   const currentView = useUIStore((s) => s.currentView);
@@ -50,8 +48,6 @@ export function MainContent() {
         return wrap('executive', <ExecutiveDashboardPage />);
       case 'reports':
         return wrap('reports', <ReportHubPage />);
-      case 'notifications':
-        return wrap('notifications', <NotificationsPage />);
       case 'dora': {
         if (location.pathname.startsWith('/dora/briefing')) {
           return wrap('dora-briefing', <DailyBriefingPage />);
@@ -88,8 +84,6 @@ export function MainContent() {
         return wrap('recruitment', <RecruitmentLayout />);
       case 'support':
         return wrap('support', <SupportLayout />);
-      case 'time':
-        return wrap('time', <TimeTrackingPage />);
       case 'okr':
         return wrap('okr', <OKRPage />);
       case 'assets':

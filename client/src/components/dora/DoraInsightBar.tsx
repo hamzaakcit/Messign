@@ -22,7 +22,6 @@ type Module =
   | 'assets'
   | 'contracts'
   | 'support'
-  | 'time'
   | 'okr'
   | 'culture';
 
@@ -47,7 +46,6 @@ const FALLBACK_MESSAGES: Record<Module, string> = {
   assets: 'Dora monitors equipment warranties and license utilization.',
   contracts: 'Dora tracks renewals and extracts key terms from your contracts.',
   support: 'Dora monitors ticket SLAs and detects patterns across support requests.',
-  time: 'Dora tracks your utilization and suggests optimal time allocation.',
   okr: 'Dora tracks OKR progress and flags at-risk goals.',
   culture: 'Dora monitors team health and engagement patterns to help build a stronger culture.',
 };

@@ -32,6 +32,5 @@ export { knowledgeAPI, adminKnowledgeAPI } from './knowledgeApi';
 export { financeAPI } from './financeApi';
 export { crmAPI } from './crmApi';
 export { supportApi } from './supportApi';
-export { timeApi } from './timeApi';
 export { marketingAPI } from './marketingApi';
 export { recruitmentAPI } from './recruitmentApi';

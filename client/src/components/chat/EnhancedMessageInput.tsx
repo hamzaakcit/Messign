@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, type KeyboardEvent } from 'react';
-import { Send, Paperclip, Smile, AtSign, X, Slash, Sparkles, Loader2, BookOpen } from 'lucide-react';
+import { Send, Paperclip, Smile, AtSign, X, Slash, Sparkles, Loader2, BookOpen, MoreHorizontal, Search, Swords, PanelRightOpen, PlusCircle } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
@@ -32,13 +32,21 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
   const mentionPickerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const improveMenuRef = useRef<HTMLDivElement>(null);
+  const quickActionsRef = useRef<HTMLDivElement>(null);
   const kbDebounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const [kbChips, setKbChips] = useState<DoraKBSuggestion[]>([]);
   const [improveOpen, setImproveOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
   const sendMessage = useChatStore((s) => s.sendMessage);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
+  const setSearchOpen = useChatStore((s) => s.setSearchOpen);
+  const setDuelHubOpen = useChatStore((s) => s.setDuelHubOpen);
+  const toggleDoraPanel = useChatStore((s) => s.toggleDoraPanel);
+  const toggleDetailPanel = useChatStore((s) => s.toggleDetailPanel);
+  const setChannelCreateOpen = useChatStore((s) => s.setChannelCreateOpen);
+  const doraPanelOpen = useChatStore((s) => s.doraPanelOpen);
   const transformDraft = useChatStore((s) => s.transformDraft);
   const draftTransformLoading = useChatStore((s) => s.draftTransformLoading);
   const composerDraftToApply = useChatStore((s) => s.composerDraftToApply);
@@ -233,6 +241,17 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
     if (out?.text) setContent(out.text);
   };
 
+  useEffect(() => {
+    if (!quickActionsOpen) return;
+    const close = (e: MouseEvent) => {
+      if (quickActionsRef.current && !quickActionsRef.current.contains(e.target as Node)) {
+        setQuickActionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [quickActionsOpen]);
+
   return (
     <div
       className="p-3 border-t border-app/80 bg-app-bg/40 backdrop-blur-[2px]"
@@ -287,6 +306,70 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
         <button type="button" onClick={() => { slash.open(); textareaRef.current?.focus(); }} className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors" aria-label="Slash commands" title="Slash commands">
           <Slash className="w-4.5 h-4.5" />
         </button>
+
+        <div className="relative" ref={quickActionsRef}>
+          <button
+            type="button"
+            onClick={() => setQuickActionsOpen((o) => !o)}
+            className={cn(
+              'p-2 rounded-lg transition-colors',
+              quickActionsOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover',
+            )}
+            aria-label="Quick actions"
+            aria-expanded={quickActionsOpen}
+            aria-haspopup="menu"
+            title="Search, duels, Dora, and more"
+          >
+            <MoreHorizontal className="w-4.5 h-4.5" />
+          </button>
+          {quickActionsOpen && (
+            <div
+              role="menu"
+              className="absolute bottom-full right-0 mb-1 py-1 min-w-[200px] rounded-xl border border-app bg-app-sidebar shadow-xl z-50"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-app hover:bg-app-hover text-left"
+                onClick={() => { setSearchOpen(true); setQuickActionsOpen(false); }}
+              >
+                <Search className="w-4 h-4 shrink-0" /> Search messages
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-app hover:bg-app-hover text-left"
+                onClick={() => { setDuelHubOpen(true); setQuickActionsOpen(false); }}
+              >
+                <Swords className="w-4 h-4 shrink-0" /> Channel duels
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-app hover:bg-app-hover text-left"
+                onClick={() => { if (!doraPanelOpen) toggleDoraPanel(); setQuickActionsOpen(false); }}
+              >
+                <Sparkles className="w-4 h-4 shrink-0" /> Dora assistant
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-app hover:bg-app-hover text-left"
+                onClick={() => { toggleDetailPanel(); setQuickActionsOpen(false); }}
+              >
+                <PanelRightOpen className="w-4 h-4 shrink-0" /> Channel details
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-app hover:bg-app-hover text-left"
+                onClick={() => { setChannelCreateOpen(true); setQuickActionsOpen(false); }}
+              >
+                <PlusCircle className="w-4 h-4 shrink-0" /> New channel
+              </button>
+            </div>
+          )}
+        </div>
 
         <textarea
           ref={textareaRef}
@@ -406,6 +489,14 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
       )}
 
       <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-app-muted" aria-hidden>
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-primary-500/15">
+          <kbd className="px-1 py-0.5 bg-app-bg rounded font-mono">⌘K</kbd>
+          <span>palette</span>
+        </span>
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-primary-500/15">
+          <kbd className="px-1 py-0.5 bg-app-bg rounded font-mono">⌘⇧F</kbd>
+          <span>search</span>
+        </span>
         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-primary-500/15">
           <kbd className="px-1 py-0.5 bg-app-bg rounded font-mono">Enter</kbd>
           <span>send</span>

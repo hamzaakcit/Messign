@@ -57,9 +57,6 @@ const MODULE_TOOLS: Record<string, string[]> = {
   support: [
     'support:get_ticket_overview', 'support:get_customer_health', 'support:get_support_metrics',
   ],
-  time: [
-    'time:get_time_summary', 'time:get_utilization_report', 'time:suggest_time_allocation',
-  ],
   culture: [
     'heart:get_team_sentiment', 'heart:get_burnout_risk', 'heart:get_culture_score',
     'heart:get_my_wellness', 'heart:send_pulse_survey',
@@ -99,7 +96,7 @@ const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
   { keywords: ['asset', 'assets', 'equipment', 'license', 'licenses', 'software', 'warranty', 'utilization'], tools: ['assets:get_asset_summary', 'assets:get_license_utilization'] },
   { keywords: ['contract', 'contracts', 'renewal', 'expiry', 'obligation', 'compliance', 'e-sign', 'esign', 'signature'], tools: ['contracts:get_contract_renewals', 'contracts:extract_contract_terms'] },
   { keywords: ['ticket', 'tickets', 'support', 'help desk', 'helpdesk', 'sla', 'customer health', 'csat', 'agent'], tools: ['support:get_ticket_overview', 'support:get_customer_health', 'support:get_support_metrics'] },
-  { keywords: ['time', 'hours', 'timesheet', 'utilization', 'billable', 'timer'], tools: ['time:get_time_summary', 'time:get_utilization_report', 'time:suggest_time_allocation'] },
+  { keywords: ['time', 'hours', 'timesheet', 'utilization', 'billable', 'timer'], tools: ['projects:get_tasks_by_user', 'people:get_team_overview', 'people:get_employee_performance'] },
   { keywords: ['report', 'summary', 'analysis'], tools: ['analytics:get_department_report', 'finance:get_financial_summary'] },
   { keywords: ['sentiment', 'burnout', 'wellness', 'culture', 'team health', 'engagement', 'pulse', 'morale', 'stress', 'work-life'], tools: ['heart:get_team_sentiment', 'heart:get_burnout_risk', 'heart:get_culture_score', 'heart:get_my_wellness', 'heart:send_pulse_survey'] },
 ];

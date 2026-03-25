@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { eventBus } from '../events/index.js';
 import {
   getChannelsForUser,
+  getChannelIdsForUser,
   getMessagesForChannel,
   createMessage,
   getChannelById,
@@ -33,6 +34,13 @@ import type { DoraTransformAction } from '../services/chat/index.js';
 import { allowChatAiRequest } from '../services/chat/chatAiRateLimit.js';
 import { playRpsDuel, playCoinDuel, playChamberDuel } from '../services/chat/duelService.js';
 import type { RpsMove } from '../services/chat/duelService.js';
+import { assertDuelRateLimit } from '../services/chat/duelRateLimit.js';
+import {
+  createTwoPlayerInvite,
+  joinTwoPlayerInvite,
+  revealTwoPlayerInvite,
+  getTwoPlayerInviteStatus,
+} from '../services/chat/duelTwoPlayerService.js';
 
 export const chatRouter = Router();
 
@@ -499,6 +507,26 @@ chatRouter.get('/channels/:id/media', async (req, res) => {
 // ══════════════════════════════════════
 
 chatRouter.get('/search', async (req, res) => {
+  type SearchRow = {
+    id: string;
+    channel_id: string;
+    user_id: string;
+    content: string;
+    created_at: string;
+    sender_name: string | null;
+    channel_name: string;
+  };
+
+  const mapRow = (r: SearchRow) => ({
+    id: r.id,
+    channelId: r.channel_id,
+    userId: r.user_id,
+    content: r.content,
+    timestamp: r.created_at,
+    senderName: r.sender_name,
+    channelName: r.channel_name,
+  });
+
   try {
     const userId = getUserId(req as never);
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
@@ -506,64 +534,100 @@ chatRouter.get('/search', async (req, res) => {
     const channelIdFilter = req.query.channelId as string | undefined;
     if (!q.trim()) { res.json([]); return; }
 
-    const params: unknown[] = [q];
-    let whereExtra = '';
+    const allowedIds = await getChannelIdsForUser(userId);
+    if (allowedIds.length === 0) { res.json([]); return; }
+
+    let channelIds = allowedIds;
     if (channelIdFilter) {
-      whereExtra = ` AND m.channel_id = $2`;
-      params.push(channelIdFilter);
+      if (!allowedIds.includes(channelIdFilter)) {
+        res.status(403).json({ error: 'Not a member of this channel' });
+        return;
+      }
+      channelIds = [channelIdFilter];
     }
 
-    const result = await query<{
-      id: string; channel_id: string; user_id: string; content: string;
-      created_at: string; sender_name: string | null; channel_name: string;
-    }>(
-      `SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at,
-              COALESCE(u.full_name, m.user_id) AS sender_name,
-              c.name AS channel_name
-       FROM messages m
-       LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
-       JOIN channels c ON c.id = m.channel_id
-       WHERE m.is_deleted = FALSE
-         AND m.content_tsv @@ plainto_tsquery('english', $1)${whereExtra}
-       ORDER BY ts_rank(m.content_tsv, plainto_tsquery('english', $1)) DESC
-       LIMIT 30`,
-      params,
-    );
+    const safeIlike = q.replace(/[%_]/g, '').trim();
 
-    res.json(result.rows.map((r) => ({
-      id: r.id, channelId: r.channel_id, userId: r.user_id,
-      content: r.content, timestamp: r.created_at,
-      senderName: r.sender_name, channelName: r.channel_name,
-    })));
-  } catch (e) {
-    console.error('[chat] GET /search', e);
-    // Fallback to ILIKE if FTS fails
-    try {
-      const q = (req.query.q as string) ?? '';
-      const result = await query<{
-        id: string; channel_id: string; user_id: string; content: string;
-        created_at: string; sender_name: string | null; channel_name: string;
-      }>(
+    const runFts = () =>
+      query<SearchRow>(
         `SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at,
                 COALESCE(u.full_name, m.user_id) AS sender_name,
                 c.name AS channel_name
          FROM messages m
          LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
          JOIN channels c ON c.id = m.channel_id
-         WHERE m.is_deleted = FALSE AND m.content ILIKE $1
+         WHERE m.is_deleted = FALSE
+           AND m.channel_id = ANY($2::uuid[])
+           AND m.content_tsv @@ plainto_tsquery('english', $1)
+         ORDER BY ts_rank(m.content_tsv, plainto_tsquery('english', $1)) DESC
+         LIMIT 30`,
+        [q, channelIds],
+      );
+
+    const runIlike = (pattern: string) =>
+      query<SearchRow>(
+        `SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at,
+                COALESCE(u.full_name, m.user_id) AS sender_name,
+                c.name AS channel_name
+         FROM messages m
+         LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
+         JOIN channels c ON c.id = m.channel_id
+         WHERE m.is_deleted = FALSE
+           AND m.channel_id = ANY($1::uuid[])
+           AND m.content ILIKE $2
          ORDER BY m.created_at DESC
          LIMIT 30`,
-        [`%${q}%`],
+        [channelIds, pattern],
       );
-      res.json(result.rows.map((r) => ({
-        id: r.id, channelId: r.channel_id, userId: r.user_id,
-        content: r.content, timestamp: r.created_at,
-        senderName: r.sender_name, channelName: r.channel_name,
-      })));
-    } catch (e2) {
-      console.error('[chat] GET /search fallback', e2);
-      res.status(500).json({ error: 'Failed to search messages' });
+
+    /** Fallback when `content_tsv` is missing or not backfilled — rank on live `content`. */
+    const runFtsOnContentColumn = () =>
+      query<SearchRow>(
+        `SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at,
+                COALESCE(u.full_name, m.user_id) AS sender_name,
+                c.name AS channel_name
+         FROM messages m
+         LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
+         JOIN channels c ON c.id = m.channel_id
+         WHERE m.is_deleted = FALSE
+           AND m.channel_id = ANY($2::uuid[])
+           AND to_tsvector('english', COALESCE(m.content, '')) @@ plainto_tsquery('english', $1)
+         ORDER BY ts_rank(to_tsvector('english', COALESCE(m.content, '')), plainto_tsquery('english', $1)) DESC
+         LIMIT 30`,
+        [q, channelIds],
+      );
+
+    let result: { rows: SearchRow[] };
+    try {
+      result = await runFts();
+    } catch (e) {
+      console.error('[chat] GET /search FTS', e);
+      result = { rows: [] };
     }
+
+    if (result.rows.length === 0) {
+      try {
+        result = await runFtsOnContentColumn();
+      } catch (e) {
+        console.error('[chat] GET /search FTS on content', e);
+        result = { rows: [] };
+      }
+    }
+
+    if (result.rows.length === 0 && safeIlike.length > 0) {
+      try {
+        result = await runIlike(`%${safeIlike}%`);
+      } catch (e2) {
+        console.error('[chat] GET /search ILIKE', e2);
+        res.status(500).json({ error: 'Failed to search messages' });
+        return;
+      }
+    }
+
+    res.json(result.rows.map(mapRow));
+  } catch (e) {
+    console.error('[chat] GET /search', e);
+    res.status(500).json({ error: 'Failed to search messages' });
   }
 });
 
@@ -816,6 +880,10 @@ chatRouter.post('/channels/:id/duels/rps', async (req, res) => {
     if (!(await checkChannelMembership(channelId, userId))) {
       res.status(403).json({ error: 'Not a member of this channel' }); return;
     }
+    if (assertDuelRateLimit(userId, channelId) === 'rate_limited') {
+      res.status(429).json({ error: 'Too many duels in this channel. Try again in a minute.' });
+      return;
+    }
     const move = (req.body as { move?: string })?.move;
     if (!move || !RPS_MOVES.has(move)) {
       res.status(400).json({ error: 'move must be rock, paper, or scissors' }); return;
@@ -834,6 +902,10 @@ chatRouter.post('/channels/:id/duels/coin', async (req, res) => {
     const channelId = req.params.id;
     if (!(await checkChannelMembership(channelId, userId))) {
       res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    if (assertDuelRateLimit(userId, channelId) === 'rate_limited') {
+      res.status(429).json({ error: 'Too many duels in this channel. Try again in a minute.' });
+      return;
     }
     const call = (req.body as { call?: string })?.call;
     if (call !== 'heads' && call !== 'tails') {
@@ -854,6 +926,10 @@ chatRouter.post('/channels/:id/duels/chamber', async (req, res) => {
     if (!(await checkChannelMembership(channelId, userId))) {
       res.status(403).json({ error: 'Not a member of this channel' }); return;
     }
+    if (assertDuelRateLimit(userId, channelId) === 'rate_limited') {
+      res.status(429).json({ error: 'Too many duels in this channel. Try again in a minute.' });
+      return;
+    }
     const raw = (req.body as { chamber?: unknown })?.chamber;
     const chamber = typeof raw === 'number' ? raw : Number(raw);
     if (!Number.isFinite(chamber)) {
@@ -863,6 +939,117 @@ chatRouter.post('/channels/:id/duels/chamber', async (req, res) => {
   } catch (e) {
     console.error('[chat] POST /duels/chamber', e);
     res.status(500).json({ error: 'Duel failed' });
+  }
+});
+
+// RPS two-player (commit–reveal): invite → opponent joins → challenger reveals
+chatRouter.get('/channels/:id/duels/rps/two-player/:inviteId', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const inviteId = req.params.inviteId;
+    const st = getTwoPlayerInviteStatus(inviteId);
+    res.json(st);
+  } catch (e) {
+    console.error('[chat] GET /duels/rps/two-player/:inviteId', e);
+    res.status(500).json({ error: 'Failed to load invite' });
+  }
+});
+
+chatRouter.post('/channels/:id/duels/rps/two-player/invite', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    if (assertDuelRateLimit(userId, channelId) === 'rate_limited') {
+      res.status(429).json({ error: 'Too many duels in this channel. Try again in a minute.' });
+      return;
+    }
+    const commitmentHex = (req.body as { commitmentHex?: string })?.commitmentHex;
+    if (!commitmentHex || typeof commitmentHex !== 'string') {
+      res.status(400).json({ error: 'commitmentHex is required' }); return;
+    }
+    const out = createTwoPlayerInvite(channelId, userId, commitmentHex.trim());
+    if ('error' in out) {
+      res.status(out.status).json({ error: out.error }); return;
+    }
+    res.json(out);
+  } catch (e) {
+    console.error('[chat] POST /duels/rps/two-player/invite', e);
+    res.status(500).json({ error: 'Failed to create invite' });
+  }
+});
+
+chatRouter.post('/channels/:id/duels/rps/two-player/join', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    if (assertDuelRateLimit(userId, channelId) === 'rate_limited') {
+      res.status(429).json({ error: 'Too many duels in this channel. Try again in a minute.' });
+      return;
+    }
+    const inviteId = (req.body as { inviteId?: string })?.inviteId;
+    const move = (req.body as { move?: string })?.move;
+    if (!inviteId || typeof inviteId !== 'string') {
+      res.status(400).json({ error: 'inviteId is required' }); return;
+    }
+    if (!move || !RPS_MOVES.has(move)) {
+      res.status(400).json({ error: 'move must be rock, paper, or scissors' }); return;
+    }
+    const out = joinTwoPlayerInvite(channelId, inviteId, userId, move as RpsMove);
+    if ('error' in out) {
+      res.status(out.status).json({ error: out.error }); return;
+    }
+    res.json(out);
+  } catch (e) {
+    console.error('[chat] POST /duels/rps/two-player/join', e);
+    res.status(500).json({ error: 'Failed to join invite' });
+  }
+});
+
+chatRouter.post('/channels/:id/duels/rps/two-player/reveal', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    if (assertDuelRateLimit(userId, channelId) === 'rate_limited') {
+      res.status(429).json({ error: 'Too many duels in this channel. Try again in a minute.' });
+      return;
+    }
+    const inviteId = (req.body as { inviteId?: string })?.inviteId;
+    const move = (req.body as { move?: string })?.move;
+    const salt = (req.body as { salt?: string })?.salt;
+    if (!inviteId || typeof inviteId !== 'string') {
+      res.status(400).json({ error: 'inviteId is required' }); return;
+    }
+    if (!move || !RPS_MOVES.has(move)) {
+      res.status(400).json({ error: 'move must be rock, paper, or scissors' }); return;
+    }
+    if (!salt || typeof salt !== 'string') {
+      res.status(400).json({ error: 'salt is required' }); return;
+    }
+    const out = revealTwoPlayerInvite(channelId, inviteId, userId, move as RpsMove, salt);
+    if ('error' in out) {
+      res.status(out.status).json({ error: out.error }); return;
+    }
+    res.json(out);
+  } catch (e) {
+    console.error('[chat] POST /duels/rps/two-player/reveal', e);
+    res.status(500).json({ error: 'Failed to reveal duel' });
   }
 });
 
@@ -941,18 +1128,31 @@ chatRouter.get('/search/universal', async (req, res) => {
     const q = (req.query.q as string) ?? '';
     if (!q.trim()) { res.json({ messages: [], tasks: [], documents: [], users: [] }); return; }
 
+    const allowedIds = await getChannelIdsForUser(userId);
+    if (allowedIds.length === 0) {
+      res.json({ messages: [], tasks: [], documents: [], users: [] });
+      return;
+    }
+
+    const safeIlike = q.replace(/[%_]/g, '').trim();
+    const pattern = safeIlike.length > 0 ? `%${safeIlike}%` : null;
+
     const [messages, tasks, documents, users] = await Promise.all([
-      query<{ id: string; channel_id: string; user_id: string; content: string; created_at: string; sender_name: string | null; channel_name: string }>(
-        `SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at,
-                COALESCE(u.full_name, m.user_id) AS sender_name,
-                c.name AS channel_name
-         FROM messages m
-         LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
-         JOIN channels c ON c.id = m.channel_id
-         WHERE m.is_deleted = FALSE AND m.content ILIKE $1
-         ORDER BY m.created_at DESC LIMIT 15`,
-        [`%${q}%`],
-      ).catch(() => ({ rows: [] as Array<{ id: string; channel_id: string; user_id: string; content: string; created_at: string; sender_name: string | null; channel_name: string }> })),
+      pattern
+        ? query<{ id: string; channel_id: string; user_id: string; content: string; created_at: string; sender_name: string | null; channel_name: string }>(
+            `SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at,
+                    COALESCE(u.full_name, m.user_id) AS sender_name,
+                    c.name AS channel_name
+             FROM messages m
+             LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
+             JOIN channels c ON c.id = m.channel_id
+             WHERE m.is_deleted = FALSE
+               AND m.channel_id = ANY($2::uuid[])
+               AND m.content ILIKE $1
+             ORDER BY m.created_at DESC LIMIT 15`,
+            [pattern, allowedIds],
+          ).catch(() => ({ rows: [] as Array<{ id: string; channel_id: string; user_id: string; content: string; created_at: string; sender_name: string | null; channel_name: string }> }))
+        : Promise.resolve({ rows: [] as Array<{ id: string; channel_id: string; user_id: string; content: string; created_at: string; sender_name: string | null; channel_name: string }> }),
       slashSearch('task', q, 10).catch(() => []),
       slashSearch('document', q, 10).catch(() => []),
       slashSearch('user', q, 10).catch(() => []),

@@ -9,8 +9,17 @@ interface SupportCardProps {
   onAction: () => void;
 }
 
+function ticketTrendHasVariation(rows: ExecutiveChartData['ticketTrend']): boolean {
+  if (rows.length < 2) return false;
+  const a = rows[0];
+  return rows.some(
+    (d) => d.opened !== a.opened || d.resolved !== a.resolved,
+  );
+}
+
 export function SupportCard({ data, chartData, onAction }: SupportCardProps): JSX.Element {
   const last14 = chartData?.slice(-14) ?? [];
+  const showChart = last14.length > 0 && ticketTrendHasVariation(last14);
 
   return (
     <DepartmentCard
@@ -25,7 +34,7 @@ export function SupportCard({ data, chartData, onAction }: SupportCardProps): JS
         { label: 'At Risk', value: data.atRiskCustomers },
       ]}
       chart={
-        last14.length > 0 ? (
+        showChart ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={last14}>
               <XAxis dataKey="date" tick={false} axisLine={false} tickLine={false} />
@@ -37,6 +46,8 @@ export function SupportCard({ data, chartData, onAction }: SupportCardProps): JS
               <Line type="monotone" dataKey="resolved" stroke="#10b981" strokeWidth={2} dot={false} name="Resolved" />
             </LineChart>
           </ResponsiveContainer>
+        ) : last14.length > 0 ? (
+          <div className="flex h-full items-center justify-center text-[11px] text-app-muted">No trend yet</div>
         ) : undefined
       }
       actionLabel="Manage Tickets"

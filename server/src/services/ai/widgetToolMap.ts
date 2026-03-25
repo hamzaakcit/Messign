@@ -23,8 +23,6 @@ export const AI_WIDGET_TOOL_MAP: Record<string, string> = {
   'support:get_ticket_overview': 'data_table',
   'support:get_support_metrics': 'data_table',
   'support:get_customer_health': 'data_table',
-  'time:get_time_summary': 'data_table',
-  'time:get_utilization_report': 'data_table',
   'okr:get_okr_metrics': 'data_table',
   'okr:list_goals': 'data_table',
   'fun:play_dora_dash': 'dora_dash',

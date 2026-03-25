@@ -7,7 +7,7 @@ import type {
   SlashSearchResult, ChatSearchResult, ChatMediaItem,
   SmartFolder, UniversalSearchResults,
   DoraDecisionsResult, DoraTransformAction, DoraMessageTransformResult,
-  ChatRpsMove, ChatRpsDuelResult, ChatCoinDuelResult, ChatChamberDuelResult,
+  ChatRpsMove, ChatRpsDuelResult, ChatRpsTwoPlayerDuelResult, ChatCoinDuelResult, ChatChamberDuelResult,
 } from '@/types';
 
 export const channelsAPI = {
@@ -212,6 +212,29 @@ export const chatAPI = {
       `/chat/channels/${channelId}/duels/chamber`, undefined,
       { method: 'POST', body: JSON.stringify({ chamber }) },
     ),
+
+  chatDuelRpsTwoPlayerInvite: (channelId: string, commitmentHex: string) =>
+    chatFetch<{ inviteId: string; expiresAt: string }>(
+      `/chat/channels/${channelId}/duels/rps/two-player/invite`, undefined,
+      { method: 'POST', body: JSON.stringify({ commitmentHex }) },
+    ),
+  chatDuelRpsTwoPlayerJoin: (channelId: string, inviteId: string, move: ChatRpsMove) =>
+    chatFetch<{ ok: true; status: 'awaiting_reveal'; inviteId: string }>(
+      `/chat/channels/${channelId}/duels/rps/two-player/join`, undefined,
+      { method: 'POST', body: JSON.stringify({ inviteId, move }) },
+    ),
+  chatDuelRpsTwoPlayerReveal: (channelId: string, inviteId: string, move: ChatRpsMove, salt: string) =>
+    chatFetch<ChatRpsTwoPlayerDuelResult>(
+      `/chat/channels/${channelId}/duels/rps/two-player/reveal`, undefined,
+      { method: 'POST', body: JSON.stringify({ inviteId, move, salt }) },
+    ),
+  chatDuelRpsTwoPlayerStatus: (channelId: string, inviteId: string) =>
+    chatFetch<
+      | { status: 'not_found' }
+      | { status: 'awaiting_opponent'; expiresAt: string }
+      | { status: 'awaiting_reveal'; expiresAt: string }
+      | { status: 'expired' }
+    >(`/chat/channels/${channelId}/duels/rps/two-player/${inviteId}`),
 
   // ── Threads ──
   getThreadMessages: (channelId: string, messageId: string) =>

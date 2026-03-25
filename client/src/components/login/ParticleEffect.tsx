@@ -105,7 +105,7 @@ export function ParticleEffect() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 1, opacity: 0.48 }}
+      style={{ zIndex: 1, opacity: 0.22 }}
       aria-hidden
     />
   );

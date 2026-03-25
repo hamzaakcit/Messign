@@ -14,7 +14,6 @@ import {
   Wallet,
   Briefcase,
   Megaphone,
-  Clock3,
   Target,
   CheckCircle2,
   LifeBuoy,
@@ -22,7 +21,6 @@ import {
   Package,
   FileSignature,
   Heart,
-  Bell,
   Pin,
   PinOff,
   type LucideIcon,
@@ -46,7 +44,6 @@ const VIEW_TO_PATH: Record<string, string> = {
   dashboard: '/dashboard',
   executive: '/executive',
   reports: '/reports',
-  notifications: '/notifications',
   dora: '/dora',
   chat: '/chat',
   knowledge: '/knowledge-hub',
@@ -61,7 +58,6 @@ const VIEW_TO_PATH: Record<string, string> = {
   marketing: '/marketing',
   recruitment: '/recruitment',
   support: '/support',
-  time: '/time',
   okr: '/okr',
   assets: '/assets',
   contracts: '/contracts',
@@ -91,7 +87,6 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'executive', label: 'Executive', icon: LayoutDashboard },
       { id: 'dora', label: 'Dora', icon: null },
       { id: 'chat', label: 'Chat', icon: MessageSquare, showUnread: true },
-      { id: 'notifications', label: 'Notifications', icon: Bell },
     ],
   },
   {
@@ -99,7 +94,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Work',
     items: [
       { id: 'projects', label: 'Projects', icon: Briefcase },
-      { id: 'time', label: 'Time Tracking', icon: Clock3 },
       { id: 'okr', label: 'OKRs & Goals', icon: CheckCircle2 },
     ],
   },
@@ -176,7 +170,6 @@ function getInsightBadge(id: string, counts: Record<string, number>): number {
     case 'assets': return counts.assets ?? 0;
     case 'contracts': return counts.contracts ?? 0;
     case 'support': return counts.support ?? 0;
-    case 'time': return counts.time ?? 0;
     default: return 0;
   }
 }
@@ -195,6 +188,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const logout = useAuthStore((s) => s.logout);
   const channels = useChatStore((s) => s.channels);
+  const safeChannels = Array.isArray(channels) ? channels : [];
   const reimbContext = useReimbursementContext();
   const [personalDetailOpen, setPersonalDetailOpen] = useState(false);
   const [insightCounts, setInsightCounts] = useState<Record<string, number>>({});
@@ -202,7 +196,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<string[]>(getCollapsedGroups);
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const totalUnread = channels.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+  const totalUnread = safeChannels.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   const isExpanded = !collapsed || hoverExpanded;
 

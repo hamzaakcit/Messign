@@ -7,6 +7,8 @@ import { register as registerWebhookSubscriber } from './webhookSubscriber.js';
 import { register as registerCelebrationSubscriber } from './celebrationSubscriber.js';
 import { register as registerCacheInvalidationSubscriber } from './cacheInvalidationSubscriber.js';
 import { register as registerGraphSyncSubscriber } from './graphSyncSubscriber.js';
+import { registerTimeWorkflowSubscriber } from './timeWorkflowSubscriber.js';
+import { eventBus } from '../../platform/eventBus.js';
 
 export function registerAllSubscribers(): void {
   registerAuditSubscriber();
@@ -18,7 +20,7 @@ export function registerAllSubscribers(): void {
   // HR/Recruitment handlers: registered by modules/hr via initializeModules
   // OKR handlers: registered by modules/okr via initializeModules
   // Support handlers: registered by modules/support via initializeModules
-  // Time handlers: registered by modules/time via initializeModules
+  registerTimeWorkflowSubscriber(eventBus);
   registerAutomationSubscriber();
   // Assets, Contracts handlers: registered by modules via initializeModules
   registerWebhookSubscriber();

@@ -490,10 +490,10 @@ async function generateInvoiceForEmployee(
       // Create new invoice
       invoiceNumber = await getNextInvoiceNumber(year);
       const insertResult = await client.query(
-        `INSERT INTO invoices (invoice_number, employee_id, period_year, period_month,
+        `INSERT INTO invoices (organization_id, tenant_id, invoice_number, employee_id, period_year, period_month,
            base_retainer, total_expenses, grand_total, status, generated_date, due_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'draft',$8,$9) RETURNING *`,
-        [invoiceNumber, employeeId, year, month, baseRetainer, totalExpenses, grandTotal, today, dueDate]
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10,$11) RETURNING *`,
+        [orgId, orgId, invoiceNumber, employeeId, year, month, baseRetainer, totalExpenses, grandTotal, today, dueDate]
       );
       invoiceId = insertResult.rows[0].id;
     }

@@ -265,7 +265,6 @@ const MODULE_BADGE: Record<string, { emoji: string; className: string; short: st
   hr: { emoji: '👥', className: 'bg-purple-500/10 text-purple-400 border-purple-500/20', short: 'HR' },
   marketing: { emoji: '📣', className: 'bg-pink-500/10 text-pink-400 border-pink-500/20', short: 'Marketing' },
   knowledge: { emoji: '📚', className: 'bg-sky-500/10 text-sky-400 border-sky-500/20', short: 'Knowledge' },
-  time: { emoji: '⏱️', className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20', short: 'Time' },
   okr: { emoji: '🎯', className: 'bg-orange-500/10 text-orange-400 border-orange-500/20', short: 'OKRs' },
   heart: { emoji: '❤️', className: 'bg-rose-500/10 text-rose-400 border-rose-500/20', short: 'Culture' },
   executive: { emoji: '📈', className: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', short: 'Executive' },

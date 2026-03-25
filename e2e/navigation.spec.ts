@@ -19,8 +19,8 @@ test.describe('Navigation', () => {
     await page.getByTestId('onboarding-dora-nav').click();
     await expect(page).toHaveURL(/\/dora/);
 
-    await page.getByTestId('nav-time').click();
-    await expect(page).toHaveURL(/\/time/);
+    await page.getByTestId('nav-okr').click();
+    await expect(page).toHaveURL(/\/okr/);
   });
 
   test('Cmd+K search opens and navigates', async ({ page }) => {
@@ -32,9 +32,8 @@ test.describe('Navigation', () => {
     await expect(page).toHaveURL(/\/dora/, { timeout: 5000 });
   });
 
-  test('Floating timer widget is visible', async ({ page }) => {
+  test('legacy /time URL redirects to dashboard', async ({ page }) => {
     await page.goto('/time');
-    await expect(page).toHaveURL(/\/time/);
-    await expect(page.getByTestId('timer-start')).toBeVisible({ timeout: 10000 });
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
   });
 });

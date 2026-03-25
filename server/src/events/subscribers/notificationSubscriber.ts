@@ -180,7 +180,7 @@ export function register(): void {
     await notificationQueue.add('timesheet_approved', {
       userId: payload.userId, eventType: 'time.timesheet.approved',
       title: 'Timesheet approved', message: 'Your timesheet has been approved.',
-      link: `/time/timesheets`, module: 'time', severity: 'success', channel: 'in_app',
+      link: `/executive`, module: 'time', severity: 'success', channel: 'in_app',
     });
   });
 
@@ -188,7 +188,7 @@ export function register(): void {
     await notificationQueue.add('timesheet_rejected', {
       userId: payload.userId, eventType: 'time.timesheet.rejected',
       title: 'Timesheet rejected', message: (payload.reason as string) || 'Your timesheet was rejected.',
-      link: `/time/timesheets`, module: 'time', severity: 'warning', channel: 'in_app',
+      link: `/executive`, module: 'time', severity: 'warning', channel: 'in_app',
     });
   });
 

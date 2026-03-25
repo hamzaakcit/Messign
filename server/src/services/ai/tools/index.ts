@@ -58,8 +58,6 @@ import './finance/index.js';
 
 // Customer Support: tools registered via modules/support (registry)
 
-// Time Tracking: tools registered via modules/time (registry)
-
 // Marketing: tools registered via modules/marketing (registry)
 
 // Recruitment: tools registered via modules/hr (registry)

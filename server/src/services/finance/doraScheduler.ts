@@ -208,13 +208,13 @@ export const doraScheduler = {
       const invNumber = `${t.invoice_number}-R${String(seq).padStart(3, '0')}`;
 
       await query(
-        `INSERT INTO invoices (organization_id, invoice_number, invoice_type, status,
+        `INSERT INTO invoices (organization_id, tenant_id, invoice_number, invoice_type, status,
           from_name, from_email, from_address, to_name, to_email, to_address, to_tax_id,
           client_id, vendor_id, currency, subtotal, tax_amount, discount_amount, grand_total,
           total_amount, amount_paid, payment_terms, notes, internal_notes, parent_recurring_id, due_date, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,0,$20,$21,$22,$23,$24,$25)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,0,$22,$23,$24,$25,$26)`,
         [
-          orgId, invNumber, t.invoice_type, config.auto_send ? 'sent' : 'draft',
+          orgId, orgId, invNumber, t.invoice_type, config.auto_send ? 'sent' : 'draft',
           t.from_name, t.from_email, t.from_address, t.to_name, t.to_email, t.to_address, t.to_tax_id,
           t.client_id, t.vendor_id, t.currency, t.subtotal, t.tax_amount, t.discount_amount, t.grand_total,
           t.total_amount, t.payment_terms, t.notes, t.internal_notes, t.id, nextDate, t.created_by,

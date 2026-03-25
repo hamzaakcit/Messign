@@ -11,7 +11,6 @@ const CATEGORY_TAG: Partial<Record<IntentCategory, string>> = {
   projects: 'Projects',
   performance: 'Performance',
   knowledge: 'Knowledge',
-  time: 'Time',
   crm: 'CRM',
   marketing: 'Marketing',
   recruitment: 'Hiring',

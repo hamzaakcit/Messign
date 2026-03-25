@@ -1,7 +1,11 @@
-import type { EventBus } from '../../../platform/eventBus.js';
-import { crossModuleQueue, gamificationQueue } from '../../../queue/index.js';
-import { query } from '../../../db/index.js';
-import * as doraInsights from '../../../dal/doraInsights.js';
+/**
+ * Time-domain event handlers (timesheet approval → invoicing, entry → tasks/XP, scheduler insights).
+ * Previously registered via the removed `time` platform module; kept here so BullMQ / scheduler emissions still run.
+ */
+import type { EventBus } from '../../platform/eventBus.js';
+import { crossModuleQueue, gamificationQueue } from '../../queue/index.js';
+import { query } from '../../db/index.js';
+import * as doraInsights from '../../dal/doraInsights.js';
 
 async function findManagerId(userId: string): Promise<string | null> {
   const result = await query<{ manager_id: string | null }>(
@@ -11,7 +15,7 @@ async function findManagerId(userId: string): Promise<string | null> {
   return result.rows[0]?.manager_id ?? null;
 }
 
-export function registerTimeEventHandlers(eventBus: EventBus): void {
+export function registerTimeWorkflowSubscriber(eventBus: EventBus): void {
   eventBus.on('time.timesheet.approved', async (payload) => {
     const groups = await query<{ client_id: string; user_id: string; period_start: string; period_end: string; entries: unknown }>(
       `SELECT te.client_id::text AS client_id, ts.user_id::text AS user_id, ts.week_start_date::text AS period_start, ts.week_end_date::text AS period_end,
@@ -52,5 +56,5 @@ export function registerTimeEventHandlers(eventBus: EventBus): void {
     await doraInsights.createInsight({ module: 'time', severity: 'info', title: 'Utilization below target', message: `A team member is at ${payload.currentUtilization}% utilization, below the ${payload.targetUtilization}% target.`, sourceEvent: 'time.utilization.threshold', sourceEntityType: 'utilization', sourceEntityId: payload.userId, targetUserId: managerId, metadata: { period: payload.period, currentUtilization: payload.currentUtilization, targetUtilization: payload.targetUtilization } });
   });
 
-  console.log('[Time] Event handlers registered');
+  console.log('[TimeWorkflow] Event handlers registered');
 }

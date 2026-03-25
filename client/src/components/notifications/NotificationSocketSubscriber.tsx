@@ -60,7 +60,7 @@ export function NotificationSocketSubscriber() {
           type: 'timesheet_approved',
           title: data.title ?? 'Timesheet approved',
           message: data.message ?? '',
-          actionUrl: data.actionUrl ?? '/time',
+          actionUrl: data.actionUrl ?? '/executive',
           actionLabel: data.actionLabel ?? 'View',
         });
         return;

@@ -26,7 +26,9 @@ const MODULE_CONTEXT_HINTS: Record<string, string> = {
   admin:
     'The user is in Admin. They have elevated access. Consider get_system_stats.',
   marketing:
-    'The user is in Marketing Hub. Start with get_campaign_performance or get_marketing_roi.',
+    'The user is in Marketing Hub (campaigns, content pipeline, intelligence). ' +
+    'Leadership KPIs for marketing live on this hub; company-wide executive rollups are on **Executive** in the main sidebar (`/executive`), not a separate Marketing executive page. ' +
+    'Start with get_campaign_performance or get_marketing_roi.',
   recruitment:
     'The user is in Recruitment ATS. Start with get_hiring_pipeline, score_candidate, or get_recruitment_metrics.',
   assets:

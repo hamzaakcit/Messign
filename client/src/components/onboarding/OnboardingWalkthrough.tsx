@@ -5,12 +5,11 @@ const STORAGE_KEY = 'onboarding_completed';
 
 const STEPS = [
   { id: 'welcome', title: 'Welcome to Messign', body: 'Your gamified digital workspace. Let\'s take a quick tour of the key features.', selector: null },
-  { id: 'sidebar', title: 'Navigation', body: 'Use the sidebar to navigate between modules: Finance, CRM, Support, Time, and more.', selector: '[data-testid="onboarding-sidebar"]' },
+  { id: 'sidebar', title: 'Navigation', body: 'Use the sidebar to navigate between modules: Finance, CRM, Support, Projects, and more.', selector: '[data-testid="onboarding-sidebar"]' },
   { id: 'cmdk', title: 'Quick Search', body: 'Press ⌘K (or Ctrl+K) to search pages, create expenses, or ask Dora anything.', selector: '[data-testid="onboarding-cmdk"]' },
   { id: 'dora', title: 'Dora AI', body: 'Dora is your AI assistant. Click here to chat, get insights, and automate tasks.', selector: '[data-testid="onboarding-dora-nav"]' },
   { id: 'insight', title: 'Insight Bar', body: 'Contextual insights appear here on each page. Dora surfaces what matters most.', selector: '[data-testid="onboarding-insight-bar"]' },
   { id: 'notifications', title: 'Notifications', body: 'Stay on top of approvals, mentions, and updates.', selector: '[data-testid="onboarding-notifications"]' },
-  { id: 'timer', title: 'Time Tracking', body: 'Start the floating timer to log time. It appears on every page.', selector: '[data-testid="timer-start"]' },
   { id: 'done', title: "You're all set!", body: 'Explore the workspace. You can always access Dora from the sidebar or with ⌘K.', selector: null },
 ];
 

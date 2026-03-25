@@ -41,8 +41,8 @@ const ROUTE_TOOL = {
       properties: {
         primary_module: {
           type: 'string',
-          enum: ['crm', 'support', 'finance', 'hr', 'marketing', 'time', 'okr', 'assets', 'contracts', 'heart'],
-          description: `The specialist module: crm (deals, pipeline, contacts), support (tickets, SLA), finance (expenses, invoices, budgets), hr (employees, recruitment, PEOPLE, PERFORMANCE), marketing (campaigns, leads), time (timesheets, PROJECTS, TASKS, sprints), okr (goals), assets (inventory), contracts (renewals), heart (sentiment, wellness)`,
+          enum: ['crm', 'support', 'finance', 'hr', 'marketing', 'okr', 'assets', 'contracts', 'heart'],
+          description: `The specialist module: crm (deals, pipeline, contacts), support (tickets, SLA), finance (expenses, invoices, budgets), hr (employees, recruitment, PEOPLE, PERFORMANCE), marketing (campaigns, leads), okr (goals), assets (inventory), contracts (renewals), heart (sentiment, wellness)`,
         },
         refined_query: { type: 'string', description: 'The user\'s question, possibly refined for the specialist' },
         complexity: { type: 'string', enum: ['simple', 'moderate', 'complex'], description: 'Estimated complexity' },
@@ -73,9 +73,9 @@ function buildOrchestratorPrompt(): string {
   return `You are the Messign routing agent. Your job is to classify the user's intent and route correctly.
 
 You have TWO tools:
-1. route_to_specialist — For questions requiring LIVE DATA (deals, tickets, tasks, performance, invoices, etc.). Use primary_module from: crm, support, finance, hr, marketing, time, okr, assets, contracts, heart.
-   - hr: employees, recruitment, PEOPLE, PERFORMANCE reviews, team comparisons
-   - time: time tracking, PROJECTS, TASKS, sprints, assignments, utilization
+1. route_to_specialist — For questions requiring LIVE DATA (deals, tickets, tasks, performance, invoices, etc.). Use primary_module from: crm, support, finance, hr, marketing, okr, assets, contracts, heart.
+   - hr: employees, recruitment, PEOPLE, PERFORMANCE reviews, team comparisons, assignments
+   - crm: pipeline, deals, sales forecasts
 2. search_knowledge_or_respond — For: documentation, how-to guides, policies, greetings, "what can you do?", or anything that does NOT need live business data.
 
 RULES:
@@ -87,7 +87,7 @@ RULES:
 Examples:
 - "Hi!" → search_knowledge_or_respond(direct_response="Hi! How can I help you today?", needs_kb_search=false)
 - "What does the Getting Started Guide say?" → search_knowledge_or_respond(direct_response="", needs_kb_search=true, search_query="Getting Started Guide")
-- "What are my open tasks?" → route_to_specialist(primary_module="time", refined_query="What are my open tasks?")
+- "What are my open tasks?" → route_to_specialist(primary_module="hr", refined_query="What are my open tasks?")
 - "How is Alex Chen's performance?" → route_to_specialist(primary_module="hr", refined_query="How is Alex Chen's performance?")
 - "What's our pipeline value?" → route_to_specialist(primary_module="crm", refined_query="What is our total pipeline value?")`;
 }

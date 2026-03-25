@@ -69,6 +69,17 @@ export const executiveAPI = {
     fetchWithUserId<PendingItems>('/executive/pending-items', userId),
   getChartData: (userId: string) =>
     fetchWithUserId<ExecutiveChartData>('/executive/chart-data', userId),
+  /** Approves a submitted timesheet (executive route; same auth as dashboard). */
+  approveTimesheet: (userId: string, timesheetId: string) =>
+    fetchWithUserId<unknown>(`/executive/timesheets/${encodeURIComponent(timesheetId)}/approve`, userId, {
+      method: 'POST',
+    }),
+  /** Rejects a submitted timesheet with a reason shown to the submitter. */
+  rejectTimesheet: (userId: string, timesheetId: string, reason: string) =>
+    fetchWithUserId<unknown>(`/executive/timesheets/${encodeURIComponent(timesheetId)}/reject`, userId, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
 };
 
 export interface BriefingItem {

@@ -537,7 +537,7 @@ function DoraChatBody({ user, welcomeOnly = false }: { user: { name?: string; ro
                       userFirstName={user?.name?.split(' ')[0]}
                       onStartDay={() =>
                         handleSuggestion(
-                          'Give me a comprehensive daily briefing across tasks, finance, projects, and time tracking.',
+                          'Give me a comprehensive daily briefing across tasks, finance, projects, and goals.',
                         )
                       }
                       onOpenTasks={() => handleSuggestion('What are my open tasks?', 'quick.open_tasks')}

@@ -12,6 +12,17 @@ import { toast } from 'sonner';
 
 export const ADMIN_MESSAGES_CHANNEL_ID = '__admin_messages__';
 
+const CHANNEL_RAIL_COLLAPSED_KEY = 'messign-chat-channel-rail-collapsed';
+
+function readChannelRailCollapsed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(CHANNEL_RAIL_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export type DetailTab = 'members' | 'pins' | 'media' | 'settings';
 export type UniversalSearchTab = 'all' | 'messages' | 'tasks' | 'docs' | 'people';
 
@@ -67,10 +78,13 @@ interface ChatState {
   searchQuery: string;
   searchResults: ChatSearchResult[];
   searchOpen: boolean;
+  searchLoading: boolean;
+  searchError: string | null;
 
   // v2: Universal Search
   universalSearchResults: UniversalSearchResults | null;
   universalSearchLoading: boolean;
+  universalSearchError: string | null;
   universalSearchTab: UniversalSearchTab;
 
   // v2: Mobile
@@ -97,6 +111,12 @@ interface ChatState {
 
   // Channel duels hub (RPS / coin / chamber)
   duelHubOpen: boolean;
+
+  /** Desktop: narrow channel rail (more space for transcript). Persisted in localStorage. */
+  channelRailCollapsed: boolean;
+  setChannelRailCollapsed: (collapsed: boolean) => void;
+  /** When rail collapsed, use wider max-width for message column */
+  chatTranscriptWide: boolean;
 
   // Actions: Core
   fetchChannels: (userId: string) => Promise<void>;
@@ -219,8 +239,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   searchQuery: '',
   searchResults: [],
   searchOpen: false,
+  searchLoading: false,
+  searchError: null,
   universalSearchResults: null,
   universalSearchLoading: false,
+  universalSearchError: null,
   universalSearchTab: 'all',
   mobileSidebarOpen: false,
   channelCreateOpen: false,
@@ -233,6 +256,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   smartFolders: [],
   smartFoldersLoading: false,
   duelHubOpen: false,
+  channelRailCollapsed: readChannelRailCollapsed(),
+  chatTranscriptWide: readChannelRailCollapsed(),
+
+  setChannelRailCollapsed: (collapsed) => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CHANNEL_RAIL_COLLAPSED_KEY, collapsed ? '1' : '0');
+      }
+    } catch {
+      /* ignore */
+    }
+    set({ channelRailCollapsed: collapsed, chatTranscriptWide: collapsed });
+  },
 
   // ── Core Actions ──
 
@@ -589,29 +625,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // ── v2 Search ──
 
-  setSearchOpen: (open) => set({ searchOpen: open, searchResults: open ? get().searchResults : [] }),
+  setSearchOpen: (open) =>
+    set({
+      searchOpen: open,
+      searchResults: open ? get().searchResults : [],
+      searchError: open ? get().searchError : null,
+      searchLoading: open ? get().searchLoading : false,
+      universalSearchResults: open ? get().universalSearchResults : null,
+      universalSearchError: open ? get().universalSearchError : null,
+      universalSearchLoading: open ? get().universalSearchLoading : false,
+    }),
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   performSearch: async (query, channelId) => {
-    if (!query.trim()) { set({ searchResults: [] }); return; }
+    if (!query.trim()) {
+      set({ searchResults: [], searchError: null, searchLoading: false });
+      return;
+    }
+    set({ searchLoading: true, searchError: null });
     try {
       const results = await chatAPI.searchMessages(query, channelId);
-      set({ searchResults: results });
-    } catch {
-      set({ searchResults: [] });
+      set({ searchResults: Array.isArray(results) ? results : [], searchLoading: false, searchError: null });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Search failed';
+      set({ searchResults: [], searchLoading: false, searchError: msg });
     }
   },
 
   // ── v2 Universal Search ──
 
   performUniversalSearch: async (query) => {
-    if (!query.trim()) { set({ universalSearchResults: null }); return; }
-    set({ universalSearchLoading: true });
+    if (!query.trim()) {
+      set({ universalSearchResults: null, universalSearchError: null, universalSearchLoading: false });
+      return;
+    }
+    set({ universalSearchLoading: true, universalSearchError: null });
     try {
       const results = await chatAPI.universalSearch(query);
-      set({ universalSearchResults: results, universalSearchLoading: false });
-    } catch {
-      set({ universalSearchResults: null, universalSearchLoading: false });
+      set({ universalSearchResults: results, universalSearchLoading: false, universalSearchError: null });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Search failed';
+      set({ universalSearchResults: null, universalSearchLoading: false, universalSearchError: msg });
     }
   },
 

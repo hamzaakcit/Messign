@@ -96,7 +96,6 @@ const CATEGORY_BORDER: Record<IntentCategory, string> = {
   marketing: 'border-l-pink-500/70',
   recruitment: 'border-l-teal-500/70',
   support: 'border-l-green-500/70',
-  time: 'border-l-slate-500/70',
   okr: 'border-l-orange-500/70',
   assets: 'border-l-lime-500/70',
   contracts: 'border-l-stone-500/70',

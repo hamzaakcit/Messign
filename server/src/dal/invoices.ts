@@ -237,19 +237,19 @@ export async function createInvoice(
 
     const inv = await client.query(
       `INSERT INTO invoices
-       (organization_id, employee_id, invoice_number, invoice_type, status,
+       (organization_id, tenant_id, employee_id, invoice_number, invoice_type, status,
         period_year, period_month, generated_date, due_date,
         base_retainer, total_expenses, grand_total,
         from_name, from_email, from_address, to_name, to_email, to_address,
         client_id, vendor_id, currency, subtotal, tax_amount, discount_amount, discount_pct,
         total_amount, amount_paid,
         payment_terms, payment_instructions, internal_notes, notes, tags, template_id)
-       VALUES ($1,$2,$3,$4,'draft',$5,$6,$7::date,$8::date,0,0,$9,
-               $10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,0,
-               $24,$25,$26,$27,$28,$29)
+       VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$8::date,$9::date,0,0,$10,
+               $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,0,
+               $25,$26,$27,$28,$29,$30)
        RETURNING *`,
       [
-        tenantId, ctx.userId, invNumber, data.invoice_type ?? 'standard',
+        tenantId, tenantId, ctx.userId, invNumber, data.invoice_type ?? 'standard',
         parseInt(dueDate.slice(0, 4), 10), parseInt(dueDate.slice(5, 7), 10),
         now.toISOString().slice(0, 10), dueDate, grandTotal,
         data.from_name, data.from_email ?? null, data.from_address ?? null,

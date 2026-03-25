@@ -28,13 +28,13 @@ export const paymentService = {
 
     const result = await query(
       `INSERT INTO finance_payments
-       (organization_id, payment_number, payment_type, expense_id, invoice_id, vendor_id,
+       (organization_id, tenant_id, payment_number, payment_type, expense_id, invoice_id, vendor_id,
         amount, currency, recipient_id, recipient_name, payment_method, payment_reference,
         scheduled_date, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [
-        orgId, paymentNumber, data.payment_type,
+        orgId, orgId, paymentNumber, data.payment_type,
         data.expense_id ?? null, data.invoice_id ?? null, data.vendor_id ?? null,
         data.amount, data.currency ?? 'USD',
         data.recipient_id ?? null, data.recipient_name ?? null,

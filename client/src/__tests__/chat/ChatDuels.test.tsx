@@ -30,6 +30,13 @@ const duelMocks = vi.hoisted(() => ({
   mockAwardChatXP: vi.fn().mockResolvedValue({ amount: 5, total: 10 }),
 }));
 
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: vi.fn((sel?: (s: unknown) => unknown) => {
+    const state = { user: { id: 'u-challenger' } };
+    return sel ? sel(state) : state;
+  }),
+}));
+
 vi.mock('@/stores/chatStore', () => ({
   useChatStore: vi.fn((sel?: (s: unknown) => unknown) => {
     const state = {

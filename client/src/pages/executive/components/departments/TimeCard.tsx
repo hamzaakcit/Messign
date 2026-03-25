@@ -10,8 +10,15 @@ interface TimeCardProps {
   onAction: () => void;
 }
 
+function utilizationHasVariation(rows: ExecutiveChartData['utilizationTrend']): boolean {
+  if (rows.length < 2) return false;
+  const v0 = rows[0].value;
+  return rows.some((d) => d.value !== v0);
+}
+
 export function TimeCard({ data, chartData, pendingCount, onAction }: TimeCardProps): JSX.Element {
   const last14 = chartData?.slice(-14) ?? [];
+  const showChart = last14.length > 0 && utilizationHasVariation(last14);
 
   return (
     <DepartmentCard
@@ -27,7 +34,7 @@ export function TimeCard({ data, chartData, pendingCount, onAction }: TimeCardPr
         { label: 'New Hires', value: data.newHiresThisMonth },
       ]}
       chart={
-        last14.length > 0 ? (
+        showChart ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={last14}>
               <XAxis dataKey="date" tick={false} axisLine={false} tickLine={false} />
@@ -39,6 +46,8 @@ export function TimeCard({ data, chartData, pendingCount, onAction }: TimeCardPr
               <Bar dataKey="value" fill="#06b6d4" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        ) : last14.length > 0 ? (
+          <div className="flex h-full items-center justify-center text-[11px] text-app-muted">No trend yet</div>
         ) : undefined
       }
       actionLabel="Approve Timesheets"

@@ -282,7 +282,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/notifications', notificationsRouter);
 
-// Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,time,okr,heart,executive}
+// Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,okr,heart,executive}
 await initializeModules(app);
 
 app.get('/api/health', async (_req, res) => {

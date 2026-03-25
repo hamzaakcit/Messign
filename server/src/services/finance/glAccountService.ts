@@ -67,10 +67,10 @@ export const glAccountService = {
       (['asset', 'expense'].includes(data.type) ? 'debit' : 'credit');
 
     const result = await query(
-      `INSERT INTO finance_gl_accounts (organization_id, code, name, type, parent_id, description, normal_balance)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO finance_gl_accounts (organization_id, tenant_id, code, name, type, parent_id, description, normal_balance)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [orgId, data.code, data.name, data.type, data.parent_id || null, data.description || null, normalBalance],
+      [orgId, orgId, data.code, data.name, data.type, data.parent_id || null, data.description || null, normalBalance],
     );
     return result.rows[0];
   },

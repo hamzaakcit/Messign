@@ -12,7 +12,6 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   EXECUTIVE: '/executive',
   REPORTS: '/reports',
-  NOTIFICATIONS: '/notifications',
 
   DORA: '/dora',
   DORA_BRIEFING: '/dora/briefing',
@@ -50,7 +49,6 @@ export const ROUTES = {
 
   RECRUITMENT: '/recruitment',
   SUPPORT: '/support',
-  TIME: '/time',
   OKR: '/okr',
   ASSETS: '/assets',
   CONTRACTS: '/contracts',
@@ -73,7 +71,6 @@ export const VIEW_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   executive: 'Executive Dashboard',
   reports: 'Report Hub',
-  notifications: 'Notifications',
   dora: 'Dora',
   game: 'Dora Game',
   chat: 'Chat',
@@ -89,7 +86,6 @@ export const VIEW_LABELS: Record<string, string> = {
   marketing: 'Marketing',
   recruitment: 'Recruitment',
   support: 'Support',
-  time: 'Time Tracking',
   okr: 'OKRs & Goals',
   assets: 'Assets',
   contracts: 'Contracts',

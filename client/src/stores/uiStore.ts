@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 const STORAGE_KEY = 'sidebar-layout';
 
-export type View = 'dashboard' | 'executive' | 'reports' | 'notifications' | 'dora' | 'game' | 'chat' | 'projects' | 'knowledge' | 'achievements' | 'team' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'time' | 'okr' | 'assets' | 'contracts' | 'culture';
+export type View = 'dashboard' | 'executive' | 'reports' | 'dora' | 'game' | 'chat' | 'projects' | 'knowledge' | 'achievements' | 'team' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'okr' | 'assets' | 'contracts' | 'culture';
 
 interface SidebarLayout {
   leftOpen: boolean;

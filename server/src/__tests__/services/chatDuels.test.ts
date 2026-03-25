@@ -4,6 +4,24 @@ vi.mock('node:crypto', () => ({
   randomInt: vi.fn(),
 }));
 
+describe('duelRateLimit', () => {
+  it('allows up to the per-window cap then rate-limits', async () => {
+    const { assertDuelRateLimit } = await import('../../services/chat/duelRateLimit.js');
+    const uid = 'user-a';
+    const cid = 'chan-b';
+    for (let i = 0; i < 6; i += 1) {
+      expect(assertDuelRateLimit(uid, cid)).toBe('ok');
+    }
+    expect(assertDuelRateLimit(uid, cid)).toBe('rate_limited');
+  });
+
+  it('tracks separate counters per user/channel pair', async () => {
+    const { assertDuelRateLimit } = await import('../../services/chat/duelRateLimit.js');
+    expect(assertDuelRateLimit('u1', 'c1')).toBe('ok');
+    expect(assertDuelRateLimit('u2', 'c1')).toBe('ok');
+  });
+});
+
 describe('chat duelService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -17,6 +35,8 @@ describe('chat duelService', () => {
     expect(out.you).toBe('rock');
     expect(out.house).toBe('rock');
     expect(out.outcome).toBe('draw');
+    expect(out.metadata.modeId).toBe('rps');
+    expect(out.metadata.seedVersion).toBe('1');
   });
 
   it('playRpsDuel returns win when player beats house', async () => {
@@ -35,6 +55,7 @@ describe('chat duelService', () => {
     const out = playCoinDuel('heads');
     expect(out.result).toBe('heads');
     expect(out.youWin).toBe(true);
+    expect(out.metadata.modeId).toBe('coin');
   });
 
   it('playChamberDuel clamps slot and reports hit when equal to danger', async () => {
@@ -45,6 +66,7 @@ describe('chat duelService', () => {
     expect(out.yourChamber).toBe(4);
     expect(out.dangerChamber).toBe(4);
     expect(out.hit).toBe(true);
+    expect(out.metadata.modeId).toBe('chamber');
   });
 
   it('playChamberDuel clamps out-of-range input', async () => {

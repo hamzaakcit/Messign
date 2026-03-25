@@ -48,9 +48,9 @@ const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
     'sales forecasts, or activity gaps. Prioritize get_pipeline_status, get_deal_details, ' +
     'get_sales_forecast, and get_activity_gaps for CRM-related queries.',
   marketing:
-    'The user is in Marketing Hub. They likely want campaign ROI, lead funnel health, ' +
-    'channel performance, or content ideas. Prioritize get_campaign_performance, ' +
-    'get_marketing_roi, and suggest_content_topics for marketing-related queries.',
+    'The user is in Marketing Hub (board, calendar, competitor intel). Marketing metrics and pipeline are here; ' +
+    'cross-department executive summaries use **Executive** (`/executive`) in the main app, not a legacy Marketing-only executive screen. ' +
+    'Prioritize get_campaign_performance, get_marketing_roi, and suggest_content_topics for marketing-related queries.',
   recruitment:
     'The user is in Recruitment ATS. They likely want pipeline health, candidate scoring, ' +
     'time-to-hire, or hiring forecasts. Prioritize get_hiring_pipeline, score_candidate, ' +
@@ -66,10 +66,6 @@ const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
     'The user is in Customer Support. They likely want ticket queue health, SLA breaches, ' +
     'customer health, or agent workload. Prioritize get_ticket_overview, get_customer_health, ' +
     'and get_support_metrics for support-related queries.',
-  time:
-    'The user is in Time Tracking. They likely want timesheet progress, utilization, billable ' +
-    'hours, or allocation guidance. Prioritize get_time_summary, get_utilization_report, ' +
-    'and suggest_time_allocation.',
   culture:
     'The user is on the Culture & Wellness page. They likely want team sentiment, burnout risk, ' +
     'culture scores, or pulse survey data. Prioritize get_team_sentiment, get_burnout_risk, ' +

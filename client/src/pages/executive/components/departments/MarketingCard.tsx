@@ -9,8 +9,15 @@ interface MarketingCardProps {
   onAction: () => void;
 }
 
+function leadsTrendHasVariation(rows: ExecutiveChartData['leadsTrend']): boolean {
+  if (rows.length < 2) return false;
+  const v0 = rows[0].value;
+  return rows.some((d) => d.value !== v0);
+}
+
 export function MarketingCard({ data, chartData, onAction }: MarketingCardProps): JSX.Element {
   const last14 = chartData?.slice(-14) ?? [];
+  const showChart = last14.length > 0 && leadsTrendHasVariation(last14);
 
   return (
     <DepartmentCard
@@ -25,7 +32,7 @@ export function MarketingCard({ data, chartData, onAction }: MarketingCardProps)
         { label: 'Leads/mo', value: data.leadsThisMonth },
       ]}
       chart={
-        last14.length > 0 ? (
+        showChart ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={last14}>
               <defs>
@@ -43,6 +50,8 @@ export function MarketingCard({ data, chartData, onAction }: MarketingCardProps)
               <Area type="monotone" dataKey="value" stroke="#8b5cf6" fill="url(#mktGrad)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
+        ) : last14.length > 0 ? (
+          <div className="flex h-full items-center justify-center text-[11px] text-app-muted">No trend yet</div>
         ) : undefined
       }
       actionLabel="Manage Campaigns"

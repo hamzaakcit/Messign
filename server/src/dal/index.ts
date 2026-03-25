@@ -14,6 +14,6 @@ export * as recruitment from '../modules/hr/dal/recruitment/index.js';
 export * as assets from '../modules/assets/dal/index.js';
 export * as contracts from '../modules/contracts/dal/index.js';
 export * as support from '../modules/support/dal/index.js';
-export * as time from '../modules/time/dal/index.js';
+export * as time from './time/index.js';
 export * as okrs from '../modules/okr/dal/index.js';
 export * as heart from '../modules/heart/dal/index.js';

@@ -28,10 +28,10 @@ export const taxService = {
     }
 
     const result = await query(
-      `INSERT INTO finance_tax_rates (organization_id, name, code, rate, type, is_default, effective_from, effective_until)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO finance_tax_rates (organization_id, tenant_id, name, code, rate, type, is_default, effective_from, effective_until)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [orgId, data.name, data.code, data.rate, data.type,
+      [orgId, orgId, data.name, data.code, data.rate, data.type,
        data.is_default ?? false, data.effective_from || null, data.effective_until || null],
     );
     return result.rows[0];

@@ -15,7 +15,6 @@ import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
 import { FloatingWidget } from '@/components/dora/FloatingWidget';
 import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthrough';
 import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
-import { FloatingTimer } from '@/components/time/FloatingTimer';
 import { toast } from 'sonner';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError, onMessageReact, onMessageEdit, onMessageDelete, onMessagePin, onThreadReply } from '@/lib/socket';
 
@@ -24,7 +23,6 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/dashboard': 'dashboard',
   '/executive': 'executive',
   '/reports': 'reports',
-  '/notifications': 'notifications',
   '/dora': 'dora',
   '/chat': 'chat',
   '/knowledge': 'knowledge',
@@ -38,7 +36,6 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/marketing': 'marketing',
   '/recruitment': 'recruitment',
   '/support': 'support',
-  '/time': 'time',
   '/okr': 'okr',
   '/assets': 'assets',
   '/contracts': 'contracts',
@@ -49,12 +46,10 @@ function getViewFromPath(path: string): string {
   if (path.startsWith('/okr')) return 'okr';
   if (path.startsWith('/executive')) return 'executive';
   if (path.startsWith('/reports')) return 'reports';
-  if (path.startsWith('/notifications')) return 'notifications';
   if (path.startsWith('/crm')) return 'crm';
   if (path.startsWith('/marketing')) return 'marketing';
   if (path.startsWith('/recruitment')) return 'recruitment';
   if (path.startsWith('/support')) return 'support';
-  if (path.startsWith('/time')) return 'time';
   if (path.startsWith('/assets')) return 'assets';
   if (path.startsWith('/contracts')) return 'contracts';
   if (path.startsWith('/culture')) return 'culture';
@@ -77,7 +72,6 @@ const VIEW_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   executive: 'Executive Dashboard',
   reports: 'Report Hub',
-  notifications: 'Notifications',
   dora: 'Dora',
   game: 'Dora Game',
   chat: 'Chat',
@@ -93,7 +87,6 @@ const VIEW_LABELS: Record<string, string> = {
   marketing: 'Marketing',
   recruitment: 'Recruitment',
   support: 'Support',
-  time: 'Time Tracking',
   okr: 'OKRs & Goals',
   assets: 'Assets',
   contracts: 'Contracts',
@@ -346,7 +339,6 @@ export function AppShell() {
         </div>
       )}
 
-      {user && <FloatingTimer />}
       {user && !isMobile && <FloatingWidget />}
       {user && <OnboardingWalkthrough />}
 

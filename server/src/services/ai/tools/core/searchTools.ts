@@ -100,7 +100,7 @@ After finding the right tool, call it by name (e.g. crm:get_pipeline_status).`,
       namespace: {
         type: 'string',
         description:
-          'Optional: filter by module namespace (crm, support, finance, hr, marketing, knowledge, time, okr, executive, heart)',
+          'Optional: filter by module namespace (crm, support, finance, hr, marketing, knowledge, okr, executive, heart)',
       },
     },
     required: ['query'],

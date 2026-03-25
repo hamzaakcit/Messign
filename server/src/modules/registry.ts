@@ -15,7 +15,6 @@ import { financeModule } from './finance/index.js';
 import { hrModule } from './hr/index.js';
 import { marketingModule } from './marketing/index.js';
 import { knowledgeModule } from './knowledge/index.js';
-import { timeModule } from './time/index.js';
 import { okrModule } from './okr/index.js';
 import { heartModule } from './heart/index.js';
 import { executiveModule } from './executive/index.js';
@@ -33,7 +32,6 @@ const modules: PlatformModule[] = [
   creativeModule,
   marketingAutomationModule,
   knowledgeModule,
-  timeModule,
   okrModule,
   heartModule,
   executiveModule,
@@ -53,7 +51,6 @@ const namespaceToCategory: Record<string, Tool['category']> = {
   marketing_automation: 'analytics',
   creative: 'analytics',
   knowledge: 'knowledge',
-  time: 'analytics',
   okr: 'analytics',
   heart: 'people',
   executive: 'analytics',

@@ -8,7 +8,6 @@ import { supportAgent } from './specialists/supportAgent.js';
 import { hrAgent } from './specialists/hrAgent.js';
 import { marketingAgent } from './specialists/marketingAgent.js';
 import { financeAgent } from './specialists/financeAgent.js';
-import { timeAgent } from './specialists/timeAgent.js';
 import { okrAgent } from './specialists/okrAgent.js';
 import { assetsAgent } from './specialists/assetsAgent.js';
 import { contractsAgent } from './specialists/contractsAgent.js';
@@ -20,7 +19,6 @@ const specialists = new Map<string, SpecialistAgent>([
   ['hr', hrAgent],
   ['marketing', marketingAgent],
   ['finance', financeAgent],
-  ['time', timeAgent],
   ['okr', okrAgent],
   ['assets', assetsAgent],
   ['contracts', contractsAgent],

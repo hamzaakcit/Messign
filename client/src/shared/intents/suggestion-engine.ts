@@ -44,7 +44,6 @@ function categoriesForPath(path: string): IntentCategory[] {
   if (p.startsWith('/marketing')) add('marketing');
   if (p.startsWith('/recruitment')) add('recruitment');
   if (p.startsWith('/support')) add('support');
-  if (p.startsWith('/time')) add('time');
   if (p.startsWith('/okr')) add('okr');
   if (p.startsWith('/assets')) add('assets');
   if (p.startsWith('/contracts')) add('contracts');
@@ -62,16 +61,16 @@ function timeOfDayCategoryBoost(category: IntentCategory): number {
   } else if (h >= 12 && h < 17) {
     if (category === 'performance' || category === 'projects') return 2;
   } else {
-    if (category === 'time' || category === 'okr') return 2;
+    if (category === 'okr') return 2;
   }
   return 0;
 }
 
-/** Fri–Sun: nudge reports & time */
+/** Fri–Sun: nudge reports & OKRs */
 function endOfWeekCategoryBoost(category: IntentCategory): number {
   const d = new Date().getDay();
   if (d === 5 || d === 6 || d === 0) {
-    if (category === 'reports' || category === 'time') return 3;
+    if (category === 'reports' || category === 'okr') return 3;
     if (category === 'dashboard') return 1;
   }
   return 0;

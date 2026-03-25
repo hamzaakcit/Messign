@@ -30,16 +30,21 @@ import {
   Package,
   FileSignature,
   Heart,
-  Bell,
   Ticket,
   Mail,
+  Swords,
+  PanelRightOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
 import { useDoraStore } from '@/stores/doraStore';
 import type { RecentPage } from './useRecentPages';
+import { useChatStore } from '@/stores/chatStore';
 
 type ItemType = 'navigate' | 'action' | 'dora';
+
+/** After navigating to /chat, run this chat UI action */
+export type ChatCommandAction = 'search' | 'duels' | 'dora' | 'channelCreate' | 'detail';
 
 interface CommandItem {
   id: string;
@@ -49,19 +54,18 @@ interface CommandItem {
   keywords: string;
   type: ItemType;
   financeView?: string;
+  chatAction?: ChatCommandAction;
 }
 
 const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', keywords: 'home overview', type: 'navigate' },
   { id: 'nav-executive', label: 'Executive Dashboard', icon: LayoutDashboard, path: '/executive', keywords: 'executive leadership overview kpis', type: 'navigate' },
   { id: 'nav-reports', label: 'Report Hub', icon: BarChart3, path: '/reports', keywords: 'reports analytics data charts', type: 'navigate' },
-  { id: 'nav-notifications', label: 'Notifications', icon: Bell, path: '/notifications', keywords: 'alerts inbox updates', type: 'navigate' },
   { id: 'nav-dora', label: 'Dora', icon: Sparkles, path: '/dora', keywords: 'ai assistant chat bot', type: 'navigate' },
   { id: 'nav-dora-automations', label: 'Dora Automations', icon: Sparkles, path: '/dora/automations', keywords: 'automation policy builder autonomous', type: 'navigate' },
   { id: 'nav-dora-automation-log', label: 'Dora Automation Log', icon: Clock, path: '/dora/automations/log', keywords: 'automation log executions', type: 'navigate' },
   { id: 'nav-chat', label: 'Chat', icon: MessageSquare, path: '/chat', keywords: 'messages conversations', type: 'navigate' },
   { id: 'nav-projects', label: 'Projects', icon: Briefcase, path: '/projects', keywords: 'marketplace tasks bounties', type: 'navigate' },
-  { id: 'nav-time', label: 'Time Tracking', icon: Clock, path: '/time', keywords: 'time hours timesheet utilization timer billable', type: 'navigate' },
   { id: 'nav-okr', label: 'OKRs & Goals', icon: CheckCircle2, path: '/okr', keywords: 'objectives key results goals progress', type: 'navigate' },
   { id: 'nav-knowledge', label: 'Knowledge Hub', icon: BookOpen, path: '/knowledge-hub', keywords: 'docs documents wiki', type: 'navigate' },
   { id: 'nav-achievements', label: 'Achievements', icon: Trophy, path: '/achievements', keywords: 'xp badges gamification', type: 'navigate' },
@@ -88,6 +92,11 @@ const NAV_ITEMS: CommandItem[] = [
 ];
 
 const ACTION_ITEMS: CommandItem[] = [
+  { id: 'act-chat-search', label: 'Chat: Search messages', icon: Search, path: '/chat', keywords: 'chat search messages channel find', type: 'action', chatAction: 'search' },
+  { id: 'act-chat-duels', label: 'Chat: Channel duels', icon: Swords, path: '/chat', keywords: 'chat duels rock paper scissors coin chamber rps', type: 'action', chatAction: 'duels' },
+  { id: 'act-chat-dora', label: 'Chat: Dora assistant', icon: Sparkles, path: '/chat', keywords: 'chat dora ai sidebar assistant', type: 'action', chatAction: 'dora' },
+  { id: 'act-chat-channel', label: 'Chat: New channel', icon: PlusCircle, path: '/chat', keywords: 'chat new channel create room', type: 'action', chatAction: 'channelCreate' },
+  { id: 'act-chat-details', label: 'Chat: Channel details', icon: PanelRightOpen, path: '/chat', keywords: 'chat members pins files settings panel', type: 'action', chatAction: 'detail' },
   { id: 'act-expense', label: 'Create Expense', icon: PlusCircle, path: '/finance', keywords: 'new expense add claim reimbursement', type: 'action', financeView: 'expenses' },
   { id: 'act-invoice', label: 'New Invoice', icon: FileText, path: '/finance', keywords: 'create invoice bill', type: 'action', financeView: 'invoices' },
   { id: 'act-task', label: 'New Task', icon: ListTodo, path: '/projects', keywords: 'create task todo', type: 'action' },
@@ -225,6 +234,31 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
         if (item.financeView) {
           setActiveView(item.financeView as FinanceView);
         }
+      }
+
+      if (item.chatAction && item.path === '/chat') {
+        window.setTimeout(() => {
+          const chat = useChatStore.getState();
+          switch (item.chatAction) {
+            case 'search':
+              chat.setSearchOpen(true);
+              break;
+            case 'duels':
+              chat.setDuelHubOpen(true);
+              break;
+            case 'dora':
+              if (!chat.doraPanelOpen) chat.toggleDoraPanel();
+              break;
+            case 'channelCreate':
+              chat.setChannelCreateOpen(true);
+              break;
+            case 'detail':
+              if (!chat.detailPanelOpen) chat.toggleDetailPanel();
+              break;
+            default:
+              break;
+          }
+        }, 0);
       }
     },
     [navigate, onClose, setActiveView, createSession, setActiveSession, query],

@@ -103,11 +103,6 @@ export async function generateBriefing(ctx: CallerContext, targetDate = today())
     sections.push({ module: 'recruitment', icon: '👥', title: 'Hiring', items: recruitItems, priority: 'low' });
   }
 
-  const timeItems = await getTimeBriefingItems(ctx);
-  if (timeItems.length > 0) {
-    sections.push({ module: 'time', icon: '⏱', title: 'Time Tracking', items: timeItems, priority: 'low' });
-  }
-
   const insightItems = await getInsightBriefingItems(ctx);
   if (insightItems.length > 0) {
     sections.push({ module: 'dora', icon: '✦', title: 'Dora Insights', items: insightItems, priority: 'high' });
@@ -468,32 +463,6 @@ async function getRecruitmentBriefingItems(ctx: CallerContext): Promise<Briefing
   if (m > 0 && hasRole(ctx, ['manager', 'dept_head', 'admin', 'system_admin'])) {
     items.push({ text: `${m} new high-match applications are waiting review`, actionUrl: '/recruitment/pipeline', actionLabel: 'Review', severity: 'success' });
   }
-  return items.slice(0, 3);
-}
-
-async function getTimeBriefingItems(ctx: CallerContext): Promise<BriefingItem[]> {
-  const [weekHours, pendingTimesheet] = await Promise.all([
-    query(
-      `SELECT COALESCE(SUM(hours), 0)::numeric AS total
-       FROM time_entries
-       WHERE user_id = $1::uuid
-         AND date >= date_trunc('week', CURRENT_DATE)::date`,
-      [ruId(ctx)],
-    ),
-    query(
-      `SELECT COUNT(*)::int AS c
-       FROM time_timesheets
-       WHERE user_id = $1::uuid
-         AND status IN ('draft', 'rejected')
-         AND week_start_date >= date_trunc('week', CURRENT_DATE)::date - INTERVAL '7 days'`,
-      [ruId(ctx)],
-    ),
-  ]);
-  const total = Number(weekHours.rows[0]?.total ?? 0);
-  const pending = Number(pendingTimesheet.rows[0]?.c ?? 0);
-  const items: BriefingItem[] = [];
-  items.push({ text: `You have logged ${total.toFixed(1)} hours this week`, actionUrl: '/time', actionLabel: 'Open time', severity: total >= 40 ? 'success' : 'info' });
-  if (pending > 0) items.push({ text: `${pending} timesheet(s) still need submission/rework`, actionUrl: '/time/timesheets', actionLabel: 'Submit', severity: 'warning' });
   return items.slice(0, 3);
 }
 

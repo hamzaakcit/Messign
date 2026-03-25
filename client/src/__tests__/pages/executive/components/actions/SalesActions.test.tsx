@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, vi, expect, beforeEach } from 'vitest';
 import { SalesActions } from '@/pages/executive/components/actions/SalesActions';
 
@@ -20,9 +21,14 @@ describe('SalesActions', () => {
 
   it('shows empty state when no deals', async () => {
     mockListDeals.mockResolvedValue({ data: [] });
-    render(<SalesActions userId="u1" onSuccess={vi.fn()} />);
+    render(
+      <MemoryRouter>
+        <SalesActions userId="u1" onSuccess={vi.fn()} />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByText(/no active deals/i)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /open full crm/i })).toHaveAttribute('href', '/crm');
     });
   });
 
@@ -34,7 +40,11 @@ describe('SalesActions', () => {
       ],
     });
 
-    render(<SalesActions userId="u1" onSuccess={vi.fn()} />);
+    render(
+      <MemoryRouter>
+        <SalesActions userId="u1" onSuccess={vi.fn()} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Enterprise Deal')).toBeInTheDocument();

@@ -10,7 +10,6 @@ const MODULE_COLORS: Record<string, string> = {
   crm: '#3b82f6',
   support: '#f59e0b',
   recruitment: '#8b5cf6',
-  time: '#06b6d4',
   marketing: '#ec4899',
   dora: '#a78bfa',
 };
@@ -162,11 +161,6 @@ export function NotificationBell() {
                 </button>
               ))
             )}
-          </div>
-          <div className="px-3 py-2 border-t border-app">
-            <button className="text-xs text-cyan-300 hover:text-cyan-200" onClick={() => { navigate('/notifications'); setOpen(false); }}>
-              View all
-            </button>
           </div>
         </div>
       )}

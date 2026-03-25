@@ -123,6 +123,34 @@ executiveRouter.get('/chart-data', async (req: ReimbursementRequest, res) => {
   }
 });
 
+executiveRouter.post('/timesheets/:id/approve', async (req: ReimbursementRequest, res) => {
+  try {
+    const { approveTimesheet } = await import('../../dal/time/timesheets.js');
+    const data = await approveTimesheet(buildCtx(req), req.params.id);
+    res.json(data);
+  } catch (error) {
+    console.error('[executive/timesheets/approve]', error);
+    const msg = error instanceof Error ? error.message : 'Failed to approve';
+    res.status(400).json({ error: msg });
+  }
+});
+
+executiveRouter.post('/timesheets/:id/reject', async (req: ReimbursementRequest, res) => {
+  try {
+    const { rejectTimesheet } = await import('../../dal/time/timesheets.js');
+    const body = req.body as { reason?: string } | undefined;
+    const reason = typeof body?.reason === 'string' && body.reason.trim().length > 0
+      ? body.reason.trim()
+      : 'Rejected';
+    const data = await rejectTimesheet(buildCtx(req), req.params.id, reason);
+    res.json(data);
+  } catch (error) {
+    console.error('[executive/timesheets/reject]', error);
+    const msg = error instanceof Error ? error.message : 'Failed to reject';
+    res.status(400).json({ error: msg });
+  }
+});
+
 // SOC 2 Audit Log — admin/executive. Query params: range (30d|7d|24h), action (e.g. ai.tool.executed)
 executiveRouter.get('/audit-log', async (req: ReimbursementRequest, res) => {
   try {

@@ -13,7 +13,6 @@ export type IntentCategory =
   | 'marketing'
   | 'recruitment'
   | 'support'
-  | 'time'
   | 'okr'
   | 'assets'
   | 'contracts'

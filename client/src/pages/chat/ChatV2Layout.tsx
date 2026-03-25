@@ -24,11 +24,12 @@ export function ChatV2Layout() {
   const channelCreateOpen = useChatStore((s) => s.channelCreateOpen);
   const contextMenuMessage = useChatStore((s) => s.contextMenuMessage);
   const activeThreadId = useChatStore((s) => s.activeThreadId);
+  const channelRailCollapsed = useChatStore((s) => s.channelRailCollapsed);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.id && channels.length === 0) {
+    if (user?.id && Array.isArray(channels) && channels.length === 0) {
       fetchChannels(user.id);
     }
   }, [user?.id, channels.length, fetchChannels]);
@@ -48,17 +49,22 @@ export function ChatV2Layout() {
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="absolute inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setMobileSidebarOpen(false)}
+          aria-hidden
         />
       )}
 
-      {/* Channel sidebar */}
+      {/* Channel sidebar — absolute inset so drawer stays inside main (does not cover app LeftSidebar) */}
       <div
         className={cn(
-          'relative z-50 w-72 border-r border-app bg-app-sidebar shrink-0 flex flex-col transition-transform duration-300',
+          'z-50 w-72 border-r border-app bg-app-sidebar shrink-0 flex flex-col transition-[width,transform] duration-300 ease-out',
           'lg:relative lg:translate-x-0',
-          mobileSidebarOpen ? 'fixed inset-y-0 left-0 translate-x-0' : 'fixed inset-y-0 left-0 -translate-x-full lg:translate-x-0 lg:relative',
+          channelRailCollapsed && 'lg:w-[3.75rem] lg:min-w-[3.75rem]',
+          !channelRailCollapsed && 'lg:w-72',
+          mobileSidebarOpen
+            ? 'absolute inset-y-0 left-0 translate-x-0 shadow-xl lg:relative lg:shadow-none'
+            : 'absolute inset-y-0 left-0 -translate-x-full lg:translate-x-0 lg:relative',
         )}
       >
         <ChannelSidebar onRetry={() => user?.id && fetchChannels(user.id)} />

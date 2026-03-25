@@ -50,7 +50,6 @@ vi.mock('@/lib/api', () => ({
   financeAPI: { listExpenses: vi.fn().mockResolvedValue({ data: [] }) },
   crmAPI: { listDeals: vi.fn().mockResolvedValue({ data: [] }) },
   supportApi: { listTickets: vi.fn().mockResolvedValue({ data: [] }) },
-  timeApi: { listTimesheets: vi.fn().mockResolvedValue({ data: [] }) },
   marketingAPI: { listCampaigns: vi.fn().mockResolvedValue({ data: [] }) },
   recruitmentAPI: { listApplications: vi.fn().mockResolvedValue({ data: [] }) },
   setOnUnauthorized: vi.fn(),
@@ -63,6 +62,10 @@ vi.mock('@/lib/okrApi', () => ({
 
 vi.mock('@/lib/socket', () => ({
   onActivityNew: vi.fn(() => () => {}),
+}));
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 vi.mock('@/hooks/useDora', () => ({
@@ -168,7 +171,7 @@ describe('ExecutiveDashboardPage', () => {
     render(<MemoryRouter><ExecutiveDashboardPage /></MemoryRouter>);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to load/i)).toBeInTheDocument();
+      expect(screen.getByText(/network error/i)).toBeInTheDocument();
     });
   });
 });

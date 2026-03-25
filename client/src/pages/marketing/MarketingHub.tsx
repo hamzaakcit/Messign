@@ -43,10 +43,6 @@ const BuilderSection = React.lazy(() =>
 const CompetitorDashboard = React.lazy(() =>
   import('./components/CompetitorDashboard').then((m) => ({ default: m.CompetitorDashboard })),
 );
-const CeoDashboard = React.lazy(() =>
-  import('./components/CeoDashboard').then((m) => ({ default: m.CeoDashboard })),
-);
-
 const LEGACY_REDIRECTS: Record<string, string> = {
   email: '/marketing/builder?type=email',
   pages: '/marketing/builder?type=landing_page',
@@ -89,7 +85,6 @@ export function MarketingHub(): JSX.Element {
     setModeState(m);
     if (m === 'intelligence') navigate('/marketing/intelligence');
     else if (m === 'builder') navigate('/marketing/builder');
-    else if (m === 'executive') navigate('/marketing/executive');
     else if (location.pathname !== '/marketing') navigate('/marketing');
   }, [navigate, location.pathname]);
   const [doraOpen, setDoraOpen] = useState(true);
@@ -303,31 +298,7 @@ export function MarketingHub(): JSX.Element {
   }
 
   if (segment === 'executive') {
-    return (
-      <div className="flex flex-col h-full min-h-0">
-        <div className="shrink-0 px-4 py-2">
-          <SparkBar
-            mode="executive"
-            onModeChange={setMode}
-            metrics={metrics}
-            loading={metricsLoading}
-            doraOpen={doraOpen}
-            onToggleDora={() => setDoraOpen((o) => !o)}
-            onCreateCampaign={() => setCreateCampaignOpen(true)}
-            onCreateContent={openCreateContentDefault}
-            onCreateEmail={() => setMode('builder')}
-            {...sparkInstagramFromSubsegment}
-          />
-        </div>
-        <main className="flex-1 min-h-0 overflow-hidden">
-          <ErrorBoundary resetKey="executive">
-            <Suspense fallback={<SectionFallback />}>
-              <CeoDashboard />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
-      </div>
-    );
+    return <Navigate to="/marketing" replace />;
   }
 
   if (segment === 'pipeline') {

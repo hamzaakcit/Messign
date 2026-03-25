@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react';
-import { MatrixRain, FloatingBadges, ParticleEffect, PulseRings } from '@/components/login';
+import { FloatingBadges, LoginCursorGlow, ParticleEffect, PulseRings } from '@/components/login';
 import { MessignLogoAnimated } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -29,14 +29,26 @@ export function LoginPage() {
 
   return (
     <div className="login-page-autofill min-h-screen bg-app-bg relative overflow-hidden">
-      <MatrixRain />
+      {/* Deep base (Dora empty-state tone) — no matrix canvas */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          zIndex: 0,
+          background:
+            'radial-gradient(ellipse 120% 80% at 50% 0%, #0a1628 0%, var(--dora-bg-deep) 55%)',
+        }}
+        aria-hidden
+      />
       <ParticleEffect />
       <FloatingBadges />
 
+      {/* Lighter than before so cursor glow + particles read through */}
       <div
-        className="absolute inset-0 pointer-events-none bg-app-bg/70"
+        className="absolute inset-0 pointer-events-none bg-app-bg/45"
         style={{ zIndex: 3 }}
       />
+
+      <LoginCursorGlow />
 
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 4 }}>
         <PulseRings />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Hash, Lock, MessageCircle, Plus, ChevronDown, Mail, Loader2, AlertCircle, Search, X, FolderOpen, Trash2 } from 'lucide-react';
+import { Hash, Lock, MessageCircle, Plus, ChevronDown, ChevronLeft, ChevronRight, Mail, Loader2, AlertCircle, Search, X, FolderOpen, Trash2 } from 'lucide-react';
 import type { Channel, SmartFolder } from '@/types';
 import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -7,6 +7,7 @@ import { useUsersStore } from '@/stores/usersStore';
 import { chatAPI } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { PresenceAvatar } from './PresenceAvatar';
+import { useUIStore } from '@/stores/uiStore';
 
 interface ChannelSidebarProps {
   onRetry?: () => void;
@@ -27,6 +28,9 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
   const smartFolders = smartFoldersRaw ?? [];
   const fetchSmartFolders = useChatStore((s) => s.fetchSmartFolders);
   const removeSmartFolder = useChatStore((s) => s.removeSmartFolder);
+  const channelRailCollapsed = useChatStore((s) => s.channelRailCollapsed);
+  const setChannelRailCollapsed = useChatStore((s) => s.setChannelRailCollapsed);
+  const isMobile = useUIStore((s) => s.isMobile);
   const [expandedSections, setExpandedSections] = useState({ public: true, private: true, dm: true, folders: true });
   const [dmMenuOpen, setDmMenuOpen] = useState(false);
   const [dmCreating, setDmCreating] = useState(false);
@@ -78,6 +82,8 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
   const getDmUser = (c: Channel) =>
     c.type === 'dm' ? users.find((u) => c.members.includes(u.id) && u.id !== currentUser?.id) : null;
 
+  const showCollapsedRail = channelRailCollapsed && !isMobile;
+
   const ChannelSection = ({
     title, channels: sectionChannels, section, icon: Icon,
   }: {
@@ -126,13 +132,139 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
     </div>
   );
 
+  if (showCollapsedRail) {
+    const railChannels = [
+      ...publicChannels,
+      ...privateChannels,
+      ...dmChannels,
+    ];
+    return (
+      <div className="h-full flex flex-col bg-app-sidebar/95 min-w-0 relative">
+        <div className="flex flex-col items-center gap-1 p-2 border-b border-app border-t border-t-primary-500/25 shrink-0">
+          <button
+            type="button"
+            onClick={() => setChannelRailCollapsed(false)}
+            className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            title="Expand channel list"
+            aria-label="Expand channel list"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setDmMenuOpen((o) => !o)}
+            className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover"
+            aria-label="New DM"
+            title="New direct message"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setChannelCreateOpen(true)}
+            className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover"
+            aria-label="Create channel"
+            title="Create channel"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+        {dmMenuOpen && (
+          <>
+            <div className="absolute inset-0 z-10 bg-black/20" aria-hidden onClick={() => setDmMenuOpen(false)} />
+            <div className="absolute left-full top-12 ml-1 z-20 w-56 rounded-xl border border-app bg-app-panelBg shadow-xl py-1 max-h-64 overflow-y-auto">
+              <div className="px-3 py-2 text-xs font-semibold text-app-muted uppercase">Direct message</div>
+              {otherUsers.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-app-muted">No other users</div>
+              ) : (
+                otherUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    disabled={dmCreating}
+                    onClick={() => handleStartDm(u.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-app hover:bg-app-hover transition-colors"
+                  >
+                    <PresenceAvatar user={u} size="xs" />
+                    <span className="truncate">{u.name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </>
+        )}
+        <div className="flex-1 overflow-y-auto flex flex-col items-center gap-1.5 py-2 px-1 min-h-0">
+          {isLoading && (
+            <Loader2 className="w-5 h-5 animate-spin text-app-muted shrink-0" aria-hidden />
+          )}
+          {!isLoading && chatError && (
+            <span className="text-[10px] text-red-400 text-center px-1">Error</span>
+          )}
+          <button
+            type="button"
+            onClick={() => handleSelectChannel(ADMIN_MESSAGES_CHANNEL_ID)}
+            title="Admin Messages"
+            className={cn(
+              'relative p-2 rounded-xl border transition-colors',
+              activeChannelId === ADMIN_MESSAGES_CHANNEL_ID
+                ? 'bg-blue-500/20 border-blue-500/40 text-primary-400'
+                : 'border-transparent text-app-muted hover:bg-app-hover hover:text-app',
+            )}
+          >
+            <Mail className="w-5 h-5" />
+          </button>
+          {railChannels.map((channel) => {
+            const dmUser = getDmUser(channel);
+            const isActive = activeChannelId === channel.id;
+            return (
+              <button
+                key={channel.id}
+                type="button"
+                onClick={() => handleSelectChannel(channel.id)}
+                title={getChannelDisplayName(channel)}
+                className={cn(
+                  'relative p-1 rounded-xl border transition-colors flex items-center justify-center',
+                  isActive
+                    ? 'bg-primary-500/20 border-primary-500/40'
+                    : 'border-transparent hover:bg-app-hover',
+                )}
+              >
+                {dmUser ? (
+                  <PresenceAvatar user={dmUser} size="sm" />
+                ) : channel.type === 'private' ? (
+                  <Lock className="w-4 h-4 text-app-muted" />
+                ) : (
+                  <Hash className="w-4 h-4 text-app-muted" />
+                )}
+                {(channel.unreadCount ?? 0) > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center text-[9px] font-bold bg-primary-500 text-white rounded-full">
+                    {(channel.unreadCount ?? 0) > 99 ? '99+' : channel.unreadCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-app border-t border-t-primary-500/25 bg-app-sidebar/95">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2">
           <h2 className="text-lg font-bold text-app tracking-tight">Chat</h2>
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setChannelRailCollapsed(true)}
+              className="hidden lg:flex p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+              title="Collapse channel list"
+              aria-label="Collapse channel list"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
             <button
               type="button"
               onClick={() => setDmMenuOpen((o) => !o)}

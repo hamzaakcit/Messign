@@ -54,7 +54,6 @@ export type DoraModule =
   | 'assets'
   | 'contracts'
   | 'support'
-  | 'time'
   | 'culture'
   | 'unknown';
 

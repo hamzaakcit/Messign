@@ -20,12 +20,12 @@ export const vendorService = {
   async create(data: CreateVendorInput, userId: string, orgId: string) {
     const result = await query(
       `INSERT INTO finance_vendors
-       (organization_id, name, legal_name, tax_id, vendor_code, email, phone, website,
+       (organization_id, tenant_id, name, legal_name, tax_id, vendor_code, email, phone, website,
         address, country, default_currency, payment_terms, default_gl_code)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
-        orgId, data.name, data.legal_name ?? null, data.tax_id ?? null,
+        orgId, orgId, data.name, data.legal_name ?? null, data.tax_id ?? null,
         data.vendor_code ?? null, data.email ?? null, data.phone ?? null,
         data.website ?? null, data.address ?? null, data.country ?? null,
         data.default_currency ?? 'USD', data.payment_terms ?? 'Net 30',

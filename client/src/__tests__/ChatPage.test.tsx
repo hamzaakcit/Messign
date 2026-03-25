@@ -42,9 +42,18 @@ vi.mock('@/stores/chatStore', () => ({
       searchQuery: '',
       searchResults: [],
       searchOpen: false,
+      searchLoading: false,
+      searchError: null,
+      universalSearchResults: null,
+      universalSearchLoading: false,
+      universalSearchError: null,
+      universalSearchTab: 'all',
       mobileSidebarOpen: false,
       channelCreateOpen: false,
       duelHubOpen: false,
+      channelRailCollapsed: false,
+      chatTranscriptWide: false,
+      setChannelRailCollapsed: vi.fn(),
       contextMenuMessage: null,
       contextMenuPosition: null,
       editingMessageId: null,
@@ -74,6 +83,8 @@ vi.mock('@/stores/chatStore', () => ({
       setSearchOpen: vi.fn(),
       setSearchQuery: vi.fn(),
       performSearch: vi.fn(),
+      performUniversalSearch: vi.fn(),
+      setUniversalSearchTab: vi.fn(),
       createChannel: vi.fn(),
       setChannelCreateOpen: vi.fn(),
       setMobileSidebarOpen: vi.fn(),
@@ -82,6 +93,13 @@ vi.mock('@/stores/chatStore', () => ({
       closeContextMenu: vi.fn(),
       addChannel: vi.fn(),
     };
+    return selector ? selector(state) : state;
+  }),
+}));
+
+vi.mock('@/stores/uiStore', () => ({
+  useUIStore: vi.fn((selector?: (s: unknown) => unknown) => {
+    const state = { isMobile: false, leftSidebarOpen: true, leftSidebarCollapsed: false };
     return selector ? selector(state) : state;
   }),
 }));

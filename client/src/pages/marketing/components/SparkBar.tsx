@@ -17,7 +17,7 @@ import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 import type { DashboardMetrics } from '@/lib/marketingApi';
 
-export type ViewMode = 'board' | 'calendar' | 'builder' | 'intelligence' | 'executive';
+export type ViewMode = 'board' | 'calendar' | 'builder' | 'intelligence';
 
 interface SparkBarProps {
   mode: ViewMode;
@@ -178,20 +178,6 @@ export function SparkBar({
         >
           <Radar className="w-4 h-4" />
         </button>
-        <button
-          type="button"
-          onClick={() => onModeChange('executive')}
-          title="Executive Dashboard"
-          className={cn(
-            'p-2 rounded-lg transition-colors',
-            mode === 'executive'
-              ? 'bg-primary-500/20 text-primary-400'
-              : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
-          )}
-        >
-          <TrendingUp className="w-4 h-4" />
-        </button>
-
         <div className="w-px h-5 bg-app-surface-tertiary mx-1" />
 
         <button

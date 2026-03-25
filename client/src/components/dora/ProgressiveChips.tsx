@@ -14,7 +14,6 @@ const CATEGORY_CHIP_META: Partial<Record<IntentCategory, { emoji: string; label:
   projects: { emoji: '📁', label: 'Projects' },
   performance: { emoji: '📈', label: 'Performance' },
   knowledge: { emoji: '📚', label: 'Knowledge' },
-  time: { emoji: '🕐', label: 'Time' },
   crm: { emoji: '🤝', label: 'CRM' },
   marketing: { emoji: '📣', label: 'Marketing' },
   recruitment: { emoji: '👋', label: 'Hiring' },

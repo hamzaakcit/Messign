@@ -18,19 +18,25 @@ export function ChatMainPanel() {
   const setSearchQuery = useChatStore((s) => s.setSearchQuery);
   const searchResults = useChatStore((s) => s.searchResults);
   const performSearch = useChatStore((s) => s.performSearch);
+  const searchLoading = useChatStore((s) => s.searchLoading);
+  const searchError = useChatStore((s) => s.searchError);
   const setSearchOpen = useChatStore((s) => s.setSearchOpen);
   const doraPanelOpen = useChatStore((s) => s.doraPanelOpen);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
   const universalSearchResults = useChatStore((s) => s.universalSearchResults);
   const universalSearchLoading = useChatStore((s) => s.universalSearchLoading);
+  const universalSearchError = useChatStore((s) => s.universalSearchError);
   const universalSearchTab = useChatStore((s) => s.universalSearchTab);
   const performUniversalSearch = useChatStore((s) => s.performUniversalSearch);
   const setUniversalSearchTab = useChatStore((s) => s.setUniversalSearchTab);
   const setChannelCreateOpen = useChatStore((s) => s.setChannelCreateOpen);
+  const chatTranscriptWide = useChatStore((s) => s.chatTranscriptWide);
   const [isUniversalSearch, setIsUniversalSearch] = useState(false);
   const currentUser = useAuthStore((s) => s.user);
   const users = useUsersStore((s) => s.users);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const channelSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const universalSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchInput, setSearchInput] = useState('');
 
   const activeChannel = channels.find((c) => c.id === activeChannelId);
@@ -40,9 +46,82 @@ export function ChatMainPanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [channelMessages.length]);
 
-  const handleSearch = () => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setSearchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen || isUniversalSearch) {
+      if (channelSearchTimerRef.current) {
+        clearTimeout(channelSearchTimerRef.current);
+        channelSearchTimerRef.current = null;
+      }
+      return;
+    }
+    if (!searchInput.trim()) {
+      void performSearch('', activeChannelId ?? undefined);
+      return;
+    }
+    channelSearchTimerRef.current = setTimeout(() => {
+      void performSearch(searchInput, activeChannelId ?? undefined);
+      channelSearchTimerRef.current = null;
+    }, 400);
+    return () => {
+      if (channelSearchTimerRef.current) {
+        clearTimeout(channelSearchTimerRef.current);
+        channelSearchTimerRef.current = null;
+      }
+    };
+  }, [searchInput, searchOpen, isUniversalSearch, activeChannelId, performSearch]);
+
+  useEffect(() => {
+    if (!searchOpen || !isUniversalSearch) {
+      if (universalSearchTimerRef.current) {
+        clearTimeout(universalSearchTimerRef.current);
+        universalSearchTimerRef.current = null;
+      }
+      return;
+    }
+    if (!searchInput.trim()) {
+      void performUniversalSearch('');
+      return;
+    }
+    universalSearchTimerRef.current = setTimeout(() => {
+      void performUniversalSearch(searchInput);
+      universalSearchTimerRef.current = null;
+    }, 400);
+    return () => {
+      if (universalSearchTimerRef.current) {
+        clearTimeout(universalSearchTimerRef.current);
+        universalSearchTimerRef.current = null;
+      }
+    };
+  }, [searchInput, searchOpen, isUniversalSearch, performUniversalSearch]);
+
+  const handleChannelSearchNow = () => {
     setSearchQuery(searchInput);
-    performSearch(searchInput, activeChannelId ?? undefined);
+    if (channelSearchTimerRef.current) {
+      clearTimeout(channelSearchTimerRef.current);
+      channelSearchTimerRef.current = null;
+    }
+    void performSearch(searchInput, activeChannelId ?? undefined);
+  };
+
+  const handleUniversalSearchNow = () => {
+    if (universalSearchTimerRef.current) {
+      clearTimeout(universalSearchTimerRef.current);
+      universalSearchTimerRef.current = null;
+    }
+    void performUniversalSearch(searchInput);
   };
 
   if (!activeChannel) {
@@ -82,8 +161,8 @@ export function ChatMainPanel() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  if (isUniversalSearch) performUniversalSearch(searchInput);
-                  else handleSearch();
+                  if (isUniversalSearch) handleUniversalSearchNow();
+                  else handleChannelSearchNow();
                 }
               }}
               placeholder={isUniversalSearch ? 'Search everything...' : 'Search messages...'}
@@ -91,6 +170,7 @@ export function ChatMainPanel() {
               autoFocus
             />
             <button
+              type="button"
               onClick={() => setIsUniversalSearch(!isUniversalSearch)}
               className={cn(
                 'px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors',
@@ -99,14 +179,32 @@ export function ChatMainPanel() {
             >
               {isUniversalSearch ? 'Universal' : 'Channel'}
             </button>
-            <button onClick={() => { setSearchOpen(false); setSearchInput(''); setIsUniversalSearch(false); }} className="p-1 rounded text-app-muted hover:text-app">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen(false);
+                setSearchInput('');
+                setIsUniversalSearch(false);
+              }}
+              className="p-1 rounded text-app-muted hover:text-app"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
+          {searchError && !isUniversalSearch && (
+            <p className="mt-2 text-xs text-red-400/90" role="alert">
+              {searchError}
+            </p>
+          )}
 
           {/* Universal search tabs & results */}
           {isUniversalSearch && (
             <div className="mt-2">
+              {universalSearchError && (
+                <p className="mb-2 text-xs text-red-400/90" role="alert">
+                  {universalSearchError}
+                </p>
+              )}
               <div className="flex gap-1 mb-2">
                 {(['all', 'messages', 'tasks', 'docs', 'people'] as UniversalSearchTab[]).map((tab) => (
                   <button
@@ -198,8 +296,11 @@ export function ChatMainPanel() {
                       ))}
                     </>
                   )}
-                  {universalSearchResults.messages.length === 0 && universalSearchResults.tasks.length === 0 &&
-                   universalSearchResults.documents.length === 0 && universalSearchResults.users.length === 0 && (
+                  {!universalSearchError &&
+                    universalSearchResults.messages.length === 0 &&
+                    universalSearchResults.tasks.length === 0 &&
+                    universalSearchResults.documents.length === 0 &&
+                    universalSearchResults.users.length === 0 && (
                     <div className="py-4 text-center text-sm text-app-muted">Nothing matched — try different words or another tab.</div>
                   )}
                 </div>
@@ -210,6 +311,12 @@ export function ChatMainPanel() {
           {/* Channel-only search results */}
           {!isUniversalSearch && (
             <>
+              {searchLoading && searchInput.trim().length > 0 && (
+                <div className="mt-2 flex items-center justify-center gap-2 py-4 text-app-muted text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                  <span>Searching…</span>
+                </div>
+              )}
               {searchResults.length > 0 && (
                 <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
                   {searchResults.map((r) => (
@@ -241,7 +348,10 @@ export function ChatMainPanel() {
                   ))}
                 </div>
               )}
-              {searchResults.length === 0 && searchInput.trim().length > 0 && (
+              {searchResults.length === 0 &&
+                searchInput.trim().length > 0 &&
+                !searchLoading &&
+                !searchError && (
                 <div className="mt-2 py-4 text-center text-sm text-app-muted">
                   No messages match &quot;{searchInput}&quot; in this channel. Try another phrase or check spelling.
                 </div>
@@ -256,7 +366,12 @@ export function ChatMainPanel() {
 
       {/* Messages — framed column for readability on wide screens */}
       <div className="flex-1 overflow-y-auto min-h-0 px-2 sm:px-4 py-3">
-        <div className="max-w-4xl mx-auto min-h-[min(100%,24rem)] rounded-2xl border border-app/80 bg-app-card/30 backdrop-blur-[2px] shadow-inner shadow-black/10 ring-1 ring-app-border/40 px-2 sm:px-4 py-3">
+        <div
+          className={cn(
+            'mx-auto min-h-[min(100%,24rem)] rounded-2xl border border-app/80 bg-app-card/30 backdrop-blur-[2px] shadow-inner shadow-black/10 ring-1 ring-app-border/40 px-2 sm:px-4 py-3',
+            chatTranscriptWide ? 'max-w-6xl' : 'max-w-4xl',
+          )}
+        >
         {channelMessages.length === 0 ? (
           <div className="h-full min-h-[12rem] flex flex-col items-center justify-center text-app-muted px-4">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500/15 to-accent-500/10 flex items-center justify-center mb-4 ring-1 ring-primary-500/20">
@@ -302,12 +417,12 @@ export function ChatMainPanel() {
       </div>
 
       {/* Smart replies */}
-      <div className="max-w-4xl mx-auto w-full px-2 sm:px-4">
+      <div className={cn('mx-auto w-full px-2 sm:px-4', chatTranscriptWide ? 'max-w-6xl' : 'max-w-4xl')}>
         <SmartReplyBar />
       </div>
 
       {/* Input */}
-      <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 pb-1">
+      <div className={cn('mx-auto w-full px-2 sm:px-4 pb-1', chatTranscriptWide ? 'max-w-6xl' : 'max-w-4xl')}>
         <EnhancedMessageInput channelName={activeChannel.name} />
       </div>
     </div>

@@ -50,11 +50,11 @@ export const periodCloseService = {
       await client.query('BEGIN');
 
       const pc = await client.query(
-        `INSERT INTO finance_period_closes (organization_id, period, status)
-         VALUES ($1, $2, 'open')
+        `INSERT INTO finance_period_closes (organization_id, tenant_id, period, status)
+         VALUES ($1, $2, $3, 'open')
          ON CONFLICT (organization_id, period) DO UPDATE SET organization_id = $1
          RETURNING *`,
-        [orgId, period],
+        [orgId, orgId, period],
       );
 
       for (const task of DEFAULT_TASKS) {

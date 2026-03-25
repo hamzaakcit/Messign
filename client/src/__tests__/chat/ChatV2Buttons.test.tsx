@@ -96,6 +96,13 @@ vi.mock('@/stores/usersStore', () => ({
   }),
 }));
 
+vi.mock('@/stores/uiStore', () => ({
+  useUIStore: vi.fn((sel?: (s: unknown) => unknown) => {
+    const state = { isMobile: false };
+    return sel ? sel(state) : state;
+  }),
+}));
+
 vi.mock('@/stores/chatStore', () => ({
   ADMIN_MESSAGES_CHANNEL_ID: '__admin_messages__',
   useChatStore: vi.fn((sel?: (s: unknown) => unknown) => {
@@ -121,13 +128,17 @@ vi.mock('@/stores/chatStore', () => ({
       doraPanelOpen: false,
       smartReplies: null, smartReplyLoading: false,
       searchQuery: '', searchResults: [], searchOpen: false,
-      universalSearchResults: null, universalSearchLoading: false, universalSearchTab: 'all',
+      searchLoading: false, searchError: null,
+      universalSearchResults: null, universalSearchLoading: false, universalSearchError: null, universalSearchTab: 'all',
       mobileSidebarOpen: false, channelCreateOpen: false,
       contextMenuMessage: null, contextMenuPosition: null,
       editingMessageId: null,
       activeThreadId: null, threadMessages: [], threadLoading: false,
       smartFolders: [], smartFoldersLoading: false,
       duelHubOpen: false,
+      channelRailCollapsed: false,
+      chatTranscriptWide: false,
+      setChannelRailCollapsed: vi.fn(),
       fetchChannels: vi.fn(), setActiveChannel: vi.fn(), addChannel: vi.fn(),
       fetchMessages: vi.fn(), sendMessage: mockSendMessage, addMessage: vi.fn(),
       incrementChannelUnread: vi.fn(), addTypingUser: vi.fn(), removeTypingUser: vi.fn(), markChannelAsRead: vi.fn(),

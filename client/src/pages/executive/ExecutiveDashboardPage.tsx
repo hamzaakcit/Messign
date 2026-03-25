@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { onActivityNew } from '@/lib/socket';
 import { executiveAPI, type ExecutiveDashboard, type ExecutiveChartData } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -32,6 +33,14 @@ function relTime(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function executiveLoadErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (/403|forbidden|not authorized|access denied|denied/i.test(raw)) {
+    return 'You don\'t have access to the executive dashboard.';
+  }
+  return raw || 'Failed to load dashboard.';
+}
+
 export function ExecutiveDashboardPage(): JSX.Element {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -41,9 +50,37 @@ export function ExecutiveDashboardPage(): JSX.Element {
   const [chartData, setChartData] = useState<ExecutiveChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActionDepartment>(null);
   const [doraQuery] = useState<string | undefined>(undefined);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval>>();
+
+  const loadCharts = useCallback(async (): Promise<void> => {
+    if (!userId) return;
+    try {
+      const charts = await executiveAPI.getChartData(userId);
+      setChartData(charts);
+    } catch (err) {
+      console.warn('[executive] chart data failed', err);
+      setChartData(null);
+      toast.error('Trend charts could not be loaded.', { duration: 4_000 });
+    }
+  }, [userId]);
+
+  const loadDashboard = useCallback(async (): Promise<boolean> => {
+    if (!userId) return false;
+    try {
+      const dashboard = await executiveAPI.getDashboard(userId);
+      setData(dashboard);
+      setLoadError(null);
+      return true;
+    } catch (err) {
+      console.error('[executive] dashboard load failed', err);
+      setData(null);
+      setLoadError(executiveLoadErrorMessage(err));
+      return false;
+    }
+  }, [userId]);
 
   const loadAll = useCallback(async (silent = false) => {
     if (!userId) return;
@@ -51,19 +88,13 @@ export function ExecutiveDashboardPage(): JSX.Element {
     else setRefreshing(true);
 
     try {
-      const [dashboard, charts] = await Promise.all([
-        executiveAPI.getDashboard(userId),
-        executiveAPI.getChartData(userId),
-      ]);
-      setData(dashboard);
-      setChartData(charts);
-    } catch (err) {
-      console.error('[executive] load failed', err);
+      const ok = await loadDashboard();
+      if (ok) await loadCharts();
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userId]);
+  }, [userId, loadDashboard, loadCharts]);
 
   useEffect(() => {
     loadAll();
@@ -126,10 +157,14 @@ export function ExecutiveDashboardPage(): JSX.Element {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-48px)] bg-app">
-        <div className="text-center">
-          <div className="text-red-400 text-sm mb-2">Failed to load dashboard</div>
-          <button onClick={() => loadAll()} className="text-xs text-primary-400 hover:text-primary-300">
+      <div className="flex items-center justify-center h-[calc(100vh-48px)] bg-app px-4">
+        <div className="text-center max-w-sm">
+          <div className="text-red-400 text-sm mb-2">{loadError ?? 'Failed to load dashboard'}</div>
+          <button
+            type="button"
+            onClick={() => loadAll()}
+            className="text-xs text-primary-400 hover:text-primary-300"
+          >
             Retry
           </button>
         </div>
@@ -138,7 +173,7 @@ export function ExecutiveDashboardPage(): JSX.Element {
   }
 
   return (
-    <div className="h-[calc(100vh-48px)] overflow-y-auto bg-app px-4 py-3 md:px-6 md:py-4">
+    <div className="h-[calc(100vh-48px)] overflow-y-auto bg-app px-4 py-3 md:px-6 md:py-4 pb-10">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>

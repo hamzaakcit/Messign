@@ -1,15 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Check, X, Loader2 } from 'lucide-react';
+import { Loader2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { timeApi } from '@/lib/api';
-
-interface Timesheet {
-  id: string;
-  user_name?: string;
-  week_start_date?: string;
-  total_hours?: number;
-  status: string;
-}
+import { executiveAPI, type PendingItems } from '@/lib/executiveApi';
 
 interface TimesheetActionsProps {
   userId: string;
@@ -17,31 +9,32 @@ interface TimesheetActionsProps {
 }
 
 export function TimesheetActions({ userId, onSuccess }: TimesheetActionsProps): JSX.Element {
-  const [sheets, setSheets] = useState<Timesheet[]>([]);
+  const [rows, setRows] = useState<PendingItems['timesheets']>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
 
-  const loadSheets = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await timeApi.listTimesheets(userId, { status: 'submitted' });
-      const items = (result as { data?: Timesheet[] })?.data ?? [];
-      setSheets(Array.isArray(items) ? items : []);
+      const data = await executiveAPI.getPendingItems(userId);
+      setRows(Array.isArray(data.timesheets) ? data.timesheets : []);
     } catch {
-      setSheets([]);
+      setRows([]);
     } finally {
       setLoading(false);
     }
   }, [userId]);
 
-  useEffect(() => { loadSheets(); }, [loadSheets]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const handleApprove = async (id: string): Promise<void> => {
     setActing(id);
     try {
-      await timeApi.approveTimesheet(userId, id);
+      await executiveAPI.approveTimesheet(userId, id);
       toast.success('Timesheet approved');
-      setSheets((prev) => prev.filter((s) => s.id !== id));
+      setRows((prev) => prev.filter((t) => t.id !== id));
       onSuccess();
     } catch {
       toast.error('Failed to approve timesheet');
@@ -53,9 +46,9 @@ export function TimesheetActions({ userId, onSuccess }: TimesheetActionsProps): 
   const handleReject = async (id: string): Promise<void> => {
     setActing(id);
     try {
-      await timeApi.rejectTimesheet(userId, id, 'Rejected from command center');
+      await executiveAPI.rejectTimesheet(userId, id, 'Rejected from Command Center');
       toast.success('Timesheet rejected');
-      setSheets((prev) => prev.filter((s) => s.id !== id));
+      setRows((prev) => prev.filter((t) => t.id !== id));
       onSuccess();
     } catch {
       toast.error('Failed to reject timesheet');
@@ -65,39 +58,54 @@ export function TimesheetActions({ userId, onSuccess }: TimesheetActionsProps): 
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-app-muted" /></div>;
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-5 h-5 animate-spin text-app-muted" />
+      </div>
+    );
   }
 
-  if (sheets.length === 0) {
-    return <div className="text-center py-8 text-app-muted text-sm">No pending timesheets</div>;
+  if (rows.length === 0) {
+    return (
+      <div className="text-center py-8 text-app-muted text-sm" data-testid="timesheet-actions">
+        No pending timesheets
+      </div>
+    );
   }
 
   return (
     <div className="space-y-2" data-testid="timesheet-actions">
-      {sheets.map((ts) => (
-        <div key={ts.id} className="flex items-center justify-between p-3 rounded-lg border border-app bg-app hover:bg-app-hover transition-colors">
+      {rows.map((t) => (
+        <div
+          key={t.id}
+          className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-app bg-app hover:bg-app-hover transition-colors"
+        >
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-app truncate">{ts.user_name || 'Unknown'}</div>
+            <div className="text-sm font-medium text-app truncate">{t.userName}</div>
             <div className="text-xs text-app-muted">
-              Week of {ts.week_start_date ?? 'Unknown'} &middot; {(ts.total_hours ?? 0).toFixed(1)}h
+              Week {t.period} &middot; {t.totalHours.toFixed(1)}h
             </div>
           </div>
-          <div className="flex items-center gap-1.5 ml-3">
+          <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={() => handleApprove(ts.id)}
-              disabled={acting === ts.id}
-              className="p-1.5 rounded-md bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+              type="button"
+              onClick={() => void handleApprove(t.id)}
+              disabled={acting === t.id}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
               title="Approve"
             >
-              {acting === ts.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {acting === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Approve
             </button>
             <button
-              onClick={() => handleReject(ts.id)}
-              disabled={acting === ts.id}
-              className="p-1.5 rounded-md bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-50"
+              type="button"
+              onClick={() => void handleReject(t.id)}
+              disabled={acting === t.id}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-50"
               title="Reject"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
+              Reject
             </button>
           </div>
         </div>

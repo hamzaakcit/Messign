@@ -47,12 +47,18 @@ describe('CommandCenterKPIStrip', () => {
     expect(screen.getByText((content) => content.includes('600'))).toBeInTheDocument();
   });
 
-  it('calls onKPIClick when a KPI is clicked', () => {
+  it('calls onKPIClick with scroll targets when KPIs are clicked', () => {
     const onClick = vi.fn();
     render(<CommandCenterKPIStrip data={MOCK_DATA} chartData={null} onKPIClick={onClick} />);
 
     fireEvent.click(screen.getByTestId('kpi-revenue-ytd'));
     expect(onClick).toHaveBeenCalledWith('sales');
+
+    fireEvent.click(screen.getByTestId('kpi-pipeline'));
+    expect(onClick).toHaveBeenCalledWith('pipeline');
+
+    fireEvent.click(screen.getByTestId('kpi-utilization'));
+    expect(onClick).toHaveBeenCalledWith('time');
   });
 
   it('shows culture score from real data', () => {

@@ -27,11 +27,6 @@ const DOMAIN_KEYWORDS: Array<{ domain: Domain; weight: number; patterns: RegExp[
     patterns: [/\b(campaign|roi|marketing|lead|content topic)\b/i],
   },
   {
-    domain: 'time',
-    weight: 1,
-    patterns: [/\b(timesheet|utilization|time off|allocation)\b/i],
-  },
-  {
     domain: 'okr',
     weight: 1,
     patterns: [/\b(okr|objective|key result|goal tree)\b/i],
@@ -59,7 +54,7 @@ const DOMAIN_KEYWORDS: Array<{ domain: Domain; weight: number; patterns: RegExp[
   {
     domain: 'analytics',
     weight: 1,
-    patterns: [/\b(dashboard|metrics|report|activity|approval queue|stats|overview|performance|summary|kpi)\b/i],
+    patterns: [/\b(dashboard|metrics|report|activity|approval queue|stats|overview|performance|summary|kpi|timesheet|utilization|time off|allocation)\b/i],
   },
   {
     domain: 'settings',
@@ -79,7 +74,6 @@ const PATH_HINTS: Array<{ prefix: string; domain: Domain }> = [
   { prefix: '/support', domain: 'support' },
   { prefix: '/marketing', domain: 'marketing' },
   { prefix: '/recruitment', domain: 'hr' },
-  { prefix: '/time', domain: 'time' },
   { prefix: '/knowledge-hub', domain: 'knowledge' },
   { prefix: '/assets', domain: 'assets' },
   { prefix: '/contracts', domain: 'contracts' },
@@ -96,7 +90,7 @@ function pagePathBoost(path: string): Domain | null {
 
 /** Chip / slash intents from intent-router presets (prefix match) */
 const DIRECT_INTENT_PATTERN =
-  /^(knowledge\.|finance\.|quick\.|dashboard\.|admin\.|reports\.|crm\.|support\.|marketing\.|hr\.|time\.|okr\.)/i;
+  /^(knowledge\.|finance\.|quick\.|dashboard\.|admin\.|reports\.|crm\.|support\.|marketing\.|hr\.|okr\.)/i;
 
 export function classifyIntent(message: string, ctx: DoraContext): ClassifiedRequest {
   const trimmed = message.trim();

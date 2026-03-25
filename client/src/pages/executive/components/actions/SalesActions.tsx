@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { crmAPI } from '@/lib/api';
+import { ROUTES } from '@/lib/routes';
 
 interface Deal {
   id: string;
@@ -69,7 +71,12 @@ export function SalesActions({ userId, onSuccess }: SalesActionsProps): JSX.Elem
   }
 
   if (deals.length === 0) {
-    return <div className="text-center py-8 text-app-muted text-sm">No active deals</div>;
+    return (
+      <div className="text-center py-8 space-y-3">
+        <p className="text-app-muted text-sm">No active deals</p>
+        <Link to={ROUTES.CRM} className="text-xs text-primary-400 hover:text-primary-300">Open full CRM</Link>
+      </div>
+    );
   }
 
   return (

@@ -192,12 +192,32 @@ export interface DoraMessageTransformResult {
 /** Channel duel: rock-paper-scissors vs server “house”. */
 export type ChatRpsMove = 'rock' | 'paper' | 'scissors';
 
+export interface ChatDuelMetadata {
+  seedVersion: string;
+  modeId: 'rps' | 'coin' | 'chamber' | 'rps_two_player';
+}
+
+/** Commit–reveal RPS: challenger vs another channel member (fair: move hidden until reveal). */
+export interface ChatRpsTwoPlayerDuelResult {
+  inviteId: string;
+  challengerId: string;
+  opponentId: string;
+  challengerMove: ChatRpsMove;
+  opponentMove: ChatRpsMove;
+  winnerUserId: string | null;
+  headline: string;
+  taskHint: string;
+  metadata?: ChatDuelMetadata;
+}
+
 export interface ChatRpsDuelResult {
   you: ChatRpsMove;
   house: ChatRpsMove;
   outcome: 'win' | 'lose' | 'draw';
   headline: string;
   taskHint: string;
+  /** Present when returned by the current API; omitted in older cached payloads. */
+  metadata?: ChatDuelMetadata;
 }
 
 /** Channel duel: call a coin flip. */
@@ -207,6 +227,7 @@ export interface ChatCoinDuelResult {
   youWin: boolean;
   headline: string;
   taskHint: string;
+  metadata?: ChatDuelMetadata;
 }
 
 /**
@@ -218,6 +239,7 @@ export interface ChatChamberDuelResult {
   hit: boolean;
   headline: string;
   taskHint: string;
+  metadata?: ChatDuelMetadata;
 }
 
 // Chat v2: Slash Commands

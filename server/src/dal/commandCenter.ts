@@ -2,12 +2,23 @@ import type { PoolClient } from 'pg';
 import { query } from '../db/index.js';
 import { withTenantQuery } from '../middleware/tenantContext.js';
 import type { CallerContext } from './types.js';
-import { reimbursementUsersPk } from './reimbursementUsersPk.js';
+import { isUuidString, reimbursementUsersPk } from './reimbursementUsersPk.js';
 import {
   getCultureMetrics,
   getOKRMetrics,
   getProjectMetrics,
 } from './executive/dashboard.js';
+
+async function getCultureMetricsSafe(
+  ctx: CallerContext,
+): Promise<Awaited<ReturnType<typeof getCultureMetrics>> | null> {
+  try {
+    return await getCultureMetrics(ctx);
+  } catch (e) {
+    console.warn('[commandCenter] getCultureMetrics skipped:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
 
 function num(value: unknown, fallback = 0): number {
   const n = Number(value);
@@ -93,6 +104,9 @@ async function getBriefingSummaryForUser(ctx: CallerContext): Promise<string | n
 async function getDoraUnreadTotal(ctx: CallerContext): Promise<number> {
   const tenantId = requireOrganizationId(ctx);
   const uid = reimbursementUsersPk(ctx);
+  if (!isUuidString(uid)) {
+    return 0;
+  }
   return runInTenant(tenantId, async (client) => {
     const result = await client.query(
       `SELECT COUNT(*)::int AS c
@@ -231,18 +245,21 @@ async function getGrowthLeaderboard(ctx: CallerContext): Promise<{
       avatar: row.avatar,
     }));
 
-    const me = await client.query<{ xp: string; rk: string }>(
-      `WITH ranked AS (
-         SELECT id, xp, RANK() OVER (ORDER BY xp DESC NULLS LAST) AS rk
-         FROM reimbursement_users
-         WHERE organization_id = $1::uuid
-       )
-       SELECT xp::text, rk::text FROM ranked WHERE id = $2::uuid`,
-      [tenantId, ruId],
-    );
-
-    const myXp = num(me.rows[0]?.xp);
-    const myRank = me.rows[0]?.rk ? num(me.rows[0].rk) : null;
+    let myXp = 0;
+    let myRank: number | null = null;
+    if (isUuidString(ruId)) {
+      const me = await client.query<{ xp: string; rk: string }>(
+        `WITH ranked AS (
+           SELECT id, xp, RANK() OVER (ORDER BY xp DESC NULLS LAST) AS rk
+           FROM reimbursement_users
+           WHERE organization_id = $1::uuid
+         )
+         SELECT xp::text, rk::text FROM ranked WHERE id = $2::uuid`,
+        [tenantId, ruId],
+      );
+      myXp = num(me.rows[0]?.xp);
+      myRank = me.rows[0]?.rk ? num(me.rows[0].rk) : null;
+    }
 
     const top5 = leaderboard.slice(0, 5);
     const maxXp = Math.max(1, ...top5.map((e) => e.xp));
@@ -292,7 +309,7 @@ export async function getCommandCenterData(ctx: CallerContext): Promise<CommandC
   ] = await Promise.all([
     getProjectMetrics(ctx),
     getOKRMetrics(ctx),
-    getCultureMetrics(ctx),
+    getCultureMetricsSafe(ctx),
     getBriefingSummaryForUser(ctx),
     getPulseExtras(ctx),
     getKnowledgeBrain(ctx),

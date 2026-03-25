@@ -11,7 +11,6 @@ const SPECIALIST_DISPLAY_NAMES: Record<string, string> = {
   hr: 'People & HR',
   marketing: 'Marketing',
   knowledge: 'Knowledge',
-  time: 'Time & Projects',
   okr: 'OKRs & Goals',
   heart: 'Culture & Heart',
   executive: 'Executive',
