@@ -46,10 +46,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, mustChangePassword } = useAuthStore();
+  const { isAuthenticated, mustChangePassword, user } = useAuthStore();
   const location = useLocation();
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   if (mustChangePassword && location.pathname !== '/force-password-change') {
@@ -61,7 +61,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 function MainApp() {
   const { user } = useAuthStore();
 
-  if (!user) return null;
+  /** AuthGuard requires `user`; this avoids a blank shell if state ever desyncs. */
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-app gap-4 p-6">
+        <p className="text-app-muted text-sm text-center max-w-md">Restoring session…</p>
+      </div>
+    );
+  }
 
   return (
     <ReimbursementProvider>

@@ -28,6 +28,15 @@ Vercel will use the `client` folder; `client/package.json` must exist in your re
 
 ---
 
+## Black screen after a successful deploy
+
+1. **Open DevTools → Console** on the production URL. A red error (failed chunk load, uncaught exception) usually explains it.
+2. **Network tab:** confirm `index.html` returns 200 and `/assets/*.js` load with 200 (not HTML). If JS returns 404 or SPA HTML, check **Output Directory** is `client/dist` and **Root Directory** is empty (repo root).
+3. **Environment:** In Vercel → **Settings** → **Environment Variables**, set **`VITE_API_URL`** to your **Railway API origin** (no `/api` suffix), not the Vercel URL. Redeploy after changing. Wrong API URL breaks auth and APIs; the app also guards against “logged in but no user” after a bad session.
+4. **Stale session:** Try an incognito window or **Application → Clear site data** for the Vercel domain, then open `/login` again.
+
+---
+
 ## Automatic deploy on push to `main` (GitHub Actions)
 
 The workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) runs on every push to `main` (and can be run manually under **Actions → Deploy production → Run workflow**).

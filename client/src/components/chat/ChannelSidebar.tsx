@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Hash, Lock, MessageCircle, Plus, ChevronDown, Mail, Loader2, AlertCircle, Search, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Hash, Lock, MessageCircle, Plus, ChevronDown, Mail, Loader2, AlertCircle, Search, X, FolderOpen, Trash2 } from 'lucide-react';
 import type { Channel } from '@/types';
 import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,10 +23,18 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
   const setMobileSidebarOpen = useChatStore((s) => s.setMobileSidebarOpen);
   const currentUser = useAuthStore((s) => s.user);
   const users = useUsersStore((s) => s.users);
-  const [expandedSections, setExpandedSections] = useState({ public: true, private: true, dm: true });
+  const smartFoldersRaw = useChatStore((s) => s.smartFolders);
+  const smartFolders = smartFoldersRaw ?? [];
+  const fetchSmartFolders = useChatStore((s) => s.fetchSmartFolders);
+  const removeSmartFolder = useChatStore((s) => s.removeSmartFolder);
+  const [expandedSections, setExpandedSections] = useState({ public: true, private: true, dm: true, folders: true });
   const [dmMenuOpen, setDmMenuOpen] = useState(false);
   const [dmCreating, setDmCreating] = useState(false);
   const [filterText, setFilterText] = useState('');
+
+  useEffect(() => {
+    if (typeof fetchSmartFolders === 'function') void fetchSmartFolders();
+  }, [fetchSmartFolders]);
 
   const otherUsers = users.filter((u) => u.id !== currentUser?.id);
 
@@ -58,7 +66,7 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
   const privateChannels = filteredChannels.filter((c) => c.type === 'private');
   const dmChannels = filteredChannels.filter((c) => c.type === 'dm');
 
-  const toggleSection = (section: 'public' | 'private' | 'dm') => {
+  const toggleSection = (section: 'public' | 'private' | 'dm' | 'folders') => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
@@ -223,6 +231,41 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
               <Mail className="w-4 h-4 shrink-0" />
               <span className="truncate flex-1 text-left text-sm font-medium">Admin Messages</span>
             </button>
+            {/* Smart Folders */}
+            {smartFolders.length > 0 && (
+              <div className="mb-2">
+                <button
+                  onClick={() => toggleSection('folders')}
+                  className="flex items-center gap-1.5 w-full px-3 py-1.5 text-[11px] font-semibold text-app-muted uppercase tracking-wider hover:text-app transition-colors"
+                >
+                  <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', !expandedSections.folders && '-rotate-90')} />
+                  Smart Folders
+                  <span className="ml-auto text-[10px] font-normal opacity-60">{smartFolders.length}</span>
+                </button>
+                {expandedSections.folders && (
+                  <div className="mt-0.5 space-y-px">
+                    {smartFolders.map((folder) => (
+                      <div
+                        key={folder.id}
+                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors group"
+                      >
+                        <FolderOpen className="w-4 h-4 shrink-0 text-accent-400" />
+                        <span className="truncate flex-1 text-left text-sm">{folder.name}</span>
+                        <span className="text-[10px] opacity-60">{folder.channelIds.length}</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeSmartFolder(folder.id); }}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 text-app-muted hover:text-red-400 transition-all"
+                          aria-label="Remove folder"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <ChannelSection title="Channels" channels={publicChannels} section="public" icon={Hash} />
             <ChannelSection title="Private" channels={privateChannels} section="private" icon={Lock} />
             <ChannelSection title="Direct Messages" channels={dmChannels} section="dm" icon={MessageCircle} />
