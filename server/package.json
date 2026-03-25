@@ -22,6 +22,7 @@
     "db:reset": "npm run db:fix && npm run db:migrate && npm run db:seed",
     "import-employees": "tsx src/scripts/importEmployeesFromFile.ts",
     "create-admin": "tsx src/scripts/create-admin.ts",
+    "auth:set-alex": "tsx src/scripts/setAlexPassword.ts",
     "db:ensure-departments": "tsx src/scripts/ensureDepartments.ts",
     "db:knowledge-v12": "tsx src/db/runKnowledgeV12Migration.ts",
     "db:embed-knowledge": "tsx src/db/embedKnowledgeDocs.ts",

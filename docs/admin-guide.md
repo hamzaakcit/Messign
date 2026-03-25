@@ -3,7 +3,8 @@
 ## 1. Getting Started
 
 ### Login
-- Use your admin credentials (e.g. `alex.chen@messign.com` with the default password from `server/src/types/auth.ts`).
+- Default demo admin: **`alex.chen@messign.com`** / password from **`SEED_DEFAULT_PASSWORD`** in `server/.env` (see `server/.env.example`; keep the same value on every database).
+- After changing `SEED_DEFAULT_PASSWORD`, run `npm run auth:set-alex` from `server/` against each database so Alex’s hash stays in sync, and set the same variable on your API host (e.g. Railway).
 - First-time setup: Ensure the database is migrated (`npm run db:migrate`) and seeded (`npm run db:seed`).
 
 ### Inviting Your Team

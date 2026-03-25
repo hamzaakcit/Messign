@@ -1,7 +1,7 @@
 import { Page, expect } from '@playwright/test';
 
 export const TEST_EMAIL = process.env.E2E_TEST_EMAIL || 'alex.chen@messign.com';
-export const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || '030319941.Aa';
+export const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'test123';
 
 export async function login(page: Page) {
   await page.goto('/login');
