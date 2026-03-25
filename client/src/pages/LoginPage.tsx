@@ -12,6 +12,7 @@ export function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const { login, isLoading, error, loginError, clearError } = useAuthStore();
+  const isAccountLocked = loginError?.code === 'ACCOUNT_LOCKED';
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -98,9 +99,18 @@ export function LoginPage() {
                       <span className="text-xs text-red-400">({loginError.remainingAttempts} attempts left)</span>
                     )}
                   </div>
-                  {import.meta.env.DEV && (
+                  {import.meta.env.DEV && isAccountLocked && (
+                    <p className="text-xs text-amber-200/95 mt-2 leading-relaxed">
+                      Too many failed attempts locked this account. From the repo run{' '}
+                      <code className="bg-app-card px-1 rounded text-app-text">cd server &amp;&amp; npm run auth:set-alex</code> to reset the demo password and clear the lock, then sign in with{' '}
+                      <code className="bg-app-card px-1 rounded text-app-text">test123</code> (exactly, all lowercase).
+                    </p>
+                  )}
+                  {import.meta.env.DEV && !isAccountLocked && (
                     <p className="text-xs text-app-muted mt-1">
-                      Local dev: use an email ending with @messign.com. Ensure the server is running on port 3001 and the DB is seeded (e.g. <code className="bg-app-card px-1 rounded text-app-muted">npm run db:seed</code> in server). Seed users use the default password from <code className="bg-app-card px-1 rounded text-app-muted">server/src/types/auth.ts</code>.
+                      Local dev: <code className="bg-app-card px-1 rounded text-app-muted">alex.chen@messign.com</code> /{' '}
+                      <code className="bg-app-card px-1 rounded text-app-muted">test123</code> after{' '}
+                      <code className="bg-app-card px-1 rounded text-app-muted">npm run db:seed</code>. API on port 3001.
                     </p>
                   )}
                 </div>
