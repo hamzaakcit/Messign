@@ -2,15 +2,18 @@ import { create } from 'zustand';
 import type {
   Channel, Message, Reaction, DoraSummaryResult,
   DoraActionItemsResult, SmartReplyResult, ChatSearchResult, ChatMediaItem,
-  DoraKBSuggestion,
+  DoraKBSuggestion, SmartFolder, UniversalSearchResults,
+  DoraDecisionsResult, DoraTransformAction, DoraMessageTransformResult,
 } from '@/types';
 import { chatAPI } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { joinChannel, leaveChannel } from '@/lib/socket';
+import { toast } from 'sonner';
 
 export const ADMIN_MESSAGES_CHANNEL_ID = '__admin_messages__';
 
 export type DetailTab = 'members' | 'pins' | 'media' | 'settings';
+export type UniversalSearchTab = 'all' | 'messages' | 'tasks' | 'docs' | 'people';
 
 interface ChatState {
   // Core
@@ -26,13 +29,31 @@ interface ChatState {
   detailTab: DetailTab;
   pinnedMessages: Record<string, Message[]>;
   channelMedia: Record<string, ChatMediaItem[]>;
+  pinsLoading: boolean;
+  pinsError: string | null;
+  mediaLoading: boolean;
+  mediaError: string | null;
 
   // v2: Dora AI
   doraSummary: DoraSummaryResult | null;
   doraActionItems: DoraActionItemsResult | null;
-  doraSuggestions: Record<string, DoraKBSuggestion[]>;
+  doraSuggestions: DoraKBSuggestion[];
   doraLoading: boolean;
+  doraSummaryLoading: boolean;
+  doraActionItemsLoading: boolean;
+  doraSuggestionsLoading: boolean;
   doraPanelOpen: boolean;
+  doraDecisions: DoraDecisionsResult | null;
+  doraDecisionsLoading: boolean;
+
+  // v3: Thread-scoped Dora
+  threadDoraSummary: DoraSummaryResult | null;
+  threadDoraActionItems: DoraActionItemsResult | null;
+  threadDoraSummaryLoading: boolean;
+  threadDoraActionItemsLoading: boolean;
+
+  // v3: Composer AI
+  draftTransformLoading: boolean;
 
   // v2: Smart Reply
   smartReplies: SmartReplyResult | null;
@@ -42,6 +63,11 @@ interface ChatState {
   searchQuery: string;
   searchResults: ChatSearchResult[];
   searchOpen: boolean;
+
+  // v2: Universal Search
+  universalSearchResults: UniversalSearchResults | null;
+  universalSearchLoading: boolean;
+  universalSearchTab: UniversalSearchTab;
 
   // v2: Mobile
   mobileSidebarOpen: boolean;
@@ -56,12 +82,21 @@ interface ChatState {
   // v2: Editing
   editingMessageId: string | null;
 
+  // v2: Threads
+  activeThreadId: string | null;
+  threadMessages: Message[];
+  threadLoading: boolean;
+
+  // v2: Smart Folders
+  smartFolders: SmartFolder[];
+  smartFoldersLoading: boolean;
+
   // Actions: Core
   fetchChannels: (userId: string) => Promise<void>;
   setActiveChannel: (channelId: string) => void;
   addChannel: (channel: Channel) => void;
   fetchMessages: (channelId: string, userId?: string) => Promise<void>;
-  sendMessage: (content: string, userId: string, options?: { attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown> }) => Promise<void>;
+  sendMessage: (content: string, userId: string, options?: { attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown>; threadId?: string }) => Promise<void>;
   addMessage: (message: Message) => void;
   incrementChannelUnread: (channelId: string) => void;
   addTypingUser: (channelId: string, userId: string) => void;
@@ -74,6 +109,7 @@ interface ChatState {
   deleteMessage: (messageId: string, channelId: string) => void;
   pinMessage: (messageId: string, channelId: string, isPinned: boolean) => void;
   setEditingMessage: (messageId: string | null) => void;
+  updateThreadReplyCount: (threadId: string, replyCount: number) => void;
 
   // Actions: v2 Detail panel
   toggleDetailPanel: () => void;
@@ -85,13 +121,27 @@ interface ChatState {
   toggleDoraPanel: () => void;
   fetchDoraSummary: (channelId: string) => Promise<void>;
   fetchDoraActionItems: (channelId: string) => Promise<void>;
-  fetchSmartReplies: (channelId: string) => Promise<void>;
+  fetchDoraSuggestions: (channelId: string, query: string) => Promise<void>;
+  fetchDoraDecisions: (channelId: string) => Promise<void>;
+  fetchThreadDoraSummary: (channelId: string, parentMessageId: string) => Promise<void>;
+  fetchThreadDoraActionItems: (channelId: string, parentMessageId: string) => Promise<void>;
+  fetchSmartReplies: (channelId: string, options?: { threadId?: string }) => Promise<void>;
   clearSmartReplies: () => void;
+  transformDraft: (
+    channelId: string,
+    text: string,
+    action: DoraTransformAction,
+    targetLocale?: string,
+  ) => Promise<DoraMessageTransformResult | null>;
 
   // Actions: v2 Search
   setSearchOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
   performSearch: (query: string, channelId?: string) => Promise<void>;
+
+  // Actions: v2 Universal Search
+  performUniversalSearch: (query: string) => Promise<void>;
+  setUniversalSearchTab: (tab: UniversalSearchTab) => void;
 
   // Actions: v2 Channel management
   createChannel: (data: { name: string; description?: string; type?: string; members?: string[] }) => Promise<void>;
@@ -103,6 +153,17 @@ interface ChatState {
   // Actions: v2 Context menu
   openContextMenu: (message: Message, position: { x: number; y: number }) => void;
   closeContextMenu: () => void;
+
+  // Actions: v2 Threads
+  openThread: (messageId: string) => void;
+  closeThread: () => void;
+  fetchThreadMessages: (channelId: string, messageId: string) => Promise<void>;
+  sendThreadReply: (content: string, userId: string, threadId: string) => Promise<void>;
+
+  // Actions: v2 Smart Folders
+  fetchSmartFolders: () => Promise<void>;
+  addSmartFolder: (folder: Omit<SmartFolder, 'id' | 'createdAt'>) => Promise<void>;
+  removeSmartFolder: (folderId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -119,21 +180,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
   detailTab: 'members',
   pinnedMessages: {},
   channelMedia: {},
+  pinsLoading: false,
+  pinsError: null,
+  mediaLoading: false,
+  mediaError: null,
   doraSummary: null,
   doraActionItems: null,
-  doraSuggestions: {},
+  doraSuggestions: [],
   doraLoading: false,
+  doraSummaryLoading: false,
+  doraActionItemsLoading: false,
+  doraSuggestionsLoading: false,
   doraPanelOpen: false,
+  doraDecisions: null,
+  doraDecisionsLoading: false,
+  threadDoraSummary: null,
+  threadDoraActionItems: null,
+  threadDoraSummaryLoading: false,
+  threadDoraActionItemsLoading: false,
+  draftTransformLoading: false,
   smartReplies: null,
   smartReplyLoading: false,
   searchQuery: '',
   searchResults: [],
   searchOpen: false,
+  universalSearchResults: null,
+  universalSearchLoading: false,
+  universalSearchTab: 'all',
   mobileSidebarOpen: false,
   channelCreateOpen: false,
   contextMenuMessage: null,
   contextMenuPosition: null,
   editingMessageId: null,
+  activeThreadId: null,
+  threadMessages: [],
+  threadLoading: false,
+  smartFolders: [],
+  smartFoldersLoading: false,
 
   // ── Core Actions ──
 
@@ -162,7 +245,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
     joinChannel(channelId);
-    set({ activeChannelId: channelId, smartReplies: null, doraSummary: null, doraActionItems: null });
+    set({
+      activeChannelId: channelId,
+      smartReplies: null,
+      doraSummary: null,
+      doraActionItems: null,
+      doraDecisions: null,
+      threadDoraSummary: null,
+      threadDoraActionItems: null,
+      activeThreadId: null,
+      threadMessages: [],
+      threadLoading: false,
+    });
     if (!get().messages[channelId]) {
       get().fetchMessages(channelId);
     }
@@ -194,16 +288,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { activeChannelId } = get();
     if (!activeChannelId) return;
     try {
-      const body = {
+      const body: { content: string; attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown>; threadId?: string } = {
         content,
         attachments: options?.attachments ?? [],
         mentions: options?.mentions ?? [],
         metadata: options?.metadata ?? {},
       };
+      if (options?.threadId) body.threadId = options.threadId;
       const message = await chatAPI.sendMessage(activeChannelId, body, userId) as Message;
       get().addMessage(message);
+      if (options?.threadId) {
+        set((state) => ({
+          threadMessages: [...state.threadMessages, message],
+        }));
+      }
     } catch (error) {
-      console.error('Failed to send message:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to send message';
+      toast.error(msg);
     }
   },
 
@@ -320,26 +421,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setEditingMessage: (messageId) => set({ editingMessageId: messageId }),
 
+  updateThreadReplyCount: (threadId, replyCount) => {
+    set((state) => {
+      const updated: Record<string, Message[]> = {};
+      for (const [chId, msgs] of Object.entries(state.messages)) {
+        updated[chId] = msgs.map((m) => m.id === threadId ? { ...m, replyCount } : m);
+      }
+      return { messages: updated };
+    });
+  },
+
   // ── v2 Detail Panel ──
 
   toggleDetailPanel: () => set((s) => ({ detailPanelOpen: !s.detailPanelOpen })),
   setDetailTab: (tab) => set({ detailTab: tab, detailPanelOpen: true }),
 
   fetchPins: async (channelId) => {
+    set({ pinsLoading: true, pinsError: null });
     try {
       const pins = await chatAPI.getPins(channelId);
-      set((state) => ({ pinnedMessages: { ...state.pinnedMessages, [channelId]: pins } }));
+      set((state) => ({ pinnedMessages: { ...state.pinnedMessages, [channelId]: pins }, pinsLoading: false }));
     } catch (e) {
-      console.error('Failed to fetch pins:', e);
+      const msg = e instanceof Error ? e.message : 'Failed to load pinned messages';
+      set({ pinsLoading: false, pinsError: msg });
     }
   },
 
   fetchMedia: async (channelId) => {
+    set({ mediaLoading: true, mediaError: null });
     try {
       const media = await chatAPI.getMedia(channelId);
-      set((state) => ({ channelMedia: { ...state.channelMedia, [channelId]: media } }));
+      set((state) => ({ channelMedia: { ...state.channelMedia, [channelId]: media }, mediaLoading: false }));
     } catch (e) {
-      console.error('Failed to fetch media:', e);
+      const msg = e instanceof Error ? e.message : 'Failed to load media';
+      set({ mediaLoading: false, mediaError: msg });
     }
   },
 
@@ -348,32 +463,93 @@ export const useChatStore = create<ChatState>((set, get) => ({
   toggleDoraPanel: () => set((s) => ({ doraPanelOpen: !s.doraPanelOpen })),
 
   fetchDoraSummary: async (channelId) => {
-    set({ doraLoading: true });
+    set({ doraSummaryLoading: true, doraLoading: true });
     try {
       const summary = await chatAPI.doraSummarize(channelId);
-      set({ doraSummary: summary, doraLoading: false });
+      set({ doraSummary: summary, doraSummaryLoading: false, doraLoading: false });
     } catch {
-      set({ doraLoading: false });
+      set({ doraSummaryLoading: false, doraLoading: false });
+      toast.error('Failed to generate summary');
     }
   },
 
   fetchDoraActionItems: async (channelId) => {
-    set({ doraLoading: true });
+    set({ doraActionItemsLoading: true, doraLoading: true });
     try {
       const items = await chatAPI.doraActionItems(channelId);
-      set({ doraActionItems: items, doraLoading: false });
+      set({ doraActionItems: items, doraActionItemsLoading: false, doraLoading: false });
     } catch {
-      set({ doraLoading: false });
+      set({ doraActionItemsLoading: false, doraLoading: false });
+      toast.error('Failed to detect action items');
     }
   },
 
-  fetchSmartReplies: async (channelId) => {
+  fetchDoraSuggestions: async (channelId, query) => {
+    set({ doraSuggestionsLoading: true });
+    try {
+      const result = await chatAPI.doraSuggest(channelId, query);
+      set({ doraSuggestions: result.suggestions, doraSuggestionsLoading: false });
+    } catch {
+      set({ doraSuggestionsLoading: false });
+    }
+  },
+
+  fetchDoraDecisions: async (channelId) => {
+    set({ doraDecisionsLoading: true });
+    try {
+      const result = await chatAPI.doraDecisions(channelId);
+      set({ doraDecisions: result, doraDecisionsLoading: false });
+    } catch {
+      set({ doraDecisionsLoading: false });
+      toast.error('Failed to extract decisions');
+    }
+  },
+
+  fetchThreadDoraSummary: async (channelId, parentMessageId) => {
+    set({ threadDoraSummaryLoading: true });
+    try {
+      const summary = await chatAPI.doraSummarizeThread(channelId, parentMessageId);
+      set({ threadDoraSummary: summary, threadDoraSummaryLoading: false });
+    } catch {
+      set({ threadDoraSummaryLoading: false });
+      toast.error('Failed to summarize thread');
+    }
+  },
+
+  fetchThreadDoraActionItems: async (channelId, parentMessageId) => {
+    set({ threadDoraActionItemsLoading: true });
+    try {
+      const items = await chatAPI.doraActionItemsThread(channelId, parentMessageId);
+      set({ threadDoraActionItems: items, threadDoraActionItemsLoading: false });
+    } catch {
+      set({ threadDoraActionItemsLoading: false });
+      toast.error('Failed to detect thread action items');
+    }
+  },
+
+  fetchSmartReplies: async (channelId, options) => {
     set({ smartReplyLoading: true });
     try {
-      const result = await chatAPI.doraSmartReply(channelId);
+      const result = await chatAPI.doraSmartReply(channelId, options);
       set({ smartReplies: result, smartReplyLoading: false });
     } catch {
       set({ smartReplyLoading: false });
+    }
+  },
+
+  transformDraft: async (channelId, text, action, targetLocale) => {
+    set({ draftTransformLoading: true });
+    try {
+      const result = await chatAPI.doraTransformDraft(channelId, { text, action, targetLocale });
+      set({ draftTransformLoading: false });
+      if (result.text) {
+        chatAPI.awardChatXP(channelId, 'chat.dora.transform_used').catch(() => {});
+      }
+      return result;
+    } catch {
+      set({ draftTransformLoading: false });
+      toast.error('Failed to transform text');
+      return null;
     }
   },
 
@@ -394,6 +570,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  // ── v2 Universal Search ──
+
+  performUniversalSearch: async (query) => {
+    if (!query.trim()) { set({ universalSearchResults: null }); return; }
+    set({ universalSearchLoading: true });
+    try {
+      const results = await chatAPI.universalSearch(query);
+      set({ universalSearchResults: results, universalSearchLoading: false });
+    } catch {
+      set({ universalSearchResults: null, universalSearchLoading: false });
+    }
+  },
+
+  setUniversalSearchTab: (tab) => set({ universalSearchTab: tab }),
+
   // ── v2 Channel management ──
 
   createChannel: async (data) => {
@@ -402,8 +593,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       get().addChannel(channel);
       get().setActiveChannel(channel.id);
       set({ channelCreateOpen: false });
+      toast.success(`Channel #${channel.name} created`);
     } catch (e) {
-      console.error('Failed to create channel:', e);
+      const msg = e instanceof Error ? e.message : 'Failed to create channel';
+      toast.error(msg);
+      throw e;
     }
   },
 
@@ -415,4 +609,88 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // ── v2 Context menu ──
   openContextMenu: (message, position) => set({ contextMenuMessage: message, contextMenuPosition: position }),
   closeContextMenu: () => set({ contextMenuMessage: null, contextMenuPosition: null }),
+
+  // ── v2 Threads ──
+  openThread: (messageId) => {
+    const { activeChannelId } = get();
+    set({
+      activeThreadId: messageId,
+      threadMessages: [],
+      threadLoading: true,
+      detailPanelOpen: false,
+      threadDoraSummary: null,
+      threadDoraActionItems: null,
+    });
+    if (activeChannelId) get().fetchThreadMessages(activeChannelId, messageId);
+  },
+  closeThread: () => set({
+    activeThreadId: null,
+    threadMessages: [],
+    threadLoading: false,
+    threadDoraSummary: null,
+    threadDoraActionItems: null,
+  }),
+
+  fetchThreadMessages: async (channelId, messageId) => {
+    set({ threadLoading: true });
+    try {
+      const messages = await chatAPI.getThreadMessages(channelId, messageId);
+      set({ threadMessages: messages, threadLoading: false });
+    } catch {
+      set({ threadLoading: false });
+      toast.error('Failed to load thread');
+    }
+  },
+
+  sendThreadReply: async (content, userId, threadId) => {
+    const { activeChannelId } = get();
+    if (!activeChannelId) return;
+    try {
+      const message = await chatAPI.sendMessage(activeChannelId, {
+        content,
+        threadId,
+        attachments: [],
+        mentions: [],
+        metadata: {},
+      }, userId) as Message;
+      set((state) => ({
+        threadMessages: [...state.threadMessages, message],
+      }));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to send reply';
+      toast.error(msg);
+    }
+  },
+
+  // ── v2 Smart Folders ──
+  fetchSmartFolders: async () => {
+    set({ smartFoldersLoading: true });
+    try {
+      const folders = await chatAPI.getSmartFolders();
+      set({ smartFolders: folders, smartFoldersLoading: false });
+    } catch {
+      set({ smartFoldersLoading: false });
+    }
+  },
+
+  addSmartFolder: async (folder) => {
+    try {
+      const created = await chatAPI.createSmartFolder(folder);
+      set((state) => ({ smartFolders: [...state.smartFolders, created] }));
+      toast.success(`Folder "${created.name}" created`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to create folder';
+      toast.error(msg);
+    }
+  },
+
+  removeSmartFolder: async (folderId) => {
+    try {
+      await chatAPI.deleteSmartFolder(folderId);
+      set((state) => ({ smartFolders: state.smartFolders.filter((f) => f.id !== folderId) }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to delete folder';
+      toast.error(msg);
+    }
+  },
 }));

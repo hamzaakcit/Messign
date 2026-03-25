@@ -5,6 +5,8 @@ import type {
   Message, Channel, EmbeddedCard, DoraSummaryResult,
   DoraActionItemsResult, DoraKBSuggestion, SmartReplyResult,
   SlashSearchResult, ChatSearchResult, ChatMediaItem,
+  SmartFolder, UniversalSearchResults,
+  DoraDecisionsResult, DoraTransformAction, DoraMessageTransformResult,
 } from '@/types';
 
 export const channelsAPI = {
@@ -57,7 +59,7 @@ export const chatAPI = {
     }),
   getMessages: (channelId: string, userId?: string) =>
     chatFetch<Message[]>(`/chat/channels/${channelId}/messages`, userId),
-  sendMessage: (channelId: string, body: { content: string; attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown> }, userId?: string) =>
+  sendMessage: (channelId: string, body: { content: string; attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown>; threadId?: string }, userId?: string) =>
     chatFetch<Message>(
       `/chat/channels/${channelId}/messages`, userId,
       { method: 'POST', body: JSON.stringify(body) },
@@ -139,15 +141,72 @@ export const chatAPI = {
       `/chat/channels/${channelId}/dora/action-items`, undefined,
       { method: 'POST', body: JSON.stringify({ messageCount }) },
     ),
-  doraSmartReply: (channelId: string) =>
+  doraSmartReply: (channelId: string, options?: { threadId?: string }) =>
     chatFetch<SmartReplyResult>(
       `/chat/channels/${channelId}/dora/smart-reply`, undefined,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify({ threadId: options?.threadId }) },
     ),
   doraSuggest: (channelId: string, question: string) =>
     chatFetch<{ suggestions: DoraKBSuggestion[]; query: string }>(
       `/chat/channels/${channelId}/dora/suggest`, undefined,
       { method: 'POST', body: JSON.stringify({ question }) },
+    ),
+  doraSummarizeThread: (channelId: string, parentMessageId: string, messageCount?: number) =>
+    chatFetch<DoraSummaryResult>(
+      `/chat/channels/${channelId}/messages/${parentMessageId}/dora/summarize-thread`, undefined,
+      { method: 'POST', body: JSON.stringify({ messageCount }) },
+    ),
+  doraActionItemsThread: (channelId: string, parentMessageId: string, messageCount?: number) =>
+    chatFetch<DoraActionItemsResult>(
+      `/chat/channels/${channelId}/messages/${parentMessageId}/dora/action-items-thread`, undefined,
+      { method: 'POST', body: JSON.stringify({ messageCount }) },
+    ),
+  doraTransformMessage: (
+    channelId: string,
+    messageId: string,
+    body: { action: DoraTransformAction; targetLocale?: string },
+  ) =>
+    chatFetch<DoraMessageTransformResult>(
+      `/chat/channels/${channelId}/messages/${messageId}/dora/transform`, undefined,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  doraTransformDraft: (
+    channelId: string,
+    body: { text: string; action: DoraTransformAction; targetLocale?: string },
+  ) =>
+    chatFetch<DoraMessageTransformResult>(
+      `/chat/channels/${channelId}/dora/transform-draft`, undefined,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  doraDecisions: (channelId: string, messageCount?: number) =>
+    chatFetch<DoraDecisionsResult>(
+      `/chat/channels/${channelId}/dora/decisions`, undefined,
+      { method: 'POST', body: JSON.stringify({ messageCount }) },
+    ),
+
+  // ── Threads ──
+  getThreadMessages: (channelId: string, messageId: string) =>
+    chatFetch<Message[]>(`/chat/channels/${channelId}/messages/${messageId}/thread`),
+
+  // ── Universal Search ──
+  universalSearch: (q: string) =>
+    chatFetch<UniversalSearchResults>(`/chat/search/universal?q=${encodeURIComponent(q)}`),
+
+  // ── Smart Folders (Bookmarks) ──
+  getSmartFolders: () =>
+    chatFetch<SmartFolder[]>('/chat/bookmarks'),
+  createSmartFolder: (data: Omit<SmartFolder, 'id' | 'createdAt'>) =>
+    chatFetch<SmartFolder>('/chat/bookmarks', undefined, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteSmartFolder: (folderId: string) =>
+    chatFetch<void>(`/chat/bookmarks/${folderId}`, undefined, { method: 'DELETE' }),
+
+  // ── Reactions detail ──
+  getReactionUsers: (channelId: string, messageId: string) =>
+    chatFetch<Array<{ emoji: string; users: Array<{ id: string; name: string; avatar: string }> }>>(
+      `/chat/channels/${channelId}/messages/${messageId}/reactions`,
     ),
 
   // ── Gamification ──

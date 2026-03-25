@@ -172,6 +172,23 @@ export interface SmartReplyResult {
   contextSummary: string;
 }
 
+export interface DoraDecisionsResult {
+  decisions: Array<{ text: string; owners?: string[] }>;
+  confidence: number;
+}
+
+export type DoraTransformAction =
+  | 'explain'
+  | 'shorten'
+  | 'expand'
+  | 'professional'
+  | 'friendly'
+  | 'translate';
+
+export interface DoraMessageTransformResult {
+  text: string;
+}
+
 // Chat v2: Slash Commands
 export interface SlashSearchResult {
   type: 'task' | 'document' | 'user';
@@ -192,6 +209,25 @@ export interface ChatSearchResult {
   timestamp: string;
   senderName?: string;
   channelName?: string;
+}
+
+// Chat v2: Smart Folders
+export interface SmartFolder {
+  id: string;
+  name: string;
+  type: 'project' | 'department' | 'custom';
+  channelIds: string[];
+  icon?: string;
+  userId: string;
+  createdAt: string;
+}
+
+// Chat v2: Universal Search
+export interface UniversalSearchResults {
+  messages: ChatSearchResult[];
+  tasks: SlashSearchResult[];
+  documents: SlashSearchResult[];
+  users: SlashSearchResult[];
 }
 
 // Chat v2: Media

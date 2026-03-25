@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Hash, Lock, MessageCircle, Plus, ChevronDown, Mail, Loader2, AlertCircle, Search, X, FolderOpen, Trash2 } from 'lucide-react';
-import type { Channel } from '@/types';
+import type { Channel, SmartFolder } from '@/types';
 import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
@@ -244,7 +244,7 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
                 </button>
                 {expandedSections.folders && (
                   <div className="mt-0.5 space-y-px">
-                    {smartFolders.map((folder) => (
+                    {smartFolders.map((folder: SmartFolder) => (
                       <div
                         key={folder.id}
                         className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors group"
