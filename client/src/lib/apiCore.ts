@@ -12,9 +12,27 @@ function normalizeApiOrigin(v: string | undefined): string {
 }
 
 /** Prefer `VITE_API_URL`; also accept `VITE_API_ORIGIN` (used in some env files). */
-const _explicitOrigin =
+const _explicitOriginFromEnv =
   normalizeApiOrigin(import.meta.env.VITE_API_URL) ||
   normalizeApiOrigin(import.meta.env.VITE_API_ORIGIN);
+
+/**
+ * In Vite dev (`npm run dev`), use same-origin `/api` so the dev-server proxy targets 127.0.0.1:3001.
+ * If `client/.env` sets `VITE_API_URL` to Railway for production builds, login would otherwise hit prod
+ * while the user thinks they are testing local — causing "invalid password" against the wrong DB.
+ * Set `VITE_FORCE_DIRECT_API=1` to call the remote API from the dev client instead.
+ */
+const forceDirectInDev =
+  import.meta.env.VITE_FORCE_DIRECT_API === '1' || import.meta.env.VITE_FORCE_DIRECT_API === 'true';
+
+const _explicitOrigin =
+  import.meta.env.DEV && !forceDirectInDev ? '' : _explicitOriginFromEnv;
+
+if (import.meta.env.DEV && _explicitOriginFromEnv && !forceDirectInDev) {
+  console.info(
+    '[api] Using Vite proxy for /api (local server on 3001). Ignoring VITE_API_URL in dev. Set VITE_FORCE_DIRECT_API=1 to use your configured API origin.'
+  );
+}
 
 /**
  * Backend origin (no `/api` suffix). In Vitest, modules that read this directly (e.g. `fetchJson.ts`)
