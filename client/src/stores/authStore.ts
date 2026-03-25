@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import type { StateStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import type { PersistStorage, StateStorage, StorageValue } from 'zustand/middleware';
 import type { User } from '@/types';
 import { authAPI } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
@@ -13,32 +13,89 @@ let authUseSessionStorage = false;
 
 const authStateStorage: StateStorage = {
   getItem: (name) => {
-    const fromSession = sessionStorage.getItem(name);
-    if (fromSession != null) {
-      authUseSessionStorage = true;
-      return fromSession;
-    }
-    const fromLocal = localStorage.getItem(name);
-    if (fromLocal != null) {
-      authUseSessionStorage = false;
-      return fromLocal;
+    try {
+      const fromSession = sessionStorage.getItem(name);
+      if (fromSession != null) {
+        authUseSessionStorage = true;
+        return fromSession;
+      }
+      const fromLocal = localStorage.getItem(name);
+      if (fromLocal != null) {
+        authUseSessionStorage = false;
+        return fromLocal;
+      }
+    } catch (e) {
+      console.warn('[auth] Storage read blocked or failed.', e);
     }
     return null;
   },
   setItem: (name, value) => {
-    if (authUseSessionStorage) {
-      localStorage.removeItem(name);
-      sessionStorage.setItem(name, value);
-    } else {
-      sessionStorage.removeItem(name);
-      localStorage.setItem(name, value);
+    try {
+      if (authUseSessionStorage) {
+        localStorage.removeItem(name);
+        sessionStorage.setItem(name, value);
+      } else {
+        sessionStorage.removeItem(name);
+        localStorage.setItem(name, value);
+      }
+    } catch (e) {
+      console.warn('[auth] Storage write blocked or failed.', e);
     }
   },
   removeItem: (name) => {
-    sessionStorage.removeItem(name);
-    localStorage.removeItem(name);
+    try {
+      sessionStorage.removeItem(name);
+      localStorage.removeItem(name);
+    } catch {
+      /* ignore */
+    }
   },
 };
+
+/** Shape of `partialize` output — must match `PersistStorage` generic. */
+interface AuthPersistedSlice {
+  user: User | null;
+  accessToken: string | null;
+  expiresAt: number | null;
+  mustChangePassword: boolean;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+}
+
+/**
+ * zustand's createJSONStorage JSON.parse throws on corrupt data; persist then never sets
+ * hasHydrated — App.tsx shows "Loading…" forever. Parse safely and drop bad snapshots.
+ */
+function createSafeAuthPersistStorage(): PersistStorage<AuthPersistedSlice> {
+  return {
+    getItem: (name) => {
+      try {
+        const raw = authStateStorage.getItem(name) as string | null;
+        if (raw == null) return null;
+        return JSON.parse(raw) as StorageValue<AuthPersistedSlice>;
+      } catch {
+        console.warn('[auth] Invalid persisted session JSON; clearing.');
+        try {
+          authStateStorage.removeItem(name);
+        } catch {
+          /* ignore */
+        }
+        return null;
+      }
+    },
+    setItem: (name, value) => {
+      try {
+        authStateStorage.setItem(name, JSON.stringify(value));
+      } catch (e) {
+        /** QuotaExceeded or blocked storage must not reject zustand's hydrate chain (would leave persist.hasHydrated false). */
+        console.warn('[auth] Could not write persisted session (storage full or blocked).', e);
+      }
+    },
+    removeItem: (name) => {
+      authStateStorage.removeItem(name);
+    },
+  };
+}
 
 export interface LoginError {
   code?: string;
@@ -179,7 +236,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: AUTH_PERSIST_NAME,
-      storage: createJSONStorage(() => authStateStorage),
+      storage: createSafeAuthPersistStorage(),
       partialize: (s) => ({
         user: s.user,
         accessToken: s.accessToken,
@@ -189,22 +246,44 @@ export const useAuthStore = create<AuthState>()(
         isAdmin: s.isAdmin,
       }),
       merge: (persistedState, currentState) => {
-        const persisted = persistedState as Partial<AuthState> | undefined;
-        const current = currentState as AuthState;
-        if (!persisted) return current;
-        const merged = { ...current, ...persisted };
-        if (current.isAuthenticated && current.accessToken) {
-          merged.user = current.user;
-          merged.accessToken = current.accessToken;
-          merged.expiresAt = current.expiresAt;
-          merged.isAuthenticated = true;
-          merged.isAdmin = current.isAdmin;
-          merged.mustChangePassword = current.mustChangePassword;
+        try {
+          const persisted = persistedState as Partial<AuthState> | undefined;
+          const current = currentState as AuthState;
+          if (!persisted) return current;
+          const merged = { ...current, ...persisted };
+          if (current.isAuthenticated && current.accessToken) {
+            merged.user = current.user;
+            merged.accessToken = current.accessToken;
+            merged.expiresAt = current.expiresAt;
+            merged.isAuthenticated = true;
+            merged.isAdmin = current.isAdmin;
+            merged.mustChangePassword = current.mustChangePassword;
+          }
+          return merged;
+        } catch (e) {
+          console.warn('[auth] Rehydrate merge failed; using default state.', e);
+          return currentState as AuthState;
         }
-        return merged;
       },
-      onRehydrateStorage: () => () => {
+      /**
+       * Runs after rehydrate attempt (success or failure). On failure, zustand does NOT set
+       * persist.hasHydrated() — App must use `_hasHydrated` here so the shell is not stuck on "Loading…".
+       */
+      onRehydrateStorage: () => (_state, error) => {
         useAuthStore.setState({ _hasHydrated: true });
+        if (error) {
+          console.warn('[auth] Persist rehydration failed; clearing session.', error);
+          setAccessToken(null);
+          useAuthStore.setState({
+            user: null,
+            accessToken: null,
+            expiresAt: null,
+            isAuthenticated: false,
+            isAdmin: false,
+            mustChangePassword: false,
+          });
+          return;
+        }
         const { isAuthenticated, user, accessToken } = useAuthStore.getState();
         if ((isAuthenticated || accessToken) && !user) {
           setAccessToken(null);

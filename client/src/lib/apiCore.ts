@@ -16,6 +16,10 @@ const _explicitOrigin =
   normalizeApiOrigin(import.meta.env.VITE_API_URL) ||
   normalizeApiOrigin(import.meta.env.VITE_API_ORIGIN);
 
+/**
+ * Backend origin (no `/api` suffix). In Vitest, modules that read this directly (e.g. `fetchJson.ts`)
+ * must mock `@/lib/apiCore` — mocking `@/lib/api` alone does not replace this binding.
+ */
 export const API_ORIGIN =
   _explicitOrigin ||
   (import.meta.env.PROD ? 'https://server-production-7283.up.railway.app' : '');

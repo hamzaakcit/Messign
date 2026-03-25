@@ -83,6 +83,14 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 };
 
+/**
+ * Long-polling uses multiple HTTP requests; without a sticky load balancer, different replicas
+ * return "Session ID unknown" (400). WebSocket uses one TCP connection — no sticky sessions needed.
+ * @see https://socket.io/docs/v4/using-multiple-nodes/
+ * Opt in to polling with SOCKET_ALLOW_POLLING=1 (then use one replica or platform sticky sessions).
+ */
+const socketAllowPolling = process.env.SOCKET_ALLOW_POLLING === '1';
+
 const io = new Server(httpServer, {
   cors: {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -96,6 +104,7 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
+  transports: socketAllowPolling ? ['polling', 'websocket'] : ['websocket'],
   /** Longer defaults help slow mobile / proxy paths during Engine.IO polling + WebSocket upgrade. */
   connectTimeout: 45_000,
   pingTimeout: 60_000,
@@ -105,6 +114,9 @@ const io = new Server(httpServer, {
 io.engine.on('connection_error', (err: Error) => {
   console.warn('[Socket.IO] engine connection_error:', err.message);
 });
+if (!socketAllowPolling) {
+  console.info('[Socket.IO] transports: websocket only (avoids Session ID unknown across replicas; Redis adapter is for broadcasts, not Engine.IO affinity)');
+}
 app.set('io', io);
 
 // Phase 5: will be replaced by cloud storage (Supabase Storage or R2); ephemeral disk is wiped on redeploy.

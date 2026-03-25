@@ -6,12 +6,25 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    /** Polling-only avoids WebSocket upgrade issues behind some proxies; set VITE_SOCKET_FORCE_POLLING=1 if WS fails in production. */
+    /**
+     * Default: WebSocket only — matches server default and avoids "Session ID unknown" when
+     * Railway runs multiple replicas without sticky sessions (long-polling hits random instances).
+     * @see https://socket.io/docs/v4/using-multiple-nodes/
+     */
     const forcePolling = import.meta.env.VITE_SOCKET_FORCE_POLLING === '1';
+    const allowPolling = import.meta.env.VITE_SOCKET_ALLOW_POLLING === '1';
+    let transports: ('polling' | 'websocket')[];
+    if (forcePolling) {
+      transports = ['polling'];
+    } else if (allowPolling) {
+      transports = ['polling', 'websocket'];
+    } else {
+      transports = ['websocket'];
+    }
     socket = io(API_ORIGIN, {
       autoConnect: false,
       withCredentials: true,
-      transports: forcePolling ? ['polling'] : ['polling', 'websocket'],
+      transports,
     });
   }
   return socket;

@@ -7,7 +7,8 @@ vi.mock('@/lib/authToken', () => ({
   setAccessToken: vi.fn(),
 }));
 
-vi.mock('@/lib/api', () => ({
+/** fetchJson imports from apiCore — mock that module so API_ORIGIN is controlled in tests. */
+vi.mock('@/lib/apiCore', () => ({
   API_ORIGIN: 'https://api.test',
   assertNotHtmlApiResponse: vi.fn(),
 }));

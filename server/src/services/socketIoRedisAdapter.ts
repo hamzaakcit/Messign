@@ -6,9 +6,9 @@ let pubClient: IORedis | null = null;
 let subClient: IORedis | null = null;
 
 /**
- * Attaches the official Socket.IO Redis adapter so Engine.IO sessions and broadcasts work across
- * multiple Node processes (Railway replicas). Without this, WebSocket upgrade often fails or
- * connections drop when polling and WS hit different instances.
+ * Attaches the official Socket.IO Redis adapter so **broadcasts / rooms** sync across Node
+ * processes. It does **not** share Engine.IO session state — for long-polling behind a load
+ * balancer you still need sticky sessions, or use WebSocket-only (see server `transports`).
  */
 export async function attachSocketIoRedisAdapter(io: Server): Promise<void> {
   if (process.env.SKIP_SOCKET_REDIS_ADAPTER === '1') {

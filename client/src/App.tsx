@@ -61,13 +61,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 function MainApp() {
   const { user } = useAuthStore();
 
-  /** AuthGuard requires `user`; this avoids a blank shell if state ever desyncs. */
+  /** AuthGuard should guarantee `user`; if not, recover instead of an infinite "Restoring session…". */
   if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-app gap-4 p-6">
-        <p className="text-app-muted text-sm text-center max-w-md">Restoring session…</p>
-      </div>
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return (
@@ -79,21 +75,34 @@ function MainApp() {
 
 function App() {
   const user = useAuthStore((s) => s.user);
-  /** Wait for persisted auth before routing; avoids a flash of logged-out UI or null dashboard. */
-  const [persistReady, setPersistReady] = useState(() => useAuthStore.persist.hasHydrated());
+  /**
+   * Use auth store `_hasHydrated` (set in onRehydrateStorage for both success AND failure).
+   * Relying only on `persist.hasHydrated()` breaks when rehydrate rejects — middleware never flips
+   * that flag and `onFinishHydration` never runs, so the UI stuck on "Loading…".
+   */
+  const authRehydrated = useAuthStore((s) => s._hasHydrated);
+  const [hydrationFallback, setHydrationFallback] = useState(false);
 
   useEffect(() => {
-    const unsub = useAuthStore.persist.onFinishHydration(() => setPersistReady(true));
-    if (useAuthStore.persist.hasHydrated()) setPersistReady(true);
-    return unsub;
-  }, []);
+    if (authRehydrated) return;
+    const failSafe = window.setTimeout(() => {
+      if (!useAuthStore.getState()._hasHydrated) {
+        console.warn('[App] Auth hydration callback did not run; unlocking shell (check persist middleware).');
+        useAuthStore.setState({ _hasHydrated: true });
+        setHydrationFallback(true);
+      }
+    }, 2500);
+    return () => window.clearTimeout(failSafe);
+  }, [authRehydrated]);
+
+  const appReady = authRehydrated || hydrationFallback;
 
   // Connect socket for any authenticated user (main app or admin) so presence (online/offline) works. Must be before any early return to satisfy Rules of Hooks.
   useEffect(() => {
     if (user?.id) connectSocket(user.id);
   }, [user?.id]);
 
-  if (!persistReady) {
+  if (!appReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-app">
         <div className="text-app-muted">Loading…</div>
