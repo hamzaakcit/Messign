@@ -39,6 +39,23 @@ export interface ExecutiveDashboard {
   doraInsights: { criticalCount: number; warningCount: number; totalUnread: number };
 }
 
+export interface PendingItems {
+  expenses: { id: string; title: string; amount: number; currency: string; submitter: string; submittedAt: string }[];
+  timesheets: { id: string; userName: string; period: string; totalHours: number; submittedAt: string }[];
+  tickets: { id: string; subject: string; priority: string; status: string; assignee: string | null; createdAt: string }[];
+  applications: { id: string; candidateName: string; jobTitle: string; stage: string; appliedAt: string }[];
+  marketingApprovals: { id: string; contentTitle: string; type: string; requestedBy: string; requestedAt: string }[];
+  overdueInvoices: { id: string; clientName: string; amount: number; dueDate: string; daysPastDue: number }[];
+}
+
+export interface ExecutiveChartData {
+  revenueTrend: { date: string; value: number }[];
+  expenseTrend: { date: string; value: number }[];
+  ticketTrend: { date: string; opened: number; resolved: number }[];
+  leadsTrend: { date: string; value: number }[];
+  utilizationTrend: { date: string; value: number }[];
+}
+
 export const executiveAPI = {
   getDashboard: (userId: string) =>
     fetchWithUserId<ExecutiveDashboard>('/executive/dashboard', userId),
@@ -48,6 +65,10 @@ export const executiveAPI = {
     fetchWithUserId<ExecutiveDashboard['finance']>('/executive/dashboard/finance', userId),
   getActivity: (userId: string) =>
     fetchWithUserId<ExecutiveDashboard['recentActivity']>('/executive/dashboard/activity', userId),
+  getPendingItems: (userId: string) =>
+    fetchWithUserId<PendingItems>('/executive/pending-items', userId),
+  getChartData: (userId: string) =>
+    fetchWithUserId<ExecutiveChartData>('/executive/chart-data', userId),
 };
 
 export interface BriefingItem {

@@ -67,6 +67,8 @@ export function getStatusColor(status: string): string {
       return 'bg-warning-500';
     case 'busy':
       return 'bg-danger-500';
+    case 'deep_work':
+      return 'bg-amber-500 animate-pulse';
     default:
       return 'bg-gray-500';
   }

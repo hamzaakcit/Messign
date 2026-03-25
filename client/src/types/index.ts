@@ -33,7 +33,7 @@ export interface UserStats {
   documentsCreated: number;
 }
 
-export type UserStatus = 'online' | 'away' | 'busy' | 'offline';
+export type UserStatus = 'online' | 'away' | 'busy' | 'offline' | 'deep_work';
 export type UserRole =
   | 'employee'
   | 'manager'
@@ -54,11 +54,13 @@ export interface Channel {
   unreadCount: number;
   lastMessage?: Message;
   createdAt: string;
+  topic?: string;
+  avatarUrl?: string;
+  archived?: boolean;
 }
 
 export type ChannelType = 'public' | 'private' | 'dm';
 
-// Message with MP reward (senderName/senderAvatar from API when joined with reimbursement_users)
 export interface Message {
   id: string;
   channelId: string;
@@ -70,8 +72,31 @@ export interface Message {
   timestamp: string;
   reactions?: Reaction[];
   isEdited?: boolean;
+  isPinned?: boolean;
   senderName?: string;
   senderAvatar?: string;
+  metadata?: MessageMetadata;
+  threadId?: string | null;
+  replyCount?: number;
+  isDeleted?: boolean;
+}
+
+export interface MessageMetadata {
+  embeddedCards?: EmbeddedCardRef[];
+  actionItems?: ActionItemRef[];
+  [key: string]: unknown;
+}
+
+export interface EmbeddedCardRef {
+  type: 'task' | 'document';
+  refId: string;
+}
+
+export interface ActionItemRef {
+  text: string;
+  assignee?: string;
+  priority: 'low' | 'medium' | 'high';
+  taskId?: string;
 }
 
 export interface Attachment {
@@ -85,6 +110,100 @@ export interface Attachment {
 export interface Reaction {
   emoji: string;
   users: string[];
+}
+
+// Chat v2: Embedded Cards
+export interface EmbeddedTaskCard {
+  type: 'task';
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  assignees: string[];
+  assigneeNames: string[];
+  projectId: string;
+  projectName: string;
+  dueDate?: string;
+  xpReward: number;
+}
+
+export interface EmbeddedDocCard {
+  type: 'document';
+  id: string;
+  title: string;
+  excerpt: string;
+  authorName: string;
+  updatedAt: string;
+  status: string;
+  category?: string;
+}
+
+export type EmbeddedCard = EmbeddedTaskCard | EmbeddedDocCard;
+
+// Chat v2: Dora Suggestions
+export interface DoraSummaryResult {
+  summary: string;
+  keyTopics: string[];
+  participantCount: number;
+  messageCount: number;
+}
+
+export interface DoraActionItem {
+  text: string;
+  assignee?: string;
+  priority: 'low' | 'medium' | 'high';
+  sourceMessageId: string;
+}
+
+export interface DoraActionItemsResult {
+  actionItems: DoraActionItem[];
+  confidence: number;
+}
+
+export interface DoraKBSuggestion {
+  title: string;
+  excerpt: string;
+  documentId: string;
+  relevanceScore: number;
+}
+
+export interface SmartReplyResult {
+  replies: string[];
+  contextSummary: string;
+}
+
+// Chat v2: Slash Commands
+export interface SlashSearchResult {
+  type: 'task' | 'document' | 'user';
+  id: string;
+  title: string;
+  subtitle?: string;
+  status?: string;
+  avatarUrl?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Chat v2: Search
+export interface ChatSearchResult {
+  id: string;
+  channelId: string;
+  userId: string;
+  content: string;
+  timestamp: string;
+  senderName?: string;
+  channelName?: string;
+}
+
+// Chat v2: Media
+export interface ChatMediaItem {
+  id?: string;
+  name?: string;
+  type?: string;
+  url?: string;
+  size?: number;
+  messageId: string;
+  sharedBy?: string;
+  sharedAt: string;
 }
 
 // Project & Task

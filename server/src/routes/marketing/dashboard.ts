@@ -6,8 +6,9 @@ import * as leadsDal from '../../dal/marketing/leads.js';
 import * as contentDal from '../../dal/marketing/content.js';
 import * as campaignDal from '../../dal/marketing/campaigns.js';
 import * as emailsDal from '../../dal/marketing/emailCampaigns.js';
-import { buildCtx } from './common.js';
+import { buildCtx, parsePositiveInt } from './common.js';
 import { redisConnection } from '../../queue/connection.js';
+import { buildCommandCenterPayload } from '../../services/marketing/commandCenterAggregator.js';
 
 const router = Router();
 
@@ -21,6 +22,11 @@ function metricsCacheKey(orgId: string, period: string | undefined): string {
 const BOOTSTRAP_CACHE_TTL_SEC = 30;
 function bootstrapCacheKey(orgId: string, period: string | undefined): string {
   return `marketing_dashboard_bootstrap_${orgId}_${period ?? 'default'}`;
+}
+
+const COMMAND_CENTER_CACHE_TTL_SEC = 45;
+function commandCenterCacheKey(orgId: string, days: number, brandId: string | null): string {
+  return `marketing_command_center_${orgId}_d${days}_b${brandId ?? 'all'}`;
 }
 
 /** One round-trip for Marketing dashboard home (replaces 5 parallel client requests). */
@@ -129,6 +135,52 @@ router.get('/channels', async (req: ReimbursementRequest, res: Response) => {
   } catch (err) {
     console.error('[marketing/dashboard/channels GET]', err);
     res.status(500).json({ error: 'Failed to load channel performance' });
+  }
+});
+
+/** Command Center bundle: funnel, CAC/ROI proxies, experiments, social pulse, strategy plays. */
+router.get('/command-center', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const orgId = req.organizationId;
+    if (!orgId) {
+      res.status(403).json({ error: 'No organization context' });
+      return;
+    }
+    const days = parsePositiveInt(req.query.days, 7);
+    const brandRaw = req.query.brand_id;
+    const brandId =
+      typeof brandRaw === 'string' && brandRaw.length > 0 ? brandRaw : null;
+    const fresh =
+      req.query.fresh === '1' ||
+      req.query.fresh === 'true' ||
+      (Array.isArray(req.query.fresh) && req.query.fresh.includes('1'));
+
+    const cacheKey = commandCenterCacheKey(orgId, days, brandId);
+
+    if (!fresh) {
+      try {
+        const cached = await redisConnection.get(cacheKey);
+        if (cached) {
+          res.json(JSON.parse(cached));
+          return;
+        }
+      } catch {
+        /* proceed */
+      }
+    }
+
+    const payload = await buildCommandCenterPayload(buildCtx(req), { days, brandId });
+    if (!fresh) {
+      try {
+        await redisConnection.setex(cacheKey, COMMAND_CENTER_CACHE_TTL_SEC, JSON.stringify(payload));
+      } catch {
+        /* best-effort */
+      }
+    }
+    res.json(payload);
+  } catch (err) {
+    console.error('[marketing/dashboard/command-center GET]', err);
+    res.status(500).json({ error: 'Failed to load command center' });
   }
 });
 

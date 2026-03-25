@@ -13,6 +13,7 @@ import {
   type Lead,
   type LeadFunnelMetrics,
   type BrandProfileClient,
+  type CommandCenterStrategyPlay,
 } from '@/lib/marketingApi';
 import { useMarketingApprovalQueue } from '@/hooks/useMarketingApprovalQueue';
 import { SparkBar, type ViewMode } from './components/SparkBar';
@@ -27,6 +28,8 @@ import { ContentCreatePanel, type ContentCreatePreset } from './components/Conte
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
 import { EmailCampaignDetailPanel } from './components/EmailCampaignDetailPanel';
+import { MarketingCommandCenter } from './MarketingCommandCenter';
+import { useMarketingCommandCenterData } from './command-center/useMarketingCommandCenterData';
 
 const ContentDetailPanel = React.lazy(() =>
   import('./components/ContentDetailPanel').then((m) => ({ default: m.ContentDetailPanel })),
@@ -108,6 +111,21 @@ export function MarketingHub(): JSX.Element {
   const [brandManagerOpen, setBrandManagerOpen] = useState(false);
   const [brandFilter, setBrandFilter] = useState<string | null>(null);
   const [brandList, setBrandList] = useState<BrandProfileClient[]>([]);
+  const [ccDays, setCcDays] = useState(7);
+  const [pipelineOpen, setPipelineOpen] = useState(false);
+  const [doraExecutePrompt, setDoraExecutePrompt] = useState<{ id: number; text: string } | null>(null);
+
+  const {
+    data: ccData,
+    loading: ccLoading,
+    error: ccError,
+    refresh: refreshCc,
+  } = useMarketingCommandCenterData({
+    userId,
+    accessToken,
+    days: ccDays,
+    brandId: brandFilter,
+  });
 
   const { items: approvalItems, approve: approveItem } = useMarketingApprovalQueue(
     userId && accessToken ? userId : undefined,
@@ -140,6 +158,17 @@ export function MarketingHub(): JSX.Element {
     fetchData();
   }, [fetchData]);
 
+  const handleDetailUpdated = useCallback(() => {
+    void fetchData();
+    void refreshCc({ fresh: true });
+  }, [fetchData, refreshCc]);
+
+  const handleExecuteWithDora = useCallback((play: CommandCenterStrategyPlay) => {
+    setDoraOpen(true);
+    const text = `[Marketing Command Center — ${play.title}]\nContext: ${JSON.stringify(play.contextJson)}\n\n${play.snippet}\n\nHelp me execute this strategy step by step.`;
+    setDoraExecutePrompt({ id: Date.now(), text });
+  }, []);
+
   const openCreateContentDefault = useCallback(() => {
     setContentCreatePreset('default');
     setCreateContentOpen(true);
@@ -171,17 +200,30 @@ export function MarketingHub(): JSX.Element {
   );
 
   useEffect(() => {
-    const st = location.state as { openInstagramAi?: boolean; openInstagramContent?: boolean } | null;
-    if (!st || (!st.openInstagramAi && !st.openInstagramContent)) return;
+    const st = location.state as {
+      openInstagramAi?: boolean;
+      openInstagramContent?: boolean;
+      openPipeline?: boolean;
+    } | null;
+    if (!st) return;
+    let handled = false;
     if (st.openInstagramAi) {
       setDoraOpen(true);
       setIgModalSignal((k) => k + 1);
+      handled = true;
     }
     if (st.openInstagramContent) {
       setContentCreatePreset('instagram');
       setCreateContentOpen(true);
+      handled = true;
     }
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+    if (st.openPipeline) {
+      setPipelineOpen(true);
+      handled = true;
+    }
+    if (handled) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+    }
   }, [location.state, location.pathname, location.search, navigate]);
 
   const segment = location.pathname.split('/').filter(Boolean)[1];
@@ -284,6 +326,10 @@ export function MarketingHub(): JSX.Element {
     );
   }
 
+  if (segment === 'pipeline') {
+    return <Navigate to="/marketing" replace state={{ openPipeline: true }} />;
+  }
+
   if (segment === 'campaigns' || segment === 'calendar') {
     return <Navigate to="/marketing" replace />;
   }
@@ -339,6 +385,7 @@ export function MarketingHub(): JSX.Element {
         }
       }
       await fetchData();
+      await refreshCc({ fresh: true });
     } catch (e) {
       toast.error('Move failed', { description: e instanceof Error ? e.message : 'Unknown' });
     }
@@ -360,43 +407,26 @@ export function MarketingHub(): JSX.Element {
         onCreateInstagramContent={handleCreateInstagramContent}
       />
 
-      {brandList.length > 0 && mode === 'board' && (
-        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/[0.06] bg-[#0a0d12] shrink-0">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider">Brand</span>
-          <select
-            value={brandFilter || ''}
-            onChange={(e) => setBrandFilter(e.target.value || null)}
-            className="bg-app-surface-tertiary border border-white/[0.08] rounded-lg px-2 py-1 text-xs text-app-text min-w-[140px]"
-          >
-            <option value="">All brands</option>
-            {brandList.map((b) => (
-              <option key={b.id} value={b.id}>{b.brand_name}</option>
-            ))}
-          </select>
-          {brandFilter && (
-            <button
-              type="button"
-              onClick={() => setBrandFilter(null)}
-              className="text-[10px] text-slate-500 hover:text-slate-300"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      )}
-
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {mode === 'board' && (
-          metricsLoading ? <BoardSkeleton /> : (
-            <KanbanBoard
-              content={filteredContent}
-              campaigns={campaigns}
-              emailCampaigns={emailCampaigns}
-              approvalItems={approvalItems}
-              onCardClick={handleCardClick}
-              onCardMove={(cardId, from, to, card) => void handleCardMove(cardId, from, to, card)}
-            />
-          )
+          <MarketingCommandCenter
+            data={ccData}
+            loading={ccLoading}
+            error={ccError}
+            days={ccDays}
+            onDaysChange={setCcDays}
+            brandList={brandList}
+            brandFilter={brandFilter}
+            onBrandFilterChange={setBrandFilter}
+            onRefresh={() => void refreshCc({ fresh: true })}
+            onExecuteWithDora={handleExecuteWithDora}
+            onOpenCampaign={(id) => setDetail({ type: 'campaign', id })}
+            onOpenEmail={(id) => setDetail({ type: 'email', id })}
+            onOpenPipeline={() => setPipelineOpen(true)}
+            onOpenBuilder={() => setMode('builder')}
+            onOpenIntelligence={() => setMode('intelligence')}
+            onReconnectSocial={() => void refreshCc({ fresh: true })}
+          />
         )}
 
         {mode === 'calendar' && (
@@ -407,12 +437,16 @@ export function MarketingHub(): JSX.Element {
           </ErrorBoundary>
         )}
 
-        {doraOpen && mode === 'board' && (
-          <DoraRail selectedCard={selectedCard} instagramModalSignal={igModalSignal} />
+        {doraOpen && (mode === 'board' || mode === 'calendar') && (
+          <DoraRail
+            selectedCard={selectedCard}
+            instagramModalSignal={igModalSignal}
+            executePrompt={doraExecutePrompt}
+          />
         )}
       </div>
 
-      {mode === 'board' && (
+      {mode === 'calendar' && (
         <FunnelStrip
           funnel={funnel}
           hotLeads={hotLeads}
@@ -435,7 +469,7 @@ export function MarketingHub(): JSX.Element {
       >
         {detail?.type === 'content' && (
           <Suspense fallback={<SectionFallback />}>
-            <ContentDetailPanel contentId={detail.id} onUpdated={fetchData} />
+            <ContentDetailPanel contentId={detail.id} onUpdated={handleDetailUpdated} />
           </Suspense>
         )}
       </SlideOverPanel>
@@ -447,7 +481,7 @@ export function MarketingHub(): JSX.Element {
         width={760}
       >
         {detail?.type === 'campaign' && (
-          <CampaignDetailPanel campaignId={detail.id} onUpdated={fetchData} />
+          <CampaignDetailPanel campaignId={detail.id} onUpdated={handleDetailUpdated} />
         )}
       </SlideOverPanel>
 
@@ -458,7 +492,7 @@ export function MarketingHub(): JSX.Element {
         width={720}
       >
         {detail?.type === 'lead' && (
-          <LeadDetailPanel leadId={detail.id} onUpdated={fetchData} />
+          <LeadDetailPanel leadId={detail.id} onUpdated={handleDetailUpdated} />
         )}
       </SlideOverPanel>
 
@@ -469,7 +503,7 @@ export function MarketingHub(): JSX.Element {
         width={960}
       >
         {detail?.type === 'email' && (
-          <EmailCampaignDetailPanel emailId={detail.id} onUpdated={fetchData} />
+          <EmailCampaignDetailPanel emailId={detail.id} onUpdated={handleDetailUpdated} />
         )}
       </SlideOverPanel>
 
@@ -480,7 +514,11 @@ export function MarketingHub(): JSX.Element {
         width={520}
       >
         <CampaignCreatePanel
-          onCreated={() => { setCreateCampaignOpen(false); void fetchData(); }}
+          onCreated={() => {
+            setCreateCampaignOpen(false);
+            void fetchData();
+            void refreshCc({ fresh: true });
+          }}
           onCancel={() => setCreateCampaignOpen(false)}
         />
       </SlideOverPanel>
@@ -501,6 +539,7 @@ export function MarketingHub(): JSX.Element {
             setCreateContentOpen(false);
             setContentCreatePreset('default');
             void fetchData();
+            void refreshCc({ fresh: true });
           }}
           onCancel={() => {
             setCreateContentOpen(false);
@@ -516,6 +555,31 @@ export function MarketingHub(): JSX.Element {
         width={560}
       >
         <BrandProfileManager />
+      </SlideOverPanel>
+
+      <SlideOverPanel
+        isOpen={pipelineOpen}
+        onClose={() => setPipelineOpen(false)}
+        title="Content pipeline"
+        width={1280}
+      >
+        <div className="h-[min(85vh,800px)] min-h-0 overflow-hidden flex flex-col">
+          {metricsLoading ? (
+            <BoardSkeleton />
+          ) : (
+            <KanbanBoard
+              content={filteredContent}
+              campaigns={campaigns}
+              emailCampaigns={emailCampaigns}
+              approvalItems={approvalItems}
+              onCardClick={(card) => {
+                handleCardClick(card);
+                setPipelineOpen(false);
+              }}
+              onCardMove={(cardId, from, to, card) => void handleCardMove(cardId, from, to, card)}
+            />
+          )}
+        </div>
       </SlideOverPanel>
 
       <button

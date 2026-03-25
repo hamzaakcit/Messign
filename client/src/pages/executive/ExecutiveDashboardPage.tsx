@@ -1,148 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { onActivityNew } from '@/lib/socket';
-import { executiveAPI, type ExecutiveDashboard } from '@/lib/api';
+import { executiveAPI, type ExecutiveDashboard, type ExecutiveChartData } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
-const DISMISS_KEY = 'executive-briefing-dismissed-date';
+import { CommandCenterKPIStrip } from './components/CommandCenterKPIStrip';
+import { QuickActionModal, type ActionDepartment } from './components/QuickActionModal';
+import { DoraCommandPanel } from './components/DoraCommandPanel';
 
-/** Safe defaults so the UI never reads undefined nested fields (avoids runtime crashes). */
-const EMPTY_DASHBOARD: ExecutiveDashboard = {
-  revenue: {
-    totalYTD: 0,
-    monthlyTrend: [],
-    pipelineValue: 0,
-    weightedPipeline: 0,
-    dealsWonThisMonth: 0,
-    winRate: 0,
-  },
-  finance: {
-    totalExpensesQTD: 0,
-    pendingApprovals: 0,
-    overdueInvoices: 0,
-    overdueAmount: 0,
-    budgetHealthAvg: 0,
-    criticalBudgets: 0,
-  },
-  support: {
-    openTickets: 0,
-    avgResponseHours: 0,
-    csatScore: 0,
-    slaCompliance: 100,
-    ticketsResolvedThisWeek: 0,
-    atRiskCustomers: 0,
-  },
-  marketing: {
-    mqls: 0,
-    activeCampaigns: 0,
-    avgROI: 0,
-    topCampaign: null,
-    leadsThisMonth: 0,
-  },
-  people: {
-    totalEmployees: 0,
-    openPositions: 0,
-    avgUtilization: 0,
-    newHiresThisMonth: 0,
-    pendingTimesheets: 0,
-  },
-  projects: {
-    activeProjects: 0,
-    tasksCompletedThisWeek: 0,
-    blockedTasks: 0,
-    avgSprintVelocity: 0,
-  },
-  okrs: { overallProgress: 0, onTrack: 0, atRisk: 0, behind: 0 },
-  culture: null,
-  operations: { contractsExpiringThisMonth: 0, licensesExpiringThisMonth: 0, assetsUnassigned: 0 },
-  recentActivity: [],
-  doraInsights: { criticalCount: 0, warningCount: 0, totalUnread: 0 },
-};
+import { SalesCard } from './components/departments/SalesCard';
+import { FinanceCard } from './components/departments/FinanceCard';
+import { SupportCard } from './components/departments/SupportCard';
+import { MarketingCard } from './components/departments/MarketingCard';
+import { HRCard } from './components/departments/HRCard';
+import { EngineeringCard } from './components/departments/EngineeringCard';
+import { OKRCard } from './components/departments/OKRCard';
+import { TimeCard } from './components/departments/TimeCard';
+import { CultureCard } from './components/departments/CultureCard';
+import { OperationsCard } from './components/departments/OperationsCard';
 
-function mergeExecutivePayload(raw: unknown): ExecutiveDashboard {
-  if (!raw || typeof raw !== 'object') return EMPTY_DASHBOARD;
-  const r = raw as Partial<ExecutiveDashboard>;
-  const rev = r.revenue;
-  const fin = r.finance;
-  const sup = r.support;
-  const mkt = r.marketing;
-  const ppl = r.people;
-  const prj = r.projects;
-  const okr = r.okrs;
-  const ops = r.operations;
-  const dora = r.doraInsights;
-  return {
-    revenue: {
-      totalYTD: Number(rev?.totalYTD) || 0,
-      monthlyTrend: Array.isArray(rev?.monthlyTrend) ? rev!.monthlyTrend : [],
-      pipelineValue: Number(rev?.pipelineValue) || 0,
-      weightedPipeline: Number(rev?.weightedPipeline) || 0,
-      dealsWonThisMonth: Number(rev?.dealsWonThisMonth) || 0,
-      winRate: Number(rev?.winRate) || 0,
-    },
-    finance: {
-      totalExpensesQTD: Number(fin?.totalExpensesQTD) || 0,
-      pendingApprovals: Number(fin?.pendingApprovals) || 0,
-      overdueInvoices: Number(fin?.overdueInvoices) || 0,
-      overdueAmount: Number(fin?.overdueAmount) || 0,
-      budgetHealthAvg: Number(fin?.budgetHealthAvg) || 0,
-      criticalBudgets: Number(fin?.criticalBudgets) || 0,
-    },
-    support: {
-      openTickets: Number(sup?.openTickets) || 0,
-      avgResponseHours: Number(sup?.avgResponseHours) || 0,
-      csatScore: Number(sup?.csatScore) || 0,
-      slaCompliance: (() => {
-        const v = Number(sup?.slaCompliance);
-        return Number.isFinite(v) ? v : 100;
-      })(),
-      ticketsResolvedThisWeek: Number(sup?.ticketsResolvedThisWeek) || 0,
-      atRiskCustomers: Number(sup?.atRiskCustomers) || 0,
-    },
-    marketing: {
-      mqls: Number(mkt?.mqls) || 0,
-      activeCampaigns: Number(mkt?.activeCampaigns) || 0,
-      avgROI: Number(mkt?.avgROI) || 0,
-      topCampaign: mkt?.topCampaign ?? null,
-      leadsThisMonth: Number(mkt?.leadsThisMonth) || 0,
-    },
-    people: {
-      totalEmployees: Number(ppl?.totalEmployees) || 0,
-      openPositions: Number(ppl?.openPositions) || 0,
-      avgUtilization: Number(ppl?.avgUtilization) || 0,
-      newHiresThisMonth: Number(ppl?.newHiresThisMonth) || 0,
-      pendingTimesheets: Number(ppl?.pendingTimesheets) || 0,
-    },
-    projects: {
-      activeProjects: Number(prj?.activeProjects) || 0,
-      tasksCompletedThisWeek: Number(prj?.tasksCompletedThisWeek) || 0,
-      blockedTasks: Number(prj?.blockedTasks) || 0,
-      avgSprintVelocity: Number(prj?.avgSprintVelocity) || 0,
-    },
-    okrs: {
-      overallProgress: Number(okr?.overallProgress) || 0,
-      onTrack: Number(okr?.onTrack) || 0,
-      atRisk: Number(okr?.atRisk) || 0,
-      behind: Number(okr?.behind) || 0,
-    },
-    culture: r.culture ?? null,
-    operations: {
-      contractsExpiringThisMonth: Number(ops?.contractsExpiringThisMonth) || 0,
-      licensesExpiringThisMonth: Number(ops?.licensesExpiringThisMonth) || 0,
-      assetsUnassigned: Number(ops?.assetsUnassigned) || 0,
-    },
-    recentActivity: Array.isArray(r.recentActivity) ? r.recentActivity : [],
-    doraInsights: {
-      criticalCount: Number(dora?.criticalCount) || 0,
-      warningCount: Number(dora?.warningCount) || 0,
-      totalUnread: Number(dora?.totalUnread) || 0,
-    },
-  };
-}
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
+const REFRESH_INTERVAL_MS = 60_000;
 
 function relTime(iso: string): string {
   const delta = Date.now() - new Date(iso).getTime();
@@ -154,59 +32,57 @@ function relTime(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export function ExecutiveDashboardPage() {
+export function ExecutiveDashboardPage(): JSX.Element {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const userId = user?.authUserId || user?.id || '';
-  const [data, setData] = useState<ExecutiveDashboard>(EMPTY_DASHBOARD);
+
+  const [data, setData] = useState<ExecutiveDashboard | null>(null);
+  const [chartData, setChartData] = useState<ExecutiveChartData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeModal, setActiveModal] = useState<ActionDepartment>(null);
+  const [doraQuery] = useState<string | undefined>(undefined);
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval>>();
 
-  useEffect(() => {
-    setBannerDismissed(localStorage.getItem(DISMISS_KEY) === todayKey());
-  }, []);
+  const loadAll = useCallback(async (silent = false) => {
+    if (!userId) return;
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
 
-  useEffect(() => {
-    if (!userId) {
+    try {
+      const [dashboard, charts] = await Promise.all([
+        executiveAPI.getDashboard(userId),
+        executiveAPI.getChartData(userId),
+      ]);
+      setData(dashboard);
+      setChartData(charts);
+    } catch (err) {
+      console.error('[executive] load failed', err);
+    } finally {
       setLoading(false);
-      setLoadError(true);
-      return;
+      setRefreshing(false);
     }
-    let cancelled = false;
-    setLoading(true);
-    setLoadError(false);
-    executiveAPI
-      .getDashboard(userId)
-      .then((d) => {
-        if (!cancelled) {
-          setData(mergeExecutivePayload(d));
-          setLoadError(false);
-        }
-      })
-      .catch((err) => {
-        console.error('[executive] load failed', err);
-        if (!cancelled) {
-          setData(EMPTY_DASHBOARD);
-          setLoadError(true);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
   }, [userId]);
 
   useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  useEffect(() => {
+    refreshTimerRef.current = setInterval(() => loadAll(true), REFRESH_INTERVAL_MS);
+    return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current); };
+  }, [loadAll]);
+
+  useEffect(() => {
+    if (!data) return;
     const off = onActivityNew((event) => {
       const title = typeof event?.message === 'string' ? event.message : 'New activity';
-      setData((prev) => ({
+      setData((prev) => prev ? {
         ...prev,
         recentActivity: [
           {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}`,
+            id: crypto.randomUUID(),
             module: 'system',
             type: event?.type ?? 'activity',
             title,
@@ -215,215 +91,188 @@ export function ExecutiveDashboardPage() {
             color: '#8b5cf6',
           },
           ...prev.recentActivity,
-        ].slice(0, 15),
-      }));
+        ].slice(0, 20),
+      } : prev);
     });
     return off;
-  }, []);
-
-  const kpis = useMemo(() => {
-    const rev = data.revenue;
-    const sup = data.support;
-    const okr = data.okrs;
-    const ppl = data.people;
-    const fin = data.finance;
-    const denom = 1_000_000;
-    return [
-      { label: 'Revenue YTD', value: `€${(Number(rev.totalYTD) / denom).toFixed(1)}M` },
-      { label: 'Pipeline', value: `€${(Number(rev.weightedPipeline) / denom).toFixed(1)}M weighted` },
-      { label: 'Open Tickets', value: `${sup.openTickets} (${Number(sup.slaCompliance).toFixed(0)}% SLA)` },
-      { label: 'OKR Progress', value: `${Number(okr.overallProgress).toFixed(0)}%` },
-      { label: 'Team Utilization', value: `${Number(ppl.avgUtilization).toFixed(0)}%` },
-      { label: 'Budget Health', value: `${Number(fin.budgetHealthAvg).toFixed(0)}%` },
-      { label: 'Open Positions', value: `${ppl.openPositions}` },
-      { label: 'Culture Score', value: '86 (placeholder)' },
-    ];
   }, [data]);
 
-  const modules = [
-    { title: 'Sales', route: '/crm', a: 'Pipeline', b: data.revenue.pipelineValue, c: 'Deals won', d: data.revenue.dealsWonThisMonth },
-    { title: 'Support', route: '/support', a: 'Open tickets', b: data.support.openTickets, c: 'CSAT', d: data.support.csatScore },
-    { title: 'Marketing', route: '/marketing', a: 'MQLs', b: data.marketing.mqls, c: 'Avg ROI', d: data.marketing.avgROI },
-    { title: 'Engineering', route: '/projects', a: 'Velocity', b: data.projects.avgSprintVelocity, c: 'Blocked', d: data.projects.blockedTasks },
-    { title: 'Finance', route: '/finance', a: 'Pending approvals', b: data.finance.pendingApprovals, c: 'Overdue', d: data.finance.overdueInvoices },
-    { title: 'HR', route: '/recruitment', a: 'Open positions', b: data.people.openPositions, c: 'Utilization', d: data.people.avgUtilization },
-  ];
+  const handleDataChanged = useCallback(() => {
+    loadAll(true);
+  }, [loadAll]);
 
-  const dismissBanner = () => {
-    localStorage.setItem(DISMISS_KEY, todayKey());
-    setBannerDismissed(true);
-  };
+  const scrollToSection = useCallback((sectionId: string) => {
+    document.getElementById(`dept-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
+  const openAction = useCallback((dept: ActionDepartment) => {
+    setActiveModal(dept);
+  }, []);
+
+  const openDeptPage = useCallback((route: string) => {
+    navigate(route);
+  }, [navigate]);
 
   if (loading) {
-    return <div className="p-6 text-app-muted">Loading executive dashboard...</div>;
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-48px)] bg-app">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
+          <span className="text-sm text-app-muted">Loading Command Center...</span>
+        </div>
+      </div>
+    );
   }
 
-  const trend = data.revenue.monthlyTrend;
-  const totalYtd = Math.max(Number(data.revenue.totalYTD) || 0, 1);
-
-  return (
-    <div className="h-[calc(100vh-48px)] overflow-y-auto bg-app p-4 md:p-6 space-y-4">
-      {loadError && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Could not load live executive metrics. Showing placeholders — check your connection or try again later.
-          <button
-            type="button"
-            className="ml-3 text-cyan-300 hover:text-cyan-200 underline"
-            onClick={() => navigate('/dashboard')}
-          >
-            Go to main dashboard
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-48px)] bg-app">
+        <div className="text-center">
+          <div className="text-red-400 text-sm mb-2">Failed to load dashboard</div>
+          <button onClick={() => loadAll()} className="text-xs text-primary-400 hover:text-primary-300">
+            Retry
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {!bannerDismissed && (
-        <div className="rounded-xl p-5 bg-gradient-to-r from-blue-900 to-slate-900 border border-blue-800/50">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-app-text">
-                Good morning, {user?.name?.split(' ')[0] || 'there'}. Here&apos;s your company at a glance.
-              </h2>
-              <div className="mt-2 text-sm text-blue-100">
-                Critical: {data.doraInsights.criticalCount} | Biggest win: {data.revenue.dealsWonThisMonth} deals won this month | Risk:{' '}
-                {data.finance.overdueInvoices} overdue invoices
+  return (
+    <div className="h-[calc(100vh-48px)] overflow-y-auto bg-app px-4 py-3 md:px-6 md:py-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h1 className="text-lg font-bold text-app">Command Center</h1>
+          <p className="text-xs text-app-muted">
+            Real-time overview across all departments
+          </p>
+        </div>
+        <button
+          onClick={() => loadAll(true)}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-app text-app-muted hover:text-app hover:bg-app-hover transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {/* KPI Strip */}
+      <CommandCenterKPIStrip data={data} chartData={chartData} onKPIClick={scrollToSection} />
+
+      {/* Department Grid - Row 1: Core business */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-3">
+        <SalesCard
+          data={data.revenue}
+          chartData={chartData?.revenueTrend}
+          onAction={() => openAction('sales')}
+        />
+        <FinanceCard
+          data={data.finance}
+          chartData={chartData?.expenseTrend}
+          pendingCount={data.finance.pendingApprovals}
+          onAction={() => openAction('finance')}
+        />
+        <SupportCard
+          data={data.support}
+          chartData={chartData?.ticketTrend}
+          onAction={() => openAction('support')}
+        />
+        <MarketingCard
+          data={data.marketing}
+          chartData={chartData?.leadsTrend}
+          onAction={() => openAction('marketing')}
+        />
+      </div>
+
+      {/* Department Grid - Row 2: Operations */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-3">
+        <HRCard
+          data={data.people}
+          onAction={() => openAction('hr')}
+        />
+        <EngineeringCard
+          data={data.projects}
+          onAction={() => openDeptPage('/projects')}
+        />
+        <OKRCard
+          data={data.okrs}
+          onAction={() => openAction('okr')}
+        />
+        <TimeCard
+          data={data.people}
+          chartData={chartData?.utilizationTrend}
+          pendingCount={data.people.pendingTimesheets}
+          onAction={() => openAction('time')}
+        />
+      </div>
+
+      {/* Bottom Row: Culture, Operations, Dora, Activity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-3">
+        <CultureCard
+          data={data.culture}
+          onAction={() => openDeptPage('/culture')}
+        />
+        <OperationsCard
+          data={data.operations}
+          onAction={() => openDeptPage('/assets')}
+        />
+
+        {/* Dora AI */}
+        <DoraCommandPanel initialQuery={doraQuery} />
+
+        {/* Activity Feed */}
+        <div className="rounded-lg border border-app bg-app-card p-3 flex flex-col" data-testid="executive-activity">
+          <div className="text-sm font-semibold text-app mb-2">Activity Feed</div>
+          <div className="flex-1 overflow-y-auto space-y-1.5 max-h-[220px]">
+            {data.recentActivity.slice(0, 15).map((a) => (
+              <div key={a.id} className="flex gap-2 text-xs">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
+                <div className="min-w-0">
+                  <div className="text-app truncate">{a.title}</div>
+                  <div className="text-app-muted">{a.actor} &middot; {relTime(a.timestamp)}</div>
+                </div>
               </div>
-              <button
-                className="mt-3 text-sm text-cyan-300 hover:text-cyan-200"
-                onClick={() => navigate('/dora/briefing')}
-              >
-                View full briefing →
-              </button>
+            ))}
+            {data.recentActivity.length === 0 && (
+              <div className="text-xs text-app-muted text-center py-4">No recent activity</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Dora Insights + Pending Actions Summary */}
+      {(data.doraInsights.criticalCount > 0 || data.doraInsights.warningCount > 0) && (
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-amber-200">
+              <span className="font-semibold">Dora Insights:</span>{' '}
+              {data.doraInsights.criticalCount > 0 && (
+                <span className="text-red-400">{data.doraInsights.criticalCount} critical</span>
+              )}
+              {data.doraInsights.criticalCount > 0 && data.doraInsights.warningCount > 0 && ' · '}
+              {data.doraInsights.warningCount > 0 && (
+                <span className="text-amber-400">{data.doraInsights.warningCount} warnings</span>
+              )}
+              {' · '}{data.doraInsights.totalUnread} unread
             </div>
-            <button type="button" className="text-xs text-slate-200 hover:text-app-text" onClick={dismissBanner}>
-              Dismiss
+            <button
+              onClick={() => navigate('/dora/briefing')}
+              className="text-xs text-cyan-400 hover:text-cyan-300"
+            >
+              View Briefing
             </button>
           </div>
         </div>
       )}
 
-      <div data-testid="executive-kpis" className="flex gap-2.5 overflow-x-auto pb-2">
-        {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            data-testid={`executive-kpi-${kpi.label.replace(/\s/g, '-')}`}
-            className="min-w-[170px] rounded-lg border border-app bg-app-card p-2.5"
-          >
-            <div className="text-xs text-app-muted">{kpi.label}</div>
-            <div className="mt-1 text-lg font-semibold text-app">{kpi.value}</div>
-            <div className="mt-2 h-1.5 rounded-full bg-app-surface-tertiary overflow-hidden">
-              <div className="h-full w-2/3 bg-blue-400/70 rounded-full" />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
-        <div className="xl:col-span-3 space-y-3">
-          <div data-testid="executive-chart" className="rounded-lg border border-app bg-app-card p-4">
-            <div className="text-sm font-semibold text-app mb-3">Revenue Trend</div>
-            <div className="space-y-2">
-              {trend.slice(-12).map((m) => (
-                <div key={m.month} className="flex items-center gap-3">
-                  <div className="w-16 text-xs text-app-muted">{m.month}</div>
-                  <div className="flex-1 h-2 rounded bg-app-surface-tertiary">
-                    <div
-                      className="h-2 rounded bg-emerald-400"
-                      style={{ width: `${Math.min(100, (Number(m.value) / totalYtd) * 400)}%` }}
-                    />
-                  </div>
-                  <div className="w-20 text-right text-xs text-app">€{(Number(m.value) / 1000).toFixed(0)}k</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-app bg-app-card p-4">
-            <div className="text-sm font-semibold text-app mb-3">Department Overview</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {modules.map((m) => (
-                <button
-                  key={m.title}
-                  type="button"
-                  onClick={() => navigate(m.route)}
-                  className="text-left rounded-lg border border-app bg-app p-3 hover:bg-app-hover"
-                >
-                  <div className="text-sm font-medium text-app">{m.title}</div>
-                  <div className="mt-2 text-xs text-app-muted">
-                    {m.a}: <span className="text-app">{Number(m.b).toFixed(0)}</span>
-                  </div>
-                  <div className="text-xs text-app-muted">
-                    {m.c}: <span className="text-app">{Number(m.d).toFixed(0)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-app bg-app-card p-4">
-            <div className="text-sm font-semibold text-app mb-3">OKR Progress</div>
-            <div className="space-y-2">
-              <div className="text-xs text-app-muted">
-                On Track: {data.okrs.onTrack} | At Risk: {data.okrs.atRisk} | Behind: {data.okrs.behind}
-              </div>
-              <div className="h-2 rounded bg-app-surface-tertiary">
-                <div className="h-2 rounded bg-cyan-400" style={{ width: `${Math.max(3, Number(data.okrs.overallProgress))}%` }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="xl:col-span-2 space-y-3">
-          <div className="rounded-lg border border-app bg-app-card p-4">
-            <div className="text-sm font-semibold text-app mb-2">Pending Actions</div>
-            <ul className="space-y-2 text-sm text-app-muted">
-              <li>Expense approvals: {data.finance.pendingApprovals}</li>
-              <li>Pending timesheets: {data.people.pendingTimesheets}</li>
-              <li>Overdue invoices: {data.finance.overdueInvoices}</li>
-              <li>
-                SLA risk tickets:{' '}
-                {Math.max(0, data.support.openTickets - data.support.ticketsResolvedThisWeek)}
-              </li>
-            </ul>
-          </div>
-
-          <div data-testid="executive-activity" className="rounded-lg border border-app bg-app-card p-4">
-            <div className="text-sm font-semibold text-app mb-2">Recent Activity</div>
-            <div className="space-y-2">
-              {data.recentActivity.slice(0, 15).map((a) => (
-                <div key={a.id} className="flex gap-2 text-xs">
-                  <span className="mt-1 h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
-                  <div className="min-w-0">
-                    <div className="text-app truncate">{a.title}</div>
-                    <div className="text-app-muted">
-                      {a.actor} · {relTime(a.timestamp)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-app bg-app-card p-4">
-            <div className="text-sm font-semibold text-app mb-2">Dora Insights</div>
-            <div className="text-xs text-app-muted">
-              Critical: {data.doraInsights.criticalCount} · Warning: {data.doraInsights.warningCount} · Unread:{' '}
-              {data.doraInsights.totalUnread}
-            </div>
-          </div>
-
-          {(data.operations.contractsExpiringThisMonth > 0 ||
-            data.operations.licensesExpiringThisMonth > 0 ||
-            data.operations.assetsUnassigned > 0) && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-              <div className="text-sm font-semibold text-amber-200 mb-2">Operations Alerts</div>
-              <div className="text-xs text-amber-100">
-                Contracts expiring: {data.operations.contractsExpiringThisMonth} · Licenses expiring:{' '}
-                {data.operations.licensesExpiringThisMonth} · Unassigned assets: {data.operations.assetsUnassigned}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Quick Action Modal */}
+      <QuickActionModal
+        department={activeModal}
+        onClose={() => setActiveModal(null)}
+        onDataChanged={handleDataChanged}
+        userId={userId}
+      />
     </div>
   );
 }

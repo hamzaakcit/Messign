@@ -17,9 +17,15 @@ interface DoraRailProps {
   selectedCard: BoardCardData | null;
   /** Increment to open the Instagram agent modal (e.g. SparkBar “Instagram (AI)”). */
   instagramModalSignal?: number;
+  /** Auto-send a prefilled prompt (Command Center “Execute with Dora”). */
+  executePrompt?: { id: number; text: string } | null;
 }
 
-export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailProps): JSX.Element {
+export function DoraRail({
+  selectedCard,
+  instagramModalSignal = 0,
+  executePrompt = null,
+}: DoraRailProps): JSX.Element {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const userRole = user?.role ?? 'member';
@@ -48,6 +54,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
   const [igModalOpen, setIgModalOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastExecutePromptId = useRef<number | null>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -56,6 +63,13 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
   useEffect(() => {
     if (instagramModalSignal > 0) setIgModalOpen(true);
   }, [instagramModalSignal]);
+
+  useEffect(() => {
+    if (!executePrompt?.text.trim()) return;
+    if (lastExecutePromptId.current === executePrompt.id) return;
+    lastExecutePromptId.current = executePrompt.id;
+    void sendMessage(executePrompt.text);
+  }, [executePrompt?.id, executePrompt?.text, sendMessage]);
 
   const handleSend = useCallback(async () => {
     const q = inputValue.trim();
@@ -73,7 +87,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
   };
 
   return (
-    <div className="flex flex-col h-full w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden">
       <InstagramAgentPromptModal
         isOpen={igModalOpen}
         onClose={() => setIgModalOpen(false)}
@@ -110,7 +124,7 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2">
         {messages.length === 0 && !isLoading && (
           <div className="text-center py-4 px-1 space-y-3">
             <div className="flex justify-center">
@@ -147,17 +161,17 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
         <div ref={chatEndRef} />
       </div>
 
-      <div className="relative z-20 p-2 border-t border-white/[0.06] space-y-1 bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
-        <div className="flex gap-1 overflow-x-auto pb-0.5 snap-x snap-mandatory scrollbar-thin [-webkit-overflow-scrolling:touch]">
+      <div className="relative z-20 border-t border-white/[0.06] bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] py-2 px-2 space-y-2">
+        <div className="flex gap-0.5 overflow-x-auto max-h-[2.5rem] items-center snap-x snap-mandatory scrollbar-thin [-webkit-overflow-scrolling:touch]">
           <button
             type="button"
             disabled={isLoading}
             onClick={() => setIgModalOpen(true)}
             title="Instagram"
-            className="flex shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-2 py-2 min-w-[4.75rem] text-[9px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
+            className="flex shrink-0 snap-start flex-row items-center justify-center gap-1 rounded-md border bg-gradient-to-b px-1.5 py-1 min-w-[4.25rem] text-[8px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
           >
-            <Instagram className="w-4 h-4 text-pink-300" />
-            <span className="leading-none">Instagram</span>
+            <Instagram className="w-3.5 h-3.5 text-pink-300 shrink-0" />
+            <span className="leading-tight truncate">Insta</span>
           </button>
           {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
             <button
@@ -170,18 +184,20 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
               }}
               title={q.label}
               className={`
-                flex shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg border bg-gradient-to-b px-2 py-2 min-w-[4.75rem]
-                text-[9px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40
+                flex shrink-0 snap-start flex-row items-center justify-center gap-1 rounded-md border bg-gradient-to-b px-1.5 py-1 min-w-[4.25rem] max-h-9
+                text-[8px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40
                 ${q.accent}
                 ${q.upgraded ? 'ring-1 ring-white/5' : ''}
               `}
             >
-              <MarketingDoraQuickActionIcon icon={q.icon} />
-              <span className="leading-none text-center">{q.label}</span>
+              <span className="scale-90 origin-center">
+                <MarketingDoraQuickActionIcon icon={q.icon} />
+              </span>
+              <span className="leading-tight text-center truncate max-w-[3.25rem]">{q.label}</span>
             </button>
           ))}
         </div>
-        <div className="flex items-end gap-1">
+        <div className="flex items-end gap-2 pt-0.5">
           <textarea
             ref={inputRef}
             value={inputValue}
@@ -189,13 +205,13 @@ export function DoraRail({ selectedCard, instagramModalSignal = 0 }: DoraRailPro
               setInputValue(e.target.value);
               const t = e.target;
               t.style.height = 'auto';
-              t.style.height = `${Math.min(t.scrollHeight, 80)}px`;
+              t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
             }}
             onKeyDown={onKeyDown}
             placeholder="Ask Dora\u2026"
             disabled={isLoading}
-            rows={1}
-            className="flex-1 min-h-[32px] max-h-[80px] px-2 py-1.5 rounded-lg text-xs resize-none bg-app-inputBg border border-app-inputBorder text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-1 focus:ring-primary-500/40"
+            rows={2}
+            className="flex-1 min-h-[44px] max-h-[120px] px-3 py-2.5 rounded-xl text-sm leading-relaxed resize-none bg-app-inputBg border border-app-inputBorder text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-primary-500/30"
           />
           {isStreaming ? (
             <button

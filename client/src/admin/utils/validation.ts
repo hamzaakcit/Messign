@@ -4,7 +4,7 @@ export const employmentTypeEnum = z.enum(['full_time', 'part_time', 'contract', 
 export const userRoleEnum = z.enum([
   'employee', 'manager', 'dept_head', 'finance', 'finance_admin', 'admin', 'system_admin', 'member',
 ]);
-export const userStatusEnum = z.enum(['online', 'away', 'busy', 'offline']);
+export const userStatusEnum = z.enum(['online', 'away', 'busy', 'offline', 'deep_work']);
 
 export const employeeFormSchema = z.object({
   // Basic Info

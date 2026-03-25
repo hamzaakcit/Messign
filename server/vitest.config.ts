@@ -10,6 +10,7 @@ export default defineConfig({
       'src/__tests__/dal/**/*.test.ts',
       'src/__tests__/middleware/**/*.test.ts',
       'src/__tests__/modules/**/*.test.ts',
+      'src/__tests__/services/**/*.test.ts',
     ],
   },
   resolve: {

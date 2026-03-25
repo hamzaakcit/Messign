@@ -4,7 +4,7 @@ interface AvatarProps {
   src?: string;
   name?: string | null;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-  status?: 'online' | 'away' | 'busy' | 'offline';
+  status?: 'online' | 'away' | 'busy' | 'offline' | 'deep_work';
   showStatus?: boolean;
   className?: string;
 }

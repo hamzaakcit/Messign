@@ -175,8 +175,14 @@ export { projectsAPI, tasksAPI, bountiesAPI, sprintsAPI, showcaseAPI, type Recru
 export { documentsAPI } from './documentsApi';
 export { adminAPI } from './adminApi';
 export { performanceAPI, dashboardAPI, executiveAPI, doraBriefingAPI, doraAiStatsAPI } from './executiveApi';
-export type { ExecutiveDashboard, BriefingItem, BriefingSection, DailyBriefing, DoraUserStats } from './executiveApi';
+export type { ExecutiveDashboard, PendingItems, ExecutiveChartData, BriefingItem, BriefingSection, DailyBriefing, DoraUserStats } from './executiveApi';
 export { reimbursementAPI, categoriesAPI, reimbursementSettingsAPI, budgetsAPI, exchangeRatesAPI, mileageAPI, approvalsAPI, invoicesAPI, bankDetailsAPI, signaturesAPI } from './reimbursementApi';
 export type { Budget } from './reimbursementApi';
 export { badgesAPI, activitiesAPI, leaderboardAPI } from './gamificationApi';
 export { knowledgeAPI, adminKnowledgeAPI } from './knowledgeApi';
+export { financeAPI } from './financeApi';
+export { crmAPI } from './crmApi';
+export { supportApi } from './supportApi';
+export { timeApi } from './timeApi';
+export { marketingAPI } from './marketingApi';
+export { recruitmentAPI } from './recruitmentApi';

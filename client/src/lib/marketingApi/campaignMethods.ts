@@ -8,6 +8,7 @@ import type {
   ContentItem,
   EmailCampaign,
   Lead,
+  CommandCenterPayload,
 } from './types';
 
 export const campaignMethods = {
@@ -60,4 +61,17 @@ export const campaignMethods = {
     marketingRequest<DashboardMetrics['channelBreakdown']>(`/dashboard/channels${period ? `?period=${period}` : ''}`, {}, userId),
   getCampaignComparison: (userId: string, ids: string[]) =>
     marketingRequest<Campaign[]>(`/dashboard/comparison?ids=${encodeURIComponent(ids.join(','))}`, {}, userId),
+
+  /** Marketing Command Center — funnel, experiments, social pulse, AI plays. */
+  getCommandCenter: (
+    userId: string,
+    opts?: { days?: number; brandId?: string | null; fresh?: boolean },
+  ) => {
+    const q = new URLSearchParams();
+    if (opts?.days != null) q.set('days', String(opts.days));
+    if (opts?.brandId) q.set('brand_id', opts.brandId);
+    if (opts?.fresh) q.set('fresh', '1');
+    const qs = q.toString();
+    return marketingRequest<CommandCenterPayload>(`/dashboard/command-center${qs ? `?${qs}` : ''}`, {}, userId);
+  },
 };

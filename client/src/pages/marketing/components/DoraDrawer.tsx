@@ -75,7 +75,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '100%', opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="flex flex-col h-full border-l border-white/[0.06] bg-[#080a0e] overflow-hidden shrink-0 w-96"
+          className="flex flex-col h-full min-h-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden shrink-0 w-96"
         >
           <InstagramAgentPromptModal
             isOpen={igModalOpen}
@@ -114,7 +114,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             {messages.length === 0 && !isLoading && (
               <div className="text-center py-8 text-app-muted text-xs max-w-sm mx-auto space-y-2">
                 <div className="flex justify-center mb-3">
@@ -153,39 +153,41 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
             <div ref={chatEndRef} />
           </div>
 
-          <div className="p-2 border-t border-white/[0.06] space-y-1.5 bg-[#0a0c10]">
-            <div className="flex gap-1 overflow-x-auto pb-0.5 snap-x scrollbar-thin [-webkit-overflow-scrolling:touch]">
+          <div className="px-3 py-2.5 border-t border-white/[0.06] space-y-2 bg-[#0a0c10] shrink-0">
+            <div className="flex gap-0.5 overflow-x-auto max-h-[2.5rem] items-center snap-x scrollbar-thin [-webkit-overflow-scrolling:touch]">
               <button
                 type="button"
                 disabled={isLoading}
                 onClick={() => setIgModalOpen(true)}
-                className="inline-flex shrink-0 snap-start items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border border-pink-500/25 bg-gradient-to-b from-pink-500/30 to-rose-600/20 text-pink-100/95 hover:brightness-110 disabled:opacity-40"
+                title="Instagram"
+                className="inline-flex shrink-0 snap-start items-center gap-1 px-1.5 py-1 rounded-md text-[9px] font-semibold border border-pink-500/25 bg-gradient-to-b from-pink-500/30 to-rose-600/20 text-pink-100/95 hover:brightness-110 disabled:opacity-40 min-w-[4rem]"
               >
-                <Instagram className="w-2.5 h-2.5 shrink-0" />
-                Instagram
+                <Instagram className="w-3 h-3 shrink-0" />
+                <span className="truncate">Insta</span>
               </button>
               {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
                 <button
                   key={q.id}
                   type="button"
                   disabled={isLoading}
+                  title={q.label}
                   onClick={() => {
                     setInputValue(q.text);
                     inputRef.current?.focus();
                   }}
                   className={`
-                    inline-flex shrink-0 snap-start items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border bg-gradient-to-b
-                    text-app-text/90 hover:brightness-110 disabled:opacity-40
+                    inline-flex shrink-0 snap-start items-center gap-1 px-1.5 py-1 rounded-md text-[9px] font-semibold border bg-gradient-to-b min-w-[4rem] max-h-9
+                    text-app-text/90 hover:brightness-110 disabled:opacity-40 truncate
                     ${q.accent}
                     ${q.upgraded ? 'ring-1 ring-white/5' : ''}
                   `}
                 >
                   <MarketingDoraQuickActionIcon icon={q.icon} size="sm" />
-                  {q.label}
+                  <span className="truncate max-w-[3.5rem]">{q.label}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-end gap-1.5">
+            <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
                 value={inputValue}
@@ -193,13 +195,13 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                   setInputValue(e.target.value);
                   const t = e.target;
                   t.style.height = 'auto';
-                  t.style.height = `${Math.min(t.scrollHeight, 100)}px`;
+                  t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
                 }}
                 onKeyDown={onKeyDown}
                 placeholder="Ask the Marketing Agent\u2026"
                 disabled={isLoading}
-                rows={1}
-                className="flex-1 min-h-[38px] max-h-[100px] px-2.5 py-2 rounded-lg text-sm resize-none bg-app-inputBg border border-app-inputBorder text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-1 focus:ring-primary-500/40"
+                rows={2}
+                className="flex-1 min-h-[48px] max-h-[120px] px-3 py-3 rounded-xl text-sm leading-relaxed resize-none bg-app-inputBg border border-app-inputBorder text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-primary-500/30"
               />
               {isStreaming ? (
                 <button

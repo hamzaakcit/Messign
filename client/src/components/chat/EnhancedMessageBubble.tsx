@@ -1,0 +1,319 @@
+import { useState } from 'react';
+import type { Message, User } from '@/types';
+import { Avatar } from '@/components/ui';
+import { formatTime } from '@/lib/utils';
+import { useChatStore } from '@/stores/chatStore';
+import { chatAPI } from '@/lib/api';
+import { EmbeddedTaskCard } from './EmbeddedTaskCard';
+import { EmbeddedDocCard } from './EmbeddedDocCard';
+import { Smile, Pin, Pencil, Trash2, MoreHorizontal, Copy, ListChecks } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '✅'];
+
+interface EnhancedMessageBubbleProps {
+  message: Message;
+  user?: User | null;
+  showAvatar: boolean;
+  currentUserId?: string;
+}
+
+export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId }: EnhancedMessageBubbleProps) {
+  const [showActions, setShowActions] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const openContextMenu = useChatStore((s) => s.openContextMenu);
+  const setEditingMessage = useChatStore((s) => s.setEditingMessage);
+  const editingMessageId = useChatStore((s) => s.editingMessageId);
+
+  const displayName = user?.name ?? message.senderName ?? message.userId;
+  const avatarSrc = user?.avatar ?? message.senderAvatar;
+  const isOwnMessage = message.userId === currentUserId;
+  const isEditing = editingMessageId === message.id;
+
+  const handleReaction = async (emoji: string) => {
+    const hasReacted = message.reactions?.some((r) => r.emoji === emoji && r.users.includes(currentUserId ?? ''));
+    try {
+      if (hasReacted) {
+        await chatAPI.removeReaction(message.channelId, message.id, emoji);
+      } else {
+        await chatAPI.addReaction(message.channelId, message.id, emoji);
+      }
+    } catch { /* socket will sync */ }
+    setShowReactionPicker(false);
+  };
+
+  const handlePin = async () => {
+    try {
+      await chatAPI.togglePin(message.channelId, message.id);
+    } catch { /* handled by socket */ }
+    setShowMoreMenu(false);
+  };
+
+  const handleEdit = () => {
+    setEditingMessage(message.id);
+    setShowMoreMenu(false);
+  };
+
+  const handleDelete = async () => {
+    try {
+      await chatAPI.deleteMessage(message.channelId, message.id);
+    } catch { /* handled by socket */ }
+    setShowMoreMenu(false);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content);
+    setShowMoreMenu(false);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openContextMenu(message, { x: e.clientX, y: e.clientY });
+  };
+
+  if (message.isDeleted) {
+    return (
+      <div className={`flex gap-3 ${showAvatar ? 'mt-4' : 'mt-0.5'} opacity-50`}>
+        <div className="w-10 shrink-0" />
+        <div className="text-sm text-app-muted italic">This message was deleted</div>
+      </div>
+    );
+  }
+
+  const embeddedCards = message.metadata?.embeddedCards ?? [];
+
+  return (
+    <div
+      className={cn(
+        'flex gap-3 group relative',
+        showAvatar ? 'mt-4' : 'mt-0.5',
+        'hover:bg-app-hover/30 -mx-2 px-2 py-0.5 rounded-lg transition-colors',
+      )}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => { setShowActions(false); setShowReactionPicker(false); setShowMoreMenu(false); }}
+      onContextMenu={handleContextMenu}
+    >
+      {/* Avatar */}
+      <div className="w-10 shrink-0">
+        {showAvatar && (
+          <Avatar src={avatarSrc} name={displayName} size="md" status={user?.status} />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {showAvatar && (
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="font-semibold text-app text-sm">{displayName}</span>
+            <span className="text-[11px] text-app-muted">{formatTime(message.timestamp)}</span>
+            {message.isPinned && (
+              <span className="flex items-center gap-0.5 text-[10px] text-warning-500 bg-warning-500/10 px-1.5 py-0.5 rounded-full">
+                <Pin className="w-2.5 h-2.5" /> Pinned
+              </span>
+            )}
+            {message.isEdited && (
+              <span className="text-[10px] text-app-muted">(edited)</span>
+            )}
+          </div>
+        )}
+
+        {/* Message text */}
+        {isEditing ? (
+          <EditMessageInline message={message} />
+        ) : (
+          <div className="text-sm text-app break-words leading-relaxed">
+            {formatMessageContent(message.content)}
+          </div>
+        )}
+
+        {/* Attachments */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {message.attachments.map((attachment, idx) => {
+              const key = attachment.id ?? `att-${idx}`;
+              const isImage = attachment.type?.startsWith('image/') && attachment.url;
+              return (
+                <div key={key} className="rounded-xl overflow-hidden bg-app-hover border border-app">
+                  {isImage ? (
+                    <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block">
+                      <img src={attachment.url} alt={attachment.name} className="max-w-[280px] max-h-[200px] object-cover" />
+                    </a>
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-app-muted flex items-center gap-2">
+                      <span className="truncate max-w-[200px]">{attachment.name}</span>
+                      <span className="text-xs opacity-60">{formatFileSize(attachment.size)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Embedded cards */}
+        {embeddedCards.map((card, idx) => (
+          <div key={idx} className="mt-2">
+            {card.type === 'task' && <EmbeddedTaskCard refId={card.refId} channelId={message.channelId} />}
+            {card.type === 'document' && <EmbeddedDocCard refId={card.refId} channelId={message.channelId} />}
+          </div>
+        ))}
+
+        {/* Reactions */}
+        {message.reactions && message.reactions.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {message.reactions.map((reaction) => (
+              <button
+                key={reaction.emoji}
+                onClick={() => handleReaction(reaction.emoji)}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors',
+                  reaction.users.includes(currentUserId ?? '')
+                    ? 'border-primary-500/30 bg-primary-500/10 text-primary-400'
+                    : 'border-app bg-app-hover text-app-muted hover:border-primary-500/20',
+                )}
+              >
+                <span>{reaction.emoji}</span>
+                <span className="font-medium">{reaction.users.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Hover action toolbar */}
+      {showActions && !isEditing && (
+        <div className="absolute -top-3 right-2 flex items-center gap-0.5 bg-app-sidebar border border-app rounded-lg shadow-lg p-0.5 z-10">
+          {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => handleReaction(emoji)}
+              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-app-hover text-sm transition-colors"
+            >
+              {emoji}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowReactionPicker(!showReactionPicker)}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+          >
+            <Smile className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-4 bg-app mx-0.5" />
+          <button
+            onClick={() => setShowMoreMenu(!showMoreMenu)}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Reaction picker */}
+      {showReactionPicker && (
+        <div className="absolute -top-12 right-2 bg-app-sidebar border border-app rounded-xl shadow-xl p-2 flex gap-1 z-20">
+          {QUICK_REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => handleReaction(emoji)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-app-hover text-lg transition-transform hover:scale-110"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* More menu */}
+      {showMoreMenu && (
+        <div className="absolute top-6 right-2 bg-app-sidebar border border-app rounded-xl shadow-xl py-1 z-20 min-w-[160px]">
+          <button onClick={handleCopy} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-app hover:bg-app-hover transition-colors">
+            <Copy className="w-3.5 h-3.5" /> Copy text
+          </button>
+          <button onClick={handlePin} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-app hover:bg-app-hover transition-colors">
+            <Pin className="w-3.5 h-3.5" /> {message.isPinned ? 'Unpin' : 'Pin'} message
+          </button>
+          {isOwnMessage && (
+            <>
+              <button onClick={handleEdit} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-app hover:bg-app-hover transition-colors">
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
+              <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </button>
+            </>
+          )}
+          <button onClick={() => setShowMoreMenu(false)} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-app hover:bg-app-hover transition-colors">
+            <ListChecks className="w-3.5 h-3.5" /> Create task
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EditMessageInline({ message }: { message: Message }) {
+  const [content, setContent] = useState(message.content);
+  const setEditingMessage = useChatStore((s) => s.setEditingMessage);
+
+  const handleSave = async () => {
+    if (content.trim() && content !== message.content) {
+      try {
+        await chatAPI.editMessage(message.channelId, message.id, content.trim());
+      } catch { /* socket will sync */ }
+    }
+    setEditingMessage(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); }
+          if (e.key === 'Escape') setEditingMessage(null);
+        }}
+        className="w-full p-2 text-sm bg-app-inputBg border border-primary-500 rounded-lg text-app focus:outline-none resize-none"
+        rows={2}
+        autoFocus
+      />
+      <div className="flex items-center gap-2 text-xs">
+        <button onClick={handleSave} className="px-2 py-1 bg-primary-500 text-white rounded-md hover:bg-primary-600">Save</button>
+        <button onClick={() => setEditingMessage(null)} className="px-2 py-1 text-app-muted hover:text-app">Cancel</button>
+        <span className="text-app-muted">Escape to cancel, Enter to save</span>
+      </div>
+    </div>
+  );
+}
+
+function formatMessageContent(content: string): React.ReactNode {
+  const parts = content.split(/(@\w+)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('@')) {
+      return (
+        <span key={index} className="text-primary-400 font-medium bg-primary-500/10 px-0.5 rounded">
+          {part}
+        </span>
+      );
+    }
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urlParts = part.split(urlRegex);
+    return urlParts.map((urlPart, urlIdx) => {
+      if (urlRegex.test(urlPart)) {
+        return (
+          <a key={`${index}-${urlIdx}`} href={urlPart} target="_blank" rel="noopener noreferrer" className="text-primary-400 underline hover:text-primary-300">
+            {urlPart}
+          </a>
+        );
+      }
+      return urlPart;
+    });
+  });
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

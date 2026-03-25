@@ -6,6 +6,8 @@ import {
   getFinanceMetrics,
   getRecentActivity,
   getRevenueMetrics,
+  getPendingItems,
+  getChartData,
 } from '../../dal/executive/dashboard.js';
 import { getAuditLog } from '../../dal/executive/auditLog.js';
 import { getAiRequestMetrics } from '../../services/ai/telemetry/service.js';
@@ -92,6 +94,32 @@ executiveRouter.get('/dashboard/activity', async (req: ReimbursementRequest, res
   } catch (error) {
     console.error('[executive/dashboard/activity]', error);
     res.status(500).json({ error: 'Failed to load recent activity' });
+  }
+});
+
+executiveRouter.get('/pending-items', async (req: ReimbursementRequest, res) => {
+  try {
+    const data = await getPendingItems(buildCtx(req));
+    res.json(data);
+  } catch (error) {
+    console.error('[executive/pending-items]', error);
+    res.json({
+      expenses: [], timesheets: [], tickets: [],
+      applications: [], marketingApprovals: [], overdueInvoices: [],
+    });
+  }
+});
+
+executiveRouter.get('/chart-data', async (req: ReimbursementRequest, res) => {
+  try {
+    const data = await getChartData(buildCtx(req));
+    res.json(data);
+  } catch (error) {
+    console.error('[executive/chart-data]', error);
+    res.json({
+      revenueTrend: [], expenseTrend: [], ticketTrend: [],
+      leadsTrend: [], utilizationTrend: [],
+    });
   }
 });
 

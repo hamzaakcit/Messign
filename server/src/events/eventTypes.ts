@@ -37,6 +37,11 @@ export interface EventMap {
   'chat.message.sent': { messageId: string; channelId: string; userId: string; hasAttachment: boolean; content?: string };
   'chat.mention.created': { messageId: string; mentionedUserId: string; channelId: string };
   'chat.thread.resolved': { threadId: string; channelId: string; resolvedBy: string };
+  'chat.question.answered': { messageId: string; channelId: string; userId: string; questionMessageId?: string };
+  'chat.blocker.resolved': { channelId: string; userId: string; blockerDescription?: string };
+  'chat.task.created_from_chat': { taskId: string; messageId: string; channelId: string; userId: string };
+  'chat.message.reacted': { messageId: string; channelId: string; userId: string; emoji: string };
+  'chat.message.pinned': { messageId: string; channelId: string; userId: string };
 
   // ── Knowledge ──
   'knowledge.document.published': { documentId: string; authorId: string; title: string; categoryId?: string };

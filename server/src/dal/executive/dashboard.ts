@@ -103,6 +103,7 @@ export async function getExecutiveDashboard(ctx: CallerContext): Promise<Executi
     operationsData,
     activityData,
     insightCounts,
+    cultureData,
   ] = await Promise.all([
     getRevenueMetrics(ctx),
     getFinanceMetrics(ctx),
@@ -114,6 +115,7 @@ export async function getExecutiveDashboard(ctx: CallerContext): Promise<Executi
     getOperationsMetrics(ctx),
     getRecentActivity(ctx),
     getInsightCounts(ctx),
+    getCultureMetrics(ctx),
   ]);
 
   return {
@@ -124,7 +126,7 @@ export async function getExecutiveDashboard(ctx: CallerContext): Promise<Executi
     people: peopleData,
     projects: projectsData,
     okrs: okrData,
-    culture: null,
+    culture: cultureData,
     operations: operationsData,
     recentActivity: activityData,
     doraInsights: insightCounts,
@@ -590,6 +592,245 @@ export async function getInsightCounts(ctx: CallerContext): Promise<ExecutiveDas
     criticalCount: num(result.rows[0]?.critical_count),
     warningCount: num(result.rows[0]?.warning_count),
     totalUnread: num(result.rows[0]?.total_unread),
+    };
+  });
+}
+
+export async function getCultureMetrics(
+  ctx: CallerContext,
+): Promise<ExecutiveDashboard['culture']> {
+  const tenantId = requireOrganizationId(ctx);
+
+  return runInTenant(tenantId, async (client) => {
+    const [health, sentiment] = await Promise.all([
+      client.query(
+        `SELECT COALESCE(AVG(health_score), 0)::numeric AS avg_health
+         FROM heart_team_health`,
+      ),
+      client.query(
+        `SELECT
+           COALESCE(AVG(score), 0)::numeric AS sentiment_avg,
+           COALESCE(AVG(score) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days'), 0)::numeric AS recent,
+           COALESCE(AVG(score) FILTER (WHERE created_at >= NOW() - INTERVAL '14 days'
+             AND created_at < NOW() - INTERVAL '7 days'), 0)::numeric AS previous
+         FROM heart_sentiment_scores`,
+      ),
+    ]);
+
+    const recent = num(sentiment.rows[0]?.recent);
+    const previous = num(sentiment.rows[0]?.previous);
+    let engagementTrend = 'stable';
+    if (previous > 0) {
+      const delta = ((recent - previous) / previous) * 100;
+      if (delta > 5) engagementTrend = 'improving';
+      else if (delta < -5) engagementTrend = 'declining';
+    }
+
+    return {
+      healthScore: num(health.rows[0]?.avg_health),
+      engagementTrend,
+      sentimentAvg: num(sentiment.rows[0]?.sentiment_avg),
+    };
+  });
+}
+
+// ── Pending Items (actionable items across departments) ──────────────
+
+export interface PendingItems {
+  expenses: { id: string; title: string; amount: number; currency: string; submitter: string; submittedAt: string }[];
+  timesheets: { id: string; userName: string; period: string; totalHours: number; submittedAt: string }[];
+  tickets: { id: string; subject: string; priority: string; status: string; assignee: string | null; createdAt: string }[];
+  applications: { id: string; candidateName: string; jobTitle: string; stage: string; appliedAt: string }[];
+  marketingApprovals: { id: string; contentTitle: string; type: string; requestedBy: string; requestedAt: string }[];
+  overdueInvoices: { id: string; clientName: string; amount: number; dueDate: string; daysPastDue: number }[];
+}
+
+export async function getPendingItems(ctx: CallerContext): Promise<PendingItems> {
+  const tenantId = requireOrganizationId(ctx);
+
+  return runInTenant(tenantId, async (client) => {
+    const [expenses, timesheets, tickets, applications, mktgApprovals, invoices] = await Promise.all([
+      client.query(
+        `SELECT
+           e.id::text, COALESCE(e.title, 'Untitled Expense') AS title,
+           COALESCE(e.original_amount, 0)::numeric AS amount,
+           COALESCE(e.original_currency, 'EUR') AS currency,
+           COALESCE(u.full_name, 'Unknown') AS submitter,
+           e.created_at AS submitted_at
+         FROM reimbursement_requests e
+         LEFT JOIN reimbursement_users u ON u.id = e.submitted_by
+         WHERE (e.is_deleted IS NULL OR e.is_deleted = FALSE)
+           AND e.status IN ('submitted', 'under_review', 'pending')
+         ORDER BY e.created_at DESC
+         LIMIT 10`,
+      ),
+      client.query(
+        `SELECT
+           ts.id::text, COALESCE(u.full_name, 'Unknown') AS user_name,
+           to_char(ts.week_start_date, 'YYYY-MM-DD') AS period,
+           COALESCE(ts.total_hours, 0)::numeric AS total_hours,
+           ts.submitted_at
+         FROM time_timesheets ts
+         LEFT JOIN reimbursement_users u ON u.id = ts.user_id
+         WHERE ts.status = 'submitted'
+         ORDER BY ts.submitted_at DESC
+         LIMIT 10`,
+      ),
+      client.query(
+        `SELECT
+           t.id::text, COALESCE(NULLIF(trim(t.subject), ''), t.ticket_number::text) AS subject,
+           COALESCE(t.priority, 'medium') AS priority,
+           t.status,
+           au.full_name AS assignee,
+           t.created_at
+         FROM support_tickets t
+         LEFT JOIN reimbursement_users au ON au.id = t.assignee_id
+         WHERE t.status NOT IN ('resolved', 'closed')
+         ORDER BY CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.created_at DESC
+         LIMIT 10`,
+      ),
+      client.query(
+        `SELECT
+           a.id::text,
+           COALESCE(c.first_name || ' ' || c.last_name, 'Unknown') AS candidate_name,
+           COALESCE(j.title, 'Unknown Position') AS job_title,
+           a.stage,
+           a.applied_at
+         FROM recruitment_applications a
+         LEFT JOIN recruitment_candidates c ON c.id = a.candidate_id
+         LEFT JOIN recruitment_jobs j ON j.id = a.job_id
+         WHERE a.stage NOT IN ('rejected', 'hired', 'withdrawn')
+         ORDER BY a.applied_at DESC
+         LIMIT 10`,
+      ),
+      client.query(
+        `SELECT
+           aq.id::text,
+           COALESCE(mc.title, 'Untitled') AS content_title,
+           COALESCE(mc.content_type, 'content') AS type,
+           COALESCE(u.full_name, 'Unknown') AS requested_by,
+           aq.created_at AS requested_at
+         FROM marketing_approval_queue aq
+         LEFT JOIN marketing_content mc ON mc.id = aq.content_id
+         LEFT JOIN reimbursement_users u ON u.id = aq.requested_by
+         WHERE aq.status = 'pending'
+         ORDER BY aq.created_at DESC
+         LIMIT 10`,
+      ),
+      client.query(
+        `SELECT
+           i.id::text,
+           COALESCE(i.client_name, 'Unknown') AS client_name,
+           COALESCE(i.grand_total, 0)::numeric AS amount,
+           i.due_date::text,
+           GREATEST(0, EXTRACT(DAY FROM NOW() - i.due_date))::int AS days_past_due
+         FROM invoices i
+         WHERE i.status = 'overdue'
+           AND (i.is_deleted IS NULL OR i.is_deleted = FALSE)
+         ORDER BY i.due_date ASC
+         LIMIT 10`,
+      ),
+    ]);
+
+    return {
+      expenses: expenses.rows.map((r) => ({
+        id: String(r.id), title: String(r.title), amount: num(r.amount),
+        currency: String(r.currency), submitter: String(r.submitter),
+        submittedAt: new Date(r.submitted_at as string).toISOString(),
+      })),
+      timesheets: timesheets.rows.map((r) => ({
+        id: String(r.id), userName: String(r.user_name), period: String(r.period),
+        totalHours: num(r.total_hours),
+        submittedAt: r.submitted_at ? new Date(r.submitted_at as string).toISOString() : new Date().toISOString(),
+      })),
+      tickets: tickets.rows.map((r) => ({
+        id: String(r.id), subject: String(r.subject), priority: String(r.priority),
+        status: String(r.status), assignee: r.assignee ? String(r.assignee) : null,
+        createdAt: new Date(r.created_at as string).toISOString(),
+      })),
+      applications: applications.rows.map((r) => ({
+        id: String(r.id), candidateName: String(r.candidate_name),
+        jobTitle: String(r.job_title), stage: String(r.stage),
+        appliedAt: new Date(r.applied_at as string).toISOString(),
+      })),
+      marketingApprovals: mktgApprovals.rows.map((r) => ({
+        id: String(r.id), contentTitle: String(r.content_title),
+        type: String(r.type), requestedBy: String(r.requested_by),
+        requestedAt: new Date(r.requested_at as string).toISOString(),
+      })),
+      overdueInvoices: invoices.rows.map((r) => ({
+        id: String(r.id), clientName: String(r.client_name),
+        amount: num(r.amount), dueDate: String(r.due_date),
+        daysPastDue: num(r.days_past_due),
+      })),
+    };
+  });
+}
+
+// ── Chart Data (30-day trends for department mini-charts) ────────────
+
+export interface ExecutiveChartData {
+  revenueTrend: { date: string; value: number }[];
+  expenseTrend: { date: string; value: number }[];
+  ticketTrend: { date: string; opened: number; resolved: number }[];
+  leadsTrend: { date: string; value: number }[];
+  utilizationTrend: { date: string; value: number }[];
+}
+
+export async function getChartData(ctx: CallerContext): Promise<ExecutiveChartData> {
+  const tenantId = requireOrganizationId(ctx);
+
+  return runInTenant(tenantId, async (client) => {
+    const [revenue, expense, ticketTrend, leads, utilization] = await Promise.all([
+      client.query(
+        `SELECT to_char(gs.d, 'YYYY-MM-DD') AS date,
+                COALESCE(SUM(d.amount::numeric) FILTER (WHERE s.is_won = TRUE), 0)::numeric AS value
+         FROM generate_series(CURRENT_DATE - 29, CURRENT_DATE, '1 day') gs(d)
+         LEFT JOIN crm_deals d ON date_trunc('day', d.actual_close_date) = gs.d
+         LEFT JOIN crm_deal_stages s ON s.id = d.stage_id
+         GROUP BY gs.d ORDER BY gs.d`,
+      ),
+      client.query(
+        `SELECT to_char(gs.d, 'YYYY-MM-DD') AS date,
+                COALESCE(SUM(r.original_amount), 0)::numeric AS value
+         FROM generate_series(CURRENT_DATE - 29, CURRENT_DATE, '1 day') gs(d)
+         LEFT JOIN reimbursement_requests r
+           ON date_trunc('day', r.created_at) = gs.d
+           AND (r.is_deleted IS NULL OR r.is_deleted = FALSE)
+           AND r.status NOT IN ('voided', 'draft', 'rejected')
+         GROUP BY gs.d ORDER BY gs.d`,
+      ),
+      client.query(
+        `SELECT to_char(gs.d, 'YYYY-MM-DD') AS date,
+                COUNT(t.id) FILTER (WHERE date_trunc('day', t.created_at) = gs.d)::int AS opened,
+                COUNT(t.id) FILTER (WHERE t.status IN ('resolved', 'closed') AND date_trunc('day', t.updated_at) = gs.d)::int AS resolved
+         FROM generate_series(CURRENT_DATE - 29, CURRENT_DATE, '1 day') gs(d)
+         LEFT JOIN support_tickets t
+           ON date_trunc('day', t.created_at) = gs.d OR (t.status IN ('resolved', 'closed') AND date_trunc('day', t.updated_at) = gs.d)
+         GROUP BY gs.d ORDER BY gs.d`,
+      ),
+      client.query(
+        `SELECT to_char(gs.d, 'YYYY-MM-DD') AS date,
+                COUNT(l.id)::int AS value
+         FROM generate_series(CURRENT_DATE - 29, CURRENT_DATE, '1 day') gs(d)
+         LEFT JOIN marketing_leads l ON date_trunc('day', l.created_at) = gs.d
+         GROUP BY gs.d ORDER BY gs.d`,
+      ),
+      client.query(
+        `SELECT to_char(gs.d, 'YYYY-MM-DD') AS date,
+                COALESCE(SUM(te.hours), 0)::numeric AS value
+         FROM generate_series(CURRENT_DATE - 29, CURRENT_DATE, '1 day') gs(d)
+         LEFT JOIN time_entries te ON te.date = gs.d AND te.status != 'rejected'
+         GROUP BY gs.d ORDER BY gs.d`,
+      ),
+    ]);
+
+    return {
+      revenueTrend: revenue.rows.map((r) => ({ date: String(r.date), value: num(r.value) })),
+      expenseTrend: expense.rows.map((r) => ({ date: String(r.date), value: num(r.value) })),
+      ticketTrend: ticketTrend.rows.map((r) => ({ date: String(r.date), opened: num(r.opened), resolved: num(r.resolved) })),
+      leadsTrend: leads.rows.map((r) => ({ date: String(r.date), value: num(r.value) })),
+      utilizationTrend: utilization.rows.map((r) => ({ date: String(r.date), value: num(r.value) })),
     };
   });
 }

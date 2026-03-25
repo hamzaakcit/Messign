@@ -370,19 +370,99 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
-    socket.on('user:status', async (data: { status: string }) => {
+    socket.on('user:status', async (data: { status: string; statusText?: string }) => {
       try {
         const userId = socket.data.userId as string;
         if (!userId) return;
 
-        const status = ['online', 'away', 'busy', 'offline'].includes(data.status) ? data.status as 'online' | 'away' | 'busy' | 'offline' : 'offline';
-        const row = await updateEmployeeStatus(userId, status);
+        const validStatuses = ['online', 'away', 'busy', 'offline', 'deep_work'];
+        const dbStatus = validStatuses.includes(data.status)
+          ? (data.status === 'deep_work' ? 'busy' : data.status) as 'online' | 'away' | 'busy' | 'offline'
+          : 'offline';
+        const row = await updateEmployeeStatus(userId, dbStatus);
         if (row) {
-          socket.broadcast.emit('user:status', { userId, status });
+          if (data.statusText !== undefined) {
+            try {
+              await query(
+                `UPDATE reimbursement_users SET status_text = $1 WHERE auth_user_id = $2 OR id::text = $2`,
+                [data.statusText, userId],
+              );
+            } catch { /* status_text column may not exist yet */ }
+          }
+          socket.broadcast.emit('user:status', {
+            userId,
+            status: data.status,
+            statusText: data.statusText ?? null,
+          });
         }
       } catch (err) {
         console.error('[socket] user:status error:', err);
         socket.emit('error', { message: 'Failed to update status', code: 'STATUS_UPDATE_FAILED' });
+      }
+    });
+
+    // Chat v2: Message reactions via socket
+    socket.on('message:react', async (data: { channelId: string; messageId: string; emoji: string; action: 'add' | 'remove' }) => {
+      try {
+        const userId = socket.data.userId as string;
+        if (!userId) return;
+        const { channelId, messageId, emoji, action = 'add' } = data;
+        if (action === 'remove') {
+          await query(`DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3`, [messageId, userId, emoji]);
+        } else {
+          await query(`INSERT INTO message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [messageId, userId, emoji]);
+        }
+        const reactions = await query<{ emoji: string; user_id: string }>(
+          `SELECT emoji, user_id FROM message_reactions WHERE message_id = $1`, [messageId],
+        );
+        const grouped: Record<string, string[]> = {};
+        for (const r of reactions.rows) {
+          if (!grouped[r.emoji]) grouped[r.emoji] = [];
+          grouped[r.emoji].push(r.user_id);
+        }
+        const reactionList = Object.entries(grouped).map(([em, users]) => ({ emoji: em, users }));
+        io.to(channelId).emit('message:react', { messageId, channelId, reactions: reactionList });
+      } catch (err) {
+        console.error('[socket] message:react error:', err);
+        socket.emit('error', { message: 'Failed to react', code: 'REACT_FAILED' });
+      }
+    });
+
+    // Chat v2: Message edit via socket
+    socket.on('message:edit', async (data: { channelId: string; messageId: string; content: string }) => {
+      try {
+        const userId = socket.data.userId as string;
+        if (!userId) return;
+        const { channelId, messageId, content } = data;
+        const existing = await query<{ user_id: string }>(`SELECT user_id FROM messages WHERE id = $1 AND channel_id = $2`, [messageId, channelId]);
+        if (existing.rows.length === 0 || existing.rows[0]!.user_id !== userId) {
+          socket.emit('error', { message: 'Cannot edit this message', code: 'EDIT_FORBIDDEN' });
+          return;
+        }
+        await query(`UPDATE messages SET content = $1, edited_at = NOW() WHERE id = $2`, [content, messageId]);
+        io.to(channelId).emit('message:edit', { messageId, channelId, content, editedAt: new Date().toISOString(), userId });
+      } catch (err) {
+        console.error('[socket] message:edit error:', err);
+        socket.emit('error', { message: 'Failed to edit message', code: 'EDIT_FAILED' });
+      }
+    });
+
+    // Chat v2: Message delete via socket
+    socket.on('message:delete', async (data: { channelId: string; messageId: string }) => {
+      try {
+        const userId = socket.data.userId as string;
+        if (!userId) return;
+        const { channelId, messageId } = data;
+        const existing = await query<{ user_id: string }>(`SELECT user_id FROM messages WHERE id = $1 AND channel_id = $2`, [messageId, channelId]);
+        if (existing.rows.length === 0 || existing.rows[0]!.user_id !== userId) {
+          socket.emit('error', { message: 'Cannot delete this message', code: 'DELETE_FORBIDDEN' });
+          return;
+        }
+        await query(`UPDATE messages SET is_deleted = TRUE, content = '[deleted]' WHERE id = $1`, [messageId]);
+        io.to(channelId).emit('message:delete', { messageId, channelId });
+      } catch (err) {
+        console.error('[socket] message:delete error:', err);
+        socket.emit('error', { message: 'Failed to delete message', code: 'DELETE_FAILED' });
       }
     });
 

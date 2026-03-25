@@ -38,6 +38,10 @@ export type {
   CeoDashboardTrend,
   MpTriggerClient,
   MpTriggerSummaryUser,
+  CommandCenterPayload,
+  CommandCenterDailyPoint,
+  CommandCenterStrategyPlay,
+  CommandCenterExperimentRow,
 } from './types';
 
 export { BATCH_TERMINAL_STATES } from './helpers';

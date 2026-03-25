@@ -471,6 +471,76 @@ export interface DashboardMetrics {
   }>;
 }
 
+/** GET /api/marketing/dashboard/command-center */
+export interface CommandCenterDailyPoint {
+  date: string;
+  value: number;
+}
+
+export interface CommandCenterFunnel7d {
+  new: number;
+  contacted: number;
+  nurturing: number;
+  qualified: number;
+  converted: number;
+  disqualified: number;
+}
+
+export interface CommandCenterCacRoi {
+  cac: number;
+  cpl: number;
+  roi: number;
+  ltvDisplay: null;
+  signupVelocity: number;
+  landingConversionProxy: number | null;
+}
+
+export interface CommandCenterSocialAccountPulse {
+  platform: 'linkedin' | 'twitter' | 'instagram';
+  label: string;
+  contentPieces: number;
+  series7d: CommandCenterDailyPoint[];
+}
+
+export interface CommandCenterSocialPulse {
+  connected: boolean;
+  lastSyncIso: string | null;
+  errorCode: string | null;
+  vibeScore: number;
+  accounts: CommandCenterSocialAccountPulse[];
+}
+
+export interface CommandCenterExperimentRow {
+  id: string;
+  kind: 'campaign' | 'email';
+  name: string;
+  status: string;
+  channel: string | null;
+  openRate: number | null;
+  clickRate: number | null;
+  isLive: boolean;
+}
+
+export interface CommandCenterStrategyPlay {
+  id: string;
+  title: string;
+  snippet: string;
+  priority: 'high' | 'medium' | 'low';
+  contextJson: Record<string, unknown>;
+}
+
+export interface CommandCenterPayload {
+  generatedAt: string;
+  days: number;
+  funnel7d: CommandCenterFunnel7d;
+  funnelSeries7d: CommandCenterDailyPoint[];
+  cacRoi: CommandCenterCacRoi;
+  activeCampaigns: number;
+  experiments: CommandCenterExperimentRow[];
+  socialPulse: CommandCenterSocialPulse;
+  plays: CommandCenterStrategyPlay[];
+}
+
 // ── Brand Compliance Types ──
 
 export interface ComplianceFlag {

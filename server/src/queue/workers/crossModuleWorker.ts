@@ -357,10 +357,19 @@ const worker = new Worker<CrossModuleJob>(
         // TODO: Call budgets DAL to recalculate burn rate
         console.log(`[CrossModule] Would update budget burn for expense ${payload.expenseId}`);
         break;
-      case 'award_xp':
-        // TODO: Call gamification service
-        console.log(`[CrossModule] Would award ${payload.amount} XP to ${payload.userId}`);
+      case 'award_xp': {
+        const xpUserId = payload.userId as string | undefined;
+        const xpAmount = Number(payload.amount) || 0;
+        const xpReason = (payload.reason as string) ?? sourceEvent;
+        if (xpUserId && xpAmount > 0) {
+          const { awardXP: awardXPService } = await import('../../services/gamification.js');
+          await awardXPService(xpUserId, xpAmount, xpReason);
+          console.log(`[CrossModule] Awarded ${xpAmount} XP to ${xpUserId} for ${xpReason}`);
+        } else {
+          console.warn(`[CrossModule] award_xp: missing userId or invalid amount`, payload);
+        }
         break;
+      }
       case 'update_vendor_timeline':
         // TODO: Call vendor DAL
         console.log(`[CrossModule] Would update vendor timeline for payment ${payload.paymentId}`);

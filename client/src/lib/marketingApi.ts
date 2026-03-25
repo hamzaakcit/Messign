@@ -43,4 +43,8 @@ export type {
   CeoDashboardTrend,
   MpTriggerClient,
   MpTriggerSummaryUser,
+  CommandCenterPayload,
+  CommandCenterDailyPoint,
+  CommandCenterStrategyPlay,
+  CommandCenterExperimentRow,
 } from './marketingApi/types';
