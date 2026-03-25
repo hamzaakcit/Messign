@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { getEmployeeByEmail, getEmployeeByIdAsUser } from '../db/employeesDb.js';
 import { getBadgesForUser } from '../db/badgesDb.js';
 import {
+  clearLock,
   getByAuthUserId,
   getByEmail,
   updateLoginTracking,
@@ -107,12 +108,39 @@ export async function login(
   }
 
   const authUserId = employeeRow.auth_user_id ?? employeeRow.id;
-  const auth = await getByAuthUserId(authUserId);
+  let auth = await getByAuthUserId(authUserId);
   if (!auth) {
     return {
       success: false,
       error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
     };
+  }
+
+  const passwordTrimmed = typeof password === 'string' ? password.trim() : '';
+  const isNonProd = process.env.NODE_ENV !== 'production';
+
+  /** Matches seed string; in non-production only, comparison is case-insensitive (avoids Test123 vs test123 lockouts during local dev). */
+  function passwordMatchesSeed(seed: string | null): boolean {
+    if (!seed) return false;
+    if (passwordTrimmed === seed) return true;
+    return isNonProd && passwordTrimmed.toLowerCase() === seed.toLowerCase();
+  }
+
+  if (auth.account_status === 'locked') {
+    const seedPw = (() => {
+      try {
+        return getDefaultSeedPassword();
+      } catch {
+        return null;
+      }
+    })();
+    if (isNonProd && passwordMatchesSeed(seedPw)) {
+      await clearLock(authUserId);
+      const authAfter = await getByAuthUserId(authUserId);
+      if (authAfter?.account_status === 'active') {
+        auth = authAfter;
+      }
+    }
   }
 
   if (auth.account_status === 'locked') {
@@ -153,12 +181,11 @@ export async function login(
     };
   }
 
-  const passwordTrimmed = typeof password === 'string' ? password.trim() : '';
   /** bcrypt cost 12 — dominant CPU cost on login; lowering rounds trades security for latency. */
   let valid = await bcrypt.compare(passwordTrimmed, auth.password_hash);
 
   const seedPw = (() => { try { return getDefaultSeedPassword(); } catch { return null; } })();
-  if (!valid && seedPw && passwordTrimmed === seedPw) {
+  if (!valid && seedPw != null && passwordMatchesSeed(seedPw)) {
     const freshHash = await bcrypt.hash(seedPw, 12);
     await updatePassword({
       auth_user_id: authUserId,
