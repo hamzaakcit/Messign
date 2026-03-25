@@ -58,6 +58,7 @@ import { optionalJwt } from './middleware/authMiddleware.js';
 import { responseTimer } from './middleware/responseTimer.js';
 import { initializeAuthRecords } from './services/initAuth.js';
 import { initNewTables } from './db/initNewTables.js';
+import { isOriginAllowed } from './config/corsOrigins.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -67,17 +68,15 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
-// CORS: production allows messign.com, CLIENT_URL (Vercel), and ADDITIONAL_CORS_ORIGINS (comma-separated)
-const CORS_ORIGINS = process.env.NODE_ENV === 'production'
-  ? [
-      'https://www.messign.com',
-      'https://messign.com',
-      process.env.CLIENT_URL || '',
-      ...(process.env.ADDITIONAL_CORS_ORIGINS?.split(',').map((o) => o.trim()).filter(Boolean) ?? []),
-    ].filter(Boolean)
-  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://127.0.0.1:3002'];
+// CORS: same rules for Express + Socket.IO (see corsOrigins.ts). Vercel previews: ALLOW_VERCEL_PREVIEW_CORS=1 or ADDITIONAL_CORS_ORIGINS.
 const corsOptions = {
-  origin: CORS_ORIGINS,
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked origin: ${origin ?? '(none)'}`));
+    }
+  },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -85,10 +84,24 @@ const corsOptions = {
 
 const io = new Server(httpServer, {
   cors: {
-    origin: CORS_ORIGINS,
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Socket.IO CORS blocked origin: ${origin ?? '(none)'}`));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
+  /** Longer defaults help slow mobile / proxy paths during Engine.IO polling + WebSocket upgrade. */
+  connectTimeout: 45_000,
+  pingTimeout: 60_000,
+  pingInterval: 25_000,
+});
+
+io.engine.on('connection_error', (err: Error) => {
+  console.warn('[Socket.IO] engine connection_error:', err.message);
 });
 app.set('io', io);
 

@@ -6,10 +6,12 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
+    /** Polling-only avoids WebSocket upgrade issues behind some proxies; set VITE_SOCKET_FORCE_POLLING=1 if WS fails in production. */
+    const forcePolling = import.meta.env.VITE_SOCKET_FORCE_POLLING === '1';
     socket = io(API_ORIGIN, {
       autoConnect: false,
       withCredentials: true,
-      transports: ['polling', 'websocket'],
+      transports: forcePolling ? ['polling'] : ['polling', 'websocket'],
     });
   }
   return socket;

@@ -56,6 +56,33 @@ let socketServer: Server | null = null;
 /** PostgreSQL uuid — reimbursement_users.id / auth_user_id columns use this type. */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Collect all plausible client IPs from the Engine.IO handshake (Railway / CDNs vary). */
+function collectSocketIpCandidates(socket: Socket): string[] {
+  const h = socket.handshake.headers;
+  const out: string[] = [];
+  const push = (v: string | undefined): void => {
+    const t = v?.trim();
+    if (t) out.push(t);
+  };
+
+  const xf = h['x-forwarded-for'];
+  if (typeof xf === 'string') {
+    for (const part of xf.split(',')) push(part.trim());
+  } else if (Array.isArray(xf)) {
+    for (const line of xf) {
+      for (const part of line.split(',')) push(part.trim());
+    }
+  }
+
+  push(typeof h['x-real-ip'] === 'string' ? h['x-real-ip'] : undefined);
+  push(typeof h['cf-connecting-ip'] === 'string' ? h['cf-connecting-ip'] : undefined);
+  const tci = h['true-client-ip'];
+  push(typeof tci === 'string' ? tci : undefined);
+  push(socket.handshake.address ?? undefined);
+
+  return [...new Set(out)];
+}
+
 /** Emit an event to a specific user's socket(s) (by Messign auth user id OR internal user id). */
 export async function emitToUser(userId: string, event: string, data: unknown): Promise<void> {
   if (!userId) return;
@@ -181,13 +208,7 @@ export function setupSocketHandlers(io: Server) {
         ? socket.handshake.headers.host
         : undefined;
       if (payload.fp && shouldEnforceAccessTokenFingerprint(host)) {
-        const xf = socket.handshake.headers['x-forwarded-for'];
-        const forwardedFirst = Array.isArray(xf)
-          ? xf[0]?.split(',')[0]?.trim()
-          : typeof xf === 'string'
-            ? xf.split(',')[0]?.trim()
-            : undefined;
-        const ipCandidates = [forwardedFirst ?? null, socket.handshake.address ?? null];
+        const ipCandidates = collectSocketIpCandidates(socket);
         if (!matchAccessTokenFingerprint(payload.fp, ipCandidates, socket.handshake.headers['user-agent'])) {
           return next(new Error('Session fingerprint mismatch'));
         }
