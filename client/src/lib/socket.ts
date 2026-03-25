@@ -10,14 +10,6 @@ export function getSocket(): Socket {
       autoConnect: false,
       withCredentials: true,
       transports: ['polling', 'websocket'],
-      /**
-       * Engine.IO obtains a session via long-polling first, then upgrades to WebSocket. That upgrade
-       * often fails behind multi-instance APIs (no sticky sessions / no Redis adapter) or picky proxies,
-       * producing: "WebSocket is closed before the connection is established" while the app still works.
-       * Default: stay on long-polling only (`upgrade: false`). Set `VITE_SOCKET_WEBSOCKET_UPGRADE=1`
-       * when the API is a single node or you use a Socket.IO Redis adapter and WS upgrade is reliable.
-       */
-      upgrade: import.meta.env.VITE_SOCKET_WEBSOCKET_UPGRADE === '1',
     });
   }
   return socket;

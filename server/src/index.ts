@@ -324,6 +324,8 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 app.set('io', io);
+const { attachSocketIoRedisAdapter } = await import('./services/socketIoRedisAdapter.js');
+await attachSocketIoRedisAdapter(io);
 setupSocketHandlers(io);
 
 registerAllSubscribers();
@@ -453,6 +455,10 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     if (ragInterval) clearInterval(ragInterval);
 
     try { io.close(); } catch { /* best-effort */ }
+    try {
+      const { quitSocketIoRedisClients } = await import('./services/socketIoRedisAdapter.js');
+      await quitSocketIoRedisClients();
+    } catch { /* best-effort */ }
     try { await stopJobQueue(); } catch { /* best-effort */ }
 
     try {
