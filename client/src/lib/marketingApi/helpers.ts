@@ -1,4 +1,4 @@
-import { fetchAPI } from '../api';
+import { fetchAPI } from '../apiCore';
 import type { Campaign } from './types';
 
 export async function marketingRequest<T>(

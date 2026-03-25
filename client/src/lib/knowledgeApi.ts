@@ -1,5 +1,5 @@
 import { getAccessToken } from './authToken';
-import { API_BASE, fetchWithUserId, fetchAdminAPI } from './api';
+import { API_BASE, fetchWithUserId, fetchAdminAPI } from './apiCore';
 
 export const knowledgeAPI = {
   documents: {

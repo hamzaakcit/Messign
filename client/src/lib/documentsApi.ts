@@ -1,5 +1,5 @@
 /** @module documentsApi — Legacy document CRUD (pinning, search). */
-import { fetchAPI } from './api';
+import { fetchAPI } from './apiCore';
 
 export const documentsAPI = {
   getAll: () => fetchAPI('/documents'),

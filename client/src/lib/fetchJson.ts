@@ -1,5 +1,5 @@
 import { getAccessToken } from './authToken';
-import { API_ORIGIN, assertNotHtmlApiResponse } from './api';
+import { API_ORIGIN, assertNotHtmlApiResponse } from './apiCore';
 
 export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;

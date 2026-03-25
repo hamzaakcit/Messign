@@ -1,5 +1,5 @@
 /** @module notificationsApi — In-app notification CRUD and preference management. */
-import { fetchWithUserId } from './api';
+import { fetchWithUserId } from './apiCore';
 
 export interface AppNotification {
   id: string;

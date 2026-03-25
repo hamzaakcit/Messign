@@ -1,5 +1,5 @@
 /** @module reportsApi — Report generation, export, and history APIs. */
-import { fetchWithUserId, API_BASE, authHeaders } from './api';
+import { fetchWithUserId, API_BASE, authHeaders } from './apiCore';
 
 export interface ReportRequest {
   type: string;

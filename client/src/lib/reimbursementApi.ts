@@ -1,5 +1,5 @@
 import { getAccessToken } from './authToken';
-import { API_BASE, authHeaders } from './api';
+import { API_BASE, authHeaders } from './apiCore';
 
 async function fetchReimbursementAPI<T>(
   endpoint: string,

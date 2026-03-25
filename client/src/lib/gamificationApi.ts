@@ -1,4 +1,4 @@
-import { fetchAPI } from './api';
+import { fetchAPI } from './apiCore';
 
 export const badgesAPI = {
   getAll: () => fetchAPI('/badges'),

@@ -1,5 +1,5 @@
 /** @module adminApi — Admin-panel CRUD: employees, projects, roles, departments, badges, performance, audit. */
-import { fetchAdminAPI, API_BASE, authHeaders } from './api';
+import { fetchAdminAPI, API_BASE, authHeaders } from './apiCore';
 import type { ProjectApplicationWithUser } from './projectsApi';
 
 export const adminAPI = {

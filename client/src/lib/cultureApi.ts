@@ -1,5 +1,5 @@
 /** @module cultureApi — Heart/culture, wellness, and team health APIs. */
-import { fetchWithUserId } from './api';
+import { fetchWithUserId } from './apiCore';
 
 export const heartAPI = {
   getMyWellness: (userId: string) => fetchWithUserId<{ sentimentTrend: string; burnoutRisk: string; hoursThisWeek: number; daysSincePTO: number; suggestions: string[] }>('/heart/me/wellness', userId),

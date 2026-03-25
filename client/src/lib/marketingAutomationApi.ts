@@ -1,4 +1,4 @@
-import { API_ORIGIN } from './api';
+import { API_ORIGIN } from './apiCore';
 import { getAccessToken } from './authToken';
 
 const MA_BASE = `${API_ORIGIN}/api/marketing_automation`;

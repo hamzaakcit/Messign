@@ -1,5 +1,5 @@
 /** @module authApi — Authentication endpoints (login, refresh, logout, sessions, password). */
-import { API_BASE, fetchAPI } from './api';
+import { API_BASE, fetchAPI } from './apiCore';
 
 export const authAPI = {
   login: async (email: string, password: string) => {

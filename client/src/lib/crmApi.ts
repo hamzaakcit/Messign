@@ -1,5 +1,5 @@
 import { getAccessToken } from './authToken';
-import { API_ORIGIN } from './api';
+import { API_ORIGIN } from './apiCore';
 import type { PaginatedResult } from './types';
 
 const CRM_BASE = `${API_ORIGIN}/api/crm`;

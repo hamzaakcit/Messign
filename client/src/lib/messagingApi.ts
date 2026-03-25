@@ -1,6 +1,6 @@
 /** @module messagingApi — Channel, message, and DB-backed chat APIs. */
 import { getAccessToken } from './authToken';
-import { API_BASE, fetchAPI } from './api';
+import { API_BASE, fetchAPI } from './apiCore';
 import type {
   Message, Channel, EmbeddedCard, DoraSummaryResult,
   DoraActionItemsResult, DoraKBSuggestion, SmartReplyResult,
@@ -37,6 +37,12 @@ function chatFetch<T>(endpoint: string, userId?: string, options?: RequestInit):
   if (userId) headers['X-User-Id'] = userId;
   return fetch(`${API_BASE}${endpoint}`, { ...options, credentials: 'include', headers: { ...headers, ...(options?.headers as Record<string, string>) } }).then((res) => {
     if (!res.ok) {
+      if (res.status === 429) {
+        return res.json().catch(() => ({})).then((body: unknown) => {
+          const err = (body as { error?: string }).error;
+          throw new Error(typeof err === 'string' ? err : 'Too many AI requests. Try again in a minute.');
+        });
+      }
       return res.json().catch(() => ({})).then((body: unknown) => {
         const err = (body as { error?: string | { message?: string } }).error;
         const message = typeof err === 'string' ? err : (err && typeof err === 'object' && (err as { message?: string }).message) || res.statusText;
@@ -181,6 +187,11 @@ export const chatAPI = {
   doraDecisions: (channelId: string, messageCount?: number) =>
     chatFetch<DoraDecisionsResult>(
       `/chat/channels/${channelId}/dora/decisions`, undefined,
+      { method: 'POST', body: JSON.stringify({ messageCount }) },
+    ),
+  doraDecisionsThread: (channelId: string, parentMessageId: string, messageCount?: number) =>
+    chatFetch<DoraDecisionsResult>(
+      `/chat/channels/${channelId}/messages/${parentMessageId}/dora/decisions-thread`, undefined,
       { method: 'POST', body: JSON.stringify({ messageCount }) },
     ),
 

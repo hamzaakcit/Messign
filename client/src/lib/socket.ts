@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { API_ORIGIN } from './api';
+import { API_ORIGIN } from './apiCore';
 import { getAccessToken } from './authToken';
 
 let socket: Socket | null = null;
@@ -77,6 +77,41 @@ export function onTypingStop(callback: (data: { channelId: string; userId: strin
 
 export function emitTyping(channelId: string, _userId: string, isTyping: boolean) {
   getSocket().emit(isTyping ? 'typing:start' : 'typing:stop', { channelId });
+}
+
+export function emitUserStatus(data: { status: string; statusText?: string }): void {
+  getSocket().emit('user:status', data);
+}
+
+// Chat v2 real-time events
+export function onMessageReact(callback: (data: { messageId: string; channelId: string; reactions: Array<{ emoji: string; users: string[] }> }) => void): () => void {
+  const s = getSocket();
+  s.on('message:react', callback);
+  return () => s.off('message:react', callback);
+}
+
+export function onMessageEdit(callback: (data: { messageId: string; channelId: string; content: string; editedAt: string; userId: string }) => void): () => void {
+  const s = getSocket();
+  s.on('message:edit', callback);
+  return () => s.off('message:edit', callback);
+}
+
+export function onMessageDelete(callback: (data: { messageId: string; channelId: string }) => void): () => void {
+  const s = getSocket();
+  s.on('message:delete', callback);
+  return () => s.off('message:delete', callback);
+}
+
+export function onMessagePin(callback: (data: { messageId: string; channelId: string; isPinned: boolean; pinnedBy: string }) => void): () => void {
+  const s = getSocket();
+  s.on('message:pin', callback);
+  return () => s.off('message:pin', callback);
+}
+
+export function onThreadReply(callback: (data: { messageId: string; channelId: string; threadId: string; replyCount: number }) => void): () => void {
+  const s = getSocket();
+  s.on('thread:reply', callback);
+  return () => s.off('thread:reply', callback);
 }
 
 export function joinChannel(channelId: string) {

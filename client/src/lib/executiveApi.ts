@@ -1,4 +1,4 @@
-import { fetchWithUserId } from './api';
+import { fetchWithUserId } from './apiCore';
 
 export const performanceAPI = {
   getCompany: (userId: string) => fetchWithUserId<{ success: boolean; data: unknown }>('/performance/company', userId),

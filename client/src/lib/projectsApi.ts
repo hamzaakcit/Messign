@@ -1,5 +1,5 @@
 /** @module projectsApi — Projects, tasks, bounties, sprints, and showcase (Hall of Fame) APIs. */
-import { fetchAPI } from './api';
+import { fetchAPI } from './apiCore';
 
 export interface RecruitmentSlot {
   dept: string;
