@@ -120,8 +120,9 @@ Run these from the workspace root:
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start client + server in development mode |
-| `npm run build` | Build the server for production |
-| `npm run build:client` | Build the client SPA for production |
+| `npm run build` | Build the client SPA for production (Vercel default) |
+| `npm run build:server` | Build the server for production (Railway / Node) |
+| `npm run build:client` | Same as `npm run build` (explicit client build) |
 | `npm run type-check` | TypeScript check across both workspaces |
 | `npm run db:migrate` | Run all pending SQL migrations |
 | `npm run db:seed` | Seed the database with sample data |

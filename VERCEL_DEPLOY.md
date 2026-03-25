@@ -2,7 +2,7 @@
 
 The build fails with **"Could not read package.json"** when Vercel’s **Root Directory** doesn’t point at a folder that has a `package.json`.
 
-The repo includes a root [`vercel.json`](vercel.json) with `installCommand`, `buildCommand` (`npm run build:client`), `outputDirectory` (`client/dist`), and SPA `rewrites`. Deploy with **`npx vercel deploy --prod`** from the **repository root** (not from `client/`, or Vercel may resolve `client/client`).
+The repo includes a root [`vercel.json`](vercel.json) with `installCommand`, `buildCommand` (`npm run build:client`), `outputDirectory` (`client/dist`), and SPA `rewrites`. The root **`npm run build`** script also builds the **client** (same as `npm run build:client`), so Vercel’s default “`npm run build`” no longer runs the server build. Deploy with **`npx vercel deploy --prod`** from the **repository root** (not from `client/`, or Vercel may resolve `client/client`).
 
 Use **one** of these:
 
