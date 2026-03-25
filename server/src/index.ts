@@ -87,6 +87,7 @@ const io = new Server(httpServer, {
   cors: {
     origin: CORS_ORIGINS,
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 app.set('io', io);

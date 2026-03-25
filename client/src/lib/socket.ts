@@ -8,6 +8,8 @@ export function getSocket(): Socket {
   if (!socket) {
     socket = io(API_ORIGIN, {
       autoConnect: false,
+      withCredentials: true,
+      transports: ['polling', 'websocket'],
     });
   }
   return socket;

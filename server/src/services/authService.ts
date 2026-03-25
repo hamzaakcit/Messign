@@ -28,6 +28,37 @@ export function computeFingerprint(ip?: string | null, userAgent?: string | null
     .substring(0, 16);
 }
 
+/** Normalize `::ffff:a.b.c.d` to `a.b.c.d` so JWT fp matches across IPv4-mapped vs dotted forms. */
+export function normalizeIpv4MappedAddress(ip: string): string {
+  const m = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip.trim());
+  return m ? m[1] : ip.trim();
+}
+
+/**
+ * Returns true if the JWT `fp` claim matches any plausible IP + user-agent pair.
+ * Socket.IO handshakes and Express can expose different client IPs for the same browser tab.
+ */
+export function matchAccessTokenFingerprint(
+  tokenFp: string | undefined,
+  ipCandidates: Array<string | null | undefined>,
+  userAgent: string | string[] | undefined,
+): boolean {
+  if (!tokenFp) return true;
+  const ua = typeof userAgent === 'string' ? userAgent : userAgent?.[0] ?? null;
+  const seen = new Set<string>();
+  for (const raw of ipCandidates) {
+    if (raw == null || raw === '') continue;
+    const trimmed = String(raw).trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    const normalized = normalizeIpv4MappedAddress(trimmed);
+    for (const ip of new Set([trimmed, normalized])) {
+      if (computeFingerprint(ip, ua) === tokenFp) return true;
+    }
+  }
+  return false;
+}
+
 export function getClientIp(req: { ip?: string; headers?: Record<string, string | string[] | undefined> }): string | null {
   const forwarded = req.headers?.['x-forwarded-for'];
   if (forwarded) return (typeof forwarded === 'string' ? forwarded : forwarded[0])?.trim().split(',')[0] ?? null;

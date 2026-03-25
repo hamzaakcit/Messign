@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyAccess, getAccessExpirySeconds } from '../utils/jwt.js';
-import { computeFingerprint, getClientIp } from '../services/authService.js';
+import { getClientIp, matchAccessTokenFingerprint } from '../services/authService.js';
 
 const BLACKLIST_PREFIX = 'sess:blacklist:';
 const accessTtl = getAccessExpirySeconds();
@@ -64,21 +64,25 @@ function isPrivateOrLocalHost(host: string | undefined): boolean {
   return false;
 }
 
+/** When true, compare JWT `fp` to client IP + User-Agent (same rules as Socket.IO). */
+export function shouldEnforceAccessTokenFingerprint(host: string | undefined): boolean {
+  if (process.env.DISABLE_SESSION_FINGERPRINT === '1') return false;
+  if (process.env.NODE_ENV !== 'production') return false;
+  if (process.env.SESSION_FINGERPRINT_STRICT === '1') return true;
+  if (isPrivateOrLocalHost(host)) return false;
+  return true;
+}
+
 /** In production on public hosts, bind access JWT to IP + User-Agent. */
 function isFingerprintRelaxed(req: Request): boolean {
-  if (process.env.DISABLE_SESSION_FINGERPRINT === '1') return true;
-  if (process.env.NODE_ENV !== 'production') return true;
-  if (process.env.SESSION_FINGERPRINT_STRICT === '1') return false;
-  if (isPrivateOrLocalHost(req.headers.host)) return true;
-  return false;
+  return !shouldEnforceAccessTokenFingerprint(req.headers.host);
 }
 
 function verifyFingerprint(req: Request, fp?: string): boolean {
   if (isFingerprintRelaxed(req)) return true;
   if (!fp) return true;
-  const ip = getClientIp(req);
-  const expected = computeFingerprint(ip, req.headers['user-agent']);
-  return fp === expected;
+  const ips = [getClientIp(req), req.socket?.remoteAddress ?? null];
+  return matchAccessTokenFingerprint(fp, ips, req.headers['user-agent']);
 }
 
 /**

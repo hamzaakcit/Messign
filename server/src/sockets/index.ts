@@ -7,7 +7,8 @@ import { setupKnowledgeSocketHandlers } from './knowledgeHandlers.js';
 import { eventBus } from '../events/index.js';
 import { query } from '../db/index.js';
 import { verifyAccess } from '../utils/jwt.js';
-import { computeFingerprint, getClientIp } from '../services/authService.js';
+import { matchAccessTokenFingerprint } from '../services/authService.js';
+import { shouldEnforceAccessTokenFingerprint } from '../middleware/authMiddleware.js';
 import { blacklistSession } from '../middleware/authMiddleware.js';
 
 const connectedUsers: Map<string, Set<Socket>> = new Map();
@@ -176,13 +177,18 @@ export function setupSocketHandlers(io: Server) {
     try {
       const payload = verifyAccess(token);
 
-      if (payload.fp && process.env.NODE_ENV === 'production') {
-        const ip = socket.handshake.headers['x-forwarded-for']
-          ? String(socket.handshake.headers['x-forwarded-for']).split(',')[0]?.trim()
-          : socket.handshake.address;
-        const ua = socket.handshake.headers['user-agent'] ?? null;
-        const expected = computeFingerprint(ip ?? null, ua);
-        if (payload.fp !== expected) {
+      const host = typeof socket.handshake.headers.host === 'string'
+        ? socket.handshake.headers.host
+        : undefined;
+      if (payload.fp && shouldEnforceAccessTokenFingerprint(host)) {
+        const xf = socket.handshake.headers['x-forwarded-for'];
+        const forwardedFirst = Array.isArray(xf)
+          ? xf[0]?.split(',')[0]?.trim()
+          : typeof xf === 'string'
+            ? xf.split(',')[0]?.trim()
+            : undefined;
+        const ipCandidates = [forwardedFirst ?? null, socket.handshake.address ?? null];
+        if (!matchAccessTokenFingerprint(payload.fp, ipCandidates, socket.handshake.headers['user-agent'])) {
           return next(new Error('Session fingerprint mismatch'));
         }
       }
