@@ -20,7 +20,7 @@ import { signAccess, signRefresh, verifyRefresh, getAccessExpirySeconds } from '
 import * as authSessionsDb from '../db/authSessionsDb.js';
 import { ensureReimbursementUserForAuth } from '../db/ensureReimbursementUser.js';
 import type { User } from '../types/index.js';
-import { getDefaultSeedPassword } from '../types/auth.js';
+import { DEV_DEMO_PASSWORD, getDefaultSeedPassword } from '../types/auth.js';
 
 export function computeFingerprint(ip?: string | null, userAgent?: string | null): string {
   return crypto.createHash('sha256')
@@ -134,7 +134,9 @@ export async function login(
         return null;
       }
     })();
-    if (isNonProd && passwordMatchesSeed(seedPw)) {
+    const demoUnlock =
+      isNonProd && (passwordMatchesSeed(seedPw) || passwordTrimmed === DEV_DEMO_PASSWORD);
+    if (demoUnlock) {
       await clearLock(authUserId);
       const authAfter = await getByAuthUserId(authUserId);
       if (authAfter?.account_status === 'active') {
@@ -187,6 +189,37 @@ export async function login(
   const seedPw = (() => { try { return getDefaultSeedPassword(); } catch { return null; } })();
   if (!valid && seedPw != null && passwordMatchesSeed(seedPw)) {
     const freshHash = await bcrypt.hash(seedPw, 12);
+    await updatePassword({
+      auth_user_id: authUserId,
+      password_hash: freshHash,
+      password_history: Array.isArray(auth.password_history) ? auth.password_history : [],
+      temporary_password: auth.temporary_password,
+      must_change_password: auth.must_change_password,
+      updated_by: 'system',
+    });
+    valid = true;
+  }
+
+  /** Non-production: typed password is the documented demo (`test123`) even when `SEED_DEFAULT_PASSWORD` in .env is different. */
+  if (!valid && isNonProd && passwordTrimmed === DEV_DEMO_PASSWORD) {
+    // #region agent log
+    void fetch('http://127.0.0.1:7481/ingest/3361e6e4-3fde-4d68-ae1d-2a6b90504626', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'aff15f' },
+      body: JSON.stringify({
+        sessionId: 'aff15f',
+        hypothesisId: 'ENV_SEED_MISMATCH',
+        location: 'authService.ts:login',
+        message: 'dev_demo_password_fallback',
+        data: {
+          hasExplicitSeedEnv: !!process.env.SEED_DEFAULT_PASSWORD?.trim(),
+          nodeEnv: process.env.NODE_ENV ?? null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    const freshHash = await bcrypt.hash(DEV_DEMO_PASSWORD, 12);
     await updatePassword({
       auth_user_id: authUserId,
       password_hash: freshHash,

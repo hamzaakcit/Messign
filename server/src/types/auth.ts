@@ -96,6 +96,9 @@ export const defaultPasswordPolicy: PasswordPolicy = {
   sessionTimeoutMinutes: 480,
 };
 
+/** Same string as `server/.env.example` — used for non-production login self-heal when `SEED_DEFAULT_PASSWORD` env differs from what you type. */
+export const DEV_DEMO_PASSWORD = 'test123';
+
 /**
  * Password used for `db:seed` / bulk import and login self-heal when the DB hash is stale.
  * - Prefer `SEED_DEFAULT_PASSWORD` in `server/.env` (see `server/.env.example`).
@@ -110,5 +113,5 @@ export function getDefaultSeedPassword(): string {
       'SEED_DEFAULT_PASSWORD is required in production. Set it on the API host environment.',
     );
   }
-  return 'test123';
+  return DEV_DEMO_PASSWORD;
 }
