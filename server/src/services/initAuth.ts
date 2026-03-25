@@ -1,13 +1,16 @@
 import bcrypt from 'bcrypt';
 import { query } from '../db/index.js';
 import { getByAuthUserId, upsert } from '../db/employeeAuthDb.js';
-import { getDefaultSeedPassword } from '../types/auth.js';
 
 const SALT_ROUNDS = 12;
 const DEFAULT_ORG_SLUG = 'messign';
 
 export async function initializeAuthRecords(): Promise<void> {
-  const defaultPassword = getDefaultSeedPassword();
+  const defaultPassword = process.env.SEED_DEFAULT_PASSWORD?.trim();
+  if (!defaultPassword) {
+    console.info('[initAuth] SEED_DEFAULT_PASSWORD not set — skipping auth seeding (expected in production)');
+    return;
+  }
   const passwordHash = await bcrypt.hash(defaultPassword, SALT_ROUNDS);
   const orgResult = await query<{ id: string }>(
     `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,

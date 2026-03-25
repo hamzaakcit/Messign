@@ -39,8 +39,32 @@ export async function startJobQueue(connectionString: string): Promise<PgBoss> {
   });
 
   await boss.start();
+  await ensureJobQueuesExist(boss);
   console.info('[JobQueue] pg-boss started successfully');
   return boss;
+}
+
+/**
+ * pg-boss v10+ requires each queue to exist in `pgboss.queue` before `work()` subscribes.
+ * Creating queues here is idempotent; concurrent deploys may race `createQueue` (handled).
+ */
+async function ensureJobQueuesExist(pgBoss: PgBoss): Promise<void> {
+  for (const name of Object.values(JOB_NAMES)) {
+    const existing = await pgBoss.getQueue(name);
+    if (existing) {
+      continue;
+    }
+    try {
+      await pgBoss.createQueue(name);
+      console.info(`[JobQueue] Created queue "${name}"`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/duplicate|unique|already exists/i.test(msg)) {
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 /** Get the running pg-boss instance. Throws if not initialized. */
