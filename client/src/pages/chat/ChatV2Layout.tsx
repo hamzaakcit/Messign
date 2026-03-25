@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useUsersStore } from '@/stores/usersStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChannelSidebar } from '@/components/chat/ChannelSidebar';
 import { ChatMainPanel } from '@/components/chat/ChatMainPanel';
@@ -11,28 +12,42 @@ import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
 import { ThreadPanel } from '@/components/chat/ThreadPanel';
 import { ChatDuelHub } from '@/components/chat/ChatDuelHub';
 import { cn } from '@/lib/utils';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { useMediaQueryMatch } from '@/hooks/useMediaQueryMatch';
+import { useChatChannelsQuery } from '@/hooks/useChatChannelsQuery';
 
 export function ChatV2Layout() {
   const user = useAuthStore((s) => s.user);
+  const fetchUsers = useUsersStore((s) => s.fetchUsers);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
-  const channels = useChatStore((s) => s.channels);
   const fetchChannels = useChatStore((s) => s.fetchChannels);
+  const hydrateChannels = useChatStore((s) => s.hydrateChannels);
+  const { data: channelsQueryData, isSuccess: channelsQuerySuccess } = useChatChannelsQuery(user?.id);
   const detailPanelOpen = useChatStore((s) => s.detailPanelOpen);
   const mobileSidebarOpen = useChatStore((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useChatStore((s) => s.setMobileSidebarOpen);
   const channelCreateOpen = useChatStore((s) => s.channelCreateOpen);
   const contextMenuMessage = useChatStore((s) => s.contextMenuMessage);
   const activeThreadId = useChatStore((s) => s.activeThreadId);
+  const closeThread = useChatStore((s) => s.closeThread);
+  const toggleDetailPanel = useChatStore((s) => s.toggleDetailPanel);
   const channelRailCollapsed = useChatStore((s) => s.channelRailCollapsed);
+  const threadSheetRef = useRef<HTMLDivElement>(null);
+  const detailSheetRef = useRef<HTMLDivElement>(null);
+  const isNarrowViewport = useMediaQueryMatch('(max-width: 1023px)');
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.id && Array.isArray(channels) && channels.length === 0) {
-      fetchChannels(user.id);
+    if (channelsQuerySuccess && channelsQueryData !== undefined) {
+      hydrateChannels(channelsQueryData);
     }
-  }, [user?.id, channels.length, fetchChannels]);
+  }, [channelsQuerySuccess, channelsQueryData, hydrateChannels]);
+
+  useEffect(() => {
+    if (user?.id) void fetchUsers();
+  }, [user?.id, fetchUsers]);
 
   useEffect(() => {
     if ((location.state as { openAdminMessages?: boolean })?.openAdminMessages) {
@@ -42,6 +57,9 @@ export function ChatV2Layout() {
   }, [location.state, location.pathname, navigate, setActiveChannel]);
 
   const showAdminMessages = activeChannelId === ADMIN_MESSAGES_CHANNEL_ID;
+
+  useFocusTrap(!!activeThreadId && !showAdminMessages && isNarrowViewport, threadSheetRef);
+  useFocusTrap(detailPanelOpen && !activeThreadId && !showAdminMessages && isNarrowViewport, detailSheetRef);
 
   return (
     <div className="chat-surface relative h-full flex overflow-hidden bg-app-bg">
@@ -75,17 +93,45 @@ export function ChatV2Layout() {
         {showAdminMessages ? <AdminMessagesPanel /> : <ChatMainPanel />}
       </div>
 
-      {/* Thread panel (takes priority over detail panel) */}
+      {/* Thread panel — mobile: full-height sheet; desktop: fixed column */}
       {activeThreadId && !showAdminMessages && (
-        <div className="relative z-10 w-96 shrink-0 hidden lg:flex flex-col min-h-0 bg-app-sidebar">
-          <ThreadPanel />
+        <div className="fixed inset-0 z-[60] flex justify-end lg:static lg:inset-auto lg:z-10 lg:w-96 lg:shrink-0 lg:flex">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50 lg:hidden border-0 cursor-default p-0"
+            onClick={closeThread}
+            aria-label="Close thread"
+          />
+          <div
+            ref={threadSheetRef}
+            className="relative z-10 flex h-full w-full max-w-lg flex-col min-h-0 border-l border-app bg-app-sidebar shadow-xl lg:max-w-none lg:shadow-none"
+            role={isNarrowViewport ? 'dialog' : undefined}
+            aria-modal={isNarrowViewport ? 'true' : undefined}
+            aria-label="Thread"
+          >
+            <ThreadPanel />
+          </div>
         </div>
       )}
 
-      {/* Detail panel (collapsible, hidden when thread is open) */}
+      {/* Detail panel — mobile: sheet; desktop: column */}
       {detailPanelOpen && !activeThreadId && !showAdminMessages && (
-        <div className="relative z-10 w-80 border-l border-app bg-app-sidebar shrink-0 hidden lg:flex flex-col min-h-0">
-          <ChatDetailPanel />
+        <div className="fixed inset-0 z-[55] flex justify-end lg:static lg:inset-auto lg:z-10 lg:w-80 lg:shrink-0 lg:flex">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50 lg:hidden border-0 cursor-default p-0"
+            onClick={toggleDetailPanel}
+            aria-label="Close channel details"
+          />
+          <div
+            ref={detailSheetRef}
+            className="relative z-10 flex h-full w-full max-w-lg flex-col min-h-0 border-l border-app bg-app-sidebar shadow-xl lg:max-w-none lg:shadow-none"
+            role={isNarrowViewport ? 'dialog' : undefined}
+            aria-modal={isNarrowViewport ? 'true' : undefined}
+            aria-label="Channel details"
+          >
+            <ChatDetailPanel />
+          </div>
         </div>
       )}
 

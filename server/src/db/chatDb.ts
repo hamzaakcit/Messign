@@ -160,6 +160,109 @@ export async function getMessagesForChannel(channelId: string): Promise<MessageW
   }));
 }
 
+const MESSAGE_PAGE_MAX = 200;
+
+function mapMessageWithSenderRow(r: {
+  id: string;
+  channel_id: string;
+  user_id: string;
+  content: string;
+  attachments: unknown;
+  mentions: unknown;
+  xp_gained: number;
+  created_at: string;
+  sender_name: string;
+}): MessageWithSender {
+  return {
+    id: r.id,
+    channel_id: r.channel_id,
+    user_id: r.user_id,
+    content: r.content,
+    attachments: (r.attachments as unknown[]) ?? [],
+    mentions: (r.mentions as unknown[]) ?? [],
+    xp_gained: r.xp_gained,
+    created_at: r.created_at,
+    sender_name: r.sender_name,
+    sender_avatar: r.user_id ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(r.user_id)}` : null,
+  };
+}
+
+/**
+ * Paginated channel messages (newest page first). Returns chronological order (oldest → newest in page).
+ * When beforeMessageId is set, returns messages strictly older than that message.
+ */
+export async function getMessagesForChannelPage(
+  channelId: string,
+  limit: number,
+  beforeMessageId?: string | null,
+): Promise<{ rows: MessageWithSender[]; hasMore: boolean }> {
+  const take = Math.min(Math.max(1, limit), MESSAGE_PAGE_MAX);
+  const fetchCount = take + 1;
+
+  if (beforeMessageId) {
+    const result = await query<{
+      id: string;
+      channel_id: string;
+      user_id: string;
+      content: string;
+      attachments: unknown;
+      mentions: unknown;
+      xp_gained: number;
+      created_at: string;
+      sender_name: string;
+    }>(
+      `WITH anchor AS (
+         SELECT created_at, id FROM messages WHERE id = $2::uuid AND channel_id = $1
+       )
+       SELECT m.id::text AS id, m.channel_id::text AS channel_id, m.user_id, m.content,
+              COALESCE(m.attachments, '[]'::jsonb) AS attachments,
+              COALESCE(m.mentions, '[]'::jsonb) AS mentions,
+              m.xp_gained, m.created_at::text AS created_at,
+              COALESCE(ru.full_name, m.user_id) AS sender_name
+       FROM messages m
+       LEFT JOIN reimbursement_users ru ON ru.auth_user_id = m.user_id
+       CROSS JOIN anchor a
+       WHERE m.channel_id = $1
+         AND (m.created_at, m.id) < (a.created_at, a.id)
+       ORDER BY m.created_at DESC, m.id DESC
+       LIMIT $3`,
+      [channelId, beforeMessageId, fetchCount],
+    );
+    const hasMore = result.rows.length > take;
+    const slice = result.rows.slice(0, take);
+    const chronological = slice.reverse().map(mapMessageWithSenderRow);
+    return { rows: chronological, hasMore };
+  }
+
+  const result = await query<{
+    id: string;
+    channel_id: string;
+    user_id: string;
+    content: string;
+    attachments: unknown;
+    mentions: unknown;
+    xp_gained: number;
+    created_at: string;
+    sender_name: string;
+  }>(
+    `SELECT m.id::text AS id, m.channel_id::text AS channel_id, m.user_id, m.content,
+            COALESCE(m.attachments, '[]'::jsonb) AS attachments,
+            COALESCE(m.mentions, '[]'::jsonb) AS mentions,
+            m.xp_gained, m.created_at::text AS created_at,
+            COALESCE(ru.full_name, m.user_id) AS sender_name
+     FROM messages m
+     LEFT JOIN reimbursement_users ru ON ru.auth_user_id = m.user_id
+     WHERE m.channel_id = $1
+     ORDER BY m.created_at DESC, m.id DESC
+     LIMIT $2`,
+    [channelId, fetchCount],
+  );
+  const hasMore = result.rows.length > take;
+  const slice = result.rows.slice(0, take);
+  const chronological = slice.reverse().map(mapMessageWithSenderRow);
+  return { rows: chronological, hasMore };
+}
+
 export async function addMessage(params: {
   channelId: string;
   userId: string;

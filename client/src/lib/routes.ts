@@ -48,6 +48,10 @@ export const ROUTES = {
   MARKETING_BUILDER: '/marketing/builder',
 
   RECRUITMENT: '/recruitment',
+  RECRUITMENT_PIPELINE: '/recruitment/pipeline',
+  RECRUITMENT_CANDIDATES: '/recruitment/candidates',
+  RECRUITMENT_INTERVIEWS: '/recruitment/interviews',
+  RECRUITMENT_DASHBOARD: '/recruitment/dashboard',
   SUPPORT: '/support',
   OKR: '/okr',
   ASSETS: '/assets',

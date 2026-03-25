@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -38,6 +39,20 @@ interface AIChartRendererProps {
 export function AIChartRenderer({ chart }: AIChartRendererProps) {
   const { chartType, title, data, xKey, dataKeys, colors } = chart;
   const palette = colors ?? DEFAULT_COLORS;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartHeight = chartType === 'pie' ? 300 : 280;
+  const [chartSize, setChartSize] = useState<{ width: number; height: number }>({ width: 0, height: chartHeight });
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      setChartSize({ width: Math.max(0, Math.floor(w)), height: chartHeight });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [chartHeight]);
 
   if (!data || data.length === 0) return null;
 
@@ -57,8 +72,9 @@ export function AIChartRenderer({ chart }: AIChartRendererProps) {
         <h4 className="text-sm font-semibold text-app-muted mb-3">{title}</h4>
       )}
 
-      <div className="w-full" style={{ height: chartType === 'pie' ? 300 : 280 }}>
-        <ResponsiveContainer width="100%" height="100%">
+      <div ref={containerRef} className="w-full min-w-0" style={{ minHeight: chartHeight, height: chartHeight }}>
+        {chartSize.width > 0 ? (
+        <ResponsiveContainer width={chartSize.width} height={chartSize.height}>
           {chartType === 'bar' ? (
             <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={strokeColor} />
@@ -141,6 +157,9 @@ export function AIChartRenderer({ chart }: AIChartRendererProps) {
             </BarChart>
           )}
         </ResponsiveContainer>
+        ) : (
+          <div className="w-full rounded-lg bg-app-bg/30" style={{ height: chartHeight }} aria-hidden />
+        )}
       </div>
     </div>
   );

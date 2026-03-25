@@ -24,10 +24,12 @@ import {
 } from 'lucide-react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import {
   supportApi,
   type SupportAgentWorkload,
+  type SupportCsatSummary,
   type SupportCustomerHealth,
   type SupportDashboardMetrics,
   type SupportTicket,
@@ -96,37 +98,43 @@ export function SupportDashboardPage() {
   const [trends, setTrends] = useState<SupportTrendPoint[]>([]);
   const [atRiskCustomers, setAtRiskCustomers] = useState<SupportCustomerHealth[]>([]);
   const [breaches, setBreaches] = useState<SupportTicket[]>([]);
+  const [csatSummary, setCsatSummary] = useState<SupportCsatSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const [metricsResult, workloadResult, trendsResult, atRiskResult, breachesResult] = await Promise.all([
-        supportApi.getDashboardMetrics(userId),
-        supportApi.getAgentWorkload(userId),
-        supportApi.getTicketTrends(userId, 30),
-        supportApi.listAtRiskCustomers(userId),
-        supportApi.listTickets(userId, {
-          slaStatus: 'breached',
-          sortBy: 'slaDue',
-          sortDir: 'asc',
-          page: 1,
-          pageSize: 6,
-        }),
-      ]);
+      const [metricsResult, workloadResult, trendsResult, atRiskResult, breachesResult, csatResult] =
+        await Promise.all([
+          supportApi.getDashboardMetrics(userId),
+          supportApi.getAgentWorkload(userId),
+          supportApi.getTicketTrends(userId, 30),
+          supportApi.listAtRiskCustomers(userId),
+          supportApi.listTickets(userId, {
+            slaStatus: 'breached',
+            sortBy: 'slaDue',
+            sortDir: 'asc',
+            page: 1,
+            pageSize: 6,
+          }),
+          supportApi.getCsatSummary(userId, 30).catch(() => null),
+        ]);
 
       setMetrics(metricsResult);
       setWorkload(workloadResult);
       setTrends(trendsResult);
       setAtRiskCustomers(atRiskResult.slice(0, 6));
       setBreaches(breachesResult.data);
-    } catch {
+      setCsatSummary(csatResult);
+    } catch (err) {
       setMetrics(null);
       setWorkload([]);
       setTrends([]);
       setAtRiskCustomers([]);
       setBreaches([]);
+      setCsatSummary(null);
+      toast.error(err instanceof Error ? err.message : 'Failed to load support dashboard');
     } finally {
       setLoading(false);
     }
@@ -143,14 +151,16 @@ export function SupportDashboardPage() {
     [metrics],
   );
 
-  const slaPerformance = useMemo(
-    () => trends.map((point) => ({
-      date: point.date,
-      compliance:
-        point.openCount + point.resolvedCount === 0
-          ? 0
-          : Math.round((point.resolvedCount / (point.openCount + point.resolvedCount)) * 100),
-    })),
+  /** Share of resolved tickets vs. open+resolved per day (not the same as org SLA compliance %). */
+  const resolutionShareByDay = useMemo(
+    () =>
+      trends.map((point) => ({
+        date: point.date,
+        resolutionShare:
+          point.openCount + point.resolvedCount === 0
+            ? 0
+            : Math.round((point.resolvedCount / (point.openCount + point.resolvedCount)) * 100),
+      })),
     [trends],
   );
 
@@ -232,20 +242,57 @@ export function SupportDashboardPage() {
                   </ResponsiveContainer>
                 </ChartSection>
 
-                <ChartSection title="SLA Performance" icon={ShieldCheck}>
+                <ChartSection title="Daily resolution share" icon={ShieldCheck}>
+                  <p className="text-xs text-app-muted mb-3">
+                    Resolved ÷ (open + resolved) per day — not the same as overall SLA compliance above.
+                  </p>
                   <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={slaPerformance}>
+                    <LineChart data={resolutionShareByDay}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                       <XAxis dataKey="date" tick={AXIS_TICK} />
                       <YAxis tick={AXIS_TICK} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, 'Compliance']} />
-                      <Line type="monotone" dataKey="compliance" stroke="#a855f7" strokeWidth={2.5} dot={false} />
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        formatter={(value: number) => [`${value}%`, 'Resolution share']}
+                      />
+                      <Line type="monotone" dataKey="resolutionShare" stroke="#a855f7" strokeWidth={2.5} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartSection>
               </div>
 
               <div className="space-y-6">
+                <ListSection title="CSAT (30 days)" icon={Star}>
+                  {!csatSummary || csatSummary.totalResponses === 0 ? (
+                    <p className="text-sm text-app-muted">No CSAT responses in this period.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-app-text">
+                        Avg {csatSummary.averageRating.toFixed(2)}/5 · {csatSummary.totalResponses} responses
+                      </p>
+                      <div className="space-y-2">
+                        {csatSummary.distribution.map((row: { rating: number; count: number }) => (
+                          <div key={row.rating} className="flex items-center gap-2 text-xs">
+                            <span className="w-8 text-app-muted">{row.rating}★</span>
+                            <div className="flex-1 h-2 rounded-full bg-app-surface-tertiary overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-amber-400/80"
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    (row.count / Math.max(csatSummary.totalResponses, 1)) * 100,
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-app-muted w-6 text-right">{row.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </ListSection>
+
                 <ListSection title="Agent Workload" icon={Users}>
                   {workload.length === 0 ? (
                     <p className="text-sm text-app-muted">No agent workload data yet.</p>

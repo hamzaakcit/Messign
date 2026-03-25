@@ -186,8 +186,19 @@ export interface SupportCsatSummary {
   trend: Array<{ date: string; averageRating: number; count: number }>;
 }
 
+/** Response from POST /api/support/tickets/:id/attachments */
+export interface SupportUploadedAttachment {
+  url: string;
+  filename: string;
+  size: number;
+  mimeType: string;
+}
+
 export interface SupportListFilters {
   status?: string;
+  statusGroup?: 'open' | 'resolved';
+  statusIn?: string[];
+  urgent?: boolean;
   priority?: SupportPriority;
   assigneeId?: string;
   categoryId?: string;
@@ -262,9 +273,9 @@ function normalizeValue<T>(value: unknown): T {
   return value as T;
 }
 
-function buildHeaders(userId?: string, hasBody: boolean = true): Record<string, string> {
+function buildHeaders(userId?: string, hasJsonBody: boolean = false): Record<string, string> {
   const headers: Record<string, string> = {};
-  if (hasBody) headers['Content-Type'] = 'application/json';
+  if (hasJsonBody) headers['Content-Type'] = 'application/json';
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (userId) headers['X-User-Id'] = userId;
@@ -277,11 +288,14 @@ async function supportRequest<T>(
   userId?: string,
 ): Promise<T> {
   const hasBody = options.body !== undefined;
+  const isFormData =
+    hasBody && typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const hasJsonBody = Boolean(hasBody && !isFormData);
   const response = await fetch(`${SUPPORT_BASE}${path}`, {
     ...options,
     credentials: 'include',
     headers: {
-      ...buildHeaders(userId, hasBody),
+      ...buildHeaders(userId, hasJsonBody),
       ...(options.headers as Record<string, string> | undefined),
     },
   });
@@ -304,6 +318,11 @@ function buildQuery(filters: SupportListFilters = {}): string {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') return;
+    if (Array.isArray(value)) {
+      if (value.length === 0) return;
+      params.set(key, value.join(','));
+      return;
+    }
     params.set(key, String(value));
   });
   const query = params.toString();
@@ -521,4 +540,18 @@ export const supportApi = {
 
   getCsatSummary: (userId: string, days: number = 30) =>
     supportRequest<SupportCsatSummary>(`/csat/summary?days=${days}`, {}, userId),
+
+  /**
+   * Upload a file for a ticket; returns metadata to attach to a message.
+   * Uses multipart form field `file`.
+   */
+  uploadTicketAttachment: (userId: string, ticketId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return supportRequest<SupportUploadedAttachment>(
+      `/tickets/${encodeURIComponent(ticketId)}/attachments`,
+      { method: 'POST', body: form },
+      userId,
+    );
+  },
 };

@@ -17,7 +17,7 @@ export function MarketplaceCard({
   applyingId,
 }: {
   project: MarketplaceProject;
-  onApply: (id: string) => void;
+  onApply: () => void;
   onViewDetails: (p: MarketplaceProject) => void;
   onGoToWorkspace: (p: MarketplaceProject) => void;
   appliedOptimistic: Set<string>;
@@ -107,7 +107,7 @@ export function MarketplaceCard({
             variant="primary"
             className="text-xs h-7"
             disabled={applyingId === project.id}
-            onClick={() => onApply(project.id)}
+            onClick={() => onApply()}
           >
             {applyingId === project.id ? '…' : 'Join'}
           </Button>

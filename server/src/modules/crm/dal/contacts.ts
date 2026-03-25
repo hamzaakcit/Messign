@@ -49,6 +49,8 @@ export interface ContactFilters {
   owner_id?: string;
   source?: string;
   search?: string;
+  /** ILIKE %value% */
+  job_title?: string;
 }
 
 // ── Functions ──
@@ -84,6 +86,10 @@ export async function listContacts(
       conditions.push(`(ct.first_name ILIKE $${idx} OR ct.last_name ILIKE $${idx} OR ct.email ILIKE $${idx})`);
       params.push(`%${filters.search}%`);
       idx++;
+    }
+    if (filters?.job_title) {
+      conditions.push(`ct.job_title ILIKE $${idx++}`);
+      params.push(`%${filters.job_title.trim()}%`);
     }
 
     const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';

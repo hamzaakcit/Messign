@@ -25,6 +25,17 @@ router.get('/gaps', async (req: ReimbursementRequest, res: Response) => {
   }
 });
 
+router.get('/week-series', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const weeks = req.query.weeks ? parseInt(req.query.weeks as string, 10) : 8;
+    const rows = await activitiesDal.getActivityCountsByWeek(buildCtx(req), Number.isFinite(weeks) ? weeks : 8);
+    res.json(rows);
+  } catch (err) {
+    console.error('[crm/activities/week-series GET]', err);
+    res.status(500).json({ error: 'Failed to get activity week series' });
+  }
+});
+
 router.get('/', async (req: ReimbursementRequest, res: Response) => {
   try {
     const filters: activitiesDal.ActivityFilters = {

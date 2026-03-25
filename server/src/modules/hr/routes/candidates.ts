@@ -77,6 +77,16 @@ router.get('/search', async (req: ReimbursementRequest, res: Response) => {
   }
 });
 
+router.get('/metrics', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const metrics = await candidatesDal.getCandidatePoolMetrics(buildCtx(req));
+    res.json(metrics);
+  } catch (error) {
+    console.error('[hr/candidates/metrics GET]', error);
+    res.status(500).json({ error: 'Failed to load candidate pool metrics' });
+  }
+});
+
 router.get('/:id', async (req: ReimbursementRequest, res: Response) => {
   try {
     const candidate = await candidatesDal.getCandidateById(buildCtx(req), req.params.id);

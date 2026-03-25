@@ -283,6 +283,41 @@ export async function searchCandidates(
   return result.data;
 }
 
+export interface CandidatePoolMetrics {
+  total: number;
+  withResume: number;
+  aiParsed: number;
+}
+
+/**
+ * Tenant-wide candidate counts for KPI cards (not limited to the current list page).
+ */
+export async function getCandidatePoolMetrics(ctx: CallerContext): Promise<CandidatePoolMetrics> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getCandidatePoolMetrics');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<{
+      total: string;
+      with_resume: string;
+      ai_parsed: string;
+    }>(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE resume_url IS NOT NULL AND TRIM(resume_url) <> '')::int AS with_resume,
+         COUNT(*) FILTER (WHERE resume_parsed IS NOT NULL AND resume_parsed <> '{}'::jsonb)::int AS ai_parsed
+       FROM recruitment_candidates`,
+      [],
+    );
+    const row = result.rows[0];
+    return {
+      total: Number(row?.total ?? 0),
+      withResume: Number(row?.with_resume ?? 0),
+      aiParsed: Number(row?.ai_parsed ?? 0),
+    };
+  });
+}
+
 export async function parseResume(resumeText: string): Promise<Record<string, unknown>> {
   const normalized = resumeText.toLowerCase();
   const knownSkills = [

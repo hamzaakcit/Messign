@@ -8,6 +8,9 @@ import {
   getOKRMetrics,
   getProjectMetrics,
 } from './executive/dashboard.js';
+import { gatherWorkspaceModules, type WorkspaceModuleSnapshots } from './workspaceOverview.js';
+
+export type { WorkspaceModuleSnapshots } from './workspaceOverview.js';
 
 async function getCultureMetricsSafe(
   ctx: CallerContext,
@@ -81,6 +84,8 @@ export interface CommandCenterDTO {
   brain: CommandCenterBrain;
   growth: CommandCenterGrowth;
   future: CommandCenterFuture;
+  /** Dense cross-module rollup (non-sensitive aggregates). */
+  workspace: WorkspaceModuleSnapshots;
 }
 
 async function getBriefingSummaryForUser(ctx: CallerContext): Promise<string | null> {
@@ -272,6 +277,71 @@ async function getGrowthLeaderboard(ctx: CallerContext): Promise<{
   });
 }
 
+const DEFAULT_OKR_BLOCK: CommandCenterFuture['okrs'] = {
+  overallProgress: 0,
+  onTrack: 0,
+  atRisk: 0,
+  behind: 0,
+};
+
+const DEFAULT_PULSE_EXTRAS: Pick<CommandCenterPulse, 'velocityDeltaPct' | 'velocityTrend' | 'blockers'> = {
+  velocityDeltaPct: null,
+  velocityTrend: [],
+  blockers: [],
+};
+
+type ProjectMetricsSlice = Pick<
+  CommandCenterPulse,
+  'activeProjects' | 'tasksCompletedThisWeek' | 'blockedTasks' | 'avgSprintVelocity'
+>;
+
+const DEFAULT_PROJECT_METRICS: ProjectMetricsSlice = {
+  activeProjects: 0,
+  tasksCompletedThisWeek: 0,
+  blockedTasks: 0,
+  avgSprintVelocity: 0,
+};
+
+const EMPTY_PULSE: CommandCenterPulse = {
+  ...DEFAULT_PROJECT_METRICS,
+  ...DEFAULT_PULSE_EXTRAS,
+};
+
+const EMPTY_BRAIN: CommandCenterBrain = {
+  todayFocus: null,
+  doraUnreadCount: 0,
+  knowledgeRecent: [],
+  publishedDocCount: 0,
+};
+
+const EMPTY_GROWTH: CommandCenterGrowth = {
+  leaderboard: [],
+  myRank: null,
+  myXp: 0,
+  vibeScore: null,
+  engagementTrend: 'stable',
+  cultureHealth: null,
+  xpRadar: [],
+};
+
+const EMPTY_KNOWLEDGE = { knowledgeRecent: EMPTY_BRAIN.knowledgeRecent, publishedDocCount: 0 };
+
+const EMPTY_GROWTH_LB = {
+  leaderboard: EMPTY_GROWTH.leaderboard,
+  myRank: null as number | null,
+  myXp: 0,
+  xpRadar: EMPTY_GROWTH.xpRadar,
+};
+
+async function safeCore<T>(label: string, fallback: T, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    console.warn(`[commandCenter] ${label} skipped:`, e instanceof Error ? e.message : e);
+    return fallback;
+  }
+}
+
 async function getFutureMilestones(ctx: CallerContext): Promise<CommandCenterFuture['milestones']> {
   const tenantId = requireOrganizationId(ctx);
 
@@ -294,8 +364,23 @@ async function getFutureMilestones(ctx: CallerContext): Promise<CommandCenterFut
 
 /**
  * Aggregates tenant-safe metrics for the home Command Center dashboard.
+ * Core loaders are isolated: one failing query does not fail the entire payload.
  */
 export async function getCommandCenterData(ctx: CallerContext): Promise<CommandCenterDTO> {
+  const generatedAt = new Date().toISOString();
+
+  if (!ctx.organizationId) {
+    const workspace = await gatherWorkspaceModules(ctx);
+    return {
+      generatedAt,
+      pulse: { ...EMPTY_PULSE },
+      brain: { ...EMPTY_BRAIN },
+      growth: { ...EMPTY_GROWTH },
+      future: { okrs: { ...DEFAULT_OKR_BLOCK }, milestones: [], sandboxIdeas: [] },
+      workspace,
+    };
+  }
+
   const [
     projects,
     okrs,
@@ -306,20 +391,22 @@ export async function getCommandCenterData(ctx: CallerContext): Promise<CommandC
     growthLb,
     doraUnread,
     milestones,
+    workspace,
   ] = await Promise.all([
-    getProjectMetrics(ctx),
-    getOKRMetrics(ctx),
+    safeCore('projects', DEFAULT_PROJECT_METRICS, () => getProjectMetrics(ctx)),
+    safeCore('okrs', DEFAULT_OKR_BLOCK, () => getOKRMetrics(ctx)),
     getCultureMetricsSafe(ctx),
     getBriefingSummaryForUser(ctx),
-    getPulseExtras(ctx),
-    getKnowledgeBrain(ctx),
-    getGrowthLeaderboard(ctx),
-    getDoraUnreadTotal(ctx),
-    getFutureMilestones(ctx),
+    safeCore('pulse_extras', DEFAULT_PULSE_EXTRAS, () => getPulseExtras(ctx)),
+    safeCore('knowledge', EMPTY_KNOWLEDGE, () => getKnowledgeBrain(ctx)),
+    safeCore('growth_leaderboard', EMPTY_GROWTH_LB, () => getGrowthLeaderboard(ctx)),
+    safeCore('dora_unread', 0, () => getDoraUnreadTotal(ctx)),
+    safeCore('milestones', [], () => getFutureMilestones(ctx)),
+    gatherWorkspaceModules(ctx),
   ]);
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     pulse: {
       ...projects,
       velocityDeltaPct: pulseExtras.velocityDeltaPct,
@@ -346,5 +433,6 @@ export async function getCommandCenterData(ctx: CallerContext): Promise<CommandC
       milestones,
       sandboxIdeas: [],
     },
+    workspace,
   };
 }

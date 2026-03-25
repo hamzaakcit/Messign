@@ -34,6 +34,7 @@ router.get('/', async (req: ReimbursementRequest, res: Response) => {
       owner_id: req.query.owner_id as string | undefined,
       source: req.query.source as string | undefined,
       search: req.query.search as string | undefined,
+      job_title: req.query.job_title as string | undefined,
     };
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 20;

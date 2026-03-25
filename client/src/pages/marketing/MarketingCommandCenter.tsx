@@ -12,6 +12,7 @@ import { BrandSocialColumn } from './command-center/columns/BrandSocialColumn';
 import { FunnelColumn } from './command-center/columns/FunnelColumn';
 import { ExperimentsColumn } from './command-center/columns/ExperimentsColumn';
 import { StrategySandboxColumn } from './command-center/columns/StrategySandboxColumn';
+import { marketingShell } from './lib/marketingShellTheme';
 
 function ColumnFallback({ title }: { title: string }): JSX.Element {
   return (
@@ -38,6 +39,8 @@ export interface MarketingCommandCenterProps {
   onOpenBuilder: () => void;
   onOpenIntelligence: () => void;
   onReconnectSocial?: () => void;
+  /** Brand list query failed (toolbar shows a one-line warning + amber accent). */
+  brandsError?: Error | null;
   /** `compact`: bounded height above the main Kanban; intelligence grid scrolls inside. */
   variant?: 'full' | 'compact';
 }
@@ -62,6 +65,7 @@ export function MarketingCommandCenter({
   onOpenBuilder,
   onOpenIntelligence,
   onReconnectSocial,
+  brandsError,
   variant = 'full',
 }: MarketingCommandCenterProps): JSX.Element {
   const isCompact = variant === 'compact';
@@ -78,19 +82,26 @@ export function MarketingCommandCenter({
   return (
     <div
       className={cn(
-        'flex flex-col overflow-hidden bg-[#080a0e]',
+        `flex flex-col overflow-hidden ${marketingShell.bgStack}`,
         isCompact ? 'shrink-0 border-b border-white/[0.06]' : 'flex-1 min-h-0',
       )}
+      aria-busy={loading}
     >
-      <CommandCenterToolbar
-        days={days}
-        onDaysChange={onDaysChange}
-        brandList={brandList}
-        brandFilter={brandFilter}
-        onBrandFilterChange={onBrandFilterChange}
-        onRefresh={() => onRefresh()}
-        loading={loading}
-      />
+      <div className="shrink-0">
+        <CommandCenterToolbar
+          days={days}
+          onDaysChange={onDaysChange}
+          brandList={brandList}
+          brandFilter={brandFilter}
+          onBrandFilterChange={onBrandFilterChange}
+          onRefresh={() => onRefresh()}
+          loading={loading}
+          brandsError={brandsError}
+        />
+        {brandsError ? (
+          <div className="h-0.5 w-full bg-amber-500/55 shrink-0" aria-hidden />
+        ) : null}
+      </div>
       <div className="flex flex-wrap items-center gap-2 px-3 py-1 border-b border-white/[0.04] shrink-0">
         {isCompact && (
           <button
@@ -140,7 +151,7 @@ export function MarketingCommandCenter({
       <div
         className={cn(
           'min-h-0 overflow-x-auto overflow-y-auto p-3',
-          isCompact ? 'max-h-[min(42vh,360px)]' : 'flex-1',
+          isCompact ? 'max-h-[min(38vh,320px)]' : 'flex-1',
         )}
       >
         {loading && !data ? (

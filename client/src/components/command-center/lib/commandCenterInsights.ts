@@ -55,3 +55,14 @@ export function buildColumnInsights(data: CommandCenterDTO | null): Record<strin
     future: futureMsg,
   };
 }
+
+/**
+ * One-line summary for the workspace (cross-module) strip.
+ */
+export function buildWorkspaceInsights(data: CommandCenterDTO | null): string {
+  if (!data?.workspace) return 'Loading cross-module metrics…';
+  const w = data.workspace;
+  const modules = Object.values(w);
+  const ok = modules.filter((x) => x.ok).length;
+  return `${ok}/${modules.length} data sources loaded — CRM, recruiting, support, marketing, assets, contracts, OKRs, and chat.`;
+}

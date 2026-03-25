@@ -1,14 +1,39 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Router } from 'express';
-import type { Response } from 'express';
+import type { Express, Response } from 'express';
+import multer from 'multer';
 import * as support from '../dal/index.js';
 import type { ReimbursementRequest } from '../../../middleware/reimbursementAuth.js';
 import { buildCtx, parsePositiveInt, parseSort } from './common.js';
 
 const router = Router();
 
+const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
+const supportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+});
+
+function parseCommaList(q: string | undefined): string[] | undefined {
+  if (!q || typeof q !== 'string') return undefined;
+  const parts = q.split(',').map((s) => s.trim()).filter(Boolean);
+  return parts.length ? parts : undefined;
+}
+
 function buildFilters(req: ReimbursementRequest): support.tickets.TicketFilters {
+  const sg = req.query.statusGroup as string | undefined;
+  const statusGroup = sg === 'open' || sg === 'resolved' ? sg : undefined;
+  const urgent = req.query.urgent === 'true' || req.query.urgent === '1';
+
   return {
     status: req.query.status as string | undefined,
+    statusIn: parseCommaList(
+      (req.query.statusIn as string | undefined) ?? (req.query.status_in as string | undefined),
+    ),
+    statusGroup,
+    urgent,
     priority: req.query.priority as string | undefined,
     assigneeId: (req.query.assigneeId as string | undefined) ?? (req.query.assignee_id as string | undefined),
     categoryId: (req.query.categoryId as string | undefined) ?? (req.query.category_id as string | undefined),
@@ -144,6 +169,40 @@ router.post('/bulk-close', async (req: ReimbursementRequest, res: Response) => {
   } catch (err) {
     console.error('[support/tickets/bulk-close POST]', err);
     res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to bulk close tickets' });
+  }
+});
+
+router.post('/:id/attachments', supportUpload.single('file'), async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const file = (req as ReimbursementRequest & { file?: Express.Multer.File }).file;
+    if (!file) {
+      res.status(400).json({ error: 'file is required' });
+      return;
+    }
+    const ctx = buildCtx(req);
+    const ticket = await support.tickets.getTicketById(ctx, req.params.id);
+    if (!ticket) {
+      res.status(404).json({ error: 'Ticket not found' });
+      return;
+    }
+    const orgId = ctx.organizationId ?? '';
+    const ext = file.originalname?.includes('.') ? `.${file.originalname.split('.').pop()}` : '';
+    const name = `${randomUUID()}${ext}`;
+    const destDir = join(UPLOAD_DIR, 'support', orgId, req.params.id);
+    await mkdir(destDir, { recursive: true });
+    const destPath = join(destDir, name);
+    await writeFile(destPath, file.buffer);
+    const urlPath = `support/${orgId}/${req.params.id}/${name}`;
+    const url = `/uploads/${urlPath}`;
+    res.status(201).json({
+      url,
+      filename: file.originalname ?? name,
+      size: file.size,
+      mimeType: file.mimetype,
+    });
+  } catch (err) {
+    console.error('[support/tickets/:id/attachments POST]', err);
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to upload attachment' });
   }
 });
 

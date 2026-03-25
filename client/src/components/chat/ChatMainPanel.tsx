@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useChatStore, type UniversalSearchTab } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
+import type { Message } from '@/types';
 import { ChatHeader } from './ChatHeader';
 import { EnhancedMessageBubble } from './EnhancedMessageBubble';
 import { EnhancedMessageInput } from './EnhancedMessageInput';
 import { SmartReplyBar } from './SmartReplyBar';
 import { DoraChatAssistant } from './DoraChatAssistant';
+import { ChatNotificationPrompt } from './ChatNotificationPrompt';
 import { Hash, Search, X, Loader2, ListChecks, FileText, User, MessageSquare, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+type TranscriptRow =
+  | { kind: 'day'; key: string; label: string }
+  | { kind: 'msg'; key: string; message: Message; showAvatar: boolean };
 
 export function ChatMainPanel() {
   const channels = useChatStore((s) => s.channels);
@@ -31,9 +38,16 @@ export function ChatMainPanel() {
   const setUniversalSearchTab = useChatStore((s) => s.setUniversalSearchTab);
   const setChannelCreateOpen = useChatStore((s) => s.setChannelCreateOpen);
   const chatTranscriptWide = useChatStore((s) => s.chatTranscriptWide);
+  const messagesHasMore = useChatStore((s) =>
+    activeChannelId ? (s.messagesHasMore?.[activeChannelId] ?? false) : false,
+  );
+  const loadOlderMessages = useChatStore((s) => s.loadOlderMessages);
   const [isUniversalSearch, setIsUniversalSearch] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [a11yAnnouncement, setA11yAnnouncement] = useState('');
   const currentUser = useAuthStore((s) => s.user);
   const users = useUsersStore((s) => s.users);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const universalSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,9 +56,59 @@ export function ChatMainPanel() {
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   const channelMessages = activeChannelId ? (messages[activeChannelId] || []).filter((m) => !m.isDeleted) : [];
 
+  const transcriptRows = useMemo((): TranscriptRow[] => {
+    const rows: TranscriptRow[] = [];
+    for (let i = 0; i < channelMessages.length; i++) {
+      const message = channelMessages[i];
+      const prevMessage = channelMessages[i - 1];
+      if (!prevMessage || !isSameDay(prevMessage.timestamp, message.timestamp)) {
+        rows.push({ kind: 'day', key: `day-${message.id}`, label: formatDateSeparator(message.timestamp) });
+      }
+      const showAvatar = !prevMessage || prevMessage.userId !== message.userId;
+      rows.push({ kind: 'msg', key: message.id, message, showAvatar });
+    }
+    return rows;
+  }, [channelMessages]);
+
+  const virtualizer = useVirtualizer({
+    count: transcriptRows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (index) => (transcriptRows[index]?.kind === 'day' ? 52 : 92),
+    overscan: 12,
+  });
+
+  const lastMessageId = channelMessages[channelMessages.length - 1]?.id;
+
   useEffect(() => {
+    if (transcriptRows.length === 0) return;
+    virtualizer.scrollToIndex(transcriptRows.length - 1, { align: 'end' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- anchor scroll to latest message / channel switch only
+  }, [activeChannelId, lastMessageId]);
+
+  useEffect(() => {
+    const last = channelMessages[channelMessages.length - 1];
+    if (!last || last.userId === currentUser?.id) return;
+    setA11yAnnouncement(`${last.senderName ?? 'Someone'} sent a message in ${activeChannel?.name ?? 'chat'}`);
+  }, [lastMessageId, channelMessages, currentUser?.id, activeChannel?.name]); // channelMessages: read latest list when last id changes
+
+  const handleLoadOlder = async () => {
+    if (!activeChannelId || !currentUser?.id) return;
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    const prevTop = el?.scrollTop ?? 0;
+    setLoadingOlder(true);
+    await loadOlderMessages(activeChannelId, currentUser.id);
+    setLoadingOlder(false);
+    requestAnimationFrame(() => {
+      const nex = scrollRef.current;
+      if (nex) nex.scrollTop = nex.scrollHeight - prevHeight + prevTop;
+    });
+  };
+
+  useEffect(() => {
+    if (channelMessages.length === 0 || transcriptRows.length > 45) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [channelMessages.length]);
+  }, [channelMessages.length, transcriptRows.length, lastMessageId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -191,6 +255,9 @@ export function ChatMainPanel() {
               <X className="w-4 h-4" />
             </button>
           </div>
+          <p className="text-[10px] text-app-muted mt-1.5 px-0.5">
+            Keyboard shortcut: ⌘⇧F (Mac) or Ctrl⇧F (Windows) opens search from anywhere in chat.
+          </p>
           {searchError && !isUniversalSearch && (
             <p className="mt-2 text-xs text-red-400/90" role="alert">
               {searchError}
@@ -365,7 +432,21 @@ export function ChatMainPanel() {
       {doraPanelOpen && <DoraChatAssistant />}
 
       {/* Messages — framed column for readability on wide screens */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-2 sm:px-4 py-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto min-h-0 px-2 sm:px-4 py-3"
+        tabIndex={-1}
+      >
+        <div className={cn('mx-auto mb-2', chatTranscriptWide ? 'max-w-6xl' : 'max-w-4xl')}>
+          <ChatNotificationPrompt />
+        </div>
+        <div
+          className="sr-only"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {a11yAnnouncement}
+        </div>
         <div
           className={cn(
             'mx-auto min-h-[min(100%,24rem)] rounded-2xl border border-app/80 bg-app-card/30 backdrop-blur-[2px] shadow-inner shadow-black/10 ring-1 ring-app-border/40 px-2 sm:px-4 py-3',
@@ -384,33 +465,99 @@ export function ChatMainPanel() {
           </div>
         ) : (
           <>
-            {channelMessages.map((message, index) => {
-              const user = users.find((u) => u.id === message.userId);
-              const prevMessage = channelMessages[index - 1];
-              const showAvatar = !prevMessage || prevMessage.userId !== message.userId;
-              const showDateSeparator = !prevMessage || !isSameDay(prevMessage.timestamp, message.timestamp);
-
-              return (
-                <div key={message.id} id={`msg-${message.id}`}>
-                  {showDateSeparator && (
-                    <div className="flex items-center gap-3 my-6">
-                      <div className="flex-1 h-px bg-app-hover" />
-                      <span className="text-xs font-medium text-app-muted px-2">
-                        {formatDateSeparator(message.timestamp)}
-                      </span>
-                      <div className="flex-1 h-px bg-app-hover" />
+            {messagesHasMore && (
+              <div className="flex justify-center pb-3">
+                <button
+                  type="button"
+                  onClick={() => void handleLoadOlder()}
+                  disabled={loadingOlder}
+                  className="inline-flex items-center gap-2 rounded-full border border-app bg-app-hover/50 px-3 py-1.5 text-xs font-medium text-app-muted hover:text-app hover:bg-app-hover disabled:opacity-50"
+                >
+                  {loadingOlder ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : null}
+                  Load older messages
+                </button>
+              </div>
+            )}
+            {transcriptRows.length > 45 ? (
+              <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+                {virtualizer.getVirtualItems().map((vi) => {
+                  const row = transcriptRows[vi.index];
+                  if (!row) return null;
+                  const itemStyle: CSSProperties = {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${vi.start}px)`,
+                  };
+                  if (row.kind === 'day') {
+                    return (
+                      <div
+                        key={row.key}
+                        data-index={vi.index}
+                        ref={virtualizer.measureElement}
+                        className="px-0"
+                        style={itemStyle}
+                      >
+                        <div className="flex items-center gap-3 my-6">
+                          <div className="flex-1 h-px bg-app-hover" />
+                          <span className="text-xs font-medium text-app-muted px-2">{row.label}</span>
+                          <div className="flex-1 h-px bg-app-hover" />
+                        </div>
+                      </div>
+                    );
+                  }
+                  const user = users.find((u) => u.id === row.message.userId);
+                  return (
+                    <div
+                      key={row.key}
+                      id={`msg-${row.message.id}`}
+                      data-index={vi.index}
+                      ref={virtualizer.measureElement}
+                      className="absolute left-0 top-0 w-full px-0"
+                      style={{ transform: `translateY(${vi.start}px)` }}
+                    >
+                      <EnhancedMessageBubble
+                        message={row.message}
+                        user={user}
+                        showAvatar={row.showAvatar}
+                        currentUserId={currentUser?.id}
+                      />
                     </div>
-                  )}
-                  <EnhancedMessageBubble
-                    message={message}
-                    user={user}
-                    showAvatar={showAvatar}
-                    currentUserId={currentUser?.id}
-                  />
-                </div>
-              );
-            })}
-            <div ref={messagesEndRef} />
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                {channelMessages.map((message, index) => {
+                  const user = users.find((u) => u.id === message.userId);
+                  const prevMessage = channelMessages[index - 1];
+                  const showAvatar = !prevMessage || prevMessage.userId !== message.userId;
+                  const showDateSeparator = !prevMessage || !isSameDay(prevMessage.timestamp, message.timestamp);
+
+                  return (
+                    <div key={message.id} id={`msg-${message.id}`}>
+                      {showDateSeparator && (
+                        <div className="flex items-center gap-3 my-6">
+                          <div className="flex-1 h-px bg-app-hover" />
+                          <span className="text-xs font-medium text-app-muted px-2">
+                            {formatDateSeparator(message.timestamp)}
+                          </span>
+                          <div className="flex-1 h-px bg-app-hover" />
+                        </div>
+                      )}
+                      <EnhancedMessageBubble
+                        message={message}
+                        user={user}
+                        showAvatar={showAvatar}
+                        currentUserId={currentUser?.id}
+                      />
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </>
+            )}
           </>
         )}
         </div>

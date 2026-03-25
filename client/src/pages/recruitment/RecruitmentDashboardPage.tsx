@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, LineChart, Line, FunnelChart, Funnel, LabelList } from 'recharts';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
-import { Briefcase, CalendarClock, TrendingUp, Users } from 'lucide-react';
+import { Briefcase, CalendarClock, RefreshCw, TrendingUp, Users } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { recruitmentAPI, type RecruitmentDashboardMetrics } from '@/lib/recruitmentApi';
 import { RecruitmentNav } from './components/RecruitmentNav';
+import { buildFunnelChartDataFromMetrics } from './stages';
 
 const PIE_COLORS = ['#3b82f6', '#14b8a6', '#8b5cf6', '#f59e0b', '#ef4444'];
 
@@ -20,6 +22,8 @@ export function RecruitmentDashboardPage() {
     setLoading(true);
     try {
       setMetrics(await recruitmentAPI.getDashboardMetrics(userId));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load dashboard');
     } finally {
       setLoading(false);
     }
@@ -30,14 +34,8 @@ export function RecruitmentDashboardPage() {
   }, [load]);
 
   const funnelData = useMemo(() => {
-    const pipeline = metrics?.pipelineByStage || {};
-    return [
-      { value: pipeline.applied || 0, name: 'Applied' },
-      { value: pipeline.screening || 0, name: 'Screening' },
-      { value: pipeline.interviewing || 0, name: 'Interviewing' },
-      { value: pipeline.offer || 0, name: 'Offer' },
-      { value: pipeline.hired || 0, name: 'Hired' },
-    ];
+    const pipeline = (metrics?.pipelineByStage || {}) as Record<string, unknown>;
+    return buildFunnelChartDataFromMetrics(pipeline);
   }, [metrics]);
 
   return (
@@ -46,6 +44,18 @@ export function RecruitmentDashboardPage() {
         <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-6">
           <RecruitmentNav />
           <DoraInsightBar module="recruitment" fallback="Dora screens resumes and tracks hiring pipeline efficiency." />
+
+          <div className="flex justify-end mb-4">
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border border-app-border bg-app-card text-app-text hover:bg-app-nav-hover disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh metrics
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KPICard title="Open Positions" value={metrics?.openPositions ?? 0} icon={Briefcase} />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { CRMNav } from '@/components/crm/CRMNav';
@@ -50,6 +51,7 @@ const columns: ColumnDef<Company>[] = [
 export function CRMCompaniesPage() {
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
@@ -68,24 +70,15 @@ export function CRMCompaniesPage() {
       if (nlFilters.industry && typeof nlFilters.industry === 'string') params.industry = nlFilters.industry;
       if (nlFilters.size && typeof nlFilters.size === 'string') params.size = nlFilters.size;
       if (nlFilters.search && typeof nlFilters.search === 'string') params.search = nlFilters.search;
-
-      const res = await crmAPI.listCompanies(userId, params);
-      let filtered = res.data;
       const revMin = nlFilters.revenueMin as number | undefined;
       const revMax = nlFilters.revenueMax as number | undefined;
       const countryStr = nlFilters.country as string | undefined;
-      if (typeof revMin === 'number' && revMin > 0) {
-        filtered = filtered.filter((c) => (c.annual_revenue ?? 0) >= revMin);
-      }
-      if (typeof revMax === 'number' && revMax > 0) {
-        filtered = filtered.filter((c) => (c.annual_revenue ?? 0) <= revMax);
-      }
-      if (countryStr) {
-        const lower = countryStr.toLowerCase();
-        filtered = filtered.filter((c) => c.country?.toLowerCase().includes(lower));
-      }
+      if (typeof revMin === 'number' && revMin > 0) params.revenue_min = String(revMin);
+      if (typeof revMax === 'number' && revMax > 0) params.revenue_max = String(revMax);
+      if (countryStr) params.country = countryStr;
 
-      setCompanies(filtered);
+      const res = await crmAPI.listCompanies(userId, params);
+      setCompanies(res.data);
       setTotal(res.total);
     } catch {
       setCompanies([]);
@@ -158,7 +151,11 @@ export function CRMCompaniesPage() {
 
       <SlideOverPanel
         isOpen={!!selectedCompanyId}
-        onClose={() => setSelectedCompanyId(null)}
+        onClose={() => {
+          setSelectedCompanyId(null);
+          searchParams.delete('companyId');
+          setSearchParams(searchParams, { replace: true });
+        }}
         title="Company Details"
         width={560}
       >

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI } from '@/lib/financeApi';
+import { hasFinanceElevatedAccess } from '@/lib/financeRbac';
 import { StatusBadge } from '@/components/finance/StatusBadge';
 import { cn } from '@/lib/utils';
 import { Plus, Search, Building2, Filter, Download, CheckSquare, Square, Ban } from 'lucide-react';
@@ -25,6 +27,7 @@ const VENDOR_FIELDS = [
 
 export function VendorsPage({ onViewVendor }: Props) {
   const { user, isAdmin } = useAuthStore();
+  const canManageVendors = hasFinanceElevatedAccess(user, isAdmin);
   const userId = user?.authUserId || user?.id || '';
   const [vendors, setVendors] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +54,9 @@ export function VendorsPage({ onViewVendor }: Props) {
       if (statusFilter !== 'all') filters.active_only = statusFilter === 'active' ? 'true' : 'false';
       const data = await financeAPI.listVendors(userId, filters);
       setVendors(data as Array<Record<string, unknown>>);
-    } catch {}
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load vendors');
+    }
     setLoading(false);
   }, [userId, search, statusFilter]);
 
@@ -119,8 +124,8 @@ export function VendorsPage({ onViewVendor }: Props) {
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-muted hover:bg-app-hover hover:text-app-text">
             <Download className="h-4 w-4" /> Export
           </button>
-          {isAdmin && (
-            <button onClick={() => setShowCreateForm(!showCreateForm)}
+          {canManageVendors && (
+            <button type="button" onClick={() => setShowCreateForm(!showCreateForm)}
               className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">
               <Plus className="h-4 w-4" /> New Vendor
             </button>
@@ -128,7 +133,7 @@ export function VendorsPage({ onViewVendor }: Props) {
         </div>
       </div>
 
-      {showCreateForm && (
+      {canManageVendors && showCreateForm && (
         <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5 space-y-4">
           <h4 className="font-semibold text-app-text">Create New Vendor</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -208,8 +213,8 @@ export function VendorsPage({ onViewVendor }: Props) {
         <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-8 text-center">
           <Building2 className="h-10 w-10 mx-auto text-app-muted mb-3" />
           <p className="text-app-muted text-sm">No vendors found</p>
-          {isAdmin && (
-            <button onClick={() => setShowCreateForm(true)} className="mt-3 text-primary-400 hover:text-primary-300 text-sm font-medium">
+          {canManageVendors && (
+            <button type="button" onClick={() => setShowCreateForm(true)} className="mt-3 text-primary-400 hover:text-primary-300 text-sm font-medium">
               Add your first vendor
             </button>
           )}
@@ -261,8 +266,8 @@ export function VendorsPage({ onViewVendor }: Props) {
       {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl bg-app-card border border-app-border shadow-xl backdrop-blur-xl z-50">
           <span className="text-sm text-app-text font-medium">{selectedIds.length} selected</span>
-          {isAdmin && (
-            <button onClick={handleBulkDeactivate}
+          {canManageVendors && (
+            <button type="button" onClick={handleBulkDeactivate}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30">
               <Ban className="h-3.5 w-3.5" /> Deactivate
             </button>

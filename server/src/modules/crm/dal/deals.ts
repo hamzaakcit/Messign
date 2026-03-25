@@ -165,7 +165,7 @@ export async function listDeals(
 
     const sortCol: Record<string, string> = {
       title: 'd.title', amount: 'd.amount', close_date: 'd.expected_close_date',
-      created: 'd.created_at', probability: 'd.probability', dora_score: 'd.dora_score',
+      created: 'd.created_at', updated_at: 'd.updated_at', probability: 'd.probability', dora_score: 'd.dora_score',
     };
     const orderBy = sortCol[sort?.field ?? 'created'] ?? 'd.created_at';
     const orderDir = sort?.direction === 'asc' ? 'ASC' : 'DESC';
@@ -588,6 +588,64 @@ export async function getDealsByStage(
       grouped[row.stage_id].push(row);
     }
     return grouped;
+  });
+}
+
+export interface MonthlyWonRevenueRow {
+  month: string;
+  monthKey: string;
+  won: number;
+}
+
+/**
+ * Sum of won deal amounts (EUR) per calendar month for the last `monthCount` months (inclusive of current).
+ */
+export async function getWonRevenueByMonth(
+  ctx: CallerContext,
+  monthCount: number,
+): Promise<MonthlyWonRevenueRow[]> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getWonRevenueByMonth');
+  const n = Math.min(Math.max(monthCount, 1), 36);
+
+  return runInTenant(tenantId, async (client) => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - (n - 1), 1);
+    const startYmd = formatLocalDateYmd(start);
+
+    const result = await client.query<{ month_key: string; won: string }>(
+      `SELECT
+         to_char(date_trunc('month', d.actual_close_date::timestamp), 'YYYY-MM') as month_key,
+         COALESCE(SUM(d.amount_eur), 0)::numeric as won
+       FROM crm_deals d
+       JOIN crm_deal_stages s ON s.id = d.stage_id
+       WHERE s.is_won = true
+         AND d.actual_close_date IS NOT NULL
+         AND d.actual_close_date >= $1::date
+       GROUP BY 1
+       ORDER BY 1`,
+      [startYmd],
+    );
+
+    const byKey = new Map<string, number>();
+    for (const row of result.rows) {
+      byKey.set(row.month_key, Number(row.won));
+    }
+
+    const out: MonthlyWonRevenueRow[] = [];
+    for (let i = 0; i < n; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - (n - 1 - i), 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const monthKey = `${y}-${m}`;
+      const label = d.toLocaleString('default', { month: 'short' });
+      out.push({
+        monthKey,
+        month: label,
+        won: byKey.get(monthKey) ?? 0,
+      });
+    }
+    return out;
   });
 }
 

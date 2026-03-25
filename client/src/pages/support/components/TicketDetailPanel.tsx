@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { API_ORIGIN } from '@/lib/apiCore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import {
@@ -50,12 +51,11 @@ interface TicketDetailPanelProps {
 const inputClass =
   'w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-primary-500';
 
-function makeAttachmentPayload(files: File[]) {
-  return files.map((file) => ({
-    filename: file.name,
-    size: file.size,
-    type: file.type,
-  }));
+function attachmentDownloadHref(attachment: Record<string, unknown>): string | undefined {
+  const url = attachment.url;
+  if (typeof url !== 'string' || !url) return undefined;
+  if (url.startsWith('http')) return url;
+  return `${API_ORIGIN}${url}`;
 }
 
 function DetailSkeleton() {
@@ -118,12 +118,20 @@ function MessageBubble({
         {message.attachments.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {message.attachments.map((attachment, index) => {
+              const raw = attachment as Record<string, unknown>;
               const label =
-                String(attachment.filename ?? attachment.name ?? `Attachment ${index + 1}`);
+                String(raw.filename ?? raw.name ?? `Attachment ${index + 1}`);
+              const href = attachmentDownloadHref(raw);
               return (
                 <Badge key={`${label}-${index}`} variant="default" className="gap-1.5">
                   <Paperclip className="w-3 h-3" />
-                  {label}
+                  {href ? (
+                    <a href={href} target="_blank" rel="noreferrer" className="underline hover:text-app-text">
+                      {label}
+                    </a>
+                  ) : (
+                    label
+                  )}
                 </Badge>
               );
             })}
@@ -149,6 +157,9 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
   const [internalNote, setInternalNote] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [historyOpen, setHistoryOpen] = useState(true);
+  const [escalateOpen, setEscalateOpen] = useState(false);
+  const [escalateAssigneeId, setEscalateAssigneeId] = useState('');
+  const [escalateReason, setEscalateReason] = useState('');
 
   const fetchTicket = useCallback(async () => {
     if (!userId || !ticketId) return;
@@ -200,14 +211,25 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
   };
 
   const handleReply = async () => {
-    if (!ticket || !reply.trim() || !userId) return;
+    if (!ticket || !userId) return;
+    if (!reply.trim() && attachments.length === 0) return;
     await runMutation(async () => {
       if (internalNote) {
         await supportApi.addInternalNote(userId, ticket.id, reply.trim());
       } else {
+        const uploaded: Array<Record<string, unknown>> = [];
+        for (const file of attachments) {
+          const meta = await supportApi.uploadTicketAttachment(userId, ticket.id, file);
+          uploaded.push({
+            filename: meta.filename,
+            url: meta.url,
+            size: meta.size,
+            type: meta.mimeType,
+          });
+        }
         await supportApi.addMessage(userId, ticket.id, {
-          body: reply.trim(),
-          attachments: makeAttachmentPayload(attachments),
+          body: reply.trim() || (uploaded.length ? 'Attachment.' : ''),
+          attachments: uploaded,
         });
       }
       setReply('');
@@ -230,6 +252,40 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
       () => supportApi.updateTicket(userId, ticket.id, { categoryId: match.id }),
       'Suggested category applied',
     );
+  };
+
+  const handleRejectCategory = async () => {
+    if (!ticket || !userId) return;
+    await runMutation(
+      () => supportApi.updateTicket(userId, ticket.id, { doraCategorySuggestion: null }),
+      'Suggestion dismissed',
+    );
+  };
+
+  const handleConfirmEscalate = async () => {
+    if (!ticket || !userId) return;
+    if (!escalateAssigneeId.trim() || !escalateReason.trim()) {
+      toast.error('Choose an assignee and enter a reason');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await supportApi.escalateTicket(
+        userId,
+        ticket.id,
+        escalateAssigneeId.trim(),
+        escalateReason.trim(),
+      );
+      toast.success('Ticket escalated');
+      await fetchTicket();
+      onUpdated();
+      setEscalateOpen(false);
+      setEscalateReason('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Escalation failed');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   if (loading || !ticket) return <DetailSkeleton />;
@@ -284,7 +340,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
                   <button
                     type="button"
                     onClick={() => {
-                      navigate('/crm/companies');
+                      navigate(`/crm/companies?companyId=${encodeURIComponent(ticket.crmCompanyId!)}`);
                       onClose();
                     }}
                     className="inline-flex items-center gap-1 text-primary-400 hover:text-primary-300"
@@ -304,7 +360,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
                 <button
                   type="button"
                   onClick={() => {
-                    navigate('/crm/contacts');
+                    navigate(`/crm/contacts?contact=${encodeURIComponent(ticket.crmContactId!)}`);
                     onClose();
                   }}
                   className="inline-flex items-center gap-1 text-primary-400 hover:text-primary-300"
@@ -336,7 +392,7 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
                     <Button size="sm" onClick={handleAcceptCategory}>
                       Accept
                     </Button>
-                    <Button size="sm" variant="ghost">
+                    <Button size="sm" variant="ghost" onClick={handleRejectCategory}>
                       Reject
                     </Button>
                   </div>
@@ -539,12 +595,9 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
               type="button"
               variant="secondary"
               onClick={() => {
-                const reason = window.prompt('Escalation reason');
-                if (!reason) return;
-                runMutation(
-                  () => supportApi.escalateTicket(userId, ticket.id, 'manager', reason),
-                  'Ticket escalated',
-                );
+                setEscalateAssigneeId('');
+                setEscalateReason('');
+                setEscalateOpen(true);
               }}
             >
               <ShieldAlert className="w-4 h-4" />
@@ -596,6 +649,57 @@ export function TicketDetailPanel({ ticketId, onClose, onUpdated }: TicketDetail
           )}
         </div>
       </div>
+
+      {escalateOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="support-escalate-title"
+        >
+          <div className="w-full max-w-md rounded-xl border border-app-border bg-app-card p-5 shadow-xl space-y-4">
+            <h4 id="support-escalate-title" className="text-lg font-semibold text-app-text">
+              Escalate ticket
+            </h4>
+            <p className="text-sm text-app-muted">
+              Reassigns to the selected teammate and raises priority one step.
+            </p>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-app-text">Assign to</span>
+              <select
+                value={escalateAssigneeId}
+                onChange={(event) => setEscalateAssigneeId(event.target.value)}
+                className={inputClass}
+              >
+                <option value="">Select teammate…</option>
+                {availableAssignees.map((assignee) => (
+                  <option key={assignee.id} value={assignee.id}>
+                    {assignee.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-app-text">Reason</span>
+              <textarea
+                value={escalateReason}
+                onChange={(event) => setEscalateReason(event.target.value)}
+                rows={3}
+                className={inputClass}
+                placeholder="Why are you escalating?"
+              />
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setEscalateOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleConfirmEscalate} isLoading={actionLoading}>
+                Confirm escalation
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

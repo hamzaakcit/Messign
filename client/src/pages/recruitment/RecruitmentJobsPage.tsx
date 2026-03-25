@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { useDebouncedCallback } from '@/hooks';
 import { Briefcase, Clock3, Plus, Users, Waypoints } from 'lucide-react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
@@ -34,6 +35,7 @@ export function RecruitmentJobsPage() {
     department: '',
     search: '',
   });
+  const [searchDraft, setSearchDraft] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -50,6 +52,8 @@ export function RecruitmentJobsPage() {
       setJobs(jobsRes.data);
       setTotal(jobsRes.total);
       setMetrics(metricsRes);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load jobs');
     } finally {
       setLoading(false);
     }
@@ -59,8 +63,9 @@ export function RecruitmentJobsPage() {
     void load();
   }, [load]);
 
-  const debouncedSearch = useDebouncedCallback((search: string) => {
+  const debouncedCommitSearch = useDebouncedCallback((search: string) => {
     setFilters((current) => ({ ...current, search }));
+    setPage(0);
   }, 300);
 
   const columns = useMemo<ColumnDef<RecruitmentJob>[]>(() => [
@@ -127,7 +132,16 @@ export function RecruitmentJobsPage() {
               </div>
               <div>
                 <label className="block text-xs text-app-muted mb-1">Search</label>
-                <input className="rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" value={filters.search} onChange={(e) => setFilters((current) => ({ ...current, search: e.target.value }))} />
+                <input
+                  className="rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text"
+                  value={searchDraft}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSearchDraft(v);
+                    debouncedCommitSearch(v);
+                  }}
+                  placeholder="Title, department…"
+                />
               </div>
             </div>
             <button onClick={() => setCreateOpen(true)} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 flex items-center gap-1.5">
@@ -141,9 +155,6 @@ export function RecruitmentJobsPage() {
             columns={columns}
             isLoading={loading}
             sortable
-            searchable
-            searchPlaceholder="Search jobs…"
-            onSearch={debouncedSearch}
             pagination
             pageSize={20}
             totalItems={total}

@@ -49,6 +49,10 @@ export interface CompanyFilters {
   industry?: string;
   size?: string;
   search?: string;
+  revenue_min?: number;
+  revenue_max?: number;
+  /** Case-insensitive substring match */
+  country?: string;
 }
 
 // ── Functions ──
@@ -80,6 +84,18 @@ export async function listCompanies(
       conditions.push(`(c.name ILIKE $${idx} OR c.domain ILIKE $${idx})`);
       params.push(`%${filters.search}%`);
       idx++;
+    }
+    if (filters?.revenue_min != null && Number.isFinite(filters.revenue_min)) {
+      conditions.push(`c.annual_revenue IS NOT NULL AND c.annual_revenue >= $${idx++}`);
+      params.push(filters.revenue_min);
+    }
+    if (filters?.revenue_max != null && Number.isFinite(filters.revenue_max)) {
+      conditions.push(`c.annual_revenue IS NOT NULL AND c.annual_revenue <= $${idx++}`);
+      params.push(filters.revenue_max);
+    }
+    if (filters?.country) {
+      conditions.push(`c.country ILIKE $${idx++}`);
+      params.push(`%${filters.country.trim()}%`);
     }
 
     const whereSQL = conditions.length > 0 ? conditions.join(' AND ') : '1=1';

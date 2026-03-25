@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type KeyboardEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, type KeyboardEvent } from 'react';
 import { Send, Paperclip, Smile, AtSign, X, Slash, Sparkles, Loader2, BookOpen, MoreHorizontal, Search, Swords, PanelRightOpen, PlusCircle } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -88,16 +88,31 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
   };
 
   const parseMentions = useCallback((text: string): string[] => {
-    const mentionRegex = /@(\w[\w\s]*?)(?=\s|$)/g;
-    const mentioned: string[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = mentionRegex.exec(text)) !== null) {
-      const mentionText = match[1].trim();
-      const mentionedUser = users.find((u) => u.name.toLowerCase() === mentionText.toLowerCase());
-      if (mentionedUser) mentioned.push(mentionedUser.id);
+    const ids: string[] = [];
+    const sorted = [...otherUsers].sort((a, b) => b.name.length - a.name.length);
+    for (const u of sorted) {
+      const escaped = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`(?:^|\\s)@${escaped}(?=\\s|$|[.,!?;:])`, 'i');
+      if (re.test(text)) ids.push(u.id);
     }
-    return [...new Set(mentioned)];
-  }, [users]);
+    return [...new Set(ids)];
+  }, [otherUsers]);
+
+  const mentionFilter = useMemo(() => {
+    const lastLine = content.split('\n').pop() ?? '';
+    const atIdx = lastLine.lastIndexOf('@');
+    if (atIdx < 0) return '';
+    return lastLine.slice(atIdx + 1).trim().toLowerCase();
+  }, [content]);
+
+  const filteredMentionUsers = useMemo(() => {
+    if (!mentionFilter) return otherUsers;
+    return otherUsers.filter(
+      (u) =>
+        u.name.toLowerCase().includes(mentionFilter) ||
+        (u.jobTitle?.toLowerCase().includes(mentionFilter) ?? false),
+    );
+  }, [otherUsers, mentionFilter]);
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -113,6 +128,9 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === '@') {
+      setTimeout(() => setMentionPickerOpen(true), 0);
+    }
     if (slash.isOpen) {
       if (e.key === 'ArrowDown') { e.preventDefault(); slash.moveSelection('down'); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); slash.moveSelection('up'); return; }
@@ -144,6 +162,9 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
 
   const handleContentChange = (value: string) => {
     setContent(value);
+    const lastLine = value.split('\n').pop() ?? '';
+    const typingMention = /(?:^|\s)@[^\n]*$/.test(lastLine);
+    setMentionPickerOpen(typingMention);
     // Detect slash commands
     const trimmed = value.trim();
     if (trimmed === '/') {
@@ -392,10 +413,10 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
             </button>
             {mentionPickerOpen && (
               <div className="absolute bottom-full left-0 mb-1 w-56 max-h-48 overflow-y-auto rounded-xl border border-app bg-app-sidebar shadow-xl z-50 py-1">
-                {otherUsers.length === 0 ? (
+                {filteredMentionUsers.length === 0 ? (
                   <p className="px-3 py-2 text-sm text-app-muted">No other users</p>
                 ) : (
-                  otherUsers.map((u) => (
+                  filteredMentionUsers.map((u) => (
                     <button key={u.id} type="button" onClick={() => { insertAtCursor(`@${u.name} `); setMentionPickerOpen(false); }}
                       className="w-full px-3 py-2 text-left text-sm text-app hover:bg-app-hover flex items-center gap-2">
                       <span className="font-medium">{u.name}</span>
@@ -468,7 +489,7 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
             )}
           </div>
 
-          <Button onClick={handleSubmit} disabled={!content.trim() && pendingFiles.length === 0} size="sm" className="ml-1">
+          <Button onClick={() => void handleSubmit()} disabled={!content.trim() && pendingFiles.length === 0} size="sm" className="ml-1">
             <Send className="w-4 h-4" />
           </Button>
         </div>

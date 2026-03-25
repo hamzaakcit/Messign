@@ -47,9 +47,11 @@ export interface TaskBoardProps {
   getProjectName?: (projectId: string) => string | undefined;
   /** Called when user clicks to view project details (e.g. from a task card). */
   onSelectProject?: (projectId: string) => void;
+  /** GET /tasks in progress (initial load or refetch). */
+  isLoadingTasks?: boolean;
 }
 
-export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject }: TaskBoardProps) {
+export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject, isLoadingTasks }: TaskBoardProps) {
   const tasks = useProjectStore((s) => s.tasks);
   const updateTaskStatus = useProjectStore((s) => s.updateTaskStatus);
   const user = useAuthStore((s) => s.user);
@@ -110,7 +112,16 @@ export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject }:
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-full flex gap-3 p-4 overflow-hidden min-w-0">
+      <div className="relative h-full flex gap-3 p-4 overflow-hidden min-w-0">
+        {isLoadingTasks ? (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-app/70 backdrop-blur-[2px] border border-app-border/50"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="text-sm text-app-muted">Loading tasks…</span>
+          </div>
+        ) : null}
         {columns.map(column => {
           const columnTasks = getTasksByStatus(column.id);
           

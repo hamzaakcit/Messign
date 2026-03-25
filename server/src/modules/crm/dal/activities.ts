@@ -218,6 +218,77 @@ export async function completeActivity(ctx: CallerContext, activityId: string): 
   });
 }
 
+export interface WeeklyActivityRow {
+  weekLabel: string;
+  weekStart: string;
+  calls: number;
+  emails: number;
+  meetings: number;
+  notes: number;
+}
+
+/**
+ * Aggregates CRM activities by Postgres week boundaries for the last `weekCount` weeks (oldest first).
+ */
+export async function getActivityCountsByWeek(
+  ctx: CallerContext,
+  weekCount: number,
+): Promise<WeeklyActivityRow[]> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getActivityCountsByWeek');
+  const n = Math.min(Math.max(weekCount, 1), 52);
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<{
+      week_start: string;
+      calls: string;
+      emails: string;
+      meetings: string;
+      notes: string;
+      iso_week: string;
+    }>(
+      `WITH weeks AS (
+         SELECT generate_series(
+           date_trunc('week', NOW()::timestamp)::date - (($1::int - 1) * INTERVAL '1 week'),
+           date_trunc('week', NOW()::timestamp)::date,
+           INTERVAL '1 week'
+         )::date AS week_start
+       ),
+       agg AS (
+         SELECT
+           date_trunc('week', a.created_at)::date AS week_start,
+           SUM(CASE WHEN a.type = 'call' THEN 1 ELSE 0 END)::int AS calls,
+           SUM(CASE WHEN a.type = 'email' THEN 1 ELSE 0 END)::int AS emails,
+           SUM(CASE WHEN a.type = 'meeting' THEN 1 ELSE 0 END)::int AS meetings,
+           SUM(CASE WHEN a.type NOT IN ('call', 'email', 'meeting') THEN 1 ELSE 0 END)::int AS notes
+         FROM crm_activities a
+         WHERE a.created_at >= (SELECT MIN(week_start) FROM weeks)
+         GROUP BY 1
+       )
+       SELECT
+         w.week_start::text AS week_start,
+         COALESCE(a.calls, 0)::text AS calls,
+         COALESCE(a.emails, 0)::text AS emails,
+         COALESCE(a.meetings, 0)::text AS meetings,
+         COALESCE(a.notes, 0)::text AS notes,
+         EXTRACT(week FROM w.week_start)::text AS iso_week
+       FROM weeks w
+       LEFT JOIN agg a ON a.week_start = w.week_start
+       ORDER BY w.week_start`,
+      [n],
+    );
+
+    return result.rows.map((row) => ({
+      weekLabel: `W${row.iso_week}`,
+      weekStart: row.week_start,
+      calls: parseInt(row.calls, 10) || 0,
+      emails: parseInt(row.emails, 10) || 0,
+      meetings: parseInt(row.meetings, 10) || 0,
+      notes: parseInt(row.notes, 10) || 0,
+    }));
+  });
+}
+
 export async function getActivityGaps(ctx: CallerContext): Promise<Deal[]> {
   const tenantId = ctx.organizationId;
   if (!tenantId) throw new Error('Tenant context required for getActivityGaps');

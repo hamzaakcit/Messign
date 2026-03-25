@@ -19,6 +19,8 @@ export interface UseMarketingCommandCenterDataResult {
 
 /**
  * Loads Command Center bundle; supports manual refresh and optimistic patching.
+ *
+ * @deprecated Prefer `useMarketingWorkspace` for the hub (TanStack Query + shared invalidation with bootstrap/funnel/brands).
  */
 export function useMarketingCommandCenterData(
   options: UseMarketingCommandCenterDataOptions,

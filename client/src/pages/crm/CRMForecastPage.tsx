@@ -3,19 +3,22 @@ import {
   ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine, Legend,
 } from 'recharts';
-import { DollarSign, TrendingUp, Target, AlertTriangle, BarChart3 } from 'lucide-react';
+import { DollarSign, TrendingUp, Target, AlertTriangle, BarChart3, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { CRMNav } from '@/components/crm/CRMNav';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
 import { cn } from '@/lib/utils';
+import { formatCrmCurrencyCompact } from '@/lib/crmCurrency';
 import {
   crmAPI,
   type ForecastSummary,
   type OwnerForecast,
   type SalesMetrics,
   type Deal,
+  type Pipeline,
 } from '@/lib/crmApi';
+import { toast } from 'sonner';
 
 const TOOLTIP_STYLE = {
   background: '#1a1a2e',
@@ -30,9 +33,7 @@ type Period = 'month' | 'quarter' | 'year';
 const PERIOD_LABELS: Record<Period, string> = { month: 'This Month', quarter: 'This Quarter', year: 'This Year' };
 
 function formatCurrency(v: number): string {
-  if (v >= 1_000_000) return `€${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `€${(v / 1_000).toFixed(0)}K`;
-  return `€${v.toLocaleString()}`;
+  return formatCrmCurrencyCompact(v, 'EUR');
 }
 
 export function CRMForecastPage() {
@@ -45,38 +46,51 @@ export function CRMForecastPage() {
   const [metrics, setMetrics] = useState<SalesMetrics | null>(null);
   const [staleDeals, setStaleDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
+  const [targetValue, setTargetValue] = useState(500_000);
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
+  const [quotaInput, setQuotaInput] = useState('');
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const [m, pipelines, gaps] = await Promise.all([
+      const [m, pls, gaps, quota] = await Promise.all([
         crmAPI.getMetrics(userId, period),
         crmAPI.listPipelines(userId),
         crmAPI.getActivityGaps(userId),
+        crmAPI.getForecastQuota(userId),
       ]);
       setMetrics(m);
       setStaleDeals(gaps);
+      setPipelines(pls);
+      setTargetValue(quota.sales_quota_eur);
 
-      const defaultPipeline = pipelines.find(p => p.is_default) ?? pipelines[0];
-      if (defaultPipeline) {
+      const pipeId = activePipelineId ?? pls.find(p => p.is_default)?.id ?? pls[0]?.id ?? null;
+      if (pipeId) {
         const [fc, ow] = await Promise.all([
-          crmAPI.getPipelineForecast(userId, defaultPipeline.id),
-          crmAPI.getForecastByOwner(userId, defaultPipeline.id),
+          crmAPI.getPipelineForecast(userId, pipeId),
+          crmAPI.getForecastByOwner(userId, pipeId),
         ]);
         setForecast(fc);
         setOwners(ow);
+      } else {
+        setForecast(null);
+        setOwners([]);
+      }
+      if (pipeId && activePipelineId == null) {
+        setActivePipelineId(pipeId);
       }
     } catch {
       // Graceful fallback
     } finally {
       setLoading(false);
     }
-  }, [userId, period]);
+  }, [userId, period, activePipelineId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const targetValue = 500_000;
   const weightedForecast = forecast ? Number(forecast.weighted_value) : 0;
   const bestCase = forecast ? Number(forecast.total_value) : 0;
   const worstCase = (metrics?.dealsWon ?? 0) * (metrics?.avgDealSize ?? 0);
@@ -90,6 +104,27 @@ export function CRMForecastPage() {
 
   const chartData = buildChartData(forecast, metrics);
 
+  const openQuotaModal = (): void => {
+    setQuotaInput(String(Math.round(targetValue)));
+    setQuotaModalOpen(true);
+  };
+
+  const saveQuota = async (): Promise<void> => {
+    const v = parseFloat(quotaInput.replace(/,/g, ''));
+    if (!Number.isFinite(v) || v < 0) {
+      toast.error('Enter a valid non-negative number');
+      return;
+    }
+    try {
+      const q = await crmAPI.updateForecastQuota(userId, v);
+      setTargetValue(q.sales_quota_eur);
+      setQuotaModalOpen(false);
+      toast.success('Sales target updated');
+    } catch {
+      toast.error('Failed to save target');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
@@ -97,27 +132,48 @@ export function CRMForecastPage() {
           <CRMNav />
           <DoraInsightBar module="sales" />
 
-          {/* Period Selector */}
-          <div className="flex items-center gap-1 mb-6">
-            {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setPeriod(key)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                  period === key
-                    ? 'bg-primary-500/20 text-primary-400'
-                    : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <div className="flex items-center gap-1">
+              {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPeriod(key)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                    period === key
+                      ? 'bg-primary-500/20 text-primary-400'
+                      : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {pipelines.length > 0 && (
+              <div className="relative">
+                <select
+                  value={activePipelineId ?? ''}
+                  onChange={e => setActivePipelineId(e.target.value)}
+                  className="appearance-none rounded-lg border border-app-border bg-app-card px-3 py-1.5 pr-8 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  {pipelines.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted pointer-events-none" />
+              </div>
+            )}
           </div>
 
-          {/* Forecast KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <KPICard title="Target" value={formatCurrency(targetValue)} subtitle="Set target" icon={Target} />
+            <button
+              type="button"
+              onClick={openQuotaModal}
+              className="text-left rounded-xl border border-transparent hover:border-app-border transition-colors"
+            >
+              <KPICard title="Target" value={formatCurrency(targetValue)} subtitle="Click to set target" icon={Target} />
+            </button>
             <KPICard title="Weighted Forecast" value={formatCurrency(weightedForecast)} icon={TrendingUp} />
             <KPICard title="Best Case" value={formatCurrency(bestCase)} subtitle={`${forecast?.total_deals ?? 0} deals`} icon={DollarSign} />
             <KPICard title="Worst Case" value={formatCurrency(worstCase)} subtitle="Won only" icon={BarChart3} />
@@ -134,7 +190,6 @@ export function CRMForecastPage() {
             <ForecastSkeleton />
           ) : (
             <div className="space-y-6">
-              {/* Forecast Chart */}
               <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
                 <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" /> Forecast Breakdown
@@ -154,7 +209,6 @@ export function CRMForecastPage() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Forecast by Owner */}
               <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-5">
                 <h3 className="font-semibold text-app-text mb-4 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" /> Forecast by Owner
@@ -191,7 +245,6 @@ export function CRMForecastPage() {
                 </div>
               </div>
 
-              {/* Dora Narrative */}
               <div
                 className="rounded-xl border p-5"
                 style={{
@@ -223,10 +276,10 @@ export function CRMForecastPage() {
                         stale for 10+ days and may need follow-up.</>
                       )}
                       {gap > 0 ? (
-                        <> You're {formatCurrency(gap)} below your {PERIOD_LABELS[period].toLowerCase()} target.
+                        <> You are {formatCurrency(gap)} below your {PERIOD_LABELS[period].toLowerCase()} target.
                         Focus on advancing deals in the Proposal stage to close the gap.</>
                       ) : (
-                        <> You're on track to exceed your {PERIOD_LABELS[period].toLowerCase()} target by {formatCurrency(Math.abs(gap))}.</>
+                        <> You are on track to exceed your {PERIOD_LABELS[period].toLowerCase()} target by {formatCurrency(Math.abs(gap))}.</>
                       )}
                     </p>
                   </div>
@@ -236,6 +289,38 @@ export function CRMForecastPage() {
           )}
         </div>
       </div>
+
+      {quotaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-app-border bg-app-card p-5 shadow-xl">
+            <h3 className="text-lg font-semibold text-app-text mb-2">Sales target (EUR)</h3>
+            <p className="text-sm text-app-muted mb-4">Used for gap-to-target and the chart reference line.</p>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={quotaInput}
+              onChange={e => setQuotaInput(e.target.value)}
+              className="w-full rounded-lg border border-app-border bg-app px-3 py-2 text-app-text mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setQuotaModalOpen(false)}
+                className="px-3 py-1.5 rounded-lg text-sm text-app-muted hover:bg-app-hover"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveQuota()}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

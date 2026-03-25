@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI, type ProfitLossReport } from '@/lib/financeApi';
+import { getFinanceUserId } from '@/lib/financeRbac';
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 
 export function ProfitLossPage() {
   const { user } = useAuthStore();
+  const financeUserId = getFinanceUserId(user);
   const [report, setReport] = useState<ProfitLossReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [periodType, setPeriodType] = useState<'month' | 'quarter' | 'year'>('month');
@@ -29,20 +31,45 @@ export function ProfitLossPage() {
   }, [selectedPeriod, periodType]);
 
   const fetchReport = useCallback(async () => {
-    if (!user?.id) return;
+    if (!financeUserId) return;
     setLoading(true);
     try {
       const { from, to } = computeRange();
-      const data = await financeAPI.getProfitLoss(user.id, from, to);
+      const data = await financeAPI.getProfitLoss(financeUserId, from, to);
       setReport(data);
     } catch (err) {
       console.error('Failed to load P&L report:', err);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, computeRange]);
+  }, [financeUserId, computeRange]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
+
+  const handleExportCsv = useCallback(() => {
+    if (!report) return;
+    const rows: string[][] = [];
+    rows.push(['Section', 'Code', 'Name', 'Amount']);
+    const rev = Array.isArray(report.revenue) ? report.revenue : [];
+    for (const r of rev as Array<{ code?: string; name?: string; amount?: number }>) {
+      rows.push(['Revenue', String(r.code ?? ''), String(r.name ?? ''), String(r.amount ?? '')]);
+    }
+    const exp = Array.isArray(report.expenses) ? report.expenses : [];
+    for (const r of exp as Array<{ code?: string; name?: string; amount?: number }>) {
+      rows.push(['Expense', String(r.code ?? ''), String(r.name ?? ''), String(r.amount ?? '')]);
+    }
+    rows.push(['Summary', 'Total Revenue', '', String(report.totalRevenue ?? '')]);
+    rows.push(['Summary', 'Total Expenses', '', String(report.totalExpenses ?? '')]);
+    rows.push(['Summary', 'Net Income', '', String(report.netIncome ?? '')]);
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pnl-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [report]);
 
   const pctChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;
@@ -78,6 +105,16 @@ export function ProfitLossPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 flex-wrap">
+        {report && (
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-app-border text-sm text-app-muted hover:text-app-text hover:bg-app-nav-hover"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+        )}
         <div className="flex rounded-lg border border-app-border overflow-hidden">
           {(['month', 'quarter', 'year'] as const).map(t => (
             <button

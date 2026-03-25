@@ -1,24 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { KPICard } from '@/components/finance/KPICard';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Briefcase, KanbanSquare, Sparkles, UserCheck } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { ROUTES } from '@/lib/routes';
 import { recruitmentAPI, type RecruitmentApplication, type RecruitmentJob } from '@/lib/recruitmentApi';
 import { RecruitmentNav } from './components/RecruitmentNav';
 import { ApplicationDetailPanel } from './components/ApplicationDetailPanel';
-
-const STAGES = [
-  { id: 'applied', label: 'Applied' },
-  { id: 'screening', label: 'Screening' },
-  { id: 'phone_screen', label: 'Phone Screen' },
-  { id: 'interview', label: 'Interview' },
-  { id: 'assessment', label: 'Assessment' },
-  { id: 'final_interview', label: 'Final Interview' },
-  { id: 'offer', label: 'Offer' },
-  { id: 'hired', label: 'Hired' },
-];
+import { RECRUITMENT_KANBAN_STAGES } from './stages';
 
 function scoreVariant(score: number): 'green' | 'orange' | 'red' {
   if (score >= 80) return 'green';
@@ -31,6 +24,7 @@ function daysSince(dateIso: string): number {
 }
 
 export function RecruitmentPipelinePage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
   const [jobs, setJobs] = useState<RecruitmentJob[]>([]);
@@ -54,6 +48,8 @@ export function RecruitmentPipelinePage() {
       } else {
         setApplicationsByStage({});
       }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load pipeline');
     } finally {
       setLoading(false);
     }
@@ -62,6 +58,17 @@ export function RecruitmentPipelinePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const moveToStage = async (application: RecruitmentApplication, stageId: string): Promise<void> => {
+    if (application.stage === stageId) return;
+    try {
+      await recruitmentAPI.moveApplicationStage(userId, application.id, stageId);
+      toast.success('Stage updated');
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to move application');
+    }
+  };
 
   const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) ?? null, [jobs, selectedJobId]);
   const totalApplicants = useMemo(
@@ -96,12 +103,18 @@ export function RecruitmentPipelinePage() {
                   const nextJobId = e.target.value;
                   setSelectedJobId(nextJobId);
                   if (nextJobId) {
-                    setApplicationsByStage(await recruitmentAPI.getApplicationsByStage(userId, nextJobId));
+                    try {
+                      setApplicationsByStage(await recruitmentAPI.getApplicationsByStage(userId, nextJobId));
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : 'Failed to load pipeline');
+                    }
                   }
                 }}
               >
                 {jobs.map((job) => (
-                  <option key={job.id} value={job.id}>{job.title}</option>
+                  <option key={job.id} value={job.id}>
+                    {job.title}
+                  </option>
                 ))}
               </select>
             </div>
@@ -114,9 +127,22 @@ export function RecruitmentPipelinePage() {
 
           {loading ? (
             <div className="text-sm text-app-muted">Loading pipeline…</div>
+          ) : jobs.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-app-border bg-app-card/40 px-6 py-10 text-center space-y-4 max-w-lg mx-auto">
+              <p className="text-sm text-app-muted">
+                No open jobs yet. Create a job and set its status to open to manage applicants on this board.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.RECRUITMENT)}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600"
+              >
+                Go to Jobs
+              </button>
+            </div>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {STAGES.map((stage) => {
+              {RECRUITMENT_KANBAN_STAGES.map((stage) => {
                 const items = applicationsByStage[stage.id] || [];
                 return (
                   <div
@@ -126,9 +152,14 @@ export function RecruitmentPipelinePage() {
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={async () => {
                       if (!draggedApplication || draggedApplication.stage === stage.id) return;
-                      await recruitmentAPI.moveApplicationStage(userId, draggedApplication.id, stage.id);
-                      setDraggedApplication(null);
-                      await load();
+                      try {
+                        await recruitmentAPI.moveApplicationStage(userId, draggedApplication.id, stage.id);
+                        toast.success('Stage updated');
+                        setDraggedApplication(null);
+                        await load();
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : 'Failed to move application');
+                      }
                     }}
                   >
                     <div className="px-3 py-2.5 border-b border-app-border flex items-center justify-between">
@@ -139,36 +170,65 @@ export function RecruitmentPipelinePage() {
                       {items.map((application) => {
                         const score = application.match_score ?? 0;
                         const candidate = application.candidate;
+                        const name = `${candidate?.first_name ?? ''} ${candidate?.last_name ?? ''}`.trim() || 'Candidate';
                         return (
-                          <button
+                          <div
                             key={application.id}
                             data-testid={`application-card-${application.id}`}
                             draggable
                             onDragStart={() => setDraggedApplication(application)}
-                            onClick={() => setSelectedApplicationId(application.id)}
-                            className="w-full text-left rounded-lg border border-app-border bg-app-card p-3 hover:bg-app-nav-hover transition-colors"
+                            className="rounded-lg border border-app-border bg-app-card hover:bg-app-nav-hover transition-colors"
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="text-sm font-medium text-app-text">
-                                  {candidate?.first_name} {candidate?.last_name}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedApplicationId(application.id)}
+                              className="w-full text-left p-3"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="text-sm font-medium text-app-text">
+                                    {candidate?.first_name} {candidate?.last_name}
+                                  </div>
+                                  <div className="text-xs text-app-muted">
+                                    {candidate?.current_company || 'No current company'}
+                                    {candidate?.current_title ? ` • ${candidate.current_title}` : ''}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-app-muted">
-                                  {candidate?.current_company || 'No current company'}{candidate?.current_title ? ` • ${candidate.current_title}` : ''}
+                                <Badge variant={scoreVariant(score)}>{score}%</Badge>
+                              </div>
+                              <div className="mt-2 flex items-center justify-between text-xs text-app-muted">
+                                <span>{application.source || candidate?.source || 'unknown'}</span>
+                                <span>{daysSince(application.last_stage_change_at)}d in stage</span>
+                              </div>
+                              {application.screened_method === 'ai' && (
+                                <div className="mt-2">
+                                  <Badge variant="purple">AI Scored</Badge>
                                 </div>
-                              </div>
-                              <Badge variant={scoreVariant(score)}>{score}%</Badge>
+                              )}
+                            </button>
+                            <div className="px-3 pb-2" onClick={(ev) => ev.stopPropagation()}>
+                              <label htmlFor={`move-stage-${application.id}`} className="sr-only">
+                                Move {name} to another stage
+                              </label>
+                              <select
+                                id={`move-stage-${application.id}`}
+                                className="w-full rounded-md border border-app-border bg-app-surface-tertiary px-2 py-1.5 text-xs text-app-text"
+                                defaultValue=""
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  e.target.value = '';
+                                  if (v) void moveToStage(application, v);
+                                }}
+                              >
+                                <option value="">Move to… (keyboard)</option>
+                                {RECRUITMENT_KANBAN_STAGES.filter((s) => s.id !== application.stage).map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
-                            <div className="mt-2 flex items-center justify-between text-xs text-app-muted">
-                              <span>{application.source || candidate?.source || 'unknown'}</span>
-                              <span>{daysSince(application.last_stage_change_at)}d in stage</span>
-                            </div>
-                            {application.screened_method === 'ai' && (
-                              <div className="mt-2">
-                                <Badge variant="purple">AI Scored</Badge>
-                              </div>
-                            )}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>

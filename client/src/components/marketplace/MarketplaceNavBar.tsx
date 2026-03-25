@@ -102,7 +102,15 @@ export function MarketplaceNavBar({
   };
 
   const handleClearFilters = () => {
-    setFilterOptions({ department: '', skill: '', timeCommitment: '', xpRange: '', status: '' });
+    const empty: AdvancedFilterOptions = {
+      department: '',
+      skill: '',
+      timeCommitment: '',
+      xpRange: '',
+      status: '',
+    };
+    setFilterOptions(empty);
+    onAdvancedFiltersChange?.(empty);
   };
 
   return (

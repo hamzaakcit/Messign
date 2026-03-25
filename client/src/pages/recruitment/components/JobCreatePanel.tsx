@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { recruitmentAPI } from '@/lib/recruitmentApi';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -21,6 +22,7 @@ export function JobCreatePanel({ onCreated, onCancel }: JobCreatePanelProps) {
     requirements: '',
     salary_min: '',
     salary_max: '',
+    salary_currency: 'EUR',
     positions_count: '1',
   });
 
@@ -43,7 +45,10 @@ export function JobCreatePanel({ onCreated, onCancel }: JobCreatePanelProps) {
         positions_count: Number(form.positions_count || 1),
         status: 'draft',
       });
+      toast.success('Job created');
       onCreated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create job');
     } finally {
       setSubmitting(false);
     }
@@ -92,7 +97,7 @@ export function JobCreatePanel({ onCreated, onCancel }: JobCreatePanelProps) {
         <label className="block text-xs text-app-muted mb-1">Description</label>
         <textarea className="w-full min-h-[160px] rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
           <label className="block text-xs text-app-muted mb-1">Salary Min</label>
           <input type="number" className="w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" value={form.salary_min} onChange={(e) => setForm((current) => ({ ...current, salary_min: e.target.value }))} />
@@ -100,6 +105,14 @@ export function JobCreatePanel({ onCreated, onCancel }: JobCreatePanelProps) {
         <div>
           <label className="block text-xs text-app-muted mb-1">Salary Max</label>
           <input type="number" className="w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" value={form.salary_max} onChange={(e) => setForm((current) => ({ ...current, salary_max: e.target.value }))} />
+        </div>
+        <div>
+          <label className="block text-xs text-app-muted mb-1">Currency</label>
+          <select className="w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm text-app-text" value={form.salary_currency} onChange={(e) => setForm((current) => ({ ...current, salary_currency: e.target.value }))}>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+          </select>
         </div>
         <div>
           <label className="block text-xs text-app-muted mb-1">Positions</label>

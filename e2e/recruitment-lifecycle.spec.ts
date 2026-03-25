@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Recruitment lifecycle', () => {
+  test('candidates page shows tenant KPI labels', async ({ page }) => {
+    await page.goto('/recruitment/candidates');
+    await expect(page.getByText(/candidate pool/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/with resume/i)).toBeVisible({ timeout: 5000 });
+  });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/recruitment/pipeline');
   });

@@ -12,8 +12,9 @@ export function SmartReplyBar() {
 
   const handleSelect = (reply: string) => {
     if (!user) return;
-    sendMessage(reply, user.id);
-    clear();
+    void sendMessage(reply, user.id).then((ok) => {
+      if (ok) clear();
+    });
   };
 
   return (

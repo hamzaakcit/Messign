@@ -39,6 +39,7 @@ import { API_ORIGIN } from '@/lib/api';
 import { getAccessToken } from '@/lib/authToken';
 import { onDoraInsightCounts } from '@/lib/socket';
 import { DoraInsightCountBadge } from '@/components/dora/DoraInsightCountBadge';
+import { ROUTES } from '@/lib/routes';
 
 const VIEW_TO_PATH: Record<string, string> = {
   dashboard: '/dashboard',
@@ -56,7 +57,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   invoices: '/reimbursements/invoices',
   crm: '/crm',
   marketing: '/marketing',
-  recruitment: '/recruitment',
+  recruitment: ROUTES.RECRUITMENT,
   support: '/support',
   okr: '/okr',
   assets: '/assets',
@@ -132,13 +133,20 @@ const NAV_GROUPS: NavGroup[] = [
 
 const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
+/** Only ids that exist in the current nav (drops removed modules e.g. legacy `time` from localStorage). */
+const VALID_PINNABLE_IDS = new Set(ALL_NAV_ITEMS.map((n) => n.id));
+
 const PINNED_KEY = 'pinned-nav';
 const COLLAPSED_GROUPS_KEY = 'sidebar-collapsed-groups';
 
 function getPinnedItems(): string[] {
   try {
     const raw = localStorage.getItem(PINNED_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    if (!raw) return [];
+    const ids = JSON.parse(raw) as string[];
+    const filtered = ids.filter((id) => VALID_PINNABLE_IDS.has(id));
+    if (filtered.length !== ids.length) savePinnedItems(filtered);
+    return filtered;
   } catch {
     return [];
   }
@@ -275,7 +283,13 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
     return (
       <div key={navItem.id} className="group/item relative flex items-center">
         <button
-          data-testid={navItem.id === 'dora' ? 'onboarding-dora-nav' : `nav-${navItem.id}`}
+          data-testid={
+            navItem.id === 'dora'
+              ? 'onboarding-dora-nav'
+              : navItem.id === 'chat'
+                ? 'onboarding-chat-nav'
+                : `nav-${navItem.id}`
+          }
           onClick={() => handleNavClick(navItem.id)}
           className={cn(
             'w-full flex items-center rounded-lg transition-all duration-150',

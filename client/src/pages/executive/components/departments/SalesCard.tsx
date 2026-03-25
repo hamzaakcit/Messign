@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import type { ExecutiveDashboard, ExecutiveChartData } from '@/lib/executiveApi';
+import { formatCrmCurrencyCompact } from '@/lib/crmCurrency';
 import { DepartmentCard } from '../DepartmentCard';
 
 interface SalesCardProps {
@@ -26,10 +27,10 @@ export function SalesCard({ data, chartData, onAction }: SalesCardProps): JSX.El
         icon={<TrendingUp className="w-4 h-4" />}
         iconColor="#3b82f6"
         metrics={[
-          { label: 'Pipeline', value: `€${(data.pipelineValue / 1000).toFixed(0)}k` },
+          { label: 'Pipeline', value: formatCrmCurrencyCompact(data.pipelineValue, 'EUR') },
           { label: 'Deals Won', value: data.dealsWonThisMonth },
           { label: 'Win Rate', value: `${data.winRate.toFixed(0)}%` },
-          { label: 'Weighted', value: `€${(data.weightedPipeline / 1000).toFixed(0)}k` },
+          { label: 'Weighted', value: formatCrmCurrencyCompact(data.weightedPipeline, 'EUR') },
         ]}
         chart={
           last14.length > 0 ? (

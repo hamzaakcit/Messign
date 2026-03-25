@@ -119,3 +119,53 @@ export async function getForecastByOwner(
     return result.rows as OwnerForecast[];
   });
 }
+
+export interface OrgForecastQuota {
+  sales_quota_eur: number;
+}
+
+/**
+ * Returns persisted sales quota for gap-to-target; ensures a row exists with default 500000 EUR.
+ */
+export async function getOrgForecastQuota(ctx: CallerContext): Promise<OrgForecastQuota> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for getOrgForecastQuota');
+
+  return runInTenant(tenantId, async (client) => {
+    await client.query(
+      `INSERT INTO crm_org_forecast_settings (organization_id)
+       VALUES ($1)
+       ON CONFLICT (organization_id) DO NOTHING`,
+      [tenantId],
+    );
+    const result = await client.query<{ sales_quota_eur: string }>(
+      `SELECT sales_quota_eur FROM crm_org_forecast_settings WHERE organization_id = $1`,
+      [tenantId],
+    );
+    return { sales_quota_eur: Number(result.rows[0]?.sales_quota_eur ?? 500000) };
+  });
+}
+
+/**
+ * Updates organization sales quota (EUR).
+ */
+export async function setOrgForecastQuota(
+  ctx: CallerContext,
+  salesQuotaEur: number,
+): Promise<OrgForecastQuota> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required for setOrgForecastQuota');
+
+  return runInTenant(tenantId, async (client) => {
+    const result = await client.query<{ sales_quota_eur: string }>(
+      `INSERT INTO crm_org_forecast_settings (organization_id, sales_quota_eur)
+       VALUES ($1, $2)
+       ON CONFLICT (organization_id) DO UPDATE SET
+         sales_quota_eur = EXCLUDED.sales_quota_eur,
+         updated_at = NOW()
+       RETURNING sales_quota_eur`,
+      [tenantId, salesQuotaEur],
+    );
+    return { sales_quota_eur: Number(result.rows[0]?.sales_quota_eur ?? salesQuotaEur) };
+  });
+}

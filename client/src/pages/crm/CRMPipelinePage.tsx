@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, LayoutGrid, CircleDot, ChevronDown } from 'lucide-react';
 import { DollarSign, TrendingUp, Target, BarChart3 } from 'lucide-react';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
@@ -12,17 +13,17 @@ import { DealDetailPanel } from '@/components/crm/DealDetailPanel';
 import { CRMNav } from '@/components/crm/CRMNav';
 import { usePipeline } from '@/hooks/usePipeline';
 import type { Deal } from '@/lib/crmApi';
+import { formatCrmCurrencyCompact } from '@/lib/crmCurrency';
 
 type ViewMode = 'kanban' | 'radial';
 
 function formatCurrency(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
+  return formatCrmCurrencyCompact(value, 'EUR');
 }
 
 
 export function CRMPipelinePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     pipelines,
     activePipelineId,
@@ -53,7 +54,34 @@ export function CRMPipelinePage() {
 
   const handleDealClick = useCallback((deal: Deal) => {
     setSelectedDeal(deal);
-  }, []);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('deal', deal.id);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
+  const dealIdFromUrl = searchParams.get('deal');
+  useEffect(() => {
+    if (!dealIdFromUrl || loading || error) return;
+    const all = Array.from(dealsByStage.values()).flat();
+    const match = all.find((d) => d.id === dealIdFromUrl);
+    if (match) setSelectedDeal(match);
+  }, [dealIdFromUrl, dealsByStage, loading, error]);
+
+  const clearDealParam = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('deal');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
 
   const handleDealCreated = useCallback(() => {
     setNewDealOpen(false);
@@ -197,14 +225,20 @@ export function CRMPipelinePage() {
       {/* Deal Detail Slide-Over */}
       <SlideOverPanel
         isOpen={!!selectedDeal}
-        onClose={() => setSelectedDeal(null)}
+        onClose={() => {
+          setSelectedDeal(null);
+          clearDealParam();
+        }}
         title={selectedDeal?.title ?? 'Deal Detail'}
         width={640}
       >
         {selectedDeal && (
           <DealDetailPanel
             dealId={selectedDeal.id}
-            onClose={() => setSelectedDeal(null)}
+            onClose={() => {
+              setSelectedDeal(null);
+              clearDealParam();
+            }}
             stages={stages}
             onDealUpdated={handleRefetch}
           />

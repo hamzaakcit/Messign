@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI, type AgingReport } from '@/lib/financeApi';
+import { getFinanceUserId } from '@/lib/financeRbac';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const BUCKET_LABELS: Record<string, string> = {
@@ -17,24 +19,58 @@ const BUCKET_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#f97316', '#ef4444'];
 
 export function APAgingPage() {
   const { user } = useAuthStore();
+  const financeUserId = getFinanceUserId(user);
   const [report, setReport] = useState<AgingReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
 
   const fetchReport = useCallback(async () => {
-    if (!user?.id) return;
+    if (!financeUserId) return;
     setLoading(true);
     try {
-      const data = await financeAPI.getAPAging(user.id);
+      const data = await financeAPI.getAPAging(financeUserId);
       setReport(data);
     } catch (err) {
       console.error('Failed to load AP aging:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to load AP aging report');
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [financeUserId]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
+
+  const exportCsv = useCallback(() => {
+    if (!report?.buckets) return;
+    const rows: string[][] = [['Vendor', 'Current', '1-30', '31-60', '61-90', '90+', 'Total']];
+    for (const b of report.buckets as Array<{
+      name: string;
+      current: number;
+      days_1_30: number;
+      days_31_60: number;
+      days_61_90: number;
+      days_90_plus: number;
+      total: number;
+    }>) {
+      rows.push([
+        b.name,
+        String(b.current ?? 0),
+        String(b.days_1_30 ?? 0),
+        String(b.days_31_60 ?? 0),
+        String(b.days_61_90 ?? 0),
+        String(b.days_90_plus ?? 0),
+        String(b.total ?? 0),
+      ]);
+    }
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ap-aging-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [report]);
 
   if (loading) {
     return (
@@ -56,6 +92,16 @@ export function APAgingPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={exportCsv}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-app-border text-sm text-app-muted hover:text-app-text hover:bg-app-nav-hover"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </button>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {Object.entries(BUCKET_LABELS).map(([key, label], i) => (
           <div key={key} className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">

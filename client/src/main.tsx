@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import App from './App'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { QueryProvider } from '@/providers/QueryProvider'
 import { setOnUnauthorized } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 /** Apply persisted light/dark (`data-theme`) before any route; Settings is not mounted on /login. */
@@ -28,10 +29,12 @@ function AppWithAuthHandler() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <AppWithAuthHandler />
-        <Toaster richColors position="top-right" visibleToasts={3} />
-      </BrowserRouter>
+      <QueryProvider>
+        <BrowserRouter>
+          <AppWithAuthHandler />
+          <Toaster richColors position="top-right" visibleToasts={3} />
+        </BrowserRouter>
+      </QueryProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 )

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatCommandCenterSummary } from '../../../services/ai/tools/commandCenterDashboard.js';
 import type { CommandCenterDTO } from '../../../dal/commandCenter.js';
+import { emptyWorkspaceSnapshots } from '../../../dal/workspaceOverview.js';
 
 const mockDto: CommandCenterDTO = {
   generatedAt: '2026-03-25T12:00:00.000Z',
@@ -36,6 +37,7 @@ const mockDto: CommandCenterDTO = {
     milestones: [{ title: 'Q1 goal', dueDate: '2026-03-31' }],
     sandboxIdeas: [],
   },
+  workspace: emptyWorkspaceSnapshots(),
 };
 
 describe('formatCommandCenterSummary', () => {
@@ -51,5 +53,7 @@ describe('formatCommandCenterSummary', () => {
     expect(s).toContain('The Future');
     expect(s).toContain('**62%**');
     expect(s).toContain('Q1 goal');
+    expect(s).toContain('Workspace modules');
+    expect(s).toContain('crm: error');
   });
 });

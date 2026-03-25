@@ -13,7 +13,7 @@ export function MarketplaceListRow({
   applyingId,
 }: {
   project: MarketplaceProject;
-  onApply: (id: string) => void;
+  onApply: () => void;
   onViewDetails: (p: MarketplaceProject) => void;
   onGoToWorkspace: (p: MarketplaceProject) => void;
   appliedOptimistic: Set<string>;
@@ -104,7 +104,7 @@ export function MarketplaceListRow({
             size="sm"
             variant="primary"
             disabled={applyingId === project.id}
-            onClick={() => onApply(project.id)}
+            onClick={() => onApply()}
           >
             {applyingId === project.id ? 'Applying…' : 'Join'}
           </Button>

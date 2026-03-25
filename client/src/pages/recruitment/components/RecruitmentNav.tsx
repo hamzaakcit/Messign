@@ -1,13 +1,14 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BarChart3, Briefcase, CalendarClock, KanbanSquare, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ROUTES } from '@/lib/routes';
 
 const tabs = [
-  { id: 'jobs', label: 'Jobs', path: '/recruitment', icon: Briefcase },
-  { id: 'pipeline', label: 'Pipeline', path: '/recruitment/pipeline', icon: KanbanSquare },
-  { id: 'candidates', label: 'Candidates', path: '/recruitment/candidates', icon: Users },
-  { id: 'interviews', label: 'Interviews', path: '/recruitment/interviews', icon: CalendarClock },
-  { id: 'dashboard', label: 'Dashboard', path: '/recruitment/dashboard', icon: BarChart3 },
+  { id: 'jobs', label: 'Jobs', path: ROUTES.RECRUITMENT, icon: Briefcase },
+  { id: 'pipeline', label: 'Pipeline', path: ROUTES.RECRUITMENT_PIPELINE, icon: KanbanSquare },
+  { id: 'candidates', label: 'Candidates', path: ROUTES.RECRUITMENT_CANDIDATES, icon: Users },
+  { id: 'interviews', label: 'Interviews', path: ROUTES.RECRUITMENT_INTERVIEWS, icon: CalendarClock },
+  { id: 'dashboard', label: 'Dashboard', path: ROUTES.RECRUITMENT_DASHBOARD, icon: BarChart3 },
 ];
 
 export function RecruitmentNav() {

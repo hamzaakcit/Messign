@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 let openPanelCount = 0;
 
@@ -19,7 +20,10 @@ export function SlideOverPanel({
   width = 640,
   children,
 }: SlideOverPanelProps) {
+  const titleId = useId();
   const layerRef = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(isOpen, panelRef);
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -66,7 +70,8 @@ export function SlideOverPanel({
 
           {/* Panel */}
           <motion.div
-            className="fixed right-0 top-0 bottom-0 flex flex-col border-l shadow-2xl"
+            ref={panelRef}
+            className="fixed right-0 top-0 bottom-0 flex flex-col border-l shadow-2xl outline-none"
             style={{
               zIndex: zPanel,
               width: `min(${width}px, 100vw)`,
@@ -77,6 +82,7 @@ export function SlideOverPanel({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
+            tabIndex={-1}
           >
             {/* Header */}
             <div
@@ -84,13 +90,16 @@ export function SlideOverPanel({
               style={{ borderColor: 'var(--app-border)' }}
             >
               <h2
+                id={titleId}
                 className="text-lg font-semibold truncate"
                 style={{ color: 'var(--app-text)' }}
               >
                 {title}
               </h2>
               <button
+                type="button"
                 onClick={onClose}
+                aria-label="Close panel"
                 className="p-1.5 rounded-lg transition-colors"
                 style={{ color: 'var(--app-text-muted)' }}
                 onMouseEnter={(e) =>

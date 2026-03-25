@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   Clock3,
@@ -36,6 +37,7 @@ import {
   TicketAssigneeValue,
   TicketStatusBadge,
 } from './components/supportUi';
+import { buildSupportTicketListFilters } from './supportTicketFilters';
 
 const PAGE_SIZE = 20;
 
@@ -83,8 +85,9 @@ export function SupportTicketsPage() {
     if (!userId) return;
     try {
       setMetrics(await supportApi.getDashboardMetrics(userId));
-    } catch {
+    } catch (err) {
       setMetrics(null);
+      toast.error(err instanceof Error ? err.message : 'Failed to load support metrics');
     }
   }, [userId]);
 
@@ -104,24 +107,28 @@ export function SupportTicketsPage() {
           ? users.find((u) => (u.name || u.email || '').toLowerCase().includes(assigneeStr.toLowerCase()))?.id
           : undefined;
 
-      const result = await listFn(userId, {
-        search: (nlFilters.search as string) || search || undefined,
-        priority: ((nlFilters.priority === 'urgent' ? 'critical' : nlFilters.priority) as SupportPriority) || priority || undefined,
-        categoryId: resolvedCategoryId || categoryId || undefined,
-        assigneeId: resolvedAssigneeId || assigneeId || undefined,
-        status: (nlFilters.status as string) || (tab === 'resolved' ? 'resolved' : undefined),
-        from: (nlFilters.createdFrom as string) || undefined,
-        to: (nlFilters.createdTo as string) || undefined,
-        page: page + 1,
+      const filters = buildSupportTicketListFilters({
+        tab,
+        nlFilters,
+        search,
+        priority,
+        categoryId,
+        assigneeId,
+        resolvedCategoryId,
+        resolvedAssigneeId,
+        page,
         pageSize: PAGE_SIZE,
         sortBy,
         sortDir,
       });
+
+      const result = await listFn(userId, filters);
       setTickets(result.data);
       setTotal(result.total);
-    } catch {
+    } catch (err) {
       setTickets([]);
       setTotal(0);
+      toast.error(err instanceof Error ? err.message : 'Failed to load tickets');
     } finally {
       setLoading(false);
     }
@@ -136,18 +143,6 @@ export function SupportTicketsPage() {
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
-
-  const filteredTickets = useMemo(() => {
-    return tickets.filter((ticket) => {
-      if (tab === 'open') {
-        return ['open', 'awaiting_agent', 'awaiting_customer', 'in_progress', 'on_hold'].includes(ticket.status);
-      }
-      if (tab === 'urgent') {
-        return ticket.priority === 'critical' || ticket.slaStatus === 'breached';
-      }
-      return true;
-    });
-  }, [tab, tickets]);
 
   const columns = useMemo<ColumnDef<SupportTicket>[]>(() => [
     {
@@ -216,8 +211,6 @@ export function SupportTicketsPage() {
     },
   ], []);
 
-  const displayedTotal = tab === 'open' || tab === 'urgent' ? filteredTickets.length : total;
-
   const handleBulkApply = async () => {
     if (!userId || selectedIds.size === 0 || !bulkAction) return;
     const ids = Array.from(selectedIds);
@@ -233,10 +226,11 @@ export function SupportTicketsPage() {
       }
       setSelectedIds(new Set());
       setBulkAction('');
+      toast.success('Bulk action completed');
       await fetchTickets();
       await fetchMetrics();
-    } catch {
-      // keep the page usable if one bulk action fails
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Bulk action failed');
     }
   };
 
@@ -431,7 +425,20 @@ export function SupportTicketsPage() {
           <NLFilterBar
             placeholder="Try: &quot;high priority open tickets from last week&quot;"
             availableFields={[
-              { key: 'status', label: 'Status', type: 'enum', values: ['open', 'in_progress', 'waiting', 'resolved', 'closed'] },
+              {
+                key: 'status',
+                label: 'Status',
+                type: 'enum',
+                values: [
+                  'open',
+                  'in_progress',
+                  'awaiting_agent',
+                  'awaiting_customer',
+                  'on_hold',
+                  'resolved',
+                  'closed',
+                ],
+              },
               { key: 'priority', label: 'Priority', type: 'enum', values: ['low', 'medium', 'high', 'urgent'] },
               { key: 'category', label: 'Category', type: 'string' },
               { key: 'assignee', label: 'Assignee', type: 'string' },
@@ -443,7 +450,7 @@ export function SupportTicketsPage() {
           />
 
           <DataTable
-            data={filteredTickets}
+            data={tickets}
             columns={columns}
             isLoading={loading}
             selectable
@@ -455,7 +462,7 @@ export function SupportTicketsPage() {
             pageSize={PAGE_SIZE}
             currentPage={page}
             onPageChange={setPage}
-            totalItems={displayedTotal}
+            totalItems={total}
             sortable
             defaultSort={{ key: 'createdAt', direction: 'desc' }}
             onSort={(key, direction) => {

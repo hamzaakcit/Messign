@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useId, type LegacyRef, type RefObject } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,9 +10,12 @@ interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   /** Force dark theme inside the modal (e.g. when app is light) */
   forceDark?: boolean;
+  /** Focus trap and programmatic focus target (panel with interactive controls). */
+  contentRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md', forceDark = false }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md', forceDark = false, contentRef }: ModalProps) {
+  const titleId = useId();
   const handleEscape = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
   }, [onClose]);
@@ -47,16 +50,20 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', forceDark
       
       {/* Modal */}
       <div
+        ref={contentRef as LegacyRef<HTMLDivElement> | undefined}
         className={cn(
           'relative w-full mx-4 bg-app-card border border-app-border rounded-2xl p-6 shadow-xl animate-fade-in',
           sizes[size]
         )}
         data-theme={forceDark ? 'dark' : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
       >
         {/* Header */}
         {title && (
           <div className="flex items-center justify-between mb-4 border-b border-app-border pb-4">
-            <h2 className="text-xl font-semibold text-app">{title}</h2>
+            <h2 id={titleId} className="text-xl font-semibold text-app">{title}</h2>
             <button
               onClick={onClose}
               className="p-1 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-app"

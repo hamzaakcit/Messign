@@ -43,6 +43,14 @@ export function ThreadPanel() {
     if (activeThreadId) inputRef.current?.focus();
   }, [activeThreadId]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeThread();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [closeThread]);
+
   if (!activeThreadId || !parentMessage) return null;
 
   const parentUser = users.find((u) => u.id === parentMessage.userId);

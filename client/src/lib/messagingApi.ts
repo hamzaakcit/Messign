@@ -1,6 +1,6 @@
 /** @module messagingApi — Channel, message, and DB-backed chat APIs. */
 import { getAccessToken } from './authToken';
-import { API_BASE, fetchAPI } from './apiCore';
+import { API_BASE, assertNotHtmlApiResponse, fetchAPI } from './apiCore';
 import type {
   Message, Channel, EmbeddedCard, DoraSummaryResult,
   DoraActionItemsResult, DoraKBSuggestion, SmartReplyResult,
@@ -36,7 +36,8 @@ function chatFetch<T>(endpoint: string, userId?: string, options?: RequestInit):
   const token = getAccessToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (userId) headers['X-User-Id'] = userId;
-  return fetch(`${API_BASE}${endpoint}`, { ...options, credentials: 'include', headers: { ...headers, ...(options?.headers as Record<string, string>) } }).then((res) => {
+  return fetch(`${API_BASE}${endpoint}`, { ...options, credentials: 'include', headers: { ...headers, ...(options?.headers as Record<string, string>) } }).then(async (res) => {
+    assertNotHtmlApiResponse(res);
     if (!res.ok) {
       if (res.status === 429) {
         return res.json().catch(() => ({})).then((body: unknown) => {
@@ -66,6 +67,20 @@ export const chatAPI = {
     }),
   getMessages: (channelId: string, userId?: string) =>
     chatFetch<Message[]>(`/chat/channels/${channelId}/messages`, userId),
+  /** Paginated channel history (use `limit` or `before` query on server). */
+  getMessagesPage: (
+    channelId: string,
+    options?: { limit?: number; before?: string },
+    userId?: string,
+  ) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(options?.limit ?? 80));
+    if (options?.before) params.set('before', options.before);
+    return chatFetch<{ messages: Message[]; hasMore: boolean }>(
+      `/chat/channels/${channelId}/messages?${params.toString()}`,
+      userId,
+    );
+  },
   sendMessage: (channelId: string, body: { content: string; attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown>; threadId?: string }, userId?: string) =>
     chatFetch<Message>(
       `/chat/channels/${channelId}/messages`, userId,

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ChartOfAccountsPage } from './ChartOfAccountsPage';
 import { JournalEntriesPage } from './JournalEntriesPage';
@@ -32,8 +33,22 @@ const TABS: { id: AccountingTab; label: string; icon: typeof BookOpen }[] = [
   { id: 'period-close', label: 'Period Close', icon: CalendarCheck },
 ];
 
+const VALID_TABS = new Set<AccountingTab>(TABS.map((t) => t.id));
+
 export function AccountingPage() {
-  const [tab, setTab] = useState<AccountingTab>('coa');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const tab: AccountingTab = useMemo(() => {
+    if (tabParam && VALID_TABS.has(tabParam as AccountingTab)) return tabParam as AccountingTab;
+    return 'coa';
+  }, [tabParam]);
+
+  const setTab = useCallback(
+    (id: AccountingTab) => {
+      setSearchParams({ tab: id }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   return (
     <div className="space-y-4">
@@ -41,6 +56,7 @@ export function AccountingPage() {
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
+            type="button"
             onClick={() => setTab(id)}
             className={cn(
               'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI, type GLAccount, type TrialBalance } from '@/lib/financeApi';
+import { getFinanceUserId, hasFinanceElevatedAccess } from '@/lib/financeRbac';
 import { cn } from '@/lib/utils';
 import {
   Plus, ChevronRight, ChevronDown, Search, Edit2, X, Check, Ban,
@@ -17,7 +18,9 @@ const TYPE_COLORS: Record<string, string> = {
 const TYPE_ORDER = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
 export function ChartOfAccountsPage() {
-  const { user } = useAuthStore();
+  const { user, isAdmin } = useAuthStore();
+  const userId = getFinanceUserId(user);
+  const canMutateCoa = hasFinanceElevatedAccess(user, isAdmin);
   const [accounts, setAccounts] = useState<GLAccount[]>([]);
   const [trialBalance, setTrialBalance] = useState<TrialBalance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,12 +31,12 @@ export function ChartOfAccountsPage() {
   const [formData, setFormData] = useState({ code: '', name: '', type: 'expense', description: '', parent_id: '' });
 
   const fetchData = useCallback(async () => {
-    if (!user?.id) return;
+    if (!userId) return;
     setLoading(true);
     try {
       const [accts, tb] = await Promise.all([
-        financeAPI.listGLAccounts(user.id),
-        financeAPI.getTrialBalance(user.id),
+        financeAPI.listGLAccounts(userId),
+        financeAPI.getTrialBalance(userId),
       ]);
       setAccounts(accts);
       setTrialBalance(tb);
@@ -42,7 +45,7 @@ export function ChartOfAccountsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -62,9 +65,9 @@ export function ChartOfAccountsPage() {
   };
 
   const handleCreate = async () => {
-    if (!user?.id || !formData.code || !formData.name) return;
+    if (!userId || !formData.code || !formData.name) return;
     try {
-      await financeAPI.createGLAccount(user.id, {
+      await financeAPI.createGLAccount(userId, {
         code: formData.code,
         name: formData.name,
         type: formData.type as GLAccount['type'],
@@ -80,9 +83,9 @@ export function ChartOfAccountsPage() {
   };
 
   const handleUpdate = async (id: string) => {
-    if (!user?.id) return;
+    if (!userId) return;
     try {
-      await financeAPI.updateGLAccount(user.id, id, {
+      await financeAPI.updateGLAccount(userId, id, {
         name: formData.name,
         description: formData.description || undefined,
       });
@@ -94,9 +97,9 @@ export function ChartOfAccountsPage() {
   };
 
   const handleDeactivate = async (id: string) => {
-    if (!user?.id) return;
+    if (!userId) return;
     try {
-      await financeAPI.deactivateGLAccount(user.id, id);
+      await financeAPI.deactivateGLAccount(userId, id);
       fetchData();
     } catch (err) {
       console.error('Failed to deactivate account:', err);
@@ -264,18 +267,22 @@ export function ChartOfAccountsPage() {
                             </span>
                           </td>
                           <td className="px-4 py-2 text-right">
-                            {editingId === account.id ? (
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => handleUpdate(account.id)} className="p-1 text-green-400 hover:bg-green-500/20 rounded"><Check className="h-3.5 w-3.5" /></button>
-                                <button onClick={() => setEditingId(null)} className="p-1 text-app-muted hover:text-app-text rounded"><X className="h-3.5 w-3.5" /></button>
-                              </div>
+                            {canMutateCoa ? (
+                              editingId === account.id ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <button type="button" onClick={() => handleUpdate(account.id)} className="p-1 text-green-400 hover:bg-green-500/20 rounded"><Check className="h-3.5 w-3.5" /></button>
+                                  <button type="button" onClick={() => setEditingId(null)} className="p-1 text-app-muted hover:text-app-text rounded"><X className="h-3.5 w-3.5" /></button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  <button type="button" onClick={() => startEdit(account)} className="p-1 text-app-muted hover:text-app-text rounded"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  {account.is_active && (
+                                    <button type="button" onClick={() => handleDeactivate(account.id)} className="p-1 text-app-muted hover:text-red-400 rounded"><Ban className="h-3.5 w-3.5" /></button>
+                                  )}
+                                </div>
+                              )
                             ) : (
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => startEdit(account)} className="p-1 text-app-muted hover:text-app-text rounded"><Edit2 className="h-3.5 w-3.5" /></button>
-                                {account.is_active && (
-                                  <button onClick={() => handleDeactivate(account.id)} className="p-1 text-app-muted hover:text-red-400 rounded"><Ban className="h-3.5 w-3.5" /></button>
-                                )}
-                              </div>
+                              <span className="text-app-muted text-xs">—</span>
                             )}
                           </td>
                         </tr>

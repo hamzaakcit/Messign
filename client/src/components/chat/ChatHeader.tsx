@@ -157,7 +157,7 @@ export function ChatHeader() {
           type="button"
           onClick={() => setDuelHubOpen(!duelHubOpen)}
           className={cn(
-            'p-2 rounded-lg transition-colors hidden sm:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg',
+            'p-2 rounded-lg transition-colors flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg',
             duelHubOpen ? 'text-violet-400 bg-violet-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover',
           )}
           title="Channel duels — RPS, coin flip, lucky chamber"
@@ -197,7 +197,7 @@ export function ChatHeader() {
         <button
           type="button"
           onClick={toggleDetailPanel}
-          className={`p-2 rounded-lg transition-colors hidden lg:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${detailPanelOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
+          className={`p-2 rounded-lg transition-colors flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${detailPanelOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
           title="Channel details"
           aria-label={detailPanelOpen ? 'Hide channel details' : 'Show channel details'}
           aria-pressed={detailPanelOpen}

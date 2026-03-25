@@ -148,6 +148,12 @@ export interface RecruitmentOffer {
   created_at: string;
 }
 
+export interface CandidatePoolMetrics {
+  total: number;
+  withResume: number;
+  aiParsed: number;
+}
+
 export interface RecruitmentDashboardMetrics {
   openPositions: number;
   activeApplicants: number;
@@ -182,6 +188,8 @@ export const recruitmentAPI = {
     const params = new URLSearchParams(filters || {});
     return recruitmentRequest<PaginatedResult<RecruitmentCandidate>>(`/candidates?${params.toString()}`, {}, userId);
   },
+  getCandidatePoolMetrics: (userId: string) =>
+    recruitmentRequest<CandidatePoolMetrics>('/candidates/metrics', {}, userId),
   getCandidate: (userId: string, candidateId: string) =>
     recruitmentRequest<RecruitmentCandidate>(`/candidates/${candidateId}`, {}, userId),
   createCandidate: (userId: string, data: Partial<RecruitmentCandidate>) =>

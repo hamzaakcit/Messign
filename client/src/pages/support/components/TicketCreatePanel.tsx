@@ -170,7 +170,20 @@ export function TicketCreatePanel({ onCreated, onCancel }: TicketCreatePanelProp
 
       const ticket = await supportApi.createTicket(userId, payload);
       if (attachments.length > 0) {
-        toast.info('Ticket created. Attachments can be sent in the conversation thread next.');
+        const uploaded: Array<Record<string, unknown>> = [];
+        for (const file of attachments) {
+          const meta = await supportApi.uploadTicketAttachment(userId, ticket.id, file);
+          uploaded.push({
+            filename: meta.filename,
+            url: meta.url,
+            size: meta.size,
+            type: meta.mimeType,
+          });
+        }
+        await supportApi.addMessage(userId, ticket.id, {
+          body: uploaded.length === 1 ? 'Attachment uploaded.' : 'Attachments uploaded.',
+          attachments: uploaded,
+        });
       }
       onCreated(ticket);
     } catch (error) {
@@ -328,7 +341,7 @@ export function TicketCreatePanel({ onCreated, onCancel }: TicketCreatePanelProp
           </div>
         )}
         <p className="mt-2 text-xs text-app-muted">
-          Selected files are kept ready for follow-up conversation messages after ticket creation.
+          Files upload to the server after the ticket is created and appear in the conversation thread.
         </p>
       </div>
 

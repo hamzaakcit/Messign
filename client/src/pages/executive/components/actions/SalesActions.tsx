@@ -4,6 +4,7 @@ import { Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { crmAPI } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
+import { formatCrmCurrencyCompact } from '@/lib/crmCurrency';
 
 interface Deal {
   id: string;
@@ -11,6 +12,7 @@ interface Deal {
   amount?: number;
   amount_eur?: number;
   probability?: number;
+  stage_id?: string;
   stage_name?: string;
   owner_name?: string;
   company_name?: string;
@@ -29,7 +31,7 @@ export function SalesActions({ userId, onSuccess }: SalesActionsProps): JSX.Elem
   const loadDeals = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await crmAPI.listDeals(userId, { sort: 'updated_at', order: 'desc', limit: '10' });
+      const result = await crmAPI.listDeals(userId, { sort_by: 'updated_at', sort_dir: 'desc', pageSize: '10' });
       const items = (result as { data?: Deal[] })?.data ?? [];
       setDeals(Array.isArray(items) ? items : []);
     } catch {
@@ -48,12 +50,14 @@ export function SalesActions({ userId, onSuccess }: SalesActionsProps): JSX.Elem
       if (!deal) return;
       const pipelines = await crmAPI.listPipelines(userId);
       if (!pipelines.length) { toast.error('No pipeline found'); return; }
-      const stagesByPipeline = await crmAPI.getDealsByStage(userId, pipelines[0].id);
-      const stageNames = Object.keys(stagesByPipeline);
-      const currentIdx = stageNames.findIndex((s) => s === deal.stage_name);
-      if (currentIdx >= 0 && currentIdx < stageNames.length - 1) {
-        await crmAPI.updateDeal(userId, dealId, { stage_name: stageNames[currentIdx + 1] } as Partial<Deal>);
-        toast.success(`Deal moved to ${stageNames[currentIdx + 1]}`);
+      const defaultPipeline = pipelines.find((p) => p.is_default) ?? pipelines[0];
+      const pipelineDetail = await crmAPI.getPipeline(userId, defaultPipeline.id);
+      const stagesList = (pipelineDetail.stages ?? []).slice().sort((a, b) => a.position - b.position);
+      const currentIdx = stagesList.findIndex((s) => s.id === deal.stage_id);
+      if (currentIdx >= 0 && currentIdx < stagesList.length - 1) {
+        const nextStage = stagesList[currentIdx + 1];
+        await crmAPI.moveDealToStage(userId, dealId, nextStage.id);
+        toast.success(`Deal moved to ${nextStage.name}`);
         onSuccess();
         loadDeals();
       } else {
@@ -87,7 +91,7 @@ export function SalesActions({ userId, onSuccess }: SalesActionsProps): JSX.Elem
             <div className="text-sm font-medium text-app truncate">{deal.title}</div>
             <div className="text-xs text-app-muted">
               {deal.company_name ?? deal.owner_name ?? 'Unknown'} &middot;{' '}
-              €{((deal.amount_eur ?? deal.amount ?? 0)).toFixed(0)} &middot; {deal.stage_name ?? 'Unknown Stage'}
+              {formatCrmCurrencyCompact(deal.amount_eur ?? deal.amount ?? 0, 'EUR')} &middot; {deal.stage_name ?? 'Unknown Stage'}
             </div>
           </div>
           <button

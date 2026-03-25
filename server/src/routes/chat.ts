@@ -4,6 +4,7 @@ import {
   getChannelsForUser,
   getChannelIdsForUser,
   getMessagesForChannel,
+  getMessagesForChannelPage,
   createMessage,
   getChannelById,
   findOrCreateDmChannel,
@@ -135,6 +136,19 @@ chatRouter.get('/channels/:id/messages', async (req, res) => {
     if (!channel) { res.status(404).json({ error: 'Channel not found' }); return; }
     if (userId && !(await checkChannelMembership(channelId, userId))) {
       res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const limitRaw = req.query.limit;
+    const beforeRaw = req.query.before;
+    if (limitRaw !== undefined || beforeRaw !== undefined) {
+      const limit = typeof limitRaw === 'string' && limitRaw.length > 0 ? parseInt(limitRaw, 10) : 80;
+      const before = typeof beforeRaw === 'string' && beforeRaw.length > 0 ? beforeRaw : undefined;
+      const { rows, hasMore } = await getMessagesForChannelPage(
+        channelId,
+        Number.isFinite(limit) ? limit : 80,
+        before ?? null,
+      );
+      res.json({ messages: rows.map(toClientMessage), hasMore });
+      return;
     }
     const rows = await getMessagesForChannel(channelId);
     res.json(rows.map(toClientMessage));

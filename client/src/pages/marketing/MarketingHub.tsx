@@ -8,16 +8,12 @@ import {
   marketingAPI,
   type Campaign,
   type ContentItem,
-  type DashboardMetrics,
   type EmailCampaign,
-  type Lead,
-  type LeadFunnelMetrics,
-  type BrandProfileClient,
   type CommandCenterStrategyPlay,
 } from '@/lib/marketingApi';
 import { useMarketingApprovalQueue } from '@/hooks/useMarketingApprovalQueue';
 import { SparkBar, type ViewMode } from './components/SparkBar';
-import { KanbanBoard, BoardSkeleton, type LaneId } from './components/KanbanBoard';
+import type { LaneId } from './components/KanbanBoard';
 import { FunnelStrip } from './components/FunnelStrip';
 import { DoraRail, MARKETING_DORA_RAIL_OUTSET_RIGHT } from './components/DoraRail';
 import type { BoardCardData } from './components/BoardCard';
@@ -28,8 +24,10 @@ import { ContentCreatePanel, type ContentCreatePreset } from './components/Conte
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
 import { EmailCampaignDetailPanel } from './components/EmailCampaignDetailPanel';
-import { MarketingCommandCenter } from './MarketingCommandCenter';
-import { useMarketingCommandCenterData } from './command-center/useMarketingCommandCenterData';
+import { useMarketingWorkspace } from './hooks/useMarketingWorkspace';
+import { buildMarketingModeLocation, pathnameToViewMode } from './lib/marketingPathUtils';
+import { MarketingWorkspaceSecondaryAlerts } from './components/MarketingWorkspaceSecondaryAlerts';
+import { MarketingBoardAndPipeline } from './components/MarketingBoardAndPipeline';
 
 const ContentDetailPanel = React.lazy(() =>
   import('./components/ContentDetailPanel').then((m) => ({ default: m.ContentDetailPanel })),
@@ -73,6 +71,27 @@ function SectionFallback(): JSX.Element {
   );
 }
 
+function MarketingBootstrapErrorBanner({
+  error,
+  onRetry,
+}: {
+  error: Error | null;
+  onRetry: () => void;
+}): JSX.Element | null {
+  if (!error) return null;
+  return (
+    <div
+      className="shrink-0 px-4 py-1.5 text-xs bg-rose-950/50 text-rose-100 border-b border-rose-500/30 flex items-center justify-between gap-2"
+      role="alert"
+    >
+      <span className="truncate">{error.message}</span>
+      <button type="button" className="shrink-0 underline underline-offset-2" onClick={() => void onRetry()}>
+        Retry
+      </button>
+    </div>
+  );
+}
+
 export function MarketingHub(): JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
@@ -80,23 +99,15 @@ export function MarketingHub(): JSX.Element {
   const accessToken = useAuthStore((s) => s.accessToken);
   const userId = user?.authUserId || user?.id || '';
 
-  const [mode, setModeState] = useState<ViewMode>('board');
-  const setMode = useCallback((m: ViewMode) => {
-    setModeState(m);
-    if (m === 'intelligence') navigate('/marketing/intelligence');
-    else if (m === 'builder') navigate('/marketing/builder');
-    else if (location.pathname !== '/marketing') navigate('/marketing');
-  }, [navigate, location.pathname]);
+  const mode = pathnameToViewMode(location.pathname);
+  const setMode = useCallback(
+    (m: ViewMode) => {
+      navigate(buildMarketingModeLocation(m, location.search));
+    },
+    [navigate, location.search],
+  );
   const [doraOpen, setDoraOpen] = useState(true);
   const [selectedCard, setSelectedCard] = useState<BoardCardData | null>(null);
-
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [metricsLoading, setMetricsLoading] = useState(true);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [content, setContent] = useState<ContentItem[]>([]);
-  const [emailCampaigns, setEmailCampaigns] = useState<EmailCampaign[]>([]);
-  const [hotLeads, setHotLeads] = useState<Lead[]>([]);
-  const [funnel, setFunnel] = useState<LeadFunnelMetrics | null>(null);
 
   const [detail, setDetail] = useState<DetailTarget>(null);
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
@@ -105,58 +116,44 @@ export function MarketingHub(): JSX.Element {
   const [igModalSignal, setIgModalSignal] = useState(0);
   const [brandManagerOpen, setBrandManagerOpen] = useState(false);
   const [brandFilter, setBrandFilter] = useState<string | null>(null);
-  const [brandList, setBrandList] = useState<BrandProfileClient[]>([]);
   const [ccDays, setCcDays] = useState(7);
   const [doraExecutePrompt, setDoraExecutePrompt] = useState<{ id: number; text: string } | null>(null);
   const pipelineSectionRef = useRef<HTMLDivElement>(null);
 
   const {
-    data: ccData,
-    loading: ccLoading,
-    error: ccError,
-    refresh: refreshCc,
-  } = useMarketingCommandCenterData({
+    metrics,
+    campaigns,
+    content,
+    emailCampaigns,
+    hotLeads,
+    funnel,
+    brandList,
+    metricsLoading,
+    bootstrapError,
+    funnelError,
+    brandsError,
+    ccData,
+    ccLoading,
+    ccError,
+    invalidateWorkspace,
+    refreshCommandCenter,
+    refetchBootstrap,
+    refetchFunnel,
+    refetchBrands,
+  } = useMarketingWorkspace({
     userId,
     accessToken,
-    days: ccDays,
-    brandId: brandFilter,
+    ccDays,
+    brandFilter,
   });
 
   const { items: approvalItems, approve: approveItem } = useMarketingApprovalQueue(
     userId && accessToken ? userId : undefined,
   );
 
-  const fetchData = useCallback(async () => {
-    if (!userId || !accessToken) return;
-    setMetricsLoading(true);
-    try {
-      const [bootstrap, funnelData, brands] = await Promise.all([
-        marketingAPI.getDashboardBootstrap(userId, undefined, { fresh: true }),
-        marketingAPI.getLeadFunnel(userId),
-        marketingAPI.listBrandProfiles(userId).catch(() => ({ profiles: [] as BrandProfileClient[], total: 0 })),
-      ]);
-      setMetrics(bootstrap.metrics);
-      setCampaigns(bootstrap.campaigns.data);
-      setContent(bootstrap.content.data);
-      setEmailCampaigns(bootstrap.emailCampaigns.data);
-      setHotLeads(bootstrap.hotLeads);
-      setFunnel(funnelData);
-      setBrandList(brands.profiles.filter((b) => b.active).sort((a, b) => a.brand_name.localeCompare(b.brand_name)));
-    } catch {
-      /* non-critical */
-    } finally {
-      setMetricsLoading(false);
-    }
-  }, [userId, accessToken]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
   const handleDetailUpdated = useCallback(() => {
-    void fetchData();
-    void refreshCc({ fresh: true });
-  }, [fetchData, refreshCc]);
+    void invalidateWorkspace();
+  }, [invalidateWorkspace]);
 
   const scrollToPipeline = useCallback((): void => {
     pipelineSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -244,6 +241,13 @@ export function MarketingHub(): JSX.Element {
   if (segment === 'builder') {
     return (
       <div className="flex flex-col h-full min-h-0">
+        <MarketingBootstrapErrorBanner error={bootstrapError} onRetry={() => void refetchBootstrap()} />
+        <MarketingWorkspaceSecondaryAlerts
+          funnelError={funnelError}
+          brandsError={brandsError}
+          onRetryFunnel={() => void refetchFunnel()}
+          onRetryBrands={() => void refetchBrands()}
+        />
         <div className="shrink-0 px-4 py-2">
           <SparkBar
             mode="builder"
@@ -272,6 +276,13 @@ export function MarketingHub(): JSX.Element {
   if (segment === 'intelligence') {
     return (
       <div className="flex flex-col h-full min-h-0">
+        <MarketingBootstrapErrorBanner error={bootstrapError} onRetry={() => void refetchBootstrap()} />
+        <MarketingWorkspaceSecondaryAlerts
+          funnelError={funnelError}
+          brandsError={brandsError}
+          onRetryFunnel={() => void refetchFunnel()}
+          onRetryBrands={() => void refetchBrands()}
+        />
         <div className="shrink-0 px-4 py-2">
           <SparkBar
             mode="intelligence"
@@ -305,7 +316,7 @@ export function MarketingHub(): JSX.Element {
     return <Navigate to="/marketing" replace state={{ openPipeline: true }} />;
   }
 
-  if (segment === 'campaigns' || segment === 'calendar') {
+  if (segment === 'campaigns') {
     return <Navigate to="/marketing" replace />;
   }
 
@@ -359,8 +370,7 @@ export function MarketingHub(): JSX.Element {
           toast.success('Published');
         }
       }
-      await fetchData();
-      await refreshCc({ fresh: true });
+      await invalidateWorkspace();
     } catch (e) {
       toast.error('Move failed', { description: e instanceof Error ? e.message : 'Unknown' });
     }
@@ -368,6 +378,13 @@ export function MarketingHub(): JSX.Element {
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      <MarketingBootstrapErrorBanner error={bootstrapError} onRetry={() => void refetchBootstrap()} />
+      <MarketingWorkspaceSecondaryAlerts
+        funnelError={mode === 'calendar' ? null : funnelError}
+        brandsError={brandsError}
+        onRetryFunnel={() => void refetchFunnel()}
+        onRetryBrands={() => void refetchBrands()}
+      />
       <SparkBar
         mode={mode}
         onModeChange={setMode}
@@ -384,50 +401,33 @@ export function MarketingHub(): JSX.Element {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {mode === 'board' && (
-          <div className="flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden bg-[#080a0e]">
-            <MarketingCommandCenter
-              variant="compact"
-              data={ccData}
-              loading={ccLoading}
-              error={ccError}
-              days={ccDays}
-              onDaysChange={setCcDays}
-              brandList={brandList}
-              brandFilter={brandFilter}
-              onBrandFilterChange={setBrandFilter}
-              onRefresh={() => void refreshCc({ fresh: true })}
-              onExecuteWithDora={handleExecuteWithDora}
-              onOpenCampaign={(id) => setDetail({ type: 'campaign', id })}
-              onOpenEmail={(id) => setDetail({ type: 'email', id })}
-              onOpenPipeline={scrollToPipeline}
-              onOpenBuilder={() => setMode('builder')}
-              onOpenIntelligence={() => setMode('intelligence')}
-              onReconnectSocial={() => void refreshCc({ fresh: true })}
-            />
-            <section
-              ref={pipelineSectionRef}
-              className="flex flex-1 min-h-0 flex-col border-t border-white/[0.06] overflow-hidden"
-              aria-label="Content pipeline"
-            >
-              <div className="shrink-0 px-3 py-1.5 bg-[#0a0d12] border-b border-white/[0.04]">
-                <h2 className="text-[10px] font-semibold uppercase tracking-wider text-app-muted">Content pipeline</h2>
-              </div>
-              <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-1">
-                {metricsLoading ? (
-                  <BoardSkeleton />
-                ) : (
-                  <KanbanBoard
-                    content={filteredContent}
-                    campaigns={campaigns}
-                    emailCampaigns={emailCampaigns}
-                    approvalItems={approvalItems}
-                    onCardClick={handleCardClick}
-                    onCardMove={(cardId, from, to, card) => void handleCardMove(cardId, from, to, card)}
-                  />
-                )}
-              </div>
-            </section>
-          </div>
+          <MarketingBoardAndPipeline
+            ccData={ccData}
+            ccLoading={ccLoading}
+            ccError={ccError}
+            ccDays={ccDays}
+            onCcDaysChange={setCcDays}
+            brandList={brandList}
+            brandFilter={brandFilter}
+            onBrandFilterChange={setBrandFilter}
+            onRefreshCommandCenter={() => void refreshCommandCenter({ fresh: true })}
+            onExecuteWithDora={handleExecuteWithDora}
+            onOpenCampaign={(id) => setDetail({ type: 'campaign', id })}
+            onOpenEmail={(id) => setDetail({ type: 'email', id })}
+            onOpenPipeline={scrollToPipeline}
+            onOpenBuilder={() => setMode('builder')}
+            onOpenIntelligence={() => setMode('intelligence')}
+            onReconnectSocial={() => void refreshCommandCenter({ fresh: true })}
+            brandsError={brandsError}
+            pipelineSectionRef={pipelineSectionRef}
+            filteredContent={filteredContent}
+            campaigns={campaigns}
+            emailCampaigns={emailCampaigns}
+            approvalItems={approvalItems}
+            metricsLoading={metricsLoading}
+            onCardClick={handleCardClick}
+            onCardMove={(cardId, from, to, card) => void handleCardMove(cardId, from, to, card)}
+          />
         )}
 
         {mode === 'calendar' && (
@@ -447,6 +447,21 @@ export function MarketingHub(): JSX.Element {
         )}
       </div>
 
+      {mode === 'calendar' && funnelError ? (
+        <div
+          className="shrink-0 px-4 py-1 text-[10px] bg-amber-950/35 text-amber-100/95 border-t border-amber-500/20 flex items-center justify-between gap-2"
+          role="status"
+        >
+          <span className="truncate">Funnel: {funnelError.message}</span>
+          <button
+            type="button"
+            className="shrink-0 underline underline-offset-2"
+            onClick={() => void refetchFunnel()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       {mode === 'calendar' && (
         <FunnelStrip
           funnel={funnel}
@@ -517,8 +532,7 @@ export function MarketingHub(): JSX.Element {
         <CampaignCreatePanel
           onCreated={() => {
             setCreateCampaignOpen(false);
-            void fetchData();
-            void refreshCc({ fresh: true });
+            void invalidateWorkspace();
           }}
           onCancel={() => setCreateCampaignOpen(false)}
         />
@@ -539,8 +553,7 @@ export function MarketingHub(): JSX.Element {
           onCreated={() => {
             setCreateContentOpen(false);
             setContentCreatePreset('default');
-            void fetchData();
-            void refreshCc({ fresh: true });
+            void invalidateWorkspace();
           }}
           onCancel={() => {
             setCreateContentOpen(false);

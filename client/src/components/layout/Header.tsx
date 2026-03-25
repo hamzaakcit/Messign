@@ -116,9 +116,7 @@ export function Header() {
           </button>
         )}
 
-        <div data-testid="onboarding-notifications">
-          <NotificationBell />
-        </div>
+        <NotificationBell />
       </div>
     </header>
   );

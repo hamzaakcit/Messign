@@ -14,6 +14,84 @@ export interface SideOpItem {
 
 export type OpportunityFilter = 'all' | 'projects' | 'side_ops' | 'mspd';
 
+export type TimeCommitmentFilter = '' | 'low' | 'medium' | 'high' | 'full';
+export type XpRangeFilter = '' | '0-100' | '100-250' | '250-500' | '500+';
+export type MarketplaceStatusFilter = '' | 'recruiting' | 'active' | 'hot' | 'double-xp';
+
+/** Distinct department slots on a project (for apply UI). */
+export function getDistinctRecruitmentDepts(project: MarketplaceProject): string[] {
+  const cfg = project.recruitment_config;
+  if (!Array.isArray(cfg) || cfg.length === 0) return [];
+  return [...new Set(cfg.map((s) => s.dept).filter(Boolean))];
+}
+
+export function matchesTimeCommitment(minutes: number | null | undefined, filter: TimeCommitmentFilter): boolean {
+  if (!filter) return true;
+  if (minutes == null || minutes === 0) return true;
+  const m = minutes;
+  switch (filter) {
+    case 'low':
+      return m <= 300;
+    case 'medium':
+      return m > 300 && m <= 900;
+    case 'high':
+      return m > 900 && m <= 1800;
+    case 'full':
+      return m > 1800;
+    default:
+      return true;
+  }
+}
+
+export function matchesXpRange(xp: number | undefined, filter: XpRangeFilter): boolean {
+  if (!filter) return true;
+  const x = xp ?? 0;
+  switch (filter) {
+    case '0-100':
+      return x >= 0 && x <= 100;
+    case '100-250':
+      return x > 100 && x <= 250;
+    case '250-500':
+      return x > 250 && x <= 500;
+    case '500+':
+      return x > 500;
+    default:
+      return true;
+  }
+}
+
+export function matchesMarketplaceStatus(project: MarketplaceProject, filter: MarketplaceStatusFilter): boolean {
+  if (!filter) return true;
+  switch (filter) {
+    case 'recruiting':
+      return project.recruitment_status === 'recruiting' || project.recruitment_status === undefined;
+    case 'active':
+      return project.recruitment_status === 'active';
+    case 'hot':
+      return Boolean(project.is_featured);
+    case 'double-xp':
+      return (project.xp_reward ?? 0) >= 200;
+    default:
+      return true;
+  }
+}
+
+export function matchesSideOpItemStatus(item: SideOpItem, filter: MarketplaceStatusFilter): boolean {
+  if (!filter) return true;
+  switch (filter) {
+    case 'recruiting':
+      return item.status === 'OPEN';
+    case 'active':
+      return false;
+    case 'hot':
+      return false;
+    case 'double-xp':
+      return (item.xp_reward ?? 0) >= 200;
+    default:
+      return true;
+  }
+}
+
 const DEFAULT_DEPT_COLOR = { bg: 'rgba(128, 128, 128, 0.2)', text: '#888', border: '#888' };
 
 export const departmentColors: Record<string, { bg: string; text: string; border: string }> = {

@@ -17,7 +17,7 @@ export function MSPDCard({
   applyingId,
 }: {
   project: MarketplaceProject;
-  onApply: (id: string) => void;
+  onApply: () => void;
   onViewDetails: (p: MarketplaceProject) => void;
   onGoToWorkspace: (p: MarketplaceProject) => void;
   appliedOptimistic: Set<string>;
@@ -109,7 +109,7 @@ export function MSPDCard({
               variant="primary"
               disabled={applyingId === project.id}
               className="bg-amber-600 hover:bg-amber-500 text-amber-950 text-xs h-7"
-              onClick={() => onApply(project.id)}
+              onClick={() => onApply()}
             >
               {applyingId === project.id ? '…' : 'Join'}
             </Button>

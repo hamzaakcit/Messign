@@ -29,6 +29,17 @@ router.get('/by-stage/:pipelineId', async (req: ReimbursementRequest, res: Respo
   }
 });
 
+router.get('/dashboard/revenue-trend', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const months = req.query.months ? parseInt(req.query.months as string, 10) : 6;
+    const rows = await dealsDal.getWonRevenueByMonth(buildCtx(req), Number.isFinite(months) ? months : 6);
+    res.json(rows);
+  } catch (err) {
+    console.error('[crm/deals/dashboard/revenue-trend GET]', err);
+    res.status(500).json({ error: 'Failed to get revenue trend' });
+  }
+});
+
 router.get('/metrics', async (req: ReimbursementRequest, res: Response) => {
   try {
     const period = (req.query.period as string | undefined) ?? 'default';

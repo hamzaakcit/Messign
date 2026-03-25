@@ -118,6 +118,7 @@ function App() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/force-password-change" element={<RequireAuth><ForcePasswordChangePage /></RequireAuth>} />
         <Route path="/approvals" element={<Navigate to="/admin/reimbursements" replace />} />
+        <Route path="/notifications" element={<AuthGuard><Navigate to="/dashboard" replace /></AuthGuard>} />
         <Route path="/notifications/*" element={<AuthGuard><Navigate to="/dashboard" replace /></AuthGuard>} />
         <Route path="/admin" element={<AdminGuard />}>
           <Route element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-app"><div className="text-app-muted">Loading admin...</div></div>}><AdminLayout /></Suspense>}>

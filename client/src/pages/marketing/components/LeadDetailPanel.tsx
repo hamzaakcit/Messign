@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { marketingAPI, type Lead } from '@/lib/marketingApi';
@@ -29,6 +30,7 @@ function scoreVariant(score: number): 'red' | 'orange' | 'green' {
 }
 
 export function LeadDetailPanel({ leadId, onUpdated }: LeadDetailPanelProps) {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
   const [lead, setLead] = useState<Lead | null>(null);
@@ -115,7 +117,17 @@ export function LeadDetailPanel({ leadId, onUpdated }: LeadDetailPanelProps) {
 
       <InfoCard title="CRM Linkage">
         <p>Contact: {lead.crm_contact_name || lead.crm_contact_id || 'Not converted'}</p>
-        <p>Deal: {lead.crm_deal_title || lead.crm_deal_id || 'Not converted'}</p>
+        {lead.crm_contact_id && (
+          <Link to={`/crm/contacts?contact=${lead.crm_contact_id}`} className="text-sm text-primary-400 hover:text-primary-300 block mt-1">
+            Open contact in CRM
+          </Link>
+        )}
+        <p className="mt-2">Deal: {lead.crm_deal_title || lead.crm_deal_id || 'Not converted'}</p>
+        {lead.crm_deal_id && (
+          <Link to={`/crm?deal=${lead.crm_deal_id}`} className="text-sm text-primary-400 hover:text-primary-300 block mt-1">
+            Open deal in CRM
+          </Link>
+        )}
       </InfoCard>
 
       <InfoCard title="Activity Timeline">
@@ -139,7 +151,23 @@ export function LeadDetailPanel({ leadId, onUpdated }: LeadDetailPanelProps) {
           <button onClick={() => { void mutate(() => marketingAPI.qualifyLead(userId, lead.id)); }} className="px-3 py-2 rounded-lg text-sm bg-primary-500/20 text-primary-300">
             Qualify
           </button>
-          <button onClick={() => { void mutate(() => marketingAPI.convertLeadToCRM(userId, lead.id)); }} className="px-3 py-2 rounded-lg text-sm bg-emerald-500/20 text-emerald-300">
+          <button
+            type="button"
+            onClick={() => {
+              void (async () => {
+                try {
+                  const res = await marketingAPI.convertLeadToCRM(userId, lead.id);
+                  await fetchLead();
+                  onUpdated();
+                  const deal = res.deal as { id?: string };
+                  if (deal?.id) navigate(`/crm?deal=${deal.id}`);
+                } catch {
+                  /* toast optional */
+                }
+              })();
+            }}
+            className="px-3 py-2 rounded-lg text-sm bg-emerald-500/20 text-emerald-300"
+          >
             Convert to CRM
           </button>
           <button onClick={() => { void mutate(() => marketingAPI.updateLead(userId, lead.id, { status: 'disqualified' })); }} className="px-3 py-2 rounded-lg text-sm bg-red-500/20 text-red-300">

@@ -1,5 +1,43 @@
 /** @module projectsApi — Projects, tasks, bounties, sprints, and showcase (Hall of Fame) APIs. */
-import { fetchAPI } from './apiCore';
+import { API_BASE, fetchAPI } from './apiCore';
+import { getAccessToken } from './authToken';
+
+/**
+ * POST /projects/:id/apply — parses 403 body so `requestedDepartments` is included in the error message.
+ */
+async function applyToProjectRequest(
+  projectId: string,
+  body?: { message?: string; slot_department?: string }
+): Promise<{ status: string }> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`${API_BASE}/projects/${projectId}/apply`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(body ?? {}),
+  });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+      requestedDepartments?: string;
+    };
+    const msg =
+      typeof data.error === 'string'
+        ? data.error
+        : typeof data.message === 'string'
+          ? data.message
+          : response.statusText;
+    let full = msg;
+    if (response.status === 403 && typeof data.requestedDepartments === 'string' && data.requestedDepartments.length > 0) {
+      full = `${msg} Open roles: ${data.requestedDepartments}.`;
+    }
+    throw new Error(full);
+  }
+  return response.json() as Promise<{ status: string }>;
+}
 
 export interface RecruitmentSlot {
   dept: string;
@@ -70,12 +108,8 @@ export const projectsAPI = {
   getById: (id: string) => fetchAPI(`/projects/${id}`),
   /** Marketplace: recruiting/active projects with user_application_status and application_count */
   getMarketplace: () => fetchAPI<MarketplaceProject[]>('/projects/marketplace'),
-  /** Apply to project (auth from Bearer) */
-  apply: (projectId: string, body?: { message?: string; slot_department?: string }) =>
-    fetchAPI<{ status: string }>(`/projects/${projectId}/apply`, {
-      method: 'POST',
-      body: JSON.stringify(body ?? {}),
-    }),
+  /** Apply to project (auth from Bearer). Surfaces `requestedDepartments` in the error message on 403. */
+  apply: applyToProjectRequest,
   /** Current user's applications */
   getMyApplications: () => fetchAPI<UserApplication[]>('/projects/applications/me'),
   /** Propose new project (employee or admin) */

@@ -36,6 +36,7 @@ import {
   PanelRightOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ROUTES } from '@/lib/routes';
 import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
 import { useDoraStore } from '@/stores/doraStore';
 import type { RecentPage } from './useRecentPages';
@@ -82,7 +83,7 @@ const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-marketing', label: 'Marketing', icon: Megaphone, path: '/marketing', keywords: 'campaigns content email leads', type: 'navigate' },
   { id: 'nav-marketing-campaigns', label: 'Marketing > Campaigns', icon: Megaphone, path: '/marketing/campaigns', keywords: 'campaign management', type: 'navigate' },
   { id: 'nav-marketing-builder', label: 'Marketing > Builder', icon: Mail, path: '/marketing/builder', keywords: 'email builder template', type: 'navigate' },
-  { id: 'nav-recruitment', label: 'Recruitment', icon: UserPlus, path: '/recruitment', keywords: 'hiring jobs candidates interviews pipeline', type: 'navigate' },
+  { id: 'nav-recruitment', label: 'Recruitment', icon: UserPlus, path: ROUTES.RECRUITMENT, keywords: 'hiring jobs candidates interviews pipeline', type: 'navigate' },
   { id: 'nav-support', label: 'Support', icon: LifeBuoy, path: '/support', keywords: 'tickets help desk sla customer support', type: 'navigate' },
   { id: 'nav-assets', label: 'Assets', icon: Package, path: '/assets', keywords: 'equipment inventory hardware software', type: 'navigate' },
   { id: 'nav-contracts', label: 'Contracts', icon: FileSignature, path: '/contracts', keywords: 'agreements legal renewals', type: 'navigate' },
@@ -102,7 +103,7 @@ const ACTION_ITEMS: CommandItem[] = [
   { id: 'act-task', label: 'New Task', icon: ListTodo, path: '/projects', keywords: 'create task todo', type: 'action' },
   { id: 'act-campaign', label: 'New Campaign', icon: Megaphone, path: '/marketing/campaigns', keywords: 'create campaign marketing', type: 'action' },
   { id: 'act-ticket', label: 'Create Ticket', icon: Ticket, path: '/support', keywords: 'new ticket support request', type: 'action' },
-  { id: 'act-job', label: 'Post Job', icon: UserPlus, path: '/recruitment', keywords: 'new job posting hire', type: 'action' },
+  { id: 'act-job', label: 'Post Job', icon: UserPlus, path: ROUTES.RECRUITMENT, keywords: 'new job posting hire', type: 'action' },
   { id: 'act-dora', label: 'Ask Dora', icon: Sparkles, path: '/dora', keywords: 'ai question help assistant', type: 'action' },
 ];
 

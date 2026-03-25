@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
 interface KPICardProps {
   title: string;
-  value: string | number;
-  subtitle?: string;
+  value: ReactNode;
+  subtitle?: ReactNode;
   icon: LucideIcon;
   trend?: { value: number; label: string };
   className?: string;
@@ -21,7 +22,7 @@ export function KPICard({ title, value, subtitle, icon: Icon, trend, className }
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <p className="text-xs font-medium text-app-muted uppercase tracking-wide">{title}</p>
-          <p className="text-2xl font-bold text-app-text">{value}</p>
+          <div className="text-2xl font-bold text-app-text">{value}</div>
         </div>
         <div className="rounded-lg bg-primary-500/10 p-2.5">
           <Icon className="h-5 w-5 text-primary-500" />

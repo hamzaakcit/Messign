@@ -53,6 +53,11 @@ vi.mock('@/stores/chatStore', () => ({
       duelHubOpen: false,
       channelRailCollapsed: false,
       chatTranscriptWide: false,
+      messagesHasMore: {},
+      activeThreadId: null,
+      closeThread: vi.fn(),
+      loadOlderMessages: vi.fn(),
+      hydrateChannels: vi.fn(),
       setChannelRailCollapsed: vi.fn(),
       contextMenuMessage: null,
       contextMenuPosition: null,
@@ -116,6 +121,10 @@ vi.mock('@/stores/gameStore', () => ({
     const state = { xpGainEvents: [], addXPGain: vi.fn() };
     return selector ? selector(state) : state;
   }),
+}));
+
+vi.mock('@/hooks/useChatChannelsQuery', () => ({
+  useChatChannelsQuery: () => ({ data: [], isSuccess: true }),
 }));
 
 vi.mock('@/lib/socket', () => ({

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { useFinanceStore } from '@/stores/financeStore';
 import { financeAPI, type Expense } from '@/lib/financeApi';
@@ -73,18 +75,19 @@ export function ExpensesPage() {
   const closePanel = () => setSearchParams({});
   const handleCreated = (id: string) => setSearchParams({ detail: id });
 
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [hoveredAI, setHoveredAI] = useState<string | null>(null);
 
   const userId = user?.authUserId || user?.id || '';
+  const queryClient = useQueryClient();
+  const expenseFiltersKey = JSON.stringify(expenseFilters);
 
-  const fetchExpenses = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
+  const expenseQuery = useQuery({
+    queryKey: ['financeExpenses', userId, page, expenseFiltersKey],
+    enabled: Boolean(userId),
+    queryFn: async () => {
       const filters: Record<string, string> = {};
       if (expenseFilters.status) filters.status = expenseFilters.status;
       if (expenseFilters.search) filters.search = expenseFilters.search;
@@ -98,17 +101,27 @@ export function ExpensesPage() {
       if (expenseFilters.sort_dir) filters.sort_dir = expenseFilters.sort_dir;
       filters.limit = String(PAGE_SIZE);
       filters.offset = String(page * PAGE_SIZE);
+      return financeAPI.listExpenses(userId, filters);
+    },
+  });
 
-      const result = await financeAPI.listExpenses(userId, filters);
-      setExpenses(result);
-    } catch (err) {
-      console.error('Failed to load expenses:', err);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (expenseQuery.data) setExpenses(expenseQuery.data);
+  }, [expenseQuery.data, setExpenses]);
+
+  useEffect(() => {
+    if (expenseQuery.isError && expenseQuery.error) {
+      toast.error(
+        expenseQuery.error instanceof Error ? expenseQuery.error.message : 'Failed to load expenses',
+      );
     }
-  }, [userId, expenseFilters, page, setExpenses]);
+  }, [expenseQuery.isError, expenseQuery.error]);
 
-  useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
+  const loading = expenseQuery.isFetching;
+
+  const invalidateExpenseList = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['financeExpenses', userId] });
+  }, [queryClient, userId]);
 
   const handleStatusTab = (status: string) => {
     setExpenseFilters({ status: status || undefined });
@@ -126,7 +139,7 @@ export function ExpensesPage() {
     try {
       await financeAPI.bulkApprove(userId, selectedExpenseIds);
       clearExpenseSelection();
-      fetchExpenses();
+      invalidateExpenseList();
     } catch (err) {
       console.error('Bulk approve failed:', err);
     }
@@ -139,7 +152,7 @@ export function ExpensesPage() {
     try {
       await financeAPI.bulkReject(userId, selectedExpenseIds, reason);
       clearExpenseSelection();
-      fetchExpenses();
+      invalidateExpenseList();
     } catch (err) {
       console.error('Bulk reject failed:', err);
     }

@@ -1,4 +1,9 @@
+import { useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { financePathForView } from '@/lib/financeRoutes';
+import { hasFinanceElevatedAccess } from '@/lib/financeRbac';
+import { useAuthStore } from '@/stores/authStore';
 import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
 import {
   LayoutDashboard,
@@ -16,21 +21,19 @@ import {
 
 interface NavSection {
   label?: string;
-  items: { id: FinanceView; label: string; icon: typeof LayoutDashboard }[];
+  items: { id: FinanceView; label: string; icon: typeof LayoutDashboard; requiresElevated?: boolean }[];
 }
 
 const SECTIONS: NavSection[] = [
   {
-    items: [
-      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    ],
+    items: [{ id: 'overview', label: 'Overview', icon: LayoutDashboard }],
   },
   {
     label: 'Operations',
     items: [
       { id: 'expenses', label: 'Expenses', icon: Wallet },
       { id: 'invoices', label: 'Invoices', icon: FileText },
-      { id: 'payments', label: 'Payments', icon: CreditCard },
+      { id: 'payments', label: 'Payments', icon: CreditCard, requiresElevated: true },
       { id: 'budgets', label: 'Budgets', icon: PiggyBank },
       { id: 'vendors', label: 'Vendors', icon: Users },
     ],
@@ -39,20 +42,38 @@ const SECTIONS: NavSection[] = [
     label: 'Accounting',
     items: [
       { id: 'accounting', label: 'Accounting', icon: BookOpen },
-      { id: 'reports', label: 'Reports', icon: BarChart3 },
+      { id: 'reports', label: 'Reports', icon: BarChart3, requiresElevated: true },
     ],
   },
   {
     label: 'System',
     items: [
-      { id: 'audit', label: 'Audit Log', icon: Shield },
-      { id: 'settings', label: 'Settings', icon: Settings },
+      { id: 'audit', label: 'Audit Log', icon: Shield, requiresElevated: true },
+      { id: 'settings', label: 'Settings', icon: Settings, requiresElevated: true },
     ],
   },
 ];
 
 export function FinanceNav() {
+  const navigate = useNavigate();
+  const { user, isAdmin } = useAuthStore();
   const { activeView, setActiveView } = useFinanceStore();
+  const elevated = hasFinanceElevatedAccess(user, isAdmin);
+
+  const visibleSections = useMemo(() => {
+    return SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.requiresElevated || elevated),
+    })).filter((s) => s.items.length > 0);
+  }, [elevated]);
+
+  const goToView = useCallback(
+    (id: FinanceView) => {
+      setActiveView(id);
+      navigate(financePathForView(id));
+    },
+    [navigate, setActiveView],
+  );
 
   return (
     <nav className="w-56 shrink-0 border-r border-app-border flex flex-col h-full overflow-y-auto">
@@ -69,7 +90,7 @@ export function FinanceNav() {
       </div>
 
       <div className="flex-1 py-3 space-y-4">
-        {SECTIONS.map((section, si) => (
+        {visibleSections.map((section, si) => (
           <div key={si}>
             {section.label && (
               <p className="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-app-muted/60">
@@ -80,7 +101,8 @@ export function FinanceNav() {
               {section.items.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
-                  onClick={() => setActiveView(id)}
+                  type="button"
+                  onClick={() => goToView(id)}
                   className={cn(
                     'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150',
                     activeView === id

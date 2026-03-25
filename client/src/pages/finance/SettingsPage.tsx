@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import { financeAPI, type FinanceSettings, type ExpensePolicy, type TaxRate, type ApprovalWorkflowStep } from '@/lib/financeApi';
-import { Settings, Shield, Bot, Receipt, Plus, Edit2, X, Check, Ban, Save, Trash2, GitBranch, Bell } from 'lucide-react';
+import { financeAPI, type FinanceSettings, type ExpensePolicy, type ApprovalWorkflowStep } from '@/lib/financeApi';
+import { Settings, Shield, Bot, Plus, Edit2, Save, Trash2, GitBranch, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type SettingsTab = 'general' | 'policies' | 'ai' | 'tax' | 'workflows' | 'notifications';
+type SettingsTab = 'general' | 'policies' | 'ai' | 'workflows' | 'notifications';
 
 export function SettingsPage() {
   const { user, isAdmin } = useAuthStore();
@@ -17,7 +18,6 @@ export function SettingsPage() {
     { id: 'workflows', label: 'Approval Workflows', icon: GitBranch },
     { id: 'ai', label: 'Dora AI Settings', icon: Bot },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'tax', label: 'Tax Rates', icon: Receipt },
   ];
 
   return (
@@ -47,7 +47,6 @@ export function SettingsPage() {
           {activeTab === 'workflows' && <WorkflowsTab userId={userId} isAdmin={isAdmin} />}
           {activeTab === 'ai' && <AITab userId={userId} isAdmin={isAdmin} />}
           {activeTab === 'notifications' && <NotificationsTab userId={userId} />}
-          {activeTab === 'tax' && <TaxTab userId={userId} isAdmin={isAdmin} />}
         </div>
       </div>
     </div>
@@ -113,6 +112,13 @@ function GeneralTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   return (
     <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6 space-y-4">
       <h3 className="text-lg font-semibold text-app-text">General Settings</h3>
+      <p className="text-sm text-app-muted">
+        Tax rates are managed under{' '}
+        <Link to="/finance/accounting?tab=tax" className="text-primary-400 hover:underline">
+          Accounting → Tax Rates
+        </Link>
+        .
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {field('Company Name', 'company_name', 'text', { placeholder: 'Messign Inc.' })}
         {field('Email', 'company_email', 'email', { placeholder: 'finance@company.com' })}
@@ -435,141 +441,6 @@ function AITab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
           <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save AI Settings'}
         </button>
       )}
-    </div>
-  );
-}
-
-function TaxTab({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
-  const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
-  const [showTaxForm, setShowTaxForm] = useState(false);
-  const [editingTaxId, setEditingTaxId] = useState<string | null>(null);
-  const [taxForm, setTaxForm] = useState({ name: '', code: '', rate: '', type: 'vat' as string });
-
-  const fetchTaxRates = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const rates = await financeAPI.listTaxRates(userId);
-      setTaxRates(rates);
-    } catch {}
-  }, [userId]);
-
-  useEffect(() => { fetchTaxRates(); }, [fetchTaxRates]);
-
-  const handleCreateTax = async () => {
-    if (!userId || !taxForm.name || !taxForm.code || !taxForm.rate) return;
-    try {
-      await financeAPI.createTaxRate(userId, { name: taxForm.name, code: taxForm.code, rate: parseFloat(taxForm.rate), type: taxForm.type as TaxRate['type'] });
-      setShowTaxForm(false);
-      setTaxForm({ name: '', code: '', rate: '', type: 'vat' });
-      fetchTaxRates();
-    } catch (err) { console.error('Failed to create tax rate:', err); }
-  };
-
-  const handleUpdateTax = async (id: string) => {
-    if (!userId) return;
-    try {
-      await financeAPI.updateTaxRate(userId, id, { name: taxForm.name, rate: parseFloat(taxForm.rate) });
-      setEditingTaxId(null);
-      fetchTaxRates();
-    } catch (err) { console.error('Failed to update tax rate:', err); }
-  };
-
-  const handleDeactivateTax = async (id: string) => {
-    if (!userId) return;
-    try { await financeAPI.deactivateTaxRate(userId, id); fetchTaxRates(); }
-    catch (err) { console.error('Failed to deactivate tax rate:', err); }
-  };
-
-  return (
-    <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-app-text">Tax Rates</h3>
-        {isAdmin && (
-          <button onClick={() => setShowTaxForm(!showTaxForm)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">
-            <Plus className="h-3.5 w-3.5" /> Add Rate
-          </button>
-        )}
-      </div>
-      {showTaxForm && (
-        <div className="rounded-lg border border-app-border bg-app-surface-tertiary p-4 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-xs text-app-muted mb-1">Name</label>
-              <input value={taxForm.name} onChange={(e) => setTaxForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="Standard VAT" className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs text-app-muted mb-1">Code</label>
-              <input value={taxForm.code} onChange={(e) => setTaxForm((p) => ({ ...p, code: e.target.value }))}
-                placeholder="VAT-STD" className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs text-app-muted mb-1">Rate (%)</label>
-              <input type="number" step="0.01" value={taxForm.rate} onChange={(e) => setTaxForm((p) => ({ ...p, rate: e.target.value }))}
-                placeholder="20" className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs text-app-muted mb-1">Type</label>
-              <select value={taxForm.type} onChange={(e) => setTaxForm((p) => ({ ...p, type: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg bg-app-surface-tertiary border border-app-border text-sm text-app-text focus:border-primary-500 focus:outline-none">
-                <option value="vat">VAT</option><option value="sales">Sales Tax</option>
-                <option value="purchase">Purchase Tax</option><option value="withholding">Withholding</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleCreateTax} className="px-4 py-2 bg-primary-500 text-app-text rounded-lg text-sm font-medium hover:bg-primary-600">Create</button>
-            <button onClick={() => setShowTaxForm(false)} className="px-4 py-2 text-app-muted hover:text-app-text text-sm">Cancel</button>
-          </div>
-        </div>
-      )}
-      <div className="space-y-1">
-        {taxRates.map((rate) => (
-          <div key={rate.id} className="flex items-center justify-between px-4 py-3 rounded-lg hover:bg-app-nav-hover text-sm">
-            {editingTaxId === rate.id ? (
-              <div className="flex items-center gap-3 flex-1">
-                <input value={taxForm.name} onChange={(e) => setTaxForm((p) => ({ ...p, name: e.target.value }))}
-                  className="px-2 py-1 rounded bg-app-surface-tertiary border border-app-border-strong text-sm text-app-text focus:outline-none w-32" />
-                <span className="text-app-muted font-mono text-xs">{rate.code}</span>
-                <input type="number" step="0.01" value={taxForm.rate} onChange={(e) => setTaxForm((p) => ({ ...p, rate: e.target.value }))}
-                  className="px-2 py-1 rounded bg-app-surface-tertiary border border-app-border-strong text-sm text-app-text focus:outline-none w-20" />
-                <div className="flex items-center gap-1 ml-auto">
-                  <button onClick={() => handleUpdateTax(rate.id)} className="p-1 text-green-400 hover:bg-green-500/20 rounded"><Check className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => setEditingTaxId(null)} className="p-1 text-app-muted hover:text-app-text rounded"><X className="h-3.5 w-3.5" /></button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="text-app-muted font-mono text-xs w-16">{rate.code}</span>
-                  <span className="text-app-text">{rate.name}</span>
-                  <span className={cn('px-2 py-0.5 rounded text-xs',
-                    rate.type === 'vat' ? 'text-blue-400 bg-blue-500/20' : rate.type === 'sales' ? 'text-green-400 bg-green-500/20' :
-                    rate.type === 'withholding' ? 'text-orange-400 bg-orange-500/20' : 'text-purple-400 bg-purple-500/20'
-                  )}>{rate.type}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-app-text font-medium">{parseFloat(String(rate.rate)).toFixed(2)}%</span>
-                  <span className={cn('px-2 py-0.5 rounded text-xs', rate.is_active ? 'text-green-400 bg-green-500/20' : 'text-red-400 bg-red-500/20')}>
-                    {rate.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                  {isAdmin && (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { setEditingTaxId(rate.id); setTaxForm({ name: rate.name, code: rate.code, rate: String(rate.rate), type: rate.type }); }}
-                        className="p-1 text-app-muted hover:text-app-text rounded"><Edit2 className="h-3.5 w-3.5" /></button>
-                      {rate.is_active && (
-                        <button onClick={() => handleDeactivateTax(rate.id)} className="p-1 text-app-muted hover:text-red-400 rounded"><Ban className="h-3.5 w-3.5" /></button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-        {taxRates.length === 0 && <p className="text-app-muted text-sm text-center py-4">No tax rates configured.</p>}
-      </div>
     </div>
   );
 }

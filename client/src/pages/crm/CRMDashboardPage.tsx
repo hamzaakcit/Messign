@@ -15,6 +15,7 @@ import {
   type ForecastSummary,
   type OwnerForecast,
 } from '@/lib/crmApi';
+import { formatCrmCurrencyCompact } from '@/lib/crmCurrency';
 
 const TOOLTIP_STYLE = {
   background: '#1a1a2e',
@@ -26,9 +27,7 @@ const AXIS_TICK = { fill: '#9ca3af', fontSize: 12 };
 const GRID_STROKE = 'rgba(255,255,255,0.05)';
 
 function formatCurrency(v: number): string {
-  if (v >= 1_000_000) return `€${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `€${(v / 1_000).toFixed(0)}K`;
-  return `€${v.toLocaleString()}`;
+  return formatCrmCurrencyCompact(v, 'EUR');
 }
 
 function daysSince(dateStr: string): number {
@@ -44,17 +43,33 @@ export function CRMDashboardPage() {
   const [owners, setOwners] = useState<OwnerForecast[]>([]);
   const [topDeals, setTopDeals] = useState<Deal[]>([]);
   const [staleDeals, setStaleDeals] = useState<Deal[]>([]);
+  const [revenueTrend, setRevenueTrend] = useState<{ month: string; won: number }[]>([]);
+  const [activitySeries, setActivitySeries] = useState<
+    { week: string; calls: number; emails: number; meetings: number; notes: number }[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const [m, pipelines] = await Promise.all([
+      const [m, pipelines, rev, act] = await Promise.all([
         crmAPI.getMetrics(userId),
         crmAPI.listPipelines(userId),
+        crmAPI.getDashboardRevenueTrend(userId, 6),
+        crmAPI.getActivityWeekSeries(userId, 8),
       ]);
       setMetrics(m);
+      setRevenueTrend(rev.map((r) => ({ month: r.month, won: r.won })));
+      setActivitySeries(
+        act.map((w) => ({
+          week: w.weekLabel,
+          calls: w.calls,
+          emails: w.emails,
+          meetings: w.meetings,
+          notes: w.notes,
+        })),
+      );
 
       const defaultPipeline = pipelines.find(p => p.is_default) ?? pipelines[0];
       if (defaultPipeline) {
@@ -67,7 +82,7 @@ export function CRMDashboardPage() {
       }
 
       const [dealsRes, gaps] = await Promise.all([
-        crmAPI.listDeals(userId, { sort: 'amount', order: 'desc', pageSize: '5' }),
+        crmAPI.listDeals(userId, { sort_by: 'amount', sort_dir: 'desc', pageSize: '5' }),
         crmAPI.getActivityGaps(userId),
       ]);
       setTopDeals(dealsRes.data);
@@ -156,7 +171,7 @@ export function CRMDashboardPage() {
                 {/* Revenue Trend */}
                 <ChartSection title="Revenue Trend" icon={TrendingUp}>
                   <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={generateRevenueTrend(metrics)}>
+                    <AreaChart data={revenueTrend}>
                       <defs>
                         <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -185,7 +200,7 @@ export function CRMDashboardPage() {
                 {/* Deal Activity */}
                 <ChartSection title="Deal Activity" icon={BarChart3}>
                   <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={generateActivityData()}>
+                    <BarChart data={activitySeries}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                       <XAxis dataKey="week" tick={AXIS_TICK} />
                       <YAxis tick={AXIS_TICK} />
@@ -306,46 +321,6 @@ function ListSection({ title, icon: Icon, children }: { title: string; icon: Rea
     </div>
   );
 }
-
-function generateRevenueTrend(metrics: SalesMetrics | null) {
-  const now = new Date();
-  const months: { month: string; won: number }[] = [];
-  const base = (metrics?.avgDealSize ?? 10000) * (metrics?.dealsWon ?? 1);
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const label = d.toLocaleString('default', { month: 'short' });
-    const variation = 0.6 + Math.random() * 0.8;
-    months.push({ month: label, won: Math.round(base * variation / 6) });
-  }
-  return months;
-}
-
-function generateActivityData() {
-  const weeks: { week: string; calls: number; emails: number; meetings: number; notes: number }[] = [];
-  for (let i = 7; i >= 0; i--) {
-    weeks.push({
-      week: `W${Math.max(1, new Date().getWeek() - i)}`,
-      calls: Math.floor(Math.random() * 15) + 3,
-      emails: Math.floor(Math.random() * 20) + 5,
-      meetings: Math.floor(Math.random() * 8) + 1,
-      notes: Math.floor(Math.random() * 10) + 2,
-    });
-  }
-  return weeks;
-}
-
-declare global {
-  interface Date {
-    getWeek(): number;
-  }
-}
-
-Date.prototype.getWeek = function () {
-  const d = new Date(Date.UTC(this.getFullYear(), this.getMonth(), this.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
-};
 
 function DashboardSkeleton() {
   return (

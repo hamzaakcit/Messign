@@ -92,8 +92,22 @@ export interface Ticket {
   csat_rating?: TicketCSATRating | null;
 }
 
+/** SQL expression for computed SLA state (on_track | at_risk | breached) — keep in sync with listTickets slaStatus filter. */
+export const SUPPORT_TICKET_SLA_STATE_SQL = `CASE
+  WHEN CASE WHEN t.sla_first_response_at IS NULL THEN t.sla_first_response_due ELSE t.sla_resolution_due END IS NULL THEN 'on_track'
+  WHEN NOW() > CASE WHEN t.sla_first_response_at IS NULL THEN t.sla_first_response_due ELSE t.sla_resolution_due END THEN 'breached'
+  WHEN EXTRACT(EPOCH FROM (NOW() - t.created_at)) / NULLIF(EXTRACT(EPOCH FROM ((CASE WHEN t.sla_first_response_at IS NULL THEN t.sla_first_response_due ELSE t.sla_resolution_due END) - t.created_at)), 0) >= 0.75 THEN 'at_risk'
+  ELSE 'on_track'
+END`;
+
 export interface TicketFilters {
   status?: string;
+  /** Match any of these statuses (server-side; fixes client-only tab filtering). */
+  statusIn?: string[];
+  /** Preset groups: `open` = active work; `resolved` = status resolved only. */
+  statusGroup?: 'open' | 'resolved';
+  /** Critical priority or SLA breached (OR). */
+  urgent?: boolean;
   priority?: string;
   assigneeId?: string;
   categoryId?: string;
@@ -655,7 +669,20 @@ export async function listTickets(
       idx += visibility.params.length;
     }
 
-    if (filters?.status) {
+    if (filters?.urgent) {
+      conditions.push(`(t.priority = 'critical' OR (${SUPPORT_TICKET_SLA_STATE_SQL}) = 'breached')`);
+    }
+
+    if (filters?.statusIn && filters.statusIn.length > 0) {
+      conditions.push(`t.status = ANY($${idx++}::text[])`);
+      params.push(filters.statusIn);
+    } else if (filters?.statusGroup === 'open') {
+      conditions.push(`t.status = ANY($${idx++}::text[])`);
+      params.push(['open', 'awaiting_agent', 'awaiting_customer', 'in_progress', 'on_hold']);
+    } else if (filters?.statusGroup === 'resolved') {
+      conditions.push(`t.status = $${idx++}`);
+      params.push('resolved');
+    } else if (filters?.status) {
       conditions.push(`t.status = $${idx++}`);
       params.push(filters.status);
     }
@@ -689,14 +716,7 @@ export async function listTickets(
       idx++;
     }
     if (filters?.slaStatus) {
-      conditions.push(
-        `CASE
-           WHEN CASE WHEN t.sla_first_response_at IS NULL THEN t.sla_first_response_due ELSE t.sla_resolution_due END IS NULL THEN 'on_track'
-           WHEN NOW() > CASE WHEN t.sla_first_response_at IS NULL THEN t.sla_first_response_due ELSE t.sla_resolution_due END THEN 'breached'
-           WHEN EXTRACT(EPOCH FROM (NOW() - t.created_at)) / NULLIF(EXTRACT(EPOCH FROM ((CASE WHEN t.sla_first_response_at IS NULL THEN t.sla_first_response_due ELSE t.sla_resolution_due END) - t.created_at)), 0) >= 0.75 THEN 'at_risk'
-           ELSE 'on_track'
-         END = $${idx++}`,
-      );
+      conditions.push(`(${SUPPORT_TICKET_SLA_STATE_SQL}) = $${idx++}`);
       params.push(filters.slaStatus);
     }
 

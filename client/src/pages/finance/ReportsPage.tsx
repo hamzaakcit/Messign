@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI } from '@/lib/financeApi';
 import { reportsAPI } from '@/lib/api';
@@ -44,13 +45,20 @@ interface AIMetrics {
 export function ReportsPage() {
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const reportView = searchParams.get('view') === 'flow' ? 'flow' : 'charts';
+  const setReportView = useCallback(
+    (v: 'charts' | 'flow') => {
+      setSearchParams({ view: v }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const [budgetForecasts, setBudgetForecasts] = useState<BudgetForecast[]>([]);
   const [paymentForecasts, setPaymentForecasts] = useState<PaymentForecast[]>([]);
   const [aiMetrics, setAiMetrics] = useState<AIMetrics | null>(null);
   const [spendByCategory, setSpendByCategory] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
-  const [reportView, setReportView] = useState<'charts' | 'flow'>('charts');
   const [sankeyData, setSankeyData] = useState<SankeyData | null>(null);
   const [sankeyLoading, setSankeyLoading] = useState(false);
 
@@ -114,6 +122,7 @@ export function ReportsPage() {
             Charts
           </button>
           <button
+            type="button"
             onClick={() => setReportView('flow')}
             className={cn(
               'px-3 py-1.5 text-sm flex items-center gap-1.5 transition',

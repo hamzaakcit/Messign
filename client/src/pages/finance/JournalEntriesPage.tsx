@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { financeAPI, type JournalEntry } from '@/lib/financeApi';
+import { getFinanceUserId, hasFinanceElevatedAccess } from '@/lib/financeRbac';
 import { StatusBadge } from '@/components/finance/StatusBadge';
 import { cn } from '@/lib/utils';
 import {
@@ -29,7 +30,9 @@ interface JELine {
 const newLineKey = () => Math.random().toString(36).slice(2, 8);
 
 export function JournalEntriesPage() {
-  const { user } = useAuthStore();
+  const { user, isAdmin } = useAuthStore();
+  const financeUserId = getFinanceUserId(user);
+  const canMutateJournal = hasFinanceElevatedAccess(user, isAdmin);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -48,12 +51,12 @@ export function JournalEntriesPage() {
   const [jeError, setJeError] = useState('');
 
   const fetchEntries = useCallback(async () => {
-    if (!user?.id) return;
+    if (!financeUserId) return;
     setLoading(true);
     try {
       const params: Record<string, string> = { ...filters };
       if (search) params.search = search;
-      const result = await financeAPI.listJournalEntries(user.id, params);
+      const result = await financeAPI.listJournalEntries(financeUserId, params);
       setEntries(result.entries);
       setTotal(result.total);
     } catch (err) {
@@ -61,14 +64,14 @@ export function JournalEntriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, filters, search]);
+  }, [financeUserId, filters, search]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
   const handleVoid = async (id: string) => {
-    if (!user?.id || !confirm('Void this journal entry? A reversing entry will be created.')) return;
+    if (!financeUserId || !confirm('Void this journal entry? A reversing entry will be created.')) return;
     try {
-      await financeAPI.voidJournalEntry(user.id, id);
+      await financeAPI.voidJournalEntry(financeUserId, id);
       fetchEntries();
     } catch (err) {
       console.error('Failed to void entry:', err);
@@ -83,9 +86,9 @@ export function JournalEntriesPage() {
     ]);
     setJeError('');
     setModalOpen(true);
-    if (glAccounts.length === 0 && user?.id) {
+    if (glAccounts.length === 0 && financeUserId) {
       try {
-        const accounts = await financeAPI.listGLAccounts(user.id);
+        const accounts = await financeAPI.listGLAccounts(financeUserId);
         setGlAccounts(accounts.filter((a: any) => a.is_active));
       } catch { /* empty */ }
     }
@@ -103,7 +106,7 @@ export function JournalEntriesPage() {
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
 
   const handleSaveEntry = async () => {
-    if (!user?.id) return;
+    if (!financeUserId) return;
     if (!jeForm.description.trim()) { setJeError('Description is required'); return; }
     if (!isBalanced) { setJeError('Total debits must equal total credits'); return; }
     const emptyLines = jeLines.filter(l => !l.gl_code);
@@ -112,7 +115,7 @@ export function JournalEntriesPage() {
     setJeSaving(true);
     setJeError('');
     try {
-      await financeAPI.createJournalEntry(user.id, {
+      await financeAPI.createJournalEntry(financeUserId, {
         description: jeForm.description,
         entry_date: jeForm.entry_date,
         reference: jeForm.reference || undefined,
@@ -244,8 +247,9 @@ export function JournalEntriesPage() {
                   <td className="px-4 py-3 text-right font-mono text-app-text">${parseFloat(String(entry.total_credit)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   <td className="px-4 py-3 text-center"><StatusBadge status={entry.status} /></td>
                   <td className="px-4 py-3 text-right">
-                    {entry.status === 'posted' && (
+                    {entry.status === 'posted' && canMutateJournal && (
                       <button
+                        type="button"
                         onClick={e => { e.stopPropagation(); handleVoid(entry.id); }}
                         className="p-1 text-app-muted hover:text-red-400 rounded"
                         title="Void Entry"
@@ -293,7 +297,7 @@ export function JournalEntriesPage() {
       </div>
 
       {/* New Journal Entry Modal */}
-      {modalOpen && (
+      {modalOpen && canMutateJournal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
           <div className="bg-app-card border border-app-border rounded-xl p-6 w-full max-w-2xl shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">

@@ -46,6 +46,14 @@ export function ChatDetailPanel() {
     if (detailTab === 'media') fetchMedia(activeChannelId);
   }, [activeChannelId, detailTab, fetchPins, fetchMedia]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') toggleDetailPanel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleDetailPanel]);
+
   if (!activeChannel) {
     return (
       <div className="h-full flex items-center justify-center text-app-muted text-sm p-6">

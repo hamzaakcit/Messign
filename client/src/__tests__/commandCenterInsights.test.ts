@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { buildColumnInsights } from '@/components/command-center/lib/commandCenterInsights';
+import { buildColumnInsights, buildWorkspaceInsights } from '@/components/command-center/lib/commandCenterInsights';
 import type { CommandCenterDTO } from '@/types/command-center';
+
+const emptyWorkspace = (): CommandCenterDTO['workspace'] => ({
+  crm: { ok: false, error: 'stub' },
+  hr: { ok: false, error: 'stub' },
+  support: { ok: false, error: 'stub' },
+  marketing: { ok: false, error: 'stub' },
+  assets: { ok: false, error: 'stub' },
+  contracts: { ok: false, error: 'stub' },
+  okr: { ok: false, error: 'stub' },
+  chat: { ok: false, error: 'stub' },
+});
 
 const base: CommandCenterDTO = {
   generatedAt: new Date().toISOString(),
@@ -33,6 +44,7 @@ const base: CommandCenterDTO = {
     milestones: [{ title: 'Q end', dueDate: '2026-03-31' }],
     sandboxIdeas: [],
   },
+  workspace: emptyWorkspace(),
 };
 
 describe('buildColumnInsights', () => {
@@ -44,5 +56,15 @@ describe('buildColumnInsights', () => {
   it('returns loading copy when data is null', () => {
     const i = buildColumnInsights(null);
     expect(i.pulse).toContain('Loading');
+  });
+});
+
+describe('buildWorkspaceInsights', () => {
+  it('reports zero loaded modules when all workspace slices failed', () => {
+    expect(buildWorkspaceInsights(base)).toContain('0/8');
+  });
+
+  it('returns loading when workspace missing', () => {
+    expect(buildWorkspaceInsights(null)).toContain('Loading');
   });
 });

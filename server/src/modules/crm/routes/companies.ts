@@ -21,6 +21,9 @@ router.get('/', async (req: ReimbursementRequest, res: Response) => {
       industry: req.query.industry as string | undefined,
       size: req.query.size as string | undefined,
       search: req.query.search as string | undefined,
+      country: req.query.country as string | undefined,
+      revenue_min: req.query.revenue_min != null ? parseFloat(req.query.revenue_min as string) : undefined,
+      revenue_max: req.query.revenue_max != null ? parseFloat(req.query.revenue_max as string) : undefined,
     };
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 20;

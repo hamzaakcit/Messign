@@ -23,6 +23,7 @@ export function GlassSlideOver({
   children,
 }: GlassSlideOverProps): JSX.Element {
   const layerRef = useRef(0);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -40,7 +41,11 @@ export function GlassSlideOver({
     layerRef.current = openGlassCount;
     window.addEventListener('keydown', handleEscape, true);
     document.body.style.overflow = 'hidden';
+    const focusId = requestAnimationFrame(() => {
+      closeBtnRef.current?.focus();
+    });
     return () => {
+      cancelAnimationFrame(focusId);
       window.removeEventListener('keydown', handleEscape, true);
       openGlassCount -= 1;
       if (openGlassCount === 0) {
@@ -86,12 +91,14 @@ export function GlassSlideOver({
                 {title}
               </h2>
               <button
+                ref={closeBtnRef}
                 type="button"
                 onClick={onClose}
                 className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-white/5"
                 title="Close"
+                aria-label="Close panel"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto min-h-0 p-4">{children}</div>

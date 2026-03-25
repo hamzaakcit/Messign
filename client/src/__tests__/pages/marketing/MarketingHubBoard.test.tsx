@@ -1,6 +1,8 @@
+import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MarketingHub } from '@/pages/marketing/MarketingHub';
 
 vi.mock('@/stores/authStore', () => ({
@@ -17,17 +19,39 @@ vi.mock('@/hooks/useMarketingApprovalQueue', () => ({
   useMarketingApprovalQueue: () => ({ items: [], approve: vi.fn() }),
 }));
 
-vi.mock('@/pages/marketing/command-center/useMarketingCommandCenterData', () => ({
-  useMarketingCommandCenterData: () => ({
-    data: null,
-    loading: false,
-    error: null,
-    refresh: vi.fn(),
-  }),
-}));
-
 vi.mock('@/lib/marketingApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/marketingApi')>();
+  const minimalCc: import('@/lib/marketingApi').CommandCenterPayload = {
+    generatedAt: new Date().toISOString(),
+    days: 7,
+    funnel7d: {
+      new: 0,
+      contacted: 0,
+      nurturing: 0,
+      qualified: 0,
+      converted: 0,
+      disqualified: 0,
+    },
+    funnelSeries7d: [],
+    cacRoi: {
+      cac: 0,
+      cpl: 0,
+      roi: 0,
+      ltvDisplay: null,
+      signupVelocity: 0,
+      landingConversionProxy: null,
+    },
+    activeCampaigns: 0,
+    experiments: [],
+    socialPulse: {
+      connected: false,
+      lastSyncIso: null,
+      errorCode: null,
+      vibeScore: 0,
+      accounts: [],
+    },
+    plays: [],
+  };
   return {
     ...actual,
     marketingAPI: {
@@ -47,6 +71,7 @@ vi.mock('@/lib/marketingApi', async (importOriginal) => {
       }),
       getLeadFunnel: vi.fn().mockResolvedValue({ stages: [] }),
       listBrandProfiles: vi.fn().mockResolvedValue({ profiles: [], total: 0 }),
+      getCommandCenter: vi.fn().mockResolvedValue(minimalCc),
     },
   };
 });
@@ -56,6 +81,13 @@ vi.mock('@/pages/marketing/components/DoraRail', () => ({
   MARKETING_DORA_RAIL_OUTSET_RIGHT: 'right-6',
 }));
 
+function wrap(ui: ReactElement): JSX.Element {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
+}
+
 describe('MarketingHub board mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -63,11 +95,13 @@ describe('MarketingHub board mode', () => {
 
   it('renders command center compact strip and main content pipeline Kanban region', async () => {
     render(
-      <MemoryRouter initialEntries={['/marketing']}>
-        <Routes>
-          <Route path="/marketing/*" element={<MarketingHub />} />
-        </Routes>
-      </MemoryRouter>,
+      wrap(
+        <MemoryRouter initialEntries={['/marketing']}>
+          <Routes>
+            <Route path="/marketing/*" element={<MarketingHub />} />
+          </Routes>
+        </MemoryRouter>,
+      ),
     );
 
     await waitFor(() => {

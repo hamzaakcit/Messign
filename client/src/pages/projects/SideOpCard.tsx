@@ -18,7 +18,7 @@ export function SideOpCard({
 }: {
   item: SideOpItem | (MarketplaceProject & { estimated_minutes?: number | null });
   onClaim?: (id: string) => void;
-  onApply?: (id: string) => void;
+  onApply?: () => void;
   onViewDetails?: () => void;
   claimingId: string | null;
   applyingId?: string | null;
@@ -90,7 +90,7 @@ export function SideOpCard({
             disabled={claimingId === id || applyingId === id}
             onClick={() => {
               if (canClaimBounty && onClaim) onClaim(id);
-              else if (canJoinProject && onApply) onApply(id);
+              else if (canJoinProject && onApply) onApply();
             }}
           >
             {claimingId === id || applyingId === id ? '…' : 'Join'}

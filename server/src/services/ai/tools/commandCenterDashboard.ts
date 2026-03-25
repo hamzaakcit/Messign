@@ -25,8 +25,18 @@ function toCallerContext(ctx: ToolContext): CallerContext {
  * @param data - Snapshot from getCommandCenterData
  * @returns Human-readable summary of Pulse, Brain, Growth, and Future columns
  */
+function formatWorkspaceRollup(data: CommandCenterDTO['workspace']): string {
+  const parts: string[] = [];
+  const keys = ['crm', 'hr', 'support', 'marketing', 'assets', 'contracts', 'okr', 'chat'] as const;
+  for (const k of keys) {
+    const r = data[k];
+    parts.push(r.ok ? `${k}: ok` : `${k}: error`);
+  }
+  return parts.join(' | ');
+}
+
 export function formatCommandCenterSummary(data: CommandCenterDTO): string {
-  const { pulse, brain, growth, future } = data;
+  const { pulse, brain, growth, future, workspace } = data;
   const vel =
     pulse.velocityDeltaPct === null ? 'n/a' : `${pulse.velocityDeltaPct > 0 ? '+' : ''}${pulse.velocityDeltaPct}%`;
 
@@ -79,7 +89,9 @@ export function formatCommandCenterSummary(data: CommandCenterDTO): string {
     `- Leaderboard (top 5):\n${topLb || 'No entries'}\n\n` +
     `### The Future\n` +
     `- OKR progress: **${future.okrs.overallProgress}%** overall | On track: **${future.okrs.onTrack}** | At risk: **${future.okrs.atRisk}** | Behind: **${future.okrs.behind}**\n` +
-    `- Upcoming milestones:\n${milestonesLines}`
+    `- Upcoming milestones:\n${milestonesLines}\n\n` +
+    `### Workspace modules (cross-app rollup)\n` +
+    `- ${formatWorkspaceRollup(workspace)}`
   );
 }
 

@@ -236,12 +236,31 @@ export interface ForecastSummary {
   stages: StageForecast[];
 }
 
+export interface OrgForecastQuota {
+  sales_quota_eur: number;
+}
+
 export interface OwnerForecast {
   owner_id: string;
   owner_name: string;
   deal_count: number;
   total_value: number;
   weighted_value: number;
+}
+
+export interface MonthlyWonRevenueRow {
+  month: string;
+  monthKey: string;
+  won: number;
+}
+
+export interface WeeklyActivityRow {
+  weekLabel: string;
+  weekStart: string;
+  calls: number;
+  emails: number;
+  meetings: number;
+  notes: number;
 }
 
 export interface CreateDealInput {
@@ -277,6 +296,12 @@ export const crmAPI = {
     const params = period ? `?period=${period}` : '';
     return crmRequest<SalesMetrics>(`/deals/metrics${params}`, {}, userId);
   },
+
+  getDashboardRevenueTrend: (userId: string, months = 6) =>
+    crmRequest<MonthlyWonRevenueRow[]>(`/deals/dashboard/revenue-trend?months=${months}`, {}, userId),
+
+  getActivityWeekSeries: (userId: string, weeks = 8) =>
+    crmRequest<WeeklyActivityRow[]>(`/activities/week-series?weeks=${weeks}`, {}, userId),
 
   listDeals: (userId: string, filters?: Record<string, string>) => {
     const params = new URLSearchParams(filters || {});
@@ -357,6 +382,15 @@ export const crmAPI = {
     const params = pipelineId ? `?pipeline_id=${pipelineId}` : '';
     return crmRequest<OwnerForecast[]>(`/forecast/by-owner${params}`, {}, userId);
   },
+
+  getForecastQuota: (userId: string) =>
+    crmRequest<OrgForecastQuota>('/forecast/quota', {}, userId),
+
+  updateForecastQuota: (userId: string, salesQuotaEur: number) =>
+    crmRequest<OrgForecastQuota>('/forecast/quota', {
+      method: 'PUT',
+      body: JSON.stringify({ sales_quota_eur: salesQuotaEur }),
+    }, userId),
 
   getActivityGaps: (userId: string) =>
     crmRequest<Deal[]>('/activities/gaps', {}, userId),

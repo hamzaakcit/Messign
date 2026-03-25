@@ -16,6 +16,7 @@ import {
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 import type { DashboardMetrics } from '@/lib/marketingApi';
+import { marketingShell } from '@/pages/marketing/lib/marketingShellTheme';
 
 export type ViewMode = 'board' | 'calendar' | 'builder' | 'intelligence';
 
@@ -50,7 +51,7 @@ interface SparkChipProps {
   color?: string;
 }
 
-function SparkChip({ label, value, sparkData, color = '#3b82f6' }: SparkChipProps): JSX.Element {
+function SparkChip({ label, value, sparkData, color = marketingShell.sparkChart.default }: SparkChipProps): JSX.Element {
   return (
     <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-app-surface-tertiary border border-white/[0.08] min-w-0">
       <div className="min-w-0">
@@ -104,7 +105,9 @@ export function SparkBar({
   const spendSpark = metrics?.monthlyTrend.map((t) => ({ v: t.spend })) ?? [];
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] bg-[#080a0e] shrink-0">
+    <div
+      className={`flex items-center gap-3 px-4 py-2 border-b ${marketingShell.borderSubtle} ${marketingShell.bgTop} shrink-0 sticky top-0 z-20`}
+    >
       {loading ? (
         <div className="flex gap-3 flex-1">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -117,23 +120,23 @@ export function SparkBar({
             label="MQLs"
             value={metrics?.mqls ?? 0}
             sparkData={leadSpark}
-            color="#3b82f6"
+            color={marketingShell.sparkChart.mql}
           />
           <SparkChip
             label="CPL"
             value={formatCurrency(metrics?.cpl ?? 0)}
             sparkData={spendSpark}
-            color="#10b981"
+            color={marketingShell.sparkChart.cpl}
           />
           <SparkChip
             label="ROI"
             value={`${(metrics?.roi ?? 0).toFixed(1)}x`}
-            color="#8b5cf6"
+            color={marketingShell.sparkChart.roi}
           />
           <SparkChip
             label="Open Rate"
             value={`${(metrics?.emailOpenRate ?? 0).toFixed(1)}%`}
-            color="#f59e0b"
+            color={marketingShell.sparkChart.openRate}
           />
         </div>
       )}
@@ -156,6 +159,7 @@ export function SparkBar({
           type="button"
           onClick={() => onModeChange('calendar')}
           title="Calendar"
+          aria-pressed={mode === 'calendar'}
           className={cn(
             'p-2 rounded-lg transition-colors',
             mode === 'calendar'
@@ -169,6 +173,7 @@ export function SparkBar({
           type="button"
           onClick={() => onModeChange('intelligence')}
           title="Competitor Intelligence"
+          aria-pressed={mode === 'intelligence'}
           className={cn(
             'p-2 rounded-lg transition-colors',
             mode === 'intelligence'
@@ -207,7 +212,9 @@ export function SparkBar({
           {createOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-app-border bg-[#12151c] shadow-xl py-1">
+              <div
+                className={`absolute right-0 top-full mt-1 z-50 w-44 rounded-lg ${marketingShell.popoverMenu}`}
+              >
                 <button
                   type="button"
                   onClick={() => { onCreateCampaign(); setCreateOpen(false); }}

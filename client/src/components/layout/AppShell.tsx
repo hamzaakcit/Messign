@@ -15,8 +15,8 @@ import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
 import { FloatingWidget } from '@/components/dora/FloatingWidget';
 import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthrough';
 import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
-import { toast } from 'sonner';
-import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError, onMessageReact, onMessageEdit, onMessageDelete, onMessagePin, onThreadReply } from '@/lib/socket';
+import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport } from '@/lib/socket';
+import { installChatSocketHandlers } from '@/lib/chatSocketBridge';
 
 const PATH_TO_VIEW: Record<string, string> = {
   '/': 'dashboard',
@@ -126,8 +126,6 @@ export function AppShell() {
   }, [toggleCommandSurface, toggleFocusMode]);
 
   const fetchChannels = useChatStore(s => s.fetchChannels);
-  const addMessage = useChatStore(s => s.addMessage);
-  const incrementChannelUnread = useChatStore(s => s.incrementChannelUnread);
   const fetchProjects = useProjectStore(s => s.fetchProjects);
   const fetchTasks = useProjectStore(s => s.fetchTasks);
   const fetchUsers = useUsersStore(s => s.fetchUsers);
@@ -180,25 +178,7 @@ export function AppShell() {
   useEffect(() => {
     const socket = getSocket();
 
-    socket.on('message:new', (message: { userId?: string; channelId?: string; senderName?: string; content?: string }) => {
-      const currentUserId = useAuthStore.getState().user?.id;
-      if (currentUserId && message.userId === currentUserId) return;
-      addMessage(message as Parameters<typeof addMessage>[0]);
-      const { activeChannelId, channels } = useChatStore.getState();
-      const viewingThisChannel = activeChannelId === message.channelId;
-      if (message.channelId && !viewingThisChannel) {
-        incrementChannelUnread(message.channelId);
-        const channelName = channels.find((c) => c.id === message.channelId)?.name ?? 'Chat';
-        const from = message.senderName ?? 'Someone';
-        const preview = typeof message.content === 'string' && message.content.length > 0
-          ? message.content.slice(0, 80) + (message.content.length > 80 ? '…' : '')
-          : 'New message';
-        toast(`${from} in ${channelName}`, { description: preview });
-        if (typeof document !== 'undefined' && document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification(`${from} in ${channelName}`, { body: preview });
-        }
-      }
-    });
+    const unsubChat = installChatSocketHandlers();
 
     socket.on('xp:gained', ({ amount }) => {
       addXPGain(amount);
@@ -230,54 +210,21 @@ export function AppShell() {
 
     socket.on('employee:updated', handleEmployeeUpdated);
 
-    const unsubReact = onMessageReact(({ messageId, channelId, reactions }) => {
-      useChatStore.getState().updateMessageReactions(messageId, channelId, reactions);
-    });
-    const unsubEdit = onMessageEdit(({ messageId, channelId, content }) => {
-      useChatStore.getState().editMessage(messageId, channelId, content);
-    });
-    const unsubDelete = onMessageDelete(({ messageId, channelId }) => {
-      useChatStore.getState().deleteMessage(messageId, channelId);
-    });
-    const unsubPin = onMessagePin(({ messageId, channelId, isPinned }) => {
-      useChatStore.getState().pinMessage(messageId, channelId, isPinned);
-    });
-    const unsubThreadReply = onThreadReply(({ threadId, replyCount }) => {
-      useChatStore.getState().updateThreadReplyCount(threadId, replyCount);
-    });
-
-    const handleSocketError = (err: { message?: string; code?: string; channelId?: string }) => {
-      if (err.code === 'CHANNEL_NOT_FOUND') {
-        toast.error('Channel not found. Refreshing channel list.');
-        const uid = useAuthStore.getState().user?.id;
-        if (uid) fetchChannels(uid);
-      } else if (err.code === 'SEND_FAILED' || err.message) {
-        toast.error(err.message ?? 'Something went wrong');
-      }
-    };
-    onSocketError(handleSocketError);
-
     const unsubAdded = onEmployeeAdded(() => fetchUsers());
     const unsubUpdated = onEmployeeUpdated(() => fetchUsers());
     const unsubDeleted = onEmployeeDeleted(() => fetchUsers());
     const unsubBulkImport = onEmployeeBulkImport(() => fetchUsers());
 
     return () => {
-      socket.off('message:new');
+      unsubChat();
       socket.off('xp:gained');
       socket.off('activity:new');
       socket.off('user:status');
       socket.off('employee:updated', handleEmployeeUpdated);
-      offSocketError(handleSocketError);
       unsubAdded();
       unsubUpdated();
       unsubDeleted();
       unsubBulkImport();
-      unsubReact();
-      unsubEdit();
-      unsubDelete();
-      unsubPin();
-      unsubThreadReply();
     };
   }, [updateUser]);
 

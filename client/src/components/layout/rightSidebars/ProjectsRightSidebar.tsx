@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Target, Zap } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
-import { projectsAPI, type MarketplaceProject, type UserApplication } from '@/lib/api';
+import { projectsAPI, type UserApplication } from '@/lib/api';
+import { useMarketplaceProjectsQuery } from '@/hooks/useMarketplaceProjectsQuery';
 import { cn } from '@/lib/utils';
 
 function useProjectsNav() {
@@ -45,9 +46,9 @@ export function ProjectsRightSidebar() {
   const { user } = useAuthStore();
   const goToMarketplace = useProjectsNav();
   const [applications, setApplications] = useState<UserApplication[]>([]);
-  const [marketplaceProjects, setMarketplaceProjects] = useState<MarketplaceProject[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
-  const [loadingRec, setLoadingRec] = useState(true);
+
+  const { data: marketplaceProjects, isLoading: loadingRec } = useMarketplaceProjectsQuery(user?.id);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -57,16 +58,6 @@ export function ProjectsRightSidebar() {
       .then((data) => setApplications(Array.isArray(data) ? data : []))
       .catch(() => setApplications([]))
       .finally(() => setLoadingApps(false));
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    setLoadingRec(true);
-    projectsAPI
-      .getMarketplace()
-      .then((data) => setMarketplaceProjects(Array.isArray(data) ? data : []))
-      .catch(() => setMarketplaceProjects([]))
-      .finally(() => setLoadingRec(false));
   }, [user?.id]);
 
   const userDept = (user?.department ?? user?.jobTitle ?? '')

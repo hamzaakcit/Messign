@@ -31,6 +31,8 @@ interface ChatState {
   channels: Channel[];
   activeChannelId: string | null;
   messages: Record<string, Message[]>;
+  /** Whether more messages exist above the oldest loaded message (per channel). */
+  messagesHasMore: Record<string, boolean>;
   typingUsers: Record<string, string[]>;
   isLoading: boolean;
   chatError: string | null;
@@ -119,11 +121,13 @@ interface ChatState {
   chatTranscriptWide: boolean;
 
   // Actions: Core
+  hydrateChannels: (channels: Channel[]) => void;
   fetchChannels: (userId: string) => Promise<void>;
   setActiveChannel: (channelId: string) => void;
   addChannel: (channel: Channel) => void;
   fetchMessages: (channelId: string, userId?: string) => Promise<void>;
-  sendMessage: (content: string, userId: string, options?: { attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown>; threadId?: string }) => Promise<void>;
+  loadOlderMessages: (channelId: string, userId?: string) => Promise<void>;
+  sendMessage: (content: string, userId: string, options?: { attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown>; threadId?: string }) => Promise<boolean>;
   addMessage: (message: Message) => void;
   incrementChannelUnread: (channelId: string) => void;
   addTypingUser: (channelId: string, userId: string) => void;
@@ -203,6 +207,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   channels: [],
   activeChannelId: null,
   messages: {},
+  messagesHasMore: {},
   typingUsers: {},
   isLoading: false,
   chatError: null,
@@ -272,15 +277,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // ── Core Actions ──
 
+  hydrateChannels: (channels) => {
+    set({ channels, isLoading: false, chatError: null });
+    if (channels.length > 0 && !get().activeChannelId) {
+      get().setActiveChannel(channels[0].id);
+    }
+  },
+
   fetchChannels: async (userId: string) => {
     if (!userId) return;
     try {
       set({ isLoading: true, chatError: null });
       const channels = await chatAPI.getChannels(userId) as Channel[];
-      set({ channels, isLoading: false, chatError: null });
-      if (channels.length > 0 && !get().activeChannelId) {
-        get().setActiveChannel(channels[0].id);
-      }
+      get().hydrateChannels(channels);
     } catch (error) {
       set({ isLoading: false, chatError: error instanceof Error ? error.message : 'Failed to load channels' });
     }
@@ -325,9 +334,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchMessages: async (channelId, userId) => {
     try {
-      const messages = await chatAPI.getMessages(channelId, userId ?? undefined) as Message[];
+      const { messages, hasMore } = await chatAPI.getMessagesPage(channelId, { limit: 80 }, userId ?? undefined);
       set((state) => ({
         messages: { ...state.messages, [channelId]: messages },
+        messagesHasMore: { ...state.messagesHasMore, [channelId]: hasMore },
         chatError: null,
       }));
     } catch (error) {
@@ -337,9 +347,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  loadOlderMessages: async (channelId, userId) => {
+    const current = get().messages[channelId] ?? [];
+    if (current.length === 0) return;
+    const oldestId = current[0].id;
+    try {
+      const { messages: older, hasMore } = await chatAPI.getMessagesPage(
+        channelId,
+        { limit: 80, before: oldestId },
+        userId ?? undefined,
+      );
+      set((state) => {
+        const prevList = state.messages[channelId] ?? [];
+        const seen = new Set(prevList.map((m) => m.id));
+        const merged = [...older.filter((m) => !seen.has(m.id)), ...prevList];
+        return {
+          messages: { ...state.messages, [channelId]: merged },
+          messagesHasMore: { ...state.messagesHasMore, [channelId]: hasMore },
+        };
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to load older messages';
+      toast.error(msg);
+    }
+  },
+
   sendMessage: async (content, userId, options) => {
     const { activeChannelId } = get();
-    if (!activeChannelId) return;
+    if (!activeChannelId) return false;
     try {
       const body: { content: string; attachments?: unknown[]; mentions?: string[]; metadata?: Record<string, unknown>; threadId?: string } = {
         content,
@@ -355,9 +390,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           threadMessages: [...state.threadMessages, message],
         }));
       }
+      return true;
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to send message';
       toast.error(msg);
+      return false;
     }
   },
 
@@ -741,6 +778,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         mentions: [],
         metadata: {},
       }, userId) as Message;
+      get().addMessage(message);
       set((state) => ({
         threadMessages: [...state.threadMessages, message],
       }));
