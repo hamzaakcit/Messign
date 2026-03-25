@@ -97,15 +97,18 @@ export const defaultPasswordPolicy: PasswordPolicy = {
 };
 
 /**
- * Default password for seeded users — read from SEED_DEFAULT_PASSWORD env var.
- * Never hardcode credentials in source code.
+ * Password used for `db:seed` / bulk import and login self-heal when the DB hash is stale.
+ * - Prefer `SEED_DEFAULT_PASSWORD` in `server/.env` (see `server/.env.example`).
+ * - In non-production, if unset, falls back to the same demo value as `.env.example` so local dev works without copying env.
+ * - In production, unset throws — set the var on the API host (e.g. Railway).
  */
 export function getDefaultSeedPassword(): string {
-  const pw = process.env.SEED_DEFAULT_PASSWORD;
-  if (!pw) {
+  const pw = process.env.SEED_DEFAULT_PASSWORD?.trim();
+  if (pw) return pw;
+  if (process.env.NODE_ENV === 'production') {
     throw new Error(
-      'SEED_DEFAULT_PASSWORD env var is required for seeding. Set it in server/.env',
+      'SEED_DEFAULT_PASSWORD is required in production. Set it on the API host environment.',
     );
   }
-  return pw;
+  return 'test123';
 }

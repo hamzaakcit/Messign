@@ -66,11 +66,13 @@ Run migrations:
 npm run db:migrate
 ```
 
-Seed sample data (optional but recommended for first run):
+Seed sample data (optional but recommended for first run). Copy `server/.env.example` to `server/.env` and set `DATABASE_URL` (and Redis if needed). For local dev, `SEED_DEFAULT_PASSWORD` can be omitted — it defaults to `test123` (see `server/src/types/auth.ts`). Then:
 
 ```bash
 npm run db:seed
 ```
+
+Demo login after seed: **`alex.chen@messign.com`** / **`test123`** (same password as `SEED_DEFAULT_PASSWORD`).
 
 ### 4. Start developing
 

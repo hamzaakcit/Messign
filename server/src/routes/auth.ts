@@ -60,7 +60,7 @@ authRouter.post('/login', (req, res) => {
       const err = result.error as { code?: string; message?: string; remainingAttempts?: number };
       if (process.env.NODE_ENV !== 'production' && err?.code === 'INVALID_CREDENTIALS') {
         err.message = (err.message || 'Invalid email or password')
-          + ' (Dev hint: run `npm run db:seed` in server/ — see README for test credentials)';
+          + ' (Dev hint: `npm run db:seed` from repo root, then alex.chen@messign.com / test123 — see README)';
       }
       return res.status(401).json({ success: false, error: err });
     } catch (e) {
