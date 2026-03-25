@@ -11,23 +11,44 @@ export async function generateSmartReplies(
   channelId: string,
   userId: string,
   recentMessageCount: number = 10,
+  threadRootMessageId?: string,
 ): Promise<SmartReplyResult> {
-  const messagesResult = await query<{
-    content: string;
-    user_id: string;
-    sender_name: string | null;
-  }>(
-    `SELECT m.content, m.user_id,
-            COALESCE(u.full_name, m.user_id) AS sender_name
-     FROM messages m
-     LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
-     WHERE m.channel_id = $1 AND m.is_deleted = FALSE
-     ORDER BY m.created_at DESC
-     LIMIT $2`,
-    [channelId, recentMessageCount],
-  );
+  const cap = Math.min(Math.max(recentMessageCount, 1), 25);
 
-  const messages = messagesResult.rows.reverse();
+  const messagesResult = threadRootMessageId
+    ? await query<{
+        content: string;
+        user_id: string;
+        sender_name: string | null;
+      }>(
+        `SELECT m.content, m.user_id,
+                COALESCE(u.full_name, m.user_id) AS sender_name
+         FROM messages m
+         LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
+         WHERE m.channel_id = $1 AND m.is_deleted = FALSE
+           AND (m.id = $2 OR m.thread_id = $2)
+         ORDER BY m.created_at ASC
+         LIMIT $3`,
+        [channelId, threadRootMessageId, cap],
+      )
+    : await query<{
+        content: string;
+        user_id: string;
+        sender_name: string | null;
+      }>(
+        `SELECT m.content, m.user_id,
+                COALESCE(u.full_name, m.user_id) AS sender_name
+         FROM messages m
+         LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
+         WHERE m.channel_id = $1 AND m.is_deleted = FALSE
+         ORDER BY m.created_at DESC
+         LIMIT $2`,
+        [channelId, cap],
+      );
+
+  const messages = threadRootMessageId
+    ? messagesResult.rows
+    : messagesResult.rows.reverse();
   if (messages.length === 0) {
     return { replies: [], contextSummary: '' };
   }

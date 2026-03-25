@@ -83,6 +83,13 @@ export function useSlashCommands() {
     return null;
   }, []);
 
+  const selectCommand = useCallback((cmd: SlashCommand) => {
+    setActiveCommand(cmd);
+    setQuery('');
+    setResults([]);
+    setSelectedIndex(0);
+  }, []);
+
   return {
     isOpen,
     activeCommand,
@@ -96,6 +103,7 @@ export function useSlashCommands() {
     moveSelection,
     setSelectedIndex,
     detectSlashCommand,
+    selectCommand,
     commands: SLASH_COMMANDS,
   };
 }

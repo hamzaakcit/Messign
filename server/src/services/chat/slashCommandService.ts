@@ -11,31 +11,35 @@ export interface SlashSearchResult {
 }
 
 export async function searchTasks(searchQuery: string, limit: number = 10): Promise<SlashSearchResult[]> {
-  const result = await query<{
-    id: string;
-    title: string;
-    status: string;
-    priority: string;
-    project_name: string | null;
-  }>(
-    `SELECT t.id, t.title, t.status, t.priority,
-            p.name AS project_name
-     FROM tasks t
-     LEFT JOIN projects p ON p.id = t.project_id
-     WHERE t.title ILIKE $1
-     ORDER BY t.created_at DESC
-     LIMIT $2`,
-    [`%${searchQuery}%`, limit],
-  );
+  try {
+    const result = await query<{
+      id: string;
+      title: string;
+      status: string;
+      priority: string;
+      project_name: string | null;
+    }>(
+      `SELECT t.id, t.title, t.status, t.priority,
+              p.name AS project_name
+       FROM tasks t
+       LEFT JOIN projects p ON p.id = t.project_id
+       WHERE t.title ILIKE $1
+       ORDER BY t.created_at DESC
+       LIMIT $2`,
+      [`%${searchQuery}%`, limit],
+    );
 
-  return result.rows.map((r) => ({
-    type: 'task' as const,
-    id: r.id,
-    title: r.title,
-    subtitle: r.project_name ?? undefined,
-    status: r.status,
-    metadata: { priority: r.priority },
-  }));
+    return result.rows.map((r) => ({
+      type: 'task' as const,
+      id: r.id,
+      title: r.title,
+      subtitle: r.project_name ?? undefined,
+      status: r.status,
+      metadata: { priority: r.priority },
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function searchDocuments(searchQuery: string, limit: number = 10): Promise<SlashSearchResult[]> {

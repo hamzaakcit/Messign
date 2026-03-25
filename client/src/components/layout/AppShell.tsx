@@ -17,7 +17,7 @@ import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthr
 import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
 import { FloatingTimer } from '@/components/time/FloatingTimer';
 import { toast } from 'sonner';
-import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError } from '@/lib/socket';
+import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport, onSocketError, offSocketError, onMessageReact, onMessageEdit, onMessageDelete, onMessagePin, onThreadReply } from '@/lib/socket';
 
 const PATH_TO_VIEW: Record<string, string> = {
   '/': 'dashboard',
@@ -237,6 +237,22 @@ export function AppShell() {
 
     socket.on('employee:updated', handleEmployeeUpdated);
 
+    const unsubReact = onMessageReact(({ messageId, channelId, reactions }) => {
+      useChatStore.getState().updateMessageReactions(messageId, channelId, reactions);
+    });
+    const unsubEdit = onMessageEdit(({ messageId, channelId, content }) => {
+      useChatStore.getState().editMessage(messageId, channelId, content);
+    });
+    const unsubDelete = onMessageDelete(({ messageId, channelId }) => {
+      useChatStore.getState().deleteMessage(messageId, channelId);
+    });
+    const unsubPin = onMessagePin(({ messageId, channelId, isPinned }) => {
+      useChatStore.getState().pinMessage(messageId, channelId, isPinned);
+    });
+    const unsubThreadReply = onThreadReply(({ threadId, replyCount }) => {
+      useChatStore.getState().updateThreadReplyCount(threadId, replyCount);
+    });
+
     const handleSocketError = (err: { message?: string; code?: string; channelId?: string }) => {
       if (err.code === 'CHANNEL_NOT_FOUND') {
         toast.error('Channel not found. Refreshing channel list.');
@@ -264,6 +280,11 @@ export function AppShell() {
       unsubUpdated();
       unsubDeleted();
       unsubBulkImport();
+      unsubReact();
+      unsubEdit();
+      unsubDelete();
+      unsubPin();
+      unsubThreadReply();
     };
   }, [updateUser]);
 

@@ -22,8 +22,13 @@ export function ChannelCreateModal() {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
-    await createChannel({ name: name.trim(), description: description.trim() || undefined, type, members: selectedMembers });
-    setLoading(false);
+    try {
+      await createChannel({ name: name.trim(), description: description.trim() || undefined, type, members: selectedMembers });
+    } catch {
+      // Error toast already shown by store action
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleMember = (id: string) => {

@@ -1,19 +1,21 @@
 import { useRef, useEffect } from 'react';
 import type { SlashSearchResult } from '@/types';
+import type { SlashCommand } from '@/hooks/useSlashCommands';
 import { cn } from '@/lib/utils';
 import { ListChecks, FileText, User, Loader2, Search } from 'lucide-react';
 
 interface SlashCommandPaletteProps {
   slash: {
     isOpen: boolean;
-    activeCommand: { trigger: string; label: string; description: string; searchType: string; icon: string } | null;
+    activeCommand: SlashCommand | null;
     query: string;
     results: SlashSearchResult[];
     selectedIndex: number;
     loading: boolean;
-    commands: Array<{ trigger: string; label: string; description: string; searchType: string; icon: string }>;
+    commands: SlashCommand[];
     search: (q: string) => void;
     setSelectedIndex: (i: number) => void;
+    selectCommand?: (cmd: SlashCommand) => void;
   };
   onSelect: (item: { type: string; id: string; title: string }) => void;
   onClose: () => void;
@@ -74,6 +76,7 @@ export function SlashCommandPalette({ slash, onSelect, onClose }: SlashCommandPa
                 idx === slash.selectedIndex ? 'bg-primary-500/10 text-app' : 'text-app-muted hover:bg-app-hover hover:text-app',
               )}
               onMouseEnter={() => slash.setSelectedIndex(idx)}
+              onClick={() => slash.selectCommand?.(cmd)}
             >
               <span className="text-lg">{cmd.icon}</span>
               <div>

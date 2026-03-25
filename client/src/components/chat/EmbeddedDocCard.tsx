@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, ExternalLink, User, Clock, Loader2 } from 'lucide-react';
+import { FileText, ExternalLink, User, Clock, Loader2, AlertTriangle } from 'lucide-react';
 import { chatAPI } from '@/lib/api';
 import type { EmbeddedDocCard as DocCardType } from '@/types';
 
@@ -11,15 +11,18 @@ interface EmbeddedDocCardProps {
 export function EmbeddedDocCard({ refId, channelId }: EmbeddedDocCardProps) {
   const [card, setCard] = useState<DocCardType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     chatAPI.resolveEmbed(channelId, 'document', refId)
       .then((data) => {
         if (!cancelled && data?.type === 'document') setCard(data as DocCardType);
+        else if (!cancelled) setError(true);
       })
-      .catch(() => {})
+      .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [refId, channelId]);
@@ -32,7 +35,13 @@ export function EmbeddedDocCard({ refId, channelId }: EmbeddedDocCardProps) {
     );
   }
 
-  if (!card) return null;
+  if (error || !card) {
+    return (
+      <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-sm text-red-400">
+        <AlertTriangle className="w-4 h-4" /> Failed to load document
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-accent-500/20 bg-gradient-to-r from-accent-500/5 to-transparent overflow-hidden max-w-md">

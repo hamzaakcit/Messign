@@ -21,7 +21,18 @@ import {
   slashSearch,
   resolveEmbeddedCard,
   awardChatXP,
+  summarizeThread,
+  detectThreadActionItems,
+  extractDecisions,
+  extractDecisionsThread,
+  transformMessage,
+  transformDraft,
+  MAX_DRAFT_CHARS,
 } from '../services/chat/index.js';
+import type { DoraTransformAction } from '../services/chat/index.js';
+import { allowChatAiRequest } from '../services/chat/chatAiRateLimit.js';
+import { playRpsDuel, playCoinDuel, playChamberDuel } from '../services/chat/duelService.js';
+import type { RpsMove } from '../services/chat/duelService.js';
 
 export const chatRouter = Router();
 
@@ -63,6 +74,20 @@ function getUserId(req: { userId?: string; headers: Record<string, unknown> }): 
   return (req as { userId?: string }).userId ?? (req.headers['x-user-id'] as string) ?? null;
 }
 
+const VALID_CHANNEL_TYPES = ['public', 'private', 'dm'];
+const VALID_XP_EVENTS = [
+  'chat.question.answered', 'chat.blocker.resolved',
+  'chat.task.created_from_chat', 'chat.message.reacted', 'chat.message.pinned',
+  'chat.dora.transform_used',
+];
+
+async function checkChannelMembership(channelId: string, userId: string): Promise<boolean> {
+  const channel = await getChannelById(channelId);
+  if (!channel) return false;
+  if (channel.type === 'public') return true;
+  return channel.members.includes(userId);
+}
+
 // ══════════════════════════════════════
 // Original endpoints
 // ══════════════════════════════════════
@@ -97,8 +122,12 @@ chatRouter.get('/channels', async (req, res) => {
 chatRouter.get('/channels/:id/messages', async (req, res) => {
   try {
     const channelId = req.params.id;
+    const userId = getUserId(req as never);
     const channel = await getChannelById(channelId);
     if (!channel) { res.status(404).json({ error: 'Channel not found' }); return; }
+    if (userId && !(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
     const rows = await getMessagesForChannel(channelId);
     res.json(rows.map(toClientMessage));
   } catch (e) {
@@ -127,7 +156,10 @@ chatRouter.post('/channels/:id/messages', async (req, res) => {
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const channel = await getChannelById(channelId);
     if (!channel) { res.status(404).json({ error: 'Channel not found' }); return; }
-    const { content, attachments = [], mentions = [], metadata = {} } = req.body;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const { content, attachments = [], mentions = [], metadata = {}, threadId } = req.body;
     const xpGained = 5;
     const message = await createMessage(channelId, userId, content ?? '', {
       attachments,
@@ -136,11 +168,37 @@ chatRouter.post('/channels/:id/messages', async (req, res) => {
     });
 
     // Store metadata (embedded cards, etc.) if provided
+    const updates: string[] = [];
+    const updateParams: unknown[] = [];
+    let paramIdx = 1;
     if (metadata && Object.keys(metadata).length > 0) {
+      updates.push(`metadata = $${paramIdx++}`);
+      updateParams.push(JSON.stringify(metadata));
+    }
+    if (threadId) {
+      updates.push(`thread_id = $${paramIdx++}`);
+      updateParams.push(threadId);
+    }
+    if (updates.length > 0) {
+      updateParams.push(message.id);
+      await query(`UPDATE messages SET ${updates.join(', ')} WHERE id = $${paramIdx}`, updateParams);
+    }
+
+    // Increment reply_count on parent if this is a thread reply
+    if (threadId) {
       await query(
-        `UPDATE messages SET metadata = $1 WHERE id = $2`,
-        [JSON.stringify(metadata), message.id],
+        `UPDATE messages SET reply_count = reply_count + 1 WHERE id = $1`,
+        [threadId],
       );
+      const parentCount = await query<{ reply_count: number }>(
+        `SELECT reply_count FROM messages WHERE id = $1`, [threadId],
+      );
+      for (const memberId of channel.members) {
+        void emitToUser(memberId, 'thread:reply', {
+          messageId: message.id, channelId, threadId,
+          replyCount: parentCount.rows[0]?.reply_count ?? 1,
+        });
+      }
     }
 
     await addEmployeeXP(userId, xpGained);
@@ -168,6 +226,7 @@ chatRouter.post('/channels/create', async (req, res) => {
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const { name, description, type = 'public', members = [] } = req.body;
     if (!name || typeof name !== 'string') { res.status(400).json({ error: 'Channel name is required' }); return; }
+    if (!VALID_CHANNEL_TYPES.includes(type)) { res.status(400).json({ error: `Invalid channel type. Must be: ${VALID_CHANNEL_TYPES.join(', ')}` }); return; }
 
     const result = await query<{ id: string }>(
       `INSERT INTO channels (name, description, type) VALUES ($1, $2, $3) RETURNING id`,
@@ -228,6 +287,9 @@ chatRouter.post('/channels/:id/messages/:mid/react', async (req, res) => {
     const { emoji, action = 'add' } = req.body;
     if (!emoji) { res.status(400).json({ error: 'Emoji is required' }); return; }
     const { id: channelId, mid: messageId } = req.params;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
 
     if (action === 'remove') {
       await query(
@@ -272,6 +334,9 @@ chatRouter.post('/channels/:id/messages/:mid/pin', async (req, res) => {
     const userId = getUserId(req as never);
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const { id: channelId, mid: messageId } = req.params;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
 
     const current = await query<{ is_pinned: boolean }>(
       `SELECT is_pinned FROM messages WHERE id = $1 AND channel_id = $2`,
@@ -542,6 +607,10 @@ chatRouter.post('/channels/:id/dora/summarize', async (req, res) => {
   try {
     const userId = getUserId(req as never);
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    if (!(await checkChannelMembership(req.params.id, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
     const messageCount = Math.min(Number(req.body.messageCount) || 50, 100);
     const result = await summarizeConversation(req.params.id, messageCount);
     res.json(result);
@@ -555,6 +624,10 @@ chatRouter.post('/channels/:id/dora/action-items', async (req, res) => {
   try {
     const userId = getUserId(req as never);
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    if (!(await checkChannelMembership(req.params.id, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
     const messageCount = Math.min(Number(req.body.messageCount) || 30, 50);
     const result = await detectActionItems(req.params.id, messageCount);
     res.json(result);
@@ -568,7 +641,13 @@ chatRouter.post('/channels/:id/dora/smart-reply', async (req, res) => {
   try {
     const userId = getUserId(req as never);
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
-    const result = await generateSmartReplies(req.params.id, userId);
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    if (!(await checkChannelMembership(req.params.id, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const rawTid = (req.body as { threadId?: unknown })?.threadId;
+    const threadId = typeof rawTid === 'string' && rawTid.trim() ? rawTid.trim() : undefined;
+    const result = await generateSmartReplies(req.params.id, userId, 12, threadId);
     res.json(result);
   } catch (e) {
     console.error('[chat] POST /dora/smart-reply', e);
@@ -580,6 +659,9 @@ chatRouter.post('/channels/:id/dora/suggest', async (req, res) => {
   try {
     const userId = getUserId(req as never);
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    if (!(await checkChannelMembership(req.params.id, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return; }
     const { question } = req.body;
     if (!question) { res.status(400).json({ error: 'Question is required' }); return; }
     const result = await getKBSuggestions(req.params.id, question);
@@ -587,6 +669,369 @@ chatRouter.post('/channels/:id/dora/suggest', async (req, res) => {
   } catch (e) {
     console.error('[chat] POST /dora/suggest', e);
     res.status(500).json({ error: 'Failed to get suggestions' });
+  }
+});
+
+const VALID_TRANSFORM_ACTIONS: DoraTransformAction[] = [
+  'explain', 'shorten', 'expand', 'professional', 'friendly', 'translate',
+];
+
+chatRouter.post('/channels/:id/messages/:mid/dora/summarize-thread', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    const channelId = req.params.id;
+    const parentId = req.params.mid;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const messageCount = Math.min(Number((req.body as { messageCount?: unknown })?.messageCount) || 50, 100);
+    const result = await summarizeThread(channelId, parentId, messageCount);
+    res.json(result);
+  } catch (e) {
+    console.error('[chat] POST /dora/summarize-thread', e);
+    res.status(500).json({ error: 'Failed to summarize thread' });
+  }
+});
+
+chatRouter.post('/channels/:id/messages/:mid/dora/action-items-thread', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    const channelId = req.params.id;
+    const parentId = req.params.mid;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const messageCount = Math.min(Number((req.body as { messageCount?: unknown })?.messageCount) || 40, 80);
+    const result = await detectThreadActionItems(channelId, parentId, messageCount);
+    res.json(result);
+  } catch (e) {
+    console.error('[chat] POST /dora/action-items-thread', e);
+    res.status(500).json({ error: 'Failed to detect thread action items' });
+  }
+});
+
+chatRouter.post('/channels/:id/messages/:mid/dora/transform', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    const channelId = req.params.id;
+    const messageId = req.params.mid;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const action = (req.body as { action?: string })?.action;
+    const targetLocale = (req.body as { targetLocale?: string })?.targetLocale;
+    if (!action || !VALID_TRANSFORM_ACTIONS.includes(action as DoraTransformAction)) {
+      res.status(400).json({ error: 'Invalid or missing action' }); return;
+    }
+    const out = await transformMessage(channelId, messageId, action as DoraTransformAction, targetLocale);
+    if (!out) { res.status(404).json({ error: 'Message not found' }); return; }
+    res.json(out);
+  } catch (e) {
+    console.error('[chat] POST /dora/transform', e);
+    res.status(500).json({ error: 'Failed to transform message' });
+  }
+});
+
+chatRouter.post('/channels/:id/dora/transform-draft', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const body = req.body as { text?: unknown; action?: unknown; targetLocale?: string };
+    const text = typeof body.text === 'string' ? body.text : '';
+    const action = typeof body.action === 'string' ? body.action : '';
+    if (!text.trim()) { res.status(400).json({ error: 'text is required' }); return; }
+    if (!VALID_TRANSFORM_ACTIONS.includes(action as DoraTransformAction)) {
+      res.status(400).json({ error: 'Invalid or missing action' }); return;
+    }
+    if (text.length > MAX_DRAFT_CHARS) {
+      res.status(400).json({ error: `Text exceeds ${MAX_DRAFT_CHARS} characters` }); return;
+    }
+    const out = await transformDraft(text, action as DoraTransformAction, body.targetLocale);
+    res.json(out);
+  } catch (e) {
+    console.error('[chat] POST /dora/transform-draft', e);
+    res.status(500).json({ error: 'Failed to transform draft' });
+  }
+});
+
+chatRouter.post('/channels/:id/dora/decisions', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const messageCount = Math.min(Number((req.body as { messageCount?: unknown })?.messageCount) || 40, 80);
+    const result = await extractDecisions(channelId, messageCount);
+    res.json(result);
+  } catch (e) {
+    console.error('[chat] POST /dora/decisions', e);
+    res.status(500).json({ error: 'Failed to extract decisions' });
+  }
+});
+
+chatRouter.post('/channels/:id/messages/:mid/dora/decisions-thread', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!allowChatAiRequest(userId)) { res.status(429).json({ error: 'Too many AI requests. Try again shortly.' }); return; }
+    const channelId = req.params.id;
+    const parentMessageId = req.params.mid;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const messageCount = Math.min(Number((req.body as { messageCount?: unknown })?.messageCount) || 40, 80);
+    const result = await extractDecisionsThread(channelId, parentMessageId, messageCount);
+    res.json(result);
+  } catch (e) {
+    console.error('[chat] POST /dora/decisions-thread', e);
+    res.status(500).json({ error: 'Failed to extract thread decisions' });
+  }
+});
+
+// ══════════════════════════════════════
+// Chat: channel duels (RPS, coin, chamber) — server RNG, membership required
+// ══════════════════════════════════════
+
+const RPS_MOVES = new Set<string>(['rock', 'paper', 'scissors']);
+
+chatRouter.post('/channels/:id/duels/rps', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const move = (req.body as { move?: string })?.move;
+    if (!move || !RPS_MOVES.has(move)) {
+      res.status(400).json({ error: 'move must be rock, paper, or scissors' }); return;
+    }
+    res.json(playRpsDuel(move as RpsMove));
+  } catch (e) {
+    console.error('[chat] POST /duels/rps', e);
+    res.status(500).json({ error: 'Duel failed' });
+  }
+});
+
+chatRouter.post('/channels/:id/duels/coin', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const call = (req.body as { call?: string })?.call;
+    if (call !== 'heads' && call !== 'tails') {
+      res.status(400).json({ error: 'call must be heads or tails' }); return;
+    }
+    res.json(playCoinDuel(call));
+  } catch (e) {
+    console.error('[chat] POST /duels/coin', e);
+    res.status(500).json({ error: 'Duel failed' });
+  }
+});
+
+chatRouter.post('/channels/:id/duels/chamber', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const channelId = req.params.id;
+    if (!(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const raw = (req.body as { chamber?: unknown })?.chamber;
+    const chamber = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(chamber)) {
+      res.status(400).json({ error: 'chamber must be a number 1–6' }); return;
+    }
+    res.json(playChamberDuel(chamber));
+  } catch (e) {
+    console.error('[chat] POST /duels/chamber', e);
+    res.status(500).json({ error: 'Duel failed' });
+  }
+});
+
+// ══════════════════════════════════════
+// Chat v2: Gamification
+// ══════════════════════════════════════
+
+// ══════════════════════════════════════
+// Chat v2: Thread Messages
+// ══════════════════════════════════════
+
+chatRouter.get('/channels/:id/messages/:mid/thread', async (req, res) => {
+  try {
+    const { id: channelId, mid: messageId } = req.params;
+    const userId = getUserId(req as never);
+    if (userId && !(await checkChannelMembership(channelId, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
+    const result = await query<MessageWithSender & { reactions: unknown; edited_at: string | null; is_pinned: boolean; metadata: unknown; thread_id: string | null; reply_count: number }>(
+      `SELECT m.*, COALESCE(u.full_name, m.user_id) AS sender_name,
+              u.avatar_url AS sender_avatar,
+              COALESCE(
+                (SELECT jsonb_agg(jsonb_build_object('emoji', r.emoji, 'users', r.users))
+                 FROM (SELECT emoji, array_agg(user_id) AS users FROM message_reactions WHERE message_id = m.id GROUP BY emoji) r
+                ), '[]'::jsonb
+              ) AS reactions
+       FROM messages m
+       LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
+       WHERE m.thread_id = $1 AND m.channel_id = $2 AND m.is_deleted = FALSE
+       ORDER BY m.created_at ASC`,
+      [messageId, channelId],
+    );
+    res.json(result.rows.map(toClientMessage));
+  } catch (e) {
+    console.error('[chat] GET /thread', e);
+    res.status(500).json({ error: 'Failed to load thread' });
+  }
+});
+
+// ══════════════════════════════════════
+// Chat v2: Reaction Detail
+// ══════════════════════════════════════
+
+chatRouter.get('/channels/:id/messages/:mid/reactions', async (req, res) => {
+  try {
+    const { mid: messageId } = req.params;
+    const result = await query<{ emoji: string; user_id: string; user_name: string; avatar_url: string | null }>(
+      `SELECT r.emoji, r.user_id,
+              COALESCE(u.full_name, r.user_id) AS user_name,
+              u.avatar_url
+       FROM message_reactions r
+       LEFT JOIN reimbursement_users u ON u.auth_user_id = r.user_id OR u.id::text = r.user_id
+       WHERE r.message_id = $1`,
+      [messageId],
+    );
+    const grouped: Record<string, Array<{ id: string; name: string; avatar: string }>> = {};
+    for (const r of result.rows) {
+      if (!grouped[r.emoji]) grouped[r.emoji] = [];
+      grouped[r.emoji].push({ id: r.user_id, name: r.user_name, avatar: r.avatar_url ?? '' });
+    }
+    res.json(Object.entries(grouped).map(([emoji, users]) => ({ emoji, users })));
+  } catch (e) {
+    console.error('[chat] GET /reactions', e);
+    res.status(500).json({ error: 'Failed to load reactions' });
+  }
+});
+
+// ══════════════════════════════════════
+// Chat v2: Universal Search
+// ══════════════════════════════════════
+
+chatRouter.get('/search/universal', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const q = (req.query.q as string) ?? '';
+    if (!q.trim()) { res.json({ messages: [], tasks: [], documents: [], users: [] }); return; }
+
+    const [messages, tasks, documents, users] = await Promise.all([
+      query<{ id: string; channel_id: string; user_id: string; content: string; created_at: string; sender_name: string | null; channel_name: string }>(
+        `SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at,
+                COALESCE(u.full_name, m.user_id) AS sender_name,
+                c.name AS channel_name
+         FROM messages m
+         LEFT JOIN reimbursement_users u ON u.auth_user_id = m.user_id OR u.id::text = m.user_id
+         JOIN channels c ON c.id = m.channel_id
+         WHERE m.is_deleted = FALSE AND m.content ILIKE $1
+         ORDER BY m.created_at DESC LIMIT 15`,
+        [`%${q}%`],
+      ).catch(() => ({ rows: [] as Array<{ id: string; channel_id: string; user_id: string; content: string; created_at: string; sender_name: string | null; channel_name: string }> })),
+      slashSearch('task', q, 10).catch(() => []),
+      slashSearch('document', q, 10).catch(() => []),
+      slashSearch('user', q, 10).catch(() => []),
+    ]);
+
+    res.json({
+      messages: messages.rows.map((r) => ({
+        id: r.id, channelId: r.channel_id, userId: r.user_id,
+        content: r.content, timestamp: r.created_at,
+        senderName: r.sender_name, channelName: r.channel_name,
+      })),
+      tasks,
+      documents,
+      users,
+    });
+  } catch (e) {
+    console.error('[chat] GET /search/universal', e);
+    res.status(500).json({ error: 'Failed to search' });
+  }
+});
+
+// ══════════════════════════════════════
+// Chat v2: Smart Folders (Bookmarks)
+// ══════════════════════════════════════
+
+chatRouter.get('/bookmarks', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const result = await query<{
+      id: string; user_id: string; name: string; folder_type: string;
+      channel_ids: string[]; icon: string | null; created_at: string;
+    }>(
+      `SELECT id, user_id, name, folder_type, channel_ids, icon, created_at
+       FROM chat_bookmarks WHERE user_id = $1 ORDER BY created_at ASC`,
+      [userId],
+    );
+    res.json(result.rows.map((r) => ({
+      id: r.id, userId: r.user_id, name: r.name,
+      type: r.folder_type, channelIds: r.channel_ids ?? [],
+      icon: r.icon, createdAt: r.created_at,
+    })));
+  } catch (e) {
+    console.error('[chat] GET /bookmarks', e);
+    res.status(500).json({ error: 'Failed to load bookmarks' });
+  }
+});
+
+chatRouter.post('/bookmarks', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { name, type = 'custom', channelIds = [], icon } = req.body;
+    if (!name) { res.status(400).json({ error: 'Folder name is required' }); return; }
+    const result = await query<{ id: string; created_at: string }>(
+      `INSERT INTO chat_bookmarks (user_id, name, folder_type, channel_ids, icon)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
+      [userId, name, type, JSON.stringify(channelIds), icon ?? null],
+    );
+    const row = result.rows[0];
+    res.status(201).json({
+      id: row?.id, userId, name, type, channelIds, icon: icon ?? null,
+      createdAt: row?.created_at,
+    });
+  } catch (e) {
+    console.error('[chat] POST /bookmarks', e);
+    res.status(500).json({ error: 'Failed to create bookmark' });
+  }
+});
+
+chatRouter.delete('/bookmarks/:id', async (req, res) => {
+  try {
+    const userId = getUserId(req as never);
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    await query(`DELETE FROM chat_bookmarks WHERE id = $1 AND user_id = $2`, [req.params.id, userId]);
+    res.status(204).send();
+  } catch (e) {
+    console.error('[chat] DELETE /bookmarks', e);
+    res.status(500).json({ error: 'Failed to delete bookmark' });
   }
 });
 
@@ -599,6 +1044,12 @@ chatRouter.post('/channels/:id/xp/award', async (req, res) => {
     const userId = getUserId(req as never);
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const { event, targetUserId } = req.body;
+    if (!event || !VALID_XP_EVENTS.includes(event)) {
+      res.status(400).json({ error: `Invalid XP event. Must be one of: ${VALID_XP_EVENTS.join(', ')}` }); return;
+    }
+    if (!(await checkChannelMembership(req.params.id, userId))) {
+      res.status(403).json({ error: 'Not a member of this channel' }); return;
+    }
     const result = await awardChatXP(
       targetUserId ?? userId,
       event,

@@ -8,6 +8,8 @@ import { ChatDetailPanel } from '@/components/chat/ChatDetailPanel';
 import { AdminMessagesPanel } from '@/components/chat/AdminMessagesPanel';
 import { ChannelCreateModal } from '@/components/chat/ChannelCreateModal';
 import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
+import { ThreadPanel } from '@/components/chat/ThreadPanel';
+import { ChatDuelHub } from '@/components/chat/ChatDuelHub';
 import { cn } from '@/lib/utils';
 
 export function ChatV2Layout() {
@@ -21,6 +23,7 @@ export function ChatV2Layout() {
   const setMobileSidebarOpen = useChatStore((s) => s.setMobileSidebarOpen);
   const channelCreateOpen = useChatStore((s) => s.channelCreateOpen);
   const contextMenuMessage = useChatStore((s) => s.contextMenuMessage);
+  const activeThreadId = useChatStore((s) => s.activeThreadId);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -65,8 +68,15 @@ export function ChatV2Layout() {
         {showAdminMessages ? <AdminMessagesPanel /> : <ChatMainPanel />}
       </div>
 
-      {/* Detail panel (collapsible) */}
-      {detailPanelOpen && !showAdminMessages && (
+      {/* Thread panel (takes priority over detail panel) */}
+      {activeThreadId && !showAdminMessages && (
+        <div className="w-96 shrink-0 hidden lg:flex flex-col">
+          <ThreadPanel />
+        </div>
+      )}
+
+      {/* Detail panel (collapsible, hidden when thread is open) */}
+      {detailPanelOpen && !activeThreadId && !showAdminMessages && (
         <div className="w-80 border-l border-app bg-app-sidebar shrink-0 hidden lg:flex flex-col">
           <ChatDetailPanel />
         </div>
@@ -75,6 +85,7 @@ export function ChatV2Layout() {
       {/* Modals */}
       {channelCreateOpen && <ChannelCreateModal />}
       {contextMenuMessage && <MessageContextMenu />}
+      {!showAdminMessages && <ChatDuelHub />}
     </div>
   );
 }

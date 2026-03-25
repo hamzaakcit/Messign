@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ListChecks, ExternalLink, Clock, Zap, Loader2 } from 'lucide-react';
+import { ListChecks, ExternalLink, Clock, Zap, Loader2, AlertTriangle } from 'lucide-react';
 import { chatAPI } from '@/lib/api';
 import type { EmbeddedTaskCard as TaskCardType } from '@/types';
 import { cn } from '@/lib/utils';
@@ -26,15 +26,18 @@ const PRIORITY_STYLES: Record<string, { bg: string; text: string }> = {
 export function EmbeddedTaskCard({ refId, channelId }: EmbeddedTaskCardProps) {
   const [card, setCard] = useState<TaskCardType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     chatAPI.resolveEmbed(channelId, 'task', refId)
       .then((data) => {
         if (!cancelled && data?.type === 'task') setCard(data as TaskCardType);
+        else if (!cancelled) setError(true);
       })
-      .catch(() => {})
+      .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [refId, channelId]);
@@ -47,7 +50,13 @@ export function EmbeddedTaskCard({ refId, channelId }: EmbeddedTaskCardProps) {
     );
   }
 
-  if (!card) return null;
+  if (error || !card) {
+    return (
+      <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-sm text-red-400">
+        <AlertTriangle className="w-4 h-4" /> Failed to load task
+      </div>
+    );
+  }
 
   const statusStyle = STATUS_STYLES[card.status] ?? STATUS_STYLES.todo;
   const priorityStyle = PRIORITY_STYLES[card.priority] ?? PRIORITY_STYLES.medium;

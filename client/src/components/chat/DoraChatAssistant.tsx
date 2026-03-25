@@ -1,25 +1,30 @@
 import { useState } from 'react';
-import { Sparkles, FileText, ListChecks, BookOpen, Loader2, ChevronDown, ChevronUp, Plus, ExternalLink, X } from 'lucide-react';
+import { Sparkles, FileText, ListChecks, BookOpen, Loader2, ChevronDown, ChevronUp, Plus, ExternalLink, X, Scale } from 'lucide-react';
 import { useChatDora } from '@/hooks/useChatDora';
 import { useChatStore } from '@/stores/chatStore';
 import { cn } from '@/lib/utils';
 
 export function DoraChatAssistant() {
   const {
-    doraSummary, doraActionItems, doraLoading,
-    summarize, getActionItems, getKBSuggestions, createTaskFromActionItem,
+    doraSummary, doraActionItems, doraDecisions,
+    summarize, getActionItems, getDecisions, getKBSuggestions, createTaskFromActionItem,
   } = useChatDora();
   const toggleDoraPanel = useChatStore((s) => s.toggleDoraPanel);
-  const [activeTab, setActiveTab] = useState<'summary' | 'actions' | 'kb'>('summary');
+  const doraSummaryLoading = useChatStore((s) => s.doraSummaryLoading);
+  const doraActionItemsLoading = useChatStore((s) => s.doraActionItemsLoading);
+  const doraDecisionsLoading = useChatStore((s) => s.doraDecisionsLoading);
+  const [activeTab, setActiveTab] = useState<'summary' | 'actions' | 'decisions' | 'kb'>('summary');
   const [kbQuery, setKBQuery] = useState('');
   const [kbResults, setKBResults] = useState<Array<{ title: string; excerpt: string; documentId: string; relevanceScore: number }>>([]);
   const [kbLoading, setKBLoading] = useState(false);
+  const [kbSearched, setKBSearched] = useState(false);
   const [expandedAction, setExpandedAction] = useState<number | null>(null);
   const [creatingTask, setCreatingTask] = useState<number | null>(null);
 
   const handleKBSearch = async () => {
     if (!kbQuery.trim()) return;
     setKBLoading(true);
+    setKBSearched(true);
     const results = await getKBSuggestions(kbQuery);
     setKBResults(results);
     setKBLoading(false);
@@ -34,6 +39,7 @@ export function DoraChatAssistant() {
   const tabs = [
     { id: 'summary' as const, label: 'Summary', icon: FileText },
     { id: 'actions' as const, label: 'Action Items', icon: ListChecks },
+    { id: 'decisions' as const, label: 'Decisions', icon: Scale },
     { id: 'kb' as const, label: 'Knowledge', icon: BookOpen },
   ];
 
@@ -47,7 +53,7 @@ export function DoraChatAssistant() {
           </div>
           <span className="text-sm font-semibold text-app">Dora AI</span>
         </div>
-        <button onClick={toggleDoraPanel} className="p-1 rounded text-app-muted hover:text-app transition-colors">
+        <button type="button" onClick={toggleDoraPanel} className="p-1 rounded text-app-muted hover:text-app transition-colors" aria-label="Close Dora panel">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -61,6 +67,7 @@ export function DoraChatAssistant() {
               setActiveTab(tab.id);
               if (tab.id === 'summary' && !doraSummary) summarize();
               if (tab.id === 'actions' && !doraActionItems) getActionItems();
+              if (tab.id === 'decisions' && !doraDecisions) getDecisions();
             }}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
@@ -77,15 +84,14 @@ export function DoraChatAssistant() {
 
       {/* Content */}
       <div className="px-4 pb-3 max-h-64 overflow-y-auto">
-        {doraLoading && (
+        {/* Summary tab */}
+        {activeTab === 'summary' && doraSummaryLoading && (
           <div className="flex items-center justify-center py-6 gap-2 text-app-muted">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Dora is thinking...</span>
+            <span className="text-sm">Summarizing conversation...</span>
           </div>
         )}
-
-        {/* Summary tab */}
-        {activeTab === 'summary' && !doraLoading && (
+        {activeTab === 'summary' && !doraSummaryLoading && (
           <div>
             {doraSummary ? (
               <div className="space-y-3">
@@ -116,7 +122,13 @@ export function DoraChatAssistant() {
         )}
 
         {/* Action Items tab */}
-        {activeTab === 'actions' && !doraLoading && (
+        {activeTab === 'actions' && doraActionItemsLoading && (
+          <div className="flex items-center justify-center py-6 gap-2 text-app-muted">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Scanning for action items...</span>
+          </div>
+        )}
+        {activeTab === 'actions' && !doraActionItemsLoading && (
           <div>
             {doraActionItems && doraActionItems.actionItems.length > 0 ? (
               <div className="space-y-2">
@@ -168,6 +180,40 @@ export function DoraChatAssistant() {
           </div>
         )}
 
+        {/* Decisions tab */}
+        {activeTab === 'decisions' && doraDecisionsLoading && (
+          <div className="flex items-center justify-center py-6 gap-2 text-app-muted">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Extracting decisions…</span>
+          </div>
+        )}
+        {activeTab === 'decisions' && !doraDecisionsLoading && (
+          <div>
+            {doraDecisions && doraDecisions.decisions.length > 0 ? (
+              <div className="space-y-2">
+                {doraDecisions.decisions.map((d, idx) => (
+                  <div key={idx} className="p-2.5 rounded-lg bg-app-bg border border-app">
+                    <p className="text-sm text-app">{d.text}</p>
+                    {d.owners && d.owners.length > 0 && (
+                      <p className="text-[11px] text-app-muted mt-1">{d.owners.join(' · ')}</p>
+                    )}
+                  </div>
+                ))}
+                <div className="text-[11px] text-app-muted">
+                  Confidence: {Math.round(doraDecisions.confidence * 100)}%
+                </div>
+                <button onClick={getDecisions} className="text-xs text-primary-400 hover:text-primary-300 font-medium">
+                  Refresh
+                </button>
+              </div>
+            ) : (
+              <button onClick={getDecisions} className="w-full py-4 text-sm text-primary-400 hover:text-primary-300 font-medium">
+                Extract decisions from recent messages
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Knowledge tab */}
         {activeTab === 'kb' && (
           <div className="space-y-3">
@@ -199,6 +245,12 @@ export function DoraChatAssistant() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+            {kbSearched && !kbLoading && kbResults.length === 0 && (
+              <div className="text-center py-4 text-sm text-app-muted">
+                <BookOpen className="w-6 h-6 mx-auto mb-2 opacity-30" />
+                No results found for &quot;{kbQuery}&quot;
               </div>
             )}
           </div>

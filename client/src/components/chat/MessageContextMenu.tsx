@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { chatAPI, fetchAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import type { DoraTransformAction } from '@/types';
+import { DORA_TRANSLATE_LOCALES } from '@/lib/doraUiConstants';
 import { DoraMessageResultModal } from './DoraMessageResultModal';
 
 export function MessageContextMenu() {
@@ -17,6 +18,7 @@ export function MessageContextMenu() {
   const position = useChatStore((s) => s.contextMenuPosition);
   const closeContextMenu = useChatStore((s) => s.closeContextMenu);
   const setEditingMessage = useChatStore((s) => s.setEditingMessage);
+  const requestComposerInsert = useChatStore((s) => s.requestComposerInsert);
   const currentUser = useAuthStore((s) => s.user);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +49,8 @@ export function MessageContextMenu() {
         body={doraBody}
         loading={doraLoading}
         onClose={() => setDoraOpen(false)}
+        onApply={(text) => { requestComposerInsert(text); toast.success('Inserted in composer'); }}
+        applyLabel="Insert in composer"
       />
     );
   }
@@ -82,7 +86,7 @@ export function MessageContextMenu() {
     closeContextMenu();
   };
 
-  const runDora = async (action: DoraTransformAction, title: string) => {
+  const runDora = async (action: DoraTransformAction, title: string, targetLocale?: string) => {
     const channelId = message.channelId;
     const messageId = message.id;
     closeContextMenu();
@@ -92,13 +96,15 @@ export function MessageContextMenu() {
     setDoraOpen(true);
     setDoraLoading(true);
     try {
-      const out = await chatAPI.doraTransformMessage(channelId, messageId, { action });
+      const out = await chatAPI.doraTransformMessage(channelId, messageId, { action, targetLocale });
       setDoraBody(out.text || '');
       if (out.text) {
         await chatAPI.awardChatXP(channelId, 'chat.dora.transform_used').catch(() => {});
       }
-    } catch {
-      setDoraBody('Something went wrong. Try again.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong. Try again.';
+      setDoraBody(msg);
+      toast.error(msg);
     } finally {
       setDoraLoading(false);
     }
@@ -156,15 +162,37 @@ export function MessageContextMenu() {
           </>
         )}
         <div className="my-1 h-px bg-app" />
-        <p className="px-3 py-1 text-[10px] font-semibold text-app-muted uppercase flex items-center gap-1">
-          <Sparkles className="w-3.5 h-3.5" aria-hidden /> Dora
-        </p>
-        <button type="button" onClick={() => runDora('explain', 'Explain message')} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app hover:bg-app-hover transition-colors">
-          Explain
-        </button>
-        <button type="button" onClick={() => runDora('shorten', 'Shorten message')} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app hover:bg-app-hover transition-colors">
-          Shorten
-        </button>
+        <div className="max-h-64 overflow-y-auto">
+          <p className="px-3 py-1 text-[10px] font-semibold text-app-muted uppercase flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5" aria-hidden /> Dora
+          </p>
+          <button type="button" onClick={() => runDora('explain', 'Explain message')} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app hover:bg-app-hover transition-colors">
+            Explain
+          </button>
+          <button type="button" onClick={() => runDora('shorten', 'Shorten message')} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app hover:bg-app-hover transition-colors">
+            Shorten
+          </button>
+          <button type="button" onClick={() => runDora('expand', 'Expand message')} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app hover:bg-app-hover transition-colors">
+            Expand
+          </button>
+          <button type="button" onClick={() => runDora('professional', 'Professional tone')} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app hover:bg-app-hover transition-colors">
+            Professional tone
+          </button>
+          <button type="button" onClick={() => runDora('friendly', 'Friendly tone')} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app hover:bg-app-hover transition-colors">
+            Friendly tone
+          </button>
+          <p className="px-3 py-1 text-[10px] font-semibold text-app-muted uppercase">Translate</p>
+          {DORA_TRANSLATE_LOCALES.map(({ label, locale }) => (
+            <button
+              key={locale}
+              type="button"
+              onClick={() => runDora('translate', `Translate to ${label}`, locale)}
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-app hover:bg-app-hover transition-colors"
+            >
+              → {label}
+            </button>
+          ))}
+        </div>
       </div>
       <DoraMessageResultModal
         open={doraOpen}
@@ -172,6 +200,8 @@ export function MessageContextMenu() {
         body={doraBody}
         loading={doraLoading}
         onClose={() => setDoraOpen(false)}
+        onApply={(text) => { requestComposerInsert(text); toast.success('Inserted in composer'); }}
+        applyLabel="Insert in composer"
       />
     </>
   );

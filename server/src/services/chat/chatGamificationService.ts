@@ -15,7 +15,8 @@ export type ChatXPEvent =
   | 'chat.question.answered'
   | 'chat.blocker.resolved'
   | 'chat.task.created_from_chat'
-  | 'chat.helpful_link_shared';
+  | 'chat.helpful_link_shared'
+  | 'chat.dora.transform_used';
 
 export async function awardChatXP(
   userId: string,
@@ -27,6 +28,7 @@ export async function awardChatXP(
     'chat.blocker.resolved': CHAT_XP_REWARDS.blocker_resolved,
     'chat.task.created_from_chat': CHAT_XP_REWARDS.task_created_from_chat,
     'chat.helpful_link_shared': CHAT_XP_REWARDS.helpful_link_shared,
+    'chat.dora.transform_used': 3,
   };
 
   const amount = rewardMap[event] ?? 5;
@@ -61,6 +63,8 @@ function formatXPReason(event: ChatXPEvent): string {
       return 'Created task from chat';
     case 'chat.helpful_link_shared':
       return 'Shared a helpful link';
+    case 'chat.dora.transform_used':
+      return 'Used Dora on a message';
     default:
       return 'Chat activity';
   }

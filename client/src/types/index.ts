@@ -189,6 +189,37 @@ export interface DoraMessageTransformResult {
   text: string;
 }
 
+/** Channel duel: rock-paper-scissors vs server “house”. */
+export type ChatRpsMove = 'rock' | 'paper' | 'scissors';
+
+export interface ChatRpsDuelResult {
+  you: ChatRpsMove;
+  house: ChatRpsMove;
+  outcome: 'win' | 'lose' | 'draw';
+  headline: string;
+  taskHint: string;
+}
+
+/** Channel duel: call a coin flip. */
+export interface ChatCoinDuelResult {
+  call: 'heads' | 'tails';
+  result: 'heads' | 'tails';
+  youWin: boolean;
+  headline: string;
+  taskHint: string;
+}
+
+/**
+ * Channel duel: pick chamber 1–6; one random “danger” slot (playful — foam-dart / task hero, not real harm).
+ */
+export interface ChatChamberDuelResult {
+  yourChamber: number;
+  dangerChamber: number;
+  hit: boolean;
+  headline: string;
+  taskHint: string;
+}
+
 // Chat v2: Slash Commands
 export interface SlashSearchResult {
   type: 'task' | 'document' | 'user';

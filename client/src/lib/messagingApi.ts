@@ -7,6 +7,7 @@ import type {
   SlashSearchResult, ChatSearchResult, ChatMediaItem,
   SmartFolder, UniversalSearchResults,
   DoraDecisionsResult, DoraTransformAction, DoraMessageTransformResult,
+  ChatRpsMove, ChatRpsDuelResult, ChatCoinDuelResult, ChatChamberDuelResult,
 } from '@/types';
 
 export const channelsAPI = {
@@ -193,6 +194,23 @@ export const chatAPI = {
     chatFetch<DoraDecisionsResult>(
       `/chat/channels/${channelId}/messages/${parentMessageId}/dora/decisions-thread`, undefined,
       { method: 'POST', body: JSON.stringify({ messageCount }) },
+    ),
+
+  // ── Channel duels (fair server RNG) ──
+  chatDuelRps: (channelId: string, move: ChatRpsMove) =>
+    chatFetch<ChatRpsDuelResult>(
+      `/chat/channels/${channelId}/duels/rps`, undefined,
+      { method: 'POST', body: JSON.stringify({ move }) },
+    ),
+  chatDuelCoin: (channelId: string, call: 'heads' | 'tails') =>
+    chatFetch<ChatCoinDuelResult>(
+      `/chat/channels/${channelId}/duels/coin`, undefined,
+      { method: 'POST', body: JSON.stringify({ call }) },
+    ),
+  chatDuelChamber: (channelId: string, chamber: number) =>
+    chatFetch<ChatChamberDuelResult>(
+      `/chat/channels/${channelId}/duels/chamber`, undefined,
+      { method: 'POST', body: JSON.stringify({ chamber }) },
     ),
 
   // ── Threads ──

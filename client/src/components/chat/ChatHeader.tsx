@@ -1,8 +1,11 @@
-import { Hash, Lock, User, Search, Pin, Sparkles, PanelRightOpen, PanelRightClose, Settings, Menu } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Hash, Lock, User, Search, Pin, Sparkles, PanelRightOpen, PanelRightClose, Settings, Menu, Circle, Swords } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { PresenceAvatar } from './PresenceAvatar';
+import { emitUserStatus } from '@/lib/socket';
+import { cn } from '@/lib/utils';
 
 export function ChatHeader() {
   const channels = useChatStore((s) => s.channels);
@@ -15,8 +18,30 @@ export function ChatHeader() {
   const toggleDoraPanel = useChatStore((s) => s.toggleDoraPanel);
   const doraPanelOpen = useChatStore((s) => s.doraPanelOpen);
   const setMobileSidebarOpen = useChatStore((s) => s.setMobileSidebarOpen);
+  const setDuelHubOpen = useChatStore((s) => s.setDuelHubOpen);
+  const duelHubOpen = useChatStore((s) => s.duelHubOpen);
   const currentUser = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const users = useUsersStore((s) => s.users);
+  const updateUserStatus = useUsersStore((s) => s.updateUserStatus);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) setStatusMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const applyQuickStatus = (status: 'online' | 'away' | 'busy' | 'deep_work') => {
+    if (!currentUser) return;
+    emitUserStatus({ status });
+    updateUser({ status });
+    updateUserStatus(currentUser.id, status);
+    setStatusMenuOpen(false);
+  };
 
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   if (!activeChannel) return null;
@@ -75,6 +100,69 @@ export function ChatHeader() {
 
       {/* Actions */}
       <div className="flex items-center gap-0.5">
+        <div className="relative hidden sm:block" ref={statusMenuRef}>
+          <button
+            type="button"
+            onClick={() => setStatusMenuOpen((o) => !o)}
+            className={cn(
+              'p-2 rounded-lg transition-colors flex items-center gap-1 text-app-muted hover:text-app hover:bg-app-hover',
+              statusMenuOpen && 'text-primary-400 bg-primary-500/10',
+            )}
+            title="Set your status"
+            aria-label="Set your status"
+            aria-expanded={statusMenuOpen}
+            aria-haspopup="listbox"
+          >
+            <Circle
+              className={cn(
+                'w-2.5 h-2.5 fill-current',
+                currentUser?.status === 'online' && 'text-green-500',
+                currentUser?.status === 'away' && 'text-yellow-500',
+                (currentUser?.status === 'busy' || currentUser?.status === 'deep_work') && 'text-red-500',
+                currentUser?.status === 'offline' && 'text-gray-500',
+              )}
+              aria-hidden
+            />
+            <span className="text-[10px] font-medium max-w-[4.5rem] truncate hidden xl:inline">Status</span>
+          </button>
+          {statusMenuOpen && (
+            <ul
+              role="listbox"
+              className="absolute right-0 top-full mt-1 py-1 min-w-[140px] rounded-xl border border-app bg-app-sidebar shadow-xl z-50"
+            >
+              {([
+                ['online', 'Online'],
+                ['away', 'Away'],
+                ['busy', 'Busy'],
+                ['deep_work', 'Deep work'],
+              ] as const).map(([id, label]) => (
+                <li key={id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={currentUser?.status === id}
+                    onClick={() => applyQuickStatus(id)}
+                    className="w-full text-left px-3 py-2 text-sm text-app hover:bg-app-hover"
+                  >
+                    {label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setDuelHubOpen(!duelHubOpen)}
+          className={cn(
+            'p-2 rounded-lg transition-colors hidden sm:flex',
+            duelHubOpen ? 'text-violet-400 bg-violet-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover',
+          )}
+          title="Channel duels — RPS, coin flip, lucky chamber"
+          aria-label="Open channel duels"
+        >
+          <Swords className="w-4 h-4" />
+        </button>
         <button
           onClick={() => setSearchOpen(!searchOpen)}
           className={`p-2 rounded-lg transition-colors ${searchOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}

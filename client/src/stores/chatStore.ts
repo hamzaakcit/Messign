@@ -51,9 +51,13 @@ interface ChatState {
   threadDoraActionItems: DoraActionItemsResult | null;
   threadDoraSummaryLoading: boolean;
   threadDoraActionItemsLoading: boolean;
+  threadDoraDecisions: DoraDecisionsResult | null;
+  threadDoraDecisionsLoading: boolean;
 
   // v3: Composer AI
   draftTransformLoading: boolean;
+  /** When set, EnhancedMessageInput replaces draft once then clears */
+  composerDraftToApply: string | null;
 
   // v2: Smart Reply
   smartReplies: SmartReplyResult | null;
@@ -91,6 +95,9 @@ interface ChatState {
   smartFolders: SmartFolder[];
   smartFoldersLoading: boolean;
 
+  // Channel duels hub (RPS / coin / chamber)
+  duelHubOpen: boolean;
+
   // Actions: Core
   fetchChannels: (userId: string) => Promise<void>;
   setActiveChannel: (channelId: string) => void;
@@ -125,7 +132,10 @@ interface ChatState {
   fetchDoraDecisions: (channelId: string) => Promise<void>;
   fetchThreadDoraSummary: (channelId: string, parentMessageId: string) => Promise<void>;
   fetchThreadDoraActionItems: (channelId: string, parentMessageId: string) => Promise<void>;
+  fetchThreadDoraDecisions: (channelId: string, parentMessageId: string) => Promise<void>;
   fetchSmartReplies: (channelId: string, options?: { threadId?: string }) => Promise<void>;
+  requestComposerInsert: (text: string) => void;
+  clearComposerInsert: () => void;
   clearSmartReplies: () => void;
   transformDraft: (
     channelId: string,
@@ -164,6 +174,8 @@ interface ChatState {
   fetchSmartFolders: () => Promise<void>;
   addSmartFolder: (folder: Omit<SmartFolder, 'id' | 'createdAt'>) => Promise<void>;
   removeSmartFolder: (folderId: string) => Promise<void>;
+
+  setDuelHubOpen: (open: boolean) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -198,7 +210,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   threadDoraActionItems: null,
   threadDoraSummaryLoading: false,
   threadDoraActionItemsLoading: false,
+  threadDoraDecisions: null,
+  threadDoraDecisionsLoading: false,
   draftTransformLoading: false,
+  composerDraftToApply: null,
   smartReplies: null,
   smartReplyLoading: false,
   searchQuery: '',
@@ -217,6 +232,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   threadLoading: false,
   smartFolders: [],
   smartFoldersLoading: false,
+  duelHubOpen: false,
 
   // ── Core Actions ──
 
@@ -253,6 +269,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       doraDecisions: null,
       threadDoraSummary: null,
       threadDoraActionItems: null,
+      threadDoraDecisions: null,
       activeThreadId: null,
       threadMessages: [],
       threadLoading: false,
@@ -527,6 +544,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  fetchThreadDoraDecisions: async (channelId, parentMessageId) => {
+    set({ threadDoraDecisionsLoading: true });
+    try {
+      const result = await chatAPI.doraDecisionsThread(channelId, parentMessageId);
+      set({ threadDoraDecisions: result, threadDoraDecisionsLoading: false });
+    } catch (e) {
+      set({ threadDoraDecisionsLoading: false });
+      const msg = e instanceof Error ? e.message : 'Failed to extract thread decisions';
+      toast.error(msg);
+    }
+  },
+
+  requestComposerInsert: (text) => set({ composerDraftToApply: text }),
+  clearComposerInsert: () => set({ composerDraftToApply: null }),
+
   fetchSmartReplies: async (channelId, options) => {
     set({ smartReplyLoading: true });
     try {
@@ -620,6 +652,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       detailPanelOpen: false,
       threadDoraSummary: null,
       threadDoraActionItems: null,
+      threadDoraDecisions: null,
     });
     if (activeChannelId) get().fetchThreadMessages(activeChannelId, messageId);
   },
@@ -629,6 +662,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     threadLoading: false,
     threadDoraSummary: null,
     threadDoraActionItems: null,
+    threadDoraDecisions: null,
   }),
 
   fetchThreadMessages: async (channelId, messageId) => {
@@ -683,6 +717,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       toast.error(msg);
     }
   },
+
+  setDuelHubOpen: (open) => set({ duelHubOpen: open }),
 
   removeSmartFolder: async (folderId) => {
     try {

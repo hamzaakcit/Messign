@@ -7,11 +7,14 @@ export function useChatDora() {
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const doraSummary = useChatStore((s) => s.doraSummary);
   const doraActionItems = useChatStore((s) => s.doraActionItems);
+  const doraDecisions = useChatStore((s) => s.doraDecisions);
+  const doraDecisionsLoading = useChatStore((s) => s.doraDecisionsLoading);
   const doraLoading = useChatStore((s) => s.doraLoading);
   const doraPanelOpen = useChatStore((s) => s.doraPanelOpen);
   const toggleDoraPanel = useChatStore((s) => s.toggleDoraPanel);
   const fetchDoraSummary = useChatStore((s) => s.fetchDoraSummary);
   const fetchDoraActionItems = useChatStore((s) => s.fetchDoraActionItems);
+  const fetchDoraDecisions = useChatStore((s) => s.fetchDoraDecisions);
 
   const summarize = useCallback(async () => {
     if (!activeChannelId) return;
@@ -22,6 +25,11 @@ export function useChatDora() {
     if (!activeChannelId) return;
     await fetchDoraActionItems(activeChannelId);
   }, [activeChannelId, fetchDoraActionItems]);
+
+  const getDecisions = useCallback(async () => {
+    if (!activeChannelId) return;
+    await fetchDoraDecisions(activeChannelId);
+  }, [activeChannelId, fetchDoraDecisions]);
 
   const getKBSuggestions = useCallback(async (question: string): Promise<DoraKBSuggestion[]> => {
     if (!activeChannelId) return [];
@@ -63,11 +71,14 @@ export function useChatDora() {
   return {
     doraSummary,
     doraActionItems,
+    doraDecisions,
+    doraDecisionsLoading,
     doraLoading,
     doraPanelOpen,
     toggleDoraPanel,
     summarize,
     getActionItems,
+    getDecisions,
     getKBSuggestions,
     createTaskFromActionItem,
   };

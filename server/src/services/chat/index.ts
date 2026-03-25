@@ -1,5 +1,25 @@
-export { summarizeConversation, detectActionItems, getKBSuggestions } from './doraChatService.js';
-export type { DoraSummaryResult, DoraActionItemsResult, DoraKBSuggestionsResult, ActionItem, KBSuggestion } from './doraChatService.js';
+export {
+  summarizeConversation,
+  detectActionItems,
+  getKBSuggestions,
+  summarizeThread,
+  detectThreadActionItems,
+  extractDecisions,
+  extractDecisionsThread,
+  transformMessage,
+  transformDraft,
+  MAX_DRAFT_CHARS,
+} from './doraChatService.js';
+export type {
+  DoraSummaryResult,
+  DoraActionItemsResult,
+  DoraKBSuggestionsResult,
+  ActionItem,
+  KBSuggestion,
+  DoraDecisionsResult,
+  DoraTransformAction,
+  MessageTransformResult,
+} from './doraChatService.js';
 export { generateSmartReplies } from './smartReplyService.js';
 export type { SmartReplyResult } from './smartReplyService.js';
 export { slashSearch, searchTasks, searchDocuments, searchUsers } from './slashCommandService.js';
