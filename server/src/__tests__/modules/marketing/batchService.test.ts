@@ -141,6 +141,6 @@ describe('computeOverallStatus', () => {
 
 describe('Job Queue constants', () => {
   it('JOB_NAMES includes batch generate', () => {
-    expect(JOB_NAMES.BATCH_GENERATE).toBe('marketing:batch-generate');
+    expect(JOB_NAMES.BATCH_GENERATE).toBe('marketing/batch-generate');
   });
 });

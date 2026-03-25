@@ -181,9 +181,9 @@ describe('E2E: Full 6-Month Architecture Verification', () => {
 
   it('all pg-boss job types', () => {
     const jobTypes = [
-      'marketing:batch-generate',
-      'marketing:competitor-scrape',
-      'marketing:dashboard-snapshot',
+      'marketing/batch-generate',
+      'marketing/competitor-scrape',
+      'marketing/dashboard-snapshot',
     ];
     expect(jobTypes).toHaveLength(3);
   });

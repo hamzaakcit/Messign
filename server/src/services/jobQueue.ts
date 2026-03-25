@@ -9,10 +9,11 @@ import type { Job, SendOptions, WorkOptions } from 'pg-boss';
 
 let boss: PgBoss | null = null;
 
+/** pg-boss allows alnum, `_`, `-`, `.`, `/` only — no `:` (see pg-boss attorney assertQueueName). */
 export const JOB_NAMES = {
-  BATCH_GENERATE: 'marketing:batch-generate',
-  COMPETITOR_SCRAPE: 'marketing:competitor-scrape',
-  DASHBOARD_SNAPSHOT: 'marketing:dashboard-snapshot',
+  BATCH_GENERATE: 'marketing/batch-generate',
+  COMPETITOR_SCRAPE: 'marketing/competitor-scrape',
+  DASHBOARD_SNAPSHOT: 'marketing/dashboard-snapshot',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
