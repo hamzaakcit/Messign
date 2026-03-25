@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Instagram, Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
+import { ChevronDown, Instagram, Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { DoraChatAvatar } from '@/components/dora/DoraPilot';
@@ -12,6 +12,9 @@ import { MARKETING_COMPOSER_QUICK_ACTIONS } from './marketingDoraQuickActions';
 import { MarketingDoraQuickActionIcon } from './MarketingDoraQuickActionIcon';
 
 const noop = (): void => {};
+
+/** Tailwind classes: floating controls sit left of the open marketing Dora rail. */
+export const MARKETING_DORA_RAIL_OUTSET_RIGHT = 'max-sm:right-6 sm:right-[424px]';
 
 interface DoraRailProps {
   selectedCard: BoardCardData | null;
@@ -52,12 +55,16 @@ export function DoraRail({
 
   const [inputValue, setInputValue] = useState('');
   const [igModalOpen, setIgModalOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastExecutePromptId = useRef<number | null>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = chatEndRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, isLoading]);
 
   useEffect(() => {
@@ -87,7 +94,7 @@ export function DoraRail({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 w-[min(400px,92vw)] min-w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden">
       <InstagramAgentPromptModal
         isOpen={igModalOpen}
         onClose={() => setIgModalOpen(false)}
@@ -162,40 +169,59 @@ export function DoraRail({
       </div>
 
       <div className="relative z-20 border-t border-white/[0.06] bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] py-2 px-2 space-y-2">
-        <div className="flex gap-0.5 overflow-x-auto max-h-[2.5rem] items-center snap-x snap-mandatory scrollbar-thin [-webkit-overflow-scrolling:touch]">
+        <div className="flex flex-wrap gap-1.5 items-center">
           <button
             type="button"
             disabled={isLoading}
             onClick={() => setIgModalOpen(true)}
             title="Instagram"
-            className="flex shrink-0 snap-start flex-row items-center justify-center gap-1 rounded-md border bg-gradient-to-b px-1.5 py-1 min-w-[4.25rem] text-[8px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
+            className="inline-flex items-center gap-1.5 rounded-lg border bg-gradient-to-b px-2.5 py-2 text-sm font-medium text-app-text transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
           >
-            <Instagram className="w-3.5 h-3.5 text-pink-300 shrink-0" />
-            <span className="leading-tight truncate">Insta</span>
+            <Instagram className="w-4 h-4 text-pink-300 shrink-0" />
+            <span className="leading-tight">Instagram</span>
           </button>
-          {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
+          <div className="relative">
             <button
-              key={q.id}
               type="button"
               disabled={isLoading}
-              onClick={() => {
-                setInputValue(q.text);
-                inputRef.current?.focus();
-              }}
-              title={q.label}
-              className={`
-                flex shrink-0 snap-start flex-row items-center justify-center gap-1 rounded-md border bg-gradient-to-b px-1.5 py-1 min-w-[4.25rem] max-h-9
-                text-[8px] font-semibold text-app-text/90 transition hover:brightness-110 disabled:opacity-40
-                ${q.accent}
-                ${q.upgraded ? 'ring-1 ring-white/5' : ''}
-              `}
+              onClick={() => setQuickActionsOpen((o) => !o)}
+              className="inline-flex items-center gap-1 rounded-lg border border-white/[0.12] bg-app-surface-tertiary px-2.5 py-2 text-sm font-medium text-app-text hover:bg-app-nav-hover disabled:opacity-40"
+              title="Prefill composer with a channel template"
+              aria-expanded={quickActionsOpen}
             >
-              <span className="scale-90 origin-center">
-                <MarketingDoraQuickActionIcon icon={q.icon} />
-              </span>
-              <span className="leading-tight text-center truncate max-w-[3.25rem]">{q.label}</span>
+              Quick prompts
+              <ChevronDown className={`w-4 h-4 ${quickActionsOpen ? 'rotate-180' : ''} transition-transform`} />
             </button>
-          ))}
+            {quickActionsOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  aria-hidden
+                  onClick={() => setQuickActionsOpen(false)}
+                />
+                <div className="absolute bottom-full left-0 right-0 z-20 mb-1 max-h-[min(50vh,280px)] overflow-y-auto rounded-lg border border-white/[0.1] bg-[#12151c] py-1 shadow-xl">
+                  {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
+                    <button
+                      key={q.id}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => {
+                        setInputValue(q.text);
+                        inputRef.current?.focus();
+                        setQuickActionsOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-app-text hover:bg-app-nav-hover disabled:opacity-40"
+                    >
+                      <span className="shrink-0">
+                        <MarketingDoraQuickActionIcon icon={q.icon} />
+                      </span>
+                      <span className="min-w-0 leading-snug">{q.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <div className="flex items-end gap-2 pt-0.5">
           <textarea

@@ -235,7 +235,7 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
 
   return (
     <div
-      className="p-3 border-t border-app"
+      className="p-3 border-t border-app/80 bg-app-bg/40 backdrop-blur-[2px]"
       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
@@ -273,8 +273,8 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
 
       <div
         className={cn(
-          'flex items-end gap-2 p-3 rounded-xl border transition-all duration-200',
-          isFocused ? 'border-primary-500 ring-1 ring-primary-500/30 shadow-sm shadow-primary-500/10' : 'border-app-inputBorder',
+          'flex items-end gap-2 p-3 rounded-xl border transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none',
+          isFocused ? 'border-primary-500 ring-2 ring-primary-500/35 shadow-sm shadow-primary-500/10' : 'border-app-inputBorder',
           'bg-app-inputBg',
         )}
       >
@@ -296,8 +296,8 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
           onInput={handleInput}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder={`Message #${channelName} — type / for commands`}
-          aria-label={`Message in channel ${channelName}`}
+          placeholder={`Message #${channelName} — @ to mention, / for commands`}
+          aria-label={`Message in channel ${channelName}. Mention with at-sign, slash for commands.`}
           rows={1}
           className="flex-1 bg-transparent text-app text-sm placeholder:text-app-muted resize-none focus:outline-none min-h-[24px] max-h-[120px]"
         />
@@ -405,17 +405,17 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
         </div>
       )}
 
-      <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-app-muted">
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-app/50">
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-app-muted" aria-hidden>
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-primary-500/15">
           <kbd className="px-1 py-0.5 bg-app-bg rounded font-mono">Enter</kbd>
           <span>send</span>
         </span>
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-app/50">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-primary-500/15">
           <kbd className="px-1 py-0.5 bg-app-bg rounded font-mono">⇧</kbd>
           <kbd className="px-1 py-0.5 bg-app-bg rounded font-mono">Enter</kbd>
-          <span>newline</span>
+          <span>new line</span>
         </span>
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-app/50">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-app-hover/80 border border-primary-500/15">
           <kbd className="px-1 py-0.5 bg-app-bg rounded font-mono">/</kbd>
           <span>commands</span>
         </span>

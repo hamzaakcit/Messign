@@ -65,13 +65,15 @@ export function ChatHeader() {
     .slice(0, 5);
 
   return (
-    <div className="px-4 py-3 border-b border-app flex items-center gap-3 bg-app-bg/50 backdrop-blur-sm">
+    <div className="px-4 py-3 border-b border-app flex items-center gap-3 bg-app-sidebar/75 backdrop-blur-md">
       {/* Mobile hamburger */}
       <button
+        type="button"
         onClick={() => setMobileSidebarOpen(true)}
-        className="lg:hidden p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover"
+        className="lg:hidden p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+        aria-label="Open channels menu"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-5 h-5" aria-hidden />
       </button>
 
       {/* Channel info */}
@@ -155,7 +157,7 @@ export function ChatHeader() {
           type="button"
           onClick={() => setDuelHubOpen(!duelHubOpen)}
           className={cn(
-            'p-2 rounded-lg transition-colors hidden sm:flex',
+            'p-2 rounded-lg transition-colors hidden sm:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg',
             duelHubOpen ? 'text-violet-400 bg-violet-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover',
           )}
           title="Channel duels — RPS, coin flip, lucky chamber"
@@ -164,39 +166,52 @@ export function ChatHeader() {
           <Swords className="w-4 h-4" />
         </button>
         <button
+          type="button"
           onClick={() => setSearchOpen(!searchOpen)}
-          className={`p-2 rounded-lg transition-colors ${searchOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
+          className={`p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${searchOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
           title="Search messages"
+          aria-label="Search messages"
+          aria-pressed={searchOpen}
         >
-          <Search className="w-4 h-4" />
+          <Search className="w-4 h-4" aria-hidden />
         </button>
         <button
+          type="button"
           onClick={() => setDetailTab('pins')}
-          className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+          className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
           title="Pinned messages"
+          aria-label="Open pinned messages"
         >
-          <Pin className="w-4 h-4" />
+          <Pin className="w-4 h-4" aria-hidden />
         </button>
         <button
+          type="button"
           onClick={toggleDoraPanel}
-          className={`p-2 rounded-lg transition-colors ${doraPanelOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
+          className={`p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${doraPanelOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
           title="Dora AI Assistant"
+          aria-label="Toggle Dora AI assistant"
+          aria-pressed={doraPanelOpen}
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" aria-hidden />
         </button>
         <button
+          type="button"
           onClick={toggleDetailPanel}
-          className={`p-2 rounded-lg transition-colors hidden lg:block ${detailPanelOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
+          className={`p-2 rounded-lg transition-colors hidden lg:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${detailPanelOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
           title="Channel details"
+          aria-label={detailPanelOpen ? 'Hide channel details' : 'Show channel details'}
+          aria-pressed={detailPanelOpen}
         >
-          {detailPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+          {detailPanelOpen ? <PanelRightClose className="w-4 h-4" aria-hidden /> : <PanelRightOpen className="w-4 h-4" aria-hidden />}
         </button>
         <button
+          type="button"
           onClick={() => setDetailTab('settings')}
-          className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
-          title="Settings"
+          className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+          title="Channel settings"
+          aria-label="Open channel settings"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-4 h-4" aria-hidden />
         </button>
       </div>
     </div>

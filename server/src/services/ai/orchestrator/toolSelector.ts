@@ -10,6 +10,7 @@ const CORE_TOOLS = new Set([
 
 const MODULE_TOOLS: Record<string, string[]> = {
   dashboard: [
+    'dashboard:get_command_center',
     'finance:get_financial_summary', 'people:get_team_overview', 'people:get_employee_performance',
     'analytics:get_system_stats', 'analytics:get_department_report', 'analytics:get_recent_activity',
   ],
@@ -81,7 +82,8 @@ const KEYWORD_TOOLS: Array<{ keywords: string[]; tools: string[] }> = [
   { keywords: ['bounty', 'bounties', 'reward'], tools: ['achievements:get_bounty_board'] },
   { keywords: ['showcase', 'portfolio'], tools: ['achievements:get_showcase_items'] },
   { keywords: ['approval', 'pending', 'approve', 'queue'], tools: ['analytics:get_approval_queue'] },
-  { keywords: ['system', 'health', 'stats', 'overview', 'status', 'dashboard', 'dashboard metrics'], tools: ['analytics:get_system_stats', 'analytics:get_department_report', 'finance:get_financial_summary', 'people:get_team_overview'] },
+  { keywords: ['command center', 'main dashboard', 'home dashboard'], tools: ['dashboard:get_command_center'] },
+  { keywords: ['system', 'health', 'stats', 'overview', 'status', 'dashboard', 'dashboard metrics'], tools: ['dashboard:get_command_center', 'analytics:get_system_stats', 'analytics:get_department_report', 'finance:get_financial_summary', 'people:get_team_overview'] },
   { keywords: ['meeting', 'decision', 'minutes', 'notes'], tools: ['meeting:get_meeting_decisions'] },
   { keywords: ['compare', 'comparison', 'versus', 'vs'], tools: ['people:compare_employees'] },
   {

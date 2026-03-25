@@ -10,9 +10,10 @@ import type { DoraRequestContext, DoraModule } from './types.js';
 
 const MODULE_CONTEXT_HINTS: Record<DoraModule, string> = {
   dashboard:
-    'The user is viewing the Dashboard. They likely want metrics, revenue trends, ' +
-    'or performance comparisons. Use get_financial_summary, get_system_stats, get_employee_performance, ' +
-    'and get_team_overview for questions about "this" or "these numbers."',
+    'The user is viewing the main Dashboard (Command Center: Pulse, Brain, Growth, Future). ' +
+    'For "dashboard metrics", "what\'s on this screen", or "these numbers" → use **get_command_center** first. ' +
+    'Use get_system_stats only for broad platform/user/task/doc counts or admin-style "system health" — not for the four Command Center columns. ' +
+    'Use get_financial_summary, get_employee_performance, or get_team_overview when the question is specifically finance, personal performance, or team aggregates.',
   chat:
     'The user is in Chat. They may ask about recent discussions, decisions, or shared files. ' +
     'Prioritize search_chat_messages for context about conversations.',
@@ -195,7 +196,9 @@ You have access to live company data through function calls (tools). Here's how 
 5. **Cite your sources briefly.** After presenting data, note which source it came from (e.g., "based on Dashboard metrics" or "from the Knowledge Hub: [Document Title]").
 
 ## Tool Selection Guide
-- Questions about revenue, SMS, mail, KPIs, growth → \`get_system_stats\` or \`get_financial_summary\`
+- Main home dashboard, Command Center, "dashboard metrics" on this page → \`get_command_center\` (Pulse, Brain, Growth, Future)
+- Platform-wide counts, users/projects/tasks/docs totals, or admin "system health" → \`get_system_stats\`
+- Questions about revenue, SMS, mail, company money, budget → \`get_financial_summary\`
 - Questions about people, roles, departments, who's who → \`get_team_overview\`
 - Questions about a specific person's stats → \`get_employee_performance\` or \`get_user_profile\`
 - Questions about tasks, assignments, deadlines → \`get_tasks_by_user\` or \`get_project_status\`
@@ -204,7 +207,7 @@ You have access to live company data through function calls (tools). Here's how 
 - Questions about approvals, pending items → \`get_approval_queue\`
 - Questions about chat, discussions, decisions → \`search_chat_messages\`
 - Questions about badges, XP, leaderboard → \`get_achievements_leaderboard\`
-- Questions about system health (admin only) → \`get_system_stats\`
+- Questions about system health, platform-wide stats (admin/manager context) → \`get_system_stats\`
 - Questions about sprints, burndown → \`get_sprint_status\`
 - Questions about department report, executive summary → \`get_department_report\`
 - "What can I ask?" or capability questions → \`get_available_questions\`
@@ -253,7 +256,8 @@ ${moduleHint ? `- Page hint: ${moduleHint}` : ''}
 - Documents, guides, policies, how-to, definitions → search_knowledge_base
 - My tasks, my assignments → get_tasks_by_user (user_identifier="${user.userId}", status_filter as appropriate)
 - My performance, my stats, my MP → get_employee_performance (employee_identifier="${user.userId}")
-- Revenue, KPIs, company metrics, dashboard numbers → get_system_stats or get_financial_summary
+- Main dashboard / Command Center / "what metrics on the home screen" → get_command_center (no args)
+- Revenue, KPIs, company metrics, dashboard numbers (when not meaning the Command Center UI) → get_system_stats or get_financial_summary
 - Team info, who's in what department, team list → get_team_overview
 - Specific person's profile → get_user_profile
 - Project status, task boards → get_project_status

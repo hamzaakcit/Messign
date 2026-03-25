@@ -177,7 +177,14 @@ export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId
         {isEditing ? (
           <EditMessageInline message={message} />
         ) : (
-          <div className="text-sm text-app break-words leading-relaxed">
+          <div
+            className={cn(
+              'text-sm text-app break-words leading-relaxed rounded-2xl px-3 py-2 border w-fit max-w-[min(100%,42rem)]',
+              isOwnMessage
+                ? 'bg-primary-500/15 border-primary-500/25'
+                : 'bg-app-hover/60 border-app/70',
+            )}
+          >
             {formatMessageContent(message.content)}
           </div>
         )}

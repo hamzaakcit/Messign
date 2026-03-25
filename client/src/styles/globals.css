@@ -89,6 +89,61 @@
   --panel-bg: #F1F5F9;
 }
 
+/* Chat V2: scoped tokens + atmosphere (does not change global app surfaces outside .chat-surface) */
+[data-theme="dark"] .chat-surface {
+  --app-bg: #0c1222;
+  --app-sidebar: #121a2e;
+  --app-card: rgba(255, 255, 255, 0.06);
+  --app-card-border: rgba(129, 140, 248, 0.12);
+  --app-border: rgba(99, 102, 241, 0.14);
+  --app-border-strong: rgba(129, 140, 248, 0.22);
+  --app-surface-tertiary: rgba(99, 102, 241, 0.06);
+  --app-nav-hover: rgba(99, 102, 241, 0.1);
+  --app-nav-active-bg: rgba(59, 130, 246, 0.18);
+  --app-hover: rgba(99, 102, 241, 0.12);
+  --glass-bg: rgba(15, 23, 42, 0.55);
+  --glass-border: rgba(99, 102, 241, 0.15);
+  --glass-hover: rgba(99, 102, 241, 0.1);
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
+  --input-bg: #141c31;
+  --input-border: rgba(99, 102, 241, 0.18);
+  --panel-bg: #121a2e;
+}
+
+[data-theme="light"] .chat-surface {
+  --app-bg: #f1f5f9;
+  --app-sidebar: #ffffff;
+  --app-card: #ffffff;
+  --app-card-border: #e2e8f0;
+  --app-border: #cbd5e1;
+  --app-border-strong: #94a3b8;
+  --app-surface-tertiary: #e2e8f0;
+  --app-nav-hover: #eff6ff;
+  --app-nav-active-bg: #dbeafe;
+  --app-hover: #e2e8f0;
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --panel-bg: #f8fafc;
+}
+
+.chat-atmosphere {
+  background:
+    radial-gradient(ellipse 120% 90% at 50% -15%, rgba(59, 130, 246, 0.16), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(139, 92, 246, 0.12), transparent 50%),
+    radial-gradient(ellipse 55% 45% at 0% 100%, rgba(59, 130, 246, 0.1), transparent 48%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-atmosphere {
+    background: rgba(59, 130, 246, 0.06);
+  }
+}
+
 @layer base {
   body {
     background: var(--app-bg);

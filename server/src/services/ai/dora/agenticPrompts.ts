@@ -5,8 +5,9 @@ import { buildCorrelationPromptSection } from '../orchestrator/crossModule.js';
 
 const MODULE_CONTEXT_HINTS: Record<string, string> = {
   dashboard:
-    'The user is viewing the Dashboard. They likely want metrics, revenue trends, ' +
-    'or performance comparisons. Use get_financial_summary, get_team_overview, get_employee_performance, or get_system_stats.',
+    'The user is viewing the main Dashboard (Command Center). For overview of what is on screen → **get_command_center** first. ' +
+    'Use get_system_stats for platform-wide counts / system health, not for the four Pulse/Brain/Growth/Future columns. ' +
+    'Use get_financial_summary, get_team_overview, or get_employee_performance for finance, team, or personal performance.',
   chat:
     'The user is in Chat. They may ask about recent discussions. Start with search_chat_messages.',
   projects:
@@ -180,7 +181,8 @@ If you're at 5+ calls, you're probably over-fetching. Stop and synthesize.
 ## Tool Selection Guide
 
 ### Quick reference (what tool for what question)
-- Revenue, KPIs, growth, company metrics, dashboard → \`get_financial_summary\`, \`get_system_stats\`, \`get_employee_performance\`, \`get_team_overview\`
+- Main home dashboard, Command Center, "dashboard metrics" on the home screen → \`get_command_center\`
+- Revenue, KPIs, growth, company metrics (when not the Command Center UI) → \`get_financial_summary\`, \`get_system_stats\`, \`get_employee_performance\`, \`get_team_overview\`
 - People, roles, departments, who's who → \`get_team_overview\`
 - Specific person's details + activity → \`get_user_profile\`
 - A person's performance metrics → \`get_employee_performance\`

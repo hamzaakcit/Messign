@@ -61,9 +61,14 @@ export function ChatDetailPanel() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-app flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-app flex items-center justify-between bg-app-sidebar/80 backdrop-blur-md shrink-0">
         <h3 className="font-semibold text-app text-sm">Details</h3>
-        <button onClick={toggleDetailPanel} className="p-1 rounded text-app-muted hover:text-app transition-colors">
+        <button
+          type="button"
+          onClick={toggleDetailPanel}
+          className="p-1 rounded text-app-muted hover:text-app transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+          aria-label="Close details panel"
+        >
           <X className="w-4 h-4" />
         </button>
       </div>

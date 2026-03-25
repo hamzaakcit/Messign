@@ -55,9 +55,9 @@ export function ThreadPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col border-l border-app bg-app-bg">
+    <div className="h-full flex flex-col border-l border-app bg-app-bg min-h-0">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-app flex items-center justify-between shrink-0">
+      <div className="px-4 py-3 border-b border-app flex items-center justify-between shrink-0 bg-app-sidebar/80 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-primary-400" />
           <span className="text-sm font-semibold text-app">Thread</span>
@@ -65,7 +65,12 @@ export function ThreadPanel() {
             {threadMessages.length} {threadMessages.length === 1 ? 'reply' : 'replies'}
           </span>
         </div>
-        <button onClick={closeThread} aria-label="Close thread" className="p-1 rounded text-app-muted hover:text-app transition-colors">
+        <button
+          type="button"
+          onClick={closeThread}
+          aria-label="Close thread"
+          className="p-1 rounded text-app-muted hover:text-app transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+        >
           <X className="w-4 h-4" />
         </button>
       </div>

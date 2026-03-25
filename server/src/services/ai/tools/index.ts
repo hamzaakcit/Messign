@@ -43,6 +43,7 @@ import './systemStats.js';
 import './meetingDecisions.js';
 import './departmentReport.js';
 import './availableQuestions.js';
+import './commandCenterDashboard.js';
 
 // Phase 3: Budget Management (1 tool)
 import './budgetTools.js';

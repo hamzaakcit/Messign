@@ -7,7 +7,7 @@ import { EnhancedMessageBubble } from './EnhancedMessageBubble';
 import { EnhancedMessageInput } from './EnhancedMessageInput';
 import { SmartReplyBar } from './SmartReplyBar';
 import { DoraChatAssistant } from './DoraChatAssistant';
-import { Hash, Search, X, Loader2, ListChecks, FileText, User, MessageSquare } from 'lucide-react';
+import { Hash, Search, X, Loader2, ListChecks, FileText, User, MessageSquare, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ChatMainPanel() {
@@ -26,6 +26,7 @@ export function ChatMainPanel() {
   const universalSearchTab = useChatStore((s) => s.universalSearchTab);
   const performUniversalSearch = useChatStore((s) => s.performUniversalSearch);
   const setUniversalSearchTab = useChatStore((s) => s.setUniversalSearchTab);
+  const setChannelCreateOpen = useChatStore((s) => s.setChannelCreateOpen);
   const [isUniversalSearch, setIsUniversalSearch] = useState(false);
   const currentUser = useAuthStore((s) => s.user);
   const users = useUsersStore((s) => s.users);
@@ -46,25 +47,33 @@ export function ChatMainPanel() {
 
   if (!activeChannel) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-app-muted bg-app-bg">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center mb-6">
-          <Hash className="w-10 h-10 text-primary-400" />
+      <div className="h-full flex flex-col items-center justify-center text-app-muted bg-app-bg/90 px-6">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500/25 to-accent-500/20 flex items-center justify-center mb-5 shadow-lg shadow-primary-500/10 ring-1 ring-primary-500/20">
+          <Hash className="w-10 h-10 text-primary-400" aria-hidden />
         </div>
-        <h3 className="text-xl font-semibold text-app mb-2">Welcome to Chat</h3>
-        <p className="text-sm text-app-muted max-w-xs text-center">
-          Select a channel to start chatting, or create a new one
+        <h3 className="text-xl font-semibold text-app mb-2 text-center">Welcome to Chat</h3>
+        <p className="text-sm text-app-muted max-w-sm text-center leading-relaxed">
+          Choose a channel from the sidebar to jump in, or create a new space for your team.
         </p>
+        <button
+          type="button"
+          onClick={() => setChannelCreateOpen(true)}
+          className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg shadow-lg shadow-primary-500/25 transition-colors"
+        >
+          <Plus className="w-4 h-4" aria-hidden />
+          Create a channel
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-app-bg via-app-bg to-app-hover/[0.08]">
+    <div className="h-full flex flex-col min-h-0 bg-gradient-to-b from-app-bg/75 via-app-bg/92 to-app-bg">
       <ChatHeader />
 
       {/* Search bar - Universal or Channel */}
       {searchOpen && (
-        <div className="px-4 py-2 border-b border-app bg-app-bg/80">
+        <div className="px-4 py-2 border-b border-app bg-app-sidebar/70 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-app-muted" />
             <input
@@ -191,7 +200,7 @@ export function ChatMainPanel() {
                   )}
                   {universalSearchResults.messages.length === 0 && universalSearchResults.tasks.length === 0 &&
                    universalSearchResults.documents.length === 0 && universalSearchResults.users.length === 0 && (
-                    <div className="py-4 text-center text-sm text-app-muted">No results found</div>
+                    <div className="py-4 text-center text-sm text-app-muted">Nothing matched — try different words or another tab.</div>
                   )}
                 </div>
               )}
@@ -234,7 +243,7 @@ export function ChatMainPanel() {
               )}
               {searchResults.length === 0 && searchInput.trim().length > 0 && (
                 <div className="mt-2 py-4 text-center text-sm text-app-muted">
-                  No results for &quot;{searchInput}&quot;
+                  No messages match &quot;{searchInput}&quot; in this channel. Try another phrase or check spelling.
                 </div>
               )}
             </>
@@ -247,14 +256,16 @@ export function ChatMainPanel() {
 
       {/* Messages — framed column for readability on wide screens */}
       <div className="flex-1 overflow-y-auto min-h-0 px-2 sm:px-4 py-3">
-        <div className="max-w-4xl mx-auto min-h-[min(100%,24rem)] rounded-2xl border border-app/50 bg-app-bg/40 shadow-inner shadow-black/5 px-2 sm:px-4 py-3">
+        <div className="max-w-4xl mx-auto min-h-[min(100%,24rem)] rounded-2xl border border-app/80 bg-app-card/30 backdrop-blur-[2px] shadow-inner shadow-black/10 ring-1 ring-app-border/40 px-2 sm:px-4 py-3">
         {channelMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-app-muted">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500/10 to-accent-500/10 flex items-center justify-center mb-4">
-              <Hash className="w-8 h-8 text-primary-400/50" />
+          <div className="h-full min-h-[12rem] flex flex-col items-center justify-center text-app-muted px-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500/15 to-accent-500/10 flex items-center justify-center mb-4 ring-1 ring-primary-500/20">
+              <Hash className="w-8 h-8 text-primary-400/70" aria-hidden />
             </div>
-            <p className="text-base font-medium">No messages yet</p>
-            <p className="text-sm mt-1">Be the first to say something!</p>
+            <p className="text-base font-medium text-app">You&apos;re all caught up</p>
+            <p className="text-sm mt-1.5 text-center max-w-xs leading-relaxed">
+              No messages here yet — say hello below and get the conversation started.
+            </p>
           </div>
         ) : (
           <>

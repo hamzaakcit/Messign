@@ -101,9 +101,9 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
                 key={channel.id}
                 onClick={() => handleSelectChannel(channel.id)}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all duration-150 group',
+                  'w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all duration-150 group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-app-sidebar',
                   activeChannelId === channel.id
-                    ? 'bg-primary-500/15 text-app border border-primary-500/20'
+                    ? 'bg-primary-500/18 text-app border border-primary-500/35 shadow-sm shadow-primary-500/10'
                     : 'text-app-muted hover:text-app hover:bg-app-hover border border-transparent',
                 )}
               >
@@ -129,14 +129,14 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-app">
+      <div className="p-4 border-b border-app border-t border-t-primary-500/25 bg-app-sidebar/95">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-app tracking-tight">Chat</h2>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setDmMenuOpen((o) => !o)}
-              className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+              className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-sidebar"
               aria-label="New DM"
               title="New direct message"
             >
@@ -145,7 +145,7 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
             <button
               type="button"
               onClick={() => setChannelCreateOpen(true)}
-              className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+              className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-sidebar"
               aria-label="Create channel"
               title="Create channel"
             >
@@ -155,12 +155,17 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
         </div>
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted pointer-events-none" />
+          <label htmlFor="chat-channel-filter" className="sr-only">
+            Filter channels
+          </label>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted pointer-events-none" aria-hidden />
           <input
+            id="chat-channel-filter"
             type="text"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             placeholder="Filter channels..."
+            autoComplete="off"
             className="w-full min-h-[44px] pl-9 pr-9 py-2.5 text-sm bg-app-inputBg border border-app-inputBorder rounded-xl text-app placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-shadow"
           />
           {filterText && (

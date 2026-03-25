@@ -1,4 +1,7 @@
+import { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { cn } from '@/lib/utils';
 import type {
   BrandProfileClient,
   CommandCenterPayload,
@@ -35,6 +38,8 @@ export interface MarketingCommandCenterProps {
   onOpenBuilder: () => void;
   onOpenIntelligence: () => void;
   onReconnectSocial?: () => void;
+  /** `compact`: bounded height above the main Kanban; intelligence grid scrolls inside. */
+  variant?: 'full' | 'compact';
 }
 
 /**
@@ -57,7 +62,13 @@ export function MarketingCommandCenter({
   onOpenBuilder,
   onOpenIntelligence,
   onReconnectSocial,
+  variant = 'full',
 }: MarketingCommandCenterProps): JSX.Element {
+  const isCompact = variant === 'compact';
+  const [intelExpanded, setIntelExpanded] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : true,
+  );
+
   const alertSignup =
     data != null &&
     data.funnelSeries7d.length >= 2 &&
@@ -65,7 +76,12 @@ export function MarketingCommandCenter({
       data.funnelSeries7d[data.funnelSeries7d.length - 2].value;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-[#080a0e]">
+    <div
+      className={cn(
+        'flex flex-col overflow-hidden bg-[#080a0e]',
+        isCompact ? 'shrink-0 border-b border-white/[0.06]' : 'flex-1 min-h-0',
+      )}
+    >
       <CommandCenterToolbar
         days={days}
         onDaysChange={onDaysChange}
@@ -76,12 +92,24 @@ export function MarketingCommandCenter({
         loading={loading}
       />
       <div className="flex flex-wrap items-center gap-2 px-3 py-1 border-b border-white/[0.04] shrink-0">
+        {isCompact && (
+          <button
+            type="button"
+            onClick={() => setIntelExpanded((e) => !e)}
+            className="flex items-center gap-1 text-[10px] font-medium rounded-md px-2 py-0.5 bg-app-surface-tertiary border border-white/[0.08] text-app-text hover:bg-app-nav-hover"
+            title={intelExpanded ? 'Hide command center columns' : 'Show command center columns'}
+          >
+            {intelExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            Grid
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenPipeline}
           className="text-[10px] font-medium rounded-md px-2 py-0.5 bg-app-surface-tertiary border border-white/[0.08] text-app-text hover:bg-app-nav-hover"
+          title="Scroll to content pipeline"
         >
-          Content pipeline
+          Pipeline
         </button>
         <button
           type="button"
@@ -108,11 +136,23 @@ export function MarketingCommandCenter({
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto p-3">
+      {(!isCompact || intelExpanded) && (
+      <div
+        className={cn(
+          'min-h-0 overflow-x-auto overflow-y-auto p-3',
+          isCompact ? 'max-h-[min(42vh,360px)]' : 'flex-1',
+        )}
+      >
         {loading && !data ? (
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-3 min-w-[1080px]">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-64 rounded-xl bg-app-surface-tertiary/80 animate-pulse border border-white/[0.06]" />
+              <div
+                key={i}
+                className={cn(
+                  'rounded-xl bg-app-surface-tertiary/80 animate-pulse border border-white/[0.06]',
+                  isCompact ? 'h-40' : 'h-64',
+                )}
+              />
             ))}
           </div>
         ) : data ? (
@@ -149,6 +189,7 @@ export function MarketingCommandCenter({
           <p className="text-[11px] text-app-muted px-1">No command center data.</p>
         )}
       </div>
+      )}
     </div>
   );
 }

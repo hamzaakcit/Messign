@@ -43,7 +43,8 @@ export function ChatV2Layout() {
   const showAdminMessages = activeChannelId === ADMIN_MESSAGES_CHANNEL_ID;
 
   return (
-    <div className="h-full flex overflow-hidden bg-app-bg">
+    <div className="chat-surface relative h-full flex overflow-hidden bg-app-bg">
+      <div className="chat-atmosphere pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden />
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <div
@@ -55,7 +56,7 @@ export function ChatV2Layout() {
       {/* Channel sidebar */}
       <div
         className={cn(
-          'w-72 border-r border-app bg-app-sidebar shrink-0 flex flex-col transition-transform duration-300 z-50',
+          'relative z-50 w-72 border-r border-app bg-app-sidebar shrink-0 flex flex-col transition-transform duration-300',
           'lg:relative lg:translate-x-0',
           mobileSidebarOpen ? 'fixed inset-y-0 left-0 translate-x-0' : 'fixed inset-y-0 left-0 -translate-x-full lg:translate-x-0 lg:relative',
         )}
@@ -64,20 +65,20 @@ export function ChatV2Layout() {
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="relative z-10 flex-1 flex flex-col min-w-0 min-h-0">
         {showAdminMessages ? <AdminMessagesPanel /> : <ChatMainPanel />}
       </div>
 
       {/* Thread panel (takes priority over detail panel) */}
       {activeThreadId && !showAdminMessages && (
-        <div className="w-96 shrink-0 hidden lg:flex flex-col">
+        <div className="relative z-10 w-96 shrink-0 hidden lg:flex flex-col min-h-0 bg-app-sidebar">
           <ThreadPanel />
         </div>
       )}
 
       {/* Detail panel (collapsible, hidden when thread is open) */}
       {detailPanelOpen && !activeThreadId && !showAdminMessages && (
-        <div className="w-80 border-l border-app bg-app-sidebar shrink-0 hidden lg:flex flex-col">
+        <div className="relative z-10 w-80 border-l border-app bg-app-sidebar shrink-0 hidden lg:flex flex-col min-h-0">
           <ChatDetailPanel />
         </div>
       )}

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MarketingCommandCenter } from '@/pages/marketing/MarketingCommandCenter';
 import type { CommandCenterPayload } from '@/lib/marketingApi';
@@ -63,6 +63,16 @@ const samplePayload: CommandCenterPayload = {
 };
 
 describe('MarketingCommandCenter', () => {
+  beforeEach(() => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }) as MediaQueryList);
+  });
+
   it('renders four column headers and toolbar actions', () => {
     render(
       <MarketingCommandCenter
@@ -88,6 +98,32 @@ describe('MarketingCommandCenter', () => {
     expect(screen.getByText('The Funnel')).toBeTruthy();
     expect(screen.getByText('Campaigns & Lab')).toBeTruthy();
     expect(screen.getByText('Dora Sandbox')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Content pipeline/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Pipeline$/i })).toBeTruthy();
+  });
+
+  it('compact variant shows grid toggle and bounded intelligence region', () => {
+    render(
+      <MarketingCommandCenter
+        variant="compact"
+        data={samplePayload}
+        loading={false}
+        error={null}
+        days={7}
+        onDaysChange={vi.fn()}
+        brandList={[]}
+        brandFilter={null}
+        onBrandFilterChange={vi.fn()}
+        onRefresh={vi.fn()}
+        onExecuteWithDora={vi.fn()}
+        onOpenCampaign={vi.fn()}
+        onOpenEmail={vi.fn()}
+        onOpenPipeline={vi.fn()}
+        onOpenBuilder={vi.fn()}
+        onOpenIntelligence={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /^Grid$/i })).toBeTruthy();
+    expect(screen.getByText('Brand & Social')).toBeTruthy();
   });
 });

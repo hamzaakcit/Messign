@@ -64,15 +64,54 @@ export function authHeaders(userId?: string): Record<string, string> {
   return headers;
 }
 
+function parseErrorBody(body: Record<string, unknown>, statusText: string): string {
+  const msg = body.message;
+  if (typeof msg === 'string' && msg.length > 0) return msg;
+  const err = body.error;
+  if (typeof err === 'string' && err.length > 0) return err;
+  if (err && typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message: string }).message === 'string') {
+    return (err as { message: string }).message;
+  }
+  return statusText;
+}
+
+/**
+ * Same auth behavior as {@link fetchAPI}: Bearer token + refresh cookie on 401, then one retry.
+ * Used by Command Center and other modules that pass `X-User-Id` (not only Bearer).
+ */
 export async function fetchWithUserId<T>(endpoint: string, userId: string, options?: RequestInit): Promise<T> {
   const { headers: optHeaders, ...restOpts } = options ?? {};
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...restOpts,
-    credentials: 'include',
-    headers: { ...authHeaders(userId), ...(optHeaders as Record<string, string>) },
-  });
-  if (!response.ok) throw new Error(`API error: ${response.statusText}`);
-  return response.json();
+  const doFetch = (): Promise<Response> =>
+    fetch(`${API_BASE}${endpoint}`, {
+      ...restOpts,
+      credentials: 'include',
+      headers: { ...authHeaders(userId), ...(optHeaders as Record<string, string>) },
+    });
+
+  let response = await doFetch();
+  assertNotHtmlApiResponse(response);
+
+  if (response.status === 401 && !endpoint.startsWith('/auth/')) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      response = await doFetch();
+      assertNotHtmlApiResponse(response);
+    }
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    const message = parseErrorBody(body, response.statusText);
+
+    if (response.status === 401) {
+      onUnauthorized?.();
+      throw new Error(message);
+    }
+    if (isAuthError(response.status, message)) onUnauthorized?.();
+    throw new Error(message || `API error: ${response.statusText}`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
 let isRefreshing = false;

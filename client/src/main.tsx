@@ -6,6 +6,8 @@ import App from './App'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { setOnUnauthorized } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
+/** Apply persisted light/dark (`data-theme`) before any route; Settings is not mounted on /login. */
+import '@/stores/themeStore'
 import './styles/globals.css'
 
 // Catch unhandled promise rejections globally — prevents silent failures
