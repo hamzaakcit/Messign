@@ -15,6 +15,7 @@ export function getAllowedCorsOrigins(): string[] {
       ? [
           'https://www.messign.com',
           'https://messign.com',
+          'https://messign.vercel.app',
           process.env.CLIENT_URL || '',
           ...(process.env.ADDITIONAL_CORS_ORIGINS?.split(',').map((o) => o.trim()).filter(Boolean) ?? []),
         ]

@@ -74,7 +74,8 @@ const corsOptions = {
     if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS blocked origin: ${origin ?? '(none)'}`));
+      console.warn(`[CORS] blocked origin: ${origin ?? '(none)'}`);
+      callback(null, false);
     }
   },
   credentials: true,
@@ -88,7 +89,8 @@ const io = new Server(httpServer, {
       if (isOriginAllowed(origin)) {
         callback(null, true);
       } else {
-        callback(new Error(`Socket.IO CORS blocked origin: ${origin ?? '(none)'}`));
+        console.warn(`[Socket.IO CORS] blocked origin: ${origin ?? '(none)'}`);
+        callback(null, false);
       }
     },
     methods: ['GET', 'POST'],

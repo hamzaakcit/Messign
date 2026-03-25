@@ -170,7 +170,7 @@ export function DoraInsightBar({ module, className, fallback }: DoraInsightBarPr
       if (incoming.severity === 'critical') {
         setCriticalPulse(true);
         if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
-        pulseTimerRef.current = window.setTimeout(() => setCriticalPulse(false), 2000);
+        pulseTimerRef.current = setTimeout(() => setCriticalPulse(false), 2000);
       }
     });
 
