@@ -202,23 +202,6 @@ export async function login(
 
   /** Non-production: typed password is the documented demo (`test123`) even when `SEED_DEFAULT_PASSWORD` in .env is different. */
   if (!valid && isNonProd && passwordTrimmed === DEV_DEMO_PASSWORD) {
-    // #region agent log
-    void fetch('http://127.0.0.1:7481/ingest/3361e6e4-3fde-4d68-ae1d-2a6b90504626', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'aff15f' },
-      body: JSON.stringify({
-        sessionId: 'aff15f',
-        hypothesisId: 'ENV_SEED_MISMATCH',
-        location: 'authService.ts:login',
-        message: 'dev_demo_password_fallback',
-        data: {
-          hasExplicitSeedEnv: !!process.env.SEED_DEFAULT_PASSWORD?.trim(),
-          nodeEnv: process.env.NODE_ENV ?? null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     const freshHash = await bcrypt.hash(DEV_DEMO_PASSWORD, 12);
     await updatePassword({
       auth_user_id: authUserId,

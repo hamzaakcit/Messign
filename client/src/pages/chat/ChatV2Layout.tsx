@@ -62,22 +62,22 @@ export function ChatV2Layout() {
   useFocusTrap(detailPanelOpen && !activeThreadId && !showAdminMessages && isNarrowViewport, detailSheetRef);
 
   return (
-    <div className="chat-surface relative h-full flex overflow-hidden bg-app-bg">
+    <div className="chat-surface relative flex h-full min-h-0 w-full flex-1 flex-row overflow-hidden bg-app-bg">
       <div className="chat-atmosphere pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden />
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <div
-          className="absolute inset-0 bg-black/50 z-30 lg:hidden"
+          className="absolute inset-0 z-30 bg-black/50 lg:hidden"
           onClick={() => setMobileSidebarOpen(false)}
           aria-hidden
         />
       )}
 
-      {/* Channel sidebar — absolute inset so drawer stays inside main (does not cover app LeftSidebar) */}
+      {/* Channel rail: off-canvas on small viewports; in-flow from lg so it shares width with app LeftSidebar correctly */}
       <div
         className={cn(
-          'z-50 w-72 border-r border-app bg-app-sidebar shrink-0 flex flex-col transition-[width,transform] duration-300 ease-out',
-          'lg:relative lg:translate-x-0',
+          'z-50 flex min-h-0 w-72 shrink-0 flex-col border-r border-app bg-app-sidebar transition-[width,transform] duration-300 ease-out',
+          'lg:relative lg:inset-auto lg:translate-x-0',
           channelRailCollapsed && 'lg:w-[3.75rem] lg:min-w-[3.75rem]',
           !channelRailCollapsed && 'lg:w-72',
           mobileSidebarOpen
@@ -89,7 +89,7 @@ export function ChatV2Layout() {
       </div>
 
       {/* Main chat area */}
-      <div className="relative z-10 flex-1 flex flex-col min-w-0 min-h-0">
+      <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
         {showAdminMessages ? <AdminMessagesPanel /> : <ChatMainPanel />}
       </div>
 

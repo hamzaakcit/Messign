@@ -4,7 +4,7 @@ import { Instagram, Loader2, Send, StopCircle, Trash2, X as CloseIcon } from 'lu
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
-import { DoraChatAvatar } from '@/components/dora/DoraPilot';
+import { LucyGreetingCard, LucySidebarLogo } from '@/pages/marketing/components/lucy';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
@@ -87,9 +87,9 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
             }}
           />
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-            <div className="flex items-center gap-2">
-              <DoraChatAvatar size={24} />
-              <span className="text-sm font-semibold text-app-text">Marketing Agent</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <LucySidebarLogo collapsed={false} />
+              <span className="text-sm font-semibold text-app-text truncate">Lucy</span>
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -116,11 +116,14 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
 
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             {messages.length === 0 && !isLoading && (
-              <div className="text-center py-8 text-app-muted text-xs max-w-sm mx-auto space-y-2">
-                <div className="flex justify-center mb-3">
-                  <DoraChatAvatar size={40} />
-                </div>
-                <p>Ask for social copy, email drafts, campaign insights, or content ideas.</p>
+              <div className="w-full min-w-0 py-2">
+                <LucyGreetingCard
+                  heroSize={120}
+                  onChipSelect={(text) => {
+                    setInputValue(text);
+                    inputRef.current?.focus();
+                  }}
+                />
               </div>
             )}
 

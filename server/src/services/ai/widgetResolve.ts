@@ -4,6 +4,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { getDefaultNavigateActionsForTool } from './widgetContracts.js';
 import { sanitizeData } from './dataSanitizer.js';
 import { AI_WIDGET_TOOL_MAP } from './widgetToolMap.js';
 
@@ -80,6 +81,31 @@ function looksLikeLeaderboardRow(row: unknown): boolean {
   return hasPoints && hasName;
 }
 
+function looksLikeKnowledgeDocRow(row: unknown): boolean {
+  if (!row || typeof row !== 'object') return false;
+  const r = row as Record<string, unknown>;
+  return typeof r.title === 'string' && (r.id != null || r.slug != null);
+}
+
+/** Merge default namespace navigation without duplicating the same `to` path. */
+function mergeNavIntoPayloads(toolName: string, payloads: WidgetPayload[]): WidgetPayload[] {
+  const extra = getDefaultNavigateActionsForTool(toolName) as WidgetBlockAction[];
+  if (extra.length === 0 || payloads.length === 0) return payloads;
+  return payloads.map((p) => {
+    const existing = p.actions ?? [];
+    const seen = new Set(
+      existing.filter((a): a is Extract<WidgetBlockAction, { kind: 'navigate' }> => a.kind === 'navigate').map((a) => a.to),
+    );
+    const merged: WidgetBlockAction[] = [...existing];
+    for (const e of extra) {
+      if (e.kind === 'navigate' && seen.has(e.to)) continue;
+      merged.push(e);
+      if (e.kind === 'navigate') seen.add(e.to);
+    }
+    return { ...p, actions: merged };
+  });
+}
+
 /**
  * Build widget payload(s) for a single tool result. Returns empty array when no widget should render.
  */
@@ -93,18 +119,59 @@ export function resolveWidgetPayloadsForTool(
   const isAdmin = userRole === 'admin';
   const sanitized = sanitizeData(obs.data, isAdmin);
 
+  if (toolName === 'knowledge:search_knowledge_base') {
+    if (Array.isArray(sanitized) && sanitized.length > 0 && looksLikeKnowledgeDocRow(sanitized[0])) {
+      return mergeNavIntoPayloads(toolName, [
+        widgetPayload(
+          'knowledge_doc_list',
+          { documents: sanitized },
+          'Matching documents',
+          [
+            {
+              id: 'open-knowledge-hub',
+              label: 'Open Knowledge Hub',
+              kind: 'navigate',
+              to: '/knowledge-hub',
+            },
+          ],
+        ),
+      ]);
+    }
+    return mergeNavIntoPayloads(toolName, [
+      widgetPayload('data_table', sanitized, extractShortTitle('Search results', obs.summary)),
+    ]);
+  }
+
+  if (toolName === 'dashboard:get_command_center') {
+    return mergeNavIntoPayloads(toolName, [
+      widgetPayload(
+        'command_center',
+        sanitized,
+        'Command Center',
+        [
+          {
+            id: 'open-dashboard',
+            label: 'Open full dashboard',
+            kind: 'navigate',
+            to: '/dashboard',
+          },
+        ],
+      ),
+    ]);
+  }
+
   if (toolName === 'finance:get_invoice_details') {
     if (!Array.isArray(sanitized)) return [];
     if (sanitized.length === 0) return [];
     if (sanitized.length === 1) {
       const row = sanitized[0] as Record<string, unknown>;
-      return [
+      return mergeNavIntoPayloads(toolName, [
         widgetPayload('invoice_preview', normalizeInvoiceRow(row), extractShortTitle('Invoice', obs.summary)),
-      ];
+      ]);
     }
-    return [
+    return mergeNavIntoPayloads(toolName, [
       widgetPayload('data_table', sanitized, extractShortTitle('Invoices', obs.summary)),
-    ];
+    ]);
   }
 
   if (toolName === 'achievements:get_achievements_leaderboard') {
@@ -122,7 +189,7 @@ export function resolveWidgetPayloadsForTool(
         subtitle: r.email != null ? String(r.email) : undefined,
         value: Number(r.points ?? r.xp ?? 0),
       }));
-      return [
+      return mergeNavIntoPayloads(toolName, [
         widgetPayload(
           'leaderboard_list',
           {
@@ -142,14 +209,14 @@ export function resolveWidgetPayloadsForTool(
             },
           ],
         ),
-      ];
+      ]);
     }
     const fallback = AI_WIDGET_TOOL_MAP[toolName];
     if (!fallback) return [];
-    return [widgetPayload(fallback, sanitized, obs.summary ?? '')];
+    return mergeNavIntoPayloads(toolName, [widgetPayload(fallback, sanitized, obs.summary ?? '')]);
   }
 
   const widgetType = AI_WIDGET_TOOL_MAP[toolName];
   if (!widgetType) return [];
-  return [widgetPayload(widgetType, sanitized, obs.summary ?? '')];
+  return mergeNavIntoPayloads(toolName, [widgetPayload(widgetType, sanitized, obs.summary ?? '')]);
 }

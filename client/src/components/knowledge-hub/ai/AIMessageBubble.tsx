@@ -193,7 +193,9 @@ export function AIMessageBubble({
                     </Link>
                   </p>
                 )}
-              {message.metadata && <AIMetadataBar metadata={message.metadata} />}
+              {import.meta.env.DEV && message.metadata && (
+                <AIMetadataBar metadata={message.metadata} />
+              )}
               {!message.pendingConfirmation && !message.pendingAction && (
                 <DoraFollowUpChips
                   message={message}

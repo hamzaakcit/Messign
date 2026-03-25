@@ -60,7 +60,7 @@ export function CommandCenterToolbar({
             <select
               value={brandFilter || ''}
               onChange={(e) => onBrandFilterChange(e.target.value || null)}
-              className="bg-app-surface-tertiary border border-white/[0.08] rounded-md px-2 py-0.5 text-[10px] text-app-text min-w-[120px]"
+              className="bg-app-surface-tertiary border border-white/[0.08] rounded-md px-2 py-0.5 text-[10px] text-app-text min-w-0 max-w-full sm:min-w-[120px] sm:max-w-[min(240px,100%)]"
             >
               <option value="">All brands</option>
               {brandList.map((b) => (

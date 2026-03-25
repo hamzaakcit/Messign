@@ -64,7 +64,7 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
   };
 
   const filteredChannels = filterText
-    ? channels.filter((c) => c.name.toLowerCase().includes(filterText.toLowerCase()))
+    ? channels.filter((c) => (c.name ?? '').toLowerCase().includes(filterText.toLowerCase()))
     : channels;
   const publicChannels = filteredChannels.filter((c) => c.type === 'public');
   const privateChannels = filteredChannels.filter((c) => c.type === 'private');
@@ -119,9 +119,9 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
                   <Icon className="w-4 h-4 shrink-0 opacity-70" />
                 )}
                 <span className="truncate flex-1 text-left text-sm">{getChannelDisplayName(channel)}</span>
-                {channel.unreadCount > 0 && (
+                {(channel.unreadCount ?? 0) > 0 && (
                   <span className="px-1.5 py-0.5 text-[10px] font-bold bg-primary-500 text-white rounded-full min-w-[18px] text-center">
-                    {channel.unreadCount > 99 ? '99+' : channel.unreadCount}
+                    {(channel.unreadCount ?? 0) > 99 ? '99+' : channel.unreadCount}
                   </span>
                 )}
               </button>

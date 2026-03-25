@@ -65,8 +65,9 @@ function buildWidgets(
     if (!obs?.success || !obs.data) continue;
     const payloads = resolveWidgetPayloadsForTool(toolName, obs, userRole);
     for (const p of payloads) {
-      if (emitted.has(p.widgetType)) continue;
-      emitted.add(p.widgetType);
+      const key = `${toolName}:${p.widgetType}`;
+      if (emitted.has(key)) continue;
+      emitted.add(key);
       widgets.push(p);
     }
   }
@@ -114,6 +115,11 @@ export async function executeDirectIntent(
   }
 
   const widgets = buildWidgets(toolsUsed, results, legacyContext.userRole);
+  const hasCommandCenterWidget = widgets.some((w) => w.widgetType === 'command_center');
+  if (hasCommandCenterWidget) {
+    finalText =
+      'Here is your live Command Center snapshot — Pulse, Brain, Growth, and Future are in the panels below.';
+  }
   const dataPoints = results.filter((r) => r.success && r.data != null).length;
   const sources = extractSourcesFromResults(results);
 

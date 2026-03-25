@@ -144,7 +144,7 @@ function Lane({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col flex-1 min-w-[180px] border-t-2 rounded-t-lg bg-app-surface-tertiary',
+        'flex flex-col min-h-0 min-w-0 h-full border-t-2 rounded-t-lg bg-app-surface-tertiary',
         config.borderColor,
         isOver && 'bg-app-surface-tertiary ring-1 ring-inset ring-white/10',
       )}
@@ -176,9 +176,9 @@ function Lane({
 
 function BoardSkeleton(): JSX.Element {
   return (
-    <div className="flex gap-2 flex-1 min-h-0 px-3 py-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2 flex-1 min-h-0 min-w-0 px-2 py-2 overflow-hidden">
       {LANE_CONFIG.map((config) => (
-        <div key={config.id} className={cn('flex flex-col flex-1 min-w-[180px] border-t-2 rounded-t-lg bg-app-surface-tertiary', config.borderColor)}>
+        <div key={config.id} className={cn('flex flex-col min-h-0 min-w-0 h-full border-t-2 rounded-t-lg bg-app-surface-tertiary', config.borderColor)}>
           <div className="flex items-center gap-2 px-3 py-2 shrink-0">
             <div className="w-3.5 h-3.5 rounded bg-app-surface-tertiary animate-pulse" />
             <div className="w-5 h-5 rounded-full bg-app-surface-tertiary animate-pulse" />
@@ -299,7 +299,7 @@ export function KanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-2 flex-1 min-h-0 px-3 py-3 overflow-x-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2 flex-1 min-h-0 min-w-0 px-2 py-2 overflow-hidden">
         {LANE_CONFIG.map((config) => (
           <Lane
             key={config.id}

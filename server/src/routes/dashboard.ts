@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDashboardTrends, type DashboardMetric, type TrendPeriod } from '../db/performanceDb.js';
-import { query } from '../db/index.js';
+import { query, sanitizeUuid } from '../db/index.js';
 import type { AuthenticatedRequest } from '../middleware/requireAuth.js';
 import type { CallerContext } from '../dal/types.js';
 import { getCommandCenterData } from '../dal/commandCenter.js';
@@ -14,9 +14,11 @@ const COMMAND_CENTER_CACHE_TTL_SEC = 45;
 async function buildCallerContext(req: AuthenticatedRequest): Promise<CallerContext> {
   const authUserId = req.userId;
   const org = req.tenantId;
+  /** Match `requireAuth`: `auth_user_id` is varchar — do not bind `$1::uuid` or Postgres errors (42883). */
+  const authKey = sanitizeUuid(authUserId);
   const ru = await query<{ id: string }>(
-    `SELECT id::text FROM reimbursement_users WHERE auth_user_id = $1::uuid LIMIT 1`,
-    [authUserId],
+    `SELECT id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
+    [authKey],
   );
   const ruId = ru.rows[0]?.id;
   return {
@@ -68,8 +70,13 @@ router.get('/command-center', async (req: Request, res: Response) => {
       try {
         const cached = await redisConnection.get(cacheKey);
         if (cached) {
-          res.json(JSON.parse(cached));
-          return;
+          try {
+            const parsed: unknown = JSON.parse(cached);
+            res.json(parsed);
+            return;
+          } catch (parseErr) {
+            // Swallow like original: fall through to getCommandCenterData
+          }
         }
       } catch (e) {
         if (e instanceof Error) console.warn('[Redis] command-center cache get:', e.message);

@@ -13,7 +13,6 @@ import {
   Shield,
   Wallet,
   Briefcase,
-  Megaphone,
   Target,
   CheckCircle2,
   LifeBuoy,
@@ -26,6 +25,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { PilotPlaneSVG } from '@/components/dora/DoraPilot';
+import { LucyPilotSVG } from '@/pages/marketing/components/lucy';
 import { useUIStore, type View } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -104,7 +104,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'finance', label: 'Finance', icon: Wallet, showReimbBadge: true },
       { id: 'crm', label: 'Sales CRM', icon: Target },
-      { id: 'marketing', label: 'Marketing', icon: Megaphone },
+      { id: 'marketing', label: 'Marketing', icon: null },
       { id: 'recruitment', label: 'Recruitment', icon: UserPlus },
       { id: 'support', label: 'Support', icon: LifeBuoy },
     ],
@@ -314,6 +314,20 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
                 transition: 'filter 0.3s ease',
               }}>
                 <PilotPlaneSVG size={18} showGoggleGlint={currentView === 'dora'} />
+              </div>
+            </div>
+          ) : navItem.id === 'marketing' ? (
+            <div className="relative flex items-center justify-center flex-shrink-0">
+              <div
+                style={{
+                  filter:
+                    currentView === 'marketing'
+                      ? 'drop-shadow(0 0 6px rgba(168,85,247,0.7)) drop-shadow(0 0 12px rgba(192,38,211,0.4))'
+                      : 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))',
+                  transition: 'filter 0.3s ease',
+                }}
+              >
+                <LucyPilotSVG size={18} />
               </div>
             </div>
           ) : navItem.icon ? (

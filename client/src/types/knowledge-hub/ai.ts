@@ -171,6 +171,7 @@ export interface AITableColumn {
 // ============================================================
 
 export type AIWidgetType =
+  | 'command_center'
   | 'system_overview'
   | 'task_table'
   | 'performance_overview'
@@ -181,7 +182,8 @@ export type AIWidgetType =
   | 'data_table'
   | 'dora_dash'
   | 'invoice_preview'
-  | 'leaderboard_list';
+  | 'leaderboard_list'
+  | 'knowledge_doc_list';
 
 /** Whitelisted actions emitted by the server for dynamic block toolbars (navigate / follow-up message). */
 export type WidgetBlockAction =

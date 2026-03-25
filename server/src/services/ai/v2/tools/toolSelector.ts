@@ -28,6 +28,7 @@ export const DOMAIN_TOOL_MAP: Record<Domain, string[]> = {
     'hr:get_hiring_pipeline',
     'hr:score_candidate',
     'hr:get_recruitment_metrics',
+    'hr:get_cross_module_report',
     'people:get_employee_performance',
     'people:get_team_overview',
   ],
@@ -73,6 +74,10 @@ export const DOMAIN_TOOL_MAP: Record<Domain, string[]> = {
     'knowledge:get_live_document_stats',
   ],
   analytics: [
+    'projects:get_tasks_by_user',
+    'projects:get_project_status',
+    'projects:get_sprint_status',
+    'dashboard:get_command_center',
     'analytics:get_system_stats',
     'analytics:get_approval_queue',
     'analytics:get_department_report',

@@ -165,7 +165,14 @@ export type PromptLayerKind =
   | 'guardrails';
 
 export interface PromptSpec {
-  task: 'agent' | 'synthesis' | 'kb_synthesis' | 'greeting' | 'planning' | 'extraction';
+  task:
+    | 'agent'
+    | 'synthesis'
+    | 'synthesis_visual'
+    | 'kb_synthesis'
+    | 'greeting'
+    | 'planning'
+    | 'extraction';
   layers: PromptLayerKind[];
 }
 

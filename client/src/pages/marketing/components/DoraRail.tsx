@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { ChevronDown, Instagram, Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
-import { DoraChatAvatar } from '@/components/dora/DoraPilot';
+import { LucyGreetingCard, LucySidebarLogo } from '@/pages/marketing/components/lucy';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import type { BoardCardData } from './BoardCard';
@@ -106,9 +106,8 @@ export function DoraRail({
         defaultTopic={selectedCard?.title ?? null}
       />
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06] shrink-0">
-        <div className="flex items-center gap-1.5">
-          <DoraChatAvatar size={20} />
-          <span className="text-xs font-semibold text-app-text">Dora</span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <LucySidebarLogo collapsed={false} />
         </div>
         <button
           type="button"
@@ -133,14 +132,14 @@ export function DoraRail({
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2">
         {messages.length === 0 && !isLoading && (
-          <div className="text-center py-4 px-1 space-y-3">
-            <div className="flex justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-primary-500/20 blur-xl scale-150" aria-hidden />
-                <DoraChatAvatar size={36} />
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-500">Quick start</p>
+          <div className="py-2 px-0 w-full min-w-0 overflow-x-hidden">
+            <LucyGreetingCard
+              heroSize={120}
+              onChipSelect={(text) => {
+                setInputValue(text);
+                inputRef.current?.focus();
+              }}
+            />
           </div>
         )}
 

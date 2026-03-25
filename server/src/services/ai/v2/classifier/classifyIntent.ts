@@ -75,6 +75,7 @@ const PATH_HINTS: Array<{ prefix: string; domain: Domain }> = [
   { prefix: '/marketing', domain: 'marketing' },
   { prefix: '/recruitment', domain: 'hr' },
   { prefix: '/knowledge-hub', domain: 'knowledge' },
+  { prefix: '/dashboard', domain: 'analytics' },
   { prefix: '/assets', domain: 'assets' },
   { prefix: '/contracts', domain: 'contracts' },
   { prefix: '/culture', domain: 'culture' },
@@ -126,6 +127,14 @@ export function classifyIntent(message: string, ctx: DoraContext): ClassifiedReq
   const pathDomain = pagePathBoost(ctx.pagePath);
   if (pathDomain) {
     scores.set(pathDomain, (scores.get(pathDomain) ?? 0) + 0.35);
+  }
+
+  /** Strong intent: home Command Center / dashboard metrics (avoid weak confidence → unnecessary planning). */
+  if (
+    /\b(dashboard|command\s*center|home\s+screen)\b/i.test(trimmed) &&
+    /\b(metrics?|numbers?|pulse|overview|snapshot|what'?s\s+on)\b/i.test(trimmed)
+  ) {
+    scores.set('analytics', (scores.get('analytics') ?? 0) + 0.85);
   }
 
   let best: Domain = 'unknown';

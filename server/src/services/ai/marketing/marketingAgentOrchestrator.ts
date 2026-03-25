@@ -21,6 +21,7 @@ import { buildMarketingContentStrategistPrompt } from '../../../modules/marketin
 import { getBrandProfile, formatBrandProfileAsMd } from '../../marketing/brandProfileService.js';
 import { query as dbQuery } from '../../../db/index.js';
 import { buildMarketingCampaignManagerPrompt } from '../../../modules/marketing/prompts/marketingCampaignManagerPrompt.js';
+import { wrapSpecialistSystemPromptWithLucy } from '../../../modules/marketing/prompts/lucyPersona.js';
 import {
   CAMPAIGN_TOOL_NAMES,
   CONTENT_TOOL_NAMES,
@@ -153,6 +154,10 @@ export interface MarketingOrchestrationContext {
   priorContext?: string;
   history?: Array<{ role: string; content: string }>;
   forceMarketingContext?: boolean;
+  /** When set with {@link marketingRoute}, Lucy persona layers specialist system prompts. */
+  applyLucyPersona?: boolean;
+  /** Sub-orchestrator route for Lucy contextual behaviors (e.g. CONTENT_STRATEGIST). */
+  marketingRoute?: MarketingRouteKind;
   onStreamChunk?: (text: string) => void;
   onProgress?: (step: ProgressStep) => void;
 }
@@ -237,6 +242,7 @@ export async function routeMarketingRequest(
     ctx.priorContext,
     ctx.agentContext.tenantId,
     ctx.forceMarketingContext ?? false,
+    ctx.applyLucyPersona === true,
   );
 }
 
@@ -274,13 +280,21 @@ async function buildContentStrategistLoopArgs(
     }
   }
 
-  const systemPrompt = buildMarketingContentStrategistPrompt({
+  const contentBase = buildMarketingContentStrategistPrompt({
     userRole: ctx.agentContext.userRole,
     productTruthMd,
     brandVoiceMd,
     channel,
     calibrationText,
   });
+  const systemPrompt =
+    ctx.applyLucyPersona === true && ctx.marketingRoute != null
+      ? wrapSpecialistSystemPromptWithLucy(contentBase, {
+          route: ctx.marketingRoute,
+          channelInferred: channel,
+          query: userQuery,
+        })
+      : contentBase;
   return {
     role: 'content' as const,
     systemPrompt,
@@ -295,7 +309,16 @@ async function buildContentStrategistLoopArgs(
 }
 
 async function buildCampaignManagerLoopArgs(ctx: MarketingOrchestrationContext, userQuery: string, priorBlock?: string) {
-  const systemPrompt = buildMarketingCampaignManagerPrompt({ userRole: ctx.agentContext.userRole });
+  const channelInferred = inferMarketingContentChannel(userQuery);
+  const campaignBase = buildMarketingCampaignManagerPrompt({ userRole: ctx.agentContext.userRole });
+  const systemPrompt =
+    ctx.applyLucyPersona === true && ctx.marketingRoute != null
+      ? wrapSpecialistSystemPromptWithLucy(campaignBase, {
+          route: ctx.marketingRoute,
+          channelInferred,
+          query: userQuery,
+        })
+      : campaignBase;
   return {
     role: 'campaign' as const,
     systemPrompt,

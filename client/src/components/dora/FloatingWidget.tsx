@@ -636,7 +636,7 @@ export function FloatingWidget() {
                     />
                   ))}
 
-                {msg.metadata && !msg.isStreaming && (
+                {import.meta.env.DEV && msg.metadata && !msg.isStreaming && (
                   <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-gray-700/50 text-[10px] dora-chat-text-tertiary">
                     <span>{msg.metadata.responseTimeMs}ms</span>
                     <span>·</span>

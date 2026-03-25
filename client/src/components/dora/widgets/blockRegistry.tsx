@@ -12,6 +12,7 @@ import { DoraDashWidget } from './DoraDashWidget';
 import { InvoicePreviewCard } from './InvoicePreviewCard';
 import { LeaderboardList } from './LeaderboardList';
 import ProjectStatusWidget, { type ProjectData } from './ProjectStatusWidget';
+import { blockIdForWidget } from './blockIdForWidget';
 
 const SystemOverviewWidget = lazy(() =>
   import('./SystemOverviewWidget').then((m) => ({ default: m.SystemOverviewWidget })),
@@ -26,6 +27,10 @@ const FinancialSummaryWidget = lazy(() =>
 const PerformanceOverviewWidget = lazy(() => import('./PerformanceOverviewWidget'));
 const TeamComparisonWidget = lazy(() => import('./TeamComparisonWidget'));
 const DataTableWidget = lazy(() => import('./DataTableWidget'));
+const CommandCenterDoraWidget = lazy(() =>
+  import('./CommandCenterDoraWidget').then((m) => ({ default: m.CommandCenterDoraWidget })),
+);
+const KnowledgeDocListWidget = lazy(() => import('./KnowledgeDocListWidget'));
 
 export interface WidgetRenderContext {
   widget: AIWidgetPayload;
@@ -40,7 +45,7 @@ type BlockDef = {
 
 const blockRegistry = new Map<AIWidgetType, BlockDef>();
 
-export function registerBlockType(type: AIWidgetType, def: BlockDef) {
+function registerBlockType(type: AIWidgetType, def: BlockDef) {
   blockRegistry.set(type, def);
 }
 
@@ -58,11 +63,21 @@ function SuspenseWrap({ children }: { children: ReactNode }) {
   return <Suspense fallback={<BlockSkeleton />}>{children}</Suspense>;
 }
 
-export function blockIdForWidget(widget: AIWidgetPayload): string {
-  if (widget.id) return widget.id;
-  const slug = `${widget.widgetType}-${widget.title}`.replace(/\s+/g, '-').slice(0, 80);
-  return slug || widget.widgetType;
-}
+registerBlockType('command_center', {
+  render: ({ widget }) => (
+    <SuspenseWrap>
+      <CommandCenterDoraWidget data={widget.data} />
+    </SuspenseWrap>
+  ),
+});
+
+registerBlockType('knowledge_doc_list', {
+  render: ({ widget, staggerDelay }) => (
+    <SuspenseWrap>
+      <KnowledgeDocListWidget data={widget.data} title={widget.title} delay={staggerDelay} />
+    </SuspenseWrap>
+  ),
+});
 
 registerBlockType('system_overview', {
   render: ({ widget }) => (

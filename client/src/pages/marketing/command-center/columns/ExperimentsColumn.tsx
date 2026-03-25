@@ -12,7 +12,7 @@ export interface ExperimentsColumnProps {
  */
 export function ExperimentsColumn({ experiments, onOpenCampaign, onOpenEmail }: ExperimentsColumnProps): JSX.Element {
   return (
-    <div className="flex flex-col gap-2 min-w-[260px] min-h-0">
+    <div className="flex flex-col gap-2 min-w-0 w-full min-h-0">
       <div className="flex items-center justify-between border-b border-white/[0.06] pb-1 shrink-0">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Campaigns & Lab</h2>
         <FlaskConical className="h-3.5 w-3.5 text-amber-400/80" aria-hidden />

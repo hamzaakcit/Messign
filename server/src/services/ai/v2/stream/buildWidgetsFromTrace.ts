@@ -7,6 +7,7 @@ export function buildWidgetsFromTrace(
   userRole: string,
 ): WidgetPayload[] {
   const widgets: WidgetPayload[] = [];
+  /** Per-tool + widgetType — multiple tools may legitimately emit `data_table`. */
   const emitted = new Set<string>();
 
   for (let i = 0; i < results.length; i++) {
@@ -15,8 +16,9 @@ export function buildWidgetsFromTrace(
     if (!obs?.success || !obs.data) continue;
     const payloads = resolveWidgetPayloadsForTool(toolName, obs, userRole);
     for (const p of payloads) {
-      if (emitted.has(p.widgetType)) continue;
-      emitted.add(p.widgetType);
+      const key = `${toolName}:${p.widgetType}`;
+      if (emitted.has(key)) continue;
+      emitted.add(key);
       widgets.push(p);
     }
   }

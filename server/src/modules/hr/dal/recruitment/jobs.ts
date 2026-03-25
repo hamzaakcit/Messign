@@ -407,10 +407,10 @@ export async function getJobMetrics(ctx: CallerContext, jobId?: string): Promise
   return runInTenant(tenantId, async (client) => {
     const result = await client.query<Record<string, unknown>>(
       `SELECT
-         COUNT(*) FILTER (WHERE status = 'open')::int AS open_positions,
-         COALESCE(SUM(positions_count - positions_filled) FILTER (WHERE status IN ('open', 'paused')), 0)::int AS vacancies,
-         COALESCE(SUM(total_applicants), 0)::int AS applicants,
-         COALESCE(AVG(avg_match_score), 0)::numeric AS avg_match_score
+         COUNT(*) FILTER (WHERE j.status = 'open')::int AS open_positions,
+         COALESCE(SUM(f.positions_count - f.positions_filled) FILTER (WHERE j.status IN ('open', 'paused')), 0)::int AS vacancies,
+         COALESCE(SUM(f.total_applicants), 0)::int AS applicants,
+         COALESCE(AVG(f.avg_match_score), 0)::numeric AS avg_match_score
        FROM mv_recruitment_funnel f
        JOIN recruitment_jobs j ON j.id = f.job_id
        WHERE ($1::uuid IS NULL OR f.job_id = $1::uuid)

@@ -22,7 +22,7 @@ function formatCurrency(value: number): string {
  */
 export function FunnelColumn({ funnel7d, funnelSeries7d, cacRoi, alertSignupDrop }: FunnelColumnProps): JSX.Element {
   return (
-    <div className="flex flex-col gap-2 min-w-[260px]">
+    <div className="flex flex-col gap-2 min-w-0 w-full">
       <div className="flex items-center justify-between border-b border-white/[0.06] pb-1">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">The Funnel</h2>
         <Filter className="h-3.5 w-3.5 text-emerald-400/80" aria-hidden />

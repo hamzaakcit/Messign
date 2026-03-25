@@ -1,6 +1,7 @@
 import type { Message, PromptSpec, DoraContext } from '../types.js';
 import {
   guardrailsLayer,
+  guardrailsWidgetSupplementLayer,
   identityLayer,
   kbRulesLayer,
   moduleHintLayer,
@@ -20,9 +21,16 @@ const LAYER_BUILDERS: Record<
   kbRules: () => kbRulesLayer(),
   outputFormats: (_ctx, spec) =>
     outputFormatsLayer(
-      spec.task === 'agent' ? 'toolCalling' : spec.task === 'planning' ? 'jsonOnly' : 'streaming',
+      spec.task === 'agent'
+        ? 'toolCalling'
+        : spec.task === 'planning'
+          ? 'jsonOnly'
+          : spec.task === 'synthesis_visual'
+            ? 'widgetVisual'
+            : 'streaming',
     ),
-  guardrails: () => guardrailsLayer(),
+  guardrails: (_ctx, spec) =>
+    spec.task === 'synthesis_visual' ? guardrailsWidgetSupplementLayer() : guardrailsLayer(),
 };
 
 export function assemblePrompt(spec: PromptSpec, ctx: DoraContext): Message[] {
@@ -41,6 +49,17 @@ export function buildAgentPrompt(ctx: DoraContext): PromptSpec {
 export function buildSynthesisPrompt(ctx: DoraContext): PromptSpec {
   return {
     task: 'synthesis',
+    layers: ['identity', 'session', 'policy', 'moduleHint', 'outputFormats', 'guardrails'],
+  };
+}
+
+/**
+ * Synthesis when the client will render widgets (charts, tables, cards). System prompt avoids
+ * instructing the model to repeat every metric in prose (conflicts with on-screen visuals).
+ */
+export function buildSynthesisVisualPrompt(_ctx: DoraContext): PromptSpec {
+  return {
+    task: 'synthesis_visual',
     layers: ['identity', 'session', 'policy', 'moduleHint', 'outputFormats', 'guardrails'],
   };
 }

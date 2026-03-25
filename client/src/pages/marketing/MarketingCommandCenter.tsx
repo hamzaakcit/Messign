@@ -82,7 +82,7 @@ export function MarketingCommandCenter({
   return (
     <div
       className={cn(
-        `flex flex-col overflow-hidden ${marketingShell.bgStack}`,
+        `flex flex-col min-w-0 overflow-hidden ${marketingShell.bgStack}`,
         isCompact ? 'shrink-0 border-b border-white/[0.06]' : 'flex-1 min-h-0',
       )}
       aria-busy={loading}
@@ -150,24 +150,24 @@ export function MarketingCommandCenter({
       {(!isCompact || intelExpanded) && (
       <div
         className={cn(
-          'min-h-0 overflow-x-auto overflow-y-auto p-3',
-          isCompact ? 'max-h-[min(38vh,320px)]' : 'flex-1',
+          'min-h-0 overflow-x-hidden overflow-y-auto p-2 sm:p-3',
+          isCompact ? 'max-h-[min(36vh,300px)]' : 'flex-1',
         )}
       >
         {loading && !data ? (
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-3 min-w-[1080px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3 w-full min-w-0">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
                 className={cn(
                   'rounded-xl bg-app-surface-tertiary/80 animate-pulse border border-white/[0.06]',
-                  isCompact ? 'h-40' : 'h-64',
+                  isCompact ? 'h-36 sm:h-40' : 'h-64',
                 )}
               />
             ))}
           </div>
         ) : data ? (
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-3 min-w-[1080px] items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3 w-full min-w-0 items-start">
             <ErrorBoundary resetKey="cc-social" fallback={<ColumnFallback title="Brand & Social" />}>
               <BrandSocialColumn data={data.socialPulse} onReconnect={onReconnectSocial} />
             </ErrorBoundary>
@@ -187,7 +187,7 @@ export function MarketingCommandCenter({
               />
             </ErrorBoundary>
             <ErrorBoundary resetKey="cc-dora" fallback={<ColumnFallback title="Dora Sandbox" />}>
-              <div className="flex flex-col gap-2 min-w-[260px]">
+              <div className="flex flex-col gap-2 min-w-0 w-full">
                 <p className="text-[10px] text-app-muted">
                   Active campaigns:{' '}
                   <span className="text-app-text font-semibold tabular-nums">{data.activeCampaigns}</span>

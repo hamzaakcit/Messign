@@ -53,13 +53,13 @@ interface SparkChipProps {
 
 function SparkChip({ label, value, sparkData, color = marketingShell.sparkChart.default }: SparkChipProps): JSX.Element {
   return (
-    <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-app-surface-tertiary border border-white/[0.08] min-w-0">
-      <div className="min-w-0">
+    <div className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-2 sm:px-3 rounded-lg bg-app-surface-tertiary border border-white/[0.08] min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[10px] text-app-muted leading-none truncate">{label}</p>
-        <p className="text-sm font-semibold text-app-text leading-tight">{value}</p>
+        <p className="text-xs sm:text-sm font-semibold text-app-text leading-tight truncate">{value}</p>
       </div>
       {sparkData && sparkData.length > 1 && (
-        <div className="w-14 h-6 shrink-0">
+        <div className="w-10 sm:w-14 h-5 sm:h-6 shrink-0 hidden sm:block">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={sparkData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <defs>
@@ -106,16 +106,16 @@ export function SparkBar({
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-2 border-b ${marketingShell.borderSubtle} ${marketingShell.bgTop} shrink-0 sticky top-0 z-20`}
+      className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 px-3 sm:px-4 py-2 border-b ${marketingShell.borderSubtle} ${marketingShell.bgTop} shrink-0 sticky top-0 z-20 min-w-0`}
     >
       {loading ? (
-        <div className="flex gap-3 flex-1">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 flex-1 min-w-0 w-full">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-10 w-32 rounded-lg bg-app-surface-tertiary animate-pulse" />
+            <div key={i} className="h-9 sm:h-10 rounded-lg bg-app-surface-tertiary animate-pulse min-w-0" />
           ))}
         </div>
       ) : (
-        <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 flex-1 min-w-0 w-full">
           <SparkChip
             label="MQLs"
             value={metrics?.mqls ?? 0}
@@ -141,7 +141,7 @@ export function SparkBar({
         </div>
       )}
 
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 justify-end flex-wrap sm:justify-end w-full sm:w-auto">
         <button
           type="button"
           onClick={() => onModeChange('board')}

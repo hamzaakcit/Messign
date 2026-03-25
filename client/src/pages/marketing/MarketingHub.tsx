@@ -377,7 +377,7 @@ export function MarketingHub(): JSX.Element {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 min-w-0 overflow-x-hidden">
       <MarketingBootstrapErrorBanner error={bootstrapError} onRetry={() => void refetchBootstrap()} />
       <MarketingWorkspaceSecondaryAlerts
         funnelError={mode === 'calendar' ? null : funnelError}
@@ -399,7 +399,7 @@ export function MarketingHub(): JSX.Element {
         onCreateInstagramContent={handleCreateInstagramContent}
       />
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
         {mode === 'board' && (
           <MarketingBoardAndPipeline
             ccData={ccData}

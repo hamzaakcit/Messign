@@ -22,6 +22,10 @@ export const WIDGET_ACTIONS: Partial<Record<AIWidgetType, WidgetActionDef[]>> = 
     { label: 'Open task list', message: 'Show my open tasks', intentId: 'quick.open_tasks' },
     { label: 'Company finances', message: 'Summarize outstanding invoices and cash position' },
   ],
+  command_center: [
+    { label: 'Open tasks', message: 'What are my open tasks?', intentId: 'quick.open_tasks' },
+    { label: 'Finance KPIs', message: 'Show finance dashboard KPIs', intentId: 'finance.company_summary' },
+  ],
   task_table: [
     { label: 'What is overdue?', message: 'Which of my tasks are overdue?' },
     { label: 'Export PDF', exportPdf: true },
@@ -41,6 +45,10 @@ export const WIDGET_ACTIONS: Partial<Record<AIWidgetType, WidgetActionDef[]>> = 
   ],
   leaderboard_list: [
     { label: 'Top performers', message: 'Who are the top performers this month?', intentId: 'dashboard.top_performers' },
+  ],
+  knowledge_doc_list: [
+    { label: 'Search docs', message: 'Find onboarding guides in the knowledge base' },
+    { label: 'Document stats', message: 'How many documents are in the knowledge base?', intentId: 'knowledge.stats' },
   ],
 };
 

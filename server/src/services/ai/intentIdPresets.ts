@@ -14,7 +14,8 @@ export const INTENT_ID_PRESETS: Record<string, ParsedToolCall[]> = {
   'quick.available_questions': calls('system:get_available_questions'),
   'quick.open_tasks': calls('projects:get_tasks_by_user', { user_identifier: 'me', status_filter: 'active' }),
   'dashboard.company_overview': calls('analytics:get_system_stats', { detail_level: 'summary' }),
-  'dashboard.metrics': calls('analytics:get_system_stats', { detail_level: 'summary' }),
+  /** Pulse / Brain / Growth / Future — same aggregate as the home Command Center UI */
+  'dashboard.metrics': calls('dashboard:get_command_center', {}),
   'dashboard.revenue_trend': calls('finance:get_financial_summary', { time_period: 'this_month', scope: 'company' }),
   'performance.my_month': calls('people:get_employee_performance', { employee_identifier: 'me', time_period: 'this_month' }),
   'performance.widget_my': calls('people:get_employee_performance', { employee_identifier: 'me', time_period: 'this_month' }),

@@ -73,8 +73,8 @@ export async function getDashboardMetrics(ctx: CallerContext): Promise<Record<st
     const [summary, pipeline, offerStats, sourceStats, deptStats, upcomingInterviews, timeTrend] = await Promise.all([
       client.query(
         `SELECT
-           COALESCE(SUM(positions_count - positions_filled) FILTER (WHERE status IN ('open', 'paused')), 0)::int AS open_positions,
-           COALESCE(SUM(total_applicants), 0)::int AS active_applicants
+           COALESCE(SUM(f.positions_count - f.positions_filled) FILTER (WHERE j.status IN ('open', 'paused')), 0)::int AS open_positions,
+           COALESCE(SUM(f.total_applicants), 0)::int AS active_applicants
          FROM mv_recruitment_funnel f
          JOIN recruitment_jobs j ON j.id = f.job_id`,
         [],

@@ -21,6 +21,11 @@ import type { DoraContext, ProgressStep } from '../v2/types.js';
 import { getMarketingSubOrchestratorSystemPrompt } from '../../../modules/marketing/prompts/marketingSubOrchestratorPrompt.js';
 import { buildMarketingContentStrategistPrompt } from '../../../modules/marketing/prompts/marketingContentStrategistPrompt.js';
 import { buildMarketingCampaignManagerPrompt } from '../../../modules/marketing/prompts/marketingCampaignManagerPrompt.js';
+import {
+  buildLucyOrchestratorPrompt,
+  wrapSpecialistSystemPromptWithLucy,
+} from '../../../modules/marketing/prompts/lucyPersona.js';
+import { isLucyPersonaEnabled } from '../../../modules/marketing/prompts/lucyEnabled.js';
 import { loadMarketingTruthBrandLayers } from '../../../dal/marketing/truthBrand.js';
 import { resolveOrgIdForTool } from '../tools/resolveOrgIdForTool.js';
 import { resolveCalibrationPrompt } from '../../marketing/calibrationResolver.js';
@@ -196,8 +201,12 @@ export async function runMarketingRouteDecision(
   priorContext: string | undefined,
   tenantId: string,
   forceMarketingContext: boolean,
+  applyLucyPersona = false,
 ): Promise<ParsedMarketingRoute> {
-  const system = getMarketingSubOrchestratorSystemPrompt(forceMarketingContext);
+  let system = getMarketingSubOrchestratorSystemPrompt(forceMarketingContext);
+  if (applyLucyPersona && isLucyPersonaEnabled()) {
+    system = buildLucyOrchestratorPrompt(system);
+  }
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: system },
     ...history
@@ -250,6 +259,7 @@ async function resolveMarketingRouteWithPlanner(
   doraCtx: DoraRequestContext,
   legacyContext: ToolContext,
   forceMarketingContext: boolean,
+  applyLucyPersona: boolean,
 ): Promise<{ route: ParsedMarketingRoute; plan: MarketingStrategyExecutionPlan | null }> {
   const step = await runMarketingStrategyPlannerStep(
     query,
@@ -260,11 +270,25 @@ async function resolveMarketingRouteWithPlanner(
     legacyContext,
   );
   if (!step.ok) {
-    const route = await runMarketingRouteDecision(query, history, priorContext, agentContext.tenantId, forceMarketingContext);
+    const route = await runMarketingRouteDecision(
+      query,
+      history,
+      priorContext,
+      agentContext.tenantId,
+      forceMarketingContext,
+      applyLucyPersona,
+    );
     return { route, plan: null };
   }
   if (plannerShouldFallbackToLegacyRouter(step.plan)) {
-    const route = await runMarketingRouteDecision(query, history, priorContext, agentContext.tenantId, forceMarketingContext);
+    const route = await runMarketingRouteDecision(
+      query,
+      history,
+      priorContext,
+      agentContext.tenantId,
+      forceMarketingContext,
+      applyLucyPersona,
+    );
     return { route, plan: null };
   }
   return { route: mapStrategyPlanToParsedRoute(step.plan), plan: step.plan };
@@ -697,6 +721,10 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
     onProgress,
   } = opts;
 
+  const applyLucyPersona =
+    isLucyPersonaEnabled() &&
+    (forceMarketingContext === true || opts.marketingAgentMode === true);
+
   return withTimeout(
     (async () => {
       console.log('[DIAG] runMarketingSubOrchestratorFlow called', {
@@ -714,6 +742,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         doraCtx,
         legacyContext,
         forceMarketingContext,
+        applyLucyPersona,
       );
 
       onProgress?.({ phase: 'routing', label: 'Routing your request…', step: 1, maxSteps: 5, status: 'completed' });
@@ -749,9 +778,16 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
           ...legacyContext,
           organizationId: legacyContext.organizationId ?? agentContext.organizationId ?? undefined,
         };
+        const researchSystem = applyLucyPersona
+          ? wrapSpecialistSystemPromptWithLucy(RESEARCH_PHASE_SYSTEM, {
+              route: route.route,
+              channelInferred,
+              query: note + query,
+            })
+          : RESEARCH_PHASE_SYSTEM;
         const research = await runMarketingMiniLoop({
           role: 'content',
-          systemPrompt: RESEARCH_PHASE_SYSTEM,
+          systemPrompt: researchSystem,
           toolNames: RESEARCH_TOOL_NAMES,
           query: note + query,
           agentContext,
@@ -784,13 +820,20 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         }
 
         // CONTENT_STRATEGIST rules (Messign positioning, Instagram hashtags / pattern interrupt): `marketingContentStrategistPrompt.ts`
-        const systemPrompt = buildMarketingContentStrategistPrompt({
+        const contentBase = buildMarketingContentStrategistPrompt({
           userRole: agentContext.userRole,
           productTruthMd,
           brandVoiceMd,
           channel: channelInferred,
           calibrationText,
         });
+        const systemPrompt = applyLucyPersona
+          ? wrapSpecialistSystemPromptWithLucy(contentBase, {
+              route: route.route,
+              channelInferred,
+              query: note + userQuery,
+            })
+          : contentBase;
         const r = await runMarketingMiniLoop({
           role: 'content',
           systemPrompt,
@@ -809,7 +852,14 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       };
 
       const runCampaign = async (userQuery: string, priorBlock?: string) => {
-        const systemPrompt = buildMarketingCampaignManagerPrompt({ userRole: agentContext.userRole });
+        const campaignBase = buildMarketingCampaignManagerPrompt({ userRole: agentContext.userRole });
+        const systemPrompt = applyLucyPersona
+          ? wrapSpecialistSystemPromptWithLucy(campaignBase, {
+              route: route.route,
+              channelInferred,
+              query: note + userQuery,
+            })
+          : campaignBase;
         const r = await runMarketingMiniLoop({
           role: 'campaign',
           systemPrompt,
@@ -839,6 +889,8 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
           priorContext,
           history,
           forceMarketingContext,
+          applyLucyPersona,
+          marketingRoute: route.route,
           onStreamChunk,
           onProgress,
         };
@@ -913,6 +965,8 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         priorContext,
         history,
         forceMarketingContext,
+        applyLucyPersona,
+        marketingRoute: route.route,
         onStreamChunk,
         onProgress,
       };
