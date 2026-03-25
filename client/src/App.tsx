@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
 import { useAuthStore } from '@/stores/authStore';
@@ -79,22 +79,21 @@ function MainApp() {
 
 function App() {
   const user = useAuthStore((s) => s.user);
-  const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  /** Wait for persisted auth before routing; avoids a flash of logged-out UI or null dashboard. */
+  const [persistReady, setPersistReady] = useState(() => useAuthStore.persist.hasHydrated());
 
   useEffect(() => {
-    if (hasHydrated) return;
-    const t = setTimeout(() => {
-      useAuthStore.setState({ _hasHydrated: true });
-    }, 150);
-    return () => clearTimeout(t);
-  }, [hasHydrated]);
+    const unsub = useAuthStore.persist.onFinishHydration(() => setPersistReady(true));
+    if (useAuthStore.persist.hasHydrated()) setPersistReady(true);
+    return unsub;
+  }, []);
 
   // Connect socket for any authenticated user (main app or admin) so presence (online/offline) works. Must be before any early return to satisfy Rules of Hooks.
   useEffect(() => {
     if (user?.id) connectSocket(user.id);
   }, [user?.id]);
 
-  if (!hasHydrated) {
+  if (!persistReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-app">
         <div className="text-app-muted">Loading…</div>
