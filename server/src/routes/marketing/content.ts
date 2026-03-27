@@ -457,20 +457,34 @@ router.post('/:id/resolve-email-images', async (req: ReimbursementRequest, res: 
       const results = await Promise.race([
         Promise.allSettled(
           genTasks.map((task) => {
+            const sectionTypeMap: Record<string, ImageGenContext['sectionType']> = {
+              hero: 'hero',
+              product_grid: 'product',
+              value_prop: 'value_prop',
+              testimonial: 'testimonial',
+              image_text: 'image_text',
+              social_proof: 'social_proof',
+              feature: 'feature',
+              lifestyle: 'lifestyle',
+            };
+            const section = manifest.sections.find((s) => s.order === task.order);
+            const artDir = section?.content?.artDirection as ImageGenContext['artDirection'] | undefined;
             const ctx: ImageGenContext = {
               channel: 'email',
-              sectionType: (['hero', 'product', 'lifestyle', 'feature'].includes(task.sectionType)
-                ? task.sectionType
-                : 'standalone') as ImageGenContext['sectionType'],
+              sectionType: sectionTypeMap[task.sectionType] ?? 'standalone',
               themeHint,
+              artDirection: artDir,
             };
             const enhanced = enhanceImagePrompt(task.prompt, undefined, ctx);
+            // fal.ai provider handles its own resolution per section type;
+            // this resolution is the fallback for other providers in the cascade.
+            const resolution = '1024x1024' as const;
             return generateImage({
               org_id: orgId,
               content_id: randomUUID(),
               prompt: enhanced,
-              resolution: '1024x1024',
-            });
+              resolution,
+            }, ctx);
           }),
         ),
         deadline,

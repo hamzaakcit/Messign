@@ -538,12 +538,25 @@ export const executiveTheme: DesignTheme = {
     divider: '#E2E8F0',
     heroOverlayStart: 'rgba(27,42,74,0.7)',
     heroOverlayEnd: 'rgba(27,42,74,0.3)',
+    gradientStart: '#1B2A4A',
+    gradientEnd: '#2563EB',
+    surfaceElevated: '#FFFFFF',
+    cardShadow: 'rgba(27,42,74,0.08)',
+    accentGlow: 'rgba(37,99,235,0.15)',
   },
   typography: executiveTypography,
   spacing: VA2_SPACING_SCALE,
   borderRadius: 8,
   shadowStyle: 'soft',
   googleFonts: ['DM Sans', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'linear',
+    cardShadow: '0 2px 16px rgba(27,42,74,0.08)',
+    elevatedShadow: '0 8px 32px rgba(27,42,74,0.12)',
+    ctaGlow: false,
+    gradientDividers: false,
+    quoteMarkColor: '#2563EB',
+  },
 };
 
 const startupTypography: ThemeTypography = {
@@ -579,12 +592,25 @@ export const startupTheme: DesignTheme = {
     divider: '#E5E7EB',
     heroOverlayStart: 'rgba(17,24,39,0.7)',
     heroOverlayEnd: 'rgba(17,24,39,0.3)',
+    gradientStart: '#4F46E5',
+    gradientEnd: '#6366F1',
+    surfaceElevated: '#FFFFFF',
+    cardShadow: 'rgba(99,102,241,0.08)',
+    accentGlow: 'rgba(99,102,241,0.2)',
   },
   typography: startupTypography,
   spacing: VA2_SPACING_SCALE,
   borderRadius: 12,
   shadowStyle: 'medium',
   googleFonts: ['Space Grotesk', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'linear',
+    cardShadow: '0 4px 20px rgba(99,102,241,0.08)',
+    elevatedShadow: '0 12px 40px rgba(99,102,241,0.15)',
+    ctaGlow: true,
+    gradientDividers: false,
+    quoteMarkColor: '#6366F1',
+  },
 };
 
 const luxuryTypography: ThemeTypography = {
@@ -628,12 +654,25 @@ export const luxuryTheme: DesignTheme = {
     divider: '#E5E5E5',
     heroOverlayStart: 'rgba(26,26,26,0.6)',
     heroOverlayEnd: 'rgba(26,26,26,0.2)',
+    gradientStart: '#1A1A1A',
+    gradientEnd: '#B8860B',
+    surfaceElevated: '#FFFFFF',
+    cardShadow: 'rgba(26,26,26,0.06)',
+    accentGlow: 'rgba(184,134,11,0.12)',
   },
   typography: luxuryTypography,
   spacing: VA2_SPACING_SCALE,
   borderRadius: 0,
   shadowStyle: 'none',
   googleFonts: ['Playfair Display', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'radial',
+    cardShadow: '0 2px 12px rgba(26,26,26,0.06)',
+    elevatedShadow: '0 4px 24px rgba(26,26,26,0.1)',
+    ctaGlow: false,
+    gradientDividers: true,
+    quoteMarkColor: '#B8860B',
+  },
 };
 
 const minimalTypography: ThemeTypography = {
@@ -669,6 +708,14 @@ export const minimalTheme: DesignTheme = {
   borderRadius: 6,
   shadowStyle: 'soft',
   googleFonts: ['Raleway', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'linear',
+    cardShadow: '0 1px 8px rgba(31,41,55,0.06)',
+    elevatedShadow: '0 4px 16px rgba(31,41,55,0.08)',
+    ctaGlow: false,
+    gradientDividers: false,
+    quoteMarkColor: '#374151',
+  },
 };
 
 const boldTypography: ThemeTypography = {
@@ -716,6 +763,14 @@ export const boldTheme: DesignTheme = {
   borderRadius: 16,
   shadowStyle: 'dramatic',
   googleFonts: ['Space Grotesk', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'linear',
+    cardShadow: '0 4px 24px rgba(15,23,42,0.1)',
+    elevatedShadow: '0 12px 48px rgba(15,23,42,0.18)',
+    ctaGlow: true,
+    gradientDividers: false,
+    quoteMarkColor: '#EF4444',
+  },
 };
 
 const natureTypography: ThemeTypography = {
@@ -751,6 +806,14 @@ export const natureTheme: DesignTheme = {
   borderRadius: 24,
   shadowStyle: 'soft',
   googleFonts: ['Lora', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'linear',
+    cardShadow: '0 2px 16px rgba(27,67,50,0.06)',
+    elevatedShadow: '0 8px 32px rgba(27,67,50,0.1)',
+    ctaGlow: false,
+    gradientDividers: true,
+    quoteMarkColor: '#15803D',
+  },
 };
 
 const techTypography: ThemeTypography = {
@@ -798,6 +861,14 @@ export const techTheme: DesignTheme = {
   borderRadius: 8,
   shadowStyle: 'medium',
   googleFonts: ['JetBrains Mono', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'mesh',
+    cardShadow: '0 4px 20px rgba(10,10,11,0.08)',
+    elevatedShadow: '0 8px 40px rgba(139,92,246,0.12)',
+    ctaGlow: true,
+    gradientDividers: true,
+    quoteMarkColor: '#8B5CF6',
+  },
 };
 
 const warmTypography: ThemeTypography = {
@@ -833,6 +904,14 @@ export const warmTheme: DesignTheme = {
   borderRadius: 12,
   shadowStyle: 'soft',
   googleFonts: ['Poppins', 'Inter'],
+  premiumEffects: {
+    heroOverlayStyle: 'linear',
+    cardShadow: '0 2px 16px rgba(69,26,3,0.06)',
+    elevatedShadow: '0 8px 32px rgba(69,26,3,0.1)',
+    ctaGlow: false,
+    gradientDividers: false,
+    quoteMarkColor: '#D97706',
+  },
 };
 
 /** Map of all available themes */
@@ -932,4 +1011,49 @@ export function generateId(prefix: string = 'el'): string {
 /** Reset ID counter (for testing only) */
 export function resetIdCounter(): void {
   _idCounter = 0;
+}
+
+// ── Premium Effects Helpers ──
+
+import type { PremiumEffects } from './types/designTokenTypes';
+
+const DEFAULT_PREMIUM_EFFECTS: PremiumEffects = {
+  heroOverlayStyle: 'linear',
+  cardShadow: '0 2px 12px rgba(0,0,0,0.06)',
+  elevatedShadow: '0 6px 24px rgba(0,0,0,0.1)',
+  ctaGlow: false,
+  gradientDividers: false,
+  quoteMarkColor: '#6B7280',
+};
+
+export function getPremiumEffects(theme: DesignTheme): PremiumEffects {
+  return theme.premiumEffects ?? DEFAULT_PREMIUM_EFFECTS;
+}
+
+/**
+ * Build a CSS box-shadow string from the theme's shadow style.
+ */
+export function buildCardShadow(theme: DesignTheme): string {
+  return getPremiumEffects(theme).cardShadow;
+}
+
+/**
+ * Build the hero overlay gradient CSS based on theme premium effects.
+ */
+export function buildHeroOverlayGradient(theme: DesignTheme): string {
+  const effects = getPremiumEffects(theme);
+  const start = theme.colors.heroOverlayStart;
+  const end = theme.colors.heroOverlayEnd;
+
+  switch (effects.heroOverlayStyle) {
+    case 'radial':
+      return `radial-gradient(ellipse at 30% 50%, ${end} 0%, ${start} 100%)`;
+    case 'mesh':
+      return `linear-gradient(135deg, ${start} 0%, ${end} 40%, ${start} 70%, ${end} 100%)`;
+    case 'none':
+      return 'none';
+    case 'linear':
+    default:
+      return `linear-gradient(180deg, ${end} 0%, ${start} 100%)`;
+  }
 }

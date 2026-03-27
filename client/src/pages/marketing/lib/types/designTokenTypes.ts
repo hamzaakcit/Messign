@@ -55,6 +55,21 @@ export interface ThemeColors {
   divider: string;
   heroOverlayStart: string;
   heroOverlayEnd: string;
+  // v2 premium additions (optional for backward compat)
+  gradientStart?: string;
+  gradientEnd?: string;
+  surfaceElevated?: string;
+  cardShadow?: string;
+  accentGlow?: string;
+}
+
+export interface PremiumEffects {
+  heroOverlayStyle: 'linear' | 'radial' | 'mesh' | 'none';
+  cardShadow: string;
+  elevatedShadow: string;
+  ctaGlow: boolean;
+  gradientDividers: boolean;
+  quoteMarkColor: string;
 }
 
 export interface DesignTheme {
@@ -67,6 +82,7 @@ export interface DesignTheme {
   borderRadius: number;
   shadowStyle: 'none' | 'soft' | 'medium' | 'sharp' | 'dramatic';
   googleFonts: string[];
+  premiumEffects?: PremiumEffects;
 }
 
 export interface ContrastResult {

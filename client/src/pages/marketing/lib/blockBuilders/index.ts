@@ -23,7 +23,7 @@ export type { HeroConfig, FeatureGridConfig, ImageTextConfig } from './legacyBui
 
 export { buildPreheader, buildHeroSection } from './heroBuilder';
 
-export { buildTextBlock, buildImageBlock, buildValuePropGrid } from './contentBuilders';
+export { buildTextBlock, buildImageBlock, buildValuePropGrid, buildStatsCounter, buildLogoBar } from './contentBuilders';
 
 export { buildCTASection, buildDividerBlock } from './ctaBuilder';
 

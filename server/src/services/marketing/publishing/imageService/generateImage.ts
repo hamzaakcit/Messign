@@ -28,6 +28,8 @@ import type {
 import { buildMarketingImageSystemText } from './promptBuilder.js';
 import { validateImageGenerationInput, validateRasterImageBuffer, ALLOWED_RESOLUTIONS } from './validation.js';
 import { buildStorageKey, uploadToStorage } from './storage.js';
+import { hasFalCredentials, callFalImageGeneration, contextToFalSection } from './falProvider.js';
+import type { ImageGenContext } from './promptBuilder.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -141,7 +143,7 @@ function hasOpenAiImageCredentials(): boolean {
 }
 
 function hasAnyImageBackend(): boolean {
-  return hasLiteLLMCredentials() || hasDirectGeminiImageCredentials() || hasOpenAiImageCredentials();
+  return hasFalCredentials() || hasLiteLLMCredentials() || hasDirectGeminiImageCredentials() || hasOpenAiImageCredentials();
 }
 
 /** Returns `success: true` + `image_url` so marketing orchestration continues when no backend (dev). */
@@ -668,7 +670,7 @@ async function callGeminiNativeImageSingleModel(
 // Core: generateImage
 // ---------------------------------------------------------------------------
 
-export async function generateImage(input: ImageGenerationInput): Promise<ImageGenerationResult> {
+export async function generateImage(input: ImageGenerationInput, imageContext?: ImageGenContext): Promise<ImageGenerationResult> {
   const startMs = Date.now();
 
   console.log('[imageService] generate_start', {
@@ -762,8 +764,25 @@ export async function generateImage(input: ImageGenerationInput): Promise<ImageG
       /** Set on every success path before use (OpenAI, LiteLLM, or Gemini). */
       let backend!: 'openai' | 'litellm' | 'gemini_direct';
 
+      // ── fal.ai (primary) ──────────────────────────────────────────────
+      if (hasFalCredentials() && !imageBuffer) {
+        try {
+          const falSection = contextToFalSection(imageContext);
+          const falResult = await callFalImageGeneration(normalized.prompt, falSection);
+          imageBuffer = falResult.buffer;
+          generationModel = falResult.modelId;
+          backend = 'openai' as typeof backend; // reuse type slot — logged as fal
+          generationModel = falResult.modelId;
+        } catch (falErr) {
+          console.warn('[imageService] fal.ai failed, falling back to OpenAI/LiteLLM/Gemini', {
+            message: falErr instanceof Error ? falErr.message : String(falErr),
+          });
+        }
+      }
+
+      // ── OpenAI (secondary) ─────────────────────────────────────────────
       let openaiFirstFailed = false;
-      if (getOpenAiApiKey()) {
+      if (!imageBuffer && getOpenAiApiKey()) {
         try {
           imageBuffer = await callOpenAIImagesGeneration(normalized.prompt, resolution);
           generationModel = `openai/${getOpenAiImageModel()}`;

@@ -12,6 +12,7 @@ const MAX_PROMPT_CHARS = 12_000;
 
 export const ALLOWED_RESOLUTIONS = new Set<string>([
   '1024x1024', '1080x1080', '1080x1350', '1080x1920', '1920x1080',
+  '1344x768', '1024x768', '1024x576', '768x768', '768x512',
 ]);
 
 export const ALLOWED_STYLE_PRESETS = new Set<NonNullable<ImageGenerationInput['style_preset']>>([

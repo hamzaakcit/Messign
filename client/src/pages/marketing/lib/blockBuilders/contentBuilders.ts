@@ -10,9 +10,10 @@ import type {
   ValuePropItem,
 } from '../types/manifestTypes';
 import type { DesignTheme } from '../types/designTokenTypes';
-import { generateId } from '../designTokens';
-import { createSingleColumnRow } from './va2Shared';
+import { generateId, getPremiumEffects } from '../designTokens';
+import { createSingleColumnRow, createNColumnRow } from './va2Shared';
 import type { BlockBuilderOptions } from './types';
+import type { StatsCounterContent, LogoBarContent } from '../types/manifestTypes';
 
 /**
  * Build a simple text block — body paragraph(s).
@@ -214,11 +215,12 @@ export function buildValuePropGrid(
       const colContents: Va2UnlayerContent[] = [];
 
       if (item.icon) {
+        const iconHtml = buildIconHtml(item.icon, theme);
         colContents.push({
           id: generateId('content'),
           type: 'html',
           values: {
-            html: `<div style="text-align:center;padding:${spacing.sm}px 0"><span style="font-size:32px;color:${theme.colors.accent}">&#x25CF;</span></div>`,
+            html: `<div style="text-align:center;padding:${spacing.sm}px 0">${iconHtml}</div>`,
             containerPadding: '0px',
             anchor: '',
             hideDesktop: false,
@@ -271,15 +273,29 @@ export function buildValuePropGrid(
         },
       });
 
+      const effects = getPremiumEffects(theme);
       return {
         id: generateId('col'),
         contents: colContents,
         values: {
           backgroundColor: theme.colors.surface,
-          padding: `${spacing.md}px`,
-          border: {},
-          borderRadius: `${theme.borderRadius}px`,
-          _meta: { htmlID: '', htmlClassNames: 'vp-col' },
+          padding: `${spacing.md + 4}px`,
+          border: {
+            borderTopWidth: '1px',
+            borderTopStyle: 'solid',
+            borderTopColor: theme.colors.divider,
+            borderBottomWidth: '1px',
+            borderBottomStyle: 'solid',
+            borderBottomColor: theme.colors.divider,
+            borderLeftWidth: '1px',
+            borderLeftStyle: 'solid',
+            borderLeftColor: theme.colors.divider,
+            borderRightWidth: '1px',
+            borderRightStyle: 'solid',
+            borderRightColor: theme.colors.divider,
+          },
+          borderRadius: `${Math.max(theme.borderRadius, 8)}px`,
+          _meta: { htmlID: '', htmlClassNames: 'vp-col vp-card', extraStyle: `box-shadow:${effects.cardShadow};` },
         },
       };
     });
@@ -306,4 +322,151 @@ export function buildValuePropGrid(
   }
 
   return rows;
+}
+
+// ── Icon mapping for value prop items ──
+
+const ICON_MAP: Record<string, string> = {
+  Zap: '&#x26A1;',
+  Shield: '&#x1F6E1;',
+  Users: '&#x1F465;',
+  Clock: '&#x1F552;',
+  Star: '&#x2B50;',
+  Heart: '&#x2764;',
+  Target: '&#x1F3AF;',
+  Rocket: '&#x1F680;',
+  Globe: '&#x1F310;',
+  Lock: '&#x1F512;',
+  Sparkles: '&#x2728;',
+  TrendingUp: '&#x1F4C8;',
+  Award: '&#x1F3C6;',
+  CheckCircle: '&#x2705;',
+};
+
+function buildIconHtml(iconName: string, theme: DesignTheme): string {
+  const emoji = ICON_MAP[iconName];
+  if (emoji) {
+    return `<div style="display:inline-block;width:48px;height:48px;line-height:48px;text-align:center;font-size:24px;background:${theme.colors.accent}15;border-radius:${Math.max(theme.borderRadius, 12)}px">${emoji}</div>`;
+  }
+  // Fallback: colored circle with first letter
+  const initial = iconName.charAt(0).toUpperCase();
+  return `<div style="display:inline-block;width:48px;height:48px;line-height:48px;text-align:center;font-size:18px;font-weight:700;color:${theme.colors.accent};background:${theme.colors.accent}12;border-radius:${Math.max(theme.borderRadius, 12)}px">${initial}</div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// Stats Counter Section (v2 new)
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Build a stats counter section — large numbers with labels.
+ * Creates a visual impact strip: "10K+ Users | 99.9% Uptime | 50+ Countries"
+ */
+export function buildStatsCounter(
+  content: StatsCounterContent,
+  theme: DesignTheme,
+  _options?: BlockBuilderOptions,
+): Va2UnlayerRow[] {
+  if (!content.items || content.items.length === 0) return [];
+
+  const spacing = theme.spacing;
+  const typo = theme.typography;
+  const columnContents: Va2UnlayerContent[][] = content.items.slice(0, 4).map((item) => {
+    return [
+      {
+        id: generateId('content'),
+        type: 'html',
+        values: {
+          html: `<div style="text-align:center;padding:${spacing.md}px ${spacing.sm}px">
+            <div style="font-family:${typo.hero.fontFamily};font-size:${typo.heading.fontSize + 8}px;font-weight:${typo.hero.fontWeight};color:${theme.colors.accent};line-height:1.2;letter-spacing:-0.5px">${item.value}</div>
+            <div style="font-family:${typo.caption.fontFamily};font-size:${typo.caption.fontSize}px;color:${theme.colors.textMuted};text-transform:uppercase;letter-spacing:1px;margin-top:6px">${item.label}</div>
+          </div>`,
+          containerPadding: '0px',
+          anchor: '',
+          hideDesktop: false,
+          hideMobile: false,
+          _meta: { htmlID: '', htmlClassNames: 'stats-item' },
+        },
+      },
+    ];
+  });
+
+  return [
+    createNColumnRow(columnContents, theme, {
+      backgroundColor: theme.colors.surface,
+      padding: `${spacing.lg}px ${spacing.md}px`,
+      className: 'stats-counter-row',
+      columnBorderRadius: `${theme.borderRadius}px`,
+    }),
+  ];
+}
+
+// ════════════════════════════════════════════════════════════
+// Logo Bar Section (v2 new)
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Build a logo bar section — "Trusted by" with partner/client logos.
+ * Logos displayed horizontally with grayscale treatment option.
+ */
+export function buildLogoBar(
+  content: LogoBarContent,
+  theme: DesignTheme,
+  _options?: BlockBuilderOptions,
+): Va2UnlayerRow[] {
+  if (!content.items || content.items.length === 0) return [];
+
+  const spacing = theme.spacing;
+  const typo = theme.typography;
+  const grayscale = content.grayscale !== false;
+
+  const contents: Va2UnlayerContent[] = [];
+
+  // Optional headline
+  if (content.headline) {
+    contents.push({
+      id: generateId('content'),
+      type: 'text',
+      values: {
+        text: `<p style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;text-align:center;text-transform:uppercase;letter-spacing:2px;font-family:${typo.caption.fontFamily};font-weight:500">${content.headline}</p>`,
+        containerPadding: `${spacing.md}px ${spacing.lg}px ${spacing.sm}px`,
+        anchor: '',
+        hideDesktop: false,
+        hideMobile: false,
+        _meta: { htmlID: '', htmlClassNames: 'logo-bar-headline' },
+      },
+    });
+  }
+
+  // Logo strip as HTML for grayscale filter support
+  const logoItems = content.items.slice(0, 6).map((item) => {
+    const filterStyle = grayscale ? 'filter:grayscale(100%);opacity:0.5;' : 'opacity:0.7;';
+    if (item.logoUrl) {
+      const link = item.url ? `<a href="${item.url}" target="_blank" style="text-decoration:none">` : '';
+      const linkEnd = item.url ? '</a>' : '';
+      return `${link}<img src="${item.logoUrl}" alt="${item.altText ?? item.name}" style="height:28px;width:auto;${filterStyle}vertical-align:middle" />${linkEnd}`;
+    }
+    // Fallback: text logo
+    return `<span style="font-family:${typo.heading.fontFamily};font-size:14px;font-weight:600;color:${theme.colors.textMuted};${filterStyle}vertical-align:middle">${item.name}</span>`;
+  });
+
+  contents.push({
+    id: generateId('content'),
+    type: 'html',
+    values: {
+      html: `<div style="text-align:center;padding:${spacing.sm}px ${spacing.md}px ${spacing.md}px">${logoItems.join(`<span style="display:inline-block;width:${spacing.lg}px"></span>`)}</div>`,
+      containerPadding: '0px',
+      anchor: '',
+      hideDesktop: false,
+      hideMobile: false,
+      _meta: { htmlID: '', htmlClassNames: 'logo-bar-strip' },
+    },
+  });
+
+  return [
+    createSingleColumnRow(contents, theme, {
+      backgroundColor: theme.colors.background,
+      padding: `${spacing.md}px 0px`,
+      className: 'logo-bar-row',
+    }),
+  ];
 }

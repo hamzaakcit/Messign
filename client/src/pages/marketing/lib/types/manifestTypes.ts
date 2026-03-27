@@ -16,7 +16,25 @@ export type SectionType =
   | 'image'
   | 'image_text'
   | 'preheader'
-  | 'product_grid';
+  | 'product_grid'
+  | 'stats_counter'
+  | 'logo_bar';
+
+export type ImageStylePreset =
+  | 'cinematic-hero'
+  | 'editorial-lifestyle'
+  | 'clean-product'
+  | 'abstract-pattern'
+  | 'portrait-headshot'
+  | 'isometric-icon';
+
+export type ImageMood = 'warm' | 'cool' | 'dramatic' | 'minimal' | 'playful';
+
+export interface SectionArtDirection {
+  imageStyle?: ImageStylePreset;
+  imageMood?: ImageMood;
+  imageColorHint?: string;
+}
 
 export interface ManifestSection {
   type: SectionType;
@@ -24,6 +42,7 @@ export interface ManifestSection {
   content: Record<string, unknown>;
   variant?: string;
   spacing?: string;
+  artDirection?: SectionArtDirection;
 }
 
 export interface HeroContent {
@@ -56,7 +75,9 @@ export interface CTAContent {
   description?: string;
   buttonText: string;
   buttonUrl: string;
-  variant?: 'pill' | 'ghost' | 'fullWidth';
+  variant?: 'pill' | 'ghost' | 'fullWidth' | 'gradient';
+  urgencyText?: string;
+  microCopy?: string;
   [key: string]: unknown;
 }
 
@@ -138,6 +159,33 @@ export interface FooterContent {
   [key: string]: unknown;
 }
 
+// ── New v2 section content types ──────────────────────────────────────────
+
+export interface StatsCounterItem {
+  value: string;
+  label: string;
+}
+
+export interface StatsCounterContent {
+  items: StatsCounterItem[];
+  style?: 'horizontal' | 'stacked';
+  [key: string]: unknown;
+}
+
+export interface LogoBarItem {
+  name: string;
+  logoUrl?: string;
+  altText?: string;
+  url?: string;
+}
+
+export interface LogoBarContent {
+  headline?: string;
+  items: LogoBarItem[];
+  grayscale?: boolean;
+  [key: string]: unknown;
+}
+
 export interface ManifestValidationError {
   field: string;
   message: string;
@@ -167,6 +215,9 @@ export interface DesignManifest {
   };
   artDirection?: {
     imageStyle?: string;
+    colorTemperature?: 'warm' | 'cool' | 'neutral';
+    overallMood?: string;
+    visualStyle?: string;
     [key: string]: unknown;
   };
   easterEgg?: 'paper_plane' | 'none';

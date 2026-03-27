@@ -1,7 +1,7 @@
 import type { SectionType } from '../types/manifestTypes';
 import type { BlockBuilder } from './types';
 import { buildPreheader, buildHeroSection } from './heroBuilder';
-import { buildValuePropGrid, buildTextBlock, buildImageBlock } from './contentBuilders';
+import { buildValuePropGrid, buildTextBlock, buildImageBlock, buildStatsCounter, buildLogoBar } from './contentBuilders';
 import { buildCTASection, buildDividerBlock } from './ctaBuilder';
 import { buildTestimonialCard, buildSocialProofBar, buildFooterBlock } from './socialBuilders';
 import { buildProductGrid } from './productBuilder';
@@ -24,6 +24,8 @@ const VA2_BUILDER_REGISTRY: Record<SectionType, BlockBuilder> = {
   divider: buildDividerBlock as BlockBuilder,
   footer: buildFooterBlock as BlockBuilder,
   product_grid: buildProductGrid as BlockBuilder,
+  stats_counter: buildStatsCounter as BlockBuilder,
+  logo_bar: buildLogoBar as BlockBuilder,
 };
 
 /**

@@ -26,6 +26,13 @@ export {
   shouldOpenAiFastPathAfterGeminiNoImage,
 } from './generateImage.js';
 
+export {
+  hasFalCredentials,
+  callFalImageGeneration,
+  selectFalConfig,
+  contextToFalSection,
+} from './falProvider.js';
+
 import { generateImage } from './generateImage.js';
 import { enhanceImagePrompt } from './promptBuilder.js';
 import { resolveStockImageUrl } from './stockImages.js';

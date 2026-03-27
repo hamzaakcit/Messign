@@ -9,17 +9,35 @@ import type {
   FooterContent,
 } from '../types/manifestTypes';
 import type { DesignTheme } from '../types/designTokenTypes';
-import { generateId } from '../designTokens';
+import { generateId, getPremiumEffects } from '../designTokens';
 import { createSingleColumnRow } from './va2Shared';
 import type { BlockBuilderOptions } from './types';
 
+// ── Social platform icons (simple Unicode/HTML for email compatibility) ──
+
+const SOCIAL_ICONS: Record<string, string> = {
+  twitter: '&#x1D54F;', // 𝕏
+  linkedin: 'in',
+  instagram: '&#x1F4F7;',
+  facebook: 'f',
+  youtube: '&#x25B6;',
+  github: '&#x2756;',
+};
+
+function buildSocialIconHtml(platform: string, url: string, theme: DesignTheme): string {
+  const icon = SOCIAL_ICONS[platform.toLowerCase()] ?? platform.charAt(0).toUpperCase();
+  return `<a href="${url}" target="_blank" style="display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;border-radius:50%;background:${theme.colors.divider};color:${theme.colors.textMuted};text-decoration:none;font-family:${theme.typography.caption.fontFamily};font-size:13px;font-weight:700;margin:0 4px">${icon}</a>`;
+}
+
 /**
- * Build a testimonial card — customer quote with attribution.
+ * Build a testimonial card — v2 Pro.
  *
- * Edge cases:
- * - No rating: skip stars block
- * - No authorRole and no authorCompany: skip that text block
- * - Very long quote (>250 chars): reduce font to body.fontSize * 0.9
+ * Upgrades:
+ * - Large decorative opening quote mark in theme accent color
+ * - Avatar circle with initials (or image placeholder)
+ * - Card elevation with theme-specific shadow
+ * - Star rating with filled/empty styling
+ * - Better visual hierarchy
  */
 export function buildTestimonialCard(
   content: TestimonialContent,
@@ -28,15 +46,33 @@ export function buildTestimonialCard(
 ): Va2UnlayerRow[] {
   const spacing = theme.spacing;
   const typo = theme.typography;
+  const effects = getPremiumEffects(theme);
   const contents: Va2UnlayerContent[] = [];
 
+  // ── Decorative quote mark ──
+  contents.push({
+    id: generateId('content'),
+    type: 'html',
+    values: {
+      html: `<div style="text-align:center;font-size:72px;line-height:0.8;color:${effects.quoteMarkColor};opacity:0.2;font-family:Georgia,'Times New Roman',serif;padding:${spacing.md}px 0 0">\u201C</div>`,
+      containerPadding: '0px',
+      anchor: '',
+      hideDesktop: false,
+      hideMobile: false,
+      _meta: { htmlID: '', htmlClassNames: 'testimonial-deco-quote' },
+    },
+  });
+
+  // ── Star rating ──
   if (content.rating && content.rating >= 1 && content.rating <= 5) {
-    const stars = '★'.repeat(content.rating) + '☆'.repeat(5 - content.rating);
+    const filledStar = `<span style="color:${theme.colors.accent}">&#x2605;</span>`;
+    const emptyStar = `<span style="color:${theme.colors.divider}">&#x2605;</span>`;
+    const stars = filledStar.repeat(content.rating) + emptyStar.repeat(5 - content.rating);
     contents.push({
       id: generateId('content'),
       type: 'html',
       values: {
-        html: `<div style="text-align:center;font-size:20px;color:${theme.colors.accent};padding:${spacing.sm}px 0 ${spacing.xs}px;letter-spacing:4px">${stars}</div>`,
+        html: `<div style="text-align:center;font-size:18px;padding:${spacing.xs}px 0;letter-spacing:3px">${stars}</div>`,
         containerPadding: '0px',
         anchor: '',
         hideDesktop: false,
@@ -46,19 +82,7 @@ export function buildTestimonialCard(
     });
   }
 
-  contents.push({
-    id: generateId('content'),
-    type: 'html',
-    values: {
-      html: `<div style="text-align:center;font-size:48px;line-height:1;color:${theme.colors.accent};font-family:Georgia,serif">\u201C</div>`,
-      containerPadding: `${spacing.sm}px 0 0`,
-      anchor: '',
-      hideDesktop: false,
-      hideMobile: false,
-      _meta: { htmlID: '', htmlClassNames: 'testimonial-quote-mark' },
-    },
-  });
-
+  // ── Quote text ──
   const quoteFontSize =
     content.quote.length > 250 ? Math.round(typo.body.fontSize * 0.9) : typo.body.fontSize;
 
@@ -66,8 +90,8 @@ export function buildTestimonialCard(
     id: generateId('content'),
     type: 'text',
     values: {
-      text: `<p style="color:${theme.colors.text};font-size:${quoteFontSize}px;text-align:center;line-height:${Math.round(typo.body.lineHeight * 100)}%;font-style:italic;font-family:${typo.body.fontFamily}">${content.quote}</p>`,
-      containerPadding: `${spacing.xs}px ${spacing.lg}px ${spacing.md}px`,
+      text: `<p style="color:${theme.colors.text};font-size:${quoteFontSize}px;text-align:center;line-height:${Math.round(typo.body.lineHeight * 110)}%;font-style:italic;font-family:${typo.body.fontFamily}">\u201C${content.quote}\u201D</p>`,
+      containerPadding: `${spacing.sm}px ${spacing.lg}px ${spacing.md}px`,
       anchor: '',
       hideDesktop: false,
       hideMobile: false,
@@ -75,25 +99,37 @@ export function buildTestimonialCard(
     },
   });
 
+  // ── Avatar + Author attribution ──
+  const initials = content.authorName
+    .split(' ')
+    .map((n) => n.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const avatarHtml = `<div style="display:inline-block;width:44px;height:44px;line-height:44px;border-radius:50%;background:${theme.colors.accent}18;border:2px solid ${theme.colors.accent}30;color:${theme.colors.accent};font-family:${typo.heading.fontFamily};font-size:16px;font-weight:700;text-align:center;vertical-align:middle">${initials}</div>`;
+
+  const roleParts: string[] = [];
+  if (content.authorRole) roleParts.push(content.authorRole);
+  if (content.authorCompany) roleParts.push(content.authorCompany);
+  const roleText = roleParts.length > 0
+    ? `<div style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;font-family:${typo.caption.fontFamily};margin-top:2px">${roleParts.join(', ')}</div>`
+    : '';
+
   contents.push({
     id: generateId('content'),
     type: 'html',
     values: {
-      html: `<div style="width:40px;height:1px;background:${theme.colors.divider};margin:0 auto"></div>`,
-      containerPadding: `0px 0px ${spacing.sm}px`,
-      anchor: '',
-      hideDesktop: false,
-      hideMobile: false,
-      _meta: { htmlID: '', htmlClassNames: 'testimonial-divider' },
-    },
-  });
-
-  contents.push({
-    id: generateId('content'),
-    type: 'text',
-    values: {
-      text: `<p style="color:${theme.colors.primary};font-size:${typo.subheading.fontSize}px;font-weight:${typo.subheading.fontWeight};text-align:center;line-height:${Math.round(typo.subheading.lineHeight * 100)}%;font-family:${typo.subheading.fontFamily}">${content.authorName}</p>`,
-      containerPadding: `0px ${spacing.lg}px ${spacing.xs}px`,
+      html: `<div style="text-align:center;padding:0 0 ${spacing.sm}px">
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto"><tr>
+          <td style="vertical-align:middle;padding-right:12px">${avatarHtml}</td>
+          <td style="vertical-align:middle;text-align:left">
+            <div style="color:${theme.colors.primary};font-size:${typo.subheading.fontSize}px;font-weight:${typo.subheading.fontWeight};font-family:${typo.subheading.fontFamily};line-height:1.3">${content.authorName}</div>
+            ${roleText}
+          </td>
+        </tr></table>
+      </div>`,
+      containerPadding: '0px',
       anchor: '',
       hideDesktop: false,
       hideMobile: false,
@@ -101,44 +137,20 @@ export function buildTestimonialCard(
     },
   });
 
-  const roleParts: string[] = [];
-  if (content.authorRole) roleParts.push(content.authorRole);
-  if (content.authorCompany) roleParts.push(content.authorCompany);
-
-  if (roleParts.length > 0) {
-    contents.push({
-      id: generateId('content'),
-      type: 'text',
-      values: {
-        text: `<p style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${roleParts.join(', ')}</p>`,
-        containerPadding: `0px ${spacing.lg}px ${spacing.md}px`,
-        anchor: '',
-        hideDesktop: false,
-        hideMobile: false,
-        _meta: { htmlID: '', htmlClassNames: 'testimonial-role' },
-      },
-    });
-  }
-
   return [
     createSingleColumnRow(contents, theme, {
       backgroundColor: theme.colors.background,
       padding: `${spacing.lg}px ${spacing.md}px`,
       className: 'testimonial-section',
       columnBgColor: theme.colors.surface,
-      columnPadding: `${spacing.lg}px`,
-      columnBorderRadius: `${theme.borderRadius}px`,
+      columnPadding: `${spacing.lg}px ${spacing.md}px`,
+      columnBorderRadius: `${Math.max(theme.borderRadius, 8)}px`,
     }),
   ];
 }
 
 /**
  * Build a social proof bar — metrics or logos in a horizontal strip.
- *
- * Three style variants:
- * - "metrics": equal columns, each with large value + small label
- * - "logos": equal columns, each with a logo image placeholder
- * - "mixed": metrics row on top, logos row below
  */
 export function buildSocialProofBar(
   content: SocialProofContent,
@@ -167,7 +179,7 @@ export function buildSocialProofBar(
             id: generateId('content'),
             type: 'text' as const,
             values: {
-              text: `<p style="color:${theme.colors.primary};font-size:${typo.heading.fontSize}px;font-weight:${typo.heading.fontWeight};text-align:center;line-height:1.2;font-family:${typo.heading.fontFamily}">${item.value || item.label}</p>`,
+              text: `<p style="color:${theme.colors.accent};font-size:${typo.heading.fontSize + 4}px;font-weight:${typo.heading.fontWeight};text-align:center;line-height:1.2;font-family:${typo.heading.fontFamily}">${item.value || item.label}</p>`,
               containerPadding: `${spacing.sm}px ${spacing.xs}px ${spacing.xs}px`,
               anchor: '',
               hideDesktop: false,
@@ -179,7 +191,7 @@ export function buildSocialProofBar(
             id: generateId('content'),
             type: 'text' as const,
             values: {
-              text: `<p style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${item.label}</p>`,
+              text: `<p style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily};text-transform:uppercase;letter-spacing:0.5px">${item.label}</p>`,
               containerPadding: `0px ${spacing.xs}px ${spacing.sm}px`,
               anchor: '',
               hideDesktop: false,
@@ -229,7 +241,7 @@ export function buildSocialProofBar(
             id: generateId('content'),
             type: 'html' as const,
             values: {
-              html: `<div style="text-align:center;padding:${spacing.sm}px"><img src="${item.logoUrl || ''}" alt="${item.label}" style="max-height:40px;filter:grayscale(100%) opacity(0.6);-webkit-filter:grayscale(100%) opacity(0.6)" /></div>`,
+              html: `<div style="text-align:center;padding:${spacing.sm}px"><img src="${item.logoUrl || ''}" alt="${item.label}" style="max-height:36px;filter:grayscale(100%);opacity:0.5;-webkit-filter:grayscale(100%)" /></div>`,
               containerPadding: '0px',
               anchor: '',
               hideDesktop: false,
@@ -272,8 +284,13 @@ export function buildSocialProofBar(
 }
 
 /**
- * Build the email footer — company info, links, social, unsubscribe.
- * This MUST be the last row in every assembled email.
+ * Build the email footer — v2 Pro.
+ *
+ * Upgrades:
+ * - Social media icon circles
+ * - Gradient top border accent
+ * - Better typography hierarchy
+ * - Cleaner visual separation
  */
 export function buildFooterBlock(
   content: FooterContent,
@@ -282,13 +299,33 @@ export function buildFooterBlock(
 ): Va2UnlayerRow[] {
   const spacing = theme.spacing;
   const typo = theme.typography;
+  const effects = getPremiumEffects(theme);
   const contents: Va2UnlayerContent[] = [];
 
+  // ── Top accent line ──
+  if (effects.gradientDividers) {
+    const gradStart = theme.colors.gradientStart ?? theme.colors.accent;
+    const gradEnd = theme.colors.gradientEnd ?? theme.colors.ctaPrimary;
+    contents.push({
+      id: generateId('content'),
+      type: 'html',
+      values: {
+        html: `<div style="height:3px;background:linear-gradient(90deg,${gradStart},${gradEnd});margin:0 ${spacing.lg}px ${spacing.md}px"></div>`,
+        containerPadding: '0px',
+        anchor: '',
+        hideDesktop: false,
+        hideMobile: false,
+        _meta: { htmlID: '', htmlClassNames: 'footer-accent-line' },
+      },
+    });
+  }
+
+  // ── Company name ──
   contents.push({
     id: generateId('content'),
     type: 'text',
     values: {
-      text: `<p style="color:${theme.colors.primary};font-size:${typo.caption.fontSize}px;font-weight:600;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${content.companyName}</p>`,
+      text: `<p style="color:${theme.colors.primary};font-size:${typo.subheading.fontSize - 2}px;font-weight:700;text-align:center;line-height:${Math.round(typo.subheading.lineHeight * 100)}%;font-family:${typo.heading.fontFamily};letter-spacing:0.5px">${content.companyName}</p>`,
       containerPadding: `${spacing.md}px ${spacing.md}px ${spacing.xs}px`,
       anchor: '',
       hideDesktop: false,
@@ -297,6 +334,7 @@ export function buildFooterBlock(
     },
   });
 
+  // ── Address ──
   contents.push({
     id: generateId('content'),
     type: 'text',
@@ -310,19 +348,40 @@ export function buildFooterBlock(
     },
   });
 
+  // ── Social icons ──
+  if (content.socialLinks && content.socialLinks.length > 0) {
+    const socialHtml = content.socialLinks
+      .map((s) => buildSocialIconHtml(s.platform, s.url, theme))
+      .join(' ');
+
+    contents.push({
+      id: generateId('content'),
+      type: 'html',
+      values: {
+        html: `<div style="text-align:center;padding:${spacing.sm}px 0">${socialHtml}</div>`,
+        containerPadding: '0px',
+        anchor: '',
+        hideDesktop: false,
+        hideMobile: false,
+        _meta: { htmlID: '', htmlClassNames: 'footer-social-icons' },
+      },
+    });
+  }
+
+  // ── Footer links ──
   if (content.links && content.links.length > 0) {
     const linkHtml = content.links
       .map(
         (l) =>
-          `<a href="${l.url}" style="color:${theme.colors.accent};text-decoration:underline">${l.text}</a>`,
+          `<a href="${l.url}" style="color:${theme.colors.textMuted};text-decoration:underline;font-size:${typo.caption.fontSize}px">${l.text}</a>`,
       )
-      .join(` <span style="color:${theme.colors.divider}">|</span> `);
+      .join(` <span style="color:${theme.colors.divider};margin:0 6px">&#x2022;</span> `);
 
     contents.push({
       id: generateId('content'),
       type: 'text',
       values: {
-        text: `<p style="font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${linkHtml}</p>`,
+        text: `<p style="text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${linkHtml}</p>`,
         containerPadding: `0px ${spacing.md}px ${spacing.sm}px`,
         anchor: '',
         hideDesktop: false,
@@ -332,28 +391,7 @@ export function buildFooterBlock(
     });
   }
 
-  if (content.socialLinks && content.socialLinks.length > 0) {
-    const socialHtml = content.socialLinks
-      .map(
-        (s) =>
-          `<a href="${s.url}" style="color:${theme.colors.textMuted};text-decoration:none;margin:0 8px;font-size:${typo.caption.fontSize}px">${s.platform}</a>`,
-      )
-      .join('');
-
-    contents.push({
-      id: generateId('content'),
-      type: 'text',
-      values: {
-        text: `<p style="text-align:center;line-height:2">${socialHtml}</p>`,
-        containerPadding: `0px ${spacing.md}px ${spacing.sm}px`,
-        anchor: '',
-        hideDesktop: false,
-        hideMobile: false,
-        _meta: { htmlID: '', htmlClassNames: 'footer-social' },
-      },
-    });
-  }
-
+  // ── Unsubscribe ──
   const unsubText =
     content.unsubscribeText ||
     `You're receiving this because you signed up. <a href="{{unsubscribe_url}}" style="color:${theme.colors.accent};text-decoration:underline">Unsubscribe</a>`;
@@ -362,7 +400,7 @@ export function buildFooterBlock(
     id: generateId('content'),
     type: 'text',
     values: {
-      text: `<p style="color:${theme.colors.textMuted};font-size:${Math.max(typo.caption.fontSize - 1, 11)}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${unsubText}</p>`,
+      text: `<p style="color:${theme.colors.textMuted};font-size:${Math.max(typo.caption.fontSize - 1, 11)}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily};opacity:0.8">${unsubText}</p>`,
       containerPadding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
       anchor: '',
       hideDesktop: false,
