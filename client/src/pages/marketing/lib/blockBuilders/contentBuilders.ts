@@ -34,7 +34,7 @@ export function buildTextBlock(
     type: 'text',
     values: {
       text: `<p style="color:${theme.colors.text};font-size:${typo.body.fontSize}px;text-align:${align};line-height:${Math.round(typo.body.lineHeight * 100)}%;font-family:${typo.body.fontFamily}">${content.body}</p>`,
-      containerPadding: `${spacing.md}px ${spacing.md}px`,
+      containerPadding: `${spacing.lg}px ${spacing.xl}px`,
       anchor: '',
       hideDesktop: false,
       hideMobile: false,
@@ -45,7 +45,7 @@ export function buildTextBlock(
   return [
     createSingleColumnRow([textContent], theme, {
       backgroundColor: theme.colors.background,
-      padding: '0px',
+      padding: `${spacing.md}px 0px`,
       className: 'text-block-row',
     }),
   ];
@@ -193,7 +193,7 @@ export function buildValuePropGrid(
     rows.push(
       createSingleColumnRow([titleContent], theme, {
         backgroundColor: theme.colors.background,
-        padding: '0px',
+        padding: `${spacing.lg}px 0px 0px`,
         className: 'vp-title-row',
       }),
     );
@@ -279,7 +279,7 @@ export function buildValuePropGrid(
         contents: colContents,
         values: {
           backgroundColor: theme.colors.surface,
-          padding: `${spacing.md + 4}px`,
+          padding: `${spacing.lg}px ${spacing.md}px`,
           border: {
             borderTopWidth: '1px',
             borderTopStyle: 'solid',
@@ -310,7 +310,7 @@ export function buildValuePropGrid(
         backgroundColor: theme.colors.background,
         columnsBackgroundColor: '',
         backgroundImage: {},
-        padding: `${spacing.sm}px ${spacing.md}px`,
+        padding: `${spacing.sm}px ${spacing.lg}px ${spacing.lg}px`,
         anchor: '',
         hideDesktop: false,
         hideMobile: false,
@@ -393,7 +393,7 @@ export function buildStatsCounter(
   return [
     createNColumnRow(columnContents, theme, {
       backgroundColor: theme.colors.surface,
-      padding: `${spacing.lg}px ${spacing.md}px`,
+      padding: `${spacing.xl}px ${spacing.lg}px`,
       className: 'stats-counter-row',
       columnBorderRadius: `${theme.borderRadius}px`,
     }),
@@ -465,7 +465,7 @@ export function buildLogoBar(
   return [
     createSingleColumnRow(contents, theme, {
       backgroundColor: theme.colors.background,
-      padding: `${spacing.md}px 0px`,
+      padding: `${spacing.lg}px ${spacing.md}px`,
       className: 'logo-bar-row',
     }),
   ];

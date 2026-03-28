@@ -22,7 +22,7 @@ export const emailGenerator: ChannelGenerator = async (
     model: 'creative',
     systemPrompt,
     userMessage,
-    maxTokens: 4000,
+    maxTokens: 6000,
   });
 
   const manifest = extractManifestJson(llmResponse);
@@ -42,14 +42,18 @@ export const emailGenerator: ChannelGenerator = async (
 };
 
 function buildEmailSystemPrompt(brandProfile?: GeneratorInput['brandProfile']): string {
-  let prompt = `You are a senior creative director and copywriter at a world-class design agency.
-Your team creates award-winning email campaigns for brands like Apple, Stripe, and Airbnb.
+  let prompt = `You are a senior creative director at a world-class email design agency.
+You create award-winning email campaigns that rival Apple, Stripe, and Airbnb quality.
 
-Your task: produce a Visual Architect v2 Design Manifest — a structured JSON that drives an
-automated email assembly system. Every decision you make should reflect premium design thinking.
+═══════════════════════════════════════════════════════
+CRITICAL OUTPUT RULES
+═══════════════════════════════════════════════════════
 
-Output a single JSON object wrapped in \`\`\`json code fences.
-The JSON must be valid — no trailing commas, no comments, no single quotes.
+1. Output ONLY a JSON code fence. Nothing else. No preamble, no explanation.
+2. NEVER write "Here's..." or "I've created..." or any commentary.
+3. Go STRAIGHT to the \`\`\`json fence — zero text before or after it.
+4. Any text outside the JSON fence will break the pipeline.
+5. All copy must be real, polished, send-ready text — NEVER placeholder text like "[Company Name]" or "[Your Name]".
 
 ═══════════════════════════════════════════════════════
 MANIFEST SCHEMA
@@ -58,18 +62,18 @@ MANIFEST SCHEMA
 {
   "version": "2.0",
   "theme": "<executive|startup|luxury|minimal|bold|nature|tech|warm>",
-  "subject": "<35-55 chars, curiosity gap or benefit-driven, no ALL CAPS>",
-  "preheader": "<90-130 chars, complements subject — never repeat it, include soft CTA>",
+  "subject": "<35-55 chars, curiosity gap or benefit-driven>",
+  "preheader": "<90-130 chars, complements subject, includes soft CTA>",
   "sections": [ ... ],
   "metadata": {
     "channel": "email",
     "tone": "<2-3 tone keywords>",
-    "audience": "<target audience description>"
+    "audience": "<target audience>"
   },
   "artDirection": {
     "colorTemperature": "<warm|cool|neutral>",
     "overallMood": "<one-line mood description>",
-    "visualStyle": "<editorial_photography|3D_isometric|minimal_clean|cinematic|illustration>"
+    "visualStyle": "<editorial_photography|minimal_clean|cinematic|illustration>"
   }
 }
 
@@ -77,140 +81,140 @@ MANIFEST SCHEMA
 SECTION TYPES & CONTENT SCHEMAS
 ═══════════════════════════════════════════════════════
 
-Each section: { "type": "<type>", "order": <N>, "content": { ... }, "artDirection": { ... } }
+Each section: { "type": "<type>", "order": <N>, "content": { ... } }
 
 HERO (order: 1 — always first):
   content: {
-    "headline": "<4-8 words, power verb + benefit, active voice>",
-    "subheadline": "<12-20 words, expands the promise, creates curiosity>",
-    "ctaText": "<2-4 words, action verb + outcome: 'Start Saving Today'>",
+    "headline": "<4-8 words, power verb + benefit>",
+    "subheadline": "<12-20 words, expands the promise>",
+    "ctaText": "<2-4 words: 'Shop the Collection'>",
     "ctaUrl": "#",
-    "imagePrompt": "<40-80 word scene description for AI image generation — cinematic, specific, directional>"
+    "imagePrompt": "<REQUIRED, 50-80 words — cinematic scene with lighting, angle, mood, and MUST include 'negative space for text overlay'>"
   }
-  artDirection: { "imageStyle": "cinematic-hero", "imageMood": "<warm|cool|dramatic>", "imageColorHint": "<hex>" }
 
 VALUE_PROP (2-3 column grid):
   content: {
     "columns": 3,
     "items": [
-      {
-        "icon": "<Zap|Shield|Users|Clock|Star|Heart|Target|Rocket|Globe|Lock|Sparkles|TrendingUp|Award|CheckCircle>",
-        "heading": "<benefit-first, 3-5 words>",
-        "text": "<1-2 sentences, specific and concrete, not vague>"
-      }
+      { "icon": "<Zap|Shield|Users|Clock|Star|Heart|Target|Rocket|Globe|Lock|Sparkles|TrendingUp|Award|CheckCircle>", "heading": "<3-5 words>", "text": "<1-2 sentences>" }
     ]
   }
 
 TESTIMONIAL:
   content: {
-    "quote": "<powerful 1-2 sentence quote with specific result or metric>",
-    "author": "<Full Name>",
+    "quote": "<1-2 sentence quote with specific result or metric>",
+    "authorName": "<Full Name>",
     "role": "<Title, Company>",
     "rating": 5,
-    "imagePrompt": "<professional portrait description>"
+    "imagePrompt": "<REQUIRED, 40-60 words — professional headshot description with lighting and background>"
   }
-  artDirection: { "imageStyle": "portrait-headshot", "imageMood": "warm" }
 
 SOCIAL_PROOF:
   content: {
     "style": "<metrics|logos|mixed>",
     "items": [
-      { "value": "<metric>", "label": "<what it measures>" }
+      { "value": "<metric>", "label": "<descriptor>" }
     ]
   }
 
 STATS_COUNTER:
   content: {
     "items": [
-      { "value": "<big number with unit: 10K+, 99.9%, $2M>", "label": "<2-4 word descriptor>" }
+      { "value": "<10K+|99.9%|$2M>", "label": "<2-4 word descriptor>" }
     ]
   }
 
-IMAGE_TEXT:
+IMAGE_TEXT (side-by-side image + text — USE THIS FOR RICH VISUAL SECTIONS):
   content: {
-    "imagePosition": "<left|right>",
+    "layout": "<image_left|image_right>",
     "headline": "<benefit-driven heading>",
-    "text": "<supporting paragraph, 2-3 sentences>",
-    "imagePrompt": "<editorial scene description>",
+    "body": "<2-3 sentences of supporting text>",
+    "imagePrompt": "<REQUIRED, 50-80 words — editorial scene description with lighting, composition, mood>",
     "ctaText": "<optional micro-CTA>",
     "ctaUrl": "#"
   }
-  artDirection: { "imageStyle": "editorial-lifestyle", "imageMood": "<warm|cool>" }
 
 CTA (standalone call-to-action):
   content: {
     "headline": "<urgency or benefit headline>",
-    "description": "<1 sentence supporting text>",
+    "description": "<1 sentence>",
     "buttonText": "<2-4 word action phrase>",
     "buttonUrl": "#",
-    "variant": "<pill|ghost|fullWidth|gradient>",
-    "urgencyText": "<optional: 'Limited time' / 'Only 3 days left'>"
+    "variant": "<pill|ghost|fullWidth|gradient>"
   }
 
 TEXT_BLOCK:
-  content: { "text": "<HTML-safe paragraph text>" }
+  content: { "body": "<HTML-safe paragraph>" }
 
 DIVIDER:
   content: { "style": "<line|dots|gradient>" }
 
 LOGO_BAR:
   content: {
-    "headline": "<Trusted by|As seen in|Partners>",
-    "items": [
-      { "name": "<Company>", "logoUrl": "", "altText": "<Company Name logo>" }
-    ]
+    "headline": "<Trusted by|As seen in>",
+    "items": [ { "name": "<Company>", "logoUrl": "", "altText": "<logo>" } ]
   }
 
 FOOTER (always last):
   content: {
     "companyName": "<brand name>",
-    "address": "<brief address>",
+    "address": "<address>",
     "unsubscribeText": "Unsubscribe",
     "socialLinks": [{ "platform": "<twitter|linkedin|instagram>", "url": "#" }]
   }
 
 ═══════════════════════════════════════════════════════
-CREATIVE DIRECTION RULES
+MANDATORY EMAIL STRUCTURE
 ═══════════════════════════════════════════════════════
 
-COPY QUALITY:
-- Subject line: Use curiosity gap, numbers, or personalization. "Your Q4 growth playbook is ready" > "Newsletter #47"
-- Headlines: Active voice, benefit-first, emotionally resonant. Power words: transform, unlock, master, discover, accelerate
-- Subheadlines: Expand the promise. If headline = "what", subheadline = "how" or "why it matters"
-- CTA buttons: Specific action + outcome. "Get My Free Report" > "Submit". "Start Building" > "Click Here"
-- Body copy: Short paragraphs, conversational, you-focused (talk TO the reader, not AT them)
-- Value props: Parallel structure across items. Lead with the benefit, not the feature name
+Every email MUST have 8-12 sections following this pattern:
 
-IMAGE PROMPTS:
-- Write each imagePrompt as a detailed 40-80 word scene description
-- Include: subject, setting, lighting direction, camera angle, color mood, one surprising detail
-- Hero images: cinematic wide-angle, dramatic lighting, MUST include "negative space for text overlay"
-- Feature images: clean conceptual illustration style, single idea per image
-- Testimonial: "professional headshot, warm studio lighting, authentic smile, blurred office background"
-- Product: "studio product photography, clean background, hero lighting, sharp detail"
+1. HERO — with imagePrompt (50-80 words)
+2. VALUE_PROP or TEXT_BLOCK — introduce key benefits
+3. IMAGE_TEXT (layout: "image_left") — with imagePrompt (50-80 words)
+4. IMAGE_TEXT (layout: "image_right") — with imagePrompt (50-80 words), different angle
+5. TESTIMONIAL or SOCIAL_PROOF — social proof after claims
+6. IMAGE_TEXT or STATS_COUNTER — additional content depth
+7. CTA — clear conversion moment
+8. FOOTER — with social links
 
-SECTION ORCHESTRATION:
-- 5-7 sections total (hero + 3-5 middle + footer)
-- Create visual rhythm: heavy section → light section → CTA
-- Don't use dividers between every section — only when shifting context
-- Place testimonial or social proof AFTER value propositions (proof after claims)
-- End with a clear CTA section before footer
+MINIMUM IMAGE SECTIONS: 4 (hero + 2 image_text + 1 testimonial).
+Every hero, image_text, and testimonial section MUST have an imagePrompt of 50+ words.
+Alternate image_text layouts: first "image_left", next "image_right", etc.
+
+═══════════════════════════════════════════════════════
+COPY QUALITY RULES
+═══════════════════════════════════════════════════════
+
+- Subject: Curiosity gap, numbers, or personalization. "Your Q4 growth playbook is ready" > "Newsletter #47"
+- Headlines: Active voice, benefit-first, power words: transform, unlock, discover, accelerate
+- CTAs: Specific action + outcome. "Get My Free Report" > "Submit". "Start Building" > "Click Here"
+- Body: Short paragraphs, conversational, you-focused. Talk TO the reader, not AT them
+- Value props: Parallel structure. Lead with benefit, not feature name
+- NEVER use placeholder text. Write real copy that's ready to send
+
+IMAGE PROMPT RULES:
+- Every imagePrompt must be 50-80 words — detailed and specific
+- Include: subject matter, setting, lighting direction, camera angle, color mood
+- Hero: "cinematic wide-angle, dramatic lighting, negative space for text overlay"
+- Image_text: "editorial lifestyle photography, natural window lighting, magazine quality"
+- Testimonial: "professional headshot, warm studio lighting, blurred office background"
+- Be SPECIFIC: "A woman in a navy blazer reviewing..." NOT "professional person"
 
 THEME SELECTION:
-- Match theme to content tone. Product launch → bold/startup. Newsletter → minimal/executive. Sale → warm/bold.
-- Executive: corporate, trustworthy. Startup: energetic, modern. Luxury: premium, refined.
-- Minimal: clean, focused. Bold: high-impact. Nature: organic, earthy. Tech: futuristic. Warm: friendly.`;
+- Product launch → bold/startup. Newsletter → minimal/executive. Sale → warm/bold
+- Luxury: premium, refined. Tech: futuristic. Nature: earthy. Warm: friendly`;
 
   if (brandProfile) {
     prompt += `
 
 ═══════════════════════════════════════════════════════
-BRAND CONTEXT (honor these constraints)
+BRAND CONTEXT
 ═══════════════════════════════════════════════════════
 - Brand: ${brandProfile.brand_name}
-- Tone keywords: ${brandProfile.tone_keywords.join(', ')}
+- Tone: ${brandProfile.tone_keywords.join(', ')}
 - Forbidden words: ${brandProfile.forbidden_words.join(', ')}
-- Voice examples: ${brandProfile.voice_examples.slice(0, 3).join(' | ')}`;
+- Voice: ${brandProfile.voice_examples.slice(0, 3).join(' | ')}`;
     if (brandProfile.style_guide_notes) {
       prompt += `\n- Style notes: ${brandProfile.style_guide_notes}`;
     }
@@ -222,21 +226,23 @@ BRAND CONTEXT (honor these constraints)
 function buildEmailUserMessage(heroContent: GeneratorInput['heroContent']): string {
   const contentType = inferContentType(heroContent.title, heroContent.body);
 
-  return `Create a premium email Design Manifest for the following content:
+  return `Create a premium email Design Manifest for:
 
 TITLE: ${heroContent.title}
 
 CONTENT:
 ${heroContent.body}
 
-ANALYSIS:
-- Content type detected: ${contentType}
-- Adapt the hero content into a visually stunning, conversion-optimized email
-- Choose a theme that amplifies the content's emotional core
-- Write image prompts that are specific and cinematic — no generic stock descriptions
-- Every section should earn its place — cut anything that doesn't serve the reader
+CONTENT TYPE: ${contentType}
 
-Produce the JSON manifest now.`;
+REQUIREMENTS:
+- 8-12 sections with at least 4 image-bearing sections
+- Every imagePrompt must be 50+ words, cinematic and specific
+- Alternate image_text layouts (image_left, image_right)
+- Real, polished copy — no placeholders, no meta-commentary
+- Choose a theme that matches the content's emotional core
+
+IMPORTANT: Output ONLY the \`\`\`json code fence. No text before or after.`;
 }
 
 function inferContentType(title: string, body: string): string {
@@ -254,18 +260,41 @@ function inferContentType(title: string, body: string): string {
 }
 
 function extractManifestJson(llmResponse: string): Record<string, unknown> | null {
+  // Try standard code fence extraction first
   const fenceMatch = llmResponse.match(/```json\s*\n?([\s\S]*?)\n?\s*```/);
-  if (!fenceMatch) return null;
-  try {
-    return JSON.parse(fenceMatch[1]);
-  } catch {
-    const cleaned = fenceMatch[1]
-      .replace(/,\s*([}\]])/g, '$1')
-      .replace(/'/g, '"');
+  if (fenceMatch) {
     try {
-      return JSON.parse(cleaned);
+      return JSON.parse(fenceMatch[1]);
     } catch {
-      return null;
+      const cleaned = fenceMatch[1]
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/'/g, '"');
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        // fall through to other strategies
+      }
     }
   }
+
+  // Fallback: strip any text before first { and after last }
+  const firstBrace = llmResponse.indexOf('{');
+  const lastBrace = llmResponse.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const jsonCandidate = llmResponse.slice(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonCandidate);
+    } catch {
+      const cleaned = jsonCandidate
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/'/g, '"');
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        // give up
+      }
+    }
+  }
+
+  return null;
 }

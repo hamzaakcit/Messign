@@ -357,10 +357,28 @@ function buildImagePromptForSection(
   const prompt = typeof c.imagePrompt === 'string' ? c.imagePrompt.trim() : '';
   if (prompt.length >= 10) return prompt;
 
-  if (section.type === 'hero' && manifest.artDirection?.imageStyle) {
-    const style = manifest.artDirection.imageStyle.trim();
-    const subject = manifest.subject ?? 'email content';
-    if (style.length >= 5) return `${style}, professional photo for: ${subject}`;
+  // Auto-generate prompts for image-bearing sections that lack one
+  const subject = manifest.subject ?? 'professional business content';
+
+  if (section.type === 'hero') {
+    if (manifest.artDirection?.imageStyle) {
+      const style = manifest.artDirection.imageStyle.trim();
+      if (style.length >= 5) return `${style}, professional photo for: ${subject}`;
+    }
+    const headline = typeof c.headline === 'string' ? c.headline : subject;
+    return `Cinematic wide-angle professional photograph for marketing email hero about ${headline}, dramatic natural lighting, shallow depth of field, negative space for text overlay, editorial quality, modern composition`;
+  }
+
+  if (section.type === 'image_text') {
+    const headline = typeof c.headline === 'string' ? c.headline : '';
+    const body = typeof c.body === 'string' ? c.body : '';
+    const text = (headline + ' ' + body).trim().slice(0, 120);
+    return `Editorial lifestyle photograph depicting ${text || subject}, natural window lighting, warm authentic atmosphere, magazine quality composition, rule of thirds, professional color grading`;
+  }
+
+  if (section.type === 'testimonial') {
+    const author = typeof c.authorName === 'string' ? c.authorName : (typeof c.author === 'string' ? c.author : 'a professional');
+    return `Professional headshot portrait of ${author}, warm soft studio lighting, confident authentic smile, gently blurred modern office background, chest-up framing, high quality`;
   }
 
   return null;

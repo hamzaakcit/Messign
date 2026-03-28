@@ -140,10 +140,10 @@ export function buildTestimonialCard(
   return [
     createSingleColumnRow(contents, theme, {
       backgroundColor: theme.colors.background,
-      padding: `${spacing.lg}px ${spacing.md}px`,
+      padding: `${spacing.xl}px ${spacing.lg}px`,
       className: 'testimonial-section',
       columnBgColor: theme.colors.surface,
-      columnPadding: `${spacing.lg}px ${spacing.md}px`,
+      columnPadding: `${spacing.xl}px ${spacing.lg}px`,
       columnBorderRadius: `${Math.max(theme.borderRadius, 8)}px`,
     }),
   ];
@@ -219,7 +219,7 @@ export function buildSocialProofBar(
           backgroundColor: theme.colors.surface,
           columnsBackgroundColor: '',
           backgroundImage: {},
-          padding: `${spacing.sm}px ${spacing.md}px`,
+          padding: `${spacing.lg}px ${spacing.lg}px`,
           anchor: '',
           hideDesktop: false,
           hideMobile: false,
@@ -412,7 +412,7 @@ export function buildFooterBlock(
   return [
     createSingleColumnRow(contents, theme, {
       backgroundColor: theme.colors.surface,
-      padding: `${spacing.lg}px 0px`,
+      padding: `${spacing.xl}px ${spacing.md}px`,
       className: 'footer-section',
     }),
   ];

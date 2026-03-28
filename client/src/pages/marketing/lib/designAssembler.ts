@@ -639,6 +639,26 @@ export function assembleDesign(manifest: Va2DesignManifest): AssemblyResult {
     }
   }
 
+  // ── Apply alternating section backgrounds for visual rhythm ──
+  const skipAlternation = new Set(['hero', 'preheader', 'footer', 'divider']);
+  let useSurface = false;
+  for (let sIdx = 0; sIdx < sorted.length; sIdx++) {
+    const section = sorted[sIdx];
+    if (skipAlternation.has(section.type)) continue;
+
+    const startIdx = sectionStartRowMap[sIdx];
+    const nextIdx = sIdx + 1 < sorted.length ? sectionStartRowMap[sIdx + 1] : allRows.length;
+
+    if (useSurface) {
+      for (let ri = startIdx; ri < nextIdx; ri++) {
+        if (allRows[ri]) {
+          allRows[ri].values.backgroundColor = theme.colors.surface;
+        }
+      }
+    }
+    useSurface = !useSurface;
+  }
+
   const hasFooter = sorted.some((s) => s.type === 'footer');
   if (!hasFooter) {
     const footerBuilder = getVa2Builder('footer');

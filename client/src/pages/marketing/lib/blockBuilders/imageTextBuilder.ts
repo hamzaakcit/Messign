@@ -21,7 +21,12 @@ export function buildImageTextSection(
   theme: DesignTheme,
   _options?: BlockBuilderOptions,
 ): Va2UnlayerRow[] {
-  const layout = content.layout ?? 'image_left';
+  // Support both 'layout' (correct) and 'imagePosition' (AI sometimes outputs this)
+  const rawLayout = content.layout
+    ?? ((content as Record<string, unknown>).imagePosition === 'right' ? 'image_right'
+      : (content as Record<string, unknown>).imagePosition === 'left' ? 'image_left'
+      : 'image_left');
+  const layout = rawLayout;
   const spacing = theme.spacing;
 
   const imageContents = buildImageContents(content, theme);
@@ -50,8 +55,8 @@ export function buildImageTextSection(
       theme,
       {
         backgroundColor: theme.colors.background,
-        padding: `${spacing.md}px 0px`,
-        columnPadding: `${spacing.sm}px`,
+        padding: `${spacing.lg}px ${spacing.md}px`,
+        columnPadding: `${spacing.md}px`,
         className: `image-text-row image-text-${layout}`,
       },
     ),
@@ -85,10 +90,10 @@ function buildImageContents(
     id: generateId('content'),
     type: 'image',
     values: {
-      src: { url: content.imageUrl, width: 300, height: 'auto' },
+      src: { url: content.imageUrl, width: 600, height: 'auto', maxWidth: '100%', autoWidth: true },
       alt: content.altText || content.headline || 'Image',
       textAlign: 'center',
-      containerPadding: `${spacing.sm}px`,
+      containerPadding: `${spacing.md}px`,
       anchor: '',
       hideDesktop: false,
       hideMobile: false,
@@ -152,8 +157,16 @@ function buildTextContents(
       type: 'button',
       values: {
         text: content.ctaText,
-        href: content.ctaUrl || '#',
-        target: '_blank',
+        href: {
+          name: 'web',
+          values: { href: content.ctaUrl || '#', target: '_blank' },
+        },
+        buttonColors: {
+          color: theme.colors.ctaText,
+          backgroundColor: theme.colors.ctaPrimary,
+          hoverColor: theme.colors.ctaText,
+          hoverBackgroundColor: theme.colors.accent,
+        },
         size: { autoWidth: true, width: '100%' },
         padding: `${typo.cta.fontSize <= 14 ? 10 : 12}px 24px`,
         textAlign: 'left',
@@ -166,11 +179,9 @@ function buildTextContents(
         },
         fontSize: `${typo.cta.fontSize}px`,
         fontWeight: typo.cta.fontWeight,
-        color: theme.colors.ctaText,
-        backgroundColor: theme.colors.ctaPrimary,
         ...(typo.cta.textTransform ? { textTransform: typo.cta.textTransform } : {}),
         ...(typo.cta.letterSpacing ? { letterSpacing: `${typo.cta.letterSpacing}px` } : {}),
-        containerPadding: `${spacing.xs}px ${spacing.sm}px ${spacing.md}px`,
+        containerPadding: `${spacing.sm}px ${spacing.md}px ${spacing.lg}px`,
         anchor: '',
         hideDesktop: false,
         hideMobile: false,
