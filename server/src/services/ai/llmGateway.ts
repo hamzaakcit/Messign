@@ -21,8 +21,8 @@ export type LLMRoutingTier = (typeof LLM_TIER)[keyof typeof LLM_TIER];
 export const LLM_TIER_CONFIG = {
   [LLM_TIER.COMPLEX]: {
     provider: 'anthropic' as const,
-    /** Claude 3.5 Sonnet — override with `LLM_COMPLEX_MODEL` */
-    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-3-5-sonnet-20241022',
+    /** Claude Sonnet 4 — override with `LLM_COMPLEX_MODEL` */
+    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-20250514',
     timeoutMs: Number(process.env.LLM_COMPLEX_TIMEOUT_MS) || 45_000,
     maxRetries: 3,
   },

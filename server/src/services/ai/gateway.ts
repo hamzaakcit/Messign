@@ -371,22 +371,24 @@ async function callDirectProviders(
     // Anthropic uses its own SDK — bypass OpenAI client path
     if (provider === 'anthropic') {
       if (!anthropicApiKey) {
+        console.warn(`[LLM] ⚠️ ANTHROPIC_API_KEY is not set — ${tier} tier will fall back to Groq. Email quality will be severely degraded. Set ANTHROPIC_API_KEY in your environment.`);
         lastErrors.push(`${tier}: no API key for anthropic`);
         continue;
       }
       try {
+        const startMs = Date.now();
         const result = await callAnthropicDirect({ ...options, tier, maxTokens, temperature }, tierModel);
+        console.log(`[LLM] ✅ ${tier} → anthropic/${tierModel} (${Date.now() - startMs}ms)`);
         if (attemptIndex > 0) {
           _cascadeStats.cascaded++;
           _cascadeStats.failedTiers += attemptIndex;
-          console.warn(`[Gateway] Cascade: succeeded on attempt ${attemptIndex + 1} via Anthropic`);
         }
         return result;
       } catch (err) {
         attemptIndex++;
         const msg = err instanceof Error ? err.message : String(err);
         lastErrors.push(`${tier} (${tierModel}): ${msg}`);
-        console.warn(`[Gateway] Anthropic direct failed for tier ${tier}`, { model: tierModel, error: msg });
+        console.warn(`[LLM] ⚠️ ${tier} failed via anthropic/${tierModel}: ${msg} — falling back`);
         continue;
       }
     }
@@ -399,6 +401,7 @@ async function callDirectProviders(
     const modelsToTry = provider === 'gemini' ? geminiChatModelCandidates() : [tierModel];
     for (const model of modelsToTry) {
       try {
+        const startMs = Date.now();
         const completion = await client.chat.completions.create({
           model,
           messages: options.messages,
@@ -408,10 +411,10 @@ async function callDirectProviders(
           temperature,
           stream: false,
         });
+        console.log(`[LLM] ✅ ${tier} → ${provider}/${model} (${Date.now() - startMs}ms)`);
         if (attemptIndex > 0) {
           _cascadeStats.cascaded++;
           _cascadeStats.failedTiers += attemptIndex;
-          console.warn(`[Gateway] Cascade: succeeded on attempt ${attemptIndex + 1} (${attemptIndex} failed tier(s) wasted ~$${(TIER_ESTIMATED_COST_USD[options.tier] * attemptIndex).toFixed(4)})`);
         }
         return {
           ...completion,
@@ -430,7 +433,7 @@ async function callDirectProviders(
           continue;
         }
         lastErrors.push(`${tier} (${model}): ${msg}`);
-        console.warn(`[Gateway] Direct provider failed for tier ${tier}`, { model, error: msg });
+        console.warn(`[LLM] ⚠️ ${tier} failed via ${provider}/${model}: ${msg} — falling back`);
       }
     }
   }
@@ -473,6 +476,7 @@ async function callDirectProviders(
     }
   }
 
+  console.error(`[LLM] ❌ All providers failed for ${options.tier}:`, lastErrors);
   throw new Error(`All direct LLM providers failed: ${errorSummary}`);
 }
 
@@ -575,6 +579,7 @@ async function* streamDirectProviders(
     // Anthropic streaming: buffer full response then yield as a single chunk
     if (provider === 'anthropic') {
       if (!anthropicApiKey) {
+        console.warn(`[LLM] ⚠️ ANTHROPIC_API_KEY is not set — ${tier} tier will fall back to Groq. Email quality will be severely degraded.`);
         lastErrors.push(`${tier}: no API key for anthropic`);
         continue;
       }
