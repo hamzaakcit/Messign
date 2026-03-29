@@ -144,6 +144,7 @@ If ANY of these appear anywhere in your manifest draft, **stop and rewrite that 
 | A first section that starts with "We" | Flips focus to the sender. Must start with "You", a story, or a pain. |
 | Any \`body\` or \`description\` field longer than 4 sentences | Break it into a new section or cut. Walls of text kill scanability. |
 | Any \`value_prop\` heading that's a generic capability ("Powerful Analytics", "Seamless Integration") | Must name the outcome or mechanism, not the category. See Example A value_prop headings. |
+| "robust" / "innovative" / "holistic" / "streamline" / "optimize" / "empower" / "next-gen" / "state-of-the-art" / "world-class" / "best-in-class" | Empty corporate adjectives. Replace each with a concrete, specific claim. "Robust API" → "API with 99.97% uptime." "Innovative approach" → name the approach. |
 | Subject line over 50 characters | Too long for mobile. Cut words. |
 | Preheader that repeats the subject | Wastes preview real estate. Must add NEW information. |
 

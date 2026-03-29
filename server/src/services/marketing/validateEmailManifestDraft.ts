@@ -93,6 +93,11 @@ export function checkCopyQualityForRetry(manifest: Record<string, unknown>): str
   // --- Kill-list scan across ALL text fields in ALL sections ---
   const killPatterns: Array<{ pattern: RegExp; replacement: string }> = [
     { pattern: /\bleverage\b/i, replacement: 'use, apply, or a concrete verb' },
+    { pattern: /\brobust\b/i, replacement: 'name the specific capability — e.g. "handles 10K concurrent connections"' },
+    { pattern: /\binnovative\b/i, replacement: 'describe what is new and why it matters' },
+    { pattern: /\bstreamline[ds]?\b/i, replacement: 'say what gets faster or simpler — e.g. "cuts onboarding from 3 days to 2 hours"' },
+    { pattern: /\boptimize[ds]?\b/i, replacement: 'state the specific improvement — e.g. "reduces page load by 40%"' },
+    { pattern: /\bholistic\b/i, replacement: 'list the specific parts that are covered' },
     { pattern: /unlock the (full )?potential/i, replacement: 'a specific outcome' },
     { pattern: /we'?re (excited|thrilled) to (announce|share)/i, replacement: 'lead with what changed, not your feelings' },
     { pattern: /in today'?s fast[- ]paced world/i, replacement: 'delete — adds nothing' },
@@ -102,6 +107,11 @@ export function checkCopyQualityForRetry(manifest: Record<string, unknown>): str
     { pattern: /\brevolutionary\b/i, replacement: 'state what changed and the before/after' },
     { pattern: /cutting[- ]edge/i, replacement: 'name the specific technology or method' },
     { pattern: /\bseamless(ly)?\b/i, replacement: 'describe what the user actually experiences' },
+    { pattern: /\bempowering?\b/i, replacement: 'say what the user can now do that they couldn\'t before' },
+    { pattern: /\bnext[- ]gen(eration)?\b/i, replacement: 'name the specific advancement' },
+    { pattern: /\bstate[- ]of[- ]the[- ]art\b/i, replacement: 'cite the benchmark or comparison' },
+    { pattern: /\bworld[- ]class\b/i, replacement: 'cite the ranking, benchmark, or comparison' },
+    { pattern: /\bbest[- ]in[- ]class\b/i, replacement: 'cite the ranking or comparison' },
   ];
 
   // Collect all text from all sections + top-level fields
@@ -151,6 +161,37 @@ export function checkCopyQualityForRetry(manifest: Record<string, unknown>): str
   if (!hasPsTextBlock) {
     issues.push(
       'Missing P.S. section. Add a text_block section immediately before footer with a conversational P.S. line (urgency, restated benefit, or human aside).',
+    );
+  }
+
+  // --- Concrete numbers check (hero, value_prop, image_text, social_proof) ---
+  const numberPattern = /\d+[%$€£KkMm+]|\d{2,}|\$\d|\d+\s*(percent|hours?|minutes?|days?|weeks?|months?|years?|users?|customers?|teams?|companies)/i;
+  const numberSectionTypes = new Set(['hero', 'value_prop', 'image_text', 'social_proof']);
+  let sectionsWithNumbers = 0;
+  for (const s of sections) {
+    if (!s || typeof s !== 'object') continue;
+    const sType = (s as Record<string, unknown>).type;
+    if (typeof sType !== 'string' || !numberSectionTypes.has(sType)) continue;
+    const content = (s as Record<string, unknown>).content;
+    if (!content || typeof content !== 'object') continue;
+    const c = content as Record<string, unknown>;
+    const fieldsToCheck = [c.headline, c.subheadline, c.body, c.description];
+    // value_prop items
+    if (Array.isArray(c.items)) {
+      for (const item of c.items) {
+        if (item && typeof item === 'object') {
+          const it = item as Record<string, unknown>;
+          fieldsToCheck.push(it.heading, it.description);
+        }
+      }
+    }
+    if (fieldsToCheck.some((f) => typeof f === 'string' && numberPattern.test(f))) {
+      sectionsWithNumbers++;
+    }
+  }
+  if (sectionsWithNumbers < 2) {
+    issues.push(
+      `Only ${sectionsWithNumbers} section(s) contain concrete numbers. Add specific data (percentages, counts, timeframes, dollar amounts) to at least 2 of: hero headline/subheadline, value_prop headings, image_text body, social_proof content. Example: "91% of teams" not "most teams".`,
     );
   }
 
