@@ -217,7 +217,7 @@ Default: B2B SaaS.
 
 1. Vary sentence lengths. Short punch. Then a longer sentence that builds momentum and carries the reader forward through your argument. Then short again.
 2. One **bold** phrase per section maximum (\`<strong>\` in body copy). Bold the single most important idea, not decoration.
-3. Total body copy across all sections: **under 200 words** unless the brief requests long-form. Count mentally before outputting.
+3. Total body copy across all sections: **HARD CAP 200 words** unless the brief explicitly requests long-form. Count every word in body/description/subheadline fields before outputting. If you are over 200, delete sentences until you are under. Emails that exceed 200 words see measurably lower engagement. This is the single most common failure — you WILL over-write on your first pass. Cut before you output.
 4. Fragments and punchy sentences > academic paragraphs. Read Example F — every line could be a standalone thought.
 
 ## Pre-Output Gate — Run Before Emitting JSON
@@ -225,15 +225,16 @@ Default: B2B SaaS.
 Before you output the manifest, check every item. If ANY check fails, fix it before outputting:
 
 1. **Subject:** Would this make me stop scrolling in a crowded inbox? Could a competitor send this exact subject? (If yes to the second → make it specific to THIS offer.)
-2. **Preheader:** Does it add new info vs. the subject? (If it repeats → rewrite.)
-3. **Lead:** Does the first narrative section hook without greeting or filler? Does it use one of the 4 hook types? (If not → rewrite.)
-4. **Bridge:** Does the second section have varied sentence rhythm — not a monotone paragraph? (If flat → rewrite with short-long-short pattern.)
-5. **Value props:** Is every heading an outcome/mechanism, not a generic capability label? (If generic → rewrite. Compare against Example A headings.)
-6. **CTA:** Is it verb + outcome? Could you tell what happens when you click just from the button text? (If vague → rewrite.)
-7. **P.S.:** Is there a \`text_block\` before \`footer\` that functions as a P.S.? (If missing → add one.)
-8. **Kill list:** Scan every string field in the manifest against the Kill List table above. Any match → rewrite that field.
-9. **Word count:** Is total body copy under 200 words (unless brief said long-form)? (If over → cut.)
-10. **Forwarding test:** Would a reader forward this to a colleague because the content is genuinely useful? (If no → the value isn't specific enough.)
+2. **Subject variants:** Does \`metadata.subject_variants\` contain exactly 2 alternate subject lines? (If missing or fewer than 2 → go back to Step 3 of the Subject Line Lab and fill them in. This field is REQUIRED.)
+3. **Preheader:** Does it add new info vs. the subject? (If it repeats → rewrite.)
+4. **Lead:** Does the first narrative section hook without greeting or filler? Does it use one of the 4 hook types? (If not → rewrite.)
+5. **Bridge:** Does the second section have varied sentence rhythm — not a monotone paragraph? (If flat → rewrite with short-long-short pattern.)
+6. **Value props:** Is every heading an outcome/mechanism, not a generic capability label? (If generic → rewrite. Compare against Example A headings.)
+7. **CTA:** Is it verb + outcome? Could you tell what happens when you click just from the button text? (If vague → rewrite.)
+8. **P.S.:** Is there a \`text_block\` before \`footer\` that functions as a P.S.? (If missing → add one.)
+9. **Kill list:** Scan every string field in the manifest against the Kill List table above. Any match → rewrite that field.
+10. **Word count:** Count every word in \`body\`, \`description\`, \`subheadline\`, and \`headline\` fields across ALL sections. Total MUST be under 200 words unless the brief explicitly requests long-form. If over → cut ruthlessly. Shorter emails convert better. (Current generation trend: you are outputting 300+ words. Cut harder.)
+11. **Forwarding test:** Would a reader forward this to a colleague because the content is genuinely useful? (If no → the value isn't specific enough.)
 
 </copywriting_engine>
 `.trim();
