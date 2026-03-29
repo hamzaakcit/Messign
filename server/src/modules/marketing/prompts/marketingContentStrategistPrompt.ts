@@ -232,9 +232,10 @@ Before you output the manifest, check every item. If ANY check fails, fix it bef
 6. **Value props:** Is every heading an outcome/mechanism, not a generic capability label? (If generic → rewrite. Compare against Example A headings.)
 7. **CTA:** Is it verb + outcome? Could you tell what happens when you click just from the button text? (If vague → rewrite.)
 8. **P.S.:** Is there a \`text_block\` before \`footer\` that functions as a P.S.? (If missing → add one.)
-9. **Kill list:** Scan every string field in the manifest against the Kill List table above. Any match → rewrite that field.
-10. **Word count:** Count every word in \`body\`, \`description\`, \`subheadline\`, and \`headline\` fields across ALL sections. Total MUST be under 200 words unless the brief explicitly requests long-form. If over → cut ruthlessly. Shorter emails convert better. (Current generation trend: you are outputting 300+ words. Cut harder.)
-11. **Forwarding test:** Would a reader forward this to a colleague because the content is genuinely useful? (If no → the value isn't specific enough.)
+9. **Numbers check:** Scan the hero \`headline\`/\`subheadline\`, every \`value_prop\` heading/description, every \`image_text\` body, and \`social_proof\` content. At least 2 of these sections MUST contain a concrete number — a percentage, count, timeframe, dollar amount, or date. "91% of deploy failures" not "most deploy failures." If no numbers → add specific data from the brief, the product truth sheet, or plausible-but-grounded estimates.
+10. **Kill list:** Scan every string field in the manifest against the Kill List table above. Any match → rewrite that field.
+11. **Word count:** Count every word in \`body\`, \`description\`, \`subheadline\`, and \`headline\` fields across ALL sections. Total MUST be under 200 words unless the brief explicitly requests long-form. If over → cut ruthlessly. Shorter emails convert better. (Current generation trend: you are outputting 300+ words. Cut harder.)
+12. **Forwarding test:** Would a reader forward this to a colleague because the content is genuinely useful? (If no → the value isn't specific enough.)
 
 </copywriting_engine>
 `.trim();
