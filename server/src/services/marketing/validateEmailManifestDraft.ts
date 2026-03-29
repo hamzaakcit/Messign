@@ -82,6 +82,84 @@ export function parseAndValidateEmailManifestDraft(
   return { ok: true, manifest: raw as Record<string, unknown> };
 }
 
+/**
+ * Structured copy quality check — returns actionable issues for the retry loop.
+ * Unlike logCopyQualityIssues (logging-only), this scans ALL text fields in ALL sections.
+ */
+export function checkCopyQualityForRetry(manifest: Record<string, unknown>): string[] {
+  const issues: string[] = [];
+  const sections = Array.isArray(manifest.sections) ? manifest.sections : [];
+
+  // --- Kill-list scan across ALL text fields in ALL sections ---
+  const killPatterns: Array<{ pattern: RegExp; replacement: string }> = [
+    { pattern: /\bleverage\b/i, replacement: 'use, apply, or a concrete verb' },
+    { pattern: /unlock the (full )?potential/i, replacement: 'a specific outcome' },
+    { pattern: /we'?re (excited|thrilled) to (announce|share)/i, replacement: 'lead with what changed, not your feelings' },
+    { pattern: /in today'?s fast[- ]paced world/i, replacement: 'delete — adds nothing' },
+    { pattern: /comprehensive (solution|suite)/i, replacement: 'name the specific tools or features' },
+    { pattern: /game[- ]chang(er|ing)/i, replacement: 'state the measurable impact' },
+    { pattern: /\bsynergy\b/i, replacement: 'describe the specific collaboration or integration' },
+    { pattern: /\brevolutionary\b/i, replacement: 'state what changed and the before/after' },
+    { pattern: /cutting[- ]edge/i, replacement: 'name the specific technology or method' },
+    { pattern: /\bseamless(ly)?\b/i, replacement: 'describe what the user actually experiences' },
+  ];
+
+  // Collect all text from all sections + top-level fields
+  const allTexts: string[] = [];
+  if (typeof manifest.subject === 'string') allTexts.push(manifest.subject);
+  if (typeof manifest.preheader === 'string') allTexts.push(manifest.preheader);
+
+  for (const s of sections) {
+    if (!s || typeof s !== 'object') continue;
+    const content = (s as Record<string, unknown>).content;
+    if (!content || typeof content !== 'object') continue;
+    const c = content as Record<string, unknown>;
+    for (const key of ['headline', 'subheadline', 'body', 'description', 'buttonText', 'urgencyText']) {
+      if (typeof c[key] === 'string') allTexts.push(c[key] as string);
+    }
+    // value_prop items
+    if (Array.isArray(c.items)) {
+      for (const item of c.items) {
+        if (!item || typeof item !== 'object') continue;
+        const it = item as Record<string, unknown>;
+        for (const key of ['heading', 'description']) {
+          if (typeof it[key] === 'string') allTexts.push(it[key] as string);
+        }
+      }
+    }
+  }
+
+  for (const { pattern, replacement } of killPatterns) {
+    for (const text of allTexts) {
+      if (pattern.test(text)) {
+        issues.push(`Kill-list word "${text.match(pattern)?.[0]}" found. Replace with: ${replacement}`);
+        break; // one issue per pattern is enough
+      }
+    }
+  }
+
+  // --- P.S. section check ---
+  const nonFooterSections = sections.filter(
+    (s: unknown) => s && typeof s === 'object' && (s as Record<string, unknown>).type !== 'footer',
+  );
+  const lastNonFooter = nonFooterSections[nonFooterSections.length - 1] as Record<string, unknown> | undefined;
+  const hasPsTextBlock =
+    lastNonFooter?.type === 'text_block' ||
+    (lastNonFooter?.type === 'image_text' &&
+      typeof (lastNonFooter?.content as Record<string, unknown>)?.body === 'string' &&
+      ((lastNonFooter?.content as Record<string, unknown>)?.body as string).length >= 50);
+  if (!hasPsTextBlock) {
+    issues.push(
+      'Missing P.S. section. Add a text_block section immediately before footer with a conversational P.S. line (urgency, restated benefit, or human aside).',
+    );
+  }
+
+  if (issues.length > 0) {
+    console.warn(`[COPY QUALITY RETRY] ${issues.length} issue(s) that should trigger retry:`, issues);
+  }
+  return issues;
+}
+
 /** Server-side copy quality spot check — logs issues for observability. Non-blocking. */
 function logCopyQualityIssues(manifest: Record<string, unknown>): void {
   const issues: string[] = [];

@@ -29,6 +29,7 @@ import { runBrandVoiceCheck, type BrandVoiceCheckResult } from './brandVoiceChec
 import { runComplianceScan, type ComplianceScanResult } from './complianceScanner.js';
 import { runProductTruthValidation, type ProductTruthValidationResult } from './productTruthValidator.js';
 import {
+  checkCopyQualityForRetry,
   flattenEmailManifestForGatekeepers,
   looksLikeVa2EmailManifest,
   parseAndValidateEmailManifestDraft,
@@ -275,6 +276,14 @@ export async function executeContentWorkflow(
             lastTruth,
           };
         }
+        continue;
+      }
+      // Copy quality gate — kill-list words and missing P.S. trigger retry
+      const copyIssues = checkCopyQualityForRetry(parsed.manifest);
+      if (copyIssues.length > 0 && attempt + 1 < maxAttempts) {
+        console.warn(`[marketingContentWorkflow] Copy quality issues (attempt ${attempt + 1}), retrying:`, copyIssues);
+        lastManifestErrors = copyIssues;
+        lastDraft = draft;
         continue;
       }
       validationTextForGates = flattenEmailManifestForGatekeepers(parsed.manifest);

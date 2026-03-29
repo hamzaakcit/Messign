@@ -45,6 +45,7 @@ import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/im
 import { parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
 import { runContentAtomizationAfterApproval } from './contentAtomizationBatch.js';
 import {
+  checkCopyQualityForRetry,
   flattenEmailManifestForGatekeepers,
   looksLikeVa2EmailManifest,
   parseAndValidateEmailManifestDraft,
@@ -536,6 +537,14 @@ export async function executeContentWorkflow(
             toolsUsed: combinedTools,
           };
         }
+        continue;
+      }
+      // Copy quality gate — kill-list words and missing P.S. trigger retry
+      const copyIssues = checkCopyQualityForRetry(parsed.manifest);
+      if (copyIssues.length > 0 && attempt + 1 < maxAttempts) {
+        console.warn(`[marketingOrchestrator] Copy quality issues (attempt ${attempt + 1}), retrying:`, copyIssues);
+        lastManifestErrors = copyIssues;
+        lastDraft = draft;
         continue;
       }
       validationText = flattenEmailManifestForGatekeepers(parsed.manifest);
