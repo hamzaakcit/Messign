@@ -29,6 +29,7 @@ import { runBrandVoiceCheck, type BrandVoiceCheckResult } from './brandVoiceChec
 import { runComplianceScan, type ComplianceScanResult } from './complianceScanner.js';
 import { runProductTruthValidation, type ProductTruthValidationResult } from './productTruthValidator.js';
 import {
+  checkCopyQualityForRetry,
   flattenEmailManifestForGatekeepers,
   looksLikeVa2EmailManifest,
   parseAndValidateEmailManifestDraft,
@@ -135,6 +136,7 @@ async function generateDraft(
     brandVoiceMd,
     channel: ctx.channel,
     calibrationText,
+    qualityTier: 'full', // This path uses generateResponse → Claude directly
   });
 
   const userMessage = [brief, MOCK_PRODUCT_TRUTH_LOOKUP_TOOL_RESULT, revisionBlock].filter(Boolean).join('\n\n');
@@ -276,11 +278,30 @@ export async function executeContentWorkflow(
         }
         continue;
       }
+      // Copy quality gate — kill-list words and missing P.S. trigger retry
+      const copyIssues = checkCopyQualityForRetry(parsed.manifest);
+      if (copyIssues.length > 0 && attempt + 1 < maxAttempts) {
+        console.warn(`[marketingContentWorkflow] Copy quality issues (attempt ${attempt + 1}), retrying:`, copyIssues);
+        lastManifestErrors = copyIssues;
+        lastDraft = draft;
+        continue;
+      }
       validationTextForGates = flattenEmailManifestForGatekeepers(parsed.manifest);
       emailManifestForStorage = parsed.manifest;
       lastManifestErrors = undefined;
     } else if (isEmail) {
-      lastManifestErrors = undefined;
+      // Plain text draft for email — force retry with VA2 instructions
+      console.warn(`[marketingContentWorkflow] Email draft is plain text (not VA2 JSON), attempt ${attempt + 1}. Preview: "${draft.slice(0, 120)}"`);
+      lastManifestErrors = [
+        'You output plain text instead of a VA2 Design Manifest JSON. For the email channel you MUST output a JSON object with: theme, subject, preheader, sections (array of {type, order, content}), and metadata. Put the JSON inside a ```json fence. Do NOT output prose paragraphs.',
+      ];
+      lastDraft = draft;
+      if (attempt + 1 >= maxAttempts) {
+        console.warn(`[marketingContentWorkflow] All ${maxAttempts} attempts produced plain text for email. Storing as body only.`);
+        lastManifestErrors = undefined;
+      } else {
+        continue;
+      }
     }
 
     lastDraft = draft;

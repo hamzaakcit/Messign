@@ -366,11 +366,6 @@ export async function runDoraPipeline(
       }
 
       const dataPoints = result.toolObservations.filter((o) => o.success && o.data != null).length;
-      console.log('[DIAG] SSE metadata emitting:', {
-        marketingContentId: result.marketingContentId,
-        marketingContentStatus: result.marketingContentStatus,
-        marketingContentError: result.marketingContentError ?? undefined,
-      });
       controller.emit('metadata', {
         toolsUsed: result.toolsUsed,
         dataPoints,

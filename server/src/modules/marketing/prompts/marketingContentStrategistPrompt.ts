@@ -10,7 +10,7 @@ import {
   getDefaultProductTruthFallback,
 } from '../../../dal/marketing/truthBrand.js';
 import { buildChannelSpecsBlock } from './instagramChannelSpec.js';
-import { GOLDEN_EMAIL_EXAMPLES_MD } from './goldenEmailExamples.js';
+import { GOLDEN_EMAIL_EXAMPLES_MD, GOLDEN_EMAIL_EXAMPLES_COMPACT_MD } from './goldenEmailExamples.js';
 import { VA2_EMAIL_MANIFEST_SCHEMA_JSON_MIN } from '../va2EmailManifestSchemaShared.js';
 
 export interface MarketingContentStrategistPromptInput {
@@ -38,6 +38,12 @@ export interface MarketingContentStrategistPromptInput {
   calibrationText?: string;
   /** When true, omit calibrationText even if provided (for experimental content). */
   skipCalibration?: boolean;
+  /** Controls how much prompt guidance to include based on model capability.
+   *  'full' = all phases (~17K tokens) — for Claude / high-capability models
+   *  'standard' = Phase 1 + 2 + 5 (~6,300 tokens) — for capable but not top-tier models
+   *  'minimal' = Phase 1 only (~3,500 tokens) — for fast/small models
+   */
+  qualityTier?: 'full' | 'standard' | 'minimal';
 }
 
 const NONE_LOADED = '(None loaded for this session.)';
@@ -211,7 +217,7 @@ Default: B2B SaaS.
 
 1. Vary sentence lengths. Short punch. Then a longer sentence that builds momentum and carries the reader forward through your argument. Then short again.
 2. One **bold** phrase per section maximum (\`<strong>\` in body copy). Bold the single most important idea, not decoration.
-3. Total body copy across all sections: **under 200 words** unless the brief requests long-form. Count mentally before outputting.
+3. Total body copy across all sections: **HARD CAP 200 words** unless the brief explicitly requests long-form. Count every word in body/description/subheadline fields before outputting. If you are over 200, delete sentences until you are under. Emails that exceed 200 words see measurably lower engagement. This is the single most common failure — you WILL over-write on your first pass. Cut before you output.
 4. Fragments and punchy sentences > academic paragraphs. Read Example F — every line could be a standalone thought.
 
 ## Pre-Output Gate — Run Before Emitting JSON
@@ -219,15 +225,16 @@ Default: B2B SaaS.
 Before you output the manifest, check every item. If ANY check fails, fix it before outputting:
 
 1. **Subject:** Would this make me stop scrolling in a crowded inbox? Could a competitor send this exact subject? (If yes to the second → make it specific to THIS offer.)
-2. **Preheader:** Does it add new info vs. the subject? (If it repeats → rewrite.)
-3. **Lead:** Does the first narrative section hook without greeting or filler? Does it use one of the 4 hook types? (If not → rewrite.)
-4. **Bridge:** Does the second section have varied sentence rhythm — not a monotone paragraph? (If flat → rewrite with short-long-short pattern.)
-5. **Value props:** Is every heading an outcome/mechanism, not a generic capability label? (If generic → rewrite. Compare against Example A headings.)
-6. **CTA:** Is it verb + outcome? Could you tell what happens when you click just from the button text? (If vague → rewrite.)
-7. **P.S.:** Is there a \`text_block\` before \`footer\` that functions as a P.S.? (If missing → add one.)
-8. **Kill list:** Scan every string field in the manifest against the Kill List table above. Any match → rewrite that field.
-9. **Word count:** Is total body copy under 200 words (unless brief said long-form)? (If over → cut.)
-10. **Forwarding test:** Would a reader forward this to a colleague because the content is genuinely useful? (If no → the value isn't specific enough.)
+2. **Subject variants:** Does \`metadata.subject_variants\` contain exactly 2 alternate subject lines? (If missing or fewer than 2 → go back to Step 3 of the Subject Line Lab and fill them in. This field is REQUIRED.)
+3. **Preheader:** Does it add new info vs. the subject? (If it repeats → rewrite.)
+4. **Lead:** Does the first narrative section hook without greeting or filler? Does it use one of the 4 hook types? (If not → rewrite.)
+5. **Bridge:** Does the second section have varied sentence rhythm — not a monotone paragraph? (If flat → rewrite with short-long-short pattern.)
+6. **Value props:** Is every heading an outcome/mechanism, not a generic capability label? (If generic → rewrite. Compare against Example A headings.)
+7. **CTA:** Is it verb + outcome? Could you tell what happens when you click just from the button text? (If vague → rewrite.)
+8. **P.S.:** Is there a \`text_block\` before \`footer\` that functions as a P.S.? (If missing → add one.)
+9. **Kill list:** Scan every string field in the manifest against the Kill List table above. Any match → rewrite that field.
+10. **Word count:** Count every word in \`body\`, \`description\`, \`subheadline\`, and \`headline\` fields across ALL sections. Total MUST be under 200 words unless the brief explicitly requests long-form. If over → cut ruthlessly. Shorter emails convert better. (Current generation trend: you are outputting 300+ words. Cut harder.)
+11. **Forwarding test:** Would a reader forward this to a colleague because the content is genuinely useful? (If no → the value isn't specific enough.)
 
 </copywriting_engine>
 `.trim();
@@ -790,7 +797,28 @@ To illustrate how brand voice changes the output without changing the structure:
 </brand_voice_amplifier>
 `.trim();
 
-const VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS = (
+/** Placeholder replaced at runtime by buildVa2EmailManifestInstructions based on qualityTier. */
+const VA2_COPYWRITING_BLOCKS_PLACEHOLDER = '%%COPYWRITING_BLOCKS%%';
+
+/** Build the copywriting guidance blocks based on model quality tier. */
+function buildCopywritingGuidance(qualityTier: 'full' | 'standard' | 'minimal'): string {
+  if (qualityTier === 'full') {
+    // All phases: engine + subject lab + industry playbooks + brand voice
+    return COPYWRITING_ENGINE_VA2_BLOCK
+      + '\n\n' + SUBJECT_LINE_LAB_BLOCK
+      + '\n\n' + INDUSTRY_COPY_PLAYBOOKS_BLOCK
+      + '\n\n' + BRAND_VOICE_AMPLIFIER_BLOCK;
+  } else if (qualityTier === 'standard') {
+    // Core phases: engine + brand voice (skip subject lab + industry playbooks)
+    return COPYWRITING_ENGINE_VA2_BLOCK
+      + '\n\n' + BRAND_VOICE_AMPLIFIER_BLOCK;
+  }
+  // Minimal: no additional blocks — golden examples (Phase 1) do the heavy lifting
+  return '';
+}
+
+/** Static VA2 email manifest template (copywriting blocks injected at build time). */
+const VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS_TEMPLATE = (
   `
 ## Email Design Mode (Visual Architect v2)
 
@@ -835,8 +863,9 @@ Choose the theme that best matches the brand and audience:
 
 ### Section Types
 
-**Required sections** (include in every email):
+**Required sections** (include in every email unless \`metadata.visual_density\` is \`minimal\` AND the brief is transactional/legal/system):
 - \`hero\` (order: 1) — Eye-catching header with headline, optional subheadline and CTA
+- \`text_block\` P.S. (second-to-last order, immediately before \`footer\`) — Conversational last-chance line: urgency, restated benefit, unexpected bonus, or human aside. See §P.S. in copywriting engine. **Do NOT omit this.**
 - \`footer\` (last order) — Company info with unsubscribe link
 
 **Optional sections** (choose 2-4 based on email purpose):
@@ -1036,32 +1065,26 @@ Use varied layouts to create visually engaging, magazine-style emails. Mix singl
 
 **D2C ecommerce depth:** When showcasing **many SKUs**, use **multiple** \`product_grid\` sections ("waves") separated by \`divider\` — each wave has its own \`sectionTitle\` (e.g. "New drops", "Last chance"). **Never** reuse the same \`imagePrompt\` string on more than one product item; each slot needs a **distinct** scene. For seasonal or flash campaigns, add **social_proof** or a short **text_block** between grids to break visual monotony, then close with **cta** (\`urgencyText\` when appropriate).
 
-**Events / webinar registration:** Put **date, time, and timezone** in \`subject\` or \`preheader\`. Typical flow: **hero** (or \`heroLayout: split\` for speaker + copy) → **value_prop** (3 agenda bullets; optional \`imagePrompt\` per item for richer visuals) or **text_block** (agenda copy) → **image_text** (speaker headshot or venue) → **cta** with the real **registration URL** (\`variant: pill\` or \`fullWidth\`) → **footer**. Avoid a single hero → plain CTA with no agenda or proof sections when \`visual_density\` is not \`minimal\`.
+**Events / webinar registration:** Put **date, time, and timezone** in \`subject\` or \`preheader\`. Typical flow: **hero** (or \`heroLayout: split\` for speaker + copy) → **value_prop** (3 agenda bullets; optional \`imagePrompt\` per item for richer visuals) or **text_block** (agenda copy) → **image_text** (speaker headshot or venue) → **cta** with the real **registration URL** (\`variant: pill\` or \`fullWidth\`) → **text_block** (P.S.) → **footer**. Avoid a single hero → plain CTA with no agenda or proof sections when \`visual_density\` is not \`minimal\`.
 
-- **Product launch**: hero → image_text (image_left, product feature) → value_prop (3 cols) → image_text (image_right, use case) → testimonial → cta → footer
-- **Newsletter**: hero → image_text (image_left, main story) → text_block → image_text (image_right, secondary story) → cta → footer
-- **Promotional**: hero → image_text (image_left, product/lifestyle) → social_proof → value_prop → cta (urgencyText) → footer
-- **Event invite**: hero → image_text (image_right, venue preview) → value_prop (2 cols, speakers) → cta → footer
-- **Re-engagement**: hero (personal tone) → image_text (image_left, community) → testimonial → cta (ghost variant) → footer
-- **Ecommerce showcase** (6-12 products): hero → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → cta → footer
-- **Ecommerce curated** (3-4 products): hero → product_grid (2 cols, 2 items) → image_text (image_left, editorial) → product_grid (2 cols, 2 items) → testimonial → cta → footer
-- **Flash sale / promo**: hero (urgency-driven) → product_grid (3 cols, 3 items with badges + originalPrice) → cta (urgencyText, fullWidth) → product_grid (3 cols, 3 items) → social_proof → cta → footer
+- **Product launch**: hero → image_text (image_left, product feature) → value_prop (3 cols) → image_text (image_right, use case) → testimonial → cta → text_block (P.S.) → footer
+- **Newsletter**: hero → image_text (image_left, main story) → text_block → image_text (image_right, secondary story) → cta → text_block (P.S.) → footer
+- **Promotional**: hero → image_text (image_left, product/lifestyle) → social_proof → value_prop → cta (urgencyText) → text_block (P.S.) → footer
+- **Event invite**: hero → image_text (image_right, venue preview) → value_prop (2 cols, speakers) → cta → text_block (P.S.) → footer
+- **Re-engagement**: hero (personal tone) → image_text (image_left, community) → testimonial → cta (ghost variant) → text_block (P.S.) → footer
+- **Ecommerce showcase** (6-12 products): hero → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → cta → text_block (P.S.) → footer
+- **Ecommerce curated** (3-4 products): hero → product_grid (2 cols, 2 items) → image_text (image_left, editorial) → product_grid (2 cols, 2 items) → testimonial → cta → text_block (P.S.) → footer
+- **Flash sale / promo**: hero (urgency-driven) → product_grid (3 cols, 3 items with badges + originalPrice) → cta (urgencyText, fullWidth) → product_grid (3 cols, 3 items) → social_proof → cta → text_block (P.S.) → footer
 
 ` +
-  COPYWRITING_ENGINE_VA2_BLOCK +
-  '\n\n' +
-  SUBJECT_LINE_LAB_BLOCK +
-  '\n\n' +
-  INDUSTRY_COPY_PLAYBOOKS_BLOCK +
-  '\n\n' +
-  BRAND_VOICE_AMPLIFIER_BLOCK +
+  VA2_COPYWRITING_BLOCKS_PLACEHOLDER +
   `
 
 **Unlayer-category parity (Phase 13):** Match **industry facets** to **gallery-style depth** using **original** Design Manifest JSON only—do **not** paste Unlayer public gallery HTML (see \`docs/va13-phase-13.md\`, \`docs/va12-phase-12.md\`). Recommended mixes:
-- **Real estate / open house:** **nature** or **executive**; **hero** (\`heroLayout: split\` for interior + headline) → **value_prop** (3 pillars: layout, neighborhood, logistics) → **image_text** (tour expectations or disclosure) → **product_grid** (comparables or featured units) → **cta** (RSVP / schedule) → **footer**. Use **distinct** \`imagePrompt\` per slot.
-- **Nonprofit / giving:** **minimal** or **warm**; **hero** (\`editorial_tall\` for human story) → **social_proof** (\`metrics\`) → **value_prop** (programs funded) → **image_text** (volunteer or impact scene—dignified) → **testimonial** → **cta** (donate / match) → **footer**.
-- **Food / hospitality:** **warm**; **hero** (\`editorial_tall\` for kitchen or table) → **text_block** (date, time, deposit, dietary) → **product_grid** (menu waves or courses) → **image_text** (pairings or chef note) → **cta** (book) → **footer**.
-- **Music / entertainment:** **startup** or **tech**; **hero** (\`split\` for tour key art + copy) → **value_prop** (dates, cities, VIP tier) → **divider** → **image_text** (backstage or fan access) → **social_proof** (\`metrics\`) → **cta** (presale / on-sale) → **footer**.
+- **Real estate / open house:** **nature** or **executive**; **hero** (\`heroLayout: split\` for interior + headline) → **value_prop** (3 pillars: layout, neighborhood, logistics) → **image_text** (tour expectations or disclosure) → **product_grid** (comparables or featured units) → **cta** (RSVP / schedule) → **text_block** (P.S.) → **footer**. Use **distinct** \`imagePrompt\` per slot.
+- **Nonprofit / giving:** **minimal** or **warm**; **hero** (\`editorial_tall\` for human story) → **social_proof** (\`metrics\`) → **value_prop** (programs funded) → **image_text** (volunteer or impact scene—dignified) → **testimonial** → **cta** (donate / match) → **text_block** (P.S.) → **footer**.
+- **Food / hospitality:** **warm**; **hero** (\`editorial_tall\` for kitchen or table) → **text_block** (date, time, deposit, dietary) → **product_grid** (menu waves or courses) → **image_text** (pairings or chef note) → **cta** (book) → **text_block** (P.S.) → **footer**.
+- **Music / entertainment:** **startup** or **tech**; **hero** (\`split\` for tour key art + copy) → **value_prop** (dates, cities, VIP tier) → **divider** → **image_text** (backstage or fan access) → **social_proof** (\`metrics\`) → **cta** (presale / on-sale) → **text_block** (P.S.) → **footer**.
 
 For **promotional** briefs in these verticals, prefer **≥3** distinct **non-footer** section **types** after **hero** (e.g. combine **image_text**, **product_grid**, **value_prop**, **social_proof**, **testimonial**)—avoid **hero → single text_block → cta → footer** unless \`metadata.visual_density\` is \`minimal\`.
 
@@ -1071,9 +1094,9 @@ For **promotional** briefs in these verticals, prefer **≥3** distinct **non-fo
 
 **Hero layout diversity:** Pick \`heroLayout\` on purpose: \`split\` for **side-by-side** (e.g. speaker + copy, product + copy); \`editorial_tall\` for **magazine-style** height and long-form stories; omit or use default for **simple** announcements. Match **imagePrompt** composition to the layout (wide scene vs portrait crop). Video heroes are **not** supported in VA2 manifests. **When to use which:** \`split\` — B2B demos, product + dashboard proof, co-marketing columns; \`editorial_tall\` — D2C lookbooks, seasonal fashion, storytelling where vertical photo real estate matters; **default** — single-column hero for short announcements. See repo **\`docs/va11-phase-11.md\`** for Phase 11 exemplar starters (\`b2bSplitHeroProductStory\`, \`d2cEditorialTallLookbook\`).
 
-**B2B thought leadership / nurture:** Prefer **executive** or **tech** with \`layoutDensity: airy\`. Typical arc: **hero** (\`editorial_tall\` for long-form) → **text_block** (band: editor’s note) → **image_text** (framework / proof) → **value_prop** → **testimonial** → **cta** → **footer**. Set \`metadata.campaign_id\` (e.g. \`b2b_nurture_insights\`) when the brief is tracked; align **primary** CTA URLs with the same **UTM \`utm_campaign\`** when query parameters are used.
+**B2B thought leadership / nurture:** Prefer **executive** or **tech** with \`layoutDensity: airy\`. Typical arc: **hero** (\`editorial_tall\` for long-form) → **text_block** (band: editor’s note) → **image_text** (framework / proof) → **value_prop** → **testimonial** → **cta** → **text_block** (P.S.) → **footer**. Set \`metadata.campaign_id\` (e.g. \`b2b_nurture_insights\`) when the brief is tracked; align **primary** CTA URLs with the same **UTM \`utm_campaign\`** when query parameters are used.
 
-**Abandoned cart / browse recovery (D2C):** Use \`layoutDensity: compact\` and \`metadata.visual_density: rich\` for merchandising urgency. Flow: **hero** → **product_grid** (cart items; **distinct** \`imagePrompt\` per SKU) → **social_proof** (\`metrics\`) → **cta** (\`fullWidth\` or \`pill\`, \`urgencyText\` for stock/shipping) → **footer**. **Checkout links** should include \`utm_source\`, \`utm_medium\`, \`utm_campaign\`; keep \`metadata.campaign_id\` consistent with \`utm_campaign\`.
+**Abandoned cart / browse recovery (D2C):** Use \`layoutDensity: compact\` and \`metadata.visual_density: rich\` for merchandising urgency. Flow: **hero** → **product_grid** (cart items; **distinct** \`imagePrompt\` per SKU) → **social_proof** (\`metrics\`) → **cta** (\`fullWidth\` or \`pill\`, \`urgencyText\` for stock/shipping) → **text_block** (P.S.) → **footer**. **Checkout links** should include \`utm_source\`, \`utm_medium\`, \`utm_campaign\`; keep \`metadata.campaign_id\` consistent with \`utm_campaign\`.
 
 **Campaign / UTM discipline:** When attribution matters, set \`metadata.campaign_id\` and ensure hero \`ctaUrl\` and closing **cta** \`buttonUrl\` share the same tracking story (UTM params or documented short links). The builder pipeline may add UTM—still emit coherent URLs in JSON.
 
@@ -1081,13 +1104,13 @@ For **promotional** briefs in these verticals, prefer **≥3** distinct **non-fo
 
 **Export HTML discipline & template licensing (Phase 12):** Do **not** paste or ship **Unlayer public gallery** HTML as Messign product templates without **license** or **original** work you own. Prefer **original** Design Manifest JSON from this spec. For slot budget, HTML size heuristics, and licensing summary, see repo \`docs/va12-phase-12.md\` and \`docs/va4-phase-4.md\`.
 
-**Product changelog / release email:** Typical flow: **hero** (what shipped) → **text_block** (band: TL;DR bullets) → **value_prop** (3 highlights with optional item \`imagePrompt\`) → **image_text** (optional “under the hood”) → **cta** with **one** primary link to full release notes / changelog → **footer**. Keep **one** primary outcome (read the notes or upgrade)—avoid competing CTAs.
+**Product changelog / release email:** Typical flow: **hero** (what shipped) → **text_block** (band: TL;DR bullets) → **value_prop** (3 highlights with optional item \`imagePrompt\`) → **image_text** (optional “under the hood”) → **cta** with **one** primary link to full release notes / changelog → **text_block** (P.S.) → **footer**. Keep **one** primary outcome (read the notes or upgrade)—avoid competing CTAs.
 
-**Referral or loyalty program:** Flow: **hero** (reward framing) → **value_prop** (how it works, 3 steps) → **social_proof** (\`metrics\` for trust) → **cta** (\`urgencyText\` when a deadline exists) → **footer**. When \`metadata.visual_density\` is \`rich\`, include **proof** sections—do not ship **only** hero → **cta** without **value_prop** or **social_proof**.
+**Referral or loyalty program:** Flow: **hero** (reward framing) → **value_prop** (how it works, 3 steps) → **social_proof** (\`metrics\` for trust) → **cta** (\`urgencyText\` when a deadline exists) → **text_block** (P.S.) → **footer**. When \`metadata.visual_density\` is \`rich\`, include **proof** sections—do not ship **only** hero → **cta** without **value_prop** or **social_proof**.
 
-**Partner co-marketing / joint webinar:** Use **executive** or **tech** with \`layoutDensity: airy\`. Flow: **hero** (\`heroLayout: split\` when co-branding two companies) → **value_prop** (why the partnership — 3 pillars) → **image_text** (joint story or integration proof) → **text_block** (band: date, time, **timezone**) → **social_proof** or **testimonial** → **cta** with **one** shared registration URL (UTM \`utm_campaign\` aligned with \`metadata.campaign_id\`) → **footer**. **Subject** and **hero** should name both partners; use a **single joint CTA** — avoid competing registration links.
+**Partner co-marketing / joint webinar:** Use **executive** or **tech** with \`layoutDensity: airy\`. Flow: **hero** (\`heroLayout: split\` when co-branding two companies) → **value_prop** (why the partnership — 3 pillars) → **image_text** (joint story or integration proof) → **text_block** (band: date, time, **timezone**) → **social_proof** or **testimonial** → **cta** with **one** shared registration URL (UTM \`utm_campaign\` aligned with \`metadata.campaign_id\`) → **text_block** (P.S.) → **footer**. **Subject** and **hero** should name both partners; use a **single joint CTA** — avoid competing registration links.
 
-**Seasonal gift guide (D2C editorial):** Use **warm** or **luxury**. Flow: **hero** (\`editorial_tall\` optional) → **product_grid** wave ("Under $X") → **divider** → **image_text** (editorial story) → second **product_grid** ("Splurge" / "Statement") → **text_block** (flush or band: editor's note) → **cta** → **footer**. Tone is **curated and magazine-like** — not flash-sale unless the brief demands it. **metadata.target_image_slots** is often **6–8** (hero + grids + **image_text**).
+**Seasonal gift guide (D2C editorial):** Use **warm** or **luxury**. Flow: **hero** (\`editorial_tall\` optional) → **product_grid** wave ("Under $X") → **divider** → **image_text** (editorial story) → second **product_grid** ("Splurge" / "Statement") → **text_block** (flush or band: editor's note) → **cta** → **text_block** (P.S.) → **footer**. Tone is **curated and magazine-like** — not flash-sale unless the brief demands it. **metadata.target_image_slots** is often **6–8** (hero + grids + **image_text**).
 
 **Outlook / layered backgrounds:** Hero **background images**, **motion overlays**, and **full-bleed** rows can render differently in **Outlook** desktop. Before launch, follow the **Outlook QA** checklist in **Phase 4** (repo doc \`docs/va4-phase-4.md\`) — prefer **solid fills** or **token-safe** surfaces when the brief must prioritize Outlook parity over layered glam.
 
@@ -1224,6 +1247,12 @@ Why this works: **layoutDensity: compact** tightens typography for dense webinar
 `
 ).trim();
 
+/** Build VA2 email manifest instructions with copywriting blocks based on quality tier. */
+function buildVa2EmailManifestInstructions(qualityTier: 'full' | 'standard' | 'minimal'): string {
+  const copywritingGuidance = buildCopywritingGuidance(qualityTier);
+  return VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS_TEMPLATE.replace(VA2_COPYWRITING_BLOCKS_PLACEHOLDER, copywritingGuidance);
+}
+
 const MANDATORY_WORKFLOW_EMAIL_LINE_VA2 = `9. **Email channel (Visual Architect v2)**: For Messign email builder / Unlayer, you MUST ALWAYS output a valid Design Manifest JSON per **Email Design Mode** above — JSON **only** inside \`\`\`json fenced blocks (no prose before the opening fence). NEVER output plain SUBJECT/PREVIEW/BODY format for the email channel — always use the VA2 Design Manifest JSON format. Every email manifest MUST include: (a) a hero section with imagePrompt, (b) at least one \`image_text\` or standalone \`image\` section for visual variety, (c) a footer section. Prefer \`image_text\` sections (side-by-side layout) over separate image + text_block pairs. Alternate image_left and image_right layouts. Follow **Image Generation Rules**: use \`[STOCK]\` only for short category-obvious prompts; use long literal \`imagePrompt\` without \`[STOCK]\` for topic-specific heroes and campaigns. When a Reference block lists saved designs, treat it as ground truth for tone/structure; use \`marketing:list_saved_email_designs\` / \`marketing:get_saved_email_design\` only when you need more detail than the excerpt. Skip \`creative:repurpose_content\` unless repurposing real long-form source text.`;
 
 const MANDATORY_WORKFLOW_EMAIL_LINE_LEGACY = `9. **Email channel**: For **Visual Architect / Unlayer** email builds, output a **Design Manifest** JSON per **Visual Layout Architect — Design Manifest** below. Otherwise follow **CHANNEL_SPECS → Email (marketing)** (SUBJECT/PREVIEW/BODY) when the user wants plain labeled copy. When a Reference block lists saved designs, treat it as ground truth for tone/structure; use \`marketing:list_saved_email_designs\` / \`marketing:get_saved_email_design\` only when you need more detail than the excerpt. Skip \`creative:repurpose_content\` unless repurposing real long-form source text.`;
@@ -1281,10 +1310,13 @@ function normalizeChannelKey(channel?: string): string | undefined {
 }
 
 /** Static rules + channel specs; manifest block depends on \`channel\` (VA2 for email). */
-function buildContentStrategistStaticSpec(channel?: string): string {
+function buildContentStrategistStaticSpec(
+  channel?: string,
+  qualityTier: 'full' | 'standard' | 'minimal' = 'full',
+): string {
   const ch = normalizeChannelKey(channel);
   const isEmail = ch === 'email';
-  const manifestSpec = isEmail ? VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS : VISUAL_ARCHITECT_DESIGN_MANIFEST_SPEC;
+  const manifestSpec = isEmail ? buildVa2EmailManifestInstructions(qualityTier) : VISUAL_ARCHITECT_DESIGN_MANIFEST_SPEC;
   const emailWorkflowLine9 = isEmail ? MANDATORY_WORKFLOW_EMAIL_LINE_VA2 : MANDATORY_WORKFLOW_EMAIL_LINE_LEGACY;
   const channelSpecsText = buildChannelSpecsBlock(ch);
 
@@ -1390,9 +1422,11 @@ export function buildMarketingContentStrategistPrompt(input: MarketingContentStr
     channel,
     calibrationText,
     skipCalibration,
+    qualityTier = 'full',
   } = input;
 
-  const golden = goldenExamplesMd?.trim() || GOLDEN_EMAIL_EXAMPLES_MD;
+  const defaultGolden = qualityTier === 'minimal' ? GOLDEN_EMAIL_EXAMPLES_COMPACT_MD : GOLDEN_EMAIL_EXAMPLES_MD;
+  const golden = goldenExamplesMd?.trim() || defaultGolden;
   const competitor = competitorContextMd?.trim() || NONE_LOADED;
 
   const shouldInjectCalibration =
@@ -1435,7 +1469,7 @@ export function buildMarketingContentStrategistPrompt(input: MarketingContentStr
     parts.push(calibrationText!.trim(), '', '---', '');
   }
 
-  parts.push(buildContentStrategistStaticSpec(channel));
+  parts.push(buildContentStrategistStaticSpec(channel, qualityTier));
 
   return parts.join('\n');
 }

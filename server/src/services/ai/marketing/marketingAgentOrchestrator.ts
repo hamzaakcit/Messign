@@ -45,6 +45,7 @@ import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/im
 import { parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
 import { runContentAtomizationAfterApproval } from './contentAtomizationBatch.js';
 import {
+  checkCopyQualityForRetry,
   flattenEmailManifestForGatekeepers,
   looksLikeVa2EmailManifest,
   parseAndValidateEmailManifestDraft,
@@ -292,12 +293,15 @@ async function buildContentStrategistLoopArgs(
     }
   }
 
+  // Complex tier now routes to Claude via Anthropic direct — use full quality
+  const qualityTier = channel === 'email' ? 'full' : 'standard';
   const contentBase = buildMarketingContentStrategistPrompt({
     userRole: ctx.agentContext.userRole,
     productTruthMd,
     brandVoiceMd,
     channel,
     calibrationText,
+    qualityTier,
   });
   const systemPrompt =
     ctx.applyLucyPersona === true && ctx.marketingRoute != null
@@ -317,6 +321,7 @@ async function buildContentStrategistLoopArgs(
     legacyContext: ctx.legacyContext,
     priorBlock,
     contentStrategist: true,
+    channel,
   };
 }
 
@@ -356,12 +361,13 @@ export async function executeContentWorkflow(
   const orgId = caller.organizationId;
   const refStrip = stripReferenceImageUrlBlock(brief.userQuery);
   const effectiveUserQuery = refStrip.referenceUrl ? refStrip.cleaned : brief.userQuery;
-  const agentOutput = effectiveUserQuery;
-  console.log('[DIAG] executeContentWorkflow START', {
-    orgId,
+  log('content_workflow_start', {
     channel: brief.channel,
-    hasAgentOutput: !!agentOutput,
+    contentRowChannel: brief.contentId ? 'will-load' : 'new',
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY?.trim(),
+    userQueryPreview: effectiveUserQuery.slice(0, 100),
   });
+  const agentOutput = effectiveUserQuery;
   if (!orgId) {
     return {
       status: 'failed',
@@ -421,11 +427,6 @@ export async function executeContentWorkflow(
 
   const contentId = contentRow.id;
   if (contentRowCreated) {
-    console.log('[FIX-1] [DIAG] Content row created:', {
-      contentId,
-      channel: brief.channel ?? contentRow.channel,
-      status: contentRow.status,
-    });
   }
   if (refStrip.referenceUrl) {
     try {
@@ -524,6 +525,7 @@ export async function executeContentWorkflow(
       if (!parsed.ok) {
         lastManifestErrors = parsed.errors;
         lastDraft = draft;
+        console.warn(`[marketingOrchestrator] VA2 manifest parse failed (attempt ${attempt + 1}):`, parsed.errors);
         if (attempt + 1 >= maxAttempts) {
           return {
             status: 'failed',
@@ -537,11 +539,31 @@ export async function executeContentWorkflow(
         }
         continue;
       }
+      // Copy quality gate — kill-list words and missing P.S. trigger retry
+      const copyIssues = checkCopyQualityForRetry(parsed.manifest);
+      if (copyIssues.length > 0 && attempt + 1 < maxAttempts) {
+        console.warn(`[marketingOrchestrator] Copy quality issues (attempt ${attempt + 1}), retrying:`, copyIssues);
+        lastManifestErrors = copyIssues;
+        lastDraft = draft;
+        continue;
+      }
       validationText = flattenEmailManifestForGatekeepers(parsed.manifest);
       emailManifestForStorage = parsed.manifest;
       lastManifestErrors = undefined;
     } else if (isEmail) {
-      lastManifestErrors = undefined;
+      // Draft is plain text, not VA2 JSON — force retry with explicit manifest instructions
+      console.warn(`[marketingOrchestrator] Email draft is plain text (not VA2 JSON), attempt ${attempt + 1}. Draft preview: "${draft.slice(0, 120)}"`);
+      lastManifestErrors = [
+        'You output plain text instead of a VA2 Design Manifest JSON. For the email channel you MUST output a JSON object with: theme, subject, preheader, sections (array of {type, order, content}), and metadata. Put the JSON inside a ```json fence. Do NOT output prose paragraphs.',
+      ];
+      lastDraft = draft;
+      if (attempt + 1 >= maxAttempts) {
+        // Last attempt: try to use whatever we have rather than failing completely
+        console.warn(`[marketingOrchestrator] All ${maxAttempts} attempts produced plain text for email. Storing as body only (no VA2 manifest).`);
+        lastManifestErrors = undefined;
+      } else {
+        continue;
+      }
     }
 
     lastDraft = isInstagram ? validationText : draft;
@@ -604,12 +626,6 @@ export async function executeContentWorkflow(
     const tv = validateGatekeeperResult('product_truth', truthRaw, productTruthParsedSchema);
     const bv = validateGatekeeperResult('brand_voice', brandRaw, brandVoiceParsedSchema);
     const cv = validateGatekeeperResult('compliance', compRaw, complianceParsedSchema);
-
-    console.log('[DIAG] Gatekeepers complete:', {
-      truthResult: truthRaw,
-      brandResult: brandRaw,
-      complianceResult: compRaw,
-    });
 
     if (!tv.ok || !bv.ok || !cv.ok) {
       const err = [!tv.ok ? tv.error : '', !bv.ok ? bv.error : '', !cv.ok ? cv.error : ''].filter(Boolean).join(' | ');

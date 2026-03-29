@@ -319,6 +319,8 @@ export async function runMarketingMiniLoop(options: {
   researchMode?: boolean;
   /** Override max tool-calling rounds (e.g. research phase = 3). */
   maxSteps?: number;
+  /** Publishing channel — email gets higher token budget for VA2 manifests. */
+  channel?: string;
 }): Promise<{
   content: string;
   pendingActions: PendingActionSSEEvent[];
@@ -338,6 +340,7 @@ export async function runMarketingMiniLoop(options: {
     campaignManager,
     researchMode,
     maxSteps,
+    channel,
   } = options;
   const maxSubSteps =
     maxSteps ??
@@ -348,10 +351,11 @@ export async function runMarketingMiniLoop(options: {
         : campaignManager
           ? CAMPAIGN_MANAGER_MAX_STEPS
           : MAX_SUB_STEPS);
+  const isEmailCh = channel?.toLowerCase().trim() === 'email';
   const stepTimeoutMs = researchMode
     ? CONTENT_STRATEGIST_STEP_MS
     : contentStrategist
-      ? CONTENT_STRATEGIST_STEP_MS
+      ? (isEmailCh ? 60_000 : CONTENT_STRATEGIST_STEP_MS)
       : campaignManager
         ? CAMPAIGN_MANAGER_STEP_MS
         : STEP_MS;
@@ -372,11 +376,12 @@ ${priorBlock ? `\nContext from prior step:\n${priorBlock}\n` : ''}`;
   let tier: 'balanced' | 'complex' = researchMode || contentStrategist || campaignManager ? 'complex' : 'balanced';
 
   for (let step = 0; step < maxSubSteps; step++) {
+    const isEmailChannel = channel?.toLowerCase().trim() === 'email';
     const maxTokensThisStep = researchMode
       ? 2000
       : role === 'content'
         ? contentStrategist
-          ? 2200
+          ? (isEmailChannel ? 8192 : 2200)
           : 1800
         : campaignManager
           ? 2000
@@ -573,6 +578,7 @@ Stay under ~200 words. **Do not** repeat tool names or restate the outcome list.
       return o.success && CAMPAIGN_METRICS_ONLY_TOOLS.has(name);
     });
 
+  const emailChannel = channel?.toLowerCase().trim() === 'email';
   let synthTier: 'balanced' | 'complex' | 'fast' = 'balanced';
   let synthMaxTokens = 1200;
   if (researchMode) {
@@ -580,7 +586,7 @@ Stay under ~200 words. **Do not** repeat tool names or restate the outcome list.
     synthMaxTokens = 1200;
   } else if (contentStrategist) {
     synthTier = 'complex';
-    synthMaxTokens = 1000;
+    synthMaxTokens = emailChannel ? 8192 : 1000;
   } else if (role === 'campaign' && campaignManager) {
     synthTier = metricsOnlySynthesis ? 'fast' : 'complex';
     synthMaxTokens = metricsOnlySynthesis ? 900 : 1100;
@@ -594,7 +600,7 @@ Stay under ~200 words. **Do not** repeat tool names or restate the outcome list.
       temperature: 0.3,
       userQuery: query,
     }),
-    stepTimeoutMs,
+    emailChannel && contentStrategist ? 120_000 : stepTimeoutMs,
     'Marketing synthesis',
   );
 
@@ -734,10 +740,6 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
 
   return withTimeout(
     (async () => {
-      console.log('[DIAG] runMarketingSubOrchestratorFlow called', {
-        marketingAgentMode: opts.marketingAgentMode ?? false,
-        route: '(pending)',
-      });
 
       onProgress?.({ phase: 'routing', label: 'Routing your request…', step: 1, maxSteps: 5, status: 'active' });
 
@@ -756,7 +758,6 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
 
       const { inferMarketingContentChannel } = await import('./marketingAgentOrchestrator.js');
       const channelInferred = inferMarketingContentChannel(query);
-      console.log('[DIAG] Sub-orchestrator routing result:', { route: route.route, channel: channelInferred });
 
       if (route.route === 'CLARIFY') {
         const q = route.clarifyQuestion?.trim() || 'Could you share a bit more about what you want to achieve?';
@@ -827,12 +828,15 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         }
 
         // CONTENT_STRATEGIST rules (Messign positioning, Instagram hashtags / pattern interrupt): `marketingContentStrategistPrompt.ts`
+        // Complex tier routes to Claude — use full quality for email, standard for others
+        const qualityTier = channelInferred === 'email' ? 'full' : 'standard';
         const contentBase = buildMarketingContentStrategistPrompt({
           userRole: agentContext.userRole,
           productTruthMd,
           brandVoiceMd,
           channel: channelInferred,
           calibrationText,
+          qualityTier,
         });
         const systemPrompt = applyLucyPersona
           ? wrapSpecialistSystemPromptWithLucy(contentBase, {
@@ -851,6 +855,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
           legacyContext,
           priorBlock,
           contentStrategist: true,
+          channel: channelInferred,
         });
         allPending.push(...r.pendingActions);
         allObs.push(...r.toolObservations);
@@ -887,7 +892,6 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       onProgress?.({ phase: 'brand_context', label: 'Loading brand context…', step: 2, maxSteps: 5, status: 'completed' });
 
       if (route.route === 'CONTENT_STRATEGIST') {
-        console.log('[DIAG] CONTENT_STRATEGIST route entered');
         const mo = await import('./marketingAgentOrchestrator.js');
         const orchCtx: MarketingOrchestrationContext = {
           agentContext,
@@ -903,7 +907,6 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         };
         const ch = mo.inferMarketingContentChannel(note + query);
         const ct = mo.contentTypeForMarketingChannel(ch);
-        console.log('[DIAG] executeContentWorkflow called', { contentId: undefined, channel: ch });
         const contentResult = await mo.executeContentWorkflow(
           {
             userQuery: note + query,
@@ -939,10 +942,6 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       }
 
       if (route.route === 'CAMPAIGN_MANAGER') {
-        console.log('[DIAG] Skipping executeContentWorkflow — path:', {
-          route: route.route,
-          channel: inferMarketingContentChannel(note + query),
-        });
         combined = await runCampaign(query);
         onStreamChunk?.(combined);
         return { content: combined, pendingActions: allPending, toolObservations: allObs, toolsUsed: allTools };
@@ -979,7 +978,6 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
       };
       const chBoth = moBoth.inferMarketingContentChannel(note + query);
       const ctBoth = moBoth.contentTypeForMarketingChannel(chBoth);
-      console.log('[DIAG] executeContentWorkflow called', { contentId: undefined, channel: chBoth });
       const contentResult = await moBoth.executeContentWorkflow(
         {
           userQuery: `${note + query}\n\nContext from campaign planning:\n${campaignContext}`,

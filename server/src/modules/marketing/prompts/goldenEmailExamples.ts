@@ -633,3 +633,85 @@ naturally in the P.S. instead of a loud button.
 \`\`\`
 
 `.trim();
+
+/**
+ * Compact golden examples: 2 examples (A + F) for standard/minimal tiers.
+ * Example A = most common B2B SaaS pattern; Example F = most different structure (creator).
+ */
+export const GOLDEN_EMAIL_EXAMPLES_COMPACT_MD = `
+These are reference examples of excellent email copy in VA2 Design Manifest format.
+Study the copy patterns — hooks, rhythm, specificity, CTAs — and apply the same
+quality standard to every manifest you generate. Do NOT copy these literally.
+Adapt the patterns to the user's brand, audience, and brief.
+
+---
+
+### Example A — B2B SaaS Product Launch
+
+**Why this works:** Curiosity-gap subject. Pain-agitation lead. Specific numbers in value props.
+Single clear CTA with verb + outcome. P.S. adds exclusivity the reader didn't expect.
+
+\`\`\`json
+{
+  "version": "2.0",
+  "theme": "executive",
+  "subject": "Your deploy pipeline has a blind spot",
+  "preheader": "We found it in 2,100 teams' CI/CD setups. Takes 4 minutes to fix — or 4 hours to debug later.",
+  "metadata": {
+    "subject_variants": [
+      "91% of deploy failures trace back to one step",
+      "Fix this before Friday's release"
+    ],
+    "visual_density": "rich",
+    "target_image_slots": 4,
+    "tone": "b2b_saas"
+  },
+  "sections": [
+    { "type": "hero", "order": 1, "content": { "headline": "The step your pipeline is missing.", "subheadline": "2,100 engineering teams had the same gap. Here's what they changed — and what happened to their failure rate.", "ctaText": "See the 4-minute fix", "ctaUrl": "https://example.com/deploy-fix", "imagePrompt": "Dark terminal screen with glowing green pipeline visualization, one node highlighted in amber warning color, dramatic depth of field, moody developer workspace in background", "alignment": "center", "heroLayout": "editorial_tall" } },
+    { "type": "text_block", "order": 2, "content": { "body": "Here's a pattern we keep seeing: Teams ship fast. Tests pass. Staging looks clean. Then production breaks at 2 AM on a Thursday and nobody can figure out why. The problem isn't your code. It's the 90-second gap between your last test and your deploy trigger — where config drift, secret rotation, and environment mismatch slip through undetected. We built a single pre-deploy scan that catches these. It takes 4 minutes to set up. It would have prevented 91% of the deploy failures we analyzed across 2,100 teams last quarter." } },
+    { "type": "value_prop", "order": 3, "content": { "columns": 3, "items": [ { "icon": "Shield", "heading": "Config drift caught pre-deploy", "description": "Scans your live environment against your deploy manifest. Flags mismatches before they become 2 AM pages." }, { "icon": "Zap", "heading": "91% failure reduction", "description": "Across 2,100 teams in our dataset. The remaining 9% were genuine code bugs — the kind you actually want to find." }, { "icon": "Clock", "heading": "4-minute setup. No SDK.", "description": "One YAML block in your pipeline config. Works with GitHub Actions, GitLab CI, CircleCI, and Jenkins out of the box." } ] } },
+    { "type": "cta", "order": 4, "content": { "buttonText": "Add the scan to my pipeline", "buttonUrl": "https://example.com/deploy-fix", "variant": "pill", "urgencyText": "Free for teams under 50 devs. No credit card." } },
+    { "type": "text_block", "order": 5, "content": { "body": "P.S. — We're running a live teardown of a real deploy failure this Thursday at 1 PM ET. The team whose pipeline broke agreed to let us show exactly what went wrong and how the scan would have caught it. No slides. Just a real terminal and a real postmortem. Reply 'teardown' and I'll send you the link — it's not on our website yet." } },
+    { "type": "footer", "order": 6, "content": { "companyName": "DeployShield", "address": "548 Market St, San Francisco, CA 94104", "links": [ { "text": "Unsubscribe", "url": "{{unsubscribe_url}}" }, { "text": "Preferences", "url": "https://example.com/prefs" } ] } }
+  ],
+  "artDirection": { "mood": "confident, technical, moody lighting", "colorNotes": "Dark backgrounds, amber/green accent for terminal aesthetic", "imageStyle": "editorial_photography" }
+}
+\`\`\`
+
+---
+
+### Example F — Creator / Personal Brand
+
+**Why this works:** First-person, story-driven. Feels like a personal email, not a marketing blast.
+No hero image — starts with text, which is on-brand for creator newsletters. CTA is embedded
+naturally in the P.S. instead of a loud button.
+
+\`\`\`json
+{
+  "version": "2.0",
+  "theme": "minimal",
+  "subject": "I almost didn't send this one",
+  "preheader": "It's about a mistake I made last month that cost me $14,000. And the stupid-simple fix I should have known.",
+  "metadata": {
+    "subject_variants": [
+      "The $14K mistake I made in February",
+      "Read this before you raise your prices"
+    ],
+    "visual_density": "minimal",
+    "target_image_slots": 2,
+    "tone": "creator_personal_brand",
+    "layoutDensity": "airy"
+  },
+  "sections": [
+    { "type": "text_block", "order": 1, "content": { "body": "Last month I raised my prices. Finally. After two years of charging the same rate while my results got 3x better, I bumped my project fee from $8K to $15K. I was terrified. I told myself all the stories: 'nobody will pay that,' 'I'll lose all my clients,' 'who do I think I am.' Then I sent the new pricing to five warm leads. Three ghosted. One said 'let me think about it' (which means no). One said yes immediately — didn't even negotiate." } },
+    { "type": "text_block", "order": 2, "content": { "body": "Here's where I messed up. I panicked after the three ghosts. I sent a follow-up offering my old rate as a 'special discount.' Two of them took it. So now I had two clients at $8K and one at $15K — doing the same work. That $14K gap? I created it myself by flinching." } },
+    { "type": "image_text", "order": 3, "content": { "headline": "The fix (embarrassingly obvious in hindsight)", "body": "I called a friend who sells enterprise software. She laughed and said: 'You sent one email at the new price and panicked after 3 days? We lose 80% of deals and still hit quota. Your sample size was five.' She was right. I wasn't getting rejected. I was getting a normal conversion rate for a new price point — and then undercutting myself before the data even came in.", "imagePrompt": "Minimalist illustration of a price tag being crossed out and rewritten higher, simple line art on white background, single accent color", "altText": "Price adjustment illustration", "layout": "image_right" } },
+    { "type": "text_block", "order": 4, "content": { "body": "The lesson that cost me $14,000: **price changes need a sample size of at least 20 conversations before you decide they're not working.** Not 5. Not 3. Twenty. I'm back at $15K. No discounts. And this month I've closed two more at the new rate. The math works. I just needed to survive the flinch." } },
+    { "type": "text_block", "order": 5, "content": { "body": "P.S. — I wrote a deeper breakdown of the pricing framework I'm using now — the one my enterprise friend taught me. It's a 12-minute read with the actual email templates I send to new leads. I put it in the members' area: reply 'pricing' and I'll send you the link. No upsell. Just the framework." } },
+    { "type": "footer", "order": 6, "content": { "companyName": "The Freelance Memo", "address": "Austin, TX", "links": [ { "text": "Unsubscribe", "url": "{{unsubscribe_url}}" }, { "text": "Archive", "url": "https://example.com/archive" } ] } }
+  ],
+  "artDirection": { "mood": "personal, honest, intimate — like a letter from a friend", "colorNotes": "Minimal. Black text, white background. Maybe one muted accent. Let the words do the work.", "imageStyle": "minimal_clean" }
+}
+\`\`\`
+
+`.trim();
