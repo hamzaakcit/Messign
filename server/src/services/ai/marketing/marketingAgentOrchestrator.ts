@@ -360,6 +360,12 @@ export async function executeContentWorkflow(
   const orgId = caller.organizationId;
   const refStrip = stripReferenceImageUrlBlock(brief.userQuery);
   const effectiveUserQuery = refStrip.referenceUrl ? refStrip.cleaned : brief.userQuery;
+  log('content_workflow_start', {
+    channel: brief.channel,
+    contentRowChannel: brief.contentId ? 'will-load' : 'new',
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY?.trim(),
+    userQueryPreview: effectiveUserQuery.slice(0, 100),
+  });
   const agentOutput = effectiveUserQuery;
   if (!orgId) {
     return {
@@ -518,6 +524,7 @@ export async function executeContentWorkflow(
       if (!parsed.ok) {
         lastManifestErrors = parsed.errors;
         lastDraft = draft;
+        console.warn(`[marketingOrchestrator] VA2 manifest parse failed (attempt ${attempt + 1}):`, parsed.errors);
         if (attempt + 1 >= maxAttempts) {
           return {
             status: 'failed',
@@ -535,7 +542,19 @@ export async function executeContentWorkflow(
       emailManifestForStorage = parsed.manifest;
       lastManifestErrors = undefined;
     } else if (isEmail) {
-      lastManifestErrors = undefined;
+      // Draft is plain text, not VA2 JSON — force retry with explicit manifest instructions
+      console.warn(`[marketingOrchestrator] Email draft is plain text (not VA2 JSON), attempt ${attempt + 1}. Draft preview: "${draft.slice(0, 120)}"`);
+      lastManifestErrors = [
+        'You output plain text instead of a VA2 Design Manifest JSON. For the email channel you MUST output a JSON object with: theme, subject, preheader, sections (array of {type, order, content}), and metadata. Put the JSON inside a ```json fence. Do NOT output prose paragraphs.',
+      ];
+      lastDraft = draft;
+      if (attempt + 1 >= maxAttempts) {
+        // Last attempt: try to use whatever we have rather than failing completely
+        console.warn(`[marketingOrchestrator] All ${maxAttempts} attempts produced plain text for email. Storing as body only (no VA2 manifest).`);
+        lastManifestErrors = undefined;
+      } else {
+        continue;
+      }
     }
 
     lastDraft = isInstagram ? validationText : draft;

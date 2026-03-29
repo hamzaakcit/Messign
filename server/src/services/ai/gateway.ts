@@ -52,11 +52,15 @@ const geminiClient = new OpenAI({
 
 type DirectProvider = 'groq' | 'gemini' | 'anthropic';
 
-const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim() ?? '';
+/** Read at call time so late env injection (dotenv, Railway) is always picked up. */
+function getAnthropicApiKey(): string {
+  return process.env.ANTHROPIC_API_KEY?.trim() ?? '';
+}
 
 function getAnthropicClient(): Anthropic | null {
-  if (!anthropicApiKey) return null;
-  return new Anthropic({ apiKey: anthropicApiKey });
+  const key = getAnthropicApiKey();
+  if (!key) return null;
+  return new Anthropic({ apiKey: key });
 }
 
 /** Convert OpenAI-style messages to Anthropic format, extracting system prompt. */
@@ -370,7 +374,7 @@ async function callDirectProviders(
 
     // Anthropic uses its own SDK — bypass OpenAI client path
     if (provider === 'anthropic') {
-      if (!anthropicApiKey) {
+      if (!getAnthropicApiKey()) {
         console.warn(`[LLM] ⚠️ ANTHROPIC_API_KEY is not set — ${tier} tier will fall back to Groq. Email quality will be severely degraded. Set ANTHROPIC_API_KEY in your environment.`);
         lastErrors.push(`${tier}: no API key for anthropic`);
         continue;
@@ -578,7 +582,7 @@ async function* streamDirectProviders(
 
     // Anthropic streaming: buffer full response then yield as a single chunk
     if (provider === 'anthropic') {
-      if (!anthropicApiKey) {
+      if (!getAnthropicApiKey()) {
         console.warn(`[LLM] ⚠️ ANTHROPIC_API_KEY is not set — ${tier} tier will fall back to Groq. Email quality will be severely degraded.`);
         lastErrors.push(`${tier}: no API key for anthropic`);
         continue;

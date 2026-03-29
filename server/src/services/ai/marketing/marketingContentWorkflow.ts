@@ -281,7 +281,18 @@ export async function executeContentWorkflow(
       emailManifestForStorage = parsed.manifest;
       lastManifestErrors = undefined;
     } else if (isEmail) {
-      lastManifestErrors = undefined;
+      // Plain text draft for email — force retry with VA2 instructions
+      console.warn(`[marketingContentWorkflow] Email draft is plain text (not VA2 JSON), attempt ${attempt + 1}. Preview: "${draft.slice(0, 120)}"`);
+      lastManifestErrors = [
+        'You output plain text instead of a VA2 Design Manifest JSON. For the email channel you MUST output a JSON object with: theme, subject, preheader, sections (array of {type, order, content}), and metadata. Put the JSON inside a ```json fence. Do NOT output prose paragraphs.',
+      ];
+      lastDraft = draft;
+      if (attempt + 1 >= maxAttempts) {
+        console.warn(`[marketingContentWorkflow] All ${maxAttempts} attempts produced plain text for email. Storing as body only.`);
+        lastManifestErrors = undefined;
+      } else {
+        continue;
+      }
     }
 
     lastDraft = draft;
