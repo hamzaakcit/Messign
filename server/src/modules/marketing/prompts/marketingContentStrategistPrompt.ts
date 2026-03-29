@@ -862,8 +862,9 @@ Choose the theme that best matches the brand and audience:
 
 ### Section Types
 
-**Required sections** (include in every email):
+**Required sections** (include in every email unless \`metadata.visual_density\` is \`minimal\` AND the brief is transactional/legal/system):
 - \`hero\` (order: 1) — Eye-catching header with headline, optional subheadline and CTA
+- \`text_block\` P.S. (second-to-last order, immediately before \`footer\`) — Conversational last-chance line: urgency, restated benefit, unexpected bonus, or human aside. See §P.S. in copywriting engine. **Do NOT omit this.**
 - \`footer\` (last order) — Company info with unsubscribe link
 
 **Optional sections** (choose 2-4 based on email purpose):
@@ -1063,26 +1064,26 @@ Use varied layouts to create visually engaging, magazine-style emails. Mix singl
 
 **D2C ecommerce depth:** When showcasing **many SKUs**, use **multiple** \`product_grid\` sections ("waves") separated by \`divider\` — each wave has its own \`sectionTitle\` (e.g. "New drops", "Last chance"). **Never** reuse the same \`imagePrompt\` string on more than one product item; each slot needs a **distinct** scene. For seasonal or flash campaigns, add **social_proof** or a short **text_block** between grids to break visual monotony, then close with **cta** (\`urgencyText\` when appropriate).
 
-**Events / webinar registration:** Put **date, time, and timezone** in \`subject\` or \`preheader\`. Typical flow: **hero** (or \`heroLayout: split\` for speaker + copy) → **value_prop** (3 agenda bullets; optional \`imagePrompt\` per item for richer visuals) or **text_block** (agenda copy) → **image_text** (speaker headshot or venue) → **cta** with the real **registration URL** (\`variant: pill\` or \`fullWidth\`) → **footer**. Avoid a single hero → plain CTA with no agenda or proof sections when \`visual_density\` is not \`minimal\`.
+**Events / webinar registration:** Put **date, time, and timezone** in \`subject\` or \`preheader\`. Typical flow: **hero** (or \`heroLayout: split\` for speaker + copy) → **value_prop** (3 agenda bullets; optional \`imagePrompt\` per item for richer visuals) or **text_block** (agenda copy) → **image_text** (speaker headshot or venue) → **cta** with the real **registration URL** (\`variant: pill\` or \`fullWidth\`) → **text_block** (P.S.) → **footer**. Avoid a single hero → plain CTA with no agenda or proof sections when \`visual_density\` is not \`minimal\`.
 
-- **Product launch**: hero → image_text (image_left, product feature) → value_prop (3 cols) → image_text (image_right, use case) → testimonial → cta → footer
-- **Newsletter**: hero → image_text (image_left, main story) → text_block → image_text (image_right, secondary story) → cta → footer
-- **Promotional**: hero → image_text (image_left, product/lifestyle) → social_proof → value_prop → cta (urgencyText) → footer
-- **Event invite**: hero → image_text (image_right, venue preview) → value_prop (2 cols, speakers) → cta → footer
-- **Re-engagement**: hero (personal tone) → image_text (image_left, community) → testimonial → cta (ghost variant) → footer
-- **Ecommerce showcase** (6-12 products): hero → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → cta → footer
-- **Ecommerce curated** (3-4 products): hero → product_grid (2 cols, 2 items) → image_text (image_left, editorial) → product_grid (2 cols, 2 items) → testimonial → cta → footer
-- **Flash sale / promo**: hero (urgency-driven) → product_grid (3 cols, 3 items with badges + originalPrice) → cta (urgencyText, fullWidth) → product_grid (3 cols, 3 items) → social_proof → cta → footer
+- **Product launch**: hero → image_text (image_left, product feature) → value_prop (3 cols) → image_text (image_right, use case) → testimonial → cta → text_block (P.S.) → footer
+- **Newsletter**: hero → image_text (image_left, main story) → text_block → image_text (image_right, secondary story) → cta → text_block (P.S.) → footer
+- **Promotional**: hero → image_text (image_left, product/lifestyle) → social_proof → value_prop → cta (urgencyText) → text_block (P.S.) → footer
+- **Event invite**: hero → image_text (image_right, venue preview) → value_prop (2 cols, speakers) → cta → text_block (P.S.) → footer
+- **Re-engagement**: hero (personal tone) → image_text (image_left, community) → testimonial → cta (ghost variant) → text_block (P.S.) → footer
+- **Ecommerce showcase** (6-12 products): hero → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → divider → product_grid (3 cols, 3 items) → cta → text_block (P.S.) → footer
+- **Ecommerce curated** (3-4 products): hero → product_grid (2 cols, 2 items) → image_text (image_left, editorial) → product_grid (2 cols, 2 items) → testimonial → cta → text_block (P.S.) → footer
+- **Flash sale / promo**: hero (urgency-driven) → product_grid (3 cols, 3 items with badges + originalPrice) → cta (urgencyText, fullWidth) → product_grid (3 cols, 3 items) → social_proof → cta → text_block (P.S.) → footer
 
 ` +
   VA2_COPYWRITING_BLOCKS_PLACEHOLDER +
   `
 
 **Unlayer-category parity (Phase 13):** Match **industry facets** to **gallery-style depth** using **original** Design Manifest JSON only—do **not** paste Unlayer public gallery HTML (see \`docs/va13-phase-13.md\`, \`docs/va12-phase-12.md\`). Recommended mixes:
-- **Real estate / open house:** **nature** or **executive**; **hero** (\`heroLayout: split\` for interior + headline) → **value_prop** (3 pillars: layout, neighborhood, logistics) → **image_text** (tour expectations or disclosure) → **product_grid** (comparables or featured units) → **cta** (RSVP / schedule) → **footer**. Use **distinct** \`imagePrompt\` per slot.
-- **Nonprofit / giving:** **minimal** or **warm**; **hero** (\`editorial_tall\` for human story) → **social_proof** (\`metrics\`) → **value_prop** (programs funded) → **image_text** (volunteer or impact scene—dignified) → **testimonial** → **cta** (donate / match) → **footer**.
-- **Food / hospitality:** **warm**; **hero** (\`editorial_tall\` for kitchen or table) → **text_block** (date, time, deposit, dietary) → **product_grid** (menu waves or courses) → **image_text** (pairings or chef note) → **cta** (book) → **footer**.
-- **Music / entertainment:** **startup** or **tech**; **hero** (\`split\` for tour key art + copy) → **value_prop** (dates, cities, VIP tier) → **divider** → **image_text** (backstage or fan access) → **social_proof** (\`metrics\`) → **cta** (presale / on-sale) → **footer**.
+- **Real estate / open house:** **nature** or **executive**; **hero** (\`heroLayout: split\` for interior + headline) → **value_prop** (3 pillars: layout, neighborhood, logistics) → **image_text** (tour expectations or disclosure) → **product_grid** (comparables or featured units) → **cta** (RSVP / schedule) → **text_block** (P.S.) → **footer**. Use **distinct** \`imagePrompt\` per slot.
+- **Nonprofit / giving:** **minimal** or **warm**; **hero** (\`editorial_tall\` for human story) → **social_proof** (\`metrics\`) → **value_prop** (programs funded) → **image_text** (volunteer or impact scene—dignified) → **testimonial** → **cta** (donate / match) → **text_block** (P.S.) → **footer**.
+- **Food / hospitality:** **warm**; **hero** (\`editorial_tall\` for kitchen or table) → **text_block** (date, time, deposit, dietary) → **product_grid** (menu waves or courses) → **image_text** (pairings or chef note) → **cta** (book) → **text_block** (P.S.) → **footer**.
+- **Music / entertainment:** **startup** or **tech**; **hero** (\`split\` for tour key art + copy) → **value_prop** (dates, cities, VIP tier) → **divider** → **image_text** (backstage or fan access) → **social_proof** (\`metrics\`) → **cta** (presale / on-sale) → **text_block** (P.S.) → **footer**.
 
 For **promotional** briefs in these verticals, prefer **≥3** distinct **non-footer** section **types** after **hero** (e.g. combine **image_text**, **product_grid**, **value_prop**, **social_proof**, **testimonial**)—avoid **hero → single text_block → cta → footer** unless \`metadata.visual_density\` is \`minimal\`.
 
@@ -1092,9 +1093,9 @@ For **promotional** briefs in these verticals, prefer **≥3** distinct **non-fo
 
 **Hero layout diversity:** Pick \`heroLayout\` on purpose: \`split\` for **side-by-side** (e.g. speaker + copy, product + copy); \`editorial_tall\` for **magazine-style** height and long-form stories; omit or use default for **simple** announcements. Match **imagePrompt** composition to the layout (wide scene vs portrait crop). Video heroes are **not** supported in VA2 manifests. **When to use which:** \`split\` — B2B demos, product + dashboard proof, co-marketing columns; \`editorial_tall\` — D2C lookbooks, seasonal fashion, storytelling where vertical photo real estate matters; **default** — single-column hero for short announcements. See repo **\`docs/va11-phase-11.md\`** for Phase 11 exemplar starters (\`b2bSplitHeroProductStory\`, \`d2cEditorialTallLookbook\`).
 
-**B2B thought leadership / nurture:** Prefer **executive** or **tech** with \`layoutDensity: airy\`. Typical arc: **hero** (\`editorial_tall\` for long-form) → **text_block** (band: editor’s note) → **image_text** (framework / proof) → **value_prop** → **testimonial** → **cta** → **footer**. Set \`metadata.campaign_id\` (e.g. \`b2b_nurture_insights\`) when the brief is tracked; align **primary** CTA URLs with the same **UTM \`utm_campaign\`** when query parameters are used.
+**B2B thought leadership / nurture:** Prefer **executive** or **tech** with \`layoutDensity: airy\`. Typical arc: **hero** (\`editorial_tall\` for long-form) → **text_block** (band: editor’s note) → **image_text** (framework / proof) → **value_prop** → **testimonial** → **cta** → **text_block** (P.S.) → **footer**. Set \`metadata.campaign_id\` (e.g. \`b2b_nurture_insights\`) when the brief is tracked; align **primary** CTA URLs with the same **UTM \`utm_campaign\`** when query parameters are used.
 
-**Abandoned cart / browse recovery (D2C):** Use \`layoutDensity: compact\` and \`metadata.visual_density: rich\` for merchandising urgency. Flow: **hero** → **product_grid** (cart items; **distinct** \`imagePrompt\` per SKU) → **social_proof** (\`metrics\`) → **cta** (\`fullWidth\` or \`pill\`, \`urgencyText\` for stock/shipping) → **footer**. **Checkout links** should include \`utm_source\`, \`utm_medium\`, \`utm_campaign\`; keep \`metadata.campaign_id\` consistent with \`utm_campaign\`.
+**Abandoned cart / browse recovery (D2C):** Use \`layoutDensity: compact\` and \`metadata.visual_density: rich\` for merchandising urgency. Flow: **hero** → **product_grid** (cart items; **distinct** \`imagePrompt\` per SKU) → **social_proof** (\`metrics\`) → **cta** (\`fullWidth\` or \`pill\`, \`urgencyText\` for stock/shipping) → **text_block** (P.S.) → **footer**. **Checkout links** should include \`utm_source\`, \`utm_medium\`, \`utm_campaign\`; keep \`metadata.campaign_id\` consistent with \`utm_campaign\`.
 
 **Campaign / UTM discipline:** When attribution matters, set \`metadata.campaign_id\` and ensure hero \`ctaUrl\` and closing **cta** \`buttonUrl\` share the same tracking story (UTM params or documented short links). The builder pipeline may add UTM—still emit coherent URLs in JSON.
 
@@ -1102,13 +1103,13 @@ For **promotional** briefs in these verticals, prefer **≥3** distinct **non-fo
 
 **Export HTML discipline & template licensing (Phase 12):** Do **not** paste or ship **Unlayer public gallery** HTML as Messign product templates without **license** or **original** work you own. Prefer **original** Design Manifest JSON from this spec. For slot budget, HTML size heuristics, and licensing summary, see repo \`docs/va12-phase-12.md\` and \`docs/va4-phase-4.md\`.
 
-**Product changelog / release email:** Typical flow: **hero** (what shipped) → **text_block** (band: TL;DR bullets) → **value_prop** (3 highlights with optional item \`imagePrompt\`) → **image_text** (optional “under the hood”) → **cta** with **one** primary link to full release notes / changelog → **footer**. Keep **one** primary outcome (read the notes or upgrade)—avoid competing CTAs.
+**Product changelog / release email:** Typical flow: **hero** (what shipped) → **text_block** (band: TL;DR bullets) → **value_prop** (3 highlights with optional item \`imagePrompt\`) → **image_text** (optional “under the hood”) → **cta** with **one** primary link to full release notes / changelog → **text_block** (P.S.) → **footer**. Keep **one** primary outcome (read the notes or upgrade)—avoid competing CTAs.
 
-**Referral or loyalty program:** Flow: **hero** (reward framing) → **value_prop** (how it works, 3 steps) → **social_proof** (\`metrics\` for trust) → **cta** (\`urgencyText\` when a deadline exists) → **footer**. When \`metadata.visual_density\` is \`rich\`, include **proof** sections—do not ship **only** hero → **cta** without **value_prop** or **social_proof**.
+**Referral or loyalty program:** Flow: **hero** (reward framing) → **value_prop** (how it works, 3 steps) → **social_proof** (\`metrics\` for trust) → **cta** (\`urgencyText\` when a deadline exists) → **text_block** (P.S.) → **footer**. When \`metadata.visual_density\` is \`rich\`, include **proof** sections—do not ship **only** hero → **cta** without **value_prop** or **social_proof**.
 
-**Partner co-marketing / joint webinar:** Use **executive** or **tech** with \`layoutDensity: airy\`. Flow: **hero** (\`heroLayout: split\` when co-branding two companies) → **value_prop** (why the partnership — 3 pillars) → **image_text** (joint story or integration proof) → **text_block** (band: date, time, **timezone**) → **social_proof** or **testimonial** → **cta** with **one** shared registration URL (UTM \`utm_campaign\` aligned with \`metadata.campaign_id\`) → **footer**. **Subject** and **hero** should name both partners; use a **single joint CTA** — avoid competing registration links.
+**Partner co-marketing / joint webinar:** Use **executive** or **tech** with \`layoutDensity: airy\`. Flow: **hero** (\`heroLayout: split\` when co-branding two companies) → **value_prop** (why the partnership — 3 pillars) → **image_text** (joint story or integration proof) → **text_block** (band: date, time, **timezone**) → **social_proof** or **testimonial** → **cta** with **one** shared registration URL (UTM \`utm_campaign\` aligned with \`metadata.campaign_id\`) → **text_block** (P.S.) → **footer**. **Subject** and **hero** should name both partners; use a **single joint CTA** — avoid competing registration links.
 
-**Seasonal gift guide (D2C editorial):** Use **warm** or **luxury**. Flow: **hero** (\`editorial_tall\` optional) → **product_grid** wave ("Under $X") → **divider** → **image_text** (editorial story) → second **product_grid** ("Splurge" / "Statement") → **text_block** (flush or band: editor's note) → **cta** → **footer**. Tone is **curated and magazine-like** — not flash-sale unless the brief demands it. **metadata.target_image_slots** is often **6–8** (hero + grids + **image_text**).
+**Seasonal gift guide (D2C editorial):** Use **warm** or **luxury**. Flow: **hero** (\`editorial_tall\` optional) → **product_grid** wave ("Under $X") → **divider** → **image_text** (editorial story) → second **product_grid** ("Splurge" / "Statement") → **text_block** (flush or band: editor's note) → **cta** → **text_block** (P.S.) → **footer**. Tone is **curated and magazine-like** — not flash-sale unless the brief demands it. **metadata.target_image_slots** is often **6–8** (hero + grids + **image_text**).
 
 **Outlook / layered backgrounds:** Hero **background images**, **motion overlays**, and **full-bleed** rows can render differently in **Outlook** desktop. Before launch, follow the **Outlook QA** checklist in **Phase 4** (repo doc \`docs/va4-phase-4.md\`) — prefer **solid fills** or **token-safe** surfaces when the brief must prioritize Outlook parity over layered glam.
 
