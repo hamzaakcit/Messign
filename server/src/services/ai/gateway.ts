@@ -4,6 +4,7 @@
  * When LITELLM_URL points at localhost or is unset, skips the proxy and calls
  * Groq + Gemini (OpenAI-compatible APIs) so orchestrator/specialists work without LiteLLM.
  */
+import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { redactPII, restorePII, type RedactionMap } from './safety/piiRedactor.js';
 
@@ -49,7 +50,139 @@ const geminiClient = new OpenAI({
   maxRetries: 1,
 });
 
-type DirectProvider = 'groq' | 'gemini';
+type DirectProvider = 'groq' | 'gemini' | 'anthropic';
+
+const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim() ?? '';
+
+function getAnthropicClient(): Anthropic | null {
+  if (!anthropicApiKey) return null;
+  return new Anthropic({ apiKey: anthropicApiKey });
+}
+
+/** Convert OpenAI-style messages to Anthropic format, extracting system prompt. */
+function convertToAnthropicMessages(
+  messages: OpenAI.ChatCompletionMessageParam[],
+): { system: string; messages: Anthropic.MessageParam[] } {
+  let system = '';
+  const anthropicMsgs: Anthropic.MessageParam[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      system += (typeof msg.content === 'string' ? msg.content : '') + '\n';
+    } else if (msg.role === 'user') {
+      anthropicMsgs.push({
+        role: 'user',
+        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      });
+    } else if (msg.role === 'assistant') {
+      const assistantMsg = msg as OpenAI.ChatCompletionAssistantMessageParam;
+      const blocks: Anthropic.ContentBlockParam[] = [];
+      if (assistantMsg.content) {
+        blocks.push({ type: 'text', text: typeof assistantMsg.content === 'string' ? assistantMsg.content : JSON.stringify(assistantMsg.content) });
+      }
+      if (assistantMsg.tool_calls?.length) {
+        for (const tc of assistantMsg.tool_calls) {
+          if (tc.type === 'function' && tc.function) {
+            let input: Record<string, unknown> = {};
+            try { input = JSON.parse(tc.function.arguments || '{}'); } catch { /* noop */ }
+            blocks.push({ type: 'tool_use', id: tc.id, name: tc.function.name, input });
+          }
+        }
+      }
+      if (blocks.length > 0) {
+        anthropicMsgs.push({ role: 'assistant', content: blocks });
+      }
+    } else if (msg.role === 'tool') {
+      const toolMsg = msg as OpenAI.ChatCompletionToolMessageParam;
+      anthropicMsgs.push({
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: toolMsg.tool_call_id, content: typeof toolMsg.content === 'string' ? toolMsg.content : JSON.stringify(toolMsg.content) }],
+      });
+    }
+  }
+
+  return { system: system.trim(), messages: anthropicMsgs };
+}
+
+/** Convert OpenAI tool definitions to Anthropic tool format. */
+function openaiToolsToAnthropicFormat(tools: OpenAI.ChatCompletionTool[]): Anthropic.Tool[] {
+  return tools
+    .filter((t): t is OpenAI.ChatCompletionTool & { type: 'function' } => t.type === 'function' && !!t.function?.name)
+    .map((t) => {
+      const params = t.function.parameters;
+      const input_schema =
+        params && typeof params === 'object' && !Array.isArray(params) && (params as { type?: string }).type === 'object'
+          ? (params as Anthropic.Tool.InputSchema)
+          : ({ type: 'object', properties: {}, additionalProperties: true } as Anthropic.Tool.InputSchema);
+      return { name: t.function.name, description: t.function.description ?? '', input_schema };
+    });
+}
+
+/** Call Anthropic directly for complex-tier requests; return OpenAI-shaped response. */
+async function callAnthropicDirect(
+  options: GatewayCallOptions,
+  model: string,
+): Promise<GatewayResponseWithCache> {
+  const client = getAnthropicClient();
+  if (!client) throw new Error('ANTHROPIC_API_KEY not set');
+
+  const { system, messages: anthropicMsgs } = convertToAnthropicMessages(options.messages);
+  const anthropicTools = options.tools?.length ? openaiToolsToAnthropicFormat(options.tools) : undefined;
+
+  const request: Anthropic.MessageCreateParams = {
+    model,
+    max_tokens: options.maxTokens ?? 4096,
+    temperature: options.temperature ?? 0.3,
+    system: system || undefined,
+    messages: anthropicMsgs,
+    ...(anthropicTools?.length ? { tools: anthropicTools } : {}),
+  };
+
+  const response = await client.messages.create(request);
+
+  // Convert Anthropic response to OpenAI ChatCompletion shape
+  let textContent = '';
+  const toolCalls: OpenAI.ChatCompletionMessageToolCall[] = [];
+  let toolCallIndex = 0;
+
+  for (const block of response.content) {
+    if (block.type === 'text') {
+      textContent += block.text;
+    } else if (block.type === 'tool_use') {
+      toolCalls.push({
+        id: block.id,
+        type: 'function',
+        function: { name: block.name, arguments: JSON.stringify(block.input ?? {}) },
+      });
+      toolCallIndex++;
+    }
+  }
+
+  const completion: OpenAI.ChatCompletion = {
+    id: response.id,
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: response.model,
+    choices: [{
+      index: 0,
+      message: {
+        role: 'assistant',
+        content: textContent || null,
+        refusal: null,
+        ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
+      },
+      finish_reason: response.stop_reason === 'tool_use' ? 'tool_calls' : 'stop',
+      logprobs: null,
+    }],
+    usage: {
+      prompt_tokens: response.usage?.input_tokens ?? 0,
+      completion_tokens: response.usage?.output_tokens ?? 0,
+      total_tokens: (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0),
+    },
+  };
+
+  return { ...completion, _cacheHit: false, _estimatedCostSavingsUsd: 0 };
+}
 
 /** OpenAI-compat chat model id for generativelanguage.googleapis.com/v1beta/openai/ */
 const GEMINI_CHAT_MODEL_DEFAULT = 'gemini-2.5-flash';
@@ -79,12 +212,12 @@ function geminiChatModelCandidates(): string[] {
   return GEMINI_CHAT_CANDIDATES;
 }
 
-/** Direct routing: Groq for tool-heavy tiers (reliable OpenAI-style tools); Gemini for balanced/vision. */
+/** Direct routing: Anthropic for complex/frontier; Groq for fast; Gemini for balanced/vision. */
 const TIER_DIRECT: Record<ModelTier, { provider: DirectProvider; model: string }> = {
   fast: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
   balanced: { provider: 'gemini', model: GEMINI_CHAT_MODEL },
-  complex: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-  frontier: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  complex: { provider: 'anthropic', model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-20250514' },
+  frontier: { provider: 'anthropic', model: process.env.LLM_FRONTIER_MODEL?.trim() || 'claude-sonnet-4-20250514' },
   vision: { provider: 'gemini', model: GEMINI_CHAT_MODEL },
 };
 
@@ -99,11 +232,16 @@ const FALLBACK_CHAIN: Record<ModelTier, ModelTier[]> = {
 function getDirectClient(provider: DirectProvider): OpenAI | null {
   if (provider === 'groq') return groqApiKey ? groqClient : null;
   if (provider === 'gemini') return geminiApiKey ? geminiClient : null;
+  // Anthropic uses its own SDK — handled separately in callDirectProviders
   return null;
 }
 
 function directClientForTier(tier: ModelTier): OpenAI | null {
   return getDirectClient(TIER_DIRECT[tier].provider);
+}
+
+function isAnthropicTier(tier: ModelTier): boolean {
+  return TIER_DIRECT[tier].provider === 'anthropic';
 }
 
 /** Real-time keywords that trigger cache bypass (fresh inference) */
@@ -228,12 +366,36 @@ async function callDirectProviders(
   let attemptIndex = 0;
 
   for (const tier of chain) {
+    const { provider, model: tierModel } = TIER_DIRECT[tier];
+
+    // Anthropic uses its own SDK — bypass OpenAI client path
+    if (provider === 'anthropic') {
+      if (!anthropicApiKey) {
+        lastErrors.push(`${tier}: no API key for anthropic`);
+        continue;
+      }
+      try {
+        const result = await callAnthropicDirect({ ...options, tier, maxTokens, temperature }, tierModel);
+        if (attemptIndex > 0) {
+          _cascadeStats.cascaded++;
+          _cascadeStats.failedTiers += attemptIndex;
+          console.warn(`[Gateway] Cascade: succeeded on attempt ${attemptIndex + 1} via Anthropic`);
+        }
+        return result;
+      } catch (err) {
+        attemptIndex++;
+        const msg = err instanceof Error ? err.message : String(err);
+        lastErrors.push(`${tier} (${tierModel}): ${msg}`);
+        console.warn(`[Gateway] Anthropic direct failed for tier ${tier}`, { model: tierModel, error: msg });
+        continue;
+      }
+    }
+
     const client = directClientForTier(tier);
     if (!client) {
-      lastErrors.push(`${tier}: no API key for ${TIER_DIRECT[tier].provider}`);
+      lastErrors.push(`${tier}: no API key for ${provider}`);
       continue;
     }
-    const { provider, model: tierModel } = TIER_DIRECT[tier];
     const modelsToTry = provider === 'gemini' ? geminiChatModelCandidates() : [tierModel];
     for (const model of modelsToTry) {
       try {
@@ -408,12 +570,34 @@ async function* streamDirectProviders(
   const lastErrors: string[] = [];
 
   for (const tier of chain) {
+    const { provider, model: tierModel } = TIER_DIRECT[tier];
+
+    // Anthropic streaming: buffer full response then yield as a single chunk
+    if (provider === 'anthropic') {
+      if (!anthropicApiKey) {
+        lastErrors.push(`${tier}: no API key for anthropic`);
+        continue;
+      }
+      try {
+        const result = await callAnthropicDirect({ ...options, tier, maxTokens, temperature }, tierModel);
+        const content = result.choices?.[0]?.message?.content;
+        if (content) {
+          yield { choices: [{ delta: { content }, index: 0 }] } as unknown as OpenAI.ChatCompletionChunk;
+        }
+        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        lastErrors.push(`${tier} (${tierModel}): ${msg}`);
+        console.warn(`[Gateway] Anthropic stream failed for tier ${tier}`, { model: tierModel, error: msg });
+        continue;
+      }
+    }
+
     const client = directClientForTier(tier);
     if (!client) {
-      lastErrors.push(`${tier}: no API key for ${TIER_DIRECT[tier].provider}`);
+      lastErrors.push(`${tier}: no API key for ${provider}`);
       continue;
     }
-    const { provider, model: tierModel } = TIER_DIRECT[tier];
     const modelsToTry = provider === 'gemini' ? geminiChatModelCandidates() : [tierModel];
     for (const model of modelsToTry) {
       try {

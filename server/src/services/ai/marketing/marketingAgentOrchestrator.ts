@@ -292,12 +292,15 @@ async function buildContentStrategistLoopArgs(
     }
   }
 
+  // Complex tier now routes to Claude via Anthropic direct — use full quality
+  const qualityTier = channel === 'email' ? 'full' : 'standard';
   const contentBase = buildMarketingContentStrategistPrompt({
     userRole: ctx.agentContext.userRole,
     productTruthMd,
     brandVoiceMd,
     channel,
     calibrationText,
+    qualityTier,
   });
   const systemPrompt =
     ctx.applyLucyPersona === true && ctx.marketingRoute != null
@@ -317,6 +320,7 @@ async function buildContentStrategistLoopArgs(
     legacyContext: ctx.legacyContext,
     priorBlock,
     contentStrategist: true,
+    channel,
   };
 }
 
@@ -357,11 +361,6 @@ export async function executeContentWorkflow(
   const refStrip = stripReferenceImageUrlBlock(brief.userQuery);
   const effectiveUserQuery = refStrip.referenceUrl ? refStrip.cleaned : brief.userQuery;
   const agentOutput = effectiveUserQuery;
-  console.log('[DIAG] executeContentWorkflow START', {
-    orgId,
-    channel: brief.channel,
-    hasAgentOutput: !!agentOutput,
-  });
   if (!orgId) {
     return {
       status: 'failed',
@@ -421,11 +420,6 @@ export async function executeContentWorkflow(
 
   const contentId = contentRow.id;
   if (contentRowCreated) {
-    console.log('[FIX-1] [DIAG] Content row created:', {
-      contentId,
-      channel: brief.channel ?? contentRow.channel,
-      status: contentRow.status,
-    });
   }
   if (refStrip.referenceUrl) {
     try {
@@ -604,12 +598,6 @@ export async function executeContentWorkflow(
     const tv = validateGatekeeperResult('product_truth', truthRaw, productTruthParsedSchema);
     const bv = validateGatekeeperResult('brand_voice', brandRaw, brandVoiceParsedSchema);
     const cv = validateGatekeeperResult('compliance', compRaw, complianceParsedSchema);
-
-    console.log('[DIAG] Gatekeepers complete:', {
-      truthResult: truthRaw,
-      brandResult: brandRaw,
-      complianceResult: compRaw,
-    });
 
     if (!tv.ok || !bv.ok || !cv.ok) {
       const err = [!tv.ok ? tv.error : '', !bv.ok ? bv.error : '', !cv.ok ? cv.error : ''].filter(Boolean).join(' | ');

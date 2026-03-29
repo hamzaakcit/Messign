@@ -10,7 +10,7 @@ import {
   getDefaultProductTruthFallback,
 } from '../../../dal/marketing/truthBrand.js';
 import { buildChannelSpecsBlock } from './instagramChannelSpec.js';
-import { GOLDEN_EMAIL_EXAMPLES_MD } from './goldenEmailExamples.js';
+import { GOLDEN_EMAIL_EXAMPLES_MD, GOLDEN_EMAIL_EXAMPLES_COMPACT_MD } from './goldenEmailExamples.js';
 import { VA2_EMAIL_MANIFEST_SCHEMA_JSON_MIN } from '../va2EmailManifestSchemaShared.js';
 
 export interface MarketingContentStrategistPromptInput {
@@ -38,6 +38,12 @@ export interface MarketingContentStrategistPromptInput {
   calibrationText?: string;
   /** When true, omit calibrationText even if provided (for experimental content). */
   skipCalibration?: boolean;
+  /** Controls how much prompt guidance to include based on model capability.
+   *  'full' = all phases (~17K tokens) — for Claude / high-capability models
+   *  'standard' = Phase 1 + 2 + 5 (~6,300 tokens) — for capable but not top-tier models
+   *  'minimal' = Phase 1 only (~3,500 tokens) — for fast/small models
+   */
+  qualityTier?: 'full' | 'standard' | 'minimal';
 }
 
 const NONE_LOADED = '(None loaded for this session.)';
@@ -790,7 +796,28 @@ To illustrate how brand voice changes the output without changing the structure:
 </brand_voice_amplifier>
 `.trim();
 
-const VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS = (
+/** Placeholder replaced at runtime by buildVa2EmailManifestInstructions based on qualityTier. */
+const VA2_COPYWRITING_BLOCKS_PLACEHOLDER = '%%COPYWRITING_BLOCKS%%';
+
+/** Build the copywriting guidance blocks based on model quality tier. */
+function buildCopywritingGuidance(qualityTier: 'full' | 'standard' | 'minimal'): string {
+  if (qualityTier === 'full') {
+    // All phases: engine + subject lab + industry playbooks + brand voice
+    return COPYWRITING_ENGINE_VA2_BLOCK
+      + '\n\n' + SUBJECT_LINE_LAB_BLOCK
+      + '\n\n' + INDUSTRY_COPY_PLAYBOOKS_BLOCK
+      + '\n\n' + BRAND_VOICE_AMPLIFIER_BLOCK;
+  } else if (qualityTier === 'standard') {
+    // Core phases: engine + brand voice (skip subject lab + industry playbooks)
+    return COPYWRITING_ENGINE_VA2_BLOCK
+      + '\n\n' + BRAND_VOICE_AMPLIFIER_BLOCK;
+  }
+  // Minimal: no additional blocks — golden examples (Phase 1) do the heavy lifting
+  return '';
+}
+
+/** Static VA2 email manifest template (copywriting blocks injected at build time). */
+const VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS_TEMPLATE = (
   `
 ## Email Design Mode (Visual Architect v2)
 
@@ -1048,13 +1075,7 @@ Use varied layouts to create visually engaging, magazine-style emails. Mix singl
 - **Flash sale / promo**: hero (urgency-driven) → product_grid (3 cols, 3 items with badges + originalPrice) → cta (urgencyText, fullWidth) → product_grid (3 cols, 3 items) → social_proof → cta → footer
 
 ` +
-  COPYWRITING_ENGINE_VA2_BLOCK +
-  '\n\n' +
-  SUBJECT_LINE_LAB_BLOCK +
-  '\n\n' +
-  INDUSTRY_COPY_PLAYBOOKS_BLOCK +
-  '\n\n' +
-  BRAND_VOICE_AMPLIFIER_BLOCK +
+  VA2_COPYWRITING_BLOCKS_PLACEHOLDER +
   `
 
 **Unlayer-category parity (Phase 13):** Match **industry facets** to **gallery-style depth** using **original** Design Manifest JSON only—do **not** paste Unlayer public gallery HTML (see \`docs/va13-phase-13.md\`, \`docs/va12-phase-12.md\`). Recommended mixes:
@@ -1224,6 +1245,12 @@ Why this works: **layoutDensity: compact** tightens typography for dense webinar
 `
 ).trim();
 
+/** Build VA2 email manifest instructions with copywriting blocks based on quality tier. */
+function buildVa2EmailManifestInstructions(qualityTier: 'full' | 'standard' | 'minimal'): string {
+  const copywritingGuidance = buildCopywritingGuidance(qualityTier);
+  return VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS_TEMPLATE.replace(VA2_COPYWRITING_BLOCKS_PLACEHOLDER, copywritingGuidance);
+}
+
 const MANDATORY_WORKFLOW_EMAIL_LINE_VA2 = `9. **Email channel (Visual Architect v2)**: For Messign email builder / Unlayer, you MUST ALWAYS output a valid Design Manifest JSON per **Email Design Mode** above — JSON **only** inside \`\`\`json fenced blocks (no prose before the opening fence). NEVER output plain SUBJECT/PREVIEW/BODY format for the email channel — always use the VA2 Design Manifest JSON format. Every email manifest MUST include: (a) a hero section with imagePrompt, (b) at least one \`image_text\` or standalone \`image\` section for visual variety, (c) a footer section. Prefer \`image_text\` sections (side-by-side layout) over separate image + text_block pairs. Alternate image_left and image_right layouts. Follow **Image Generation Rules**: use \`[STOCK]\` only for short category-obvious prompts; use long literal \`imagePrompt\` without \`[STOCK]\` for topic-specific heroes and campaigns. When a Reference block lists saved designs, treat it as ground truth for tone/structure; use \`marketing:list_saved_email_designs\` / \`marketing:get_saved_email_design\` only when you need more detail than the excerpt. Skip \`creative:repurpose_content\` unless repurposing real long-form source text.`;
 
 const MANDATORY_WORKFLOW_EMAIL_LINE_LEGACY = `9. **Email channel**: For **Visual Architect / Unlayer** email builds, output a **Design Manifest** JSON per **Visual Layout Architect — Design Manifest** below. Otherwise follow **CHANNEL_SPECS → Email (marketing)** (SUBJECT/PREVIEW/BODY) when the user wants plain labeled copy. When a Reference block lists saved designs, treat it as ground truth for tone/structure; use \`marketing:list_saved_email_designs\` / \`marketing:get_saved_email_design\` only when you need more detail than the excerpt. Skip \`creative:repurpose_content\` unless repurposing real long-form source text.`;
@@ -1281,10 +1308,13 @@ function normalizeChannelKey(channel?: string): string | undefined {
 }
 
 /** Static rules + channel specs; manifest block depends on \`channel\` (VA2 for email). */
-function buildContentStrategistStaticSpec(channel?: string): string {
+function buildContentStrategistStaticSpec(
+  channel?: string,
+  qualityTier: 'full' | 'standard' | 'minimal' = 'full',
+): string {
   const ch = normalizeChannelKey(channel);
   const isEmail = ch === 'email';
-  const manifestSpec = isEmail ? VA2_EMAIL_DESIGN_MANIFEST_INSTRUCTIONS : VISUAL_ARCHITECT_DESIGN_MANIFEST_SPEC;
+  const manifestSpec = isEmail ? buildVa2EmailManifestInstructions(qualityTier) : VISUAL_ARCHITECT_DESIGN_MANIFEST_SPEC;
   const emailWorkflowLine9 = isEmail ? MANDATORY_WORKFLOW_EMAIL_LINE_VA2 : MANDATORY_WORKFLOW_EMAIL_LINE_LEGACY;
   const channelSpecsText = buildChannelSpecsBlock(ch);
 
@@ -1390,9 +1420,11 @@ export function buildMarketingContentStrategistPrompt(input: MarketingContentStr
     channel,
     calibrationText,
     skipCalibration,
+    qualityTier = 'full',
   } = input;
 
-  const golden = goldenExamplesMd?.trim() || GOLDEN_EMAIL_EXAMPLES_MD;
+  const defaultGolden = qualityTier === 'minimal' ? GOLDEN_EMAIL_EXAMPLES_COMPACT_MD : GOLDEN_EMAIL_EXAMPLES_MD;
+  const golden = goldenExamplesMd?.trim() || defaultGolden;
   const competitor = competitorContextMd?.trim() || NONE_LOADED;
 
   const shouldInjectCalibration =
@@ -1435,7 +1467,7 @@ export function buildMarketingContentStrategistPrompt(input: MarketingContentStr
     parts.push(calibrationText!.trim(), '', '---', '');
   }
 
-  parts.push(buildContentStrategistStaticSpec(channel));
+  parts.push(buildContentStrategistStaticSpec(channel, qualityTier));
 
   return parts.join('\n');
 }

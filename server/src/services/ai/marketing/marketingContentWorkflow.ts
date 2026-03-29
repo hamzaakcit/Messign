@@ -135,6 +135,7 @@ async function generateDraft(
     brandVoiceMd,
     channel: ctx.channel,
     calibrationText,
+    qualityTier: 'full', // This path uses generateResponse → Claude directly
   });
 
   const userMessage = [brief, MOCK_PRODUCT_TRUTH_LOOKUP_TOOL_RESULT, revisionBlock].filter(Boolean).join('\n\n');
