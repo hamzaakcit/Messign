@@ -209,4 +209,65 @@ describe('validateCopyQuality', () => {
 
     expect(validateCopyQuality(withImageTextPs)).toEqual([]);
   });
+
+  it('does not warn on preheader when it adds several words not in the subject (even if all subject keywords repeat)', () => {
+    const subject = 'Spring sale starts Friday';
+    const preheader =
+      'Spring sale starts Friday — free shipping over $50, member early access, and new markdowns in every category.';
+    const w = validateCopyQuality({
+      subject,
+      preheader,
+      metadata: { subject_variants: ['A', 'B'] },
+      sections: [{ type: 'footer', order: 1, content: { companyName: 'C', address: 'A' } }],
+    });
+    expect(w.some((x) => x.id === 'preheader_repeats_subject')).toBe(false);
+  });
+
+  it('satisfies numbers check when stats live only in hero (no digits in value_prop)', () => {
+    const w = validateCopyQuality({
+      subject: 'Ship faster',
+      preheader: 'Cut lead time without hiring — see how teams save 6 hours per sprint.',
+      metadata: { subject_variants: ['A', 'B'] },
+      sections: [
+        {
+          type: 'hero',
+          order: 1,
+          content: {
+            headline: '6 hours back every sprint',
+            subheadline: 'Measured across 120 teams in Q1.',
+            ctaText: 'See the playbook',
+            imagePrompt: 'x'.repeat(80),
+          },
+        },
+        {
+          type: 'value_prop',
+          order: 2,
+          content: {
+            columns: 2,
+            items: [
+              { heading: 'Fewer handoffs', description: 'One workflow from ticket to deploy.' },
+              { heading: 'Clearer ownership', description: 'No more guessing who moves next.' },
+            ],
+          },
+        },
+        {
+          type: 'footer',
+          order: 3,
+          content: { companyName: 'Co', address: '1 St', links: [{ text: 'Unsubscribe', url: '#' }] },
+        },
+      ],
+    });
+    expect(w.some((x) => x.id === 'no_numbers_in_value')).toBe(false);
+  });
+
+  it('downgrades "we\'re excited to share" kill phrase to medium severity', () => {
+    const w = validateCopyQuality({
+      subject: 'Update',
+      preheader: "We're excited to share what is new.",
+      metadata: { subject_variants: ['A', 'B'] },
+      sections: [{ type: 'footer', order: 1, content: { companyName: 'C', address: 'A' } }],
+    });
+    const kill = w.find((x) => x.message.includes('excited') && x.message.includes('share'));
+    expect(kill?.severity).toBe('medium');
+  });
 });

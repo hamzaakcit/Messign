@@ -28,10 +28,15 @@ export interface CopyQualityWarning {
 // Kill List — mirrors Phase 2 prompt kill list for defense-in-depth
 // ---------------------------------------------------------------------------
 
-const KILL_LIST_PHRASES: { pattern: RegExp; reason: string }[] = [
+const KILL_LIST_PHRASES: { pattern: RegExp; reason: string; severity?: CopyQualityWarning['severity'] }[] = [
   { pattern: /i hope this email finds you well/i, reason: 'Filler opening — provides no value to the reader' },
   { pattern: /in today'?s fast[- ]paced world/i, reason: 'Cliché opener — every AI writes this' },
-  { pattern: /we'?re (excited|thrilled) to (announce|share)/i, reason: "Writer's emotion, not reader's benefit" },
+  /** Medium: common in legitimate launches; still nudge toward reader-centric copy */
+  {
+    pattern: /we'?re (excited|thrilled) to (announce|share)/i,
+    reason: "Writer's emotion, not reader's benefit",
+    severity: 'medium',
+  },
   { pattern: /stay ahead of the curve/i, reason: 'Vague motivational language — no specificity' },
   { pattern: /take .{1,30} to the next level/i, reason: 'Generic improvement claim — what level? how?' },
   { pattern: /don'?t miss out(?!\s+on\s+\w)/i, reason: 'Lazy urgency — must specify what they miss and by when' },
@@ -145,7 +150,7 @@ export function validateCopyQuality(manifest: ManifestLike): CopyQualityWarning[
   // -----------------------------------------------------------------------
   const textFields = extractTextFields(manifest);
   for (const { field, value } of textFields) {
-    for (const { pattern, reason } of KILL_LIST_PHRASES) {
+    for (const { pattern, reason, severity: sev } of KILL_LIST_PHRASES) {
       if (pattern.test(value)) {
         const match = value.match(pattern)?.[0] || '';
         killIdx += 1;
@@ -153,7 +158,7 @@ export function validateCopyQuality(manifest: ManifestLike): CopyQualityWarning[
           `kill_${field}_${killIdx}`,
           field,
           `Generic phrase detected: "${match}" — ${reason}`,
-          'high',
+          sev ?? 'high',
           'kill_list',
         );
       }
@@ -207,6 +212,9 @@ export function validateCopyQuality(manifest: ManifestLike): CopyQualityWarning[
   // -----------------------------------------------------------------------
   // 4. Subject / preheader repetition check
   // -----------------------------------------------------------------------
+  // Previous metric (share of subject tokens that reappear in preheader) flagged
+  // 100% whenever the preheader included all subject keywords—even if it also
+  // added many new words. We now require *novel* preheader vocabulary.
   if (manifest.subject && manifest.preheader) {
     const subjectWords = new Set(
       manifest.subject
@@ -220,16 +228,27 @@ export function validateCopyQuality(manifest: ManifestLike): CopyQualityWarning[
       .replace(/[^a-z0-9\s]/g, '')
       .split(/\s+/)
       .filter((pw) => pw.length > 3);
-    const overlap = preheaderWords.filter((pw) => subjectWords.has(pw));
-    const overlapRatio = subjectWords.size > 0 ? overlap.length / subjectWords.size : 0;
-    if (overlapRatio > 0.5) {
-      w(
-        'preheader_repeats_subject',
-        'preheader',
-        `Preheader repeats ${Math.round(overlapRatio * 100)}% of subject line words. Preheader should add NEW information.`,
-        'medium',
-        'structure',
-      );
+    if (subjectWords.size === 0 || preheaderWords.length === 0) {
+      // nothing to compare
+    } else {
+      const novelInPreheader = preheaderWords.filter((pw) => !subjectWords.has(pw));
+      const subjectTokensInPreheader = [...subjectWords].filter((sw) => preheaderWords.includes(sw)).length;
+      const subjectEchoRatio = subjectTokensInPreheader / subjectWords.size;
+      const novelRatio = novelInPreheader.length / preheaderWords.length;
+      // Flag when the preheader mostly echoes the subject AND adds fewer than 3
+      // substantive words not present in the subject (after 3+ char filter).
+      const weakNovelty = novelInPreheader.length < 3 && subjectEchoRatio > 0.45;
+      // Or: long preheader that is still mostly recycled subject tokens
+      const mostlyRecycled = preheaderWords.length >= 8 && novelRatio < 0.35 && subjectEchoRatio > 0.35;
+      if (weakNovelty || mostlyRecycled) {
+        w(
+          'preheader_repeats_subject',
+          'preheader',
+          `Preheader echoes the subject without enough new detail (${novelInPreheader.length} new word${novelInPreheader.length === 1 ? '' : 's'} vs subject). Add timing, proof, or a hook that is not in the subject line.`,
+          'medium',
+          'structure',
+        );
+      }
     }
   }
 
@@ -368,11 +387,15 @@ export function validateCopyQuality(manifest: ManifestLike): CopyQualityWarning[
   }
 
   // -----------------------------------------------------------------------
-  // 10. Body copy specificity — check for at least one number in value sections
+  // 10. Body copy specificity — check for at least one number in hero + proof sections
   // -----------------------------------------------------------------------
   if (manifest.sections) {
     const valueSections = manifest.sections.filter(
-      (s) => s.type === 'value_prop' || s.type === 'image_text' || s.type === 'social_proof',
+      (s) =>
+        s.type === 'hero' ||
+        s.type === 'value_prop' ||
+        s.type === 'image_text' ||
+        s.type === 'social_proof',
     );
     if (valueSections.length > 0) {
       const allValueText = valueSections
@@ -390,8 +413,8 @@ export function validateCopyQuality(manifest: ManifestLike): CopyQualityWarning[
       if (!/\d/.test(allValueText)) {
         w(
           'no_numbers_in_value',
-          'sections (value/proof)',
-          'No numbers found in any value prop, image_text, or social proof sections. Specificity requires concrete data — percentages, timeframes, counts.',
+          'sections (hero/value/proof)',
+          'No numbers found in hero, value prop, image_text, or social proof sections. Specificity usually needs concrete data — percentages, timeframes, counts (often placed in the hero).',
           'medium',
           'specificity',
         );
