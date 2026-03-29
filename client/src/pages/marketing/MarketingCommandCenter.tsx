@@ -43,10 +43,12 @@ export interface MarketingCommandCenterProps {
   brandsError?: Error | null;
   /** `compact`: bounded height above the main Kanban; intelligence grid scrolls inside. */
   variant?: 'full' | 'compact';
+  /** Single-column one-pager; `all` = four-column grid (default). */
+  visibleColumn?: 'all' | 'brand-social' | 'funnel' | 'experiments' | 'sandbox';
 }
 
 /**
- * High-density four-column Intelligence Kanban for Marketing.
+ * Marketing command center: four-column grid by default, or a single column when `visibleColumn` is set (one-pager routes).
  */
 export function MarketingCommandCenter({
   data,
@@ -67,8 +69,10 @@ export function MarketingCommandCenter({
   onReconnectSocial,
   brandsError,
   variant = 'full',
+  visibleColumn = 'all',
 }: MarketingCommandCenterProps): JSX.Element {
   const isCompact = variant === 'compact';
+  const isMultiColumn = visibleColumn === 'all';
   const [intelExpanded, setIntelExpanded] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : true,
   );
@@ -103,7 +107,7 @@ export function MarketingCommandCenter({
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2 px-3 py-1 border-b border-white/[0.04] shrink-0">
-        {isCompact && (
+        {isCompact && isMultiColumn && (
           <button
             type="button"
             onClick={() => setIntelExpanded((e) => !e)}
@@ -147,16 +151,16 @@ export function MarketingCommandCenter({
         </div>
       )}
 
-      {(!isCompact || intelExpanded) && (
+      {(!isCompact || intelExpanded || !isMultiColumn) && (
       <div
         className={cn(
           'min-h-0 overflow-x-hidden overflow-y-auto p-2 sm:p-3',
-          isCompact ? 'max-h-[min(36vh,300px)]' : 'flex-1',
+          isCompact && isMultiColumn ? 'max-h-[min(36vh,300px)]' : 'flex-1',
         )}
       >
         {loading && !data ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3 w-full min-w-0">
-            {Array.from({ length: 4 }).map((_, i) => (
+          <div className={cn('grid gap-2 sm:gap-3 w-full min-w-0', isMultiColumn ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1')}>
+            {Array.from({ length: isMultiColumn ? 4 : 1 }).map((_, i) => (
               <div
                 key={i}
                 className={cn(
@@ -167,6 +171,7 @@ export function MarketingCommandCenter({
             ))}
           </div>
         ) : data ? (
+          isMultiColumn ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3 w-full min-w-0 items-start">
             <ErrorBoundary resetKey="cc-social" fallback={<ColumnFallback title="Brand & Social" />}>
               <BrandSocialColumn data={data.socialPulse} onReconnect={onReconnectSocial} />
@@ -186,7 +191,7 @@ export function MarketingCommandCenter({
                 onOpenEmail={onOpenEmail}
               />
             </ErrorBoundary>
-            <ErrorBoundary resetKey="cc-dora" fallback={<ColumnFallback title="Dora Sandbox" />}>
+            <ErrorBoundary resetKey="cc-dora" fallback={<ColumnFallback title="Lucy Sandbox" />}>
               <div className="flex flex-col gap-2 min-w-0 w-full">
                 <p className="text-[10px] text-app-muted">
                   Active campaigns:{' '}
@@ -196,6 +201,45 @@ export function MarketingCommandCenter({
               </div>
             </ErrorBoundary>
           </div>
+          ) : (
+          <div className="w-full min-w-0 max-w-4xl mx-auto">
+            {visibleColumn === 'brand-social' && (
+              <ErrorBoundary resetKey="cc-social" fallback={<ColumnFallback title="Brand & Social" />}>
+                <BrandSocialColumn data={data.socialPulse} onReconnect={onReconnectSocial} />
+              </ErrorBoundary>
+            )}
+            {visibleColumn === 'funnel' && (
+              <ErrorBoundary resetKey="cc-funnel" fallback={<ColumnFallback title="Funnel" />}>
+                <FunnelColumn
+                  funnel7d={data.funnel7d}
+                  funnelSeries7d={data.funnelSeries7d}
+                  cacRoi={data.cacRoi}
+                  alertSignupDrop={!!alertSignup}
+                />
+              </ErrorBoundary>
+            )}
+            {visibleColumn === 'experiments' && (
+              <ErrorBoundary resetKey="cc-exp" fallback={<ColumnFallback title="Experiments" />}>
+                <ExperimentsColumn
+                  experiments={data.experiments}
+                  onOpenCampaign={onOpenCampaign}
+                  onOpenEmail={onOpenEmail}
+                />
+              </ErrorBoundary>
+            )}
+            {visibleColumn === 'sandbox' && (
+              <ErrorBoundary resetKey="cc-dora" fallback={<ColumnFallback title="Lucy Sandbox" />}>
+                <div className="flex flex-col gap-2 min-w-0 w-full">
+                  <p className="text-[10px] text-app-muted">
+                    Active campaigns:{' '}
+                    <span className="text-app-text font-semibold tabular-nums">{data.activeCampaigns}</span>
+                  </p>
+                  <StrategySandboxColumn plays={data.plays} onExecuteWithDora={onExecuteWithDora} />
+                </div>
+              </ErrorBoundary>
+            )}
+          </div>
+          )
         ) : (
           <p className="text-[11px] text-app-muted px-1">No command center data.</p>
         )}

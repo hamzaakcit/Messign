@@ -18,6 +18,7 @@ async function run() {
       'finance_v2_sprint1.sql',
       'finance_v2_sprint2.sql',
       'finance_v2_sprint3.sql',
+      'finance_v2_sprint5.sql',
     ];
     for (const file of migrations) {
       const migrationPath = path.join(__dirname, 'migrations', file);

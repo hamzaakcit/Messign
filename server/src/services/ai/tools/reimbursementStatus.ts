@@ -10,6 +10,7 @@ import { registerTool } from '../toolRegistry.js';
 import { limitRecords } from '../dataSanitizer.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import { computeReimbursementAggregates } from './reimbursementAggregates.js';
 
 const reimbursementDetailsTool: Tool = {
   name: 'finance:get_reimbursement_details',
@@ -141,33 +142,49 @@ Use this tool when someone asks:
       targetReimbursementId = userSearch.rows[0].id;
     }
 
-    const statusCond = statusFilter !== 'all' ? `AND r.status = $2` : '';
+    const baseWhere = `WHERE r.submitted_by = $1 AND (r.is_deleted IS NOT TRUE OR r.is_deleted IS NULL)`;
+    let extraCond = '';
     const params: unknown[] = [targetReimbursementId];
-    if (statusFilter !== 'all') params.push(statusFilter);
+
+    if (statusFilter === 'all') {
+      extraCond = '';
+    } else if (statusFilter === 'pending') {
+      extraCond = `AND r.status NOT IN ('paid', 'reimbursed', 'voided', 'rejected', 'manager_rejected', 'finance_rejected')`;
+    } else {
+      extraCond = 'AND r.status = $2';
+      params.push(statusFilter);
+    }
 
     const result = await query(
       `SELECT r.id, r.title, r.converted_amount as amount, r.original_amount, r.original_currency, r.status, r.created_at, r.updated_at
        FROM reimbursement_requests r
-       WHERE r.submitted_by = $1 ${statusCond}
+       ${baseWhere}
+       ${extraCond}
        ORDER BY r.created_at DESC
        LIMIT 30`,
       params
     );
 
     const records = limitRecords(result.rows as Record<string, unknown>[], 30);
-    const totalAmount = records.reduce((sum: number, r) => sum + parseFloat(String(r.amount ?? r.original_amount ?? 0)), 0);
+    const aggregates = computeReimbursementAggregates(records);
+    const totalAmount = aggregates.totalAmount;
 
-    const summary = `**Reimbursements (${statusFilter}) — ${records.length} records, $${totalAmount.toFixed(2)} total:**\n${records
-      .slice(0, 15)
-      .map(
-        (r, i) =>
-          `${i + 1}. [${r.status}] ${r.title || 'Untitled'}: $${parseFloat(String(r.amount ?? r.original_amount ?? 0)).toFixed(2)} (${new Date(r.created_at as string).toLocaleDateString()})`
-      )
-      .join('\n')}${records.length > 15 ? `\n... and ${records.length - 15} more` : ''}`;
+    const summary =
+      records.length === 0
+        ? statusFilter === 'pending'
+          ? '**No pending reimbursements** — nothing outstanding.'
+          : '**No reimbursements** for this filter.'
+        : `**${records.length} claim(s)** · $${totalAmount.toFixed(2)} total — details are in the widget below.`;
+
+    const data = {
+      claims: records,
+      aggregates,
+      filter: statusFilter,
+    };
 
     return {
       success: true,
-      data: records,
+      data,
       summary,
       metadata: { source: 'reimbursement_requests', count: records.length },
     };

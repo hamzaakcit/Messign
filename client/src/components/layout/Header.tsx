@@ -90,7 +90,9 @@ export function Header() {
             }}
           >
             <Search className="w-3.5 h-3.5 shrink-0" />
-            <span className="flex-1 text-sm">Search or ask Dora...</span>
+            <span className="flex-1 text-sm">
+              {location.pathname.startsWith('/marketing') ? 'Search or ask Lucy...' : 'Search or ask Dora...'}
+            </span>
             <kbd
               className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono"
               style={{

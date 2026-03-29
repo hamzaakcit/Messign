@@ -165,7 +165,7 @@ async function getPulseExtras(
          FROM tasks t
          JOIN projects p ON p.id = t.project_id
          WHERE t.status = 'blocked'
-         ORDER BY t.updated_at DESC NULLS LAST
+         ORDER BY t.created_at DESC NULLS LAST
          LIMIT 12`,
       ),
     ]);

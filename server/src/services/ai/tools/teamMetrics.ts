@@ -9,6 +9,7 @@ import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import { buildShortTeamOverviewSummary, computeTeamOverviewAggregates } from './teamOverviewAggregates.js';
 
 function buildTeamDateFilter(period: string): Date {
   const now = new Date();
@@ -240,38 +241,17 @@ Use this tool when someone asks:
       });
     }
 
-    const periodLabel = timePeriod.replace('_', ' ');
-    const formatRevenue = (v: number) => (v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `$${(v / 1e3).toFixed(1)}K` : `$${v.toFixed(0)}`);
-    const formatCompact = (v: number) => (v >= 1e6 ? `${Math.round(v / 1e6)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}K` : String(v));
-
-    const summary = teamMetrics
-      .map((tm) => {
-        if ((tm.memberCount as number) === 0) return `**${tm.name}**: No active members.`;
-        const ts = tm.taskStats as Record<string, unknown>;
-        let section = `**${tm.name}** (${tm.memberCount} members) — ${periodLabel}:
-- Tasks: ${ts?.completed || 0}/${ts?.total || 0} completed (${tm.completionRate}% completion rate)
-- In progress: ${ts?.in_progress || 0} | Todo: ${ts?.todo || 0} | Blocked: ${ts?.blocked || 0} | Overdue: ${ts?.overdue || 0}
-- Total activities: ${tm.activityCount}`;
-        const sales = tm.salesMetrics as { revenue: number; smsAttempts: number; emailAttempts?: number } | undefined;
-        if (sales && (sales.revenue > 0 || sales.smsAttempts > 0)) {
-          section += `\n- Sales: Revenue ${formatRevenue(sales.revenue)} | SMS ${formatCompact(sales.smsAttempts)}`;
-          if (sales.emailAttempts && sales.emailAttempts > 0) {
-            section += ` | Email ${formatCompact(sales.emailAttempts)}`;
-          }
-        }
-        if (tm.topPerformer) {
-          const tp = tm.topPerformer as Record<string, unknown>;
-          section += `\n- Top performer: ${tp.full_name || tp.completed} (${tp.completed} tasks completed)`;
-        }
-        const mems = tm.members as { name: string }[];
-        section += `\n- Members: ${mems.map((m) => m.name).join(', ')}`;
-        return section;
-      })
-      .join('\n\n');
+    const aggregates = computeTeamOverviewAggregates(teamMetrics);
+    const summary = buildShortTeamOverviewSummary(teamMetrics, timePeriod, aggregates);
+    const data = {
+      teams: teamMetrics,
+      period: timePeriod,
+      aggregates,
+    };
 
     return {
       success: true,
-      data: teamMetrics,
+      data,
       summary,
       metadata: { source: 'performance_teams, performance_team_members, tasks, activities', count: teamMetrics.length, timeRange: timePeriod },
     };

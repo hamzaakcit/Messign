@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Instagram, Loader2, Send, StopCircle, Trash2, X as CloseIcon } from 'lucide-react';
+import { Loader2, Send, StopCircle, Trash2, X as CloseIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { LucyGreetingCard, LucySidebarLogo } from '@/pages/marketing/components/lucy';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
+import type { MarketingChannelAgentModalId } from '@/pages/marketing/lib/marketingChannelAgentBuilders';
 import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
-import { MARKETING_COMPOSER_QUICK_ACTIONS } from './marketingDoraQuickActions';
-import { MarketingDoraQuickActionIcon } from './MarketingDoraQuickActionIcon';
+import { MarketingChannelAgentModal } from './MarketingChannelAgentModal';
+import { MarketingComposerChannelButtons } from './MarketingComposerChannelButtons';
 
 const noop = (): void => {};
 
@@ -45,6 +46,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
 
   const [inputValue, setInputValue] = useState('');
   const [igModalOpen, setIgModalOpen] = useState(false);
+  const [channelModal, setChannelModal] = useState<MarketingChannelAgentModalId | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -80,6 +82,16 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
           <InstagramAgentPromptModal
             isOpen={igModalOpen}
             onClose={() => setIgModalOpen(false)}
+            onSend={(msg) => void sendMessage(msg)}
+            onApplyToComposer={(msg) => {
+              setInputValue(msg);
+              inputRef.current?.focus();
+            }}
+          />
+          <MarketingChannelAgentModal
+            channel={channelModal}
+            isOpen={channelModal !== null}
+            onClose={() => setChannelModal(null)}
             onSend={(msg) => void sendMessage(msg)}
             onApplyToComposer={(msg) => {
               setInputValue(msg);
@@ -157,39 +169,12 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
           </div>
 
           <div className="px-3 py-2.5 border-t border-white/[0.06] space-y-2 bg-[#0a0c10] shrink-0">
-            <div className="flex gap-0.5 overflow-x-auto max-h-[2.5rem] items-center snap-x scrollbar-thin [-webkit-overflow-scrolling:touch]">
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={() => setIgModalOpen(true)}
-                title="Instagram"
-                className="inline-flex shrink-0 snap-start items-center gap-1 px-1.5 py-1 rounded-md text-[9px] font-semibold border border-pink-500/25 bg-gradient-to-b from-pink-500/30 to-rose-600/20 text-pink-100/95 hover:brightness-110 disabled:opacity-40 min-w-[4rem]"
-              >
-                <Instagram className="w-3 h-3 shrink-0" />
-                <span className="truncate">Insta</span>
-              </button>
-              {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
-                <button
-                  key={q.id}
-                  type="button"
-                  disabled={isLoading}
-                  title={q.label}
-                  onClick={() => {
-                    setInputValue(q.text);
-                    inputRef.current?.focus();
-                  }}
-                  className={`
-                    inline-flex shrink-0 snap-start items-center gap-1 px-1.5 py-1 rounded-md text-[9px] font-semibold border bg-gradient-to-b min-w-[4rem] max-h-9
-                    text-app-text/90 hover:brightness-110 disabled:opacity-40 truncate
-                    ${q.accent}
-                    ${q.upgraded ? 'ring-1 ring-white/5' : ''}
-                  `}
-                >
-                  <MarketingDoraQuickActionIcon icon={q.icon} size="sm" />
-                  <span className="truncate max-w-[3.5rem]">{q.label}</span>
-                </button>
-              ))}
-            </div>
+            <MarketingComposerChannelButtons
+              isLoading={isLoading}
+              onOpenInstagram={() => setIgModalOpen(true)}
+              onOpenChannelModal={(ch) => setChannelModal(ch)}
+              variant="compact"
+            />
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -201,7 +186,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
                   t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
                 }}
                 onKeyDown={onKeyDown}
-                placeholder="Ask the Marketing Agent\u2026"
+                placeholder="Ask Lucy\u2026"
                 disabled={isLoading}
                 rows={2}
                 className="flex-1 min-h-[48px] max-h-[120px] px-3 py-3 rounded-xl text-sm leading-relaxed resize-none bg-app-inputBg border border-app-inputBorder text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-primary-500/30"

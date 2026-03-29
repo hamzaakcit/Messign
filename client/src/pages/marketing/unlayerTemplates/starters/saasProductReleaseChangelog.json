@@ -1,0 +1,106 @@
+{
+  "version": "2.0",
+  "theme": "tech",
+  "layoutDensity": "normal",
+  "subject": "Shipped: faster sync, smarter defaults — v2.14",
+  "preheader": "This release cuts sync latency on large workspaces, adds guardrails for bulk edits, and ships the quality-of-life fixes you voted for—read the highlights, then open full release notes on the site.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "What’s new in v2.14",
+        "subheadline": "Performance you feel, defaults you can trust, and clearer errors when something blocks a run.",
+        "ctaText": "Full release notes",
+        "ctaUrl": "https://example.com/changelog/v2-14?utm_source=email&utm_medium=product&utm_campaign=release_v214",
+        "imagePrompt": "Abstract data flow visualization with soft blue and teal gradients, nodes and lines suggesting sync, no readable text or UI chrome, modern tech illustration style",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "body": "<strong>TL;DR</strong> — Sync is faster for orgs over 500k rows. Bulk actions now confirm destructive steps. API errors return a trace id you can paste to support.",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 3,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Highlights",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Zap",
+            "heading": "Faster sync",
+            "description": "Incremental sync for connected repos—median job time down 40% in benchmarks.",
+            "imagePrompt": "Abstract speed motif, motion streaks on dark slate, soft cyan glow, no text"
+          },
+          {
+            "icon": "Shield",
+            "heading": "Safer bulk edits",
+            "description": "Confirm before apply; dry-run preview shows row counts before commit.",
+            "imagePrompt": "Shield and checkmark abstract shapes, tech palette, no readable labels"
+          },
+          {
+            "icon": "Layers",
+            "heading": "Clearer errors",
+            "description": "Every failed API call returns a trace id and doc link for common fixes.",
+            "imagePrompt": "Stacked document layers with subtle alert icon silhouette, blurred, no words"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "headline": "Under the hood",
+        "body": "We rewrote the queue worker for fair scheduling and added backpressure when third-party APIs rate-limit—fewer timeouts during peak hours.",
+        "imagePrompt": "Server room aisle with cool blue LED light, shallow depth of field, no readable labels on racks",
+        "altText": "Data center corridor",
+        "layout": "image_left",
+        "ctaText": "Architecture blog",
+        "ctaUrl": "https://example.com/blog/sync-engine"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "Upgrade when you are ready",
+        "description": "v2.14 rolls out to all workspaces this week. No action required for standard plans.",
+        "buttonText": "Open changelog",
+        "buttonUrl": "https://example.com/changelog/v2-14?utm_source=email&utm_medium=product&utm_campaign=release_v214",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "LatticeShip",
+        "address": "Product updates · unsubscribe below",
+        "unsubscribeText": "You received this because you opted into product release emails. You can switch to security-only in preferences."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "clear, technical, friendly",
+    "audience": "customers on active plans",
+    "campaign_id": "release_v214",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "confident, precise, ship-ready",
+    "imageStyle": "Abstract tech and photography; no legible UI"
+  }
+}

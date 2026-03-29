@@ -91,3 +91,6 @@ export const embeddingsQueue = new Queue('embeddings', {
   },
 });
 embeddingsQueue.on('error', (err) => onQueueError('embeddings', err));
+
+export { emailBulkResolveQueue, EMAIL_BULK_RESOLVE_QUEUE_NAME } from './emailBulkResolveQueue.js';
+

@@ -131,7 +131,7 @@ interface WorkspaceOverviewGridProps {
 }
 
 /**
- * Dense bento of cross-module KPIs (non-sensitive aggregates) with deep links.
+ * Dense bento of cross-module KPIs (non-sensitive aggregates); Details opens slide-over, Open app navigates.
  */
 export function WorkspaceOverviewGrid({
   workspace,
@@ -162,10 +162,10 @@ export function WorkspaceOverviewGrid({
       <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <ModuleMetricTile
           title="CRM pipeline"
-          onOpen={() => { navigate(ROUTES.CRM); }}
+          onOpenInApp={() => { navigate(ROUTES.CRM); }}
           error={workspace.crm.ok ? undefined : workspace.crm.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('crm') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('crm') : undefined}
         >
           {workspace.crm.ok && (
             <>
@@ -178,10 +178,10 @@ export function WorkspaceOverviewGrid({
 
         <ModuleMetricTile
           title="Marketing"
-          onOpen={() => { navigate(ROUTES.MARKETING_DASHBOARD); }}
+          onOpenInApp={() => { navigate(ROUTES.MARKETING_DASHBOARD); }}
           error={workspace.marketing.ok ? undefined : workspace.marketing.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('marketing') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('marketing') : undefined}
         >
           {workspace.marketing.ok && (
             <>
@@ -196,10 +196,10 @@ export function WorkspaceOverviewGrid({
 
         <ModuleMetricTile
           title="Support"
-          onOpen={() => { navigate(ROUTES.SUPPORT); }}
+          onOpenInApp={() => { navigate(ROUTES.SUPPORT); }}
           error={workspace.support.ok ? undefined : workspace.support.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('support') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('support') : undefined}
         >
           {workspace.support.ok && (
             <>
@@ -214,10 +214,10 @@ export function WorkspaceOverviewGrid({
 
         <ModuleMetricTile
           title="Recruiting"
-          onOpen={() => { navigate(ROUTES.RECRUITMENT); }}
+          onOpenInApp={() => { navigate(ROUTES.RECRUITMENT); }}
           error={workspace.hr.ok ? undefined : workspace.hr.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('hr') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('hr') : undefined}
         >
           {workspace.hr.ok && (
             <>
@@ -236,10 +236,10 @@ export function WorkspaceOverviewGrid({
 
         <ModuleMetricTile
           title="OKRs"
-          onOpen={() => { navigate(ROUTES.OKR); }}
+          onOpenInApp={() => { navigate(ROUTES.OKR); }}
           error={workspace.okr.ok ? undefined : workspace.okr.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('okr') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('okr') : undefined}
         >
           {workspace.okr.ok && (
             <>
@@ -255,10 +255,10 @@ export function WorkspaceOverviewGrid({
 
         <ModuleMetricTile
           title="Chat"
-          onOpen={() => { navigate(ROUTES.CHAT); }}
+          onOpenInApp={() => { navigate(ROUTES.CHAT); }}
           error={workspace.chat.ok ? undefined : workspace.chat.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('chat') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('chat') : undefined}
         >
           {workspace.chat.ok && (
             <>
@@ -274,10 +274,10 @@ export function WorkspaceOverviewGrid({
 
         <ModuleMetricTile
           title="Assets"
-          onOpen={() => { navigate(ROUTES.ASSETS); }}
+          onOpenInApp={() => { navigate(ROUTES.ASSETS); }}
           error={workspace.assets.ok ? undefined : workspace.assets.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('assets') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('assets') : undefined}
         >
           {workspace.assets.ok && (
             <>
@@ -291,10 +291,10 @@ export function WorkspaceOverviewGrid({
 
         <ModuleMetricTile
           title="Contracts"
-          onOpen={() => { navigate(ROUTES.CONTRACTS); }}
+          onOpenInApp={() => { navigate(ROUTES.CONTRACTS); }}
           error={workspace.contracts.ok ? undefined : workspace.contracts.error}
           onRetry={retry}
-          onDetails={onOpenDetail ? () => onOpenDetail('contracts') : undefined}
+          onOpenDetail={onOpenDetail ? () => onOpenDetail('contracts') : undefined}
         >
           {workspace.contracts.ok && (
             <>

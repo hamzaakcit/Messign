@@ -1,0 +1,136 @@
+{
+  "version": "2.0",
+  "theme": "bold",
+  "layoutDensity": "airy",
+  "subject": "Lookbook drop — textures, layers, and one hero coat",
+  "preheader": "Editorial-tall hero for a magazine-style open. Two product waves with distinct prompts; soft promo tone—curated picks with real outfit ideas, not a flash countdown.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Winter layers, edited for the city",
+        "subheadline": "Wool, technical shells, and the one statement piece worth splurging on.",
+        "ctaText": "Shop the edit",
+        "ctaUrl": "https://example.com/lookbook?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter",
+        "imagePrompt": "Full-bleed fashion editorial: model in long wool coat on urban steps, golden hour, cinematic vertical composition, generous sky for headline overlay, no logos or readable signage",
+        "alignment": "center",
+        "heroLayout": "editorial_tall",
+        "altText": "Model in long coat on city steps at sunset"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "First wave — everyday layers",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Merino crew",
+            "description": "Heather charcoal",
+            "price": "$68",
+            "imagePrompt": "Folded merino sweater on concrete surface, soft studio light, D2C catalog",
+            "linkUrl": "https://example.com/p/merino?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter",
+            "badge": "New"
+          },
+          {
+            "name": "Shell parka",
+            "description": "Matte olive",
+            "price": "$198",
+            "originalPrice": "$248",
+            "imagePrompt": "Parka jacket on hanger minimal backdrop, neutral tones",
+            "linkUrl": "https://example.com/p/parka?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter",
+            "badge": "-20%"
+          },
+          {
+            "name": "Rib beanie",
+            "description": "Stone",
+            "price": "$38",
+            "imagePrompt": "Knit beanie flat lay on linen, warm light",
+            "linkUrl": "https://example.com/p/beanie?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter",
+            "badge": "Cozy"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider",
+      "order": 3,
+      "content": {}
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "content": {
+        "headline": "How we styled the hero shot",
+        "body": "The tall frame is intentional — it mirrors how readers scroll social. We kept one focal garment so the headline stays legible on mobile.",
+        "imagePrompt": "Stylist hands adjusting coat collar on model, backstage soft light, editorial BTS, no readable text",
+        "altText": "Stylist adjusting coat",
+        "layout": "image_left",
+        "ctaText": "Read styling notes",
+        "ctaUrl": "https://example.com/journal/styling?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 5,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Statement piece",
+        "columns": 2,
+        "items": [
+          {
+            "name": "Double-breasted wool coat",
+            "description": "Camel, limited run",
+            "price": "$428",
+            "imagePrompt": "Camel wool coat on mannequin soft window light boutique interior",
+            "linkUrl": "https://example.com/p/coat?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter",
+            "badge": "Editor's pick"
+          },
+          {
+            "name": "Leather tote",
+            "description": "Black, structured",
+            "price": "$268",
+            "imagePrompt": "Black leather tote on marble surface minimal product shot",
+            "linkUrl": "https://example.com/p/tote?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter",
+            "badge": "Carry"
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Shop the full lookbook",
+        "description": "Free returns through January.",
+        "buttonText": "Browse all",
+        "buttonUrl": "https://example.com/lookbook?utm_source=email&utm_medium=crm&utm_campaign=editorial_tall_winter",
+        "variant": "fullWidth"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "content": {
+        "companyName": "Harbor & Fold",
+        "address": "Style · help@example.com",
+        "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "editorial retail",
+    "audience": "D2C fashion shoppers",
+    "campaign_id": "editorial_tall_winter",
+    "visual_density": "rich",
+    "target_image_slots": 8
+  },
+  "artDirection": {
+    "mood": "editorial, confident",
+    "imageStyle": "Fashion and product photography; warm highlights"
+  }
+}

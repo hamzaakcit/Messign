@@ -1,6 +1,6 @@
-import { randomUUID } from 'crypto';
 import { Router } from 'express';
 import type { Response } from 'express';
+import multer from 'multer';
 import type { ReimbursementRequest } from '../../middleware/reimbursementAuth.js';
 import type { CallerContext } from '../../dal/types.js';
 import type { CreateContentInput, UpdateContentInput } from '../../dal/marketing/content.js';
@@ -14,13 +14,96 @@ import { runBrandVoiceCheck } from '../../services/ai/marketing/brandVoiceChecke
 import { regenerateImageForContent } from '../../services/marketing/workflows/instagramContentWorkflow.js';
 import { generateImageVariations } from '../../services/marketing/workflows/instagramImagePipeline.js';
 import { repurposeContent } from '../../services/ai/marketing/repurposeService.js';
-import { generateImage, enhanceImagePrompt, resolveStockImageUrl } from '../../services/marketing/publishing/imageService.js';
-import type { ImageGenContext } from '../../services/marketing/publishing/imageService.js';
-import type { StylePreset, AspectRatio } from '../../dal/marketing/instagramTypes.js';
+import {
+  buildReferenceUploadStorageKey,
+  buildLucyReferenceUploadStorageKey,
+  uploadToStorage,
+  editMarketingPhotoWithKontext,
+} from '../../services/marketing/publishing/imageService.js';
+import type { StylePreset, AspectRatio, ImageGenerationInput } from '../../dal/marketing/instagramTypes.js';
 import { triggerBrandComplianceScan } from '../../services/marketing/complianceScanner.js';
+import { inferMarketingImageErrorCode } from './marketingFalRouteErrors.js';
 import { query as dbQuery } from '../../db/index.js';
+import { validateEmailManifestInput } from '../../modules/marketing/emailManifestValidate.js';
+import { persistEmailResolveManifestToContent } from '../../modules/marketing/persistEmailResolve.js';
+import {
+  getCachedEmailResolveAsync,
+  setCachedEmailResolveAsync,
+} from './emailResolveIdempotency.js';
+import {
+  runEmailImageResolvePipeline,
+  type EmailImageResolveRegenerateOptions,
+  type ResolveImagesManifest,
+} from '../../services/marketing/emailImageResolvePipeline.js';
+import { emailBulkResolveQueue } from '../../queue/emailBulkResolveQueue.js';
 
 const router = Router();
+
+const MAX_REGENERATE_SECTION_ORDERS = 64;
+const MAX_REGENERATE_ITEM_KEYS = 128;
+
+/**
+ * Parses optional `body.regenerate` for POST resolve-email-images (targeted regen of filled slots).
+ */
+function parseEmailResolveRegenerate(body: unknown): EmailImageResolveRegenerateOptions | undefined {
+  if (!body || typeof body !== 'object') return undefined;
+  const r = body as Record<string, unknown>;
+  const reg = r.regenerate;
+  if (!reg || typeof reg !== 'object') return undefined;
+  const o = reg as Record<string, unknown>;
+  const force_all = o.force_all === true;
+  const ordersRaw = o.regenerate_section_orders;
+  const keysRaw = o.regenerate_item_keys;
+  const regenerate_section_orders = Array.isArray(ordersRaw)
+    ? ordersRaw
+        .filter((x): x is number => typeof x === 'number' && Number.isFinite(x))
+        .slice(0, MAX_REGENERATE_SECTION_ORDERS)
+    : undefined;
+  const regenerate_item_keys = Array.isArray(keysRaw)
+    ? keysRaw
+        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+        .map((x) => x.trim())
+        .slice(0, MAX_REGENERATE_ITEM_KEYS)
+    : undefined;
+  const section_prompt_overrides =
+    typeof o.section_prompt_overrides === 'object' && o.section_prompt_overrides !== null && !Array.isArray(o.section_prompt_overrides)
+      ? (o.section_prompt_overrides as Record<string, string>)
+      : undefined;
+  const item_prompt_overrides =
+    typeof o.item_prompt_overrides === 'object' && o.item_prompt_overrides !== null && !Array.isArray(o.item_prompt_overrides)
+      ? (o.item_prompt_overrides as Record<string, string>)
+      : undefined;
+  const hasTargets =
+    force_all ||
+    (regenerate_section_orders?.length ?? 0) > 0 ||
+    (regenerate_item_keys?.length ?? 0) > 0 ||
+    (section_prompt_overrides && Object.keys(section_prompt_overrides).length > 0) ||
+    (item_prompt_overrides && Object.keys(item_prompt_overrides).length > 0);
+  if (!hasTargets) return undefined;
+  return {
+    force_all,
+    ...(regenerate_section_orders?.length ? { regenerate_section_orders } : {}),
+    ...(regenerate_item_keys?.length ? { regenerate_item_keys } : {}),
+    ...(section_prompt_overrides ? { section_prompt_overrides } : {}),
+    ...(item_prompt_overrides ? { item_prompt_overrides } : {}),
+  };
+}
+
+const REFERENCE_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
+const referencePhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: REFERENCE_IMAGE_MAX_BYTES },
+  fileFilter: (_req, file, cb) => {
+    const ok = ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype);
+    cb(null, ok);
+  },
+});
+
+function mimeToImageExt(mime: string): string {
+  if (mime === 'image/png') return 'png';
+  if (mime === 'image/webp') return 'webp';
+  return 'jpg';
+}
 
 /** Strip tags for plain-text gatekeepers when only HTML is present. */
 function stripHtmlToPlain(html: string): string {
@@ -162,6 +245,40 @@ router.post('/', async (req: ReimbursementRequest, res: Response) => {
   }
 });
 
+/**
+ * Upload a reference photo for Lucy Instagram modal (no content row yet). Same storage as
+ * `/:id/reference-image`; returned URL is embedded in the user message as [REFERENCE_IMAGE_URL]…[/REFERENCE_IMAGE_URL].
+ */
+router.post(
+  '/lucy-reference-upload',
+  referencePhotoUpload.single('image'),
+  async (req: ReimbursementRequest, res: Response) => {
+    try {
+      const ctx = buildCtx(req);
+      const orgId = ctx.organizationId;
+      if (!orgId) {
+        res.status(400).json({ error: 'Organization required' });
+        return;
+      }
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ error: 'Image file required (field name: image)' });
+        return;
+      }
+      const ext = mimeToImageExt(file.mimetype);
+      const key = buildLucyReferenceUploadStorageKey(orgId, ext);
+      const publicUrl = await uploadToStorage(file.buffer, key, file.mimetype);
+      res.json({
+        success: true,
+        reference_image_url: publicUrl,
+      });
+    } catch (err) {
+      console.error('[marketing/content/lucy-reference-upload POST]', err);
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Upload failed' });
+    }
+  },
+);
+
 router.get('/', async (req: ReimbursementRequest, res: Response) => {
   try {
     const result = await contentDal.listContent(
@@ -289,14 +406,131 @@ router.post('/:id/regenerate-image', async (req: ReimbursementRequest, res: Resp
       style_preset: stylePreset,
       aspect_ratio: aspectRatio,
     });
+    const errMsg = result.error ?? undefined;
     res.json({
       success: result.success,
       image_url: result.image_url,
       error: result.error ?? null,
+      ...(errMsg ? { error_code: inferMarketingImageErrorCode(errMsg) } : {}),
+      metadata: result.metadata,
     });
   } catch (err) {
     console.error('[marketing/content/:id/regenerate-image POST]', err);
-    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to regenerate image' });
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(400).json({
+      error: msg,
+      error_code: inferMarketingImageErrorCode(msg),
+    });
+  }
+});
+
+/**
+ * Upload a real-world reference photo (JPEG/PNG/WebP) for FLUX Kontext additive edits.
+ * Field name: `image`. Stored in marketing storage; `reference_image_url` is set on the content row.
+ */
+router.post(
+  '/:id/reference-image',
+  referencePhotoUpload.single('image'),
+  async (req: ReimbursementRequest, res: Response) => {
+    try {
+      const ctx = buildCtx(req);
+      const orgId = ctx.organizationId;
+      if (!orgId) {
+        res.status(400).json({ error: 'Organization required' });
+        return;
+      }
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ error: 'Image file required (field name: image)' });
+        return;
+      }
+      const existing = await contentDal.getContentById(ctx, req.params.id);
+      if (!existing) {
+        res.status(404).json({ error: 'Content not found' });
+        return;
+      }
+      const ext = mimeToImageExt(file.mimetype);
+      const key = buildReferenceUploadStorageKey(orgId, req.params.id, ext);
+      const publicUrl = await uploadToStorage(file.buffer, key, file.mimetype);
+      const updated = await contentDal.updateContent(ctx, req.params.id, {
+        reference_image_url: publicUrl,
+      });
+      res.json({
+        success: true,
+        reference_image_url: publicUrl,
+        content_id: updated.id,
+      });
+    } catch (err) {
+      console.error('[marketing/content/:id/reference-image POST]', err);
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Upload failed' });
+    }
+  },
+);
+
+/**
+ * Run Kontext on the uploaded reference (`reference_image_url`) with a natural-language edit instruction.
+ */
+router.post('/:id/ai-photo-edit', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const ctx = buildCtx(req);
+    const orgId = ctx.organizationId;
+    if (!orgId) {
+      res.status(400).json({ error: 'Organization required' });
+      return;
+    }
+    const editPrompt = req.body?.edit_prompt;
+    if (typeof editPrompt !== 'string' || editPrompt.trim().length < 10) {
+      res.status(400).json({ success: false, error: 'edit_prompt is required (min 10 characters)' });
+      return;
+    }
+    const stylePreset =
+      typeof req.body?.style_preset === 'string' && req.body.style_preset.trim().length > 0
+        ? req.body.style_preset.trim()
+        : 'photoreal';
+    const row = await contentDal.getContentById(ctx, req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'Content not found' });
+      return;
+    }
+    const refUrl = row.reference_image_url?.trim();
+    if (!refUrl) {
+      res.status(400).json({
+        success: false,
+        error: 'No reference photo on this content. Upload one via POST .../reference-image first.',
+      });
+      return;
+    }
+    /** Kontext needs a short edit instruction — not `enhanceImagePrompt` (that is for text-to-image). */
+    const result = await editMarketingPhotoWithKontext({
+      org_id: orgId,
+      content_id: req.params.id,
+      reference_image_url: refUrl,
+      edit_instruction: editPrompt.trim(),
+      style_preset: stylePreset,
+    });
+    if (result.success && result.image_url) {
+      await contentDal.updateContent(ctx, req.params.id, {
+        image_prompt: editPrompt.trim(),
+        image_url: result.image_url,
+        visual_description: editPrompt.trim(),
+        image_generation_metadata: result.metadata,
+      });
+    }
+    const errMsg = result.error ?? undefined;
+    res.json({
+      success: result.success,
+      image_url: result.image_url,
+      error: result.error ?? null,
+      metadata: result.metadata,
+      ...(errMsg ? { error_code: inferMarketingImageErrorCode(errMsg) } : {}),
+    });
+  } catch (err) {
+    console.error('[marketing/content/:id/ai-photo-edit POST]', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(400).json({
+      error: msg,
+      error_code: inferMarketingImageErrorCode(msg),
+    });
   }
 });
 
@@ -309,7 +543,7 @@ router.post('/:id/image-variants', async (req: ReimbursementRequest, res: Respon
       return;
     }
 
-    const defaultPresets: StylePreset[] = ['modern_noir', 'vibrant_lifestyle', 'minimal_flat', 'editorial'];
+    const defaultPresets: StylePreset[] = ['photoreal', 'modern_noir', 'vibrant_lifestyle', 'minimal_flat', 'editorial'];
     const requestedPresets = Array.isArray(req.body?.style_presets)
       ? req.body.style_presets.filter((p: unknown): p is StylePreset => typeof p === 'string')
       : defaultPresets;
@@ -332,40 +566,48 @@ router.post('/:id/image-variants', async (req: ReimbursementRequest, res: Respon
   }
 });
 
-interface ManifestSection {
-  type: string;
-  order: number;
-  content: Record<string, unknown>;
-  variant?: string;
-}
-
-interface ResolveImagesManifest {
-  theme?: string;
-  subject?: string;
-  sections: ManifestSection[];
-  artDirection?: { imageStyle?: string; colorNotes?: string };
-}
-
-const MAX_PARALLEL_IMAGES = 4;
-const IMAGE_RESOLVE_TIMEOUT_MS = 90_000;
-
-function buildImagePromptForSection(
-  section: ManifestSection,
-  manifest: ResolveImagesManifest,
-): string | null {
-  const c = section.content;
-  const prompt = typeof c.imagePrompt === 'string' ? c.imagePrompt.trim() : '';
-  if (prompt.length >= 10) return prompt;
-
-  if (section.type === 'hero' && manifest.artDirection?.imageStyle) {
-    const style = manifest.artDirection.imageStyle.trim();
-    const subject = manifest.subject ?? 'email content';
-    if (style.length >= 5) return `${style}, professional photo for: ${subject}`;
+router.post('/validate-email-manifest', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const manifest = req.body?.manifest;
+    const r = validateEmailManifestInput(manifest);
+    res.json(r);
+  } catch (err) {
+    console.error('[marketing/content/validate-email-manifest POST]', err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Validation failed' });
   }
+});
 
-  return null;
-}
+/** Enqueue BullMQ batch job for email image resolve (worker logs batch; extend to call resolve per row in Phase 2b). */
+router.post('/enqueue-email-resolve-batch', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const ctx = buildCtx(req);
+    const orgId = ctx.organizationId;
+    if (!orgId) {
+      res.status(400).json({ error: 'Organization required' });
+      return;
+    }
+    const contentIds = req.body?.content_ids;
+    const manifests = req.body?.manifests;
+    if (!Array.isArray(contentIds) || !Array.isArray(manifests)) {
+      res.status(400).json({ error: 'content_ids and manifests arrays are required' });
+      return;
+    }
+    const job = await emailBulkResolveQueue.add('bulk', {
+      orgId,
+      contentIds: contentIds.map((x: unknown) => String(x)),
+      manifests: manifests as Record<string, unknown>[],
+      idempotencyKey:
+        typeof req.body?.idempotency_key === 'string' ? req.body.idempotency_key.trim() : undefined,
+      requestedAt: new Date().toISOString(),
+    });
+    res.json({ jobId: job.id, ok: true });
+  } catch (err) {
+    console.error('[marketing/content/enqueue-email-resolve-batch POST]', err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Enqueue failed' });
+  }
+});
 
+// POST /:id/resolve-email-images — same image stack as Instagram: Fal (if FAL_KEY) → Vertex Gemini (if configured) → Gemini AI Studio → OpenAI; merges URLs by section order and item keys `order:idx`.
 router.post('/:id/resolve-email-images', async (req: ReimbursementRequest, res: Response) => {
   try {
     const ctx = buildCtx(req);
@@ -381,206 +623,58 @@ router.post('/:id/resolve-email-images', async (req: ReimbursementRequest, res: 
       return;
     }
 
-    const tasks: { sectionOrder: number; prompt: string }[] = [];
-    const itemTasks: { key: string; prompt: string }[] = [];
-
-    for (const section of manifest.sections) {
-      if (section.type === 'product_grid' && Array.isArray(section.content.items)) {
-        const items = section.content.items as Array<Record<string, unknown>>;
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          const hasItemUrl = typeof item.imageUrl === 'string' && String(item.imageUrl).trim();
-          if (hasItemUrl) continue;
-          const prompt = typeof item.imagePrompt === 'string' ? String(item.imagePrompt).trim() : '';
-          const fallbackPrompt = typeof item.name === 'string' ? String(item.name).trim() : '';
-          const resolvedPrompt = prompt.length >= 5 ? prompt : (fallbackPrompt.length >= 3 ? `product photo of ${fallbackPrompt}` : '');
-          if (resolvedPrompt) {
-            itemTasks.push({ key: `${section.order}:${idx}`, prompt: resolvedPrompt });
-          }
-        }
-        continue;
-      }
-
-      const hasUrl = typeof section.content.imageUrl === 'string' && section.content.imageUrl.trim();
-      if (hasUrl) continue;
-      const prompt = buildImagePromptForSection(section, manifest);
-      if (prompt) {
-        tasks.push({ sectionOrder: section.order, prompt });
+    const idemRaw = req.headers['idempotency-key'];
+    const idemKey = typeof idemRaw === 'string' ? idemRaw.trim() : '';
+    if (idemKey) {
+      const cacheKey = `email-resolve:${orgId}:${contentId}:${idemKey}`;
+      const hit = await getCachedEmailResolveAsync(cacheKey);
+      if (hit) {
+        res.json({ ...hit, idempotencyReplayed: true });
+        return;
       }
     }
 
-    if (tasks.length === 0 && itemTasks.length === 0) {
-      res.json({ images: {}, itemImages: {}, errors: [] });
-      return;
-    }
+    const regenerate = parseEmailResolveRegenerate(req.body);
 
-    const images: Record<number, string> = {};
-    const itemImages: Record<string, string> = {};
-    const errors: string[] = [];
+    const { responseBody, resolveRunId } = await runEmailImageResolvePipeline({
+      orgId,
+      contentId,
+      manifest,
+      idempotencyKey: idemKey || undefined,
+      regenerate,
+    });
 
-    const timedOut = Symbol('timeout');
-    const deadline = new Promise<typeof timedOut>((resolve) =>
-      setTimeout(() => resolve(timedOut), IMAGE_RESOLVE_TIMEOUT_MS),
-    );
-
-    const chunks: { sectionOrder: number; prompt: string }[][] = [];
-    for (let i = 0; i < tasks.length; i += MAX_PARALLEL_IMAGES) {
-      chunks.push(tasks.slice(i, i + MAX_PARALLEL_IMAGES));
-    }
-
-    const themeHint = manifest.theme ?? undefined;
-
-    for (const chunk of chunks) {
-      const stockResolved: { order: number; url: string }[] = [];
-      const genTasks: { order: number; prompt: string; sectionType: string }[] = [];
-
-      for (const task of chunk) {
-        const stockUrl = resolveStockImageUrl(task.prompt);
-        if (stockUrl) {
-          stockResolved.push({ order: task.sectionOrder, url: stockUrl });
-        } else {
-          const section = manifest.sections.find((s) => s.order === task.sectionOrder);
-          genTasks.push({
-            order: task.sectionOrder,
-            prompt: task.prompt,
-            sectionType: section?.type ?? 'standalone',
-          });
-        }
-      }
-
-      for (const sr of stockResolved) {
-        images[sr.order] = sr.url;
-      }
-
-      if (genTasks.length === 0) continue;
-
-      const results = await Promise.race([
-        Promise.allSettled(
-          genTasks.map((task) => {
-            const ctx: ImageGenContext = {
-              channel: 'email',
-              sectionType: (['hero', 'product', 'lifestyle', 'feature'].includes(task.sectionType)
-                ? task.sectionType
-                : 'standalone') as ImageGenContext['sectionType'],
-              themeHint,
-            };
-            const enhanced = enhanceImagePrompt(task.prompt, undefined, ctx);
-            return generateImage({
-              org_id: orgId,
-              content_id: randomUUID(),
-              prompt: enhanced,
-              resolution: '1024x1024',
-            });
-          }),
-        ),
-        deadline,
-      ]);
-
-      if (results === timedOut) {
-        errors.push('Image generation timed out — returning partial results');
-        break;
-      }
-
-      for (let i = 0; i < results.length; i++) {
-        const r = results[i];
-        const order = genTasks[i].order;
-        if (r.status === 'fulfilled' && r.value.success && r.value.image_url) {
-          images[order] = r.value.image_url;
-        } else {
-          const msg = r.status === 'rejected'
-            ? String(r.reason)
-            : r.value.error ?? 'Unknown generation failure';
-          errors.push(`Section ${order}: ${msg}`);
-          const fallbackUrl = resolveStockImageUrl(genTasks[i].prompt);
-          if (fallbackUrl) {
-            images[order] = fallbackUrl;
-          } else {
-            const keyword = encodeURIComponent(genTasks[i].prompt.slice(0, 60).trim() || 'business');
-            images[order] = `https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80&text=${keyword}`;
-          }
-        }
+    const persist = req.body?.persist === true;
+    const webhookUrl =
+      typeof req.body?.webhook_url === 'string' ? String(req.body.webhook_url).trim() : '';
+    if (persist) {
+      try {
+        await persistEmailResolveManifestToContent(
+          ctx,
+          contentId,
+          manifest as unknown as Record<string, unknown>,
+          responseBody,
+          resolveRunId,
+        );
+      } catch (persistErr) {
+        console.warn('[marketing/content] persist email resolve metadata failed', persistErr);
       }
     }
 
-    // Resolve product_grid item-level images (separate deadline so section timeouts don't skip items)
-    if (itemTasks.length > 0) {
-      const itemDeadline = new Promise<typeof timedOut>((resolve) =>
-        setTimeout(() => resolve(timedOut), IMAGE_RESOLVE_TIMEOUT_MS),
-      );
-
-      const itemChunks: { key: string; prompt: string }[][] = [];
-      for (let i = 0; i < itemTasks.length; i += MAX_PARALLEL_IMAGES) {
-        itemChunks.push(itemTasks.slice(i, i + MAX_PARALLEL_IMAGES));
-      }
-
-      for (const chunk of itemChunks) {
-        const stockResolved: { key: string; url: string }[] = [];
-        const genItemTasks: { key: string; prompt: string }[] = [];
-
-        for (const task of chunk) {
-          const stockUrl = resolveStockImageUrl(task.prompt);
-          if (stockUrl) {
-            stockResolved.push({ key: task.key, url: stockUrl });
-          } else {
-            genItemTasks.push(task);
-          }
-        }
-
-        for (const sr of stockResolved) {
-          itemImages[sr.key] = sr.url;
-        }
-
-        if (genItemTasks.length === 0) continue;
-
-        const itemResults = await Promise.race([
-          Promise.allSettled(
-            genItemTasks.map((task) => {
-              const ctx: ImageGenContext = {
-                channel: 'email',
-                sectionType: 'product',
-                themeHint,
-              };
-              const enhanced = enhanceImagePrompt(task.prompt, undefined, ctx);
-              return generateImage({
-                org_id: orgId,
-                content_id: randomUUID(),
-                prompt: enhanced,
-                resolution: '1024x1024',
-              });
-            }),
-          ),
-          itemDeadline,
-        ]);
-
-        if (itemResults === timedOut) {
-          errors.push('Product image generation timed out — returning partial results');
-          break;
-        }
-
-        for (let i = 0; i < itemResults.length; i++) {
-          const r = itemResults[i];
-          const key = genItemTasks[i].key;
-          if (r.status === 'fulfilled' && r.value.success && r.value.image_url) {
-            itemImages[key] = r.value.image_url;
-          } else {
-            const msg = r.status === 'rejected'
-              ? String(r.reason)
-              : r.value.error ?? 'Unknown generation failure';
-            errors.push(`Product item ${key}: ${msg}`);
-            const fallbackUrl = resolveStockImageUrl(genItemTasks[i].prompt);
-            if (fallbackUrl) {
-              itemImages[key] = fallbackUrl;
-            } else {
-              const nameMatch = genItemTasks[i].prompt.match(/product photo of (.+)/i);
-              const keyword = encodeURIComponent(nameMatch?.[1]?.trim() || 'product');
-              itemImages[key] = `https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80&text=${keyword}`;
-            }
-          }
-        }
-      }
+    if (webhookUrl && /^https?:\/\//i.test(webhookUrl)) {
+      void fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contentId,
+          organizationId: orgId,
+          ...responseBody,
+        }),
+      }).catch((e: unknown) => console.warn('[marketing/content] resolve webhook failed', e));
     }
 
-    res.json({ images, itemImages, errors });
+    if (idemKey) await setCachedEmailResolveAsync(`email-resolve:${orgId}:${contentId}:${idemKey}`, responseBody);
+    res.json(responseBody);
   } catch (err) {
     console.error('[marketing/content/:id/resolve-email-images POST]', err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to resolve images' });
@@ -594,6 +688,7 @@ router.get('/:id', async (req: ReimbursementRequest, res: Response) => {
       res.status(404).json({ error: 'Content not found' });
       return;
     }
+    res.setHeader('Cache-Control', 'no-store');
     res.json(content);
   } catch (err) {
     console.error('[marketing/content/:id GET]', err);

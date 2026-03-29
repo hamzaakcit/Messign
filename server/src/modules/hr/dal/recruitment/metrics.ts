@@ -82,8 +82,8 @@ export async function getDashboardMetrics(ctx: CallerContext): Promise<Record<st
       getFunnelConversion(ctx),
       client.query(
         `SELECT
-           COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted,
-           COUNT(*) FILTER (WHERE status IN ('accepted', 'rejected'))::int AS responded
+           COUNT(*) FILTER (WHERE o.status = 'accepted')::int AS accepted,
+           COUNT(*) FILTER (WHERE o.status IN ('accepted', 'rejected'))::int AS responded
          FROM recruitment_offers o
          JOIN recruitment_applications a ON a.id = o.application_id
          JOIN recruitment_jobs j ON j.id = a.job_id`,

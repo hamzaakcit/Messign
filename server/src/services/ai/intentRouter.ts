@@ -20,6 +20,7 @@ import { buildDoraRouterPrompt } from './dora/prompts.js';
 import type { DoraRequestContext } from './dora/types.js';
 import type { ToolContext, ToolResult, RouterResult, ChatMessage, ParsedToolCall, LLMToolDefinition } from './types.js';
 import { getPresetCallsForIntentId } from './intentIdPresets.js';
+import { documentsFromKnowledgeSearchData } from './tools/knowledgeSearchAggregates.js';
 
 function toOpenAITools(tools: LLMToolDefinition[]): OpenAI.ChatCompletionTool[] {
   return tools.map((t) => ({
@@ -444,7 +445,11 @@ function getForcedToolCalls(query: string): ParsedToolCall[] | null {
 
   // "My reimbursements" / "Pending reimbursements" → get_reimbursement_details
   if (isReimbursementQuery(query)) {
-    return [{ name: 'finance:get_reimbursement_details', args: { user_identifier: 'me' } }];
+    const args: Record<string, unknown> = { user_identifier: 'me' };
+    if (q.includes('pending') || q.includes('outstanding') || q.includes('waiting')) {
+      args.status_filter = 'pending';
+    }
+    return [{ name: 'finance:get_reimbursement_details', args }];
   }
 
   // "How many documents in the knowledge base?" / "How many are stale?" → get_knowledge_base_stats
@@ -530,6 +535,7 @@ export async function routeQuery(
     directContent = result.content;
   } catch (gatewayError: unknown) {
     const msg = gatewayError instanceof Error ? gatewayError.message : String(gatewayError);
+    const q = query.toLowerCase().trim();
     console.warn('[Intent Router] Gateway routing failed, using keyword fallbacks:', msg);
     if (isOverviewStyleQuery(query)) {
       console.log('[Intent Router] All routers failed. Overview query → falling back to get_system_stats.');
@@ -560,7 +566,14 @@ export async function routeQuery(
       toolCalls = [{ name: 'finance:get_invoice_details', args: { search_term: 'all', status_filter: 'pending' } }];
     } else if (isReimbursementQuery(query)) {
       console.log('[Intent Router] All routers failed. Reimbursement query → falling back to get_reimbursement_details.');
-      toolCalls = [{ name: 'finance:get_reimbursement_details', args: { user_identifier: 'me' } }];
+      toolCalls = [
+        {
+          name: 'finance:get_reimbursement_details',
+          args: q.includes('pending') || q.includes('outstanding') || q.includes('waiting')
+            ? { user_identifier: 'me', status_filter: 'pending' }
+            : { user_identifier: 'me' },
+        },
+      ];
     } else if (isKnowledgeBaseStatsQuery(query)) {
       console.log('[Intent Router] All routers failed. Knowledge base stats query → falling back to get_knowledge_base_stats.');
       toolCalls = [{ name: 'knowledge:get_knowledge_base_stats', args: {} }];
@@ -578,7 +591,9 @@ export async function routeQuery(
     const kbResult = await executeTool('knowledge:search_knowledge_base', { query }, context);
     const kbElapsed = Date.now() - kbStart;
     logToolExecution(null, 'knowledge:search_knowledge_base', kbElapsed, kbResult.success, kbResult.metadata?.count ?? 0).catch((err) => console.error('[intentRouter] logToolExecution failed', { error: err instanceof Error ? err.message : String(err) }));
-    const hasKBResults = kbResult.success && Array.isArray(kbResult.data) && (kbResult.data as unknown[]).length > 0;
+    const kbDocs =
+      kbResult.success && kbResult.data != null ? documentsFromKnowledgeSearchData(kbResult.data) : [];
+    const hasKBResults = kbDocs.length > 0;
 
     return {
       toolResults: hasKBResults ? [kbResult] : [],

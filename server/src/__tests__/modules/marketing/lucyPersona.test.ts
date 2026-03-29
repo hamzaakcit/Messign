@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLucyOrchestratorPrompt,
   getLucyContextualBehavior,
+  LUCY_SPECIALIST_PREAMBLE,
   resolveLucyContextKey,
   wrapSpecialistSystemPromptWithLucy,
 } from '../../../modules/marketing/prompts/lucyPersona.js';
 
 describe('lucyPersona', () => {
+  it('LUCY_SPECIALIST_PREAMBLE embeds global topic fidelity for all marketing modes', () => {
+    expect(LUCY_SPECIALIST_PREAMBLE).toContain('Topic fidelity');
+    expect(LUCY_SPECIALIST_PREAMBLE).toContain("The user's brief wins");
+  });
+
   it('buildLucyOrchestratorPrompt prepends identity', () => {
     const out = buildLucyOrchestratorPrompt('BASE');
     expect(out.startsWith('## IDENTITY')).toBe(true);
@@ -17,6 +23,9 @@ describe('lucyPersona', () => {
     const b = getLucyContextualBehavior('email');
     expect(b.length).toBeGreaterThan(80);
     expect(b).toContain('Email');
+    expect(b).toContain('Visual Architect');
+    expect(b).toContain('motionOverlay');
+    expect(b).toContain('easterEgg');
   });
 
   it('resolveLucyContextKey maps campaign manager to campaign', () => {
@@ -57,5 +66,6 @@ describe('lucyPersona', () => {
     expect(wrapped).toContain('PERSONA CONTEXT');
     expect(wrapped).toContain('BASE_PROMPT');
     expect(wrapped).toContain('CONTEXTUAL MODE: Email');
+    expect(wrapped).toContain('Topic fidelity');
   });
 });

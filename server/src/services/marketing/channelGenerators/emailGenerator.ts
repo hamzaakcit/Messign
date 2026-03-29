@@ -7,6 +7,7 @@
  */
 
 import type { GeneratorInput, GeneratorOutput, LLMCallFunction, ChannelGenerator } from './types.js';
+import { VA2_EMAIL_MANIFEST_SCHEMA_JSON_MIN } from '../../../modules/marketing/va2EmailManifestSchemaShared.js';
 
 export const emailGenerator: ChannelGenerator = async (
   input: GeneratorInput,
@@ -48,26 +49,21 @@ that drives an automated email assembly system.
 Output a single JSON object wrapped in \`\`\`json code fences.
 The JSON must be valid — no trailing commas, no comments, no single quotes.
 
-Schema:
-{
-  "version": "2.0",
-  "theme": "<executive|startup|luxury|minimal|bold|nature|tech|warm>",
-  "subject": "<40-60 chars, benefit-driven>",
-  "preheader": "<100-140 chars, complements subject>",
-  "sections": [
-    { "type": "hero", "order": 1, "content": { "headline": "...", "subheadline": "...", "ctaText": "...", "ctaUrl": "#", "imagePrompt": "..." } },
-    { "type": "value_prop", "order": 2, "content": { "columns": 3, "items": [...] } },
-    { "type": "footer", "order": N, "content": { "companyName": "...", "address": "..." } }
-  ],
-  "metadata": { "channel": "email", "tone": "...", "audience": "..." },
-  "artDirection": { "mood": "...", "imageStyle": "..." }
-}
+Canonical manifest JSON (same as Content Strategist — extend with concrete sections):
+${VA2_EMAIL_MANIFEST_SCHEMA_JSON_MIN}
 
-Section types: hero, value_prop, testimonial, social_proof, text_block, image, cta, divider, footer.
+Representative section rows (hero → value_prop → image_text → product_grid → footer):
+- hero with headline, imagePrompt, ctaText, ctaUrl, altText
+- value_prop with columns 2|3 and items with icon, heading, description
+- image_text with layout image_left|image_right
+- product_grid with items name, price, imagePrompt
+- footer with companyName, address, links
+
+Section types: hero, preheader, value_prop, testimonial, social_proof, text_block, image, image_text, product_grid, cta, divider, footer.
 CTA variants: pill (rounded), ghost (outlined), fullWidth.
 Icons: Zap, Shield, Users, Clock, Star, Heart, Target, Rocket, Globe, Lock.
 
-Always include hero (first) and footer (last). Choose 2-4 middle sections based on the content purpose.`;
+Always include hero (first) and footer (last). Set metadata.target_image_slots to 6 by default (3–12) and aim for that many countable image slots (hero + image_text / product_grid / value_prop with imagePrompt) unless metadata.visual_density is minimal. For promotional mail, include hero plus at least two image-bearing body sections (image_text, image, product_grid, or value_prop items with imagePrompt); add divider, testimonial, or social_proof where they fit—avoid text_block-only bodies. Optional top-level layoutDensity: airy | normal | compact (typography/spacing). Optional hero.content.heroLayout: "editorial_tall" (taller photo band) or "split" (copy column + image column). The pipeline may auto-append image_text when slots are low — prefer explicit sections in JSON.`;
 
   if (brandProfile) {
     prompt += `\n\nBrand Profile:

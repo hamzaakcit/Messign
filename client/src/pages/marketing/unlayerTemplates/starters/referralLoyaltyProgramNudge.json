@@ -1,0 +1,108 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "layoutDensity": "airy",
+  "subject": "You and a friend both get 20% off",
+  "preheader": "Share your invite link—when they place their first order, you both save on the next purchase. Limited-time boost for loyalty members; see how points stack and the one CTA that applies your discount automatically.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Refer a friend, double the reward",
+        "subheadline": "They get a welcome code; you get credit toward your next order. Points stack with your loyalty tier.",
+        "ctaText": "Copy invite link",
+        "ctaUrl": "https://example.com/refer?utm_source=email&utm_medium=crm&utm_campaign=referral_boost",
+        "imagePrompt": "Two coffee cups clinking on a warm wood table, soft morning light, cozy lifestyle photography, no logos or readable packaging text",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "headline": "Why members share",
+        "body": "A quick snapshot of how referrals turn into credit—real products, real savings, no gimmicks.",
+        "imagePrompt": "Warm flat lay of gift box and ribbon on linen, soft natural light, lifestyle photography, no logos or readable text",
+        "altText": "Gift box and ribbon flat lay",
+        "layout": "image_left",
+        "ctaText": "See referral terms",
+        "ctaUrl": "https://example.com/refer/terms?utm_source=email&utm_medium=crm&utm_campaign=referral_boost"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "How it works",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Link",
+            "heading": "Share your link",
+            "description": "One personal URL—works in chat, email, or social."
+          },
+          {
+            "icon": "Gift",
+            "heading": "They save first",
+            "description": "Welcome discount applies automatically at checkout."
+          },
+          {
+            "icon": "Sparkles",
+            "heading": "You earn next",
+            "description": "Credit drops when their order ships—no hoops."
+          }
+        ]
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Referrals sent", "value": "18k+" },
+          { "label": "Avg reward", "value": "$12" },
+          { "label": "Members", "value": "Top 5%" }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "variant": "card",
+      "content": {
+        "headline": "Grab your link",
+        "description": "Credits expire after 90 days. See terms in your account.",
+        "buttonText": "Open referral hub",
+        "buttonUrl": "https://example.com/refer?utm_source=email&utm_medium=crm&utm_campaign=referral_boost",
+        "variant": "pill",
+        "urgencyText": "Boost ends Sunday night"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Harbor & Fold",
+        "address": "Loyalty · help@example.com",
+        "unsubscribeText": "Referral invites are optional. Turn off referral emails in account settings."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm, incentive-clear",
+    "audience": "loyalty members",
+    "campaign_id": "referral_boost",
+    "visual_density": "rich",
+    "target_image_slots": 4
+  },
+  "artDirection": {
+    "mood": "friendly, reward-forward",
+    "imageStyle": "Lifestyle product photography; warm palette"
+  }
+}

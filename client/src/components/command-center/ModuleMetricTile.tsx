@@ -2,30 +2,34 @@ import type { ReactNode } from 'react';
 
 interface ModuleMetricTileProps {
   title: string;
-  onOpen: () => void;
-  openLabel?: string;
   error?: string;
   /** Shown when `error` is set; typically reloads the full command-center payload. */
   onRetry?: () => void;
-  /** Opens workspace drill-down slide-over (same data, larger charts). */
-  onDetails?: () => void;
+  /** Primary: opens workspace drill-down slide-over. */
+  onOpenDetail?: () => void;
+  /** Secondary: navigate to full module area in the app. */
+  onOpenInApp?: () => void;
+  detailLabel?: string;
+  openInAppLabel?: string;
   children?: ReactNode;
 }
 
 /**
  * Dense bordered tile with optional error state for workspace overview sections.
+ * Prefer opening the slide-over (Details) before routing to the full module.
  */
 export function ModuleMetricTile({
   title,
-  onOpen,
-  openLabel = 'Open',
   error,
   onRetry,
-  onDetails,
+  onOpenDetail,
+  onOpenInApp,
+  detailLabel = 'Details',
+  openInAppLabel = 'Open app',
   children,
 }: ModuleMetricTileProps): JSX.Element {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-app-sidebar/50 p-3 flex flex-col gap-2 min-h-[100px] min-w-0">
+    <div className="rounded-xl border border-white/[0.08] bg-app-sidebar/50 backdrop-blur-sm p-3 flex flex-col gap-2 min-h-[100px] min-w-0">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-app-muted truncate">{title}</h3>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
@@ -38,22 +42,26 @@ export function ModuleMetricTile({
               Retry
             </button>
           ) : null}
-          {onDetails ? (
+          {onOpenDetail ? (
             <button
               type="button"
-              onClick={onDetails}
-              className="text-[10px] text-app-muted hover:text-app hover:underline"
+              onClick={onOpenDetail}
+              className="text-[10px] font-medium text-primary-400 hover:underline"
             >
-              Details
+              {detailLabel}
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={onOpen}
-            className="text-[10px] text-primary-400 hover:underline"
-          >
-            {openLabel}
-          </button>
+          {onOpenInApp ? (
+            <button
+              type="button"
+              onClick={onOpenInApp}
+              className={`text-[10px] hover:underline ${
+                onOpenDetail ? 'text-app-muted hover:text-app' : 'text-primary-400'
+              }`}
+            >
+              {openInAppLabel}
+            </button>
+          ) : null}
         </div>
       </div>
       {error ? (

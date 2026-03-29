@@ -39,10 +39,16 @@ import {
   extractAltText,
   extractCaption,
   extractImagePrompts,
+  stripReferenceImageUrlBlock,
 } from '../../../modules/marketing/prompts/instagramChannelSpec.js';
 import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/imageService.js';
 import { parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
 import { runContentAtomizationAfterApproval } from './contentAtomizationBatch.js';
+import {
+  flattenEmailManifestForGatekeepers,
+  looksLikeVa2EmailManifest,
+  parseAndValidateEmailManifestDraft,
+} from '../../marketing/validateEmailManifestDraft.js';
 
 const LOG = '[marketingOrchestrator]';
 
@@ -69,7 +75,13 @@ export function inferMarketingContentChannel(userMessage: string): string {
   if (/\blinkedin\b/.test(lower)) return 'linkedin';
   if (/\b(twitter|tweet)\b/.test(lower) || /\bx\s+post\b/.test(lower) || /(^|\s)x\s*\/\s*x\s+post/.test(lower))
     return 'x';
-  if (/\b(email|newsletter|e-mail)\b/.test(lower)) return 'email';
+  if (
+    /\b(email|e-mail|newsletter|mailing|edm|drip campaign|drip sequence|subscriber|subscribers|mailchimp|klaviyo|sendgrid)\b/.test(
+      lower,
+    )
+  ) {
+    return 'email';
+  }
   if (/\b(blog|article|blog post)\b/.test(lower)) return 'blog';
   if (/\b(ad copy|advertisement|ppc|paid ad|display ad)\b/.test(lower)) return 'linkedin';
   return 'linkedin';
@@ -342,7 +354,9 @@ export async function executeContentWorkflow(
 ): Promise<ContentWorkflowResult> {
   const caller = legacyToolContextToCallerContext(ctx.legacyContext);
   const orgId = caller.organizationId;
-  const agentOutput = brief.userQuery;
+  const refStrip = stripReferenceImageUrlBlock(brief.userQuery);
+  const effectiveUserQuery = refStrip.referenceUrl ? refStrip.cleaned : brief.userQuery;
+  const agentOutput = effectiveUserQuery;
   console.log('[DIAG] executeContentWorkflow START', {
     orgId,
     channel: brief.channel,
@@ -413,6 +427,15 @@ export async function executeContentWorkflow(
       status: contentRow.status,
     });
   }
+  if (refStrip.referenceUrl) {
+    try {
+      await contentDal.updateContent(caller, contentId, {
+        reference_image_url: refStrip.referenceUrl,
+      });
+    } catch (e) {
+      console.error('[marketingOrchestrator] reference_image_url update failed', e);
+    }
+  }
   const tenantId = ctx.agentContext.tenantId;
   const combinedToolObs: ToolObservation[] = [];
   const combinedTools: string[] = [];
@@ -442,6 +465,7 @@ export async function executeContentWorkflow(
 
   let lastDraft = '';
   let lastTruth: ProductTruthValidationResult | null = null;
+  let lastManifestErrors: string[] | undefined;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const revisionPrefix =
@@ -449,7 +473,12 @@ export async function executeContentWorkflow(
         ? `Your previous draft failed product truth validation. Reasons:\n${lastTruth.failed_reasons.map((r) => `- ${r}`).join('\n')}\n\nRevise the draft to fix these issues. Stay factual and aligned with product truth.\n\n---\n\n`
         : '';
 
-    const userQuery = revisionPrefix + brief.userQuery;
+    const manifestFixPrefix =
+      attempt > 0 && lastManifestErrors?.length
+        ? `Your previous VA2 DesignManifest JSON was invalid:\n${lastManifestErrors.map((e) => `- ${e}`).join('\n')}\n\nOutput a single valid JSON object with theme, subject, preheader, sections (array), and metadata.visual_density. Put JSON only in your reply (optionally in a \`\`\`json fence).\n\n---\n\n`
+        : '';
+
+    const userQuery = manifestFixPrefix + revisionPrefix + effectiveUserQuery;
 
     log('content_generation_attempt', { attempt: attempt + 1, maxAttempts, contentId });
     ctx.onProgress?.({ phase: 'generating', label: 'Generating content draft…', step: 3, maxSteps: 5, status: 'active' });
@@ -475,19 +504,44 @@ export async function executeContentWorkflow(
 
     const channelKey = (brief.channel ?? contentRow.channel ?? 'linkedin').toLowerCase().trim();
     const isInstagram = channelKey === 'instagram';
+    const isEmail = channelKey === 'email';
 
     let validationText = draft;
+    let emailManifestForStorage: Record<string, unknown> | undefined;
     let imagePrompt: string | null = null;
     let visualDesc: string | null = null;
     if (isInstagram) {
       const igIntent = {
         title: brief.title ?? contentRow.title,
-        userBrief: contentRow.user_brief ?? brief.userQuery ?? null,
+        userBrief: contentRow.user_brief ?? effectiveUserQuery ?? null,
       };
       const parsed = parseInstagramDraft(draft, igIntent);
       validationText = parsed.caption || draft;
       imagePrompt = parsed.imagePrompt;
       visualDesc = parsed.visualDescription;
+    } else if (isEmail && looksLikeVa2EmailManifest(draft)) {
+      const parsed = parseAndValidateEmailManifestDraft(draft);
+      if (!parsed.ok) {
+        lastManifestErrors = parsed.errors;
+        lastDraft = draft;
+        if (attempt + 1 >= maxAttempts) {
+          return {
+            status: 'failed',
+            contentId,
+            reason: `Invalid VA2 email manifest: ${parsed.errors.join('; ')}`,
+            attempts: attempt + 1,
+            lastDraft,
+            toolObservations: combinedToolObs,
+            toolsUsed: combinedTools,
+          };
+        }
+        continue;
+      }
+      validationText = flattenEmailManifestForGatekeepers(parsed.manifest);
+      emailManifestForStorage = parsed.manifest;
+      lastManifestErrors = undefined;
+    } else if (isEmail) {
+      lastManifestErrors = undefined;
     }
 
     lastDraft = isInstagram ? validationText : draft;
@@ -500,6 +554,13 @@ export async function executeContentWorkflow(
         ? {
             image_prompt: imagePrompt,
             visual_description: visualDesc,
+          }
+        : {}),
+      ...(isEmail && emailManifestForStorage
+        ? {
+            body_design: {
+              va2_manifest: emailManifestForStorage,
+            },
           }
         : {}),
     });
@@ -590,15 +651,16 @@ export async function executeContentWorkflow(
 
     if (isInstagram) {
       ctx.onProgress?.({ phase: 'images', label: 'Generating images…', step: 5, maxSteps: 6, status: 'active' });
+      /** Uses `runInstagramImageGeneration` — all Instagram T2I paths set `instagram_feed: true` for FAL_INSTAGRAM_* routing. */
       const igResult = await runInstagramImageGeneration({
         orgId,
         contentId,
         rawDraft: draft,
         caller,
-        stylePreset: 'modern_noir',
+        stylePreset: 'photoreal',
         intentContext: {
           title: brief.title ?? contentRow.title,
-          userBrief: contentRow.user_brief ?? brief.userQuery ?? null,
+          userBrief: contentRow.user_brief ?? effectiveUserQuery ?? null,
         },
       });
       log('instagram_image_gen', {

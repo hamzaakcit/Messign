@@ -8,6 +8,7 @@ import { getPresetCallsForIntentId } from './intentIdPresets.js';
 import { getCachedResponse, setCachedResponse, type CachedDirectIntentPayload } from './response-cache.js';
 import { resolveWidgetPayloadsForTool, type WidgetPayload } from './widgetResolve.js';
 import type { SourceDocument, ToolContext, ToolResult } from './types.js';
+import { documentsFromKnowledgeSearchData } from './tools/knowledgeSearchAggregates.js';
 
 /** Cache TTL (seconds) per intent; default 60 */
 const INTENT_TTL_SECONDS: Record<string, number> = {
@@ -30,8 +31,9 @@ function extractSourcesFromResults(toolResults: ToolResult[]): SourceDocument[] 
   const seenTitles = new Set<string>();
 
   for (const result of toolResults) {
-    if (!result.success || !result.data || !Array.isArray(result.data)) continue;
-    for (const item of result.data as Record<string, unknown>[]) {
+    if (!result.success || !result.data) continue;
+    const rows = documentsFromKnowledgeSearchData(result.data);
+    for (const item of rows as Record<string, unknown>[]) {
       if (item.title && item.id && (item.slug != null || item.document_type != null)) {
         const id = String(item.id);
         const titleKey = String(item.title).toLowerCase().trim();

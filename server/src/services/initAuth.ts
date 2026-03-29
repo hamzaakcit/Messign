@@ -5,6 +5,21 @@ import { getDefaultSeedPassword } from '../types/auth.js';
 
 const SALT_ROUNDS = 12;
 const DEFAULT_ORG_SLUG = 'messign';
+/** Same stable UUID as `server/src/db/seed.ts` so dev and seed stay aligned. */
+const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
+
+/**
+ * Creates the default tenant when the DB has no rows yet (fresh migrate without seed).
+ * Idempotent: matches seed’s ON CONFLICT(slug) behavior.
+ */
+async function ensureMessignOrganizationRow(): Promise<void> {
+  await query(
+    `INSERT INTO organizations (id, name, slug, base_currency)
+     VALUES ($1, 'Messign', $2, 'USD')
+     ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name`,
+    [DEFAULT_ORG_ID, DEFAULT_ORG_SLUG],
+  );
+}
 
 export async function initializeAuthRecords(): Promise<void> {
   let defaultPassword: string;
@@ -14,14 +29,31 @@ export async function initializeAuthRecords(): Promise<void> {
     console.info('[initAuth] SEED_DEFAULT_PASSWORD not set — skipping auth seeding (required in production)');
     return;
   }
+  try {
+    await ensureMessignOrganizationRow();
+  } catch (e) {
+    console.warn('[initAuth] ensureMessignOrganizationRow failed:', e instanceof Error ? e.message : e);
+  }
   const passwordHash = await bcrypt.hash(defaultPassword, SALT_ROUNDS);
-  const orgResult = await query<{ id: string }>(
-    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-    [DEFAULT_ORG_SLUG]
+  let orgResult = await query<{ id: string }>(
+    `SELECT id::text AS id FROM organizations WHERE slug = $1 LIMIT 1`,
+    [DEFAULT_ORG_SLUG],
   );
-  const orgId = orgResult.rows[0]?.id;
+  let orgId = orgResult.rows[0]?.id;
   if (!orgId) {
-    console.warn('[initAuth] Organization not found, skipping auth init');
+    const anyOrg = await query<{ id: string }>(
+      `SELECT id::text AS id FROM organizations ORDER BY created_at ASC NULLS LAST LIMIT 1`,
+      [],
+    );
+    orgId = anyOrg.rows[0]?.id;
+    if (orgId) {
+      console.warn(
+        '[initAuth] No organization with slug "messign"; using first organizations row for auth seeding',
+      );
+    }
+  }
+  if (!orgId) {
+    console.warn('[initAuth] No organizations in database — skipping auth init (run db:seed or migrations)');
     return;
   }
 

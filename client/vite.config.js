@@ -1,4 +1,15 @@
-import { defineConfig } from 'vite';
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+import { createLogger, defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 /** While the API restarts (tsx watch) or boots, the proxy can hit ECONNREFUSED; avoid noisy Vite logs. */
@@ -9,7 +20,30 @@ function quietTransientProxyErrors(proxy) {
         console.error('[vite-proxy]', err);
     });
 }
+/**
+ * Vite still prints `[vite] http proxy error` / `ws proxy error` itself (not only http-proxy `error`).
+ * Filter transient failures while 127.0.0.1:3001 is booting or restarting.
+ */
+function shouldIgnoreTransientProxyLog(msg) {
+    var s = String(msg);
+    /** Multiline proxy failures: first line has `proxy error`, stack lines only have `ECONNREFUSED`. */
+    if (s.includes('127.0.0.1:3001') && /ECONNREFUSED|ECONNRESET/i.test(s))
+        return true;
+    if (!s.includes('proxy error'))
+        return false;
+    return /ECONNREFUSED|ECONNRESET|socket hang up/i.test(s);
+}
+function createDevLoggerQuietProxy() {
+    var base = createLogger();
+    var wrap = function (fn) { return function (msg, options) {
+        if (shouldIgnoreTransientProxyLog(String(msg)))
+            return;
+        fn(msg, options);
+    }; };
+    return __assign(__assign({}, base), { warn: wrap(base.warn.bind(base)), warnOnce: wrap(base.warnOnce.bind(base)), error: wrap(base.error.bind(base)) });
+}
 export default defineConfig({
+    customLogger: createDevLoggerQuietProxy(),
     plugins: [react()],
     resolve: {
         alias: {

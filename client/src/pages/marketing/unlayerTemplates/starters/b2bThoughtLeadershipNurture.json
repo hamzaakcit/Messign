@@ -1,0 +1,120 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "layoutDensity": "airy",
+  "subject": "The playbook teams use before QBR season",
+  "preheader": "One framework for aligning roadmap, risk, and revenue narrative—plus a customer story from a Series B fintech. Read the short brief, then grab the checklist we use in executive workshops (no fluff).",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Strategy without theater",
+        "subheadline": "A crisp point of view beats a fifty-slide deck. This week: how platform leaders tie technical bets to board-ready outcomes.",
+        "ctaText": "Read the brief",
+        "ctaUrl": "https://example.com/insights/playbook",
+        "imagePrompt": "Executive reading a tablet in a bright corner office, city skyline soft blur through glass, blue-slate palette, editorial corporate photography, no readable screens",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "body": "<strong>Editor’s note:</strong> We publish one long-form insight per month—skim the pull-quote below or jump to the customer proof section.",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "headline": "The three-question QBR frame",
+        "body": "Ask: What changed for customers? What did we learn? What are we stopping? Teams that answer in plain language ship calmer roadmaps.",
+        "imagePrompt": "Abstract diagram of three connected circles on a dark slate background, soft blue glow, no legible text",
+        "altText": "Framework diagram",
+        "layout": "image_right",
+        "ctaText": "See examples",
+        "ctaUrl": "https://example.com/insights/framework"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 4,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "What subscribers get",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Layers",
+            "heading": "Templates",
+            "description": "One-pagers you can paste into Notion or Slides—tested with real boards.",
+            "imagePrompt": "Stack of minimal document layers, soft shadow, executive desk lighting, no readable text"
+          },
+          {
+            "icon": "Users",
+            "heading": "Office hours",
+            "description": "Monthly live session; questions voted up by the community.",
+            "imagePrompt": "Small group video silhouettes on monitor, warm light, no readable UI"
+          },
+          {
+            "icon": "Sparkles",
+            "heading": "Early research",
+            "description": "First look at benchmarks before they hit the public report.",
+            "imagePrompt": "Subtle spark motif on neutral paper texture, brand-safe, no words"
+          }
+        ]
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 5,
+      "variant": "card",
+      "content": {
+        "quote": "We cut prep time for exec reviews by half—same rigor, fewer slides. The newsletter pays for itself in one meeting.",
+        "authorName": "Jordan Lee",
+        "authorRole": "VP Platform",
+        "authorCompany": "Northline Fintech",
+        "rating": 5
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Get the next issue first",
+        "description": "No spam—unsubscribe anytime. We never share your work email.",
+        "buttonText": "Subscribe",
+        "buttonUrl": "https://example.com/subscribe",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "variant": "band",
+      "content": {
+        "companyName": "LatticeShip Insights",
+        "address": "500 Market St, San Francisco, CA 94105",
+        "unsubscribeText": "You received this because you opted into research updates. Unsubscribe or manage topics below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "authoritative, concise",
+    "audience": "B2B platform and product leaders",
+    "campaign_id": "b2b_nurture_thought_leadership",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "confident, editorial, board-ready",
+    "imageStyle": "Corporate photography and abstract diagrams; no legible UI or slides"
+  }
+}

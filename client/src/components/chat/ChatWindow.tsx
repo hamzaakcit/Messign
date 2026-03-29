@@ -1,13 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { Hash, Lock, User } from 'lucide-react';
+import { getChannelMemberIds, normalizeChannelList } from '@/lib/chatChannelUtils';
 
 export function ChatWindow() {
-  const channels = useChatStore((s) => s.channels);
+  const channelsRaw = useChatStore((s) => s.channels);
+  const channels = useMemo(() => normalizeChannelList(channelsRaw), [channelsRaw]);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const messages = useChatStore((s) => s.messages);
   const currentUser = useAuthStore((s) => s.user);
@@ -18,7 +20,7 @@ export function ChatWindow() {
   const channelMessages = activeChannelId ? messages[activeChannelId] || [] : [];
   const channelDisplayName =
     activeChannel?.type === 'dm'
-      ? (users.find((u) => activeChannel.members.includes(u.id) && u.id !== currentUser?.id)?.name ?? activeChannel.name)
+      ? (users.find((u) => getChannelMemberIds(activeChannel).includes(u.id) && u.id !== currentUser?.id)?.name ?? activeChannel.name)
       : activeChannel?.name ?? '';
 
   // Auto-scroll to bottom on new messages
@@ -54,7 +56,7 @@ export function ChatWindow() {
           )}
         </div>
         <div className="ml-auto text-sm text-app-muted">
-          {activeChannel.members.length} members
+          {getChannelMemberIds(activeChannel).length} members
         </div>
       </div>
 

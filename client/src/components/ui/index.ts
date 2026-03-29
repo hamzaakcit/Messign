@@ -5,6 +5,8 @@ export * from './Avatar';
 export * from './Badge';
 export * from './ProgressBar';
 export * from './Modal';
+export * from './dialog';
+export * from './sheet';
 export * from './Tabs';
 export * from './XPGainNotification';
 export * from './InfoTooltip';

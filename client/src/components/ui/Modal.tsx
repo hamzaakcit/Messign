@@ -52,7 +52,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', forceDark
       <div
         ref={contentRef as LegacyRef<HTMLDivElement> | undefined}
         className={cn(
-          'relative w-full mx-4 bg-app-card border border-app-border rounded-2xl p-6 shadow-xl animate-fade-in',
+          'relative w-full mx-4 bg-app-card border border-app-border rounded-lg p-6 shadow-lg animate-fade-in',
           sizes[size]
         )}
         data-theme={forceDark ? 'dark' : undefined}

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { projectsAPI, departmentsAPI, type RecruitmentSlot } from '@/lib/api';
 import { Button, Input } from '@/components/ui';
-import { Modal } from '@/components/ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 const DEPARTMENTS = ['engineering', 'design', 'product', 'marketing', 'sales', 'operations'] as const;
@@ -154,7 +154,11 @@ export function ProposeProjectModal({ isOpen, onClose, onSuccess }: ProposeProje
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Propose Project" size="lg">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-h-[min(90vh,800px)] max-w-2xl overflow-y-auto rounded-lg">
+        <DialogHeader>
+          <DialogTitle className="text-compact">Propose Project</DialogTitle>
+        </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-app mb-1">What kind of project?</label>
@@ -347,6 +351,7 @@ export function ProposeProjectModal({ isOpen, onClose, onSuccess }: ProposeProje
           </Button>
         </div>
       </form>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -8,6 +8,7 @@
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
+import { computeBountyAggregates } from './bountyAggregates.js';
 
 const bountyBoardTool: Tool = {
   name: 'achievements:get_bounty_board',
@@ -98,18 +99,22 @@ Use this tool when someone asks:
       );
 
       const bounties = result.rows as Record<string, unknown>[];
-      const totalReward = bounties.reduce((sum: number, b) => sum + ((b.xp_reward as number) || 0), 0);
-
-      const summary = `**Bounty Board (${filter}) — ${bounties.length} bounties:**\n${bounties
-        .map(
-          (b, i) =>
-            `${i + 1}. [${b.status}] ${b.title}: ${b.xp_reward || 0} XP — ${((b.description as string) || '').slice(0, 80)}${b.expires_at ? ` (deadline: ${new Date(b.expires_at as string).toLocaleDateString()})` : ''}${b.claimer_name ? ` — claimed by ${b.claimer_name}` : ''}`
-        )
-        .join('\n')}\n\nTotal reward XP: ${totalReward}`;
+      const aggregates = computeBountyAggregates(bounties);
+      const summary = `**Bounty board (${filter})** — ${aggregates.count} bounties, ${aggregates.totalXp} total XP (avg ${aggregates.avgXp}). Details are in the interactive widget.`;
 
       return {
         success: true,
-        data: bounties,
+        data: {
+          bounties,
+          filter,
+          sort_by: sortBy,
+          stats: {
+            count: aggregates.count,
+            totalXp: aggregates.totalXp,
+            avgXp: aggregates.avgXp,
+          },
+          aggregates,
+        },
         summary,
         metadata: { source: 'bounties, reimbursement_users', count: bounties.length },
       };

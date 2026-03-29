@@ -106,7 +106,9 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
             <button
               type="button"
               onClick={() => {
-                navigate(`/marketing/builder?type=email&open=${encodeURIComponent(email.id)}`);
+                navigate(
+                  `/marketing/builder?type=email&open=${encodeURIComponent(email.id)}`,
+                );
               }}
               className="inline-flex items-center gap-1.5 rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 text-xs font-medium text-app-text hover:bg-app-hover"
             >

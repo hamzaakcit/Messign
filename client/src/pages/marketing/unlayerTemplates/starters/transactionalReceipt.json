@@ -1,0 +1,60 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "subject": "Your order #10482 is confirmed",
+  "preheader": "Thanks for your purchase — here is your receipt summary, order total, and support link; keep this email for your records and contact us if anything looks wrong.",
+  "sections": [
+    {
+      "type": "text_block",
+      "order": 1,
+      "content": {
+        "body": "<p style=\"margin:0 0 8px;font-weight:700;font-size:18px\">Order confirmed</p><p style=\"margin:0;color:#64748b;font-size:14px\">Placed on March 26 · Paid · Digital receipt</p>",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "content": {
+        "sectionTitle": "Items",
+        "columns": 2,
+        "items": [
+          {
+            "name": "Workspace Pro (annual)",
+            "description": "1 seat · renews next year",
+            "price": "$199.00",
+            "badge": "PAID"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider",
+      "order": 3,
+      "content": {}
+    },
+    {
+      "type": "cta",
+      "order": 4,
+      "content": {
+        "buttonText": "View invoice PDF",
+        "buttonUrl": "https://example.com/invoice",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 5,
+      "content": {
+        "companyName": "Messign Commerce",
+        "address": "Billing · support@example.com"
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "transactional",
+    "audience": "customers post-checkout",
+    "campaign_id": "txn_receipt"
+  }
+}

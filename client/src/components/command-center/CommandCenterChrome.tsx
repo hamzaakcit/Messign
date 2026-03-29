@@ -29,13 +29,13 @@ export function CommandCenterChrome({
   return (
     <div
       className={cn(
-        'shrink-0 flex items-center justify-between gap-2 px-4 py-2 border-b border-white/[0.06]',
+        'text-compact shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 border-b border-white/[0.06]',
         className,
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-sm font-semibold text-app-text">{title}</h1>
-        {subtitle ? <p className="text-[10px] text-app-muted">{subtitle}</p> : null}
+        <h1 className="text-xs font-semibold text-app-text tracking-tight">{title}</h1>
+        {subtitle ? <p className="text-[9px] text-app-muted leading-tight">{subtitle}</p> : null}
         {meta ? <div className="text-[10px] text-app-muted/90 mt-0.5 max-w-xl">{meta}</div> : null}
       </div>
       <div className="flex items-center gap-3 shrink-0">

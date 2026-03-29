@@ -1,0 +1,157 @@
+{
+  "version": "2.0",
+  "theme": "bold",
+  "subject": "48-Hour Warehouse Clearance — Up to 60% Off Sitewide",
+  "preheader": "Two grids of verified bestsellers: apparel, gear, and bundles at clearance prices until the timer ends. Cart holds are not guaranteed—checkout locks inventory while supplies last across every category below.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Clearance ends in 48 hours",
+        "subheadline": "Thousands of SKUs marked down—no code. Prices update at checkout; when the window closes, offers revert to MSRP.",
+        "ctaText": "Shop clearance",
+        "ctaUrl": "https://example.com/clearance",
+        "imagePrompt": "[STOCK] High-energy retail warehouse sale flat lay with folded apparel, shoe boxes, and shopping bags on clean white sweep, bold color accents, ecommerce photography",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Wave 1 — Apparel & accessories",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Trail Shell Jacket",
+            "description": "Waterproof shell, packable hood, taped seams.",
+            "price": "$118",
+            "originalPrice": "$198",
+            "imagePrompt": "[STOCK] Technical hiking jacket flat lay on stone, outdoor gear catalog lighting",
+            "linkUrl": "https://example.com/p/jacket",
+            "badge": "-40%"
+          },
+          {
+            "name": "Merino Crew",
+            "description": "Midweight layer, odor-resistant wool blend.",
+            "price": "$54",
+            "originalPrice": "$88",
+            "imagePrompt": "[STOCK] Folded merino sweater on neutral fabric, soft studio light, apparel product shot",
+            "linkUrl": "https://example.com/p/merino",
+            "badge": "Bestseller"
+          },
+          {
+            "name": "Carbon Daypack",
+            "description": "18L, laptop sleeve, recycled ripstop.",
+            "price": "$72",
+            "originalPrice": "$120",
+            "imagePrompt": "[STOCK] Minimal black backpack on concrete, crisp ecommerce product photo",
+            "linkUrl": "https://example.com/p/pack",
+            "badge": "-40%"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider",
+      "order": 3,
+      "content": {}
+    },
+    {
+      "type": "product_grid",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Wave 2 — Home & everyday carry",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Glass Pour-Over Set",
+            "description": "Borosilicate dripper + server, cafe-grade.",
+            "price": "$42",
+            "originalPrice": "$68",
+            "imagePrompt": "[STOCK] Glass coffee pour-over set on oak counter, morning light, specialty retail styling",
+            "linkUrl": "https://example.com/p/pour-over",
+            "badge": "Kitchen"
+          },
+          {
+            "name": "Desk Mat XL",
+            "description": "Stitched edge, low-friction surface.",
+            "price": "$28",
+            "originalPrice": "$48",
+            "imagePrompt": "[STOCK] Large desk mat with keyboard and notebook, overhead workspace photo",
+            "linkUrl": "https://example.com/p/mat",
+            "badge": "-42%"
+          },
+          {
+            "name": "Travel Organizer",
+            "description": "Cord pockets, TSA-friendly layout.",
+            "price": "$22",
+            "originalPrice": "$39",
+            "imagePrompt": "[STOCK] Open travel tech organizer with cables on hotel desk, tidy packing aesthetic",
+            "linkUrl": "https://example.com/p/organizer",
+            "badge": "Travel"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 5,
+      "content": {
+        "headline": "Why we run two waves",
+        "body": "Splitting inventory into focused grids keeps load times fast and makes scanning easier on mobile. If your size sells out in Wave 1, check Wave 2 for complementary gear—bundles ship together when possible.",
+        "imagePrompt": "[STOCK] Warehouse worker scanning barcode on retail shelf, bright aisle, authentic operations photography",
+        "altText": "Fulfillment associate scanning inventory",
+        "layout": "image_left"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 6,
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Orders shipped last event", "value": "38k+" },
+          { "label": "Avg. discount depth", "value": "47%" },
+          { "label": "SKUs on promotion", "value": "1,200+" }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 7,
+      "content": {
+        "headline": "Timer running — cart now",
+        "description": "Discounts apply at checkout. Returns follow our standard policy; clearance tags may apply.",
+        "buttonText": "Shop the clearance",
+        "buttonUrl": "https://example.com/clearance",
+        "variant": "fullWidth",
+        "urgencyText": "Ends midnight on the date shown in your account"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 8,
+      "content": {
+        "companyName": "Northline Supply Co.",
+        "address": "900 Commerce Ave, Austin, TX 78701",
+        "unsubscribeText": "Promotional messages about sales. You can adjust frequency or unsubscribe anytime."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "urgent, direct, retail",
+    "audience": "D2C shoppers and loyalty members",
+    "visual_density": "rich",
+    "target_image_slots": 8
+  },
+  "artDirection": {
+    "mood": "high-energy retail, trustworthy",
+    "imageStyle": "catalog and lifestyle ecommerce photography with bold accents"
+  }
+}

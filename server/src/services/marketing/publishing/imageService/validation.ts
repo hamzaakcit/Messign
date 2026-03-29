@@ -14,7 +14,20 @@ export const ALLOWED_RESOLUTIONS = new Set<string>([
   '1024x1024', '1080x1080', '1080x1350', '1080x1920', '1920x1080',
 ]);
 
+/**
+ * Parses `WIDTHxHEIGHT` strings (e.g. `1080x1080`) for resize / quality routing.
+ */
+export function parseResolutionDimensions(resolution: string): { width: number; height: number } | null {
+  const m = resolution.toLowerCase().match(/(\d+)\s*x\s*(\d+)/);
+  if (!m) return null;
+  const width = parseInt(m[1]!, 10);
+  const height = parseInt(m[2]!, 10);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) return null;
+  return { width, height };
+}
+
 export const ALLOWED_STYLE_PRESETS = new Set<NonNullable<ImageGenerationInput['style_preset']>>([
+  'photoreal',
   'modern_noir',
   'vibrant_lifestyle',
   'minimal_flat',
@@ -60,6 +73,22 @@ export function validateImageGenerationInput(
     return { ok: false, error: `Invalid style_preset: ${String(input.style_preset)}` };
   }
 
+  const skipFal = input.skip_fal === true;
+  const instagramFalOnly = input.instagram_fal_only === true;
+  if (skipFal && instagramFalOnly) {
+    return {
+      ok: false,
+      error: 'Conflicting flags: skip_fal and instagram_fal_only cannot both be true',
+    };
+  }
+
+  const emailCampaign = input.email_campaign === true;
+  const technicalPlatformTopic = input.technical_platform_topic === true;
+  const instagramFeed = input.instagram_feed === true;
+  const instagramDirectPrompt = input.instagram_direct_prompt === true;
+  const overlayPaperPlane = input.overlay_paper_plane === true;
+  const falNeg = typeof input.fal_negative_prompt === 'string' ? input.fal_negative_prompt.trim() : '';
+
   return {
     ok: true,
     normalized: {
@@ -68,6 +97,14 @@ export function validateImageGenerationInput(
       prompt,
       ...(input.resolution != null ? { resolution: input.resolution } : {}),
       ...(input.style_preset != null ? { style_preset: input.style_preset } : {}),
+      ...(skipFal ? { skip_fal: true as const } : {}),
+      ...(emailCampaign ? { email_campaign: true as const } : {}),
+      ...(technicalPlatformTopic ? { technical_platform_topic: true as const } : {}),
+      ...(instagramFeed ? { instagram_feed: true as const } : {}),
+      ...(instagramFalOnly ? { instagram_fal_only: true as const } : {}),
+      ...(instagramDirectPrompt ? { instagram_direct_prompt: true as const } : {}),
+      ...(overlayPaperPlane ? { overlay_paper_plane: true as const } : {}),
+      ...(falNeg.length > 0 ? { fal_negative_prompt: falNeg } : {}),
     },
   };
 }

@@ -10,6 +10,7 @@ import {
   incrementFailedAttempts,
   setLocked,
   updatePassword,
+  upsert as upsertEmployeeAuth,
 } from '../db/employeeAuthDb.js';
 import { getPasswordPolicy } from '../db/settingsDb.js';
 import { insert as insertAudit } from '../db/authAuditDb.js';
@@ -98,8 +99,17 @@ export async function login(
   const normalizedEmail = email.trim().toLowerCase();
   const ip = req ? getClientIp(req) : null;
   const userAgent = req ? getClientUserAgent(req) : null;
+  const isNonProd = process.env.NODE_ENV !== 'production';
 
-  const employeeRow = await getEmployeeByEmail(normalizedEmail);
+  let employeeRow = await getEmployeeByEmail(normalizedEmail);
+  /** `employee_auth` can exist without a matching `reimbursement_users` row (skipped seed, org mismatch). */
+  if (!employeeRow) {
+    const authOnly = await getByEmail(normalizedEmail);
+    if (authOnly) {
+      await ensureReimbursementUserForAuth(authOnly.auth_user_id, normalizedEmail);
+      employeeRow = await getEmployeeByEmail(normalizedEmail);
+    }
+  }
   if (!employeeRow) {
     return {
       success: false,
@@ -109,6 +119,29 @@ export async function login(
 
   const authUserId = employeeRow.auth_user_id ?? employeeRow.id;
   let auth = await getByAuthUserId(authUserId);
+  /** Local/staging: workspace user exists but `employee_auth` was never created (skipped initAuth org mismatch, etc.). */
+  if (!auth && isNonProd) {
+    try {
+      const seedPw = getDefaultSeedPassword();
+      const freshHash = await bcrypt.hash(seedPw, 12);
+      await upsertEmployeeAuth({
+        auth_user_id: authUserId,
+        email: normalizedEmail,
+        password_hash: freshHash,
+        must_change_password: true,
+        temporary_password: seedPw,
+        account_status: 'active',
+        created_by: 'system',
+        updated_by: 'system',
+      });
+      auth = await getByAuthUserId(authUserId);
+      if (auth) {
+        console.warn(`[authService] login self-heal: created employee_auth for ${normalizedEmail}`);
+      }
+    } catch (e) {
+      console.warn('[authService] login self-heal employee_auth failed:', e instanceof Error ? e.message : e);
+    }
+  }
   if (!auth) {
     return {
       success: false,
@@ -117,7 +150,6 @@ export async function login(
   }
 
   const passwordTrimmed = typeof password === 'string' ? password.trim() : '';
-  const isNonProd = process.env.NODE_ENV !== 'production';
 
   /** Matches seed string; in non-production only, comparison is case-insensitive (avoids Test123 vs test123 lockouts during local dev). */
   function passwordMatchesSeed(seed: string | null): boolean {

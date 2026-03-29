@@ -45,8 +45,8 @@ type WidgetState = 'collapsed' | 'expanded';
 export function FloatingWidget() {
   const { pathname } = useLocation();
   const pathNorm = pathname.replace(/\/$/, '') || '/';
-  /** Marketing Command Center embeds Dora in the right rail — hide duplicate global pilot. */
-  const hideOnMarketingHub = pathNorm === '/marketing';
+  /** Marketing embeds Dora in-page (Lucy rail / workspace) — hide duplicate global pilot on all marketing routes. */
+  const hideOnMarketingHub = pathNorm === '/marketing' || pathNorm.startsWith('/marketing/');
   /** Executive dashboard embeds Ask Dora — hide duplicate floating pilot and avoid overlap. */
   const hideOnExecutive = pathNorm === '/executive';
   const user = useAuthStore((s) => s.user);
@@ -129,12 +129,18 @@ export function FloatingWidget() {
           currentPath: widgetContext.currentPath,
           sessionId,
           searchMode: responseMode === 'search',
+          ...(widgetContext.missionControlBento != null
+            ? { missionControlBento: widgetContext.missionControlBento }
+            : {}),
           ...(!DORA_V2
             ? {
                 widgetContext: {
                   module: widgetContext.currentModule,
                   entity: widgetContext.viewingEntity,
                   routeParams: widgetContext.routeParams,
+                  ...(widgetContext.missionControlBento != null
+                    ? { missionControlBento: widgetContext.missionControlBento }
+                    : {}),
                 },
               }
             : {}),

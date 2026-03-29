@@ -9,6 +9,10 @@ import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import {
+  buildShortDepartmentReportSummary,
+  computeDepartmentReportAggregates,
+} from './departmentReportAggregates.js';
 
 function buildReportDateFilter(period: string): Date {
   const now = new Date();
@@ -36,11 +40,11 @@ const departmentReportTool: Tool = {
 
   description: `Generate an executive-level department or company-wide report combining team metrics, project health, financial summary, and activity trends.
 
-Use this tool when someone asks:
+Use this tool when someone asks (same example phrasings as DEPARTMENT_REPORT_EXAMPLE_QUESTIONS in availableQuestions.ts):
 - "Give me an executive summary"
-- "Department report" or "Company report"
+- "Give me a department report or company report"
 - "How are all teams doing?"
-- "Monthly/quarterly company review"
+- "Give me a monthly or quarterly company review"
 - "Prepare data for the board meeting"
 - Any request for a high-level, multi-domain report`,
 
@@ -73,9 +77,7 @@ Use this tool when someone asks:
     }
 
     const dateFilter = buildReportDateFilter(timePeriod);
-    const periodLabel = timePeriod.replace('_', ' ');
     const report: Record<string, unknown> = {};
-    let summary = `**Executive Report — ${periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}**\n`;
 
     if (sections.includes('people')) {
       const peopleResult = await query(
@@ -88,9 +90,6 @@ Use this tool when someone asks:
         [dateFilter, orgId]
       );
       report.people = peopleResult.rows[0];
-      const p = report.people as Record<string, unknown>;
-      summary += `\n**People:**
-- Active employees: ${p.active ?? 0} | New hires (${periodLabel}): ${p.new_hires ?? 0}`;
     }
 
     if (sections.includes('projects')) {
@@ -112,10 +111,6 @@ Use this tool when someone asks:
         [dateFilter, orgId]
       );
       report.projects = { ...(projectsResult.rows[0] as object), ...(taskMetricsResult.rows[0] as object) };
-      const proj = report.projects as Record<string, unknown>;
-      summary += `\n\n**Projects & Tasks:**
-- Active projects: ${proj.active ?? 0} | Tasks completed (${periodLabel}): ${proj.completed_period ?? 0}
-- Overdue tasks: ${proj.overdue ?? 0}`;
     }
 
     if (sections.includes('finance')) {
@@ -131,12 +126,8 @@ Use this tool when someone asks:
           [orgId, dateFilter]
         );
         report.finance = financeResult.rows[0];
-        const f = report.finance as Record<string, unknown>;
-        summary += `\n\n**Finance (${periodLabel}):**
-- Reimbursements: ${f.total_claims ?? 0} claims, $${parseFloat(String(f.total_amount ?? 0)).toFixed(2)} total
-- Pending approval: ${f.pending_count ?? 0} claims ($${parseFloat(String(f.pending_amount ?? 0)).toFixed(2)})`;
       } catch {
-        summary += `\n\n**Finance:** Data unavailable`;
+        report.finance = { unavailable: true };
       }
     }
 
@@ -151,10 +142,6 @@ Use this tool when someone asks:
         [dateFilter]
       );
       report.knowledge = knowledgeResult.rows[0];
-      const k = report.knowledge as Record<string, unknown>;
-      summary += `\n\n**Knowledge Base:**
-- Total documents: ${k.total_docs ?? 0} (${k.published ?? 0} published)
-- New (${periodLabel}): ${k.new_docs ?? 0} | Pending review: ${k.pending_review ?? 0}`;
     }
 
     if (sections.includes('activity')) {
@@ -163,14 +150,14 @@ Use this tool when someone asks:
         [dateFilter]
       );
       report.activity = activityResult.rows[0];
-      const act = report.activity as Record<string, unknown>;
-      summary += `\n\n**Activity:**
-- Total actions (${periodLabel}): ${act.total ?? 0}`;
     }
+
+    const aggregates = computeDepartmentReportAggregates(report);
+    const summary = buildShortDepartmentReportSummary(timePeriod, aggregates);
 
     return {
       success: true,
-      data: report,
+      data: { ...report, aggregates, timePeriod },
       summary,
       metadata: { source: 'reimbursement_users, projects, tasks, reimbursement_requests, knowledge_documents, activities', timeRange: timePeriod },
     };

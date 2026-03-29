@@ -30,7 +30,7 @@ export function LucySidebarLogo({ collapsed = false, onClick }: LucySidebarLogoP
       }
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title="Lucy — Dora's CMO"
+      title="Lucy — your CMO copilot"
       style={{
         display: 'flex',
         alignItems: 'center',

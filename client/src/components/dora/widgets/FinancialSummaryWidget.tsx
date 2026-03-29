@@ -24,6 +24,29 @@ export function FinancialSummaryWidget({ data, title, delay = 0 }: FinancialSumm
   const reimbursements = data.reimbursements as Record<string, unknown> | null;
   const invoices = data.invoices as Record<string, unknown> | null;
   const topCategories = (data.topCategories as Array<Record<string, unknown>>) || [];
+  const meta = data.meta as
+    | {
+        timePeriod?: string;
+        scope?: string;
+        scopeDowngraded?: boolean;
+        teamScopeMissing?: boolean;
+        reimbursementsError?: string;
+      }
+    | undefined;
+
+  const scopeLabel =
+    meta?.scope === 'my'
+      ? 'Your'
+      : meta?.scope === 'team' && meta?.teamScopeMissing
+        ? 'Company (org-wide)'
+        : meta?.scope === 'team'
+          ? 'Team'
+          : 'Company';
+
+  const periodSub =
+    meta?.timePeriod != null && meta.timePeriod !== ''
+      ? `${scopeLabel} · ${String(meta.timePeriod).replace(/_/g, ' ')}`
+      : null;
 
   const reimbTotal = parseNum(reimbursements?.total_amount);
   const reimbCount = parseNum(reimbursements?.total_count);
@@ -57,14 +80,31 @@ export function FinancialSummaryWidget({ data, title, delay = 0 }: FinancialSumm
       <div style={{ height: 3, background: 'linear-gradient(90deg, #22c55e, #38bdf8)', opacity: 0.6 }} />
 
       <div style={{ padding: '16px 18px' }}>
-        {title && (
+        <div style={{ marginBottom: 14 }}>
           <h3
             className="dora-font"
-            style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <DollarSign size={14} color="#22c55e" /> Financial Summary
           </h3>
-        )}
+          {title ? (
+            <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0', letterSpacing: '0.02em', lineHeight: 1.35 }}>
+              {title}
+            </p>
+          ) : null}
+          {periodSub ? (
+            <p style={{ fontSize: 10, color: '#64748b', margin: '6px 0 0', letterSpacing: '0.02em' }}>
+              {periodSub}
+              {meta?.scopeDowngraded ? ' · scope: personal (elevated role required for company totals)' : ''}
+              {meta?.teamScopeMissing ? ' · team filter unavailable' : ''}
+            </p>
+          ) : null}
+          {meta?.reimbursementsError ? (
+            <p style={{ fontSize: 10, color: '#f59e0b', margin: '8px 0 0' }}>
+              Reimbursement totals could not be loaded.
+            </p>
+          ) : null}
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: chartData.length > 0 ? 14 : 0 }}>
           {invCount > 0 && (
@@ -103,7 +143,7 @@ export function FinancialSummaryWidget({ data, title, delay = 0 }: FinancialSumm
               color="#f59e0b"
             />
           )}
-          {reimbCount === 0 && invCount === 0 && (
+          {reimbCount === 0 && invCount === 0 && !meta?.reimbursementsError && (
             <MetricTile
               icon={DollarSign}
               label="Approved"

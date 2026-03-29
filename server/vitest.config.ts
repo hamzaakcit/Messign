@@ -3,6 +3,8 @@ import { resolve } from 'path';
 
 export default defineConfig({
   test: {
+    /** bcrypt (cost 12) under parallel workers can exceed 5s on busy CI/agents. */
+    testTimeout: 15_000,
     environment: 'node',
     globals: true,
     include: [

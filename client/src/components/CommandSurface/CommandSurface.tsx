@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Fuse from 'fuse.js';
 import {
   Search,
   LayoutDashboard,
+  LayoutGrid,
   MessageSquare,
   Briefcase,
   BookOpen,
@@ -34,6 +35,7 @@ import {
   Mail,
   Swords,
   PanelRightOpen,
+  Hash,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/routes';
@@ -41,6 +43,10 @@ import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
 import { useDoraStore } from '@/stores/doraStore';
 import type { RecentPage } from './useRecentPages';
 import { useChatStore } from '@/stores/chatStore';
+import { useAuthStore } from '@/stores/authStore';
+import { normalizeChannelList } from '@/lib/chatChannelUtils';
+import { useMarketplaceProjectsQuery } from '@/hooks/useMarketplaceProjectsQuery';
+import { PROJECTS_MISSION_EVENT, type ProjectsMissionDetail } from '@/lib/projectsMissionEvents';
 
 type ItemType = 'navigate' | 'action' | 'dora';
 
@@ -56,6 +62,14 @@ interface CommandItem {
   type: ItemType;
   financeView?: string;
   chatAction?: ChatCommandAction;
+  /** When set, switch to this channel (Cmd+K on /chat) */
+  chatChannelId?: string;
+  /** Open channel details on Files tab */
+  chatOpenMediaTab?: boolean;
+  /** Projects Mission Control actions (dispatched after navigate to /projects) */
+  projectsMission?: ProjectsMissionDetail['action'];
+  /** Focus task board on this project id */
+  projectsFocusProjectId?: string;
 }
 
 const NAV_ITEMS: CommandItem[] = [
@@ -107,7 +121,51 @@ const ACTION_ITEMS: CommandItem[] = [
   { id: 'act-dora', label: 'Ask Dora', icon: Sparkles, path: '/dora', keywords: 'ai question help assistant', type: 'action' },
 ];
 
-const ALL_ITEMS = [...NAV_ITEMS, ...ACTION_ITEMS];
+/** Cmd+K when on /projects — also merged into Fuse index */
+const PROJECTS_CMD_ITEMS: CommandItem[] = [
+  {
+    id: 'proj-mc-hub',
+    label: 'Mission Control: Opportunity Hub',
+    icon: Briefcase,
+    keywords: 'projects marketplace opportunities hub',
+    type: 'action',
+    projectsMission: 'hub',
+  },
+  {
+    id: 'proj-mc-tasks',
+    label: 'Mission Control: Tasks board',
+    icon: LayoutGrid,
+    keywords: 'projects tasks kanban board mission',
+    type: 'action',
+    projectsMission: 'tasks',
+  },
+  {
+    id: 'proj-mc-propose',
+    label: 'Mission Control: Propose project',
+    icon: PlusCircle,
+    keywords: 'projects propose new marketplace',
+    type: 'action',
+    projectsMission: 'propose',
+  },
+  {
+    id: 'proj-mc-create-task',
+    label: 'Mission Control: Create task',
+    icon: ListTodo,
+    keywords: 'projects create task todo',
+    type: 'action',
+    projectsMission: 'create-task',
+  },
+  {
+    id: 'proj-mc-optimize',
+    label: 'Mission Control: Suggest optimization',
+    icon: Sparkles,
+    keywords: 'projects dora optimization bottlenecks',
+    type: 'action',
+    projectsMission: 'open-optimize',
+  },
+];
+
+const ALL_ITEMS = [...NAV_ITEMS, ...ACTION_ITEMS, ...PROJECTS_CMD_ITEMS];
 
 const TYPE_BADGES: Record<ItemType, string> = {
   navigate: 'Navigate',
@@ -123,9 +181,17 @@ interface CommandSurfaceProps {
 
 export function CommandSurface({ open, onClose, recentPages }: CommandSurfaceProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuthStore();
+  const { data: marketplaceProjects = [] } = useMarketplaceProjectsQuery(user?.id);
   const { setActiveView } = useFinanceStore();
   const createSession = useDoraStore((s) => s.createSession);
   const setActiveSession = useDoraStore((s) => s.setActiveSession);
+  const channelsRaw = useChatStore((s) => s.channels);
+  const channels = useMemo(() => normalizeChannelList(channelsRaw), [channelsRaw]);
+  const activeChannelId = useChatStore((s) => s.activeChannelId);
+  const channelMedia = useChatStore((s) => s.channelMedia);
+  const fetchMedia = useChatStore((s) => s.fetchMedia);
 
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -176,6 +242,69 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
     for (const it of results.nav) items.push({ item: it, group: 'Navigation' });
     for (const it of results.actions) items.push({ item: it, group: 'Quick Actions' });
 
+    if (location.pathname.startsWith('/chat')) {
+      const q = query.trim().toLowerCase();
+      const chList = q
+        ? channels.filter(
+            (c) =>
+              c.name.toLowerCase().includes(q) ||
+              (c.description?.toLowerCase().includes(q) ?? false),
+          )
+        : channels.slice(0, 12);
+      for (const c of chList) {
+        items.push({
+          item: {
+            id: `cmd-ch-${c.id}`,
+            label: `#${c.name}`,
+            icon: Hash,
+            type: 'action',
+            keywords: `channel ${c.name}`,
+            chatChannelId: c.id,
+          },
+          group: 'Channels',
+        });
+      }
+      const media = activeChannelId ? channelMedia[activeChannelId] ?? [] : [];
+      const mediaList = q
+        ? media.filter((m) => (m.name ?? '').toLowerCase().includes(q))
+        : media.slice(0, 20);
+      mediaList.forEach((m, idx) => {
+        const name = m.name ?? 'File';
+        items.push({
+          item: {
+            id: `cmd-file-${activeChannelId}-${idx}-${name}`,
+            label: name,
+            icon: FileText,
+            type: 'action',
+            keywords: `file attachment media ${name}`,
+            chatOpenMediaTab: true,
+          },
+          group: 'Files in channel',
+        });
+      });
+    }
+
+    if (location.pathname.startsWith('/projects')) {
+      const q = query.trim().toLowerCase();
+      const active = marketplaceProjects.filter((p) => p.recruitment_status === 'active');
+      const focusList = q
+        ? active.filter((p) => p.name.toLowerCase().includes(q))
+        : active.slice(0, 10);
+      for (const p of focusList) {
+        items.push({
+          item: {
+            id: `proj-focus-${p.id}`,
+            label: `Focus tasks: ${p.name}`,
+            icon: LayoutGrid,
+            type: 'action',
+            keywords: `project ${p.name} focus tasks mission`,
+            projectsFocusProjectId: p.id,
+          },
+          group: 'Projects',
+        });
+      }
+    }
+
     if (showDoraFallback) {
       items.push({
         item: { id: 'dora-fallback', label: `Ask Dora: "${query}"`, icon: Sparkles, path: '/dora', keywords: '', type: 'dora' },
@@ -185,7 +314,17 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
     }
 
     return items;
-  }, [results, recentPages, showDoraFallback, query]);
+  }, [
+    results,
+    recentPages,
+    showDoraFallback,
+    query,
+    location.pathname,
+    channels,
+    activeChannelId,
+    channelMedia,
+    marketplaceProjects,
+  ]);
 
   useEffect(() => {
     if (open) {
@@ -195,6 +334,12 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
       return () => clearTimeout(t);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open && location.pathname.startsWith('/chat') && activeChannelId) {
+      void fetchMedia(activeChannelId);
+    }
+  }, [open, location.pathname, activeChannelId, fetchMedia]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -210,6 +355,55 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
       if (!item) return;
 
       onClose();
+
+      if (item.chatChannelId) {
+        if (!location.pathname.startsWith('/chat')) navigate('/chat');
+        window.setTimeout(() => {
+          useChatStore.getState().setActiveChannel(item.chatChannelId!);
+        }, 0);
+        return;
+      }
+
+      if (item.chatOpenMediaTab) {
+        if (!location.pathname.startsWith('/chat')) navigate('/chat');
+        window.setTimeout(() => {
+          const st = useChatStore.getState();
+          st.setDetailTab('media');
+          if (!st.detailPanelOpen) st.toggleDetailPanel();
+        }, 0);
+        return;
+      }
+
+      if (item.projectsFocusProjectId) {
+        navigate({ pathname: '/projects', search: `tab=tasks&project=${encodeURIComponent(item.projectsFocusProjectId)}` }, { replace: true });
+        return;
+      }
+
+      if (item.projectsMission) {
+        const mission = item.projectsMission;
+        if (mission === 'hub') {
+          navigate({ pathname: '/projects', search: '' }, { replace: true });
+          return;
+        }
+        if (mission === 'tasks') {
+          navigate({ pathname: '/projects', search: 'tab=tasks' }, { replace: true });
+          return;
+        }
+        if (mission === 'propose') {
+          navigate({ pathname: '/projects', search: '' }, { replace: true });
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent(PROJECTS_MISSION_EVENT, { detail: { action: 'propose' } }));
+          }, 0);
+          return;
+        }
+        navigate({ pathname: '/projects', search: 'tab=tasks' }, { replace: true });
+        window.setTimeout(() => {
+          const detail: ProjectsMissionDetail =
+            mission === 'create-task' ? { action: 'create-task' } : { action: 'open-optimize' };
+          window.dispatchEvent(new CustomEvent(PROJECTS_MISSION_EVENT, { detail }));
+        }, 0);
+        return;
+      }
 
       if (isDoraFallback || (item.type === 'dora' && item.id === 'dora-fallback')) {
         const session = createSession();
@@ -262,7 +456,7 @@ export function CommandSurface({ open, onClose, recentPages }: CommandSurfacePro
         }, 0);
       }
     },
-    [navigate, onClose, setActiveView, createSession, setActiveSession, query],
+    [navigate, onClose, setActiveView, createSession, setActiveSession, query, location.pathname],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

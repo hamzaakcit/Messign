@@ -25,8 +25,12 @@ describe('enhanceImagePrompt', () => {
     expect(result).not.toContain('Square 1:1');
   });
 
-  it('adds cinematic direction for hero sectionType', () => {
-    const ctx: ImageGenContext = { channel: 'email', sectionType: 'hero' };
+  it('adds cinematic direction for hero sectionType when not preferring non-human subjects', () => {
+    const ctx: ImageGenContext = {
+      channel: 'email',
+      sectionType: 'hero',
+      preferNonHumanSubjects: false,
+    };
     const result = enhanceImagePrompt('Product launch visual', undefined, ctx);
     expect(result).toContain('Cinematic wide shot');
   });
@@ -41,6 +45,13 @@ describe('enhanceImagePrompt', () => {
     const ctx: ImageGenContext = { channel: 'instagram', sectionType: 'standalone' };
     const result = enhanceImagePrompt('Sunset over the ocean', undefined, ctx);
     expect(result).toContain('1:1');
+  });
+
+  it('adds Instagram exposure / readability guardrails', () => {
+    const ctx: ImageGenContext = { channel: 'instagram', sectionType: 'standalone' };
+    const result = enhanceImagePrompt('Morning coffee scene', 'photoreal', ctx);
+    expect(result).toContain('EXPOSURE / READABILITY');
+    expect(result).toMatch(/flat black frame|midtones/i);
   });
 
   it('includes negative prompt guardrails', () => {
@@ -59,6 +70,12 @@ describe('enhanceImagePrompt', () => {
   it('applies the specified style preset', () => {
     const result = enhanceImagePrompt('A tech dashboard', 'data_viz');
     expect(result).toContain('Data visualization art style');
+  });
+
+  it('applies photoreal preset with documentary-style direction', () => {
+    const result = enhanceImagePrompt('Red paper airplane over a city street', 'photoreal');
+    expect(result).toContain('Photorealistic documentary photography');
+    expect(result).not.toContain('Modern Noir aesthetic');
   });
 });
 
@@ -95,10 +112,13 @@ describe('resolveStockImageUrl', () => {
     expect(url).toContain('unsplash.com');
   });
 
-  it('falls back to office_modern for unknown category', () => {
-    const url = resolveStockImageUrl('[STOCK] Quantum entanglement visualization device');
-    expect(url).not.toBeNull();
-    expect(url).toContain('unsplash.com');
+  it('returns null when no stock keyword matches so callers can use AI generation', () => {
+    expect(
+      resolveStockImageUrl('[STOCK] Quantum entanglement visualization device'),
+    ).toBeNull();
+    expect(
+      resolveStockImageUrl('[STOCK] Aerodynamic fuselage rivet inspection macro'),
+    ).toBeNull();
   });
 
   it('returns deterministic results for the same prompt', () => {

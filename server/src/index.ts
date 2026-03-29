@@ -399,6 +399,23 @@ if (pgBossEnabled) {
       await registerBatchJobHandler();
 
       try {
+        const { registerCalibrationSnapshotJobHandler } = await import(
+          './jobs/calibrationSnapshotJob.js'
+        );
+        await registerCalibrationSnapshotJobHandler();
+        const { startCalibrationSnapshotCron } = await import(
+          './jobs/calibrationSnapshotCron.js'
+        );
+        startCalibrationSnapshotCron();
+        console.log('[Server] Calibration snapshot job + weekly cron registered');
+      } catch (calErr) {
+        console.warn(
+          '[Server] Calibration snapshot job failed (non-fatal):',
+          calErr instanceof Error ? calErr.message : calErr,
+        );
+      }
+
+      try {
         const { registerScrapeJobHandler } = await import('./services/marketing/competitorScraper.js');
         const { callModelSafe } = await import('./services/ai/gateway.js');
         const { query: dbQuery } = await import('./db/index.js');
@@ -475,9 +492,12 @@ httpServer.listen(Number(port), '0.0.0.0', async () => {
   startMarketingPublisherCron();
 });
 
-// Graceful shutdown
+// Graceful shutdown (guard: Ctrl+C / concurrently can deliver SIGINT twice; avoid double-close races on Redis/pg)
+let serverShutdownStarted = false;
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, async () => {
+    if (serverShutdownStarted) return;
+    serverShutdownStarted = true;
     console.info(`[Server] ${signal} received, shutting down…`);
     if (ragInterval) clearInterval(ragInterval);
 

@@ -36,6 +36,13 @@ export {
   BUTTON_PILL,
   BUTTON_SHARP,
   IMAGE_DEFAULTS,
+  VA2_IMAGE_GEN_DIMENSIONS,
+  VA2_IMAGE_TEXT_DISPLAY_WIDTH_PX,
+  VA2_IMAGE_TEXT_COLUMN_WIDTH_PX,
+  VA2_IMAGE_TEXT_STACKED_WIDTH_PX,
+  VA2_PRODUCT_IMAGE_DISPLAY_PX,
+  HERO_PHOTO_MIN_HEIGHT_PX,
+  VA2_SECTION_HORIZONTAL_GUTTER_PX,
   CONTENT_WIDTH,
   COLOR_PALETTES,
   GOOGLE_FONTS,
@@ -44,8 +51,11 @@ export {
   resolveRowPadding,
   buildArtDirectionSuffix,
   enhanceImagePrompt,
+  mergeBrandIntoTheme,
+  clampAccentForWcagAaOnSurfaces,
+  getTheme,
 } from './designTokens';
-export type { ColorPalette, GoogleFontConfig, ArtDirectionModifier } from './designTokens';
+export type { ColorPalette, GoogleFontConfig, ArtDirectionModifier, BrandThemeOverrides } from './designTokens';
 
 export {
   buildLogoHeaderRow,
@@ -67,13 +77,56 @@ export {
 export {
   assembleLegacyDesign,
   assembleDesign,
+  assembleDesignFull,
+  runEmailAssemblyPipeline,
+  utmParamsFromManifestMetadata,
+  normalizePreheaderForEmail,
   validateManifest,
+  formatManifestValidationWarningsAsStrings,
   buildSafeMinimalist,
   withUnlayerCounters,
 } from './designAssembler';
-export type { ResolvedAssets, UnlayerDesignWithCounters } from './designAssembler';
+export type { ResolvedAssets, UnlayerDesignWithCounters, AutoFooterDefaults, AssembleDesignOptions } from './designAssembler';
+export { validateCopyQuality, type CopyQualityWarning } from './validateCopyQuality.js';
+export { normalizeVa2SectionContent } from './va2ManifestNormalize';
+export { legacyFlatManifestToVa2, legacyColorThemeToVa2Theme } from './legacyFlatToVa2';
+export {
+  getEmailAssemblyPathMetrics,
+  resetEmailAssemblyPathMetricsForTests,
+} from './emailAssemblyPathMetrics';
+export {
+  truncateInboxLine,
+  TYPICAL_SUBJECT_MAX,
+  TYPICAL_PREHEADER_MAX,
+  evaluateInboxCopy,
+  RECOMMENDED_PREHEADER_MIN_CHARS,
+  RECOMMENDED_PREHEADER_MAX_CHARS,
+} from './emailInboxPreview';
+export { enforceAccessibility, contrastRatio, stripEmailHiddenPreheader } from './accessibilityEnforcer';
+export { countImageSlotsInManifest } from './emailManifestImageSlots';
+export {
+  enrichManifestForVisualDensity,
+  MIN_CAMPAIGN_IMAGE_SLOTS,
+  MAX_CAMPAIGN_IMAGE_SLOTS,
+  DEFAULT_CAMPAIGN_IMAGE_SLOTS,
+  resolveTargetImageSlots,
+} from './enrichManifestVisuals';
+export {
+  estimateUnlayerDesignHtmlWeight,
+  ESTIMATED_HTML_EXPORT_WARN_KB,
+} from './estimateUnlayerDesignHtmlWeight';
+export type { UnlayerDesignHtmlWeightEstimate } from './estimateUnlayerDesignHtmlWeight';
+export {
+  resolveAssetsForVa2Manifest,
+  mergeResolvedAssetsIntoVa2Manifest,
+} from './resolveVa2ManifestImages';
 
-export { parseManifestFromLLMOutput, cleanJsonString, mightContainManifest } from './manifestParser';
+export {
+  parseManifestFromLLMOutput,
+  cleanJsonString,
+  mightContainManifest,
+  applyDensityToManifestSections,
+} from './manifestParser';
 export type { ManifestParseResult } from './manifestParser';
 
 export {
@@ -84,6 +137,8 @@ export {
   cloneMinimalEmptyDesign,
   cloneConversionEmptyDesign,
   extractBrandEmailColors,
+  extractBrandLogoUrl,
+  extractBrandFooterDefaults,
   plainTextFromHtml,
   splitBodyWithCtas,
   parseLinesToSegments,
@@ -96,9 +151,17 @@ export type {
   ImageGenerationRequest,
   ParsedEmailDraft,
   BrandEmailColors,
+  BrandFooterDefaults,
   EmailLayoutStyle,
   BuildEmailDesignOptions,
 } from './emailAiDraftToDesign';
+
+export {
+  DEFAULT_EMAIL_HEADER_LOGO_PATH,
+  getDefaultEmailHeaderLogoUrl,
+  resolveLogoUrlForEmailAssembly,
+  buildEmailBrandOverridesForAssembly,
+} from './emailBrandHeaderOverrides';
 
 export {
   buildOverlayRow,
@@ -130,19 +193,41 @@ export {
   applyPaperPlaneToLegacyDesign,
   isValidEasterEgg,
   EASTER_EGG_OPTIONS,
+  estimateEmailHeightForOverlay,
 } from './specialEffects';
-export type { EasterEggType } from './specialEffects';
+export type { EasterEggType, BuildMultiPhaseOverlayOptions } from './specialEffects';
+
+export {
+  resolveMotionOverlayFromManifest,
+  manifestToPaperPlaneUiEffect,
+  paperPlaneUiEffectToManifestFields,
+  isValidMotionOverlayValue,
+  isValidOverlayIntensityValue,
+} from './motionOverlayManifest';
+export type {
+  MotionOverlayMode,
+  OverlayIntensity,
+  PaperPlaneUiEffect,
+  ResolvedMotionOverlay,
+} from './motionOverlayManifest';
+
+export { trackVa2EmailTelemetry, trackVa2EmailResolveTelemetry } from './emailMarketingTelemetry';
+export type { Va2EmailResolveTelemetryPayload } from './emailMarketingTelemetry';
+export type { ResolveEmailImagesResponse, EmailImageSlotStatus, EmailImageSlotResult } from './emailResolveTypes';
 
 export {
   getPlaneAssetUrl,
-  buildFallbackPlaneSVG,
+  getDefaultStaticPlaneAssetUrl,
+  preloadPaperPlaneAssets,
   resolvePlaneAssetAsync,
   setCachedPlaneUrl,
   hasCachedPlaneUrl,
   onPlaneAssetResolved,
+  normalizeBrandHexForOverlay,
   PLANE_WIDTH,
   PLANE_HEIGHT,
 } from './paperPlaneAssets';
+export type { ResolvePlaneAssetOptions } from './paperPlaneAssets';
 
 export * from './types';
 

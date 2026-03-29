@@ -14,6 +14,8 @@ export const JOB_NAMES = {
   BATCH_GENERATE: 'marketing/batch-generate',
   COMPETITOR_SCRAPE: 'marketing/competitor-scrape',
   DASHBOARD_SNAPSHOT: 'marketing/dashboard-snapshot',
+  /** Weekly email performance aggregation for Content Strategist calibration (Phase 7). */
+  CALIBRATION_SNAPSHOT: 'marketing/calibration-snapshot',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

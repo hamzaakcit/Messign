@@ -1,3 +1,4 @@
+export { MainDashboard } from './MainDashboard';
 export * from './PersonalOverviewCard';
 export * from './PersonalOverviewDetailPanel';
 export * from './CompanyPerformanceKPIs';

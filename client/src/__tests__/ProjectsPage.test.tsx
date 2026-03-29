@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, vi, beforeEach } from 'vitest';
 import { ProjectsView } from '@/pages/ProjectsView';
+import { PROJECTS_MISSION_EVENT } from '@/lib/projectsMissionEvents';
 
 const MOCK_USER = {
   id: 'u1',
@@ -76,7 +77,17 @@ vi.mock('@/lib/api', () => ({
   bountiesAPI: {
     list: vi.fn().mockResolvedValue({ bounties: [] }),
   },
+  activitiesAPI: {
+    getRecent: vi.fn().mockResolvedValue([]),
+  },
   setOnUnauthorized: vi.fn(),
+}));
+
+vi.mock('@/stores/usersStore', () => ({
+  useUsersStore: vi.fn((selector?: (s: unknown) => unknown) => {
+    const state = { getUserById: () => undefined, users: [] };
+    return selector ? selector(state) : state;
+  }),
 }));
 
 function renderProjects(path = '/projects') {
@@ -115,5 +126,13 @@ describe('ProjectsView', () => {
   it('reads tab=tasks from URL and calls fetchTasks', async () => {
     renderProjects('/projects?tab=tasks');
     expect(mockFetchTasks).toHaveBeenCalled();
+  });
+
+  it('opens create task sheet when mission event fires', async () => {
+    renderProjects('/projects?tab=tasks');
+    window.dispatchEvent(new CustomEvent(PROJECTS_MISSION_EVENT, { detail: { action: 'create-task' } }));
+    await waitFor(() => {
+      expect(screen.getByText(/^New task$/i)).toBeInTheDocument();
+    });
   });
 });

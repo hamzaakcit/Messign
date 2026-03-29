@@ -5,13 +5,28 @@ export async function marketingRequest<T>(
   path: string,
   options: RequestInit = {},
   _userId?: string,
+  /** When set, aborts the request after this many ms (unless `options.signal` is already set). */
+  timeoutMs?: number,
 ): Promise<T> {
   const extra: Record<string, string> = {};
   if (_userId) extra['X-User-Id'] = _userId;
-  return fetchAPI<T>(`/marketing${path}`, {
-    ...options,
-    headers: { ...extra, ...(options.headers as Record<string, string>) },
-  });
+  let clearTimer: (() => void) | undefined;
+  let signal = options.signal;
+  if (timeoutMs != null && timeoutMs > 0 && !signal) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    clearTimer = () => clearTimeout(t);
+    signal = ctrl.signal;
+  }
+  try {
+    return await fetchAPI<T>(`/marketing${path}`, {
+      ...options,
+      ...(signal ? { signal } : {}),
+      headers: { ...extra, ...(options.headers as Record<string, string>) },
+    });
+  } finally {
+    clearTimer?.();
+  }
 }
 
 /** Handles `{ success, data: { campaign } }` from tool-style POST /campaigns and legacy raw campaign JSON. */

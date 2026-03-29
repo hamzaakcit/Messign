@@ -30,13 +30,20 @@ if (useUnsafeSSL) {
 
 // With PgBouncer, keep Node-side pool small — PgBouncer handles the real pooling
 const usePgBouncer = !!process.env.PGBOUNCER_URL;
+/** Hosted Postgres (Neon, Supabase pooler, etc.): longer connect timeout + shorter idle recycle. */
+const isServerlessPostgres =
+  connectionString.includes('neon.tech') || connectionString.includes('supabase.co');
 
 export const pool = new Pool({
   connectionString,
-  max: usePgBouncer ? 10 : 20,
-  idleTimeoutMillis: usePgBouncer ? 10000 : 30000,
-  connectionTimeoutMillis: usePgBouncer ? 5000 : useUnsafeSSL ? 15000 : 2000,
+  max: usePgBouncer ? 10 : isServerlessPostgres ? 15 : 20,
+  idleTimeoutMillis: usePgBouncer ? 10000 : isServerlessPostgres ? 20000 : 30000,
+  connectionTimeoutMillis: usePgBouncer ? 5000 : useUnsafeSSL ? 15000 : isServerlessPostgres ? 60000 : 2000,
   ...(useUnsafeSSL ? { ssl: { rejectUnauthorized: false } } : {}),
+});
+
+pool.on('error', (err) => {
+  console.error('[pg pool] idle client error', err);
 });
 
 /** Stable UUID for dev when JWT sub is a slug (e.g. pending_actions.user_id UUID column). */

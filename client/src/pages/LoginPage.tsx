@@ -1,233 +1,193 @@
-import { useState } from 'react';
+/**
+ * Login UI — email/password only. Auth contract is unchanged:
+ * - `useAuthStore().login` → `authAPI.login` → `POST /api/auth/login` with `credentials: 'include'`
+ *   so HttpOnly `refreshToken` is set by the server (`server/src/routes/auth.ts`); do not remove `credentials` or move token handling to ad-hoc fetches.
+ */
+import { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react';
-import { FloatingBadges, LoginCursorGlow, ParticleEffect, PulseRings } from '@/components/login';
-import { MessignLogoAnimated } from '@/components/ui';
+import { Mail, Lock, ArrowRight, Sparkles } from 'lucide-react';
+import { LoginFalPaperPlanePanel } from '@/components/login';
+import { LoginCrewStrip } from '@/components/login/LoginCrewStrip';
+import { LoginWelcomeHeadline } from '@/components/login/LoginWelcomeHeadline';
+import { FloatingLoginField } from '@/components/login/FloatingLoginField';
+import { PaperplaneButtonSpinner } from '@/components/login/PaperplaneButtonSpinner';
+import { loginFormSchema, type LoginFormValues } from '@/components/login/loginSchema';
 import { useAuthStore } from '@/stores/authStore';
 
-export function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export function LoginPage(): JSX.Element {
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [welcomeAnimate, setWelcomeAnimate] = useState(false);
 
   const { login, isLoading, error, loginError, clearError } = useAuthStore();
   const isAccountLocked = loginError?.code === 'ACCOUNT_LOCKED';
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    clearError();
-    await login(email.trim(), password, rememberMe);
-    const state = useAuthStore.getState();
-    if (state.isAuthenticated) {
-      if (state.mustChangePassword) navigate('/force-password-change', { replace: true });
-      else navigate('/', { replace: true });
-    }
-  };
+  const { control, handleSubmit } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: { email: '', password: '', rememberMe: false },
+    mode: 'onSubmit',
+  });
 
-  const displayError = typeof (loginError?.message ?? error) === 'string' ? (loginError?.message ?? error) : null;
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    if (mql.matches) setWelcomeAnimate(true);
+  }, []);
+
+  const displayError =
+    typeof (loginError?.message ?? error) === 'string' ? (loginError?.message ?? error) : null;
+
+  const onSubmit = handleSubmit(async (data) => {
+    clearError();
+    await login(data.email, data.password, data.rememberMe);
+    const state = useAuthStore.getState();
+    if (!state.isAuthenticated) return;
+    if (state.mustChangePassword) navigate('/force-password-change', { replace: true });
+    else navigate('/', { replace: true });
+  });
 
   return (
-    <div className="login-page-autofill min-h-screen bg-app-bg relative overflow-hidden">
-      {/* Deep base (Dora empty-state tone) — no matrix canvas */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          zIndex: 0,
-          background:
-            'radial-gradient(ellipse 120% 80% at 50% 0%, #0a1628 0%, var(--dora-bg-deep) 55%)',
-        }}
-        aria-hidden
-      />
-      <ParticleEffect />
-      <FloatingBadges />
+    <main
+      className="login-page-autofill flex h-[100dvh] w-screen max-w-[100vw] flex-col overflow-hidden bg-[#121212] font-sans text-white/95 md:flex-row"
+      style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+    >
+      <LoginFalPaperPlanePanel onHeroMotionReady={() => setWelcomeAnimate(true)} />
 
-      {/* Lighter than before so cursor glow + particles read through */}
-      <div
-        className="absolute inset-0 pointer-events-none bg-app-bg/45"
-        style={{ zIndex: 3 }}
-      />
-
-      <LoginCursorGlow />
-
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 4 }}>
-        <PulseRings />
-      </div>
-
-      <div className="relative min-h-screen flex items-center justify-center p-4" style={{ zIndex: 10 }}>
-        <div className="w-full max-w-md">
+      <section className="relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-y-auto px-5 py-8 md:w-[40%] md:max-w-[40%] md:flex-[0_0_40%] md:overflow-hidden md:px-8 md:py-10">
+        <div className="w-full max-w-[min(100%,22rem)]">
           <div
-            className="
-              bg-app-sidebar
-              rounded-2xl shadow-lg shadow-black/40
-              border border-app-border
-              p-8 md:p-10
-              relative overflow-hidden
-            "
+            className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-white/[0.05] p-6 shadow-2xl shadow-black/50 backdrop-blur-xl md:p-7"
+            style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.06) inset' }}
           >
             <div className="relative flex flex-col">
-              {/* Animated logo: paper plane boomerang */}
-              <div className="flex flex-col items-center mb-6">
-                <div className="flex justify-center">
-                  <MessignLogoAnimated
-                    size={72}
-                    autoPlay
-                    loop
-                    loopDelay={6000}
-                    playOnHover={false}
-                  />
-                </div>
-                <h1 className="text-2xl font-bold text-app-text tracking-tight mt-3">
-                  Messign
-                </h1>
+              <div className="mb-6 flex flex-col items-center">
+                <h1 className="text-xl font-bold tracking-tight text-white">Messign</h1>
               </div>
 
-              <div className="text-center mb-8">
-                <h2 className="text-xl font-semibold text-app-text">Welcome back</h2>
-                <p className="text-app-muted text-sm mt-1">Sign in to access your workspace</p>
-              </div>
+              <LoginCrewStrip />
 
-              {displayError && (
-                <div className="mb-6 p-4 rounded-xl bg-red-950/40 border border-red-800 flex flex-col gap-2">
+              <LoginWelcomeHeadline animate={welcomeAnimate} />
+
+              {displayError ? (
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  className="mb-5 flex flex-col gap-2 rounded-xl border border-blue-800/80 bg-blue-950/40 p-3.5"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-red-900/80 flex items-center justify-center shrink-0">
-                      <span className="text-red-400 font-bold">!</span>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-900/80">
+                      <span className="font-bold text-blue-400">!</span>
                     </div>
-                    <span className="text-red-300 text-sm">{displayError}</span>
-                    {loginError?.remainingAttempts != null && (
-                      <span className="text-xs text-red-400">({loginError.remainingAttempts} attempts left)</span>
-                    )}
+                    <span className="text-[13px] text-blue-200">{displayError}</span>
+                    {loginError?.remainingAttempts != null ? (
+                      <span className="text-xs text-blue-400">
+                        ({loginError.remainingAttempts} attempts left)
+                      </span>
+                    ) : null}
                   </div>
-                  {import.meta.env.DEV && isAccountLocked && (
-                    <p className="text-xs text-amber-200/95 mt-2 leading-relaxed">
+                  {import.meta.env.DEV && isAccountLocked ? (
+                    <p className="mt-1 text-xs leading-relaxed text-amber-200/95">
                       Too many failed attempts locked this account. From the repo run{' '}
-                      <code className="bg-app-card px-1 rounded text-app-text">cd server &amp;&amp; npm run auth:set-alex</code> to reset the demo password and clear the lock, then sign in with{' '}
-                      <code className="bg-app-card px-1 rounded text-app-text">test123</code> (exactly, all lowercase).
+                      <code className="rounded bg-black/30 px-1 text-white/90">
+                        cd server &amp;&amp; npm run auth:set-alex
+                      </code>{' '}
+                      to reset the demo password and clear the lock, then sign in with{' '}
+                      <code className="rounded bg-black/30 px-1 text-white/90">test123</code> (exactly, all
+                      lowercase).
                     </p>
-                  )}
-                  {import.meta.env.DEV && !isAccountLocked && (
-                    <p className="text-xs text-app-muted mt-1">
-                      Local dev: <code className="bg-app-card px-1 rounded text-app-muted">alex.chen@messign.com</code> /{' '}
-                      <code className="bg-app-card px-1 rounded text-app-muted">test123</code> after{' '}
-                      <code className="bg-app-card px-1 rounded text-app-muted">npm run db:seed</code>. API on port 3001.
+                  ) : null}
+                  {import.meta.env.DEV && !isAccountLocked ? (
+                    <p className="mt-1 text-xs text-white/45">
+                      Local dev:{' '}
+                      <code className="rounded bg-black/30 px-1 text-white/55">alex.chen@messign.com</code> /{' '}
+                      <code className="rounded bg-black/30 px-1 text-white/55">test123</code> after{' '}
+                      <code className="rounded bg-black/30 px-1 text-white/55">npm run db:seed</code>. API on port
+                      3001.
                     </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <form onSubmit={onSubmit} className="space-y-3.5" noValidate>
+                <FloatingLoginField
+                  name="email"
+                  control={control}
+                  label="Email address"
+                  type="email"
+                  autoComplete="email"
+                  testId="login-email"
+                  icon={<Mail className="h-5 w-5" />}
+                />
+
+                <FloatingLoginField
+                  name="password"
+                  control={control}
+                  label="Password"
+                  type="password"
+                  autoComplete="current-password"
+                  testId="login-password"
+                  icon={<Lock className="h-5 w-5" />}
+                  showPassword={showPassword}
+                  onTogglePassword={() => setShowPassword((s) => !s)}
+                  togglePasswordLabel={showPassword ? 'Hide password' : 'Show password'}
+                />
+
+                <Controller
+                  name="rememberMe"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex items-center justify-between pt-0.5">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          className="h-4 w-4 rounded border-white/20 bg-[#121212] text-blue-500 focus:ring-2 focus:ring-blue-500/40"
+                        />
+                        <span className="text-[13px] text-white/50">Remember me</span>
+                      </label>
+                    </div>
                   )}
-                </div>
-              )}
-
-              <form onSubmit={handleLogin} className="space-y-5">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-app-muted">Email Address</label>
-                  <div className="group relative rounded-xl transition-colors duration-300">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-[1]">
-                      <Mail className="w-5 h-5 text-app-muted transition-colors group-focus-within:text-blue-400" />
-                    </div>
-                    <input
-                      data-testid="login-email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@messign.com"
-                      required
-                      autoComplete="email"
-                      className="
-                        w-full pl-12 pr-4 py-4 rounded-xl
-                        bg-app-card border border-app-border
-                        text-app-text placeholder:text-app-muted
-                        focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 focus:outline-none
-                        transition-all duration-300
-                      "
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-app-muted">Password</label>
-                  <div className="group relative rounded-xl transition-colors duration-300">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-[1]">
-                      <Lock className="w-5 h-5 text-app-muted transition-colors group-focus-within:text-blue-400" />
-                    </div>
-                    <input
-                      data-testid="login-password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                      autoComplete="current-password"
-                      className="
-                        w-full pl-12 pr-12 py-4 rounded-xl
-                        bg-app-card border border-app-border
-                        text-app-text placeholder:text-app-muted
-                        focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 focus:outline-none
-                        transition-all duration-300
-                      "
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-app-muted hover:text-blue-400 transition-colors z-[1]"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-app-border bg-app-bg text-blue-500 focus:ring-blue-500 focus:ring-offset-app-card"
-                    />
-                    <span className="text-sm text-app-muted">Remember me</span>
-                  </label>
-                </div>
+                />
 
                 <button
                   data-testid="login-submit"
                   type="submit"
                   disabled={isLoading}
-                  className="
-                    w-full py-3.5 px-6 rounded-xl
-                    bg-blue-600 text-app-text font-medium text-base
-                    shadow-lg shadow-blue-900/40
-                    hover:bg-blue-700 active:bg-blue-800
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    transition-colors duration-200
-                    flex items-center justify-center gap-2
-                  "
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-950/35 transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Signing in...</span>
+                      <PaperplaneButtonSpinner />
+                      <span>Signing in…</span>
                     </>
                   ) : (
                     <>
                       <span>Sign in</span>
-                      <ArrowRight className="w-5 h-5" />
+                      <ArrowRight className="h-4 w-4" />
                     </>
                   )}
                 </button>
 
-                <p className="text-center text-sm text-app-muted mt-4">
+                <p className="mt-3 text-center text-[13px] text-white/45">
                   Don&apos;t have an account?{' '}
-                  <Link to="/signup" className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                  <Link
+                    to="/signup"
+                    className="font-medium text-blue-400 underline-offset-2 transition-colors hover:text-blue-300 hover:underline"
+                  >
                     Sign Up
                   </Link>
                 </p>
               </form>
 
-              <div className="mt-6 p-4 rounded-xl bg-app-card/70 border border-app-border/60">
+              <div className="mt-5 rounded-xl border border-white/[0.08] bg-black/20 p-3.5">
                 <div className="flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-app-muted mt-0.5 shrink-0" />
+                  <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-white/40" aria-hidden />
                   <div>
-                    <p className="text-sm text-app-muted">
-                      <span className="font-medium text-app-text">Need help?</span>
+                    <p className="text-[13px] text-white/50">
+                      <span className="font-medium text-white/80">Need help?</span>
                       <br />
                       Contact your administrator to reset your password.
                     </p>
@@ -235,31 +195,31 @@ export function LoginPage() {
                 </div>
               </div>
 
-              {/* Footer label: subtle, neutral, does not compete with primary actions */}
-              <p className="mt-8 pt-6 text-center text-xs text-app-muted border-t border-app-border">
+              <p className="mt-6 border-t border-white/[0.08] pt-5 text-center text-[11px] text-white/40">
                 Messign Workspace
               </p>
             </div>
           </div>
 
           <div className="mt-6 text-center">
-            <p className="text-app-muted text-sm">© 2026 Messign. All rights reserved.</p>
-            <div className="mt-2 flex items-center justify-center gap-4 text-xs text-app-muted">
-              <a href="#" className="hover:text-blue-400 transition-colors">
+            <p className="text-[13px] text-white/40">© 2026 Messign. All rights reserved.</p>
+            <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-white/35">
+              <a href="#" className="transition-colors hover:text-blue-400">
                 Privacy
               </a>
-              <span>•</span>
-              <a href="#" className="hover:text-blue-400 transition-colors">
+              <span aria-hidden>•</span>
+              <a href="#" className="transition-colors hover:text-blue-400">
                 Terms
               </a>
-              <span>•</span>
-              <a href="#" className="hover:text-blue-400 transition-colors">
+              <span aria-hidden>•</span>
+              <a href="#" className="transition-colors hover:text-blue-400">
                 Support
               </a>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+    </main>
   );
 }

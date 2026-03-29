@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
-import { Hash, Lock, User, Search, Pin, Sparkles, PanelRightOpen, PanelRightClose, Settings, Menu, Circle, Swords } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Hash, Lock, User, Search, Pin, Sparkles, PanelRightOpen, PanelRightClose, Settings, Menu, Circle, Swords, Rows3 } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { PresenceAvatar } from './PresenceAvatar';
+import { UserHoverCard } from './UserHoverCard';
 import { emitUserStatus } from '@/lib/socket';
 import { cn } from '@/lib/utils';
+import { getChannelMemberIds, normalizeChannelList } from '@/lib/chatChannelUtils';
 
 export function ChatHeader() {
-  const channels = useChatStore((s) => s.channels);
+  const channelsRaw = useChatStore((s) => s.channels);
+  const channels = useMemo(() => normalizeChannelList(channelsRaw), [channelsRaw]);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const detailPanelOpen = useChatStore((s) => s.detailPanelOpen);
   const toggleDetailPanel = useChatStore((s) => s.toggleDetailPanel);
@@ -20,6 +23,8 @@ export function ChatHeader() {
   const setMobileSidebarOpen = useChatStore((s) => s.setMobileSidebarOpen);
   const setDuelHubOpen = useChatStore((s) => s.setDuelHubOpen);
   const duelHubOpen = useChatStore((s) => s.duelHubOpen);
+  const chatCompactMode = useChatStore((s) => s.chatCompactMode);
+  const setChatCompactMode = useChatStore((s) => s.setChatCompactMode);
   const currentUser = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const users = useUsersStore((s) => s.users);
@@ -46,9 +51,10 @@ export function ChatHeader() {
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   if (!activeChannel) return null;
 
+  const memberIds = getChannelMemberIds(activeChannel);
   const channelDisplayName =
     activeChannel.type === 'dm'
-      ? (users.find((u) => activeChannel.members.includes(u.id) && u.id !== currentUser?.id)?.name ?? activeChannel.name)
+      ? (users.find((u) => memberIds.includes(u.id) && u.id !== currentUser?.id)?.name ?? activeChannel.name)
       : activeChannel.name;
 
   const getChannelIcon = () => {
@@ -59,13 +65,13 @@ export function ChatHeader() {
     }
   };
 
-  const memberUsers = activeChannel.members
+  const memberUsers = memberIds
     .map((id) => users.find((u) => u.id === id))
     .filter(Boolean)
     .slice(0, 5);
 
   return (
-    <div className="px-4 py-3 border-b border-app flex items-center gap-3 bg-app-sidebar/75 backdrop-blur-md">
+    <div className="px-3 sm:px-4 py-2.5 border-b border-app flex items-center gap-2 sm:gap-3 bg-app-sidebar/75 backdrop-blur-md shrink-0">
       {/* Mobile hamburger */}
       <button
         type="button"
@@ -91,17 +97,34 @@ export function ChatHeader() {
       {/* Member avatars */}
       <div className="hidden sm:flex -space-x-1.5 mr-2">
         {memberUsers.map((u) => u && (
-          <PresenceAvatar key={u.id} user={u} size="xs" className="ring-2 ring-app-bg" />
+          <UserHoverCard key={u.id} user={u}>
+            <span className="inline-flex">
+              <PresenceAvatar user={u} size="xs" className="ring-2 ring-app-bg" />
+            </span>
+          </UserHoverCard>
         ))}
-        {activeChannel.members.length > 5 && (
+        {memberIds.length > 5 && (
           <span className="w-6 h-6 rounded-full bg-app-hover flex items-center justify-center text-[10px] font-medium text-app-muted ring-2 ring-app-bg">
-            +{activeChannel.members.length - 5}
+            +{memberIds.length - 5}
           </span>
         )}
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setChatCompactMode(!chatCompactMode)}
+          className={cn(
+            'p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+            chatCompactMode ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover',
+          )}
+          title={chatCompactMode ? 'Comfortable density' : 'Compact density'}
+          aria-label={chatCompactMode ? 'Switch to comfortable message density' : 'Switch to compact message density'}
+          aria-pressed={chatCompactMode}
+        >
+          <Rows3 className="w-4 h-4" aria-hidden />
+        </button>
         <div className="relative hidden sm:block" ref={statusMenuRef}>
           <button
             type="button"
@@ -167,7 +190,7 @@ export function ChatHeader() {
         </button>
         <button
           type="button"
-          onClick={() => setSearchOpen(!searchOpen)}
+          onClick={() => setSearchOpen(true)}
           className={`p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg ${searchOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover'}`}
           title="Search messages"
           aria-label="Search messages"

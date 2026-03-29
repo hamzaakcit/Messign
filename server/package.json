@@ -38,10 +38,12 @@
     "test:red-team": "tsx src/scripts/redTeam/testMarketingGatekeepers.ts",
     "test:red-team:mock": "RED_TEAM_MOCK_LLM=1 tsx src/scripts/redTeam/testMarketingGatekeepers.ts",
     "marketing:print-context": "tsx src/scripts/printMarketingContext.ts",
-    "db:force-fix": "tsx src/force-db-fix.ts"
+    "db:force-fix": "tsx src/force-db-fix.ts",
+    "generate:login-plane": "node ../scripts/generate-login-paper-plane-fal.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
+    "@fal-ai/client": "1.9.5",
     "@socket.io/redis-adapter": "^8.3.0",
     "@types/cookie-parser": "^1.4.10",
     "adm-zip": "^0.5.16",
@@ -54,6 +56,7 @@
     "express": "^4.18.2",
     "express-rate-limit": "^8.3.1",
     "fuse.js": "^7.1.0",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.3",
@@ -67,6 +70,7 @@
     "pg": "^8.11.3",
     "pg-boss": "^12.14.0",
     "pptxgenjs": "^4.0.1",
+    "sharp": "^0.34.5",
     "puppeteer": "^24.37.2",
     "socket.io": "^4.7.4",
     "speakeasy": "^2.0.0",

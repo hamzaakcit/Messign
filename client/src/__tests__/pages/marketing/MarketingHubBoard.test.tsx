@@ -88,15 +88,15 @@ function wrap(ui: ReactElement): JSX.Element {
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
-describe('MarketingHub board mode', () => {
+describe('MarketingHub pipeline page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders command center compact strip and main content pipeline Kanban region', async () => {
+  it('renders content pipeline Kanban region', async () => {
     render(
       wrap(
-        <MemoryRouter initialEntries={['/marketing']}>
+        <MemoryRouter initialEntries={['/marketing/pipeline']}>
           <Routes>
             <Route path="/marketing/*" element={<MarketingHub />} />
           </Routes>

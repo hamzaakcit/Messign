@@ -282,7 +282,7 @@ export async function repurposeContent(input: RepurposeInput): Promise<Repurpose
             contentId,
             rawDraft: variantText,
             caller: ctx,
-            stylePreset: 'modern_noir',
+            stylePreset: 'photoreal',
             intentContext: {
               title: sourceContent.title,
               userBrief: sourceContent.user_brief ?? null,

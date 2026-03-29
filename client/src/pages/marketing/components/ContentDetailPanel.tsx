@@ -6,10 +6,9 @@ import { cn } from '@/lib/utils';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
 import { InstagramCockpit } from './InstagramCockpit';
-import { ContentEmailUnlayerControls } from './ContentEmailUnlayerControls';
+import { ContentEmailSection } from './ContentEmailSection';
 import { BatchPanel } from './BatchPanel';
 import { InstagramIntelligencePanel } from './cockpit/InstagramIntelligencePanel';
-import { isEmailContentItem } from '../lib/contentEmailGuards';
 import { ComplianceDetailPanel } from './ComplianceDetailPanel';
 
 type InstagramFormat = 'feed' | 'story' | 'reel';
@@ -120,7 +119,6 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
   }
 
   const isInstagram = (content.channel ?? '').toLowerCase() === 'instagram';
-  const isEmail = isEmailContentItem(content);
 
   const formatAspectRatio: Record<InstagramFormat, string> = {
     feed: '1:1',
@@ -181,15 +179,13 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
           </div>
         )}
 
-        {isEmail ? (
-          <ContentEmailUnlayerControls
-            content={content}
-            onUpdated={async () => {
-              await fetchContent();
-              onUpdated();
-            }}
-          />
-        ) : null}
+        <ContentEmailSection
+          content={content}
+          onUpdated={async () => {
+            await fetchContent();
+            onUpdated();
+          }}
+        />
 
         {isInstagram ? (
           <InstagramCockpit
@@ -201,6 +197,53 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
             isGenerating={isGeneratingImage}
             progressMessage={imageGenProgress}
             contentId={content.id}
+            referenceImageUrl={content.reference_image_url ?? null}
+            onUploadReferenceImage={async (file) => {
+              const r = await marketingAPI.uploadReferenceImage(userId, content.id, file);
+              setContent((c) => (c ? { ...c, reference_image_url: r.reference_image_url } : c));
+              toast.success('Reference photo saved', { description: 'Use “Apply AI to photo” or Regenerate to blend edits.' });
+            }}
+            onApplyAiPhotoEdit={async (editPrompt, stylePreset) => {
+              setIsGeneratingImage(true);
+              setImageGenProgress('AI editing your photo…');
+              try {
+                const r = await marketingAPI.aiPhotoEdit(userId, content.id, {
+                  edit_prompt: editPrompt,
+                  style_preset: stylePreset || 'photoreal',
+                });
+                if (r.success && r.image_url) {
+                  setContent((c) =>
+                    c
+                      ? {
+                          ...c,
+                          image_url: r.image_url,
+                          image_prompt: editPrompt,
+                          visual_description: editPrompt,
+                        }
+                      : c,
+                  );
+                  toast.success('AI edit applied');
+                  onUpdated();
+                } else {
+                  toast.error('AI photo edit failed', {
+                    description:
+                      r.error ??
+                      'Check FAL_KEY and FAL_IMAGE_EDIT_MODEL (e.g. fal-ai/flux-pro/kontext).',
+                  });
+                }
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : 'Request failed';
+                const aborted = msg === 'The user aborted a request.' || /aborted|AbortError/i.test(msg);
+                toast.error('AI photo edit failed', {
+                  description: aborted
+                    ? 'The request was cancelled or hit the 15-minute client limit. Try again with a shorter edit instruction.'
+                    : msg,
+                });
+              } finally {
+                setIsGeneratingImage(false);
+                setImageGenProgress('');
+              }
+            }}
             onRegenerateImage={async (newPrompt, stylePreset) => {
               setIsGeneratingImage(true);
               setImageGenProgress('Regenerating visual…');
@@ -220,7 +263,7 @@ export function ContentDetailPanel({ contentId, onUpdated }: ContentDetailPanelP
                   toast.error('Image generation failed', {
                     description:
                       r.error ??
-                      'Check server env: set OPENAI_API_KEY, LITELLM_MASTER_KEY, or GOOGLE_GEMINI_API_KEY for image models.',
+                      'Check server env: OPENAI_API_KEY and/or GOOGLE_GEMINI_API_KEY (optional LITELLM_MASTER_KEY unless IMAGE_GEN_OPENAI_GEMINI_ONLY=1).',
                   });
                 }
               } catch (e) {

@@ -14,6 +14,7 @@ import { callModelSafe } from '../gateway.js';
 import { getSpecialist } from './specialistRegistry.js';
 import { compressConversationContext } from './contextCompressor.js';
 import { executeTool } from '../toolRegistry.js';
+import { documentsFromKnowledgeSearchData } from '../tools/knowledgeSearchAggregates.js';
 import { streamGroqAnswer } from '../../../services/knowledgeGroq.js';
 import { streamGeminiAnswer } from '../../../services/knowledgeGemini.js';
 import type { AgentContext } from './types.js';
@@ -216,11 +217,14 @@ export async function runOrchestrator(
       const ctx = agentContext.legacyContext;
       if (!ctx) throw new Error('[Orchestrator] legacyContext required for KB search');
       const kbResult = await executeTool('knowledge:search_knowledge_base', { query: searchQuery }, ctx);
-      const context = kbResult.success && kbResult.summary
-        ? kbResult.summary
-        : (kbResult.success && kbResult.data && Array.isArray(kbResult.data))
-          ? (kbResult.data as Record<string, unknown>[]).map((d) => (d as { title?: string; content?: string }).content ?? JSON.stringify(d)).join('\n\n')
-          : 'No matching documents were found.';
+      const kbDocs =
+        kbResult.success && kbResult.data != null ? documentsFromKnowledgeSearchData(kbResult.data) : [];
+      const context =
+        kbResult.success && kbResult.summary?.trim()
+          ? kbResult.summary
+          : kbDocs.length > 0
+            ? (kbDocs as Record<string, unknown>[]).map((d) => (d as { title?: string; content?: string }).content ?? JSON.stringify(d)).join('\n\n')
+            : 'No matching documents were found.';
       const chatHistory = history.slice(-4).filter((h) => h.role === 'user' || h.role === 'assistant').map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content }));
       const tenantId = agentContext.tenantId ?? 'system';
       try {
@@ -235,7 +239,7 @@ export async function runOrchestrator(
         stepCount: 1,
         terminationReason: 'complete',
         toolsUsed: ['knowledge:search_knowledge_base'],
-        totalDataPoints: kbResult.success && kbResult.data && Array.isArray(kbResult.data) ? kbResult.data.length : 0,
+        totalDataPoints: kbDocs.length,
         totalTokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         totalDurationMs: 0,
       };

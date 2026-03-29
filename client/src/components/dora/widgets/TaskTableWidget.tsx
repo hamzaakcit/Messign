@@ -1,14 +1,27 @@
-import { useState, useMemo } from 'react';
+import { Fragment, useState, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   CheckCircle, Clock, AlertTriangle, ArrowUpRight,
   Check, Pencil, Trash2, ChevronDown, Sparkles,
   X,
   Download,
+  Activity,
+  Calendar,
+  Flag,
 } from 'lucide-react';
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { TaskRow } from '@/types/knowledge-hub/ai';
 import { useTaskActions } from '@/hooks/useTaskActions';
 import { InlineDropdown, type DropdownOption } from './InlineDropdown';
+import {
+  buildStatusPieData,
+  deriveDueBucketsFromTasks,
+  deriveStatsFromTasks,
+  topProjectsByCount,
+  type TaskAggregatesPayload,
+  type TaskRowExt,
+  type TaskStatsPayload,
+} from './taskWidgetAggregates';
 
 // ============================================================
 // Props
@@ -211,6 +224,95 @@ function normalizeTasks(data: TaskRow[] | Record<string, unknown>): TaskRow[] {
     }
   }
   return [];
+}
+
+const STATUS_PIE_COLORS: Record<string, string> = {
+  Done: '#22c55e',
+  'In Progress': '#38bdf8',
+  Open: '#8b5cf6',
+  Blocked: '#ef4444',
+  Other: '#64748b',
+  Pending: '#f59e0b',
+};
+
+function parseTaskPayload(data: TaskRow[] | Record<string, unknown>): {
+  tasks: TaskRow[];
+  stats: TaskStatsPayload | null;
+  aggregates: TaskAggregatesPayload | null;
+} {
+  if (Array.isArray(data)) {
+    return { tasks: data as TaskRow[], stats: null, aggregates: null };
+  }
+  if (data && typeof data === 'object') {
+    const o = data as Record<string, unknown>;
+    const tasksRaw = o.tasks;
+    const tasks: TaskRow[] = Array.isArray(tasksRaw)
+      ? (tasksRaw as TaskRow[])
+      : normalizeTasks(data);
+    let stats: TaskStatsPayload | null = null;
+    if (o.stats && typeof o.stats === 'object') {
+      const s = o.stats as Record<string, unknown>;
+      stats = {
+        total: Number(s.total ?? 0),
+        overdue: Number(s.overdue ?? 0),
+        highPriority: Number(s.highPriority ?? 0),
+      };
+    }
+    let aggregates: TaskAggregatesPayload | null = null;
+    if (o.aggregates && typeof o.aggregates === 'object') {
+      const a = o.aggregates as TaskAggregatesPayload;
+      if (a.byStatus && a.byPriority && a.dueBuckets) aggregates = a;
+    }
+    return { tasks, stats, aggregates };
+  }
+  return { tasks: [], stats: null, aggregates: null };
+}
+
+function KpiTile({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  sub?: string;
+  accent: string;
+}): JSX.Element {
+  return (
+    <div
+      className="dora-fade-up dora-glass-light dora-glow-border min-w-0 flex-1"
+      style={{
+        borderRadius: 'var(--dora-r-card, 14px)',
+        padding: '10px 12px',
+        animationDelay: '0.04s',
+        opacity: 0,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 8,
+            background: `${accent}14`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon size={13} color={accent} />
+        </div>
+      </div>
+      <p className="dora-mono" style={{ fontSize: 18, fontWeight: 700, color: 'var(--dora-text-1, #f1f5f9)', margin: 0, lineHeight: 1.1 }}>
+        {value}
+      </p>
+      <p style={{ fontSize: 10, color: 'var(--dora-text-3, #64748b)', margin: '4px 0 0', letterSpacing: '0.02em' }}>{label}</p>
+      {sub ? <p style={{ fontSize: 9, color: 'var(--dora-text-4, #475569)', margin: '2px 0 0' }}>{sub}</p> : null}
+    </div>
+  );
 }
 
 // ============================================================
@@ -522,8 +624,25 @@ function HoverActionBar({
 // ============================================================
 
 export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
-  const normalized = normalizeTasks(data);
-  const { tasks, updateStatus, updatePriority, markComplete, deleteTask, updateTaskField } = useTaskActions(normalized);
+  const { tasks: initialTasks, stats: serverStats, aggregates: serverAggregates } = parseTaskPayload(data);
+  const { tasks, updateStatus, updatePriority, markComplete, deleteTask, updateTaskField } = useTaskActions(initialTasks);
+
+  const effectiveStats = useMemo((): TaskStatsPayload => {
+    if (serverStats) return serverStats;
+    return deriveStatsFromTasks(tasks as TaskRowExt[]);
+  }, [serverStats, tasks]);
+
+  const dueBuckets = useMemo(() => {
+    if (serverAggregates?.dueBuckets) return serverAggregates.dueBuckets;
+    return deriveDueBucketsFromTasks(tasks as TaskRowExt[]);
+  }, [serverAggregates, tasks]);
+
+  const statusPieData = useMemo(
+    () => buildStatusPieData(tasks as TaskRowExt[], serverAggregates?.byStatus ?? null),
+    [tasks, serverAggregates],
+  );
+
+  const projectBarData = useMemo(() => topProjectsByCount(tasks as TaskRowExt[], 5), [tasks]);
 
   const [hoveredRow, setHoveredRow] = useState<string | number | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | number | null>(null);
@@ -618,6 +737,122 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
           </button>
         </div>
 
+        <div
+          className="dora-fade-up"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <KpiTile icon={Activity} label="Total" value={effectiveStats.total} accent="#38bdf8" />
+          <KpiTile icon={AlertTriangle} label="Overdue" value={effectiveStats.overdue} accent="#f59e0b" />
+          <KpiTile icon={Flag} label="High priority" value={effectiveStats.highPriority} accent="#ef4444" />
+          <KpiTile icon={Calendar} label="Due this week" value={dueBuckets.due_this_week} accent="#8b5cf6" />
+        </div>
+
+        {(statusPieData.length > 0 || projectBarData.length > 0) && (
+          <div
+            className="dora-fade-up dora-glass dora-glow-border"
+            style={{
+              borderRadius: 'var(--dora-r-widget, 16px)',
+              overflow: 'hidden',
+              marginBottom: 12,
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.2fr)',
+              gap: 10,
+              padding: '10px 12px',
+              alignItems: 'stretch',
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 10, color: '#64748b', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                By status
+              </p>
+              {statusPieData.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', minHeight: 100 }}>
+                  <div style={{ width: 100, flexShrink: 0 }}>
+                    <ResponsiveContainer width="100%" height={100}>
+                      <PieChart>
+                        <Pie
+                          data={statusPieData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={22}
+                          outerRadius={40}
+                          paddingAngle={2}
+                        >
+                          {statusPieData.map((entry, i) => (
+                            <Cell key={i} fill={STATUS_PIE_COLORS[entry.name] ?? '#6b7280'} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: 'rgba(15,23,42,0.92)',
+                            border: '1px solid rgba(148,163,184,0.12)',
+                            borderRadius: 8,
+                            fontSize: 11,
+                            color: '#e2e8f0',
+                          }}
+                          formatter={(value: number, name: string) => [value, name]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ul style={{ margin: 0, padding: '0 0 0 12px', fontSize: 10, color: '#94a3b8', listStyle: 'none', flex: 1 }}>
+                    {statusPieData.map((d) => (
+                      <li key={d.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 3 }}>
+                        <span style={{ color: STATUS_PIE_COLORS[d.name] ?? '#94a3b8' }}>{d.name}</span>
+                        <span className="dora-mono">{d.value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>No status data</p>
+              )}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 10, color: '#64748b', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                By project
+              </p>
+              {projectBarData.length > 0 ? (
+                <div style={{ height: 120 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={projectBarData} layout="vertical" margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
+                      <XAxis type="number" hide />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={72}
+                        tick={{ fontSize: 9, fill: '#94a3b8' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'rgba(15,23,42,0.92)',
+                          border: '1px solid rgba(148,163,184,0.12)',
+                          borderRadius: 8,
+                          fontSize: 11,
+                          color: '#e2e8f0',
+                        }}
+                        formatter={(value: number) => [value, 'Tasks']}
+                      />
+                      <Bar dataKey="count" fill="#38bdf8" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>No project breakdown</p>
+              )}
+            </div>
+          </div>
+        )}
+
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -651,9 +886,8 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
                 const isExpanded = expandedRow === rowKey;
 
                 return (
-                  <>
+                  <Fragment key={String(rowKey)}>
                     <tr
-                      key={rowKey}
                       style={{
                         transition: 'background 150ms',
                         background: isHovered ? 'rgba(56,189,248,0.06)' : 'transparent',
@@ -720,13 +954,12 @@ export function TaskTableWidget({ data, onSendMessage }: TaskTableWidgetProps) {
                     </tr>
                     {isExpanded && (
                       <DrillDownDrawer
-                        key={`drawer-${rowKey}`}
                         task={task}
                         onSave={(updates) => handleDrawerSave(task, updates)}
                         onCancel={() => setExpandedRow(null)}
                       />
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>

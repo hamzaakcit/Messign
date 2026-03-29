@@ -13,6 +13,7 @@
 
 import type { ThemeName } from './types/designTokenTypes';
 import type { UnlayerRow as Va2UnlayerRow } from './types/unlayerTypes';
+import type { OverlayIntensity } from './motionOverlayManifest';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,8 @@ export interface OverlayConfig {
   height: number;
   position: OverlayPosition;
   motion: OverlayMotionConfig;
+  /** Paper plane: signature full sweep vs subtle weave */
+  motionIntensity?: OverlayIntensity;
   /** Override glow color (hex or rgba) */
   glowColor?: string;
   /** Full CSS filter string override */
@@ -777,10 +780,10 @@ function generatePhaseKeyframes(
       extras += `;opacity:${Math.round(opa * 100) / 100}`;
     }
 
-    return `${wp.pct}%{transform:${transform}${extras}}`;
+    return `${wp.pct}%{-webkit-transform:${transform};transform:${transform}${extras}}`;
   }).join('');
 
-  return `@keyframes ${name}{${stops}}`;
+  return `@-webkit-keyframes ${name}{${stops}}@keyframes ${name}{${stops}}`;
 }
 
 /**
@@ -797,22 +800,24 @@ function generateShadowKeyframes(
   const path = getFlightPath(phase.motionType, depth, phase.estimatedEmailHeight);
   const dir = phase.entryDirection === 'left' ? 1 : -1;
 
+  const sweepBoost = phase.motionType === 'sweep' ? 1.14 : 1;
+
   const stops = path.map((wp) => {
     const alt = wp.alt ?? 0.5;
 
     const groundOffY = Math.round(20 + alt * 50);
     const groundOffX = Math.round(alt * 10 * dir);
     const shadowScale = Math.round((0.55 - alt * 0.3) * 100) / 100;
-    const shadowOpa = Math.round((0.3 - alt * 0.2) * 100) / 100;
-    const blurPx = Math.round(1 + alt * 10);
+    const shadowOpa = Math.min(0.55, Math.round((0.3 - alt * 0.2) * sweepBoost * 100) / 100);
+    const blurPx = Math.round((1 + alt * 10) * (phase.motionType === 'sweep' ? 1.1 : 1));
 
     const x = Math.round(wp.x * dir);
     const y = Math.round(wp.y);
 
-    return `${wp.pct}%{opacity:${shadowOpa};filter:blur(${blurPx}px);transform:translate3d(${x + groundOffX}px,${y + groundOffY}px,0) scaleX(${shadowScale}) scaleY(${Math.round(shadowScale * 0.25 * 100) / 100}) skewX(${dir * -10}deg)}`;
+    return `${wp.pct}%{opacity:${shadowOpa};-webkit-filter:blur(${blurPx}px);filter:blur(${blurPx}px);-webkit-transform:translate3d(${x + groundOffX}px,${y + groundOffY}px,0) scaleX(${shadowScale}) scaleY(${Math.round(shadowScale * 0.25 * 100) / 100}) skewX(${dir * -10}deg);transform:translate3d(${x + groundOffX}px,${y + groundOffY}px,0) scaleX(${shadowScale}) scaleY(${Math.round(shadowScale * 0.25 * 100) / 100}) skewX(${dir * -10}deg)}`;
   }).join('');
 
-  return `@keyframes ${name}{${stops}}`;
+  return `@-webkit-keyframes ${name}{${stops}}@keyframes ${name}{${stops}}`;
 }
 
 /**
@@ -826,7 +831,45 @@ function generateTrailSVG(
   const dir = phase.entryDirection === 'left' ? 1 : -1;
   const x1 = dir === 1 ? 200 : 400;
   const x2 = dir === 1 ? 400 : 200;
-  return `<svg width="600" height="2" style="position:absolute;top:50%;left:0;margin-top:-1px;opacity:0.1"><line x1="${x1}" y1="1" x2="${x2}" y2="1" stroke="${accentColor}" stroke-width="0.5" stroke-dasharray="4,8"><animate attributeName="stroke-dashoffset" from="0" to="${16 * dir}" dur="2.5s" repeatCount="indefinite"/></line></svg>`;
+  return `<svg width="600" height="2" style="position:absolute;top:50%;left:0;margin-top:-1px;opacity:0.12"><line x1="${x1}" y1="1" x2="${x2}" y2="1" stroke="${accentColor}" stroke-width="0.5" stroke-dasharray="4,8"><animate attributeName="stroke-dashoffset" from="0" to="${16 * dir}" dur="2.5s" repeatCount="indefinite"/></line></svg>`;
+}
+
+/**
+ * Ambient ribbon + shimmer lines for full-height sweep — reads as wind without
+ * fighting the main flight path (still decorative; Tier-1 clients).
+ */
+function generateSweepAmbientWindSVG(accentColor: string): string {
+  const a = `${accentColor}`;
+  return `<svg width="600" height="120" viewBox="0 0 600 120" style="position:absolute;left:-80px;top:-40px;pointer-events:none;opacity:0.28" aria-hidden="true">
+<defs>
+<linearGradient id="swg1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${a}" stop-opacity="0"/><stop offset="50%" stop-color="${a}" stop-opacity="0.5"/><stop offset="100%" stop-color="${a}" stop-opacity="0"/></linearGradient>
+</defs>
+<path d="M0,40 Q120,20 240,45 T480,35 T600,50" fill="none" stroke="url(#swg1)" stroke-width="0.75" stroke-dasharray="6,14" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="0" to="-40" dur="3.2s" repeatCount="indefinite"/></path>
+<path d="M20,75 Q200,55 380,80 T580,70" fill="none" stroke="${a}" stroke-opacity="0.2" stroke-width="0.6" stroke-dasharray="4,12" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="0" to="32" dur="4.1s" repeatCount="indefinite"/></path>
+<path d="M-10,95 Q150,88 320,102 T600,98" fill="none" stroke="${a}" stroke-opacity="0.12" stroke-width="0.45" stroke-dasharray="3,10" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="5.5s" repeatCount="indefinite"/></path>
+</svg>`;
+}
+
+/**
+ * Speed streaks parented to the plane so they move with the sweep (richer than a static ribbon).
+ */
+function generateSweepWindLayers(phaseId: string, accentColor: string): { html: string; css: string } {
+  const anim = `pp_wind_${phaseId}`;
+  const css =
+    `@-webkit-keyframes ${anim}{0%{opacity:0.18;-webkit-transform:scaleX(0.35) translateX(-6px)}30%{opacity:0.55;-webkit-transform:scaleX(1) translateX(0)}65%{opacity:0.38;-webkit-transform:scaleX(0.82) translateX(3px)}100%{opacity:0.22;-webkit-transform:scaleX(0.48) translateX(-3px)}}` +
+    `@keyframes ${anim}{0%{opacity:0.18;transform:scaleX(0.35) translateX(-6px)}30%{opacity:0.55;transform:scaleX(1) translateX(0)}65%{opacity:0.38;transform:scaleX(0.82) translateX(3px)}100%{opacity:0.22;transform:scaleX(0.48) translateX(-3px)}}`;
+  const stripes = [0, 1, 2, 3, 4, 5].map((i) => {
+    const top = 3 + i * 10;
+    const dur = 2.05 + i * 0.2;
+    const delay = i * 0.24;
+    const rot = -11 - i * 2.2;
+    const left = 28 + i * 5;
+    return `<span style="position:absolute;left:-${left}px;top:${top}px;width:${38 + i * 5}px;height:2px;pointer-events:none;border-radius:1px;background:linear-gradient(90deg,transparent,${accentColor},transparent);opacity:0.42;-webkit-transform-origin:center right;transform-origin:center right;-webkit-transform:rotateZ(${rot}deg);transform:rotateZ(${rot}deg);-webkit-animation:${anim} ${dur}s ease-in-out ${delay}s infinite;animation:${anim} ${dur}s ease-in-out ${delay}s infinite;"></span>`;
+  }).join('');
+  return {
+    html: `<div style="position:absolute;inset:0;pointer-events:none;z-index:0" aria-hidden="true">${stripes}</div>`,
+    css,
+  };
 }
 
 function generateShadowDiv(
@@ -835,12 +878,13 @@ function generateShadowDiv(
   _planeAssetHtml: string,
   hasSyncAnimation: boolean,
   duration: number,
+  flightEasing: string,
 ): string {
   const depth = calculateDepthProgression(phase.index, phase.totalPhases);
 
   const animStyle = hasSyncAnimation
-    ? `animation:pp_sh_${id}_${phase.index} ${duration}s ${phase.animationDelay} ease-in-out infinite alternate;`
-    : `transform:scaleY(0.15) scaleX(0.4) skewX(${phase.entryDirection === 'left' ? -10 : 10}deg) translateY(${depth.shadowOffset + 30}px);opacity:0.12;`;
+    ? `-webkit-animation:pp_sh_${id}_${phase.index} ${duration}s ${phase.animationDelay} ${flightEasing} infinite alternate;animation:pp_sh_${id}_${phase.index} ${duration}s ${phase.animationDelay} ${flightEasing} infinite alternate;`
+    : `-webkit-transform:scaleY(0.15) scaleX(0.4) skewX(${phase.entryDirection === 'left' ? -10 : 10}deg) translateY(${depth.shadowOffset + 30}px);transform:scaleY(0.15) scaleX(0.4) skewX(${phase.entryDirection === 'left' ? -10 : 10}deg) translateY(${depth.shadowOffset + 30}px);opacity:0.12;`;
 
   const shadowEl = `<svg width="48" height="14" viewBox="0 0 48 14" style="display:block;"><defs><radialGradient id="pps-${id}-${phase.index}" cx="35%" cy="50%" rx="50%" ry="50%"><stop offset="0%" stop-color="rgba(0,0,0,0.45)"/><stop offset="60%" stop-color="rgba(0,0,0,0.1)"/><stop offset="100%" stop-color="transparent"/></radialGradient></defs><polygon points="2,7 46,2 36,7 46,12" fill="url(#pps-${id}-${phase.index})"/></svg>`;
 
@@ -851,8 +895,9 @@ function generateReflectionDiv(
   id: string,
   phase: OverlayPhase,
   planeAssetHtml: string,
+  opacity = 0.04,
 ): string {
-  return `<div class="ov-reflect-${id}-${phase.index}" style="position:absolute;top:0;left:0;transform:scaleY(-1) translateY(6px);filter:blur(2px);opacity:0.04;pointer-events:none;">${planeAssetHtml}</div>`;
+  return `<div class="ov-reflect-${id}-${phase.index}" style="position:absolute;top:0;left:0;-webkit-transform:scaleY(-1) translateY(6px);transform:scaleY(-1) translateY(6px);-webkit-filter:blur(2px);filter:blur(2px);opacity:${opacity};pointer-events:none;">${planeAssetHtml}</div>`;
 }
 
 /** Adjust shadow color based on background brightness. Reserved for future overlay enhancements. */
@@ -872,6 +917,7 @@ export function buildPhaseOverlayRow(
   phase: OverlayPhase,
   theme: ThemeName,
   overlayId?: string,
+  overlayIntensity: OverlayIntensity = 'signature',
 ): Va2UnlayerRow {
   const id = overlayId ?? `pp-${theme}`;
   const phaseId = `${id}-p${phase.index}`;
@@ -879,28 +925,61 @@ export function buildPhaseOverlayRow(
   const depth = calculateDepthProgression(phase.index, phase.totalPhases);
   const themeGlow = VA2_THEME_FILTERS[theme]?.glow ?? 'rgba(0,0,0,0.3)';
 
-  const duration = phase.motionType === 'sweep' ? 38
+  const duration = phase.motionType === 'sweep' ? 42
     : (phase.motionType === 'launch' || phase.motionType === 'exit') ? 14
     : 18;
 
+  /** Long sweeps use a custom curve so stalls and dives read more cinematically. */
+  const flightEasing =
+    phase.motionType === 'sweep'
+      ? 'cubic-bezier(0.38, 0.0, 0.62, 1.0)'
+      : 'ease-in-out';
+
   const wobbleName = `pp_wobble_${phaseId}`;
+  const wobbleDur = phase.motionType === 'sweep' ? 5.8 : 4.5;
 
   const keyframeCSS = generatePhaseKeyframes(id, phase);
   const shadowKfCSS = generateShadowKeyframes(id, phase);
-  const wobbleCSS = `@keyframes ${wobbleName}{` +
-    `0%{transform:rotateZ(-2.5deg) rotateX(0.5deg) translateX(0px) translateY(0px)}` +
-    `8%{transform:rotateZ(-1deg) rotateX(-0.3deg) translateX(0.8px) translateY(-1.2px)}` +
-    `20%{transform:rotateZ(2deg) rotateX(0.8deg) translateX(1.5px) translateY(0.6px)}` +
-    `32%{transform:rotateZ(-1.8deg) rotateX(-0.5deg) translateX(-0.5px) translateY(-1.5px)}` +
-    `45%{transform:rotateZ(2.8deg) rotateX(0.4deg) translateX(-1.2px) translateY(0.3px)}` +
-    `58%{transform:rotateZ(-2deg) rotateX(-0.7deg) translateX(0.6px) translateY(1.2px)}` +
-    `70%{transform:rotateZ(1.5deg) rotateX(0.6deg) translateX(1px) translateY(-0.8px)}` +
-    `82%{transform:rotateZ(-1.2deg) rotateX(-0.2deg) translateX(-0.8px) translateY(0.5px)}` +
-    `92%{transform:rotateZ(2.2deg) rotateX(0.3deg) translateX(0.3px) translateY(-1px)}` +
-    `100%{transform:rotateZ(-2.5deg) rotateX(0.5deg) translateX(0px) translateY(0px)}}`;
-  const trailSVG = phase.motionType === 'sweep' ? '' : generateTrailSVG(phase, themeGlow);
-  const shadowDiv = generateShadowDiv(id, phase, planeAssetHtml, true, duration);
-  const reflectionDiv = phase.motionType === 'sweep' ? '' : generateReflectionDiv(id, phase, planeAssetHtml);
+
+  const wobbleStopsStd =
+    phase.motionType === 'sweep'
+      ? `0%{transform:rotateZ(-3.6deg) rotateX(0.65deg) translateX(0px) translateY(0px)}` +
+        `9%{transform:rotateZ(-1.2deg) rotateX(-0.45deg) translateX(1px) translateY(-1.6px)}` +
+        `22%{transform:rotateZ(2.4deg) rotateX(0.95deg) translateX(1.8px) translateY(0.8px)}` +
+        `34%{transform:rotateZ(-2.1deg) rotateX(-0.55deg) translateX(-0.6px) translateY(-1.8px)}` +
+        `48%{transform:rotateZ(3.1deg) rotateX(0.5deg) translateX(-1.4px) translateY(0.4px)}` +
+        `61%{transform:rotateZ(-2.3deg) rotateX(-0.75deg) translateX(0.8px) translateY(1.4px)}` +
+        `74%{transform:rotateZ(1.8deg) rotateX(0.7deg) translateX(1.2px) translateY(-1px)}` +
+        `86%{transform:rotateZ(-1.5deg) rotateX(-0.25deg) translateX(-1px) translateY(0.6px)}` +
+        `100%{transform:rotateZ(-3.6deg) rotateX(0.65deg) translateX(0px) translateY(0px)}`
+      : `0%{transform:rotateZ(-2.5deg) rotateX(0.5deg) translateX(0px) translateY(0px)}` +
+        `8%{transform:rotateZ(-1deg) rotateX(-0.3deg) translateX(0.8px) translateY(-1.2px)}` +
+        `20%{transform:rotateZ(2deg) rotateX(0.8deg) translateX(1.5px) translateY(0.6px)}` +
+        `32%{transform:rotateZ(-1.8deg) rotateX(-0.5deg) translateX(-0.5px) translateY(-1.5px)}` +
+        `45%{transform:rotateZ(2.8deg) rotateX(0.4deg) translateX(-1.2px) translateY(0.3px)}` +
+        `58%{transform:rotateZ(-2deg) rotateX(-0.7deg) translateX(0.6px) translateY(1.2px)}` +
+        `70%{transform:rotateZ(1.5deg) rotateX(0.6deg) translateX(1px) translateY(-0.8px)}` +
+        `82%{transform:rotateZ(-1.2deg) rotateX(-0.2deg) translateX(-0.8px) translateY(0.5px)}` +
+        `92%{transform:rotateZ(2.2deg) rotateX(0.3deg) translateX(0.3px) translateY(-1px)}` +
+        `100%{transform:rotateZ(-2.5deg) rotateX(0.5deg) translateX(0px) translateY(0px)}`;
+
+  const wobbleStopsWeb = wobbleStopsStd.replace(/transform:/g, '-webkit-transform:');
+
+  const wobbleCSS =
+    `@-webkit-keyframes ${wobbleName}{${wobbleStopsWeb}}@keyframes ${wobbleName}{${wobbleStopsStd}}`;
+
+  const trailSVG =
+    phase.motionType === 'sweep'
+      ? generateSweepAmbientWindSVG(themeGlow)
+      : generateTrailSVG(phase, themeGlow);
+
+  const sweepWind = phase.motionType === 'sweep' ? generateSweepWindLayers(phaseId, themeGlow) : { html: '', css: '' };
+
+  const shadowDiv = generateShadowDiv(id, phase, planeAssetHtml, true, duration, flightEasing);
+  const reflectionDiv =
+    phase.motionType === 'sweep'
+      ? generateReflectionDiv(id, phase, planeAssetHtml, 0.032)
+      : generateReflectionDiv(id, phase, planeAssetHtml);
 
   const htmlContent = [
     `<div class="ov-phase-${phaseId}" style="max-height:0px;overflow:visible;position:relative;line-height:0;font-size:0;display:none;z-index:99999;">`,
@@ -912,16 +991,24 @@ export function buildPhaseOverlayRow(
     keyframeCSS,
     shadowKfCSS,
     wobbleCSS,
+    sweepWind.css,
+    `.ov-static-${phaseId}{display:none!important}`,
+    `@media (prefers-reduced-motion:reduce){.ov-anim-${phaseId}{display:none!important}.ov-static-${phaseId}{display:block!important;position:absolute;top:12px;right:12px;z-index:99999;opacity:0.95}.ov-static-${phaseId} img{-webkit-animation:none!important;animation:none!important}}`,
+    `@supports not(selector(:has(*))){.ov-phase-${phaseId} td,.ov-phase-${phaseId} tr,.ov-phase-${phaseId} table,.ov-phase-${phaseId} div{overflow:visible!important}}`,
     `@media only screen and (max-width:480px){.ov-phase-${phaseId}{display:none!important}}`,
     `</style>`,
     `<!--[if !mso]><!-->`,
-    `<div style="position:relative;height:0;overflow:visible;z-index:99999;perspective:600px;transform-style:preserve-3d;">`,
+    `<div class="ov-static-${phaseId}" aria-hidden="true">${planeAssetHtml}</div>`,
+    `<div class="ov-anim-${phaseId}" style="position:relative;height:0;overflow:visible;z-index:99999;-webkit-perspective:600px;perspective:600px;-webkit-transform-style:preserve-3d;transform-style:preserve-3d;">`,
     trailSVG,
     shadowDiv,
     reflectionDiv,
-    `<div class="ov-plane-${phaseId}" style="position:absolute;top:-30px;${phase.entryDirection === 'left' ? 'left:-40px' : 'right:-40px'};z-index:99999;transform-style:preserve-3d;transform:perspective(600px) rotateX(${depth.tilt.toFixed(1)}deg) scale3d(${depth.scale.toFixed(2)},${depth.scale.toFixed(2)},1);animation:${kfName} ${duration}s ${phase.animationDelay} ease-in-out infinite alternate;will-change:transform;">`,
-    `<div style="animation:${wobbleName} 4.5s ease-in-out infinite;will-change:transform;">`,
+    `<div class="ov-plane-${phaseId}" style="position:absolute;top:-30px;${phase.entryDirection === 'left' ? 'left:-40px' : 'right:-40px'};z-index:99999;-webkit-transform-style:preserve-3d;transform-style:preserve-3d;-webkit-transform:perspective(600px) rotateX(${depth.tilt.toFixed(1)}deg) scale3d(${depth.scale.toFixed(2)},${depth.scale.toFixed(2)},1);transform:perspective(600px) rotateX(${depth.tilt.toFixed(1)}deg) scale3d(${depth.scale.toFixed(2)},${depth.scale.toFixed(2)},1);-webkit-animation:${kfName} ${duration}s ${phase.animationDelay} ${flightEasing} infinite alternate;animation:${kfName} ${duration}s ${phase.animationDelay} ${flightEasing} infinite alternate;will-change:transform;">`,
+    `<div style="position:relative;display:inline-block;-webkit-animation:${wobbleName} ${wobbleDur}s ease-in-out infinite;animation:${wobbleName} ${wobbleDur}s ease-in-out infinite;will-change:transform;">`,
+    sweepWind.html,
+    `<div style="position:relative;z-index:2;display:inline-block">`,
     planeAssetHtml,
+    `</div>`,
     `</div>`,
     `</div>`,
     `</div>`,
@@ -987,6 +1074,7 @@ export function buildPhaseOverlayRow(
         position: { top: 0, left: 0 },
         motion: MOTION_PRESETS.glide,
         assetId: phaseId,
+        motionIntensity: overlayIntensity,
       },
     } as unknown as Va2UnlayerRow['values'],
   };

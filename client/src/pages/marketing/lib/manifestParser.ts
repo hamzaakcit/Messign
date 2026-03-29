@@ -4,7 +4,42 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { DesignManifest, ManifestSection } from './types/manifestTypes';
+import type { SpacingKey } from './types/designTokenTypes';
 import { parseStructuredEmailDraft } from './emailAiDraftToDesign';
+import { normalizeVa2SectionContent } from './va2ManifestNormalize';
+import {
+  DEFAULT_CAMPAIGN_IMAGE_SLOTS,
+  MAX_CAMPAIGN_IMAGE_SLOTS,
+} from './enrichManifestVisuals';
+
+const DENSITY_SPACING: Record<'light' | 'medium' | 'rich', { paddingTop: SpacingKey; paddingBottom: SpacingKey }> = {
+  light: { paddingTop: 'sm', paddingBottom: 'sm' },
+  medium: { paddingTop: 'md', paddingBottom: 'md' },
+  rich: { paddingTop: 'lg', paddingBottom: 'lg' },
+};
+
+/**
+ * Apply Email Design Wizard density to per-section vertical spacing (overridable per section).
+ */
+export function applyDensityToManifestSections(
+  manifest: DesignManifest,
+  density: 'light' | 'medium' | 'rich',
+): DesignManifest {
+  const spacing = DENSITY_SPACING[density];
+  const m = structuredClone(manifest);
+  m.sections = m.sections.map((s) => {
+    if (s.type === 'preheader') return s;
+    const existing =
+      typeof s.spacing === 'object' && s.spacing !== null && !Array.isArray(s.spacing)
+        ? (s.spacing as { paddingTop?: SpacingKey; paddingBottom?: SpacingKey })
+        : {};
+    return {
+      ...s,
+      spacing: { ...spacing, ...existing },
+    };
+  });
+  return m;
+}
 
 export interface ManifestParseResult {
   isManifest: boolean;
@@ -146,13 +181,24 @@ export function mergeUserEmailDraftIntoTemplateManifest(
 /** Normalize raw starter JSON (from registry) into a {@link DesignManifest}. */
 export function normalizeManifest(raw: Record<string, unknown>): DesignManifest {
   const sections = (raw.sections as Array<Record<string, unknown>>).map(
-    (s: Record<string, unknown>, i: number) => ({
-      type: (s.type as string) || 'text_block',
-      order: typeof s.order === 'number' ? s.order : i,
-      content: (s.content as Record<string, unknown>) || {},
-      variant: typeof s.variant === 'string' ? s.variant : undefined,
-      spacing: typeof s.spacing === 'string' ? s.spacing : undefined,
-    }),
+    (s: Record<string, unknown>, i: number) => {
+      const type = (s.type as string) || 'text_block';
+      const rawContent = (s.content as Record<string, unknown>) || {};
+      const content = normalizeVa2SectionContent(type, { ...rawContent });
+      let spacing: ManifestSection['spacing'];
+      if (typeof s.spacing === 'object' && s.spacing !== null && !Array.isArray(s.spacing)) {
+        spacing = s.spacing as { paddingTop?: SpacingKey; paddingBottom?: SpacingKey };
+      } else if (typeof s.spacing === 'string') {
+        spacing = s.spacing;
+      }
+      return {
+        type,
+        order: typeof s.order === 'number' ? s.order : i,
+        content,
+        variant: typeof s.variant === 'string' ? s.variant : undefined,
+        spacing,
+      };
+    },
   );
 
   const rawMeta =
@@ -176,8 +222,28 @@ export function normalizeManifest(raw: Record<string, unknown>): DesignManifest 
         rawMeta.ab_variant === 'A' || rawMeta.ab_variant === 'B'
           ? (rawMeta.ab_variant as 'A' | 'B')
           : undefined,
+      visual_density:
+        rawMeta.visual_density === 'minimal' || rawMeta.visual_density === 'rich'
+          ? rawMeta.visual_density
+          : undefined,
+      target_image_slots:
+        typeof rawMeta.target_image_slots === 'number' && Number.isFinite(rawMeta.target_image_slots)
+          ? Math.floor(rawMeta.target_image_slots)
+          : undefined,
+      assembly_source:
+        rawMeta.assembly_source === 'legacy_flat_bridge' || rawMeta.assembly_source === 'va2_pipeline'
+          ? rawMeta.assembly_source
+          : undefined,
     },
     artDirection: raw.artDirection as DesignManifest['artDirection'],
+    motionOverlay:
+      typeof raw.motionOverlay === 'string'
+        ? (raw.motionOverlay as DesignManifest['motionOverlay'])
+        : undefined,
+    overlayIntensity:
+      typeof raw.overlayIntensity === 'string'
+        ? (raw.overlayIntensity as DesignManifest['overlayIntensity'])
+        : undefined,
     easterEgg: typeof raw.easterEgg === 'string'
       ? (raw.easterEgg as DesignManifest['easterEgg'])
       : undefined,
@@ -294,10 +360,20 @@ function extractKeywords(text: string, max = 6): string[] {
   return unique.slice(0, max);
 }
 
-function buildImagePromptFromContext(keywords: string[], context: string): string {
+/** First sentence or truncated plain text for tying image prompts to topic copy. */
+function firstSentencePlain(text: string, maxLen = 220): string {
+  const plain = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!plain) return '';
+  const match = /^[\s\S]*?[.!?](?:\s|$)/.exec(plain);
+  if (match) return match[0].trim();
+  return plain.slice(0, maxLen).trim();
+}
+
+function buildImagePromptFromContext(keywords: string[], context: string, subjectLine?: string): string {
   const topicPhrase = keywords.slice(0, 4).join(', ');
-  const snippet = context.replace(/<[^>]+>/g, '').slice(0, 80).trim();
-  return `[STOCK] Professional editorial photograph related to ${topicPhrase}. Scene: ${snippet}. Warm natural lighting, shallow depth of field, modern clean composition, no text overlays.`;
+  const snippet = context.replace(/<[^>]+>/g, '').slice(0, 120).trim();
+  const prefix = subjectLine?.trim() ? `Topic: ${subjectLine.trim()}. ` : '';
+  return `${prefix}Professional editorial photograph related to ${topicPhrase}. Scene: ${snippet}. Warm natural lighting, shallow depth of field, modern clean composition, no text overlays.`;
 }
 
 function splitIntoParagraphs(body: string): string[] {
@@ -308,6 +384,29 @@ function splitIntoParagraphs(body: string): string[] {
 }
 
 const CTA_PATTERN = /\[(?:CTA|Insert CTA|Button)[:\s]*([^\]]+)\]/i;
+
+/** Aligns with {@link MAX_CAMPAIGN_IMAGE_SLOTS} — max inserted image sections (hero is separate). */
+export const PLAIN_TEXT_EMAIL_MAX_INSERTED_IMAGES = 11;
+
+/**
+ * Parses phrases like "6 images", "at least 6 visuals" from draft prose.
+ * Returns undefined when no count is found.
+ */
+export function inferPlainTextRequestedImageCount(raw: string): number | undefined {
+  const t = raw.toLowerCase();
+  const patterns = [
+    /\b(?:at\s+least\s+)?(\d{1,2})\s*(?:\+|or\s+more)?\s*(?:images?|visuals?|photos?|pictures?)\b/i,
+    /\b(\d{1,2})\s*\+\s*(?:images?|visuals?|photos?)\b/i,
+  ];
+  for (const re of patterns) {
+    const m = re.exec(t);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n >= 1 && n <= 24) return Math.min(12, n);
+    }
+  }
+  return undefined;
+}
 
 /**
  * Synthesize a VA2 DesignManifest from a plain-text email draft.
@@ -321,7 +420,11 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
   const subject = parsed.subject || 'Your Update';
   const preview = parsed.preview || subject;
   const body = parsed.body || raw;
+  const requestedTotalSlots = inferPlainTextRequestedImageCount(raw);
   const keywords = extractKeywords(`${subject} ${body}`);
+  const bodySnippet = firstSentencePlain(body);
+  const topicLine = [subject, bodySnippet].filter((s) => s.length > 0).join(' — ');
+  const heroImagePrompt = `${topicLine}. Visual themes: ${keywords.slice(0, 6).join(', ')}. Wide cinematic editorial photograph, natural lighting, professional composition, no legible text or logos in frame.`;
 
   const sections: ManifestSection[] = [];
   let order = 1;
@@ -334,7 +437,7 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
       subheadline: preview !== subject ? preview : undefined,
       ctaText: 'Learn More',
       ctaUrl: '#',
-      imagePrompt: `[STOCK] Wide cinematic shot related to ${keywords.slice(0, 3).join(', ')}. Professional corporate atmosphere, vibrant colors, modern design, high resolution, no text overlays.`,
+      imagePrompt: heroImagePrompt,
       alignment: 'center',
     },
   });
@@ -356,7 +459,18 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
   };
 
   let imageCount = 0;
-  const maxImages = 3;
+  /** Non-hero image rows; cap aligns with VA2 max slots (hero counts as one slot). */
+  const defaultBodyImageCap = Math.min(
+    PLAIN_TEXT_EMAIL_MAX_INSERTED_IMAGES,
+    Math.max(0, MAX_CAMPAIGN_IMAGE_SLOTS - 1),
+  );
+  const maxImages =
+    requestedTotalSlots != null
+      ? Math.min(
+          PLAIN_TEXT_EMAIL_MAX_INSERTED_IMAGES,
+          Math.max(0, requestedTotalSlots - 1),
+        )
+      : defaultBodyImageCap;
 
   for (let i = 0; i < paragraphs.length; i++) {
     const para = paragraphs[i];
@@ -397,7 +511,7 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
           order: order++,
           content: {
             body: `<p>${nextPara}</p>`,
-            imagePrompt: buildImagePromptFromContext(keywords, paragraphs[i]),
+            imagePrompt: buildImagePromptFromContext(keywords, paragraphs[i], subject),
             altText: `Visual related to ${keywords[0] || 'content'}`,
             layout: imageLayout,
           },
@@ -414,7 +528,7 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
           type: 'image',
           order: order++,
           content: {
-            imagePrompt: buildImagePromptFromContext(keywords, paragraphs[i]),
+            imagePrompt: buildImagePromptFromContext(keywords, paragraphs[i], subject),
             altText: `Visual related to ${keywords[0] || 'content'}`,
             width: 'full',
           },
@@ -459,7 +573,10 @@ export function synthesizeManifestFromPlainText(raw: string): DesignManifest {
     subject,
     preheader: preview,
     sections,
-    metadata: { channel: 'email' },
+    metadata: {
+      channel: 'email',
+      target_image_slots: requestedTotalSlots ?? DEFAULT_CAMPAIGN_IMAGE_SLOTS,
+    },
     artDirection: {
       imageStyle: `Professional editorial style related to ${keywords.slice(0, 3).join(', ')}`,
     },

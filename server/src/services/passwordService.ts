@@ -8,10 +8,51 @@ import {
 } from '../db/employeeAuthDb.js';
 import { getPasswordPolicy } from '../db/settingsDb.js';
 import { insert as insertAudit } from '../db/authAuditDb.js';
-import type { PasswordPolicy } from '../types/auth.js';
-import { getDefaultSeedPassword } from '../types/auth.js';
+import type { EmployeeAuth, PasswordPolicy } from '../types/auth.js';
+import { DEV_DEMO_PASSWORD, getDefaultSeedPassword } from '../types/auth.js';
 
 const SALT_ROUNDS = 12;
+
+/**
+ * Same rules as `authService.login` for checking the password the user typed.
+ * `changeOwnPassword` must accept the same values as login (e.g. documented `test123` in non-prod when the DB hash is stale).
+ */
+export async function verifyCurrentPasswordMatchesAuth(
+  auth: Pick<EmployeeAuth, 'password_hash' | 'temporary_password' | 'must_change_password'>,
+  plainPassword: string,
+): Promise<boolean> {
+  const passwordTrimmed = typeof plainPassword === 'string' ? plainPassword.trim() : '';
+  const isNonProd = process.env.NODE_ENV !== 'production';
+
+  function passwordMatchesSeed(seed: string | null): boolean {
+    if (!seed) return false;
+    if (passwordTrimmed === seed) return true;
+    return isNonProd && passwordTrimmed.toLowerCase() === seed.toLowerCase();
+  }
+
+  const bcryptOk = await bcrypt.compare(passwordTrimmed, auth.password_hash);
+  if (bcryptOk) return true;
+
+  const seedPw = (() => {
+    try {
+      return getDefaultSeedPassword();
+    } catch {
+      return null;
+    }
+  })();
+  if (seedPw != null && passwordMatchesSeed(seedPw)) return true;
+  if (isNonProd && passwordTrimmed === DEV_DEMO_PASSWORD) return true;
+
+  if (
+    auth.must_change_password &&
+    auth.temporary_password &&
+    passwordTrimmed === auth.temporary_password.trim()
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 export interface ValidationResult {
   isValid: boolean;
@@ -198,7 +239,7 @@ export async function changeOwnPassword(
   const auth = await getByAuthUserId(oddrooId);
   if (!auth) throw new Error('Employee auth not found');
 
-  const isValid = await bcrypt.compare(currentPassword, auth.password_hash);
+  const isValid = await verifyCurrentPasswordMatchesAuth(auth, currentPassword);
   if (!isValid) {
     throw new Error('Current password is incorrect');
   }

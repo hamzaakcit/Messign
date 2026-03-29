@@ -161,7 +161,26 @@ When deploying the client, set `VITE_API_URL` in Vercel environment variables to
 
 ## Further Reading
 
+- [docs/va2-phase-2.md](docs/va2-phase-2.md) — Phase 2 Lucy/Unlayer pro parity (validation warnings, starters, image resolve)
+- [docs/va3-phase-3.md](docs/va3-phase-3.md) — Phase 3 layoutDensity, split hero, Redis resolve idempotency, HTML size UX
+- [docs/va4-phase-4.md](docs/va4-phase-4.md) — Phase 4 export/URL awareness, Outlook overlay QA, licensing, B2B starters, validation depth
+- [docs/va5-phase-5.md](docs/va5-phase-5.md) — Phase 5 product/value/text/divider builder parity, duplicate imagePrompt warnings, D2C + events strategist depth, new starters
+- [docs/va6-phase-6.md](docs/va6-phase-6.md) — Phase 6 onboarding/transactional starters, image/CTA density parity, short-preheader validation, golden tests
+- [docs/va7-phase-7.md](docs/va7-phase-7.md) — Phase 7 B2B nurture + D2C cart recovery starters, hero diversity + UTM strategist notes, testimonial/social_proof typography
+- [docs/va8-phase-8.md](docs/va8-phase-8.md) — Phase 8 value_prop density typography, HTML weight / high-slot warning, SaaS release + referral/loyalty starters
+- [docs/va9-phase-9.md](docs/va9-phase-9.md) — Phase 9 text_block density typography, partner + gift starters, subject-length warning, Outlook / va4 cross-link
+- [docs/va10-phase-10.md](docs/va10-phase-10.md) — Phase 10 rich visual_density validation (image_text / image / product_grid), strategist magazine-depth, referral exemplar update
+- [docs/va11-phase-11.md](docs/va11-phase-11.md) — Phase 11 split + editorial_tall hero starters, hero scaled-type audit (JSDoc), strategist hero layout guidance
+- [docs/va12-phase-12.md](docs/va12-phase-12.md) — Phase 12 export/HTML weight hub, licensing pointer, onboarding milestone + B2B customer-win starters
+- [docs/va13-phase-13.md](docs/va13-phase-13.md) — Phase 13 Unlayer-gallery parity sprint (industry starters, strategist parity, thin-manifest depth, resolve duplicate prompts, Lucy UX)
+
+**Client regression (VA2):** `cd client && npm test` runs Vitest, including golden manifest assembly tests in `client/src/__tests__/pages/marketing/va2GoldenManifestAssembly.test.ts`.
+
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how the codebase is organized, how data flows, how the AI works
+- [docs/MESSIGN_PRODUCT_CONTEXT.md](docs/MESSIGN_PRODUCT_CONTEXT.md) — what Messign is (omnichannel design + delivery + intelligence + analytics)
+- [docs/email-design-pipeline.md](docs/email-design-pipeline.md) — Visual Architect v2 manifest → Unlayer assembly
+- [docs/va2-pro-quality-baseline.md](docs/va2-pro-quality-baseline.md) — Phase 1 quality rubric, client matrix, and Lucy/Unlayer “pro template” gap analysis
+- [docs/dora-available-questions.md](docs/dora-available-questions.md) — Dora suggested questions vs. department report tool vs. Report Hub catalog
 - [docs/PRD.md](docs/PRD.md) — product requirements document
 - [docs/ROADMAP.md](docs/ROADMAP.md) — development roadmap
 - [docs/API.md](docs/API.md) — API documentation

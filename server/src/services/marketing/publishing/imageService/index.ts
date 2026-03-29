@@ -1,11 +1,27 @@
 // Barrel re-export — keeps all existing `from '../publishing/imageService.js'` imports working.
 
-export { resolveStockImageUrl } from './stockImages.js';
+export { resolveStockImageUrl, pickNonHumanPlaceholderUrl } from './stockImages.js';
 
-export type { ImageGenContext } from './promptBuilder.js';
+export {
+  emailCampaignCopySuggestsTechnicalPlatformImagery,
+  emailImagePromptExplicitlyRequestsPeople,
+} from './emailImagePromptSubject.js';
+
+export {
+  buildCampaignImageContextPrefix,
+  buildCampaignImageContextForRasterModels,
+  buildCampaignTopicBlobForRasterModels,
+  extractTopicKeywordsForRasterContext,
+  applyCampaignPrefixToPrompt,
+} from './campaignImageContext.js';
+
+export { buildValuePropItemImagePrompt } from './valuePropImagePrompt.js';
+
+export type { ImageGenContext, MarketingImageSystemOptions } from './promptBuilder.js';
 export {
   buildChannelCompositionHint,
   buildMarketingImageSystemText,
+  buildDirectInstagramFalPrompt,
   enhanceImagePrompt,
 } from './promptBuilder.js';
 
@@ -17,7 +33,31 @@ export {
   MAX_IMAGE_BYTES,
 } from './validation.js';
 
-export { buildStorageKey, uploadToStorage } from './storage.js';
+export {
+  buildStorageKey,
+  buildReferenceUploadStorageKey,
+  buildLucyReferenceUploadStorageKey,
+  uploadToStorage,
+} from './storage.js';
+
+export type { PhotoEditPromptOptions } from './photoEditPrompt.js';
+export { buildAdditivePhotoEditPrompt } from './photoEditPrompt.js';
+export { editMarketingPhotoWithKontext } from './editMarketingPhoto.js';
+export {
+  mapDimensionsToFalKontextAspectRatio,
+  FAL_KONTEXT_ASPECT_RATIOS,
+} from './falKontextAspectRatio.js';
+export type { FalKontextAspectRatio } from './falKontextAspectRatio.js';
+export type { PreparedReferenceForFal } from './falReferenceImage.js';
+export {
+  buildKontextFalSubscribeInput,
+  callFalKontextImageEdit,
+  resolveFalImageEditModelId,
+  isRetryableFalKontextError,
+  resolveKontextOutputFormat,
+  resolveKontextEnhancePrompt,
+} from './falKontextEdit.js';
+export type { KontextFalSubscribeInputOptions, CallFalKontextImageEditOptions } from './falKontextEdit.js';
 
 export {
   generateImage,

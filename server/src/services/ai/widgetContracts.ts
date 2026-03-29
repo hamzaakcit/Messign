@@ -23,6 +23,17 @@ export const SPECIAL_RESOLVE_TOOLS = new Set<string>([
   'finance:get_invoice_details',
   'achievements:get_achievements_leaderboard',
   'knowledge:search_knowledge_base',
+  'projects:get_tasks_by_user',
+  'people:get_employee_performance',
+  'achievements:get_bounty_board',
+  'finance:get_reimbursement_details',
+  'people:get_team_overview',
+  'projects:get_project_status',
+  'projects:get_sprint_status',
+  'analytics:get_approval_queue',
+  'analytics:get_system_stats',
+  'analytics:get_department_report',
+  'finance:get_financial_summary',
 ]);
 
 /**
@@ -45,6 +56,44 @@ export function getDefaultNavigateActionsForTool(toolName: string): WidgetNaviga
     case 'projects':
       return [{ id: 'nav-projects', label: 'Open projects', kind: 'navigate', to: APP_ROUTES.PROJECTS }];
     case 'finance':
+      if (toolName === 'finance:get_reimbursement_details') {
+        return [
+          {
+            id: 'nav-reimbursements',
+            label: 'Open reimbursements',
+            kind: 'navigate',
+            to: APP_ROUTES.REIMBURSEMENTS,
+          },
+        ];
+      }
+      /** Invoice list/card widgets — invoices tab is pathname-driven (`APP_ROUTES.FINANCE_INVOICES`). */
+      if (toolName === 'finance:get_invoice_details') {
+        return [
+          {
+            id: 'nav-finance-invoices',
+            label: 'Open invoices',
+            kind: 'navigate',
+            to: APP_ROUTES.FINANCE_INVOICES,
+          },
+        ];
+      }
+      /** Matches client {@link client/src/lib/financeRoutes.ts financePathForView} — tab is driven by pathname, not location.state. */
+      if (toolName === 'finance:get_financial_summary') {
+        return [
+          {
+            id: 'nav-finance-invoices',
+            label: 'Open invoices',
+            kind: 'navigate',
+            to: APP_ROUTES.FINANCE_INVOICES,
+          },
+          {
+            id: 'nav-reimbursements',
+            label: 'Open reimbursements',
+            kind: 'navigate',
+            to: APP_ROUTES.REIMBURSEMENTS,
+          },
+        ];
+      }
       return [{ id: 'nav-finance', label: 'Open finance', kind: 'navigate', to: APP_ROUTES.FINANCE }];
     case 'crm':
       return [{ id: 'nav-crm', label: 'Open CRM', kind: 'navigate', to: APP_ROUTES.CRM }];
@@ -62,6 +111,22 @@ export function getDefaultNavigateActionsForTool(toolName: string): WidgetNaviga
     case 'executive':
       return [{ id: 'nav-executive', label: 'Open executive', kind: 'navigate', to: APP_ROUTES.EXECUTIVE }];
     case 'analytics':
+      if (toolName === 'analytics:get_approval_queue') {
+        return [
+          {
+            id: 'nav-reimbursements-queue',
+            label: 'Open reimbursements',
+            kind: 'navigate',
+            to: APP_ROUTES.REIMBURSEMENTS,
+          },
+        ];
+      }
+      if (toolName === 'analytics:get_system_stats') {
+        return [{ id: 'nav-dash-system', label: 'Open dashboard', kind: 'navigate', to: APP_ROUTES.DASHBOARD }];
+      }
+      if (toolName === 'analytics:get_department_report') {
+        return [{ id: 'nav-reports-hub', label: 'Open reports', kind: 'navigate', to: APP_ROUTES.REPORTS }];
+      }
       if (toolName === 'analytics:get_recent_activity') {
         return [{ id: 'nav-dash-activity', label: 'Open dashboard', kind: 'navigate', to: APP_ROUTES.DASHBOARD }];
       }

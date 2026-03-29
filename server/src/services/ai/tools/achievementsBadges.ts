@@ -9,6 +9,12 @@ import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import { computeBadgeAggregates } from './badgeAggregates.js';
+import {
+  buildShortLeaderboardSummary,
+  computeLeaderboardXpAggregates,
+  type LeaderboardXpRow,
+} from './leaderboardAggregates.js';
 
 const achievementsLeaderboardTool: Tool = {
   name: 'achievements:get_achievements_leaderboard',
@@ -74,16 +80,15 @@ Use this tool when someone asks:
           [orgId, limit]
         );
 
-        const rows = result.rows as { user_id?: string; points?: number; full_name?: string }[];
+        const rows = result.rows as LeaderboardXpRow[];
         const withRank = rows.map((r, i) => ({ ...r, rank: i + 1 }));
-
-        const summary = `**Leaderboard — Top ${withRank.length}:**\n${withRank
-          .map((r, i) => `${i + 1}. ${r.full_name ?? r.user_id} — ${r.points ?? 0} points`)
-          .join('\n')}`;
+        const aggregates = computeLeaderboardXpAggregates(withRank);
+        const topName = withRank[0]?.full_name?.trim() || undefined;
+        const summary = buildShortLeaderboardSummary(aggregates, topName);
 
         return {
           success: true,
-          data: withRank,
+          data: { leaderboard: withRank, aggregates },
           summary,
           metadata: { source: 'reimbursement_users', count: withRank.length },
         };
@@ -124,15 +129,13 @@ Use this tool when someone asks:
 
         const points = (pointsResult.rows[0] as Record<string, unknown>)?.points ?? 0;
         const badges = badgesResult.rows as Record<string, unknown>[];
+        const aggregates = computeBadgeAggregates(badges);
 
-        const summary = `**Badges & Achievements:**
-- Points: ${points} (from XP)
-- Badges earned: ${badges.length}
-${badges.map((b) => `  • ${b.name}: ${b.description || ''} (earned ${new Date(b.earned_at as string).toLocaleDateString()})`).join('\n')}`;
+        const summary = `**Your badges** — ${badges.length} earned, ${points} XP. Details are in the interactive widget.`;
 
         return {
           success: true,
-          data: { badges, points },
+          data: { badges, points, aggregates },
           summary,
           metadata: { source: 'user_badges, badges, reimbursement_users', count: badges.length },
         };

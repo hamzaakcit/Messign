@@ -4,10 +4,11 @@ import type {
   UnlayerContent as Va2UnlayerContent,
 } from '../types/unlayerTypes';
 import type { ProductGridContent, ProductItem } from '../types/manifestTypes';
-import type { DesignTheme } from '../types/designTokenTypes';
-import { generateId, adjustBrightness } from '../designTokens';
-import { createSingleColumnRow } from './va2Shared';
+import type { DesignTheme, SpacingKey } from '../types/designTokenTypes';
+import { generateId, adjustBrightness, VA2_PRODUCT_IMAGE_DISPLAY_PX } from '../designTokens';
+import { buildSubtleCardBorder, createSingleColumnRow } from './va2Shared';
 import type { BlockBuilderOptions } from './types';
+import { getDensityTypeScale, getEffectiveLayoutDensity, scaledSectionHeadingFromTheme } from '../emailTypography';
 
 /**
  * Build an ecommerce product grid — 2 or 3 column rows of product cards.
@@ -22,16 +23,25 @@ import type { BlockBuilderOptions } from './types';
 export function buildProductGrid(
   content: ProductGridContent,
   theme: DesignTheme,
-  _options?: BlockBuilderOptions,
+  options?: BlockBuilderOptions,
 ): Va2UnlayerRow[] {
   if (!content.items || content.items.length === 0) return [];
 
   const spacing = theme.spacing;
+  const density = getEffectiveLayoutDensity(options?.layoutDensity);
+  const densityExtra = getDensityTypeScale(density).sectionPaddingTopExtraPx;
+  const lv = options?.layoutVariant;
+  const gridRowBg = lv === 'band' ? theme.colors.surface : theme.colors.background;
+  const sectionTop = options?.spacing?.paddingTop
+    ? theme.spacing[options.spacing.paddingTop as SpacingKey]
+    : 0;
   const typo = theme.typography;
+  const sectionTitlePx = scaledSectionHeadingFromTheme(theme, density);
   const colCount = content.columns || 3;
   const rows: Va2UnlayerRow[] = [];
 
   if (content.sectionTitle) {
+    const titlePadBottom = spacing.md + Math.min(4, Math.round(densityExtra / 2));
     const titleContent: Va2UnlayerContent = {
       id: generateId('content'),
       type: 'heading',
@@ -42,12 +52,12 @@ export function buildProductGrid(
           label: typo.heading.fontFamily.split(',')[0].trim(),
           value: typo.heading.fontFamily,
         },
-        fontSize: `${typo.heading.fontSize}px`,
+        fontSize: `${sectionTitlePx}px`,
         fontWeight: typo.heading.fontWeight,
         textAlign: 'center',
         lineHeight: `${Math.round(typo.heading.lineHeight * 100)}%`,
         color: theme.colors.primary,
-        containerPadding: `${spacing.lg}px ${spacing.md}px ${spacing.md}px`,
+        containerPadding: `${spacing.lg + Math.min(6, densityExtra)}px ${spacing.md}px ${titlePadBottom}px`,
         anchor: '',
         hideDesktop: false,
         hideMobile: false,
@@ -57,7 +67,7 @@ export function buildProductGrid(
     rows.push(
       createSingleColumnRow([titleContent], theme, {
         backgroundColor: theme.colors.background,
-        padding: '0px',
+        padding: sectionTop > 0 ? `${sectionTop}px 0px 0px 0px` : '0px',
         className: 'pg-title-row',
       }),
     );
@@ -73,6 +83,10 @@ export function buildProductGrid(
     const cellFractions = Array<number>(actualCols).fill(1);
 
     const columns: Va2UnlayerColumn[] = chunk.map((product) => {
+      const cardBorder = lv === 'band' || lv === 'flush' ? {} : buildSubtleCardBorder(theme);
+      const cardRadius = lv === 'flush' ? '0px' : `${theme.borderRadius}px`;
+      const cardPad =
+        lv === 'flush' ? `${spacing.xs}px` : lv === 'band' ? `${spacing.sm}px` : `${spacing.sm}px`;
       const colContents: Va2UnlayerContent[] = [];
 
       if (product.imageUrl) {
@@ -80,7 +94,12 @@ export function buildProductGrid(
           id: generateId('content'),
           type: 'image',
           values: {
-            src: { url: product.imageUrl, width: 260, height: 260, autoWidth: false },
+            src: {
+              url: product.imageUrl,
+              width: VA2_PRODUCT_IMAGE_DISPLAY_PX,
+              height: VA2_PRODUCT_IMAGE_DISPLAY_PX,
+              autoWidth: false,
+            },
             alt: product.name,
             textAlign: 'center',
             containerPadding: `0px 0px ${spacing.xs}px`,
@@ -219,14 +238,18 @@ export function buildProductGrid(
         contents: colContents,
         values: {
           backgroundColor: theme.colors.surface,
-          padding: `${spacing.sm}px`,
-          border: {},
-          borderRadius: `${theme.borderRadius}px`,
+          padding: cardPad,
+          border: cardBorder,
+          borderRadius: cardRadius,
           _meta: { htmlID: '', htmlClassNames: 'pg-card' },
         },
       };
     });
 
+    const gridTop =
+      (!content.sectionTitle && chunk === chunks[0] && sectionTop > 0
+        ? sectionTop + spacing.xs
+        : spacing.xs) + Math.min(4, Math.round(densityExtra / 2));
     const gridRow: Va2UnlayerRow = {
       id: generateId('row'),
       cells: cellFractions,
@@ -234,10 +257,10 @@ export function buildProductGrid(
       values: {
         displayCondition: null,
         columns: true,
-        backgroundColor: theme.colors.background,
+        backgroundColor: gridRowBg,
         columnsBackgroundColor: '',
         backgroundImage: {},
-        padding: `${spacing.xs}px ${spacing.sm}px`,
+        padding: `${gridTop}px ${spacing.sm}px`,
         anchor: '',
         hideDesktop: false,
         hideMobile: false,

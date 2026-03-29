@@ -16,6 +16,7 @@ import { queryClient } from '@/lib/queryClient';
 import { CHAT_CHANNELS_ROOT } from '@/lib/chatQueryKeys';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
+import { normalizeChannelList } from '@/lib/chatChannelUtils';
 import { useUIStore } from '@/stores/uiStore';
 import type { Message } from '@/types';
 
@@ -33,8 +34,10 @@ export function installChatSocketHandlers(): () => void {
   }) => {
     const currentUserId = useAuthStore.getState().user?.id;
     if (currentUserId && message.userId === currentUserId) return;
-    useChatStore.getState().addMessage(message as Message);
-    const { activeChannelId, channels } = useChatStore.getState();
+    const chat = useChatStore.getState();
+    chat.addMessage(message as Message);
+    const { activeChannelId, channels: chRaw } = chat;
+    const channels = normalizeChannelList(chRaw);
     const currentView = useUIStore.getState().currentView;
     const viewingThisChannel =
       currentView === 'chat' && activeChannelId === message.channelId;

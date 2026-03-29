@@ -8,6 +8,10 @@
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
+import {
+  buildShortSprintSummary,
+  computeSprintStatusAggregates,
+} from './sprintStatusAggregates.js';
 
 const sprintStatusTool: Tool = {
   name: 'projects:get_sprint_status',
@@ -93,10 +97,15 @@ Use this tool when someone asks:
       const sprintsResult = await query(sprintQuery, params.length > 0 ? params : undefined);
 
       if (sprintsResult.rows.length === 0) {
+        const aggregates = computeSprintStatusAggregates([]);
+        const hint =
+          projectName !== 'all'
+            ? `${sprintIdentifier} · project "${projectName}"`
+            : `${sprintIdentifier} · all projects`;
         return {
           success: true,
-          data: [],
-          summary: `No ${sprintIdentifier} sprints found${projectName !== 'all' ? ` for "${projectName}"` : ''}.`,
+          data: { sprints: [], aggregates },
+          summary: buildShortSprintSummary(aggregates, hint),
           metadata: { source: 'sprint_requests, projects', count: 0 },
         };
       }
@@ -124,19 +133,12 @@ Use this tool when someone asks:
         });
       }
 
-      const summary = enriched
-        .map((s) => {
-          const daysInfo = s.daysLeft !== null ? `${s.daysLeft} days remaining` : 'no end date';
-          return `**${s.project_name} — ${s.title || 'Sprint'}** (${s.status}):
-- Progress: ${s.progress}% (${s.helperCount}/${s.max_helpers ?? 3} helpers)
-- Timeline: ${s.starts_at ? new Date(s.starts_at).toLocaleDateString() : '?'} → ${s.ends_at ? new Date(s.ends_at).toLocaleDateString() : '?'} (${daysInfo})
-${s.description ? `- Description: ${String(s.description).slice(0, 100)}...` : ''}`;
-        })
-        .join('\n\n');
+      const aggregates = computeSprintStatusAggregates(enriched as unknown as Record<string, unknown>[]);
+      const summary = buildShortSprintSummary(aggregates);
 
       return {
         success: true,
-        data: enriched,
+        data: { sprints: enriched, aggregates },
         summary,
         metadata: { source: 'sprint_requests, sprint_helpers, projects', count: enriched.length },
       };

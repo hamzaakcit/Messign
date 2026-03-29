@@ -10,6 +10,7 @@ import { registerTool } from '../toolRegistry.js';
 import { limitRecords } from '../dataSanitizer.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import { buildPerformanceComparisonSeries } from './performanceComparisonSeries.js';
 
 function buildDateFilter(period: string): Date {
   const now = new Date();
@@ -46,41 +47,21 @@ function formatPerformanceSummary(
   teamAvg: Record<string, unknown> | null,
   period: string
 ): string {
-  const periodLabel = period.replace('_', ' ');
-
-  const employeeSections = employees.map((e) => {
-    const tasksCompleted = (e.tasks_completed as number) ?? 0;
-    const tasksAssignedPeriod = (e.tasks_assigned_period as number) ?? 0;
-    const completionRate = tasksAssignedPeriod > 0 ? Math.round((tasksCompleted / tasksAssignedPeriod) * 100) : 0;
-
-    let section = `**${e.full_name}** (${e.auth_user_id || e.id || 'N/A'}) — Performance for ${periodLabel}:
-- Tasks completed: ${tasksCompleted} of ${tasksAssignedPeriod} assigned (${completionRate}% completion rate)
-- Active tasks: ${e.tasks_active ?? 0} | Overdue: ${e.tasks_overdue ?? 0}
-- XP (leaderboard): ${e.xp ?? 0}
-- Badges: ${e.badges_earned_period ?? 0} earned this period (${e.total_badges ?? 0} total)
-- Activities: ${e.activity_count ?? 0} actions
-- Knowledge contributions: ${e.docs_authored ?? 0} documents authored`;
-
-    if (teamAvg) {
-      const avgTasks = parseFloat(String(teamAvg.avg_tasks_completed || 0));
-      const vsAvgTasks = tasksCompleted - avgTasks;
-      const direction = vsAvgTasks >= 0 ? 'above' : 'below';
-      section += `\n- vs. team average: ${Math.abs(vsAvgTasks).toFixed(1)} tasks ${direction} average (team avg: ${avgTasks})`;
-    }
-
-    return section;
-  });
-
-  let result = employeeSections.join('\n\n');
-
+  const periodLabel = period.replace(/_/g, ' ');
+  const e = employees[0];
+  if (!e) return `No employee rows for ${periodLabel}.`;
+  const tasksCompleted = Number(e.tasks_completed ?? 0);
+  const tasksAssignedPeriod = Number(e.tasks_assigned_period ?? 0);
+  const completionRate = tasksAssignedPeriod > 0 ? Math.round((tasksCompleted / tasksAssignedPeriod) * 100) : 0;
+  const name = String(e.full_name ?? 'You');
+  let line = `**${name}** — ${periodLabel}: ${tasksCompleted}/${tasksAssignedPeriod} tasks (${completionRate}%), ${e.xp ?? 0} XP, ${e.activity_count ?? 0} activities. Details are in the interactive widget.`;
   if (teamAvg) {
-    result += `\n\n**Team Averages (${periodLabel}):**
-- Avg tasks completed: ${teamAvg.avg_tasks_completed}
-- Avg activities: ${teamAvg.avg_activity_count}
-- Avg XP: ${teamAvg.avg_xp}`;
+    line += ` Team avg: ${teamAvg.avg_tasks_completed} tasks completed, ${teamAvg.avg_xp} XP.`;
   }
-
-  return result;
+  if (employees.length > 1) {
+    line += ` (${employees.length} people in this view.)`;
+  }
+  return line;
 }
 
 const employeePerformanceTool: Tool = {
@@ -293,10 +274,11 @@ Use this tool when someone asks:
 
     const employees = limitRecords(perfResult.rows as Record<string, unknown>[], 20);
     const summary = formatPerformanceSummary(employees, teamAverage, timePeriod);
+    const comparisonSeries = buildPerformanceComparisonSeries(employees, teamAverage, timePeriod);
 
     return {
       success: true,
-      data: { employees, teamAverage, period: timePeriod },
+      data: { employees, teamAverage, period: timePeriod, comparisonSeries },
       summary,
       metadata: {
         source: 'reimbursement_users, tasks, user_badges, activities, knowledge_documents',

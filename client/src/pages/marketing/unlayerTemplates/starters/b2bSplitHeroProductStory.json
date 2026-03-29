@@ -1,0 +1,98 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "layoutDensity": "airy",
+  "subject": "Platform update — approvals that match how you ship",
+  "preheader": "Split-view hero: product story on the left, proof on the right. See how teams cut review cycles without skipping governance—one primary CTA to the live walkthrough.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Ship with confidence at every gate",
+        "subheadline": "Connect policy, evidence, and deployment in one place — built for platform and security leaders.",
+        "ctaText": "Book a walkthrough",
+        "ctaUrl": "https://example.com/demo?utm_source=email&utm_medium=b2b&utm_campaign=split_hero_q1",
+        "imagePrompt": "Split-column friendly product scene: dashboard glow on ultrawide monitor, cool teal rim light, dark modern office, shallow depth of field, no readable UI text or logos",
+        "alignment": "left",
+        "heroLayout": "split",
+        "altText": "Product dashboard on monitor in modern office"
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "headline": "What changed for release managers",
+        "body": "Inline approvals now mirror your Git flow — reviewers see the same trace IDs your CI emits, so nothing ships without a signed trail.",
+        "imagePrompt": "Hands typing on laptop with soft blue ambient light, sticky notes blurred in background, professional B2B photography, no readable screen text",
+        "altText": "Reviewer working at laptop",
+        "layout": "image_right",
+        "ctaText": "Read the playbook",
+        "ctaUrl": "https://example.com/playbook?utm_source=email&utm_medium=b2b&utm_campaign=split_hero_q1"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 3,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Why teams adopt",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Layers",
+            "heading": "One audit trail",
+            "description": "Exports your compliance partners can replay without spreadsheets.",
+            "imagePrompt": "Abstract stacked layers with subtle seal motif, navy and silver, no legible text"
+          },
+          {
+            "icon": "Zap",
+            "heading": "Faster handoffs",
+            "description": "Policy checks run before merge — not after the fact.",
+            "imagePrompt": "Minimal lightning motif on slate background, executive palette, no words"
+          },
+          {
+            "icon": "Shield",
+            "heading": "Safer defaults",
+            "description": "Canary, approvals, and rollback in one policy surface.",
+            "imagePrompt": "Abstract shield with circuit traces, soft blue glow, no readable labels"
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 4,
+      "content": {
+        "headline": "See it on your stack",
+        "description": "30-minute session — bring your roughest workflow.",
+        "buttonText": "Schedule demo",
+        "buttonUrl": "https://example.com/demo?utm_source=email&utm_medium=b2b&utm_campaign=split_hero_q1",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 5,
+      "content": {
+        "companyName": "Northline Governance",
+        "address": "Product · hello@example.com",
+        "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "professional, proof-led",
+    "audience": "platform and security leaders",
+    "campaign_id": "split_hero_q1",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "confident, enterprise",
+    "imageStyle": "Executive tech photography and abstract motifs"
+  }
+}

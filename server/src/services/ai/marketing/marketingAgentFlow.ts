@@ -112,8 +112,15 @@ const CAMPAIGN_METRICS_ONLY_TOOLS = new Set([
   'marketing:get_campaign_performance',
   'marketing:get_marketing_roi',
 ]);
-/** Routing + campaign + content can exceed 40s when tools run; content loop uses more rounds. */
-const TOTAL_MS = 90_000;
+/**
+ * Instagram image gen (Fal → optional Gemini/OpenAI fallback) can exceed 90s; default 180s so Lucy chat
+ * finishes before timing out. Override with MARKETING_FLOW_TIMEOUT_MS (min 30000).
+ */
+const TOTAL_MS = (() => {
+  const raw = Number(process.env.MARKETING_FLOW_TIMEOUT_MS?.trim());
+  if (Number.isFinite(raw) && raw >= 30_000) return Math.min(raw, 600_000);
+  return 180_000;
+})();
 
 const ROUTE_MARKETING_TOOL: OpenAI.ChatCompletionTool = {
   type: 'function',

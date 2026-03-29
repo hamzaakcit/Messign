@@ -31,6 +31,10 @@ export const INSTAGRAM_CHANNEL_SPEC = `
   Mix 3 tiers: 3–5 high-volume (500K+ posts), 5–7 mid-range (50K–500K),
   2–3 niche/branded. No banned or spam hashtags. On a new line after the CTA.
 
+#### Visual fidelity (non-negotiable)
+- The **[IMAGE_PROMPT]** must describe the **same** story as the caption and the user’s **campaign brief** (product, brand, setting, people, mood). **Do not** substitute a generic B2B office, conference room, or “team collaboration” scene when the brief is about fashion, retail, travel, food, product, a named city, or a specific outdoor/indoor location.
+- If the user asked for **aspect ratio** (e.g. 16:9 vs 1:1) or **composition** (e.g. cinematic wide shot, flat lay), **repeat it** in the IMAGE_PROMPT. The image generator must not invent a square portrait when the brief asked for a wide banner-style scene.
+
 #### Visual synthesis (REQUIRED for every Instagram post)
 For **every** Instagram draft, you MUST include a dedicated block in this
 EXACT format — the orchestrator parses it programmatically:
@@ -207,6 +211,35 @@ ${AD_SPEC}`;
 export const CHANNEL_SPECS_BLOCK = buildChannelSpecsBlock();
 
 // ============================================================================
+// REFERENCE_IMAGE_URL — user-uploaded photo for Kontext (Lucy Instagram modal)
+// ============================================================================
+
+/**
+ * Removes a `[REFERENCE_IMAGE_URL]...[/REFERENCE_IMAGE_URL]` block from the user brief and
+ * returns the HTTPS URL when valid. Used before Content Strategist so the URL is not echoed in captions.
+ */
+export function stripReferenceImageUrlBlock(text: string): { cleaned: string; referenceUrl: string | null } {
+  const REFERENCE_IMAGE_URL_BLOCK =
+    /\[\s*REFERENCE[\s_]IMAGE[\s_]URL\s*\]\s*([\s\S]*?)\s*\[\s*\/\s*REFERENCE[\s_]IMAGE[\s_]URL\s*\]/i;
+  const match = text.match(REFERENCE_IMAGE_URL_BLOCK);
+  if (!match) return { cleaned: text, referenceUrl: null };
+  const raw = match[1]?.trim() ?? '';
+  const cleaned = text.replace(REFERENCE_IMAGE_URL_BLOCK, '').replace(/\n{3,}/g, '\n\n').trim();
+  if (!raw || raw.length > 2048) {
+    return { cleaned: text.trim(), referenceUrl: null };
+  }
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'https:') {
+      return { cleaned: text.trim(), referenceUrl: null };
+    }
+  } catch {
+    return { cleaned: text.trim(), referenceUrl: null };
+  }
+  return { cleaned, referenceUrl: raw };
+}
+
+// ============================================================================
 // IMAGE_PROMPT extraction utility
 // ============================================================================
 // Used by the orchestration workflow to parse the agent's output.
@@ -310,4 +343,5 @@ export default {
   extractImagePrompts,
   extractCaption,
   extractAltText,
+  stripReferenceImageUrlBlock,
 };

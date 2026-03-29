@@ -1,4 +1,4 @@
-import { Users } from 'lucide-react';
+import { Activity, Target, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { DoraWidgetShell } from './DoraWidgetShell';
 
@@ -18,9 +18,27 @@ function num(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function normalizeTeams(data: unknown): TeamMetricRow[] {
-  if (!Array.isArray(data)) return [];
-  return data as TeamMetricRow[];
+interface TeamOverviewAggShape {
+  teamCount: number;
+  totalMembers: number;
+  avgCompletion: number;
+  totalTasks: number;
+  completedTasks: number;
+}
+
+function parseTeamPayload(data: unknown): {
+  teams: TeamMetricRow[];
+  period: string;
+  aggregates: TeamOverviewAggShape | null;
+} {
+  if (!data) return { teams: [], period: '', aggregates: null };
+  if (Array.isArray(data)) return { teams: data as TeamMetricRow[], period: '', aggregates: null };
+  const o = data as Record<string, unknown>;
+  return {
+    teams: Array.isArray(o.teams) ? (o.teams as TeamMetricRow[]) : [],
+    period: typeof o.period === 'string' ? o.period : '',
+    aggregates: (o.aggregates as TeamOverviewAggShape) ?? null,
+  };
 }
 
 const BAR_COLORS = ['#38bdf8', '#8b5cf6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4'];
@@ -34,7 +52,7 @@ export default function TeamComparisonWidget({
   title?: string;
   delay?: number;
 }) {
-  const teams = normalizeTeams(data);
+  const { teams, period, aggregates } = parseTeamPayload(data);
 
   if (teams.length === 0) {
     return (
@@ -51,6 +69,14 @@ export default function TeamComparisonWidget({
     );
   }
 
+  const periodLabel = period ? period.replace(/_/g, ' ') : '';
+  const subtitleParts = [
+    aggregates
+      ? `${aggregates.teamCount} team(s) · ${aggregates.totalMembers} members · ${aggregates.avgCompletion}% avg`
+      : `${teams.length} team${teams.length === 1 ? '' : 's'}`,
+    periodLabel,
+  ].filter(Boolean);
+
   const chartData = teams.map((t) => ({
     name: (t.name ?? 'Team').slice(0, 18),
     fullName: t.name ?? 'Team',
@@ -63,9 +89,27 @@ export default function TeamComparisonWidget({
     <DoraWidgetShell
       title={title}
       icon={<Users size={14} className="text-sky-400" />}
-      subtitle={`${teams.length} team${teams.length === 1 ? '' : 's'} · completion rate vs members`}
+      subtitle={subtitleParts.join(' · ')}
       delay={delay}
     >
+      {aggregates ? (
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="rounded-xl border border-app-border/70 bg-app-bg/30 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-app-muted">Avg completion</div>
+            <div className="text-lg font-bold text-app-text tabular-nums flex items-center gap-1">
+              <Target size={16} className="text-violet-400" />
+              {aggregates.avgCompletion}%
+            </div>
+          </div>
+          <div className="rounded-xl border border-app-border/70 bg-app-bg/30 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-app-muted">Tasks done</div>
+            <div className="text-lg font-bold text-app-text tabular-nums flex items-center gap-1">
+              <Activity size={16} className="text-sky-400" />
+              {aggregates.completedTasks}/{aggregates.totalTasks || '—'}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="h-[200px] w-full mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>

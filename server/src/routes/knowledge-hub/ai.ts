@@ -24,6 +24,7 @@ import { logTelemetry, attachFeedback, insertRequestTelemetry, getUserAiStats } 
 import { query } from '../../db/index.js';
 import { getDoraBriefingSnapshot } from '../../services/ai/dora/briefingSnapshot.js';
 import { inferActConfirmation } from '../../services/ai/actConfirmation.js';
+import { documentsFromKnowledgeSearchData } from '../../services/ai/tools/knowledgeSearchAggregates.js';
 import type { SourceDocument } from '../../services/ai/types.js';
 import type { OrchestrationResult, AgentStep } from '../../services/ai/orchestrator/types.js';
 
@@ -72,8 +73,9 @@ function extractSources(routerResult: { toolResults: { success: boolean; data: u
   const seenTitles = new Set<string>();
 
   for (const result of routerResult.toolResults) {
-    if (!result.success || !result.data || !Array.isArray(result.data)) continue;
-    for (const item of result.data as Record<string, unknown>[]) {
+    if (!result.success || !result.data) continue;
+    const rows = documentsFromKnowledgeSearchData(result.data);
+    for (const item of rows as Record<string, unknown>[]) {
       if (item.title && item.id && (item.slug != null || item.document_type != null)) {
         const id = String(item.id);
         const titleKey = String(item.title).toLowerCase().trim();

@@ -4,8 +4,33 @@
 import {
   extractImagePrompts,
   extractCaption,
+  stripReferenceImageUrlBlock,
 } from '../../../modules/marketing/prompts/instagramChannelSpec.js';
 import { parseInstagramDraft } from '../../../services/marketing/workflows/instagramImagePipeline.js';
+
+describe('stripReferenceImageUrlBlock', () => {
+  it('extracts HTTPS URL and strips block', () => {
+    const raw = `[REFERENCE_IMAGE_URL]
+https://cdn.example.com/u/photo.jpg
+[/REFERENCE_IMAGE_URL]
+
+Draft about summer.`;
+    const { cleaned, referenceUrl } = stripReferenceImageUrlBlock(raw);
+    expect(referenceUrl).toBe('https://cdn.example.com/u/photo.jpg');
+    expect(cleaned).toContain('Draft about summer');
+    expect(cleaned).not.toContain('[REFERENCE_IMAGE_URL]');
+  });
+
+  it('returns null when URL is not HTTPS', () => {
+    const raw = `[REFERENCE_IMAGE_URL]
+http://insecure.example.com/a.jpg
+[/REFERENCE_IMAGE_URL]
+
+Body`;
+    const { referenceUrl } = stripReferenceImageUrlBlock(raw);
+    expect(referenceUrl).toBeNull();
+  });
+});
 
 // ---------------------------------------------------------------------------
 // extractImagePrompts — hardened patterns
@@ -136,5 +161,17 @@ describe('parseInstagramDraft', () => {
     });
     expect(result.autoSynthesized).toBe(true);
     expect(result.imagePrompt!.toLowerCase()).toContain('scooter');
+  });
+
+  it('prepends user intent when extracted IMAGE_PROMPT is generic vs brief (short brand names count)', () => {
+    const draft = `Caption.\n\n[IMAGE_PROMPT]\nProfessional marketing photography with cinematic lighting and shallow depth of field.\n[/IMAGE_PROMPT]`;
+    const result = parseInstagramDraft(draft, {
+      title: 'Mavi Jeans discount',
+      userBrief: 'Diverse couple in Mavi denim on a European city street with shopping bags',
+    });
+    expect(result.autoSynthesized).toBe(false);
+    expect(result.imagePrompt).toContain("User's request");
+    expect(result.imagePrompt).toMatch(/Mavi|mavi/);
+    expect(result.imagePrompt).toMatch(/European|european/);
   });
 });

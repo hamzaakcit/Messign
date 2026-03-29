@@ -120,7 +120,7 @@ export function BuilderSection(): JSX.Element {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  /** Deep-link from board email card: `/marketing/builder?type=email&open=<id>` */
+  /** Deep-link from email card: `/marketing/builder?type=email&open=<id>` */
   const openId = searchParams.get('open');
   useEffect(() => {
     if (!openId || items.length === 0 || loading) return;

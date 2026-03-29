@@ -5,3 +5,6 @@ export { LoginLogo } from './LoginLogo';
 export { FloatingBadges } from './FloatingBadges';
 export { ParticleEffect } from './ParticleEffect';
 export { PulseRings } from './PulseRings';
+export { LoginFalPaperPlanePanel } from './LoginFalPaperPlanePanel';
+export { LoginCrewHero } from './LoginCrewHero';
+export { LoginCrewStrip } from './LoginCrewStrip';

@@ -165,7 +165,10 @@ async function tryRefreshToken(): Promise<boolean> {
 
 export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const { headers: optHeaders, ...restOpts } = options ?? {};
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const isFormData = typeof FormData !== 'undefined' && restOpts.body instanceof FormData;
+  const headers: Record<string, string> = isFormData
+    ? {}
+    : { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -177,12 +180,18 @@ export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Prom
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     const err = (body as { error?: string | { message?: string } }).error;
-    const message = typeof err === 'string' ? err : (err && typeof err === 'object' && err.message ? err.message : response.statusText);
+    let message = typeof err === 'string' ? err : (err && typeof err === 'object' && err.message ? err.message : response.statusText);
+    const retryAfter = (body as { retryAfterSec?: number }).retryAfterSec;
+    if (response.status === 429 && typeof retryAfter === 'number' && Number.isFinite(retryAfter)) {
+      message = `${message} (retry after ~${Math.ceil(retryAfter)}s)`;
+    }
 
     if (response.status === 401 && !endpoint.startsWith('/auth/')) {
       const refreshed = await tryRefreshToken();
       if (refreshed) {
-        const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const retryHeaders: Record<string, string> = isFormData
+          ? {}
+          : { 'Content-Type': 'application/json' };
         const newToken = getAccessToken();
         if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
         const retryResponse = await fetch(`${API_BASE}${endpoint}`, {

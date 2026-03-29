@@ -28,19 +28,24 @@ vi.mock('@/stores/authStore', () => ({
   }),
 }));
 
-vi.mock('@/components/command-center/CommandCenter', () => ({
-  CommandCenter: () => <div data-testid="command-center">Command Center</div>,
+vi.mock('@/components/dashboard/MainDashboard', () => ({
+  MainDashboard: () => (
+    <div data-testid="main-dashboard" role="main" aria-label="Dashboard">
+      Dashboard
+    </div>
+  ),
 }));
 
 describe('DashboardView', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('renders Command Center shell', () => {
-    const { getByTestId } = render(
+  it('renders MainDashboard shell', () => {
+    const { getByTestId, getByRole } = render(
       <MemoryRouter>
         <DashboardView />
       </MemoryRouter>,
     );
-    expect(getByTestId('command-center')).toBeTruthy();
+    expect(getByTestId('main-dashboard')).toBeTruthy();
+    expect(getByRole('main', { name: /dashboard/i })).toBeTruthy();
   });
 });

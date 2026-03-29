@@ -1,21 +1,44 @@
+/**
+ * Mission Control — handler map (preserve when refactoring JSX):
+ * URL: tab=tasks|marketplace, filter, q, opp, project (task scope)
+ * setViewMode, setOpportunityFilter, setSearchQuery, setActiveTab, setViewLayout (localStorage)
+ * Advanced: advDepartment, advSkill, advTime, advXp, advStatus via MarketplaceNavBar
+ * Tasks: taskProjectFilter, fetchTasks, handleGoToWorkspace → setActiveProject + fetchTasks
+ * Apply: runApply, handleApplyProject, slotPickProject flow, handleClaimSideOp, refetchMarketplace
+ * Modals: selectedProject + detailApplyNote + closeProjectModal; ProposeProjectModal success
+ * TaskBoard: DnD → useProjectStore.updateTaskStatus only; onSelectProject → setSelectedProject
+ *
+ * API parity: tasks have no attachment field — file upload not implemented client-side.
+ */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Search, Calendar, Users, Zap, Tag, ExternalLink } from 'lucide-react';
+import { Search, Calendar, Users, Zap, Tag, ExternalLink, LayoutGrid, ListTodo, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { useProjectStore } from '@/stores/projectStore';
 import { projectsAPI, bountiesAPI, type MarketplaceProject } from '@/lib/api';
 import { openBountiesQueryKey, useOpenBountiesQuery } from '@/hooks/useOpenBountiesQuery';
-import { Button, Modal, Input } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent } from '@/components/ui';
 import { MarketplaceNavBar } from '@/components/marketplace';
 import { TaskBoard } from '@/components/projects/TaskBoard';
 import { ProposeProjectModal } from '@/components/projects/ProposeProjectModal';
+import { MissionControlVitalsColumn } from '@/components/projects/MissionControlVitalsColumn';
+import { MissionControlActivityColumn } from '@/components/projects/MissionControlActivityColumn';
+import { ProjectOptimizationDialog } from '@/components/projects/ProjectOptimizationDialog';
+import { CreateTaskSheet } from '@/components/projects/CreateTaskSheet';
+import { ViewportContainer } from '@/components/layout/ViewportContainer';
 import { cn } from '@/lib/utils';
-import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { marketplaceProjectsQueryKey, useMarketplaceProjectsQuery } from '@/hooks/useMarketplaceProjectsQuery';
+import { PROJECTS_MISSION_EVENT, type ProjectsMissionDetail } from '@/lib/projectsMissionEvents';
 
 import type { SideOpItem, OpportunityFilter } from './types';
 import {
@@ -166,7 +189,22 @@ export function ProjectsView(): JSX.Element {
     }
   }, []);
 
-  const [taskProjectFilter, setTaskProjectFilter] = useState<'all' | string>('all');
+  const [taskProjectFilter, setTaskProjectFilterState] = useState<'all' | string>('all');
+  const setTaskProjectFilter = useCallback(
+    (value: 'all' | string) => {
+      setTaskProjectFilterState(value);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value === 'all') next.delete('project');
+          else next.set('project', value);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [appliedOptimistic, setAppliedOptimistic] = useState<Set<string>>(new Set());
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [claimingBountyId, setClaimingBountyId] = useState<string | null>(null);
@@ -176,6 +214,9 @@ export function ProjectsView(): JSX.Element {
   const [slotPickProject, setSlotPickProject] = useState<MarketplaceProject | null>(null);
   const [slotChoice, setSlotChoice] = useState<string>('');
   const [slotApplyMessage, setSlotApplyMessage] = useState('');
+  const [showCreateTaskSheet, setShowCreateTaskSheet] = useState(false);
+  const [showOptimizeDialog, setShowOptimizeDialog] = useState(false);
+  const [taskViewMode, setTaskViewMode] = useState<'kanban' | 'list'>('kanban');
 
   useEffect(() => {
     if (slotPickProject) {
@@ -185,11 +226,22 @@ export function ProjectsView(): JSX.Element {
     }
   }, [slotPickProject]);
 
-  const projectModalRef = useRef<HTMLDivElement>(null);
-  const slotModalRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  useFocusTrap(!!selectedProject, projectModalRef);
-  useFocusTrap(!!slotPickProject, slotModalRef);
+
+  useEffect(() => {
+    const onMission = (e: Event) => {
+      const ce = e as CustomEvent<ProjectsMissionDetail>;
+      const d = ce.detail;
+      if (!d) return;
+      if (d.action === 'create-task') setShowCreateTaskSheet(true);
+      if (d.action === 'propose') setShowProposeModal(true);
+      if (d.action === 'open-optimize') setShowOptimizeDialog(true);
+      if (d.action === 'hub') setViewMode('marketplace');
+      if (d.action === 'tasks') setViewMode('tasks');
+    };
+    window.addEventListener(PROJECTS_MISSION_EVENT, onMission);
+    return () => window.removeEventListener(PROJECTS_MISSION_EVENT, onMission);
+  }, [setViewMode]);
 
   useEffect(() => {
     if (viewMode === 'tasks' && user?.id) {
@@ -259,11 +311,21 @@ export function ProjectsView(): JSX.Element {
     return activeProjectIds;
   }, [activeProjectIds, taskProjectFilter]);
 
+  const projectParam = searchParams.get('project');
+
   useEffect(() => {
     if (taskProjectFilter !== 'all' && !activeProjectIds.has(taskProjectFilter)) {
       setTaskProjectFilter('all');
     }
-  }, [activeProjectIds, taskProjectFilter]);
+  }, [activeProjectIds, taskProjectFilter, setTaskProjectFilter]);
+
+  useEffect(() => {
+    if (projectParam && activeProjectIds.has(projectParam)) {
+      setTaskProjectFilterState(projectParam);
+    } else if (!projectParam) {
+      setTaskProjectFilterState('all');
+    }
+  }, [projectParam, activeProjectIds]);
 
   const launchedTaskCount = useMemo(
     () => tasks.filter((t) => taskBoardProjectIds.has(t.projectId)).length,
@@ -423,15 +485,33 @@ export function ProjectsView(): JSX.Element {
     );
   }
 
+  const scopedTasksForOptimize = useMemo(
+    () => tasks.filter((t) => taskBoardProjectIds.has(t.projectId)),
+    [tasks, taskBoardProjectIds],
+  );
+
+  const optimizeLabel =
+    taskProjectFilter === 'all' ? undefined : activeProjectsList.find((p) => p.id === taskProjectFilter)?.name;
+
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 pt-4">
-        <DoraInsightBar module="projects" />
-      </div>
+    <ViewportContainer density="compact" className="min-h-0 flex-1 bg-app">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-4 gap-px bg-app-border border-y border-app-border">
+        <MissionControlVitalsColumn
+          activeProjects={activeProjectsList}
+          focusProjectId={taskProjectFilter === 'all' ? null : taskProjectFilter}
+          onFocusProject={(id) => setTaskProjectFilter(id ?? 'all')}
+          tasks={tasks}
+          taskProjectIds={taskBoardProjectIds}
+          className="md:col-span-1 min-h-0 max-h-[36vh] md:max-h-none overflow-hidden"
+        />
+        <div className="flex flex-col min-h-0 min-w-0 bg-app/90 md:col-span-2 border-x border-app-border backdrop-blur-[1px]">
+          <div className="shrink-0 px-3 py-2 border-b border-app-border">
+            <DoraInsightBar module="projects" className="[&>div]:max-w-none" />
+          </div>
       <Tabs
         value={viewMode}
         onValueChange={(v) => setViewMode(v as 'marketplace' | 'tasks')}
-        className="h-full flex flex-col min-h-0"
+        className="flex flex-col flex-1 min-h-0"
       >
         <MarketplaceNavBar
           activeTab={viewMode === 'marketplace' ? 'opportunity-hub' : 'tasks'}
@@ -459,7 +539,7 @@ export function ProjectsView(): JSX.Element {
           }}
         />
 
-        <TabsContent value="marketplace" className="flex-1 overflow-auto p-4 flex flex-col min-h-0">
+        <TabsContent value="marketplace" className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 text-[13px]">
           <p id="projects-opportunity-count" className="sr-only" aria-live="polite" aria-atomic="true">
             {filteredOpportunities.length} opportunities match your filters.
           </p>
@@ -760,15 +840,15 @@ export function ProjectsView(): JSX.Element {
             </div>
           ) : null}
           {activeProjectIds.size > 1 ? (
-            <div className="shrink-0 px-4 pt-3 flex flex-wrap items-center gap-2 border-b border-app-border">
-              <label htmlFor="task-project-filter" className="text-xs text-app-muted shrink-0">
-                Show tasks for
+            <div className="shrink-0 px-3 pt-2 flex flex-wrap items-center gap-2 border-b border-app-border">
+              <label htmlFor="task-project-filter" className="text-[10px] text-app-muted shrink-0 uppercase tracking-wide">
+                Project
               </label>
               <select
                 id="task-project-filter"
                 value={taskProjectFilter}
                 onChange={(e) => setTaskProjectFilter(e.target.value === 'all' ? 'all' : e.target.value)}
-                className="h-9 rounded-lg bg-app-surface-tertiary border border-app-border px-3 text-sm text-app max-w-[min(100%,20rem)]"
+                className="h-8 rounded-md bg-app-surface-tertiary border border-app-border px-2 text-[13px] text-app max-w-[min(100%,20rem)]"
               >
                 <option value="all">All active projects</option>
                 {activeProjectsList.map((p) => (
@@ -777,6 +857,77 @@ export function ProjectsView(): JSX.Element {
                   </option>
                 ))}
               </select>
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  title="Kanban"
+                  aria-label="Kanban view"
+                  onClick={() => setTaskViewMode('kanban')}
+                  className={cn(
+                    'p-1.5 rounded-md border border-transparent',
+                    taskViewMode === 'kanban' ? 'bg-app-surface-tertiary border-app-border text-app' : 'text-app-muted hover:text-app',
+                  )}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  title="List"
+                  aria-label="List view"
+                  onClick={() => setTaskViewMode('list')}
+                  className={cn(
+                    'p-1.5 rounded-md border border-transparent',
+                    taskViewMode === 'list' ? 'bg-app-surface-tertiary border-app-border text-app' : 'text-app-muted hover:text-app',
+                  )}
+                >
+                  <ListTodo className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  title="New task"
+                  aria-label="New task"
+                  onClick={() => setShowCreateTaskSheet(true)}
+                  className="p-1.5 rounded-md border border-app-border bg-app-surface-tertiary text-app hover:bg-app-hover"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : activeProjectIds.size === 1 ? (
+            <div className="shrink-0 px-3 pt-2 flex justify-end border-b border-app-border gap-1">
+              <button
+                type="button"
+                title="Kanban"
+                aria-label="Kanban view"
+                onClick={() => setTaskViewMode('kanban')}
+                className={cn(
+                  'p-1.5 rounded-md border border-transparent',
+                  taskViewMode === 'kanban' ? 'bg-app-surface-tertiary border-app-border text-app' : 'text-app-muted hover:text-app',
+                )}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                title="List"
+                aria-label="List view"
+                onClick={() => setTaskViewMode('list')}
+                className={cn(
+                  'p-1.5 rounded-md border border-transparent',
+                  taskViewMode === 'list' ? 'bg-app-surface-tertiary border-app-border text-app' : 'text-app-muted hover:text-app',
+                )}
+              >
+                <ListTodo className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                title="New task"
+                aria-label="New task"
+                onClick={() => setShowCreateTaskSheet(true)}
+                className="p-1.5 rounded-md border border-app-border bg-app-surface-tertiary text-app hover:bg-app-hover"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
           ) : null}
           <div className="flex-1 min-h-0">
@@ -788,18 +939,26 @@ export function ProjectsView(): JSX.Element {
                 const p = marketplaceProjects.find((pr) => pr.id === id);
                 if (p) setSelectedProject(p);
               }}
+              compact
+              viewMode={taskViewMode}
             />
           </div>
         </TabsContent>
       </Tabs>
+        </div>
+        <MissionControlActivityColumn
+          activeProjects={activeProjectsList}
+          tasks={tasks}
+          taskProjectIds={taskBoardProjectIds}
+          className="md:col-span-1 min-h-0 max-h-[36vh] md:max-h-none overflow-hidden"
+        />
+      </div>
 
-      <Modal
-        isOpen={!!selectedProject}
-        onClose={closeProjectModal}
-        title={selectedProject?.name ?? 'Project details'}
-        size="lg"
-        contentRef={projectModalRef}
-      >
+      <Dialog open={!!selectedProject} onOpenChange={(o) => !o && closeProjectModal()}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedProject?.name ?? 'Project details'}</DialogTitle>
+          </DialogHeader>
         {selectedProject && (
           <div className="space-y-4">
             <div>
@@ -906,15 +1065,14 @@ export function ProjectsView(): JSX.Element {
             </div>
           </div>
         )}
-      </Modal>
+        </DialogContent>
+      </Dialog>
 
-      <Modal
-        isOpen={!!slotPickProject}
-        onClose={() => setSlotPickProject(null)}
-        title="Choose role"
-        size="sm"
-        contentRef={slotModalRef}
-      >
+      <Dialog open={!!slotPickProject} onOpenChange={(o) => !o && setSlotPickProject(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose role</DialogTitle>
+          </DialogHeader>
         {slotPickProject && (
           <div className="space-y-4">
             <p className="text-sm text-app-muted">
@@ -965,7 +1123,8 @@ export function ProjectsView(): JSX.Element {
             </div>
           </div>
         )}
-      </Modal>
+        </DialogContent>
+      </Dialog>
 
       <ProposeProjectModal
         isOpen={showProposeModal}
@@ -975,6 +1134,19 @@ export function ProjectsView(): JSX.Element {
           void refetch();
         }}
       />
-    </div>
+
+      <CreateTaskSheet
+        open={showCreateTaskSheet}
+        onOpenChange={setShowCreateTaskSheet}
+        activeProjects={activeProjectsList}
+        defaultProjectId={taskProjectFilter === 'all' ? null : taskProjectFilter}
+      />
+      <ProjectOptimizationDialog
+        open={showOptimizeDialog}
+        onOpenChange={setShowOptimizeDialog}
+        tasks={scopedTasksForOptimize}
+        projectLabel={optimizeLabel}
+      />
+    </ViewportContainer>
   );
 }

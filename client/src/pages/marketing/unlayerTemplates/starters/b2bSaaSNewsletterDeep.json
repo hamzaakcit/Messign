@@ -1,0 +1,177 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "layoutDensity": "compact",
+  "subject": "Pipeline Notes — Shipping, Security, and What Your Team Missed",
+  "preheader": "A concise B2B digest: rollout guardrails, a metrics snapshot, and two deep dives with distinct visuals—built for product and platform leads who want signal without the slide deck. Unsubscribe anytime; we respect your inbox.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "What shipped in your stack this month",
+        "subheadline": "Progressive delivery, audit trails, and the integrations your buyers ask about on every call—summarized for internal alignment.",
+        "ctaText": "Open the web digest",
+        "ctaUrl": "https://example.com/digest",
+        "imagePrompt": "Abstract data center corridor with cool blue server lights, shallow depth of field, no readable text on screens, cinematic tech photography",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Why teams standardize on this release train",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Shield",
+            "heading": "Policy-as-code",
+            "description": "Guardrails once; enforce in CI and at deploy time.",
+            "imagePrompt": "Minimal isometric shield with circuit motif on dark slate background, soft glow, no text"
+          },
+          {
+            "icon": "Layers",
+            "heading": "Progressive rollouts",
+            "description": "Canary, traffic shifting, and instant rollback without playbook panic.",
+            "imagePrompt": "Abstract layered planes suggesting staged rollout, blue and graphite palette, clean 3D shapes"
+          },
+          {
+            "icon": "BarChart",
+            "heading": "Audit-ready trails",
+            "description": "Who shipped what, when, and why—exportable for auditors and postmortems.",
+            "imagePrompt": "Soft-focus analytics wall display with blurred charts, executive office, no legible numbers"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "headline": "Integrations that survive procurement",
+        "body": "Plug into your Git provider, artifact registry, and observability stack. The goal is fewer bespoke scripts and more shared runbooks—so on-call stays human-sized.",
+        "imagePrompt": "Developers pairing at a wide monitor showing blurred CI pipeline stages, modern office, candid workplace photo, no readable UI text",
+        "altText": "Engineers reviewing a deployment pipeline together",
+        "layout": "image_left",
+        "ctaText": "View integrations",
+        "ctaUrl": "https://example.com/integrations"
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "headline": "Security posture without slowing the roadmap",
+        "body": "Map controls to frameworks your customers care about—SOC2, ISO, and internal policies—without freezing every release behind a ticket queue.",
+        "imagePrompt": "Security engineer reviewing a risk register on a laptop in a bright office, shallow depth of field, no readable text",
+        "altText": "Security review session",
+        "layout": "image_right",
+        "ctaText": "See the checklist",
+        "ctaUrl": "https://example.com/security"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 5,
+      "variant": "band",
+      "content": {
+        "body": "<strong>Editorial note:</strong> This issue is intentionally dense—skim the grids, read the two image-text rows, and forward the metrics strip to your CISO.",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 6,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Starter packs — proof points",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Rollout playbook",
+            "description": "Canary templates and rollback scripts.",
+            "price": "Included",
+            "imagePrompt": "Minimal notebook with checklist icon on desk, neutral B2B product photography",
+            "linkUrl": "https://example.com/p/playbook"
+          },
+          {
+            "name": "Audit export",
+            "description": "CSV + PDF for auditors and buyers.",
+            "price": "Included",
+            "imagePrompt": "Stack of printed reports with soft focus, corporate office lighting",
+            "linkUrl": "https://example.com/p/audit"
+          },
+          {
+            "name": "Integration health",
+            "description": "Live status for webhooks and APIs.",
+            "price": "Add-on",
+            "imagePrompt": "Server status lights blurred in rack, cool blue tones, abstract tech",
+            "linkUrl": "https://example.com/p/health"
+          }
+        ]
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 7,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Deployments / week (median)", "value": "48+" },
+          { "label": "Mean time to rollback", "value": "< 3m" },
+          { "label": "Teams on platform", "value": "1,200+" }
+        ]
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 8,
+      "variant": "card",
+      "content": {
+        "quote": "We finally stopped arguing about whether a release was safe—the guardrails are visible to every squad, and the audit trail is a button click.",
+        "authorName": "Priya N.",
+        "authorRole": "VP Platform",
+        "authorCompany": "Northwind Analytics",
+        "rating": 5
+      }
+    },
+    {
+      "type": "cta",
+      "order": 9,
+      "content": {
+        "headline": "Book a 25-minute architecture review",
+        "description": "We map your release model and show where guardrails fit without freezing teams.",
+        "buttonText": "Talk to solutions",
+        "buttonUrl": "https://example.com/contact",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 10,
+      "variant": "band",
+      "content": {
+        "companyName": "LatticeShip Systems",
+        "address": "1 Embarcadero Center, San Francisco, CA 94111",
+        "unsubscribeText": "B2B product updates from LatticeShip. Unsubscribe or manage topics below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "precise, trustworthy, engineering-led",
+    "audience": "Platform, security, and product marketing at mid-market SaaS",
+    "visual_density": "rich",
+    "target_image_slots": 9
+  },
+  "artDirection": {
+    "mood": "confident, technical, calm",
+    "imageStyle": "Modern enterprise tech photography with blue-slate palette"
+  }
+}

@@ -9,6 +9,23 @@ import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import { buildShortFinancialSummarySummary } from './financialSummarySummary.js';
+
+function emptyReimbursementStatsRow(): Record<string, unknown> {
+  return {
+    total_count: 0,
+    total_amount: 0,
+    pending_count: 0,
+    pending_amount: 0,
+    approved_count: 0,
+    approved_amount: 0,
+    rejected_count: 0,
+  };
+}
+
+function emptyInvoiceStatsRow(): Record<string, unknown> {
+  return { total: 0, total_amount: 0, paid: 0, unpaid: 0 };
+}
 
 function buildFinanceDateFilter(period: string): Date {
   const now = new Date();
@@ -90,7 +107,27 @@ Use this tool when someone asks:
       return { success: false, data: null, summary: 'Organization not configured.' };
     }
 
+    const teamScopeMissing = scope === 'team' && !context.teamId;
+    let teamMemberRuIds: string[] | null = null;
+    if (scope === 'team' && context.teamId) {
+      const tm = await query<{ id: string }>(
+        `SELECT ru.id::text AS id
+         FROM reimbursement_users ru
+         INNER JOIN performance_team_members ptm
+           ON ptm.employee_id = ru.auth_user_id AND ptm.is_active = TRUE
+         WHERE ru.organization_id = $1 AND ptm.team_id = $2`,
+        [orgId, context.teamId]
+      );
+      teamMemberRuIds = tm.rows.map((r) => r.id);
+    }
+
+    const needsTeamFilter =
+      scope === 'team' && Boolean(context.teamId) && teamMemberRuIds !== null && teamMemberRuIds.length > 0;
+    const teamFilterEmpty =
+      scope === 'team' && Boolean(context.teamId) && teamMemberRuIds !== null && teamMemberRuIds.length === 0;
+
     let reimbursementStats: Record<string, unknown> | null = null;
+    let reimbursementsError: string | undefined;
 
     if (scope === 'my') {
       const userResult = await query<{ id: string }>(
@@ -137,13 +174,23 @@ Use this tool when someone asks:
         const result = await query(reimbQuery, reimbParams);
         reimbursementStats = result.rows[0] as Record<string, unknown>;
       } catch (err) {
-        reimbursementStats = { error: (err as Error).message };
+        reimbursementStats = null;
+        reimbursementsError = (err as Error).message;
       }
+    } else if (teamFilterEmpty) {
+      reimbursementStats = emptyReimbursementStatsRow();
     } else {
       try {
         let reimbQuery: string;
         const reimbParams: unknown[] = [orgId, dateFilter];
+        let teamWhere = '';
+        if (needsTeamFilter) {
+          reimbParams.push(teamMemberRuIds);
+          teamWhere = ` AND r.submitted_by = ANY($${reimbParams.length}::uuid[])`;
+        }
         if (category) {
+          reimbParams.push(category);
+          const catIdx = reimbParams.length;
           reimbQuery = `
             SELECT
               COUNT(*)::int as total_count,
@@ -155,9 +202,8 @@ Use this tool when someone asks:
               COUNT(*) FILTER (WHERE r.status = 'rejected')::int as rejected_count
             FROM reimbursement_requests r
             JOIN expense_categories c ON c.id = r.category_id
-            WHERE r.organization_id = $1 AND r.created_at >= $2 AND LOWER(c.name) = LOWER($3)
+            WHERE r.organization_id = $1 AND r.created_at >= $2 AND LOWER(c.name) = LOWER($${catIdx})${teamWhere}
           `;
-          reimbParams.push(category);
         } else {
           reimbQuery = `
             SELECT
@@ -169,36 +215,51 @@ Use this tool when someone asks:
               COALESCE(SUM(r.converted_amount) FILTER (WHERE r.status IN ('approved', 'paid', 'submitted')), 0)::numeric as approved_amount,
               COUNT(*) FILTER (WHERE r.status = 'rejected')::int as rejected_count
             FROM reimbursement_requests r
-            WHERE r.organization_id = $1 AND r.created_at >= $2
+            WHERE r.organization_id = $1 AND r.created_at >= $2${teamWhere}
           `;
         }
         const result = await query(reimbQuery, reimbParams);
         reimbursementStats = result.rows[0] as Record<string, unknown>;
       } catch (err) {
-        reimbursementStats = { error: (err as Error).message };
+        reimbursementStats = null;
+        reimbursementsError = (err as Error).message;
       }
     }
 
     let invoiceStats: Record<string, unknown> | null = null;
     try {
-      const invoiceQuery = scope === 'my'
-        ? `SELECT COUNT(*)::int as total, COALESCE(SUM(i.grand_total), 0)::numeric as total_amount,
+      if (teamFilterEmpty) {
+        invoiceStats = emptyInvoiceStatsRow();
+      } else {
+        const invoiceQuery =
+          scope === 'my'
+            ? `SELECT COUNT(*)::int as total, COALESCE(SUM(i.grand_total), 0)::numeric as total_amount,
            COUNT(*) FILTER (WHERE i.status IN ('finalized', 'signed'))::int as paid,
            COUNT(*) FILTER (WHERE i.status IN ('draft', 'revision'))::int as unpaid
            FROM invoices i
            JOIN reimbursement_users ru ON ru.id = i.employee_id
            WHERE ru.auth_user_id = $1 AND i.created_at >= $2`
-        : `SELECT COUNT(*)::int as total, COALESCE(SUM(grand_total), 0)::numeric as total_amount,
+            : needsTeamFilter
+              ? `SELECT COUNT(*)::int as total, COALESCE(SUM(i.grand_total), 0)::numeric as total_amount,
+           COUNT(*) FILTER (WHERE i.status IN ('finalized', 'signed'))::int as paid,
+           COUNT(*) FILTER (WHERE i.status IN ('draft', 'revision'))::int as unpaid
+           FROM invoices i
+           WHERE i.organization_id = $1 AND i.created_at >= $2 AND i.employee_id = ANY($3::uuid[])`
+              : `SELECT COUNT(*)::int as total, COALESCE(SUM(grand_total), 0)::numeric as total_amount,
            COUNT(*) FILTER (WHERE status IN ('finalized', 'signed'))::int as paid,
            COUNT(*) FILTER (WHERE status IN ('draft', 'revision'))::int as unpaid
            FROM invoices i
            WHERE i.organization_id = $1 AND i.created_at >= $2`;
 
-      const invoiceParams = scope === 'my'
-        ? [context.userId, dateFilter]
-        : [orgId, dateFilter];
-      const invResult = await query(invoiceQuery, invoiceParams);
-      invoiceStats = invResult.rows[0] as Record<string, unknown>;
+        const invoiceParams =
+          scope === 'my'
+            ? [context.userId, dateFilter]
+            : needsTeamFilter
+              ? [orgId, dateFilter, teamMemberRuIds]
+              : [orgId, dateFilter];
+        const invResult = await query(invoiceQuery, invoiceParams);
+        invoiceStats = invResult.rows[0] as Record<string, unknown>;
+      }
     } catch {
       /* invoices table may not exist */
     }
@@ -206,57 +267,59 @@ Use this tool when someone asks:
     let topCategories: Record<string, unknown>[] = [];
     if (isCompanyScope && !scopeDowngraded) {
       try {
-        const catResult = await query(
-          `SELECT c.name as category, COUNT(*)::int as count, COALESCE(SUM(r.converted_amount), SUM(r.original_amount))::numeric as total
-           FROM reimbursement_requests r
-           JOIN expense_categories c ON c.id = r.category_id
-           WHERE r.organization_id = $1 AND r.created_at >= $2
-           GROUP BY c.name
-           ORDER BY total DESC
-           LIMIT 10`,
-          [orgId, dateFilter]
-        );
-        topCategories = catResult.rows as Record<string, unknown>[];
+        if (teamFilterEmpty) {
+          topCategories = [];
+        } else if (needsTeamFilter) {
+          const catResult = await query(
+            `SELECT c.name as category, COUNT(*)::int as count, COALESCE(SUM(r.converted_amount), SUM(r.original_amount))::numeric as total
+             FROM reimbursement_requests r
+             JOIN expense_categories c ON c.id = r.category_id
+             WHERE r.organization_id = $1 AND r.created_at >= $2 AND r.submitted_by = ANY($3::uuid[])
+             GROUP BY c.name
+             ORDER BY total DESC
+             LIMIT 10`,
+            [orgId, dateFilter, teamMemberRuIds]
+          );
+          topCategories = catResult.rows as Record<string, unknown>[];
+        } else {
+          const catResult = await query(
+            `SELECT c.name as category, COUNT(*)::int as count, COALESCE(SUM(r.converted_amount), SUM(r.original_amount))::numeric as total
+             FROM reimbursement_requests r
+             JOIN expense_categories c ON c.id = r.category_id
+             WHERE r.organization_id = $1 AND r.created_at >= $2
+             GROUP BY c.name
+             ORDER BY total DESC
+             LIMIT 10`,
+            [orgId, dateFilter]
+          );
+          topCategories = catResult.rows as Record<string, unknown>[];
+        }
       } catch {
         /* skip */
       }
     }
 
-    const periodLabel = timePeriod.replace('_', ' ');
-    const actuallyCompany = scope !== 'my';
-    const scopeLabel = actuallyCompany ? 'Company-wide' : (scopeDowngraded ? 'Your (company-wide requires admin/finance role)' : 'Your');
-
-    let summary = `**${scopeLabel} Financial Summary (${periodLabel}):**\n`;
-
-    if (reimbursementStats && !reimbursementStats.error) {
-      const total = parseFloat(String(reimbursementStats.total_amount ?? 0));
-      const pending = parseFloat(String(reimbursementStats.pending_amount ?? 0));
-      const approved = parseFloat(String(reimbursementStats.approved_amount ?? 0));
-      summary += `\n**Reimbursements:**
-- Total: ${reimbursementStats.total_count} claims, $${total.toFixed(2)}
-- Pending: ${reimbursementStats.pending_count} ($${pending.toFixed(2)})
-- Approved/Submitted: ${reimbursementStats.approved_count} ($${approved.toFixed(2)})
-- Rejected: ${reimbursementStats.rejected_count}`;
-    }
-
-    if (invoiceStats) {
-      const invTotal = parseFloat(String(invoiceStats.total_amount ?? 0));
-      summary += `\n\n**Invoices:**
-- Total: ${invoiceStats.total} invoices, $${invTotal.toFixed(2)}
-- Paid: ${invoiceStats.paid} | Unpaid: ${invoiceStats.unpaid}`;
-    }
-
-    if (topCategories.length > 0) {
-      summary += `\n\n**Top Spending Categories:**`;
-      topCategories.forEach((c, i) => {
-        const tot = parseFloat(String(c.total ?? 0));
-        summary += `\n${i + 1}. ${c.category}: $${tot.toFixed(2)} (${c.count} claims)`;
-      });
-    }
+    const summary = buildShortFinancialSummarySummary(reimbursementStats, invoiceStats, timePeriod, {
+      scope,
+      scopeDowngraded,
+      teamScopeMissing,
+      reimbursementsError,
+    });
 
     return {
       success: true,
-      data: { reimbursements: reimbursementStats, invoices: invoiceStats, topCategories },
+      data: {
+        reimbursements: reimbursementStats,
+        invoices: invoiceStats,
+        topCategories,
+        meta: {
+          timePeriod,
+          scope,
+          scopeDowngraded,
+          ...(teamScopeMissing && { teamScopeMissing: true }),
+          ...(reimbursementsError && { reimbursementsError }),
+        },
+      },
       summary,
       metadata: { source: 'reimbursement_requests, invoices', timeRange: timePeriod },
     };

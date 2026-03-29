@@ -8,7 +8,8 @@ import { chatAPI, fetchAPI } from '@/lib/api';
 import { EmbeddedTaskCard } from './EmbeddedTaskCard';
 import { EmbeddedDocCard } from './EmbeddedDocCard';
 import { EmojiPicker } from './EmojiPicker';
-import { Smile, Pin, Pencil, Trash2, MoreHorizontal, Copy, ListChecks, MessageSquare, Sparkles } from 'lucide-react';
+import { Smile, Pin, Pencil, Trash2, MoreHorizontal, Copy, ListChecks, MessageSquare, Sparkles, Reply } from 'lucide-react';
+import { UserHoverCard } from './UserHoverCard';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useUsersStore } from '@/stores/usersStore';
@@ -21,10 +22,11 @@ interface EnhancedMessageBubbleProps {
   user?: User | null;
   showAvatar: boolean;
   currentUserId?: string;
+  /** High-density typography and padding */
+  compact?: boolean;
 }
 
-export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId }: EnhancedMessageBubbleProps) {
-  const [showActions, setShowActions] = useState(false);
+export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId, compact = false }: EnhancedMessageBubbleProps) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const openContextMenu = useChatStore((s) => s.openContextMenu);
@@ -129,9 +131,9 @@ export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId
 
   if (message.isDeleted) {
     return (
-      <div className={`flex gap-3 ${showAvatar ? 'mt-4' : 'mt-0.5'} opacity-50`}>
-        <div className="w-10 shrink-0" />
-        <div className="text-sm text-app-muted italic">This message was deleted</div>
+      <div className={cn('flex gap-2 opacity-50', showAvatar ? (compact ? 'mt-2' : 'mt-4') : 'mt-0.5')}>
+        <div className={cn('shrink-0', compact ? 'w-8' : 'w-10')} />
+        <div className={cn('text-app-muted italic', compact ? 'text-xs' : 'text-sm')}>This message was deleted</div>
       </div>
     );
   }
@@ -141,27 +143,31 @@ export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId
   return (
     <div
       className={cn(
-        'flex gap-3 group relative',
-        showAvatar ? 'mt-4' : 'mt-0.5',
+        'flex group relative',
+        compact ? 'gap-2' : 'gap-3',
+        showAvatar ? (compact ? 'mt-2' : 'mt-4') : 'mt-0.5',
         'hover:bg-app-hover/30 -mx-2 px-2 py-0.5 rounded-lg transition-colors',
       )}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => { setShowActions(false); setShowReactionPicker(false); setShowMoreMenu(false); }}
+      onMouseLeave={() => { setShowReactionPicker(false); setShowMoreMenu(false); }}
       onContextMenu={handleContextMenu}
     >
       {/* Avatar */}
-      <div className="w-10 shrink-0">
-        {showAvatar && (
-          <Avatar src={avatarSrc} name={displayName} size="md" status={user?.status} />
-        )}
+      <div className={cn('shrink-0', compact ? 'w-8' : 'w-10')}>
+        {showAvatar && user ? (
+          <UserHoverCard user={user}>
+            <Avatar src={avatarSrc} name={displayName} size={compact ? 'sm' : 'md'} status={user?.status} />
+          </UserHoverCard>
+        ) : showAvatar ? (
+          <Avatar src={avatarSrc} name={displayName} size={compact ? 'sm' : 'md'} status={user?.status} />
+        ) : null}
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         {showAvatar && (
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="font-semibold text-app text-sm">{displayName}</span>
-            <span className="text-[11px] text-app-muted">{formatTime(message.timestamp)}</span>
+            <span className={cn('font-semibold text-app', compact ? 'text-xs' : 'text-sm')}>{displayName}</span>
+            <span className={cn('text-app-muted', compact ? 'text-[12px]' : 'text-[11px]')}>{formatTime(message.timestamp)}</span>
             {message.isPinned && (
               <span className="flex items-center gap-0.5 text-[10px] text-warning-500 bg-warning-500/10 px-1.5 py-0.5 rounded-full">
                 <Pin className="w-2.5 h-2.5" /> Pinned
@@ -179,7 +185,8 @@ export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId
         ) : (
           <div
             className={cn(
-              'text-sm text-app break-words leading-relaxed rounded-2xl px-3 py-2 border w-fit max-w-[min(100%,42rem)]',
+              'text-app break-words border w-fit max-w-[min(100%,42rem)]',
+              compact ? 'text-xs leading-snug rounded-lg px-2 py-1' : 'text-sm leading-relaxed rounded-2xl px-3 py-2',
               isOwnMessage
                 ? 'bg-primary-500/15 border-primary-500/25'
                 : 'bg-app-hover/60 border-app/70',
@@ -262,10 +269,36 @@ export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId
         )}
       </div>
 
-      {/* Hover action toolbar */}
-      {showActions && !isEditing && (
-        <div className="absolute -top-3 right-2 flex items-center gap-0.5 bg-app-sidebar border border-app rounded-lg shadow-lg p-0.5 z-10">
-            {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
+      {/* Hover action toolbar — icon-first; visible on hover/focus-within */}
+      {!isEditing && (
+        <div
+          className={cn(
+            'absolute -top-2 right-1 flex items-center gap-0.5 bg-app-sidebar/95 backdrop-blur-md border border-app rounded-lg shadow-lg p-0.5 z-10',
+            'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
+            'focus-within:opacity-100 focus-within:pointer-events-auto',
+          )}
+        >
+          {!message.threadId && (
+            <button
+              type="button"
+              onClick={handleReplyInThread}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+              aria-label="Reply in thread"
+            >
+              <Reply className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {isOwnMessage && (
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+              aria-label="Edit message"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
             <button
               key={emoji}
               type="button"
@@ -394,7 +427,10 @@ export function EnhancedMessageBubble({ message, user, showAvatar, currentUserId
         <button
           type="button"
           onClick={handleReplyInThread}
-          className="absolute bottom-0 left-12 flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 hover:underline transition-colors"
+          className={cn(
+            'absolute bottom-0 flex items-center gap-1 text-primary-400 hover:text-primary-300 hover:underline transition-colors',
+            compact ? 'left-10 text-[11px]' : 'left-12 text-xs',
+          )}
           aria-label={`Open thread with ${message.replyCount} ${message.replyCount === 1 ? 'reply' : 'replies'}`}
         >
           <MessageSquare className="w-3 h-3" />

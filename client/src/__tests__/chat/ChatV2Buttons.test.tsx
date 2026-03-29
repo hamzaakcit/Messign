@@ -226,8 +226,7 @@ describe('Chat V2 Buttons', () => {
         <EnhancedMessageBubble message={MOCK_MESSAGE} user={MOCK_USER} showAvatar currentUserId="u1" />,
       );
       expect(screen.getByText('Hello world')).toBeInTheDocument();
-      const reactionBtn = screen.getByText('👍');
-      expect(reactionBtn).toBeInTheDocument();
+      expect(screen.getAllByLabelText(/👍 reaction/).length).toBeGreaterThan(0);
     });
 
     it('shows reply count badge for messages with replies', async () => {
@@ -244,8 +243,8 @@ describe('Chat V2 Buttons', () => {
       renderComponent(
         <EnhancedMessageBubble message={MOCK_MESSAGE} user={MOCK_USER} showAvatar currentUserId="u1" />,
       );
-      const reactionBtn = screen.getByText('👍').closest('button');
-      if (reactionBtn) fireEvent.click(reactionBtn);
+      const reactionBtn = screen.getAllByLabelText(/👍 reaction/)[0];
+      fireEvent.click(reactionBtn);
       await waitFor(() => {
         expect(mockAddReaction).toHaveBeenCalledWith('ch1', 'm1', '👍');
       });
@@ -272,7 +271,7 @@ describe('Chat V2 Buttons', () => {
     it('emoji picker button opens picker', async () => {
       const { EnhancedMessageInput } = await import('@/components/chat/EnhancedMessageInput');
       renderComponent(<EnhancedMessageInput channelName="general" />);
-      const emojiBtn = screen.getByLabelText('Insert emoji');
+      const emojiBtn = screen.getAllByLabelText('Insert emoji')[0];
       fireEvent.click(emojiBtn);
       expect(screen.getByText('Smileys')).toBeInTheDocument();
     });
@@ -288,7 +287,7 @@ describe('Chat V2 Buttons', () => {
     it('file upload button exists', async () => {
       const { EnhancedMessageInput } = await import('@/components/chat/EnhancedMessageInput');
       renderComponent(<EnhancedMessageInput channelName="general" />);
-      expect(screen.getByLabelText('Attach file')).toBeInTheDocument();
+      expect(screen.getAllByLabelText('Attach files').length).toBeGreaterThan(0);
     });
 
     it('Improve draft menu calls transformDraft with action', async () => {

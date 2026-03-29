@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { getSuggestions } from '@/shared/intents/suggestion-engine';
 import type { IntentEntry } from '@/shared/intents/registry';
 import { useDoraSessionStore } from '@/stores/doraSessionStore';
+import { useMissionControlFocusStore } from '@/stores/missionControlFocusStore';
+import type { MissionControlBentoKey } from '@/stores/missionControlFocusStore';
 
 interface ViewingEntity {
   type: 'project' | 'document' | 'invoice' | 'employee' | 'task';
@@ -16,6 +18,8 @@ export interface WidgetContext {
   currentModule: string;
   viewingEntity?: ViewingEntity;
   widgetMode: 'expanded' | 'mini' | 'collapsed';
+  /** Set when user hovers/focuses a Mission Control bento tile (`/` or `/dashboard`). */
+  missionControlBento?: MissionControlBentoKey | null;
 }
 
 interface RoutePattern {
@@ -25,6 +29,7 @@ interface RoutePattern {
 }
 
 const ROUTE_PATTERNS: RoutePattern[] = [
+  { pattern: /^\/$/, module: 'dashboard' },
   {
     pattern: /^\/knowledge-hub\/documents\/([^/]+)$/,
     module: 'knowledge-hub',
@@ -110,6 +115,7 @@ function customizeForEntity(
 
 export function useWidgetContext(userRole: string = 'member') {
   const location = useLocation();
+  const focusedBentoKey = useMissionControlFocusStore((s) => s.focusedBentoKey);
 
   const routeInfo = useMemo(
     () => resolveRoute(location.pathname),
@@ -123,8 +129,10 @@ export function useWidgetContext(userRole: string = 'member') {
       currentModule: routeInfo.module,
       viewingEntity: routeInfo.entity,
       widgetMode: 'expanded',
+      missionControlBento:
+        routeInfo.module === 'dashboard' ? focusedBentoKey : undefined,
     }),
-    [location.pathname, routeInfo],
+    [location.pathname, routeInfo, focusedBentoKey],
   );
 
   const role = normalizeWidgetRole(userRole);

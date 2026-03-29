@@ -50,6 +50,11 @@ class WidgetErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
 // ============================================================
 // Merged toolbar (server actions + client registry)
 // ============================================================
+//
+// Server payloads (`widget.actions`) should list every follow-up the widget needs; intent IDs must
+// exist in `server/src/services/ai/intentIdPresets.ts`. Default nav links come from `mergeNavIntoPayloads`
+// in widgetResolve (see `getDefaultNavigateActionsForTool`). Use real app paths (e.g. `/finance/invoices`)
+// for Finance — the shell reads the pathname, not `location.state`.
 
 function mergeToolbarActions(
   widget: AIWidgetPayload,

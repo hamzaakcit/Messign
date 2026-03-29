@@ -1,0 +1,122 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "layoutDensity": "airy",
+  "subject": "Joint webinar — Messign x Northline (Mar 12)",
+  "preheader": "Co-hosted live session: shared customers, one registration link, and a partner Q&A. Add to calendar; replay and slides post to attendees only. Bring your stack questions for the breakout.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Ship governance without slowing teams",
+        "subheadline": "Messign and Northline co-host a live teardown — policy, evidence, and partner integrations in one session.",
+        "ctaText": "Register once",
+        "ctaUrl": "https://example.com/partner-webinar?utm_source=email&utm_medium=partner&utm_campaign=co_mkt_q1",
+        "imagePrompt": "Split-friendly executive scene: two blurred company logos on frosted glass panels beside a laptop with abstract dashboard glow, cool blue and charcoal palette, generous negative space for headline overlay, no readable text or trademarks",
+        "alignment": "center",
+        "heroLayout": "split",
+        "altText": "Abstract partner co-brand workspace with dashboard glow"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Why we are hosting together",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Globe",
+            "heading": "Shared customers",
+            "description": "Joint installs where policy and evidence already connect — fewer handoffs for your team.",
+            "imagePrompt": "Minimal globe with subtle network arcs on slate background, soft blue accent, no text"
+          },
+          {
+            "icon": "Layers",
+            "heading": "One agenda",
+            "description": "Northline shows evidence exports; Messign shows rollout — same timeline, no duplicate sessions.",
+            "imagePrompt": "Stacked translucent layers with soft seal motif, executive lighting, no legible labels"
+          },
+          {
+            "icon": "Users",
+            "heading": "Partner Q&A",
+            "description": "Breakout for joint accounts — solution engineers from both sides on the thread.",
+            "imagePrompt": "Small group video grid silhouettes with warm rim light, shallow depth of field, no readable UI"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "headline": "How the joint CTA works",
+        "body": "You register once — calendar invite lists both vendors. If you already use one stack, you will still see how the connector behaves end-to-end with realistic sample data.",
+        "imagePrompt": "Hands shaking over conference table with laptops closed, soft window light, professional B2B photography, no readable documents",
+        "altText": "Partners meeting at a table",
+        "layout": "image_left",
+        "ctaText": "See integration map",
+        "ctaUrl": "https://example.com/partner-webinar/integrations?utm_source=email&utm_medium=partner&utm_campaign=co_mkt_q1"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "body": "<strong>When:</strong> Tuesday Mar 12, 11:00 ET · <strong>Duration:</strong> 45 minutes + live Q&A. <strong>Who:</strong> Platform, security, and IT ops leaders at joint accounts.",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 5,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Joint webinars (FY)", "value": "14" },
+          { "label": "Avg attendance", "value": "620" },
+          { "label": "Partner NPS", "value": "48" }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Save your seat — one link for both hosts",
+        "description": "Can’t attend live? Register for replay and partner office hours.",
+        "buttonText": "Register for the joint session",
+        "buttonUrl": "https://example.com/partner-webinar?utm_source=email&utm_medium=partner&utm_campaign=co_mkt_q1",
+        "variant": "pill",
+        "urgencyText": "Live session — limited breakout seats"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "content": {
+        "companyName": "Messign × Northline Partner Marketing",
+        "address": "Partner programs · partners@example.com",
+        "links": [{ "text": "Privacy Policy", "url": "/privacy" }]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "professional, co-branded",
+    "audience": "B2B joint-account leaders",
+    "campaign_id": "co_mkt_q1",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "trustworthy, partner-forward",
+    "imageStyle": "Executive B2B photography and abstract tech motifs"
+  }
+}

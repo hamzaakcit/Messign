@@ -56,21 +56,11 @@ interface AIMetadataBarProps {
 export function AIMetadataBar({ metadata }: AIMetadataBarProps) {
   if (!metadata || metadata.toolsUsed.length === 0) return null;
 
-  const toolChips = metadata.toolsUsed.map((toolName) => {
-    const display = getToolChipDisplay(toolName);
-    const IconComponent = ICON_MAP[display.icon] ?? Database;
-
-    return (
-      <span
-        key={toolName}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-app-card text-xs font-medium text-app-muted"
-        title={`Tool: ${toolName}`}
-      >
-        <IconComponent size={12} className={display.color} />
-        {display.label}
-      </span>
-    );
-  });
+  const counts = new Map<string, number>();
+  for (const name of metadata.toolsUsed) {
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  const toolRows = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
   const responseTime = metadata.responseTimeMs
     ? metadata.responseTimeMs < 1000
@@ -79,13 +69,40 @@ export function AIMetadataBar({ metadata }: AIMetadataBarProps) {
     : null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-app-border">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Database size={12} className="dora-chat-text-tertiary flex-shrink-0" />
-        {toolChips}
+    <div className="mt-2 pt-2 border-t border-app-border space-y-2">
+      <div className="overflow-x-auto rounded-lg border border-app-border/70 bg-app-sidebar/40">
+        <table className="w-full text-[11px] border-collapse">
+          <thead>
+            <tr className="bg-app-sidebar/80">
+              <th className="text-left font-medium text-app-muted px-2 py-1 border-b border-app-border/60">
+                Step
+              </th>
+              <th className="text-right font-medium text-app-muted px-2 py-1 w-14 border-b border-app-border/60">
+                ×
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {toolRows.map(([toolName, n]) => {
+              const display = getToolChipDisplay(toolName);
+              const IconComponent = ICON_MAP[display.icon] ?? Database;
+              return (
+                <tr key={toolName} className="border-b border-app-border/35 last:border-0">
+                  <td className="px-2 py-1 align-middle">
+                    <span className="inline-flex items-center gap-1.5 text-app-muted" title={toolName}>
+                      <IconComponent size={12} className={display.color} />
+                      <span className="font-medium">{display.label}</span>
+                    </span>
+                  </td>
+                  <td className="px-2 py-1 text-right tabular-nums text-app-muted">{n}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      <div className="flex items-center gap-3 ml-auto text-xs dora-chat-text-tertiary">
+      <div className="flex flex-wrap items-center justify-end gap-3 text-xs dora-chat-text-tertiary">
         {metadata.dataPoints > 0 && (
           <span className="flex items-center gap-1">
             <BarChart3 size={11} />

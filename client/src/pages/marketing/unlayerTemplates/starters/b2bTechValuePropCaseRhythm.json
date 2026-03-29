@@ -1,0 +1,103 @@
+{
+  "version": "2.0",
+  "theme": "tech",
+  "subject": "How Teams Ship Safer Releases Without Slowing Down",
+  "preheader": "A practical look at rollout guardrails, audit trails, and developer ergonomics—written for platform leads who care about velocity and compliance in the same roadmap. No fluff: architecture notes and a customer proof point inside.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Release with confidence—keep your cadence",
+        "subheadline": "Progressive delivery, automated checks, and clear ownership so engineering and security stay aligned.",
+        "ctaText": "See the platform tour",
+        "ctaUrl": "https://example.com/platform-tour",
+        "imagePrompt": "Abstract data center corridor with cool blue server lights, shallow depth of field, no readable text on screens, cinematic tech photography",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "What platform teams standardize on",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Shield",
+            "heading": "Policy-as-code",
+            "description": "Define guardrails once; enforce them in CI and at deploy time.",
+            "imagePrompt": "Minimal isometric shield with circuit motif on dark slate background, soft glow, no text"
+          },
+          {
+            "icon": "Layers",
+            "heading": "Progressive rollouts",
+            "description": "Canary, traffic shifting, and instant rollback without playbook panic.",
+            "imagePrompt": "Abstract layered planes suggesting staged rollout, blue and graphite palette, clean 3D shapes"
+          },
+          {
+            "icon": "BarChart",
+            "heading": "Audit-ready trails",
+            "description": "Who shipped what, when, and why—exportable for auditors and postmortems.",
+            "imagePrompt": "Soft-focus analytics wall display with blurred charts, executive office, no legible numbers"
+          }
+        ]
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "body": "<strong>Case snapshot — FinStack (B2B fintech):</strong> In nine weeks the team moved from monthly releases to weekly trains while cutting Sev-1 incidents tied to config drift. They attributed the shift to policy-as-code checks, automated rollbacks, and a single source of truth for feature flags—so marketing could stage experiments without bypassing engineering controls.",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "content": {
+        "headline": "Built for the toolchain you already use",
+        "body": "Plug into your Git provider, artifact registry, and observability stack. The goal is fewer bespoke scripts and more shared runbooks—so on-call stays human-sized.",
+        "imagePrompt": "Developers pairing at a wide monitor showing blurred CI pipeline stages, modern office, candid workplace photo, no readable UI text",
+        "altText": "Engineers reviewing a deployment pipeline together",
+        "layout": "image_right",
+        "ctaText": "View integrations",
+        "ctaUrl": "https://example.com/integrations"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "Book a 25-minute architecture review",
+        "description": "We map your release model and show where guardrails fit without freezing teams.",
+        "buttonText": "Talk to solutions",
+        "buttonUrl": "https://example.com/contact",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "LatticeShip Systems",
+        "address": "1 Embarcadero Center, San Francisco, CA 94111",
+        "unsubscribeText": "B2B product updates from LatticeShip. Unsubscribe or manage topics below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "precise, trustworthy, engineering-led",
+    "audience": "Platform, SRE, and security leaders at mid-market SaaS",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "confident, technical, calm",
+    "imageStyle": "Modern enterprise tech photography with blue-slate palette"
+  }
+}

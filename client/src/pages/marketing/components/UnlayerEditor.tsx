@@ -1,9 +1,11 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import EmailEditor, { type EditorRef } from 'react-email-editor';
 import { toast } from 'sonner';
+import { Modal } from '@/components/ui/Modal';
 import type { UnlayerDisplayMode, UnlayerStarterTemplate } from '../unlayerTemplates/types';
 import { UnlayerTemplatePicker } from './UnlayerTemplatePicker';
-import { assembleDesign } from '../lib/designAssembler';
+import { resolvePublicAssetUrl } from '../../../lib/resolvePublicAssetUrl';
+import { runEmailAssemblyPipeline } from '../lib/designAssembler';
 import type { DesignManifest } from '../lib/types/manifestTypes';
 
 export type UnlayerExportPayload = {
@@ -32,6 +34,8 @@ export type UnlayerEditorProps = {
   onRegenerateImage?: (prompt: string) => Promise<string | null>;
   /** Fired when a manifest-based starter template is assembled so the parent can track the manifest (runs in an effect, not during render). */
   onManifestAssembled?: (manifest: Record<string, unknown>, assemblyResult: Record<string, unknown>) => void | Promise<void>;
+  /** When true, blocks interaction with the template picker and editor (e.g. while images resolve). */
+  interactionLocked?: boolean;
 };
 
 export type UnlayerEditorHandle = {
@@ -56,15 +60,6 @@ type UnlayerExportHtmlFn = (
   options?: { popupId?: string },
 ) => void;
 
-/** Build absolute URL for files in `public/` (respects Vite `base`, e.g. `/app/` on deploy). */
-function resolvePublicAssetUrl(path: string): string {
-  if (/^https?:\/\//i.test(path)) return path;
-  const basePath = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-  const p = path.startsWith('/') ? path.slice(1) : path;
-  if (typeof window === 'undefined') return `${basePath}${p}`;
-  return new URL(p, `${window.location.origin}${basePath}`).href;
-}
-
 function tryLoadHtmlDesign(
   unlayer: NonNullable<EditorRef['editor']>,
   html: string,
@@ -84,19 +79,50 @@ function tryLoadHtmlDesign(
 }
 
 export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>(function UnlayerEditor(
-  { displayMode, editorKey, initialDesign, initialHtml, onApply, user, exportPopupId, starterTemplates, onRegenerateImage, onManifestAssembled },
+  {
+    displayMode,
+    editorKey,
+    initialDesign,
+    initialHtml,
+    onApply,
+    user,
+    exportPopupId,
+    starterTemplates,
+    onRegenerateImage,
+    onManifestAssembled,
+    interactionLocked,
+  },
   ref,
 ) {
   const emailEditorRef = useRef<EditorRef>(null);
+  const [aiImageModalOpen, setAiImageModalOpen] = useState(false);
+  const [aiImageDraft, setAiImageDraft] = useState('');
+  const aiImageDoneRef = useRef<((data: { progress: number; url?: string }) => void) | null>(null);
+  /** Unlayer instance from `onReady(unlayer)` — `emailEditorRef.current?.editor` is often still undefined there (see unlayer/react-email-editor#248). */
+  const unlayerFromReadyRef = useRef<NonNullable<EditorRef['editor']> | null>(null);
   /**
-   * UI gate for Apply: true when embed is usable. `react-email-editor` onReady can miss if `editor:ready`
-   * fires before the listener is attached — we also poll ref + timeout fallback.
+   * UI gate for Apply: true when embed is usable for the current `editorMountKey` + `retryCount`.
+   * We store which mount generation is ready instead of a boolean so parent `useEffect` cannot reset
+   * readiness *after* Unlayer `onReady` (child runs before parent effects — last writer was `false`).
+   * `react-email-editor` onReady can miss — we also poll ref + timeout fallback.
    */
-  const [editorExportReady, setEditorExportReady] = useState(false);
+  const [exportReadyMountKey, setExportReadyMountKey] = useState<string | null>(null);
   const [editorLoadError, setEditorLoadError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const projectId = useMemo(() => parseProjectId(import.meta.env.VITE_UNLAYER_PROJECT_ID), []);
   const [pickedStarterId, setPickedStarterId] = useState<string | null>(null);
+
+  /** Stable ref so parent callback identity changes do not re-fire manifest assembly (duplicate toasts + extra work). */
+  const onManifestAssembledRef = useRef(onManifestAssembled);
+  useEffect(() => {
+    onManifestAssembledRef.current = onManifestAssembled;
+  }, [onManifestAssembled]);
+
+  /** Starter list often gets a new array identity each parent render; do not re-run manifest notify effect for that. */
+  const starterTemplatesRef = useRef(starterTemplates);
+  useEffect(() => {
+    starterTemplatesRef.current = starterTemplates;
+  }, [starterTemplates]);
 
   const shouldOfferPicker =
     Boolean(starterTemplates?.length) &&
@@ -113,12 +139,12 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
     if (t?.htmlImportUrl) return null;
     if (t?.manifest) {
       try {
-        const result = assembleDesign(t.manifest as unknown as DesignManifest);
+        const result = runEmailAssemblyPipeline(t.manifest as unknown as DesignManifest);
         if (result.success && result.design) {
           return result.design as unknown as Record<string, unknown>;
         }
       } catch (err) {
-        console.error('[UnlayerEditor] assembleDesign crashed for manifest template:', err);
+        console.error('[UnlayerEditor] runEmailAssemblyPipeline crashed for manifest template:', err);
         toast.error('Failed to assemble template design. Try a different template.');
         return null;
       }
@@ -127,16 +153,20 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
   }, [shouldOfferPicker, pickedStarterId, starterTemplates]);
 
   useEffect(() => {
-    if (!shouldOfferPicker || pickedStarterId == null || !starterTemplates?.length || !onManifestAssembled) return;
-    const t = starterTemplates.find((s) => s.id === pickedStarterId);
+    if (!shouldOfferPicker || pickedStarterId == null) return;
+    const templates = starterTemplatesRef.current;
+    if (!templates?.length) return;
+    const cb = onManifestAssembledRef.current;
+    if (!cb) return;
+    const t = templates.find((s) => s.id === pickedStarterId);
     if (!t?.manifest) return;
     let cancelled = false;
     void (async () => {
       try {
-        const result = assembleDesign(t.manifest as unknown as DesignManifest);
+        const result = runEmailAssemblyPipeline(t.manifest as unknown as DesignManifest);
         if (cancelled || !result.success || !result.design) return;
         await Promise.resolve(
-          onManifestAssembled(t.manifest as Record<string, unknown>, result as unknown as Record<string, unknown>),
+          cb(t.manifest as Record<string, unknown>, result as unknown as Record<string, unknown>),
         );
         if (cancelled) return;
       } catch (err) {
@@ -146,7 +176,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
     return () => {
       cancelled = true;
     };
-  }, [shouldOfferPicker, pickedStarterId, starterTemplates, onManifestAssembled]);
+  }, [shouldOfferPicker, pickedStarterId]);
 
   const effectiveInitialDesign = shouldOfferPicker && pickedStarterId != null ? resolvedFromPick : initialDesign;
 
@@ -155,18 +185,66 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
     return starterTemplates.find((s) => s.id === pickedStarterId) ?? null;
   }, [shouldOfferPicker, pickedStarterId, starterTemplates]);
 
+  const closeAiImageModal = useCallback(() => {
+    const done = aiImageDoneRef.current;
+    aiImageDoneRef.current = null;
+    if (done) done({ progress: 0 });
+    setAiImageModalOpen(false);
+    setAiImageDraft('');
+  }, []);
+
+  const submitAiImageModal = useCallback(async () => {
+    const done = aiImageDoneRef.current;
+    const prompt = aiImageDraft.trim();
+    if (!onRegenerateImage || !done) {
+      closeAiImageModal();
+      return;
+    }
+    if (prompt.length < 10) {
+      toast.error('Image prompt must be at least 10 characters');
+      return;
+    }
+    aiImageDoneRef.current = null;
+    setAiImageModalOpen(false);
+    setAiImageDraft('');
+    done({ progress: 50 });
+    try {
+      const url = await onRegenerateImage(prompt);
+      if (url) {
+        done({ progress: 100, url });
+      } else {
+        done({ progress: 0 });
+        toast.error('Image generation failed');
+      }
+    } catch {
+      done({ progress: 0 });
+      toast.error('Image generation failed');
+    }
+  }, [aiImageDraft, onRegenerateImage, closeAiImageModal]);
+
   const exportNow = useCallback(async (): Promise<UnlayerExportPayload> => {
-    const waitForEditor = (): Promise<NonNullable<typeof emailEditorRef.current>['editor']> =>
+    const getEditor = (): NonNullable<EditorRef['editor']> | undefined =>
+      unlayerFromReadyRef.current ?? emailEditorRef.current?.editor ?? undefined;
+
+    const waitForEditor = (): Promise<NonNullable<EditorRef['editor']>> =>
       new Promise((resolve, reject) => {
-        const editor = emailEditorRef.current?.editor;
-        if (editor) { resolve(editor); return; }
+        const tryOnce = (): NonNullable<EditorRef['editor']> | undefined => getEditor();
+        const ed = tryOnce();
+        if (ed) {
+          resolve(ed);
+          return;
+        }
         const timeout = setTimeout(() => {
           clearInterval(poll);
           reject(new Error('Editor is still loading.'));
         }, 30_000);
         const poll = setInterval(() => {
-          const ed = emailEditorRef.current?.editor;
-          if (ed) { clearInterval(poll); clearTimeout(timeout); resolve(ed); }
+          const next = tryOnce();
+          if (next) {
+            clearInterval(poll);
+            clearTimeout(timeout);
+            resolve(next);
+          }
         }, 200);
       });
 
@@ -174,12 +252,16 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
     await new Promise((r) => setTimeout(r, 600));
 
     return new Promise<UnlayerExportPayload>((resolve, reject) => {
+      const exportTimeout = window.setTimeout(() => {
+        reject(new Error('Unlayer exportHtml did not return within 60s.'));
+      }, 60_000);
       try {
         const popupOpts =
           displayMode === 'popup' && exportPopupId ? { popupId: exportPopupId } : undefined;
         const exportHtml = editor.exportHtml as UnlayerExportHtmlFn;
         exportHtml(
           (data: { html: string; design?: unknown }) => {
+            window.clearTimeout(exportTimeout);
             const design =
               data.design && typeof data.design === 'object'
                 ? (data.design as Record<string, unknown>)
@@ -189,13 +271,14 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
           popupOpts,
         );
       } catch (e) {
+        window.clearTimeout(exportTimeout);
         reject(e instanceof Error ? e : new Error('exportHtml failed'));
       }
     });
   }, [displayMode, exportPopupId]);
 
   const loadDesign = useCallback((design: Record<string, unknown>): boolean => {
-    const editor = emailEditorRef.current?.editor;
+    const editor = unlayerFromReadyRef.current ?? emailEditorRef.current?.editor;
     if (!editor) return false;
     try {
       (editor.loadDesign as (d: Record<string, unknown>) => void)(design);
@@ -313,21 +396,25 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
       ? `${editorKey ?? 'unlayer'}-${pickedStarterId}`
       : editorKey;
 
+  const embedInstanceKey = `${editorMountKey ?? 'unlayer'}-${retryCount}`;
+  const editorExportReady = exportReadyMountKey === embedInstanceKey;
+
   useEffect(() => {
-    setEditorExportReady(false);
     setEditorLoadError(false);
     let cancelled = false;
     const mark = () => {
-      if (!cancelled) setEditorExportReady(true);
+      if (!cancelled) setExportReadyMountKey(embedInstanceKey);
     };
+    const hasEditor = (): boolean =>
+      Boolean(unlayerFromReadyRef.current || emailEditorRef.current?.editor);
     const poll = window.setInterval(() => {
-      if (emailEditorRef.current?.editor) {
+      if (hasEditor()) {
         window.clearInterval(poll);
         window.setTimeout(mark, 400);
       }
     }, 120);
     const fallback = window.setTimeout(() => {
-      if (!cancelled && !emailEditorRef.current?.editor) {
+      if (!cancelled && !hasEditor()) {
         setEditorLoadError(true);
         console.warn('[UnlayerEditor] Editor did not initialize within timeout — CDN may be unreachable or embed script changed.');
       }
@@ -335,14 +422,27 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
     }, 15000);
     return () => {
       cancelled = true;
+      unlayerFromReadyRef.current = null;
       window.clearInterval(poll);
       window.clearTimeout(fallback);
     };
-  }, [editorMountKey, retryCount]);
+  }, [embedInstanceKey]);
 
   if (shouldOfferPicker && pickedStarterId === null) {
     return (
-      <div className="space-y-3">
+      <div className="relative space-y-3">
+        {interactionLocked ? (
+          <div
+            className="absolute inset-0 z-20 rounded-lg bg-black/60 backdrop-blur-[1px] flex items-start justify-center pt-10 pointer-events-auto"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading"
+          >
+            <span className="text-xs text-app-text bg-app-surface-tertiary/95 px-3 py-1.5 rounded-lg border border-app-border shadow-lg">
+              Generating images…
+            </span>
+          </div>
+        ) : null}
         {!projectId ? (
           <p className="text-xs text-amber-400/90">
             Unlayer project ID is not set — the editor may show branding limits. Add{' '}
@@ -355,7 +455,19 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
   }
 
   return (
-    <div className="space-y-3">
+    <div className="relative space-y-3">
+      {interactionLocked ? (
+        <div
+          className="absolute inset-0 z-20 rounded-lg bg-black/40 backdrop-blur-[1px] flex items-start justify-center pt-10 pointer-events-auto"
+          role="status"
+          aria-live="polite"
+          aria-label="Loading"
+        >
+          <span className="text-xs text-app-text bg-app-surface-tertiary/95 px-3 py-1.5 rounded-lg border border-app-border shadow-lg">
+            Generating images…
+          </span>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-app-muted max-w-[52rem]">{intro}</p>
         <div className="flex items-center gap-2">
@@ -408,7 +520,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
             type="button"
             onClick={() => {
               setEditorLoadError(false);
-              setEditorExportReady(false);
+              setExportReadyMountKey(null);
               setRetryCount((c) => c + 1);
             }}
             className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
@@ -422,7 +534,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
         style={{ minHeight: 700, minWidth: 'min(100%, 1024px)' }}
       >
         <EmailEditor
-          key={`${editorMountKey}-${retryCount}`}
+          key={embedInstanceKey}
           ref={emailEditorRef}
           minHeight={700}
           options={{
@@ -439,30 +551,60 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
               : {}),
           }}
           onLoad={handleLoad}
-          onReady={() => {
-            setEditorExportReady(true);
+          onReady={(unlayer) => {
+            unlayerFromReadyRef.current = unlayer;
+            setExportReadyMountKey(embedInstanceKey);
             setEditorLoadError(false);
             if (onRegenerateImage) {
-              const editor = emailEditorRef.current?.editor;
-              if (editor && typeof (editor as Record<string, unknown>).registerCallback === 'function') {
-                (editor as Record<string, unknown> & { registerCallback: (name: string, cb: (file: File, done: (data: { progress: number; url?: string }) => void) => void) => void })
+              if (typeof (unlayer as Record<string, unknown>).registerCallback === 'function') {
+                (unlayer as Record<string, unknown> & { registerCallback: (name: string, cb: (file: File, done: (data: { progress: number; url?: string }) => void) => void) => void })
                   .registerCallback('image', (_file: File, done: (data: { progress: number; url?: string }) => void) => {
-                    done({ progress: 50 });
-                    const prompt = _file.name?.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') || 'professional product photo';
-                    void onRegenerateImage(prompt).then((url) => {
-                      if (url) {
-                        done({ progress: 100, url });
-                      } else {
-                        done({ progress: 0 });
-                        toast.error('Image generation failed');
-                      }
-                    });
+                    const fromName = _file.name?.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') || 'professional product photo';
+                    const padded =
+                      fromName.length >= 10 ? fromName : `${fromName} — email marketing photograph`;
+                    aiImageDoneRef.current = done;
+                    setAiImageDraft(padded);
+                    setAiImageModalOpen(true);
                   });
               }
             }
           }}
         />
       </div>
+
+      <Modal
+        isOpen={aiImageModalOpen && Boolean(onRegenerateImage)}
+        onClose={closeAiImageModal}
+        title="Generate image with AI"
+        size="sm"
+      >
+        <p className="text-xs text-app-muted mb-2">
+          Describe the image you want. Minimum 10 characters (required by the image API).
+        </p>
+        <textarea
+          value={aiImageDraft}
+          onChange={(e) => setAiImageDraft(e.target.value)}
+          rows={4}
+          className="w-full rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+          placeholder="e.g. minimal product hero on soft gradient, no text in frame"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeAiImageModal}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-app-surface-tertiary text-app-text hover:bg-app-hover"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void submitAiImageModal()}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600"
+          >
+            Generate
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 });

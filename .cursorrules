@@ -76,3 +76,9 @@
 - Types: PascalCase, prefixed if ambiguous (ManifestSection vs ContentSection)
 - Files: camelCase.ts for modules, PascalCase.tsx for React components
 - Test files: [module].test.ts matching the source file name
+
+## Messign v2 Shell (viewport + bento)
+- **Viewport lock**: Feature roots use `ViewportContainer` from `client/src/components/layout/ViewportContainer.tsx` (`h-full min-h-0 overflow-hidden`, optional `density="compact"` → `text-compact` + `data-density="compact"`). Pair with `flex-1 min-h-0` parents (App shell main). Only **inner** panes (lists, builder body) use `overflow-y-auto`.
+- **Bento**: Shared `BentoGrid` / `BentoModule` in `client/src/components/layout/bento/`. Home dashboard grid uses `BentoGrid`; marketing Lucy continues to use local `BentoCard` / `ViewportWrapper` (wrapper composes `ViewportContainer`).
+- **Density**: Tailwind `text-compact` (`13px`) in `client/tailwind.config.js` for high-density surfaces.
+- **Touch-upgrade**: Any file touched for v2 layout should align with these patterns without breaking Zustand/socket/API wiring.

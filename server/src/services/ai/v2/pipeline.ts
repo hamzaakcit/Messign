@@ -17,6 +17,21 @@ import { streamGreeting } from './stream/streamGreeting.js';
 import { streamKBSynthesis } from './stream/streamKBSynthesis.js';
 import { streamSynthesis } from './stream/streamSynthesis.js';
 import type { ExecutionTrace, PipelineRequest, PipelineTelemetry } from './types.js';
+
+/** Default SSE cap — keeps most answers under typical proxy idle limits. */
+const PIPELINE_TIMEOUT_MS_DEFAULT = 55_000;
+/**
+ * Marketing / Lucy paths run the full orchestrator (routing, gatekeepers, Fal image gen, approvals).
+ * 55s is routinely exceeded; extending avoids a false "timeout" after successful work (see pipeline safety timer).
+ */
+const PIPELINE_TIMEOUT_MS_MARKETING = 180_000;
+
+function resolvePipelineTimeoutMs(body: PipelineRequest): number {
+  if (body.marketingAgentMode === true) return PIPELINE_TIMEOUT_MS_MARKETING;
+  const p = typeof body.currentPath === 'string' ? body.currentPath : '';
+  if (p.startsWith('/marketing')) return PIPELINE_TIMEOUT_MS_MARKETING;
+  return PIPELINE_TIMEOUT_MS_DEFAULT;
+}
 import {
   runMarketingSubOrchestratorFlow,
   buildAgentContextFromV2,
@@ -89,9 +104,6 @@ function bearerFromReq(req: Request): string | null {
   return h?.startsWith('Bearer ') ? h.slice(7) : null;
 }
 
-/** Max time before we forcibly close the SSE stream (keeps within Railway/Vercel proxy limits). */
-const PIPELINE_TIMEOUT_MS = 55_000;
-
 export async function runDoraPipeline(
   req: Request,
   res: Response,
@@ -101,20 +113,25 @@ export async function runDoraPipeline(
   const controller = new StreamController(res);
   const telemetry: PipelineTelemetry = { startedAt: Date.now(), stages: [] };
   const startedAt = telemetry.startedAt;
+  const pipelineTimeoutMs = resolvePipelineTimeoutMs(body);
   controller.emit('progress', { phase: 'starting', step: 1, maxSteps: 4 });
 
   let pipelineSettled = false;
   const safetyTimer = setTimeout(() => {
     if (pipelineSettled) return;
     pipelineSettled = true;
-    console.warn('[v2 pipeline] safety timeout — forcing done event', { elapsedMs: Date.now() - startedAt });
+    console.warn('[v2 pipeline] safety timeout — forcing done event', {
+      elapsedMs: Date.now() - startedAt,
+      limitMs: pipelineTimeoutMs,
+      marketing: pipelineTimeoutMs > PIPELINE_TIMEOUT_MS_DEFAULT,
+    });
     controller.emit('error', {
       code: 'timeout',
       message: 'The AI backend took too long to respond. Please try again.',
     });
     controller.emit('done', null);
     controller.end();
-  }, PIPELINE_TIMEOUT_MS);
+  }, pipelineTimeoutMs);
 
   try {
     const sessionId = body.sessionId || `s_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;

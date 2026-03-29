@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { createLogger, defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
@@ -14,7 +14,37 @@ function quietTransientProxyErrors(proxy: ProxyWithErrorEvent) {
   })
 }
 
+/**
+ * Vite still prints `[vite] http proxy error` / `ws proxy error` itself (not only http-proxy `error`).
+ * Filter transient failures while 127.0.0.1:3001 is booting or restarting.
+ */
+function shouldIgnoreTransientProxyLog(msg: string): boolean {
+  const s = String(msg)
+  /** Multiline proxy failures: first line has `proxy error`, stack lines only have `ECONNREFUSED`. */
+  if (s.includes('127.0.0.1:3001') && /ECONNREFUSED|ECONNRESET/i.test(s)) return true
+  if (!s.includes('proxy error')) return false
+  return /ECONNREFUSED|ECONNRESET|socket hang up/i.test(s)
+}
+
+/** Widen Vite logger method signatures so `tsc -b` accepts the wrapper (LogOptions vs unknown). */
+type LogFn = (msg: string, options?: unknown) => void
+
+function createDevLoggerQuietProxy(): ReturnType<typeof createLogger> {
+  const base = createLogger()
+  const wrap = (fn: LogFn): LogFn => (msg: string, options?: unknown) => {
+    if (shouldIgnoreTransientProxyLog(String(msg))) return
+    fn(msg, options)
+  }
+  return {
+    ...base,
+    warn: wrap(base.warn.bind(base) as LogFn),
+    warnOnce: wrap(base.warnOnce.bind(base) as LogFn),
+    error: wrap(base.error.bind(base) as LogFn),
+  }
+}
+
 export default defineConfig({
+  customLogger: createDevLoggerQuietProxy(),
   plugins: [react()],
   resolve: {
     alias: {

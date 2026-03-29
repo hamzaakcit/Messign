@@ -1,0 +1,147 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "layoutDensity": "airy",
+  "subject": "The gift guide — picks that feel personal",
+  "preheader": "Curated under $75: wrap-ready favorites, a hostess set, and one splurge. Soft editorial pacing — not a flash sale. Read the short story behind each pick; shop waves without leaving your inbox.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Gifts worth unwrapping slowly",
+        "subheadline": "Editor’s picks for the season — warm textures, small luxuries, and one statement piece.",
+        "ctaText": "Shop the guide",
+        "ctaUrl": "https://example.com/gift-guide?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter",
+        "imagePrompt": "Flat lay of wrapped gifts with ribbon, cinnamon sticks, and soft wool scarf on warm wood table, golden hour light, editorial lifestyle photography, no logos or readable tags",
+        "alignment": "center",
+        "heroLayout": "editorial_tall",
+        "altText": "Wrapped gifts and seasonal props on a wood table"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Under $75 — easy wins",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Ceramic pour-over set",
+            "description": "Matte glaze, gift box included",
+            "price": "$48",
+            "imagePrompt": "Ceramic coffee dripper and mug on linen, soft morning window light, product catalog style",
+            "linkUrl": "https://example.com/gift-guide/pour-over?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter",
+            "badge": "Cozy"
+          },
+          {
+            "name": "Merino rib beanie",
+            "description": "Heather charcoal, one size",
+            "price": "$36",
+            "imagePrompt": "Folded merino beanie on cream backdrop, soft studio light, minimal ecommerce",
+            "linkUrl": "https://example.com/gift-guide/beanie?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter",
+            "badge": "Warmth"
+          },
+          {
+            "name": "Botanical candle trio",
+            "description": "Limited winter notes",
+            "price": "$62",
+            "originalPrice": "$72",
+            "imagePrompt": "Three taper candles with dried botanicals, warm amber tones, editorial still life",
+            "linkUrl": "https://example.com/gift-guide/candles?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter",
+            "badge": "-14%"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider",
+      "order": 3,
+      "content": {}
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "content": {
+        "headline": "Why we grouped picks in waves",
+        "body": "Smaller grids keep mobile scrolling light. Each wave has its own mood — start with everyday gifts, then treat someone (or yourself) to the statement piece at the end.",
+        "imagePrompt": "Hands tying twine on a kraft gift box, evergreen sprig, soft bokeh lights, cozy holiday editorial, no readable text",
+        "altText": "Hands wrapping a gift box",
+        "layout": "image_right",
+        "ctaText": "Read our wrapping tips",
+        "ctaUrl": "https://example.com/journal/gift-wrap?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 5,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Splurge — one showpiece",
+        "columns": 2,
+        "items": [
+          {
+            "name": "Hand-thrown serving bowl",
+            "description": "Speckled glaze, food-safe",
+            "price": "$118",
+            "imagePrompt": "Artisan ceramic bowl on linen runner with citrus, overhead food editorial, natural light",
+            "linkUrl": "https://example.com/gift-guide/bowl?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter",
+            "badge": "Host"
+          },
+          {
+            "name": "Weighted blanket throw",
+            "description": "Stone gray, cotton cover",
+            "price": "$98",
+            "originalPrice": "$128",
+            "imagePrompt": "Folded weighted blanket on sofa corner, hygge interior, soft neutral palette",
+            "linkUrl": "https://example.com/gift-guide/blanket?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter",
+            "badge": "Best gift"
+          }
+        ]
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 6,
+      "variant": "flush",
+      "content": {
+        "body": "<em>Editor’s note:</em> We favor makers with transparent supply chains — when inventory moves fast, we will swap in a close substitute and note it at checkout.",
+        "alignment": "center",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "cta",
+      "order": 7,
+      "content": {
+        "headline": "Shop the full guide",
+        "description": "Free ground shipping over $75 this week.",
+        "buttonText": "Browse all picks",
+        "buttonUrl": "https://example.com/gift-guide?utm_source=email&utm_medium=crm&utm_campaign=gift_guide_winter",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 8,
+      "content": {
+        "companyName": "Harbor & Fold",
+        "address": "Gifts · help@example.com",
+        "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm editorial, soft promo",
+    "audience": "D2C gift shoppers",
+    "campaign_id": "gift_guide_winter",
+    "visual_density": "rich",
+    "target_image_slots": 8
+  },
+  "artDirection": {
+    "mood": "cozy, curated, seasonal",
+    "imageStyle": "Lifestyle and product photography with warm natural light"
+  }
+}

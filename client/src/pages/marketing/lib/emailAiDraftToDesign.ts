@@ -1,3 +1,8 @@
+/**
+ * AI email conversion: LLM JSON → VA2 `DesignManifest` → `runEmailAssemblyPipeline` → Unlayer design.
+ * v1 flat manifests (`colorTheme` / `layout` / `meta`) are bridged to VA2 via {@link legacyFlatManifestToVa2}.
+ * Deprecated: `assembleLegacyDesign` — retained for explicit legacy callers only.
+ */
 import minimalDesign from '../unlayerTemplates/starters/minimal.json';
 import emailConversionBase from '../unlayerTemplates/starters/emailConversionBase.json';
 import {
@@ -5,15 +10,33 @@ import {
   resolveArchitectEmailBodyBackgroundUrl,
   resolveHeroImageUrl,
 } from './emailImageAssets';
-import type { DesignManifest, ManifestHeroSection, ManifestFeatureGridSection, ManifestImageTextSection } from './types/designManifest.types';
-import { validateManifest } from './types/designManifest.types';
+import type {
+  DesignManifest as LegacyFlatManifest,
+  ManifestHeroSection,
+  ManifestFeatureGridSection,
+  ManifestImageTextSection,
+} from './types/designManifest.types';
+import { validateManifest as validateLegacyFlatManifest } from './types/designManifest.types';
+import type { DesignManifest as Va2DesignManifest } from './types/manifestTypes';
+import type { UnlayerDesign } from './types/unlayer.types';
 import {
-  assembleLegacyDesign,
   buildSafeMinimalist,
+  runEmailAssemblyPipeline,
+  validateManifest as validateVa2Manifest,
+  withUnlayerCounters,
   type ResolvedAssets,
   type UnlayerDesignWithCounters,
 } from './designAssembler';
 import { enhanceImagePrompt } from './designTokens';
+import { legacyFlatManifestToVa2 } from './legacyFlatToVa2';
+import {
+  mergeResolvedAssetsIntoVa2Manifest,
+  resolveAssetsForVa2Manifest,
+} from './resolveVa2ManifestImages';
+import {
+  recordEmailAssemblyPathLegacyBridge,
+  recordEmailAssemblyPathVa2Direct,
+} from './emailAssemblyPathMetrics';
 
 export type ParsedEmailDraft = {
   subject?: string;
@@ -81,6 +104,69 @@ export function extractBrandEmailColors(profile: unknown): BrandEmailColors | un
   }
   if (!primary && !accent && !bodyBackground && !textOnDark) return undefined;
   return { primary, accent, bodyBackground, textOnDark };
+}
+
+/**
+ * Best-effort HTTPS logo URL from org `marketing_brand_profile.profile` JSON for VA2 header row.
+ */
+export function extractBrandLogoUrl(profile: unknown): string | undefined {
+  if (profile == null || typeof profile !== 'object') return undefined;
+  const p = profile as Record<string, unknown>;
+  const pickUrl = (v: unknown): string | undefined => {
+    if (typeof v !== 'string') return undefined;
+    const t = v.trim();
+    return /^https:\/\//i.test(t) ? t : undefined;
+  };
+  let u =
+    pickUrl(p.logo_url) ??
+    pickUrl(p.logoUrl) ??
+    pickUrl(p.brand_logo) ??
+    pickUrl(p.logo);
+  const brand = p.brand;
+  if (!u && brand && typeof brand === 'object' && !Array.isArray(brand)) {
+    u = pickUrl((brand as Record<string, unknown>).logo);
+  }
+  const assets = p.assets;
+  if (!u && assets && typeof assets === 'object' && !Array.isArray(assets)) {
+    u = pickUrl((assets as Record<string, unknown>).logo_url) ?? pickUrl((assets as Record<string, unknown>).logoUrl);
+  }
+  return u;
+}
+
+/** Company line for auto-injected email footers when the org profile includes it. */
+export interface BrandFooterDefaults {
+  companyName: string;
+  address: string;
+}
+
+/**
+ * Best-effort company name and address from org brand profile JSON for VA2 footers.
+ */
+export function extractBrandFooterDefaults(profile: unknown): BrandFooterDefaults | undefined {
+  if (profile == null || typeof profile !== 'object') return undefined;
+  const p = profile as Record<string, unknown>;
+  const str = (v: unknown): string | undefined =>
+    typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
+  let companyName =
+    str(p.company_name) ??
+    str(p.companyName) ??
+    str(p.legal_name) ??
+    str(p.name) ??
+    str(p.organization_name);
+  let address =
+    str(p.address) ??
+    str(p.company_address) ??
+    (typeof p.contact === 'object' && p.contact != null && !Array.isArray(p.contact)
+      ? str((p.contact as Record<string, unknown>).address)
+      : undefined);
+  if (!companyName && typeof p.brand === 'object' && p.brand != null && !Array.isArray(p.brand)) {
+    companyName = str((p.brand as Record<string, unknown>).name);
+  }
+  if (!companyName && !address) return undefined;
+  return {
+    companyName: companyName ?? 'Company Name',
+    address: address ?? 'Company Address',
+  };
 }
 
 type UnlayerRow = {
@@ -637,14 +723,13 @@ export type ImageResolver = (req: ImageGenerationRequest) => Promise<string | nu
 
 const noopImageResolver: ImageResolver = async () => null;
 
-function extractManifest(llmOutput: string): DesignManifest | null {
+function parseJsonFromLlmOutput(llmOutput: string): unknown | null {
   if (!llmOutput || typeof llmOutput !== 'string') return null;
 
   const trimmed = llmOutput.trim();
 
   try {
-    const parsed = JSON.parse(trimmed);
-    return validateManifest(parsed);
+    return JSON.parse(trimmed);
   } catch {
     /* try extraction */
   }
@@ -655,8 +740,7 @@ function extractManifest(llmOutput: string): DesignManifest | null {
     const match = trimmed.match(pattern);
     if (match?.[1]) {
       try {
-        const parsed = JSON.parse(match[1].trim());
-        return validateManifest(parsed);
+        return JSON.parse(match[1].trim());
       } catch {
         continue;
       }
@@ -667,18 +751,75 @@ function extractManifest(llmOutput: string): DesignManifest | null {
   const braceEnd = trimmed.lastIndexOf('}');
   if (braceStart !== -1 && braceEnd > braceStart) {
     try {
-      const parsed = JSON.parse(trimmed.slice(braceStart, braceEnd + 1));
-      return validateManifest(parsed);
+      return JSON.parse(trimmed.slice(braceStart, braceEnd + 1));
     } catch {
-      /* give up */
+      return null;
     }
   }
 
   return null;
 }
 
+/**
+ * Parse LLM output into either a VA2 manifest or a legacy flat manifest (v1).
+ * Legacy shapes are detected via `colorTheme` + `layout` + `meta` before VA2 validation.
+ */
+function extractEmailManifestFromLlm(
+  llmOutput: string,
+):
+  | { kind: 'va2'; manifest: Va2DesignManifest }
+  | { kind: 'legacy'; manifest: LegacyFlatManifest }
+  | null {
+  const parsed = parseJsonFromLlmOutput(llmOutput);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const raw = parsed as Record<string, unknown>;
+  const looksLegacyFlat =
+    typeof raw.colorTheme === 'string' &&
+    typeof raw.layout === 'string' &&
+    raw.meta != null &&
+    typeof raw.meta === 'object' &&
+    !Array.isArray(raw.meta);
+
+  if (looksLegacyFlat) {
+    const leg = validateLegacyFlatManifest(parsed);
+    if (leg) {
+      recordEmailAssemblyPathLegacyBridge();
+      return { kind: 'legacy', manifest: leg };
+    }
+  }
+
+  const va2 = validateVa2Manifest(parsed);
+  if (va2.valid && va2.normalizedManifest) {
+    recordEmailAssemblyPathVa2Direct();
+    const m = { ...va2.normalizedManifest };
+    m.metadata = { ...m.metadata, assembly_source: 'va2_pipeline' };
+    return { kind: 'va2', manifest: m };
+  }
+
+  if (!looksLegacyFlat) {
+    const leg = validateLegacyFlatManifest(parsed);
+    if (leg) {
+      recordEmailAssemblyPathLegacyBridge();
+      return { kind: 'legacy', manifest: leg };
+    }
+  }
+
+  return null;
+}
+
+function applyHeroImageOverride(manifest: Va2DesignManifest, heroUrl?: string): Va2DesignManifest {
+  if (!heroUrl?.trim()) return manifest;
+  const m = structuredClone(manifest);
+  const hero = m.sections.find((s) => s.type === 'hero');
+  if (hero) {
+    const c = hero.content as Record<string, unknown>;
+    c.imageUrl = heroUrl.trim();
+  }
+  return m;
+}
+
 async function resolveAssetsForManifest(
-  manifest: DesignManifest,
+  manifest: LegacyFlatManifest,
   resolver: ImageResolver,
   config: VisualArchitectConfig,
 ): Promise<ResolvedAssets> {
@@ -798,7 +939,7 @@ export interface EmailAiDraftToDesignOptions {
 
 export interface EmailDesignResult {
   design: UnlayerDesignWithCounters;
-  manifest: DesignManifest | null;
+  manifest: Va2DesignManifest | null;
   isFallback: boolean;
   subject: string;
   preheader: string;
@@ -806,7 +947,7 @@ export interface EmailDesignResult {
 }
 
 /**
- * Converts LLM output (Design Manifest JSON) into Unlayer design JSON via {@link assembleLegacyDesign}.
+ * Converts LLM output (VA2 or legacy flat JSON) into Unlayer design JSON via {@link runEmailAssemblyPipeline}.
  * Falls back to {@link buildSafeMinimalist} when parsing or assembly fails.
  */
 export async function emailAiDraftToDesign(
@@ -816,9 +957,9 @@ export async function emailAiDraftToDesign(
   const warnings: string[] = [];
   const resolver = options.imageResolver ?? noopImageResolver;
 
-  const manifest = config.enabled ? extractManifest(options.llmOutput) : null;
+  const extracted = config.enabled ? extractEmailManifestFromLlm(options.llmOutput) : null;
 
-  if (!manifest) {
+  if (!extracted) {
     if (config.enabled) {
       warnings.push(
         'Failed to parse Design Manifest from LLM output. Using Safe Minimalist fallback.',
@@ -836,45 +977,75 @@ export async function emailAiDraftToDesign(
     };
   }
 
-  let assets: ResolvedAssets = {};
-  try {
-    assets = await resolveAssetsForManifest(manifest, resolver, config);
-  } catch (err) {
-    warnings.push(
-      `Image resolution failed: ${err instanceof Error ? err.message : 'unknown'}. Using placeholders.`,
-    );
+  let va2Manifest: Va2DesignManifest;
+
+  if (extracted.kind === 'legacy') {
+    let assets: ResolvedAssets = {};
+    try {
+      assets = await resolveAssetsForManifest(extracted.manifest, resolver, config);
+    } catch (err) {
+      warnings.push(
+        `Image resolution failed: ${err instanceof Error ? err.message : 'unknown'}. Using placeholders.`,
+      );
+    }
+    if (options.heroImageUrl) {
+      assets.heroImageUrl = options.heroImageUrl;
+    }
+    va2Manifest = legacyFlatManifestToVa2(extracted.manifest, assets);
+    const v = validateVa2Manifest(va2Manifest);
+    if (v.valid && v.normalizedManifest) {
+      va2Manifest = v.normalizedManifest;
+    }
+  } else {
+    va2Manifest = extracted.manifest;
+    let assets: ResolvedAssets = {};
+    try {
+      assets = await resolveAssetsForVa2Manifest(va2Manifest, resolver, config);
+    } catch (err) {
+      warnings.push(
+        `Image resolution failed: ${err instanceof Error ? err.message : 'unknown'}. Using placeholders.`,
+      );
+    }
+    if (options.heroImageUrl) {
+      assets.heroImageUrl = options.heroImageUrl;
+    }
+    va2Manifest = mergeResolvedAssetsIntoVa2Manifest(va2Manifest, assets);
+    const v = validateVa2Manifest(va2Manifest);
+    if (v.valid && v.normalizedManifest) {
+      va2Manifest = v.normalizedManifest;
+    }
   }
 
-  if (options.heroImageUrl) {
-    assets.heroImageUrl = options.heroImageUrl;
-  }
+  va2Manifest = applyHeroImageOverride(va2Manifest, options.heroImageUrl);
 
-  let design: UnlayerDesignWithCounters;
   try {
-    design = assembleLegacyDesign(manifest, assets);
+    const result = runEmailAssemblyPipeline(va2Manifest);
+    if (!result.success || !result.design) {
+      throw new Error('Assembly returned no design');
+    }
+    const design = withUnlayerCounters(result.design as unknown as UnlayerDesign);
+    return {
+      design,
+      manifest: va2Manifest,
+      isFallback: false,
+      subject: va2Manifest.subject,
+      preheader: va2Manifest.preheader,
+      warnings,
+    };
   } catch (err) {
     warnings.push(
       `Assembly failed: ${err instanceof Error ? err.message : 'unknown'}. Using Safe Minimalist.`,
     );
-    design = buildSafeMinimalist(options.heroImageUrl);
+    const design = buildSafeMinimalist(options.heroImageUrl);
     return {
       design,
-      manifest,
+      manifest: va2Manifest,
       isFallback: true,
-      subject: manifest.meta.subject ?? 'Untitled Email',
-      preheader: manifest.meta.preheader,
+      subject: va2Manifest.subject,
+      preheader: va2Manifest.preheader,
       warnings,
     };
   }
-
-  return {
-    design,
-    manifest,
-    isFallback: false,
-    subject: manifest.meta.subject ?? 'Untitled Email',
-    preheader: manifest.meta.preheader,
-    warnings,
-  };
 }
 
 /** Synchronous path when images are already resolved (e.g. hero URL only). */
@@ -882,16 +1053,38 @@ export function emailAiDraftToDesignSync(
   llmOutput: string,
   heroImageUrl?: string,
 ): UnlayerDesignWithCounters {
-  const manifest = extractManifest(llmOutput);
-  if (!manifest) {
+  const extracted = extractEmailManifestFromLlm(llmOutput);
+  if (!extracted) {
     return buildSafeMinimalist(heroImageUrl);
   }
 
-  const assets: ResolvedAssets = {};
-  if (heroImageUrl) assets.heroImageUrl = heroImageUrl;
+  let va2Manifest: Va2DesignManifest;
+  if (extracted.kind === 'legacy') {
+    const assets: ResolvedAssets = {};
+    if (heroImageUrl) {
+      assets.heroImageUrl = heroImageUrl;
+    }
+    va2Manifest = legacyFlatManifestToVa2(extracted.manifest, assets);
+    const v = validateVa2Manifest(va2Manifest);
+    if (v.valid && v.normalizedManifest) {
+      va2Manifest = v.normalizedManifest;
+    }
+  } else {
+    va2Manifest = extracted.manifest;
+    const v = validateVa2Manifest(va2Manifest);
+    if (v.valid && v.normalizedManifest) {
+      va2Manifest = v.normalizedManifest;
+    }
+  }
+
+  va2Manifest = applyHeroImageOverride(va2Manifest, heroImageUrl);
 
   try {
-    return assembleLegacyDesign(manifest, assets);
+    const result = runEmailAssemblyPipeline(va2Manifest);
+    if (!result.success || !result.design) {
+      return buildSafeMinimalist(heroImageUrl);
+    }
+    return withUnlayerCounters(result.design as unknown as UnlayerDesign);
   } catch {
     return buildSafeMinimalist(heroImageUrl);
   }

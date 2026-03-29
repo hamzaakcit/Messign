@@ -12,7 +12,7 @@ interface ContentCreatePanelProps {
   initialDate?: string;
   /** When `instagram`, sets social + channel for IG drafts. */
   preset?: ContentCreatePreset;
-  /** Opens Marketing Dora + Instagram agent flow (parent wires). */
+  /** Opens Lucy Marketing + Instagram agent flow (parent wires). */
   onDraftWithMarketingAgent?: () => void;
 }
 
@@ -153,9 +153,9 @@ export function ContentCreatePanel({
             onClick={() => onDraftWithMarketingAgent()}
             className="w-full rounded-lg border border-primary-500/40 bg-primary-500/10 px-3 py-2 text-sm font-medium text-primary-200 hover:bg-primary-500/20"
           >
-            Draft with Marketing agent (Dora)
+            Draft with Marketing agent (Lucy)
           </button>
-          <p className="mt-1.5 text-[11px] text-app-muted">Opens the Marketing agent rail with the Instagram prompt helper. Paste the result into the body when ready.</p>
+          <p className="mt-1.5 text-[11px] text-app-muted">Opens Lucy with the Instagram prompt helper. Paste the result into the body when ready.</p>
         </div>
       )}
       <div className="flex items-center justify-end gap-3 pt-2">

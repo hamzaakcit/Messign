@@ -6,6 +6,9 @@
 /** Minimum character length for hero image description (matches server regenerate-image). */
 export const MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH = 10;
 
+/** When a reference photo is attached, shorter edit instructions are allowed. */
+export const MIN_INSTAGRAM_IMAGE_DESCRIPTION_WITH_REFERENCE_LENGTH = 5;
+
 export interface InstagramAgentFormValues {
   /** What the post should be about (replaces a bare [topic] placeholder). */
   topic: string;
@@ -15,6 +18,8 @@ export interface InstagramAgentFormValues {
   tone?: string;
   /** Feed = square; story/reel = vertical 9:16 guidance in the image block. */
   format?: 'feed' | 'story' | 'reel';
+  /** Public HTTPS URL after upload — server strips this block and sets Kontext reference on the content row. */
+  referenceImageUrl?: string | null;
 }
 
 /**
@@ -29,6 +34,7 @@ export function buildInstagramAgentMessage(values: InstagramAgentFormValues): st
   const hero = values.heroImageDescription.trim();
   const tone = values.tone?.trim();
   const format = values.format ?? 'feed';
+  const refUrl = values.referenceImageUrl?.trim() ?? '';
 
   const toneLine =
     tone && tone.length > 0
@@ -42,15 +48,23 @@ export function buildInstagramAgentMessage(values: InstagramAgentFormValues): st
 
   const imageBlockBody = [hero, aspectNote].filter(Boolean).join('\n\n');
 
-  return [
-    `Draft an Instagram post about: ${topic}.${toneLine}`,
-    '',
-    'Include: a strong hook (first line), short paragraphs with line breaks, a clear CTA, 10–15 relevant hashtags, and a separate block exactly in this format for the hero image:',
-    '',
-    '[IMAGE_PROMPT]',
-    imageBlockBody,
-    '[/IMAGE_PROMPT]',
-  ].join('\n');
+  const refBlock =
+    refUrl.length > 0
+      ? ['[REFERENCE_IMAGE_URL]', refUrl, '[/REFERENCE_IMAGE_URL]', ''].join('\n')
+      : '';
+
+  return (
+    refBlock +
+    [
+      `Draft an Instagram post about: ${topic}.${toneLine}`,
+      '',
+      'Include: a strong hook (first line), short paragraphs with line breaks, a clear CTA, 10–15 relevant hashtags, and a separate block exactly in this format for the hero image:',
+      '',
+      '[IMAGE_PROMPT]',
+      imageBlockBody,
+      '[/IMAGE_PROMPT]',
+    ].join('\n')
+  );
 }
 
 /**
@@ -67,8 +81,14 @@ export function validateInstagramAgentForm(values: InstagramAgentFormValues): Pa
     errors.topic = 'Topic is required';
   }
   const hero = values.heroImageDescription?.trim() ?? '';
-  if (hero.length < MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH) {
-    errors.heroImageDescription = `Image description must be at least ${MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH} characters`;
+  const hasRef = Boolean(values.referenceImageUrl?.trim());
+  const minLen = hasRef
+    ? MIN_INSTAGRAM_IMAGE_DESCRIPTION_WITH_REFERENCE_LENGTH
+    : MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH;
+  if (hero.length < minLen) {
+    errors.heroImageDescription = hasRef
+      ? `Describe how to use or edit the photo (at least ${minLen} characters)`
+      : `Image description must be at least ${MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH} characters`;
   }
   return errors;
 }

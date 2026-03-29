@@ -9,6 +9,10 @@ vi.mock('../../../db/index.js', () => ({
   query: vi.fn(),
 }));
 
+vi.mock('../../../dal/marketing/calibrationSnapshots.js', () => ({
+  getLatestCalibrationSnapshot: vi.fn().mockResolvedValue(null),
+}));
+
 describe('resolveCalibrationPrompt', () => {
   beforeEach(() => {
     clearCalibrationCache();

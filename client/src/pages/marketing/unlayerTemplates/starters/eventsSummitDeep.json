@@ -1,0 +1,120 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "layoutDensity": "airy",
+  "subject": "Live summit — AI governance for platform teams (Apr 16)",
+  "preheader": "Agenda: policy-as-code, audit trails, and a customer panel. Register for the live Q&A; calendar holds and replay links are sent after signup. Seats are limited for the interactive breakout.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Ship faster without losing control",
+        "subheadline": "A half-day virtual summit for VPs of Platform, SRE, and Security—practical talks, no vendor keynotes.",
+        "ctaText": "Save my seat",
+        "ctaUrl": "https://example.com/summit/register",
+        "imagePrompt": "Modern conference stage with soft blue lighting and blurred audience, keynote silhouette, no readable screens or signage, cinematic corporate photography",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "What you will take away",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Shield",
+            "heading": "Policy-as-code rollouts",
+            "description": "Canary, approvals, and instant rollback patterns that security actually signs off on.",
+            "imagePrompt": "Abstract shield iconography blended with circuit traces on dark slate, soft blue glow, no text"
+          },
+          {
+            "icon": "Layers",
+            "heading": "Audit-ready evidence",
+            "description": "Exports your compliance team can hand to auditors without spreadsheet archaeology.",
+            "imagePrompt": "Stacked document layers with subtle seal motif, executive office lighting, no legible text"
+          },
+          {
+            "icon": "BarChart",
+            "heading": "Live customer panel",
+            "description": "Three mid-market teams share how they balanced velocity with guardrails.",
+            "imagePrompt": "Panel discussion silhouettes on stage with warm spotlight, shallow depth of field, no readable slides"
+          }
+        ]
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "body": "<strong>Agenda (ET):</strong> 10:00 — Opening; 10:30 — Policy-as-code deep dive; 11:30 — Customer panel; 12:15 — Live Q&A. Breakouts announced in the confirmation email.",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "headline": "Speaker spotlight",
+        "body": "Our keynote leads platform engineering at a Series C fintech—expect concrete examples, not slideware.",
+        "imagePrompt": "Professional speaker at podium with warm spotlight, audience softly blurred, no readable name badges",
+        "altText": "Keynote speaker on stage",
+        "layout": "image_left",
+        "ctaText": "View speaker bios",
+        "ctaUrl": "https://example.com/summit/speakers"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 5,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Registrations (last event)", "value": "4,200+" },
+          { "label": "NPS from attendees", "value": "62" },
+          { "label": "Countries represented", "value": "38" }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Reserve your seat — replay included",
+        "description": "Can’t attend live? Register anyway for the recording and slides.",
+        "buttonText": "Register free",
+        "buttonUrl": "https://example.com/summit/register",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "variant": "band",
+      "content": {
+        "companyName": "LatticeShip Events",
+        "address": "1 Embarcadero Center, San Francisco, CA 94111",
+        "unsubscribeText": "Summit invites from LatticeShip. Unsubscribe or manage topics below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "authoritative, welcoming, time-boxed",
+    "audience": "Platform and security leaders",
+    "visual_density": "rich",
+    "target_image_slots": 5
+  },
+  "artDirection": {
+    "mood": "confident, stage-lit, professional",
+    "imageStyle": "Corporate event photography with blue-slate palette"
+  }
+}

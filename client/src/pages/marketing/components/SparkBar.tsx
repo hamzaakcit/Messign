@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   ChevronDown,
@@ -13,85 +13,34 @@ import {
   Target,
   TrendingUp,
 } from 'lucide-react';
-import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 import type { DashboardMetrics } from '@/lib/marketingApi';
+import { ROUTES } from '@/lib/routes';
 import { marketingShell } from '@/pages/marketing/lib/marketingShellTheme';
+import { MarketingMetricChips } from '@/pages/marketing/components/MarketingMetricChips';
 
-export type ViewMode = 'board' | 'calendar' | 'builder' | 'intelligence';
+/** SparkBar destinations aligned with path segments (pipeline replaces legacy combined “board”). */
+export type ViewMode = 'pipeline' | 'calendar' | 'builder' | 'intelligence';
 
 interface SparkBarProps {
-  mode: ViewMode;
-  onModeChange: (mode: ViewMode) => void;
   metrics: DashboardMetrics | null;
   loading?: boolean;
-  doraOpen: boolean;
-  onToggleDora: () => void;
   onCreateCampaign: () => void;
   onCreateContent: () => void;
   onCreateEmail: () => void;
-  /** Marketing hub: open Dora + Instagram AI prompt modal */
+  /** Marketing hub: open Lucy Instagram AI prompt modal */
   onInstagramDraftAi?: () => void;
   /** Open “New content” with Instagram channel preset */
   onCreateInstagramContent?: () => void;
 }
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-IE', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-}
-
-interface SparkChipProps {
-  label: string;
-  value: string | number;
-  sparkData?: Array<{ v: number }>;
-  color?: string;
-}
-
-function SparkChip({ label, value, sparkData, color = marketingShell.sparkChart.default }: SparkChipProps): JSX.Element {
-  return (
-    <div className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-2 sm:px-3 rounded-lg bg-app-surface-tertiary border border-white/[0.08] min-w-0">
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] text-app-muted leading-none truncate">{label}</p>
-        <p className="text-xs sm:text-sm font-semibold text-app-text leading-tight truncate">{value}</p>
-      </div>
-      {sparkData && sparkData.length > 1 && (
-        <div className="w-10 sm:w-14 h-5 sm:h-6 shrink-0 hidden sm:block">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sparkData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id={`spark-${label}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-                  <stop offset="100%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke={color}
-                strokeWidth={1.5}
-                fill={`url(#spark-${label})`}
-                dot={false}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
+function normalizePath(pathname: string): string {
+  return pathname.replace(/\/$/, '') || '/';
 }
 
 export function SparkBar({
-  mode,
-  onModeChange,
   metrics,
   loading,
-  doraOpen,
-  onToggleDora,
   onCreateCampaign,
   onCreateContent,
   onCreateEmail,
@@ -99,56 +48,29 @@ export function SparkBar({
   onCreateInstagramContent,
 }: SparkBarProps): JSX.Element {
   const navigate = useNavigate();
+  const location = useLocation();
   const [createOpen, setCreateOpen] = useState(false);
 
-  const leadSpark = metrics?.monthlyTrend.map((t) => ({ v: t.leads })) ?? [];
-  const spendSpark = metrics?.monthlyTrend.map((t) => ({ v: t.spend })) ?? [];
+  const path = normalizePath(location.pathname);
+  const isPipeline = path === ROUTES.MARKETING_PIPELINE;
+  const isCalendar = path === ROUTES.MARKETING_CALENDAR;
+  const isIntel = path === ROUTES.MARKETING_INTELLIGENCE;
+  const isLucy = path === ROUTES.MARKETING;
 
   return (
     <div
       className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 px-3 sm:px-4 py-2 border-b ${marketingShell.borderSubtle} ${marketingShell.bgTop} shrink-0 sticky top-0 z-20 min-w-0`}
     >
-      {loading ? (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 flex-1 min-w-0 w-full">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-9 sm:h-10 rounded-lg bg-app-surface-tertiary animate-pulse min-w-0" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 flex-1 min-w-0 w-full">
-          <SparkChip
-            label="MQLs"
-            value={metrics?.mqls ?? 0}
-            sparkData={leadSpark}
-            color={marketingShell.sparkChart.mql}
-          />
-          <SparkChip
-            label="CPL"
-            value={formatCurrency(metrics?.cpl ?? 0)}
-            sparkData={spendSpark}
-            color={marketingShell.sparkChart.cpl}
-          />
-          <SparkChip
-            label="ROI"
-            value={`${(metrics?.roi ?? 0).toFixed(1)}x`}
-            color={marketingShell.sparkChart.roi}
-          />
-          <SparkChip
-            label="Open Rate"
-            value={`${(metrics?.emailOpenRate ?? 0).toFixed(1)}%`}
-            color={marketingShell.sparkChart.openRate}
-          />
-        </div>
-      )}
+      <MarketingMetricChips metrics={metrics} loading={loading} variant="strip" className="flex-1" />
 
       <div className="flex items-center gap-1 shrink-0 justify-end flex-wrap sm:justify-end w-full sm:w-auto">
         <button
           type="button"
-          onClick={() => onModeChange('board')}
-          title="Board"
+          onClick={() => void navigate(ROUTES.MARKETING_PIPELINE)}
+          title="Pipeline"
           className={cn(
             'p-2 rounded-lg transition-colors',
-            mode === 'board'
+            isPipeline
               ? 'bg-primary-500/20 text-primary-400'
               : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
@@ -157,12 +79,12 @@ export function SparkBar({
         </button>
         <button
           type="button"
-          onClick={() => onModeChange('calendar')}
+          onClick={() => void navigate(ROUTES.MARKETING_CALENDAR)}
           title="Calendar"
-          aria-pressed={mode === 'calendar'}
+          aria-pressed={isCalendar}
           className={cn(
             'p-2 rounded-lg transition-colors',
-            mode === 'calendar'
+            isCalendar
               ? 'bg-primary-500/20 text-primary-400'
               : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
@@ -171,12 +93,12 @@ export function SparkBar({
         </button>
         <button
           type="button"
-          onClick={() => onModeChange('intelligence')}
+          onClick={() => void navigate(ROUTES.MARKETING_INTELLIGENCE)}
           title="Competitor Intelligence"
-          aria-pressed={mode === 'intelligence'}
+          aria-pressed={isIntel}
           className={cn(
             'p-2 rounded-lg transition-colors',
-            mode === 'intelligence'
+            isIntel
               ? 'bg-primary-500/20 text-primary-400'
               : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
           )}
@@ -187,13 +109,12 @@ export function SparkBar({
 
         <button
           type="button"
-          onClick={onToggleDora}
-          title="Dora Agent"
+          onClick={() => void navigate(ROUTES.MARKETING)}
+          title="Lucy — CMO copilot"
+          aria-pressed={isLucy}
           className={cn(
             'p-2 rounded-lg transition-colors',
-            doraOpen
-              ? 'bg-purple-500/20 text-purple-400'
-              : 'text-app-muted hover:text-app-text hover:bg-app-nav-hover',
+            isLucy ? 'text-purple-300 bg-purple-500/15' : 'text-app-muted hover:text-purple-300 hover:bg-purple-500/15',
           )}
         >
           <Sparkles className="w-4 h-4" />
@@ -256,7 +177,7 @@ export function SparkBar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => { navigate('/marketing/builder'); setCreateOpen(false); }}
+                  onClick={() => { void navigate(ROUTES.MARKETING_BUILDER); setCreateOpen(false); }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
                 >
                   <TrendingUp className="w-3.5 h-3.5 text-app-muted" /> Builder

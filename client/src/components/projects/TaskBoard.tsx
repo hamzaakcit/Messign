@@ -19,7 +19,9 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
 import { TaskColumn } from './TaskColumn';
 import { TaskCard } from './TaskCard';
+import { TaskListView } from './TaskListView';
 import type { Task, TaskStatus } from '@/types';
+import { cn } from '@/lib/utils';
 
 const columns: { id: TaskStatus; title: string; color: string }[] = [
   { id: 'todo', title: 'First Phase', color: 'bg-gray-500' },
@@ -49,9 +51,20 @@ export interface TaskBoardProps {
   onSelectProject?: (projectId: string) => void;
   /** GET /tasks in progress (initial load or refetch). */
   isLoadingTasks?: boolean;
+  /** Mission Control compact Kanban styling. */
+  compact?: boolean;
+  /** Kanban vs dense list (list uses same updateTaskStatus). */
+  viewMode?: 'kanban' | 'list';
 }
 
-export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject, isLoadingTasks }: TaskBoardProps) {
+export function TaskBoard({
+  activeProjectIds,
+  getProjectName,
+  onSelectProject,
+  isLoadingTasks,
+  compact = false,
+  viewMode = 'kanban',
+}: TaskBoardProps) {
   const tasks = useProjectStore((s) => s.tasks);
   const updateTaskStatus = useProjectStore((s) => s.updateTaskStatus);
   const user = useAuthStore((s) => s.user);
@@ -105,6 +118,28 @@ export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject, i
     }
   };
 
+  if (viewMode === 'list') {
+    return (
+      <div className="relative h-full min-h-0 flex flex-col p-2 overflow-hidden">
+        {isLoadingTasks ? (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-app/70 backdrop-blur-[2px] border border-app-border/50"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="text-[13px] text-app-muted">Loading tasks…</span>
+          </div>
+        ) : null}
+        <TaskListView
+          tasks={launchedTasks}
+          getProjectName={getProjectName}
+          onSelectProject={onSelectProject}
+          compact={compact}
+        />
+      </div>
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -112,14 +147,14 @@ export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject, i
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="relative h-full flex gap-3 p-4 overflow-hidden min-w-0">
+      <div className={cn('relative h-full flex gap-2 overflow-hidden min-w-0', compact ? 'gap-2 p-2' : 'gap-3 p-4')}>
         {isLoadingTasks ? (
           <div
             className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-app/70 backdrop-blur-[2px] border border-app-border/50"
             role="status"
             aria-live="polite"
           >
-            <span className="text-sm text-app-muted">Loading tasks…</span>
+            <span className={cn('text-app-muted', compact ? 'text-[13px]' : 'text-sm')}>Loading tasks…</span>
           </div>
         ) : null}
         {columns.map(column => {
@@ -133,6 +168,7 @@ export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject, i
               color={column.color}
               count={columnTasks.length}
               tooltipContent={STATUS_TOOLTIPS[column.id]}
+              compact={compact}
             >
               <SortableContext
                 items={columnTasks.map(t => t.id)}
@@ -145,6 +181,7 @@ export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject, i
                     disabledDrag={!canMoveSteps}
                     projectName={getProjectName?.(task.projectId)}
                     onProjectClick={onSelectProject ? () => onSelectProject(task.projectId) : undefined}
+                    compact={compact}
                   />
                 ))}
               </SortableContext>
@@ -154,7 +191,7 @@ export function TaskBoard({ activeProjectIds, getProjectName, onSelectProject, i
       </div>
 
       <DragOverlay>
-        {activeTask && <TaskCard task={activeTask} isDragging />}
+        {activeTask && <TaskCard task={activeTask} isDragging compact={compact} />}
       </DragOverlay>
     </DndContext>
   );

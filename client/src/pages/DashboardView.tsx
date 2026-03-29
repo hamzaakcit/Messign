@@ -1,8 +1,8 @@
 import { useAuthStore } from '@/stores/authStore';
-import { CommandCenter } from '@/components/command-center';
+import { MainDashboard } from '@/components/dashboard';
 
 /**
- * Main home dashboard: high-density Intelligence Kanban (Mission Control).
+ * Main home dashboard: single-fold Company OS (bento + workspace strip).
  */
 export function DashboardView(): JSX.Element {
   const { user } = useAuthStore();
@@ -15,5 +15,5 @@ export function DashboardView(): JSX.Element {
     );
   }
 
-  return <CommandCenter />;
+  return <MainDashboard />;
 }

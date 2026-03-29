@@ -1,0 +1,144 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "layoutDensity": "compact",
+  "subject": "Spring Flash — Two waves, one checkout",
+  "preheader": "Wave 1: apparel and layers. Wave 2: home and carry. Free shipping over $75; bundles ship together when inventory allows. Sale ends Sunday at midnight local time.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Spring flash — two curated grids",
+        "subheadline": "We split inventory into focused waves so mobile loads stay fast and you can scan faster.",
+        "ctaText": "Shop wave 1",
+        "ctaUrl": "https://example.com/spring/wave-1",
+        "imagePrompt": "[STOCK] Spring apparel flat lay with pastel linen, sunglasses, and tote on white sweep, soft daylight, ecommerce hero photography",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Wave 1 — Apparel & layers",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Linen Shirt",
+            "description": "Breathable, garment-dyed.",
+            "price": "$68",
+            "originalPrice": "$88",
+            "imagePrompt": "[STOCK] Linen shirt folded on fabric, soft studio light, apparel catalog",
+            "linkUrl": "https://example.com/p/shirt",
+            "badge": "Spring"
+          },
+          {
+            "name": "Lightweight Parka",
+            "description": "Packable hood, water-resistant.",
+            "price": "$118",
+            "originalPrice": "$158",
+            "imagePrompt": "[STOCK] Folded parka jacket on wooden bench, neutral background, product shot",
+            "linkUrl": "https://example.com/p/parka",
+            "badge": "-25%"
+          },
+          {
+            "name": "Merino Crew",
+            "description": "Midweight, odor-resistant.",
+            "price": "$54",
+            "originalPrice": "$78",
+            "imagePrompt": "[STOCK] Merino sweater on stool with soft shadow, warm lifestyle lighting",
+            "linkUrl": "https://example.com/p/merino",
+            "badge": "Bestseller"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider",
+      "order": 3,
+      "content": {}
+    },
+    {
+      "type": "product_grid",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Wave 2 — Home & carry",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Ceramic Carafe Set",
+            "description": "Matte glaze, drip-friendly spout.",
+            "price": "$42",
+            "originalPrice": "$58",
+            "imagePrompt": "[STOCK] Ceramic carafe and cups on oak table, morning window light, kitchen styling",
+            "linkUrl": "https://example.com/p/carafe",
+            "badge": "Kitchen"
+          },
+          {
+            "name": "Canvas Tote",
+            "description": "Vegetable-tanned straps.",
+            "price": "$78",
+            "originalPrice": "$98",
+            "imagePrompt": "[STOCK] Canvas tote with leather handles on chair, neutral interior photo",
+            "linkUrl": "https://example.com/p/tote",
+            "badge": "Editor pick"
+          },
+          {
+            "name": "Travel Kit",
+            "description": "TSA-friendly pouches.",
+            "price": "$36",
+            "originalPrice": "$48",
+            "imagePrompt": "[STOCK] Open travel kit with toiletries on hotel desk, tidy packing aesthetic",
+            "linkUrl": "https://example.com/p/kit",
+            "badge": "Travel"
+          }
+        ]
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 5,
+      "variant": "card",
+      "content": {
+        "body": "<strong>Why two waves:</strong> Smaller grids reduce scroll fatigue on phones and keep load times predictable. If your size sells out in Wave 1, check Wave 2 for complementary pieces.",
+        "alignment": "left",
+        "insetCard": true
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Free shipping over $75",
+        "description": "Sale ends Sunday. Returns stay easy for 30 days.",
+        "buttonText": "Shop everything",
+        "buttonUrl": "https://example.com/spring/all",
+        "variant": "fullWidth"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "content": {
+        "companyName": "Harbor & Co.",
+        "address": "220 Pier Ave, Los Angeles, CA 90291",
+        "unsubscribeText": "You subscribed to Harbor & Co. promotions. Unsubscribe below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm, urgent, retail",
+    "audience": "D2C shoppers",
+    "visual_density": "rich",
+    "target_image_slots": 7
+  },
+  "artDirection": {
+    "mood": "sunlit, seasonal, promotional",
+    "imageStyle": "Lifestyle ecommerce photography with warm neutrals"
+  }
+}

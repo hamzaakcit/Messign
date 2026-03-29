@@ -52,6 +52,69 @@ describe('validateImageGenerationInput', () => {
     });
     expect(r.ok).toBe(false);
   });
+
+  it('passes through skip_fal when true (skip Fal for Vertex/Gemini-first routing)', () => {
+    const r = validateImageGenerationInput({
+      ...validInput,
+      skip_fal: true,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.normalized.skip_fal).toBe(true);
+    }
+  });
+
+  it('omits skip_fal when false or unset', () => {
+    const r = validateImageGenerationInput({
+      ...validInput,
+      skip_fal: false,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect('skip_fal' in r.normalized).toBe(false);
+    }
+  });
+
+  it('passes through email_campaign, technical_platform_topic, fal_negative_prompt', () => {
+    const r = validateImageGenerationInput({
+      ...validInput,
+      email_campaign: true,
+      technical_platform_topic: true,
+      fal_negative_prompt: '  fake ui, text  ',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.normalized.email_campaign).toBe(true);
+      expect(r.normalized.technical_platform_topic).toBe(true);
+      expect(r.normalized.fal_negative_prompt).toBe('fake ui, text');
+    }
+  });
+
+  it('rejects skip_fal together with instagram_fal_only', () => {
+    const r = validateImageGenerationInput({
+      ...validInput,
+      skip_fal: true,
+      instagram_feed: true,
+      instagram_fal_only: true,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/Conflicting flags/i);
+  });
+
+  it('passes through instagram_fal_only and instagram_direct_prompt when true', () => {
+    const r = validateImageGenerationInput({
+      ...validInput,
+      instagram_feed: true,
+      instagram_fal_only: true,
+      instagram_direct_prompt: true,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.normalized.instagram_feed).toBe(true);
+      expect(r.normalized.instagram_fal_only).toBe(true);
+      expect(r.normalized.instagram_direct_prompt).toBe(true);
+    }
+  });
 });
 
 describe('validateRasterImageBuffer', () => {

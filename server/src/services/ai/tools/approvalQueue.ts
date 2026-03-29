@@ -8,6 +8,11 @@
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
+import {
+  buildShortApprovalQueueSummary,
+  computeApprovalQueueAggregates,
+  type ApprovalQueueItemShape,
+} from './approvalQueueAggregates.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
 
 const approvalQueueTool: Tool = {
@@ -48,7 +53,7 @@ Use this tool when someone asks:
 
   async execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
     const domain = (args.domain as string) || 'all';
-    const approvals: { type: string; id: string; title: string; detail: string; date: string }[] = [];
+    const approvals: ApprovalQueueItemShape[] = [];
 
     const orgId = await resolveOrgIdForTool(context);
     if (!orgId) {
@@ -173,17 +178,12 @@ Use this tool when someone asks:
 
     approvals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    if (approvals.length === 0) {
-      return { success: true, data: [], summary: "No pending approvals! You're all caught up." };
-    }
-
-    const summary = `**Pending Approvals (${approvals.length} items):**\n${approvals
-      .map((a, i) => `${i + 1}. [${a.type}] ${a.title} — ${a.detail} (${new Date(a.date).toLocaleDateString()})`)
-      .join('\n')}`;
+    const aggregates = computeApprovalQueueAggregates(approvals);
+    const summary = buildShortApprovalQueueSummary(approvals, aggregates);
 
     return {
       success: true,
-      data: approvals,
+      data: { items: approvals, aggregates },
       summary,
       metadata: { source: 'reimbursement_requests, knowledge_documents, invoices', count: approvals.length },
     };

@@ -112,10 +112,22 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         orgId = cachedDefaultOrgId;
       } else {
         const orgResult = await query<{ id: string }>(
-          `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+          `SELECT id::text AS id FROM organizations WHERE slug = $1 LIMIT 1`,
           [DEFAULT_ORG_SLUG],
         );
         orgId = orgResult.rows[0]?.id;
+        if (!orgId) {
+          const anyOrg = await query<{ id: string }>(
+            `SELECT id::text AS id FROM organizations ORDER BY created_at ASC NULLS LAST LIMIT 1`,
+            [],
+          );
+          orgId = anyOrg.rows[0]?.id;
+          if (orgId) {
+            console.warn(
+              '[requireAuth] No organization with slug "messign"; using first organizations row for tenant resolution',
+            );
+          }
+        }
         if (orgId) cachedDefaultOrgId = orgId;
       }
     }

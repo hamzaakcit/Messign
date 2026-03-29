@@ -200,8 +200,33 @@ const CURATED_STOCK: Record<string, string[]> = {
   ],
 };
 
+/** Last-resort placeholders when generation fails — no fixed corporate portrait (varied non-human subjects). */
+const NON_HUMAN_PLACEHOLDER_URLS: string[] = [
+  'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200',
+  'https://images.unsplash.com/photo-1470071459604-3b1817f69a2d?w=1200',
+  'https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1200',
+  'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200',
+  'https://images.unsplash.com/photo-1555099962-4199c345e5dd?w=1200',
+];
+
+/**
+ * Deterministic pick from {@link NON_HUMAN_PLACEHOLDER_URLS} so retries are not always the same asset.
+ */
+export function pickNonHumanPlaceholderUrl(seed: string): string {
+  if (NON_HUMAN_PLACEHOLDER_URLS.length === 0) {
+    return 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200';
+  }
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+  }
+  const idx = Math.abs(hash) % NON_HUMAN_PLACEHOLDER_URLS.length;
+  return NON_HUMAN_PLACEHOLDER_URLS[idx]!;
+}
+
+/** `diverse` alone is intentionally not mapped — it incorrectly selected team stock for "diverse couple" / city scenes. */
 const STOCK_KEYWORD_MAP: Record<string, string> = {
-  team: 'team_diverse', teams: 'team_diverse', people: 'team_diverse', diverse: 'team_diverse',
+  team: 'team_diverse', teams: 'team_diverse', people: 'team_diverse',
   collaborate: 'team_diverse', collaboration: 'team_diverse', coworking: 'startup_workspace',
   office: 'office_modern', workspace: 'laptop_workspace', desk: 'laptop_workspace',
   startup: 'startup_workspace', cowork: 'startup_workspace',
@@ -227,6 +252,9 @@ const STOCK_KEYWORD_MAP: Record<string, string> = {
   forest: 'forest', tree: 'forest', wood: 'forest', jungle: 'forest',
   desert: 'desert', sand: 'desert', dune: 'desert',
   tech: 'technology', technology: 'technology', digital: 'technology', innovation: 'technology',
+  /** B2B / comms — route to tech stills (devices, abstract tech) rather than people buckets */
+  messaging: 'technology', sms: 'technology', a2p: 'technology', mobile: 'technology',
+  platform: 'technology', api: 'technology', saas: 'technology',
   laptop: 'laptop_workspace', computer: 'laptop_workspace', developer: 'coding',
   code: 'coding', programming: 'coding', software: 'coding', engineer: 'coding',
   ecommerce: 'ecommerce_product', shop: 'retail', store: 'retail', shopping: 'retail',
@@ -250,7 +278,10 @@ const STOCK_KEYWORD_MAP: Record<string, string> = {
 
 /**
  * Parse a `[STOCK]`-prefixed prompt and resolve to a curated Unsplash URL.
- * Returns `null` if the prompt does not start with `[STOCK]` or no category matches.
+ * Returns `null` if the prompt does not start with `[STOCK]`, the body is empty,
+ * or **no keyword maps to a category** — callers should fall through to AI image
+ * generation so long descriptive prompts stay topic-aligned instead of defaulting
+ * to generic office stock.
  */
 export function resolveStockImageUrl(prompt: string): string | null {
   const trimmed = prompt.trim();
@@ -276,7 +307,7 @@ export function resolveStockImageUrl(prompt: string): string | null {
   }
 
   if (!bestCategory) {
-    bestCategory = 'office_modern';
+    return null;
   }
 
   const urls = CURATED_STOCK[bestCategory];

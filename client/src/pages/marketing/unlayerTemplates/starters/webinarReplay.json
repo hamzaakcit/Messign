@@ -1,0 +1,54 @@
+{
+  "version": "2.0",
+  "theme": "tech",
+  "subject": "Recording: Building AI-native marketing workflows",
+  "preheader": "Missed the live session? Watch the replay, download slides, and get the checklist we promised — link below works on desktop and mobile; share with your team.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Replay is ready",
+        "subheadline": "45 minutes · Q&A included",
+        "ctaText": "Watch replay",
+        "ctaUrl": "https://example.com/replay",
+        "imagePrompt": "Modern webinar stage with soft blue lighting, large screen showing abstract UI diagrams, professional presenter silhouette, cinematic wide shot, no readable text in frame",
+        "altText": "Webinar stage with presentation screen and soft blue lighting",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "content": {
+        "body": "We covered strategy, handoffs to design, and how to keep brand voice consistent when AI drafts first. Use the checklist in the video description.",
+        "alignment": "left"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 3,
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Live attendees", "value": "1,240+" },
+          { "label": "Replay window", "value": "7 days" }
+        ]
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Messign Events",
+        "address": "events@example.com"
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "helpful",
+    "audience": "registered webinar attendees",
+    "campaign_id": "webinar_replay_q1"
+  }
+}

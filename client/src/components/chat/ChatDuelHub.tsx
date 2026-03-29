@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   X,
   Swords,
@@ -18,6 +18,7 @@ import { chatAPI, fetchAPI } from '@/lib/api';
 import { hashRpsCommitment, generateDuelSalt } from '@/lib/duelCommit';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { normalizeChannelList } from '@/lib/chatChannelUtils';
 import type {
   ChatRpsMove,
   ChatRpsDuelResult,
@@ -66,7 +67,8 @@ export function ChatDuelHub() {
   const duelHubOpen = useChatStore((s) => s.duelHubOpen);
   const setDuelHubOpen = useChatStore((s) => s.setDuelHubOpen);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
-  const channels = useChatStore((s) => s.channels);
+  const channelsRaw = useChatStore((s) => s.channels);
+  const channels = useMemo(() => normalizeChannelList(channelsRaw), [channelsRaw]);
   const requestComposerInsert = useChatStore((s) => s.requestComposerInsert);
   const currentUserId = useAuthStore((s) => s.user?.id) ?? null;
 

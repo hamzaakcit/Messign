@@ -1,0 +1,123 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "layoutDensity": "airy",
+  "subject": "Your welcome series — step 2 of 4: make it yours",
+  "preheader": "You are doing great. In this message we connect your workspace, show one quick win, and point you to the checklist so you never wonder what to do next—personalized tips, no spam, unsubscribe anytime from product education.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "You are in — let us tailor your first week",
+        "subheadline": "Small steps beat big promises. We will surface one action at a time so your team sees value before the week ends.",
+        "ctaText": "Open your checklist",
+        "ctaUrl": "https://example.com/onboarding/checklist",
+        "imagePrompt": "Warm editorial desk scene, laptop with soft blur, small plant and notebook, morning window light, cozy onboarding photography, earth tones, no readable UI text",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "headline": "Connect what you already use",
+        "body": "Link calendar and email first—imports run in the background while you explore. We only ask for what powers your first automation.",
+        "imagePrompt": "Abstract illustration of connected nodes and calendar motifs, soft gradients, warm palette, no legible text or logos",
+        "altText": "Connected tools illustration",
+        "layout": "image_left",
+        "ctaText": "Manage integrations",
+        "ctaUrl": "https://example.com/onboarding/integrations"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 3,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "This week’s milestones",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "sparkles",
+            "heading": "Day 1 — connect",
+            "description": "Verify email and invite one teammate so shared context appears everywhere.",
+            "imagePrompt": "Minimal iconography sparkles on warm paper texture, soft shadow, no text"
+          },
+          {
+            "icon": "users",
+            "heading": "Day 3 — collaborate",
+            "description": "Create one shared view your team can comment on—commenting trains the habit.",
+            "imagePrompt": "Silhouettes collaborating at a table, shallow depth of field, warm light, no readable badges"
+          },
+          {
+            "icon": "link",
+            "heading": "Day 5 — automate",
+            "description": "Turn on the weekly summary—one toggle, immediate payoff in everyone’s inbox.",
+            "imagePrompt": "Gentle automation flow diagram as abstract shapes, warm neutrals, no readable labels"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "headline": "See your first win in under ten minutes",
+        "body": "The in-app checklist saves progress automatically—resume on any device. Finish one step and we celebrate it (quietly, in-product).",
+        "imagePrompt": "Hands typing on laptop keyboard, coffee nearby, shallow focus, lifestyle photography, warm tones, no readable screen content",
+        "altText": "Person completing onboarding checklist",
+        "layout": "image_right",
+        "ctaText": "Continue checklist",
+        "ctaUrl": "https://example.com/onboarding/checklist"
+      }
+    },
+    {
+      "type": "image",
+      "order": 5,
+      "variant": "card",
+      "content": {
+        "imagePrompt": "Friendly product illustration of a completed progress path with three checkmarks, soft paper texture, warm brand-safe palette, no readable words",
+        "altText": "Progress path complete",
+        "caption": "You are not behind—every team picks a different first win.",
+        "width": "medium"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Next: invite your team",
+        "description": "Tomorrow’s email covers roles, permissions, and a suggested invite note you can paste in one click.",
+        "buttonText": "Invite teammates",
+        "buttonUrl": "https://example.com/onboarding/invite",
+        "variant": "pill",
+        "urgencyText": "Step 3 of 4 arrives tomorrow"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "variant": "band",
+      "content": {
+        "companyName": "Messign",
+        "address": "1200 Harbor Way, Austin, TX 78701",
+        "unsubscribeText": "Onboarding tips help you succeed. Turn off product education in Settings → Notifications."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "supportive, clear, paced",
+    "audience": "new accounts in first week",
+    "visual_density": "rich",
+    "target_image_slots": 7
+  },
+  "artDirection": {
+    "mood": "warm, guided, human",
+    "imageStyle": "Editorial lifestyle photography with warm neutrals; illustrations abstract and text-free"
+  }
+}

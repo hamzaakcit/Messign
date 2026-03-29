@@ -113,10 +113,10 @@ describe('MarketingHub calendar navigation', () => {
     });
   });
 
-  it('navigates to /marketing/calendar when Calendar mode is selected from board', async () => {
+  it('navigates to /marketing/calendar when Calendar mode is selected from pipeline', async () => {
     render(
       wrap(
-        <MemoryRouter initialEntries={['/marketing']}>
+        <MemoryRouter initialEntries={['/marketing/pipeline']}>
           <Routes>
             <Route path="/marketing/*" element={<MarketingHub />} />
           </Routes>

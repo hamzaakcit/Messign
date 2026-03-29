@@ -1,0 +1,180 @@
+{
+  "version": "2.0",
+  "theme": "bold",
+  "layoutDensity": "airy",
+  "subject": "New Lookbook — Texture, Color, and Everyday Carry",
+  "preheader": "Two curated product grids: apparel and home goods, plus a behind-the-scenes look at how we shoot and pack. Free shipping thresholds apply; see each grid for bundle ideas and styling notes.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "The spring lookbook is live",
+        "subheadline": "Layered outfits, warm neutrals, and a few statement pieces—each shot with natural light so you can see drape and texture before you buy.",
+        "ctaText": "Shop the edit",
+        "ctaUrl": "https://example.com/lookbook",
+        "imagePrompt": "[STOCK] Fashion lookbook flat lay with layered clothing, leather accessories, and soft shadows on a warm concrete sweep, editorial ecommerce photography",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Outfit starters — tops & layers",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Oversized Linen Shirt",
+            "description": "Breathable weave, garment-dyed.",
+            "price": "$78",
+            "originalPrice": "$98",
+            "imagePrompt": "[STOCK] Folded linen shirt on linen fabric, soft studio light, apparel product shot",
+            "linkUrl": "https://example.com/p/linen-shirt",
+            "badge": "New"
+          },
+          {
+            "name": "Merino Crew",
+            "description": "Midweight layer, odor-resistant wool blend.",
+            "price": "$64",
+            "originalPrice": "$88",
+            "imagePrompt": "[STOCK] Merino sweater folded on stool, warm lifestyle lighting",
+            "linkUrl": "https://example.com/p/merino",
+            "badge": "Bestseller"
+          },
+          {
+            "name": "Canvas Utility Jacket",
+            "description": "Reinforced seams, unlined for spring.",
+            "price": "$138",
+            "originalPrice": "$178",
+            "imagePrompt": "[STOCK] Tan canvas jacket on hanger against plaster wall, editorial retail",
+            "linkUrl": "https://example.com/p/jacket",
+            "badge": "-22%"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "variant": "card",
+      "content": {
+        "headline": "How we shoot the lookbook",
+        "body": "We use natural light and real sets so the product you see in the grid is the product you receive—no heavy retouching on fabric or color.",
+        "imagePrompt": "[STOCK] Photographer adjusting softbox in studio with clothing rack, behind-the-scenes ecommerce photography",
+        "altText": "Behind the scenes at a photoshoot",
+        "layout": "image_right",
+        "ctaText": "Read our process",
+        "ctaUrl": "https://example.com/studio"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Home & everyday carry",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Ceramic Pour-Over Set",
+            "description": "Matte glaze, drip-friendly angle.",
+            "price": "$52",
+            "originalPrice": "$68",
+            "imagePrompt": "[STOCK] Ceramic pour-over coffee set on oak counter, morning light",
+            "linkUrl": "https://example.com/p/pour-over",
+            "badge": "Kitchen"
+          },
+          {
+            "name": "Leather Tote M",
+            "description": "Vegetable-tanned, brass hardware.",
+            "price": "$198",
+            "originalPrice": "$248",
+            "imagePrompt": "[STOCK] Leather tote bag on chair, neutral interior styling",
+            "linkUrl": "https://example.com/p/tote",
+            "badge": "Editor's pick"
+          },
+          {
+            "name": "Travel Organizer",
+            "description": "Cord pockets, TSA-friendly layout.",
+            "price": "$36",
+            "originalPrice": "$48",
+            "imagePrompt": "[STOCK] Open travel tech organizer with cables on hotel desk",
+            "linkUrl": "https://example.com/p/organizer",
+            "badge": "Travel"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 5,
+      "variant": "card",
+      "content": {
+        "headline": "Bundles ship together",
+        "body": "When you order from both grids in the same checkout window, we ship in one box when inventory allows—fewer packages, less waste.",
+        "imagePrompt": "[STOCK] Warehouse associate packing branded box with tissue paper, bright aisle, authentic operations photography",
+        "altText": "Fulfillment associate packing an order",
+        "layout": "image_left"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 6,
+      "variant": "card",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Repeat customers", "value": "62%" },
+          { "label": "Avg. rating", "value": "4.8" },
+          { "label": "Countries shipped", "value": "34" }
+        ]
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 7,
+      "variant": "band",
+      "content": {
+        "quote": "The photos match what arrives—finally a brand that doesn’t surprise me with fabric weight or color.",
+        "authorName": "Jordan Lee",
+        "authorRole": "Customer",
+        "authorCompany": "Austin, TX",
+        "rating": 5
+      }
+    },
+    {
+      "type": "cta",
+      "order": 8,
+      "content": {
+        "headline": "Free shipping over $75",
+        "description": "Returns are easy—try sizes at home and send back what doesn’t fit.",
+        "buttonText": "Continue shopping",
+        "buttonUrl": "https://example.com/shop",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 9,
+      "content": {
+        "companyName": "Harbor & Co.",
+        "address": "220 Pier Ave, Los Angeles, CA 90291",
+        "unsubscribeText": "You subscribed to Harbor & Co. marketing. Unsubscribe or manage preferences below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm, confident, retail-forward",
+    "audience": "D2C shoppers and lifestyle buyers",
+    "visual_density": "rich",
+    "target_image_slots": 9
+  },
+  "artDirection": {
+    "mood": "tactile, sunlit, editorial",
+    "imageStyle": "Lifestyle ecommerce photography with warm neutral palette"
+  }
+}

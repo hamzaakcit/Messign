@@ -11,17 +11,16 @@
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import { buildParameterHints } from './toolIndex.js';
-import { truncateText, extractRelevantExcerpt } from '../dataSanitizer.js';
 import { hybridSearchChunks, semanticSearchChunks, hybridSearch } from '../../knowledgeSearch.js';
 import { hybridSearch as ragHybridSearch, hasRAGData } from '../../rag/db.js';
 import { embedQuery } from '../../rag/embeddings.js';
 import { searchEmbeddings, type SearchResult as EntitySearchResult } from '../rag/embeddingPipeline.js';
 import type { SearchResult as RAGSearchResult } from '../../rag/types.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
+import { computeKnowledgeSearchAggregates } from './knowledgeSearchAggregates.js';
 
 const statusFilter = `(d.status = 'published' OR d.status = 'in_review')`;
 const limit = 5;
-const maxDocsForSummary = 3;
 const RAG_CHUNK_LIMIT = 10;
 
 interface DocRow {
@@ -36,25 +35,37 @@ interface DocRow {
   excerpt?: string | null;
 }
 
-function formatRAGContext(results: RAGSearchResult[]): string {
-  return results
-    .map((r) => {
-      const path = r.headingPath ? ` > ${r.headingPath}` : '';
-      return `### Source: ${r.documentTitle}${path}\n${r.content}`;
-    })
-    .join('\n\n');
+/** Structured tool payload for Dora widget + short synthesis line */
+export interface KnowledgeSearchPayload {
+  documents: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    document_type?: string;
+  }>;
+  aggregates: ReturnType<typeof computeKnowledgeSearchAggregates>;
+  query: string;
+  confidence: number;
 }
 
-function formatChunkContext(chunks: { title: string; chunk_text: string }[]): string {
-  return chunks
-    .map((c) => `Document: ${c.title} | Content: ${c.chunk_text}`)
-    .join('\n\n');
+function buildKnowledgeSearchPayload(
+  documents: KnowledgeSearchPayload['documents'],
+  queryText: string,
+  confidence: number,
+): KnowledgeSearchPayload {
+  return {
+    documents,
+    aggregates: computeKnowledgeSearchAggregates(documents),
+    query: queryText,
+    confidence,
+  };
 }
 
-function formatEntityContext(results: EntitySearchResult[]): string {
-  return results
-    .map((r) => `### Source: ${r.source}\n${r.content}`)
-    .join('\n\n');
+function shortKnowledgeSearchSummary(docCount: number, queryText: string, confidence: number): string {
+  if (docCount === 0) {
+    return `**No documents** found for "${queryText}".`;
+  }
+  return `**${docCount} document(s)** for "${queryText}" · ${Math.round(confidence * 100)}% match — details in the widget below.`;
 }
 
 async function searchDocuments(userQuery: string, tenantId: string = 'system'): Promise<DocRow[]> {
@@ -141,7 +152,8 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
     properties: {
       query: {
         type: 'string',
-        description: "The search query. Use key terms from the user's question. For multi-word concepts, include the full phrase.",
+        description:
+          "Key terms from the user's question, verbatim when possible (acronyms, product names). Do not rewrite into 'X description' or 'X overview' unless the user said those words.",
       },
     },
     required: ['query'],
@@ -175,10 +187,7 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
           const queryEmbedding = await embedQuery(q, tenantId);
           const ragResults = await ragHybridSearch(queryEmbedding, q, RAG_CHUNK_LIMIT);
 
-          if (ragResults.length > 0 || entityResults.length > 0) {
-            const ragSummary = formatRAGContext(ragResults);
-            const entitySummary = formatEntityContext(entityResults);
-            const summary = [ragSummary, entitySummary].filter(Boolean).join('\n\n');
+          if (ragResults.length > 0) {
             const seenIds = new Set<string>();
             const documents = ragResults
               .filter((r) => {
@@ -193,15 +202,14 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
                 document_type: r.metadata?.documentType ?? 'document',
               }));
 
-            const avgScore = ragResults.length > 0
-              ? ragResults.reduce((s, r) => s + r.score, 0) / ragResults.length
-              : entityResults.reduce((s, r) => s + r.similarity, 0) / entityResults.length;
+            const avgScore = ragResults.reduce((s, r) => s + r.score, 0) / ragResults.length;
             const confidence = Math.min(1, avgScore * 1.2);
+            const data = buildKnowledgeSearchPayload(documents, q, confidence);
 
             return {
               success: true,
-              data: documents,
-              summary,
+              data,
+              summary: shortKnowledgeSearchSummary(documents.length, q, confidence),
               metadata: {
                 source: 'rag_pipeline_v2',
                 count: documents.length,
@@ -223,13 +231,7 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
         chunks = await semanticSearchChunks(q, RAG_CHUNK_LIMIT, tenantId);
       }
 
-      if (chunks.length > 0 || entityResults.length > 0) {
-        const chunkSummary = formatChunkContext(
-          chunks.map((c) => ({ title: c.title, chunk_text: c.chunk_text }))
-        );
-        const entitySummary = formatEntityContext(entityResults);
-        const summary = [chunkSummary, entitySummary].filter(Boolean).join('\n\n');
-
+      if (chunks.length > 0) {
         const seenIds = new Set<string>();
         const documents = chunks
           .filter((c) => {
@@ -244,19 +246,16 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
             document_type: c.document_type ?? 'document',
           }));
 
-        const avgScore = chunks.length > 0
-          ? chunks.reduce((s, c) => s + c.score, 0) / chunks.length
-          : entityResults.length > 0
-            ? entityResults.reduce((s, r) => s + r.similarity, 0) / entityResults.length
-            : 0.7;
+        const avgScore = chunks.reduce((s, c) => s + c.score, 0) / chunks.length;
         const confidence = Math.min(1, avgScore * 1.2);
+        const data = buildKnowledgeSearchPayload(documents, q, confidence);
 
         return {
           success: true,
-          data: documents,
-          summary,
+          data,
+          summary: shortKnowledgeSearchSummary(documents.length, q, confidence),
           metadata: {
-            source: chunks.length > 0 ? 'legacy_chunk_search' : 'entity_embeddings',
+            source: 'legacy_chunk_search',
             count: documents.length,
             confidence,
           },
@@ -267,38 +266,27 @@ Returns: Matching documents with title, type, content excerpt, section heading, 
       const documents = await searchDocuments(q, tenantId);
 
       if (documents.length === 0) {
+        const emptyPayload = buildKnowledgeSearchPayload([], q, 0);
         return {
           success: true,
-          data: [],
-          summary: `No documents found matching "${q}". This might be a knowledge gap — consider suggesting the team creates documentation on this topic.`,
+          data: emptyPayload,
+          summary: shortKnowledgeSearchSummary(0, q, 0),
           metadata: { source: 'knowledge_documents', count: 0, confidence: 0 },
         };
       }
 
-      const searchTerms = q.split(/\s+/).filter((w) => w.length >= 2);
-      const terms = searchTerms.length > 0 ? searchTerms : [q];
-      const excerptContainsMatch = (ex: string) =>
-        terms.some((t) => t.length >= 2 && ex.toLowerCase().includes(t.toLowerCase()));
-      const docsForSummary = documents.slice(0, maxDocsForSummary);
-      const summary = docsForSummary
-        .map((doc) => {
-          const text = doc.plain_text || '';
-          const useStoredExcerpt =
-            doc.excerpt &&
-            doc.excerpt.trim().length > 0 &&
-            excerptContainsMatch(doc.excerpt);
-          const content = useStoredExcerpt
-            ? truncateText(doc.excerpt!, 2500)
-            : extractRelevantExcerpt(text, terms, 450);
-          const displayContent = content || truncateText(text, 2000);
-          return `Document: ${doc.title} | Content: ${displayContent}`;
-        })
-        .join('\n\n');
+      const docCards = documents.map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        slug: doc.slug,
+        document_type: doc.document_type ?? 'document',
+      }));
+      const data = buildKnowledgeSearchPayload(docCards, q, 0.6);
 
       return {
         success: true,
-        data: documents,
-        summary,
+        data,
+        summary: shortKnowledgeSearchSummary(docCards.length, q, 0.6),
         metadata: {
           source: 'knowledge_documents',
           count: documents.length,

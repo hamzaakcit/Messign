@@ -328,9 +328,39 @@ export const IMAGE_DEFAULTS = {
   heroHeight: 450,
   featureIconWidth: 80,
   featureIconHeight: 80,
-  inlineWidth: 360,
-  inlineHeight: 240,
+  inlineWidth: 520,
+  inlineHeight: 347,
 } as const;
+
+/** Pixel dimensions for async VA2 image generation — keep aligned with block builders and resolveVa2ManifestImages. */
+export const VA2_IMAGE_GEN_DIMENSIONS = {
+  hero: { width: IMAGE_DEFAULTS.heroWidth, height: IMAGE_DEFAULTS.heroHeight },
+  valuePropIcon: { width: IMAGE_DEFAULTS.featureIconWidth, height: IMAGE_DEFAULTS.featureIconHeight },
+  productCard: { width: 480, height: 480 },
+  /** image_text — Fal output; display width varies by layout (see imageTextBuilder). */
+  imageText: { width: IMAGE_DEFAULTS.inlineWidth, height: IMAGE_DEFAULTS.inlineHeight },
+  standaloneFull: { width: 600, height: 380 },
+} as const;
+
+/** Side-by-side image_text: ~half of ~600px content area. */
+export const VA2_IMAGE_TEXT_COLUMN_WIDTH_PX = 300;
+
+/** Stacked `image_top` layout: nearly full content width for large photography. */
+export const VA2_IMAGE_TEXT_STACKED_WIDTH_PX = 560;
+
+/**
+ * @deprecated Prefer {@link VA2_IMAGE_TEXT_COLUMN_WIDTH_PX} or {@link VA2_IMAGE_TEXT_STACKED_WIDTH_PX}.
+ */
+export const VA2_IMAGE_TEXT_DISPLAY_WIDTH_PX = VA2_IMAGE_TEXT_COLUMN_WIDTH_PX;
+
+/** Product card image display size (must match productBuilder). */
+export const VA2_PRODUCT_IMAGE_DISPLAY_PX = 300;
+
+/** Minimum vertical padding for photo heroes so background reads as a banner. */
+export const HERO_PHOTO_MIN_HEIGHT_PX = 300;
+
+/** Horizontal inset for body sections (text, CTA) — pairs with theme.spacing.lg (24). */
+export const VA2_SECTION_HORIZONTAL_GUTTER_PX = 24;
 
 export const CONTENT_WIDTH = '640px';
 
@@ -497,6 +527,29 @@ export function getContrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/** WCAG 2.1 AA minimum contrast for normal text (body, links, captions). */
+const WCAG_AA_NORMAL_TEXT = 4.5;
+
+/**
+ * Darkens a candidate accent until it meets WCAG AA on all given surfaces, or returns fallback.
+ * Used for brand accent overrides and luxury theme defaults so inline email copy passes a11y checks.
+ */
+export function clampAccentForWcagAaOnSurfaces(
+  candidate: string,
+  surfaces: string[],
+  fallback: string,
+): string {
+  const bgs = surfaces.filter(Boolean);
+  if (bgs.length === 0) return candidate;
+  let h = candidate;
+  for (let i = 0; i < 20; i++) {
+    const worst = bgs.reduce((min, bg) => Math.min(min, getContrastRatio(h, bg)), Number.POSITIVE_INFINITY);
+    if (worst >= WCAG_AA_NORMAL_TEXT) return h;
+    h = adjustBrightness(h, -9);
+  }
+  return getContrastRatio(fallback, bgs[0]) >= WCAG_AA_NORMAL_TEXT ? fallback : '#1A1A1A';
+}
+
 /**
  * Adjust brightness of a hex color by a percentage.
  * Positive values lighten, negative values darken.
@@ -536,8 +589,8 @@ export const executiveTheme: DesignTheme = {
     ctaPrimary: '#2563EB',
     ctaText: '#FFFFFF',
     divider: '#E2E8F0',
-    heroOverlayStart: 'rgba(27,42,74,0.7)',
-    heroOverlayEnd: 'rgba(27,42,74,0.3)',
+    heroOverlayStart: 'rgba(27,42,74,0.52)',
+    heroOverlayEnd: 'rgba(27,42,74,0.2)',
   },
   typography: executiveTypography,
   spacing: VA2_SPACING_SCALE,
@@ -569,7 +622,8 @@ export const startupTheme: DesignTheme = {
   colors: {
     primary: '#111827',
     secondary: '#4B5563',
-    accent: '#6366F1',
+    /** Match ctaPrimary — indigo-500 (#6366F1) is ~4.47:1 on white; indigo-600 meets WCAG AA for normal text. */
+    accent: '#4F46E5',
     background: '#F9FAFB',
     surface: '#FFFFFF',
     text: '#111827',
@@ -577,8 +631,8 @@ export const startupTheme: DesignTheme = {
     ctaPrimary: '#4F46E5',
     ctaText: '#FFFFFF',
     divider: '#E5E7EB',
-    heroOverlayStart: 'rgba(17,24,39,0.7)',
-    heroOverlayEnd: 'rgba(17,24,39,0.3)',
+    heroOverlayStart: 'rgba(17,24,39,0.52)',
+    heroOverlayEnd: 'rgba(17,24,39,0.2)',
   },
   typography: startupTypography,
   spacing: VA2_SPACING_SCALE,
@@ -618,7 +672,8 @@ export const luxuryTheme: DesignTheme = {
   colors: {
     primary: '#1A1A1A',
     secondary: '#525252',
-    accent: '#B8860B',
+    /** Dark gold: ≥4.5:1 on white/cream (replaces darkgoldenrod #B8860B for WCAG AA inline text). */
+    accent: '#6B4E0C',
     background: '#FAF9F6',
     surface: '#FFFFFF',
     text: '#1A1A1A',
@@ -626,8 +681,8 @@ export const luxuryTheme: DesignTheme = {
     ctaPrimary: '#1A1A1A',
     ctaText: '#FAF9F6',
     divider: '#E5E5E5',
-    heroOverlayStart: 'rgba(26,26,26,0.6)',
-    heroOverlayEnd: 'rgba(26,26,26,0.2)',
+    heroOverlayStart: 'rgba(26,26,26,0.45)',
+    heroOverlayEnd: 'rgba(26,26,26,0.14)',
   },
   typography: luxuryTypography,
   spacing: VA2_SPACING_SCALE,
@@ -661,8 +716,8 @@ export const minimalTheme: DesignTheme = {
     ctaPrimary: '#1F2937',
     ctaText: '#FFFFFF',
     divider: '#E5E7EB',
-    heroOverlayStart: 'rgba(31,41,55,0.7)',
-    heroOverlayEnd: 'rgba(31,41,55,0.3)',
+    heroOverlayStart: 'rgba(31,41,55,0.52)',
+    heroOverlayEnd: 'rgba(31,41,55,0.2)',
   },
   typography: minimalTypography,
   spacing: VA2_SPACING_SCALE,
@@ -708,8 +763,8 @@ export const boldTheme: DesignTheme = {
     ctaPrimary: '#DC2626',
     ctaText: '#FFFFFF',
     divider: '#FCA5A5',
-    heroOverlayStart: 'rgba(15,23,42,0.7)',
-    heroOverlayEnd: 'rgba(15,23,42,0.3)',
+    heroOverlayStart: 'rgba(15,23,42,0.52)',
+    heroOverlayEnd: 'rgba(15,23,42,0.2)',
   },
   typography: boldTypography,
   spacing: VA2_SPACING_SCALE,
@@ -743,8 +798,8 @@ export const natureTheme: DesignTheme = {
     ctaPrimary: '#15803D',
     ctaText: '#FFFFFF',
     divider: '#BBF7D0',
-    heroOverlayStart: 'rgba(27,67,50,0.65)',
-    heroOverlayEnd: 'rgba(27,67,50,0.25)',
+    heroOverlayStart: 'rgba(27,67,50,0.48)',
+    heroOverlayEnd: 'rgba(27,67,50,0.16)',
   },
   typography: natureTypography,
   spacing: VA2_SPACING_SCALE,
@@ -790,8 +845,8 @@ export const techTheme: DesignTheme = {
     ctaPrimary: '#7C3AED',
     ctaText: '#FFFFFF',
     divider: '#E4E4E7',
-    heroOverlayStart: 'rgba(10,10,11,0.75)',
-    heroOverlayEnd: 'rgba(10,10,11,0.35)',
+    heroOverlayStart: 'rgba(10,10,11,0.55)',
+    heroOverlayEnd: 'rgba(10,10,11,0.24)',
   },
   typography: techTypography,
   spacing: VA2_SPACING_SCALE,
@@ -825,8 +880,8 @@ export const warmTheme: DesignTheme = {
     ctaPrimary: '#B45309',
     ctaText: '#FFFFFF',
     divider: '#FDE68A',
-    heroOverlayStart: 'rgba(69,26,3,0.6)',
-    heroOverlayEnd: 'rgba(69,26,3,0.25)',
+    heroOverlayStart: 'rgba(69,26,3,0.44)',
+    heroOverlayEnd: 'rgba(69,26,3,0.16)',
   },
   typography: warmTypography,
   spacing: VA2_SPACING_SCALE,
@@ -856,6 +911,57 @@ export function getTheme(name: ThemeName | string): DesignTheme {
   }
   console.warn(`[DesignTokens] Unknown theme "${name}", falling back to "minimal"`);
   return THEMES.minimal;
+}
+
+export interface BrandThemeOverrides {
+  primaryHex?: string;
+  accentHex?: string;
+  /** Email body background from brand profile (e.g. dark mode marketing). */
+  bodyBackgroundHex?: string;
+  /** Body copy color when using a custom background. */
+  textHex?: string;
+  /** HTTPS URL for a tenant logo row below the preheader. */
+  logoUrl?: string;
+  logoAlt?: string;
+}
+
+/**
+ * Apply tenant brand hex colors on top of a theme (primary/accent/CTA; optional body bg + text).
+ */
+export function mergeBrandIntoTheme(
+  theme: DesignTheme,
+  overrides: BrandThemeOverrides | undefined,
+): DesignTheme {
+  if (!overrides) return theme;
+  const hexOk = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  const next: DesignTheme = {
+    ...theme,
+    colors: { ...theme.colors },
+  };
+  const primary = overrides.primaryHex?.trim();
+  if (primary && hexOk.test(primary)) {
+    next.colors.primary = primary;
+    next.colors.ctaPrimary = primary;
+  }
+  const accent = (overrides.accentHex ?? overrides.primaryHex)?.trim();
+  if (accent && hexOk.test(accent)) {
+    next.colors.accent = clampAccentForWcagAaOnSurfaces(
+      accent,
+      [next.colors.surface, next.colors.background],
+      next.colors.primary,
+    );
+  }
+  const bodyBg = overrides.bodyBackgroundHex?.trim();
+  if (bodyBg && hexOk.test(bodyBg)) {
+    next.colors.background = bodyBg;
+    next.colors.surface = adjustBrightness(bodyBg, 6);
+  }
+  const textH = overrides.textHex?.trim();
+  if (textH && hexOk.test(textH)) {
+    next.colors.text = textH;
+    next.colors.textMuted = adjustBrightness(textH, 28);
+  }
+  return next;
 }
 
 /**

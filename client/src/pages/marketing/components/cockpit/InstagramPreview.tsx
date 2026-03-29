@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { cacheBustImageUrl } from '@/lib/cacheBustImageUrl';
 
 function splitCaptionAndHashtags(body: string): { main: string; hashtags: string[] } {
   const lines = body.split('\n');
@@ -50,16 +51,37 @@ export function InstagramPreview({
 }) {
   const [slideIndex, setSlideIndex] = useState(0);
   const [imgLoadError, setImgLoadError] = useState(false);
+  const [imgCacheBust, setImgCacheBust] = useState(0);
   const { main, hashtags } = splitCaptionAndHashtags(caption);
   const { visible, more } = foldCaption(main);
 
-  useEffect(() => { setImgLoadError(false); }, [imageUrl]);
+  /**
+   * Multi-slide posts: `carousel_images` is only refreshed by the initial pipeline.
+   * Regenerate updates `image_url` (hero) but not always every carousel entry — prefer
+   * `imageUrl` for slide 0 so the preview matches the latest regen.
+   */
+  const isCarousel = Boolean(carouselImages && carouselImages.length > 1);
+  const currentImage = useMemo(() => {
+    if (isCarousel) {
+      if (slideIndex === 0) {
+        return imageUrl ?? carouselImages![slideIndex]?.image_url ?? null;
+      }
+      return carouselImages![slideIndex]?.image_url ?? null;
+    }
+    return imageUrl ?? carouselImages?.[0]?.image_url ?? null;
+  }, [carouselImages, imageUrl, isCarousel, slideIndex]);
 
-  const isCarousel = carouselImages && carouselImages.length > 1;
-  const currentImage = isCarousel
-    ? carouselImages[slideIndex]?.image_url
-    : imageUrl;
-  const totalSlides = isCarousel ? carouselImages.length : 1;
+  useEffect(() => {
+    setImgLoadError(false);
+    setImgCacheBust((n) => n + 1);
+  }, [currentImage]);
+
+  const displayImageSrc =
+    currentImage && !currentImage.startsWith('data:')
+      ? cacheBustImageUrl(currentImage, imgCacheBust)
+      : (currentImage ?? '');
+
+  const totalSlides = isCarousel ? carouselImages!.length : 1;
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0f14] shadow-lg">
@@ -71,7 +93,15 @@ export function InstagramPreview({
         <span className="text-slate-500">•••</span>
       </div>
 
-      <div className="relative aspect-square w-full bg-black/40">
+      {/* Checkerboard shows through transparent PNG alpha so a failed/empty decode does not read as solid black on dark chrome. */}
+      <div
+        className="relative aspect-square w-full overflow-hidden"
+        style={{
+          backgroundColor: '#e5e7eb',
+          backgroundImage: 'repeating-conic-gradient(#e5e7eb 0% 25%, #d1d5db 0% 50%)',
+          backgroundSize: '12px 12px',
+        }}
+      >
         {isGenerating ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
             <div className="h-10 w-10 animate-pulse rounded-full bg-app-surface-tertiary" />
@@ -79,7 +109,19 @@ export function InstagramPreview({
           </div>
         ) : currentImage && !imgLoadError ? (
           <>
-            <img src={currentImage} alt="" className="h-full w-full object-cover" onError={() => setImgLoadError(true)} />
+            <img
+              key={`${currentImage ?? ''}-${imgCacheBust}`}
+              src={displayImageSrc}
+              alt=""
+              className="h-full w-full bg-white object-cover"
+              referrerPolicy="no-referrer"
+              onError={() => {
+                console.warn('[InstagramPreview] image_load_error', {
+                  url: currentImage?.slice(0, 120),
+                });
+                setImgLoadError(true);
+              }}
+            />
             {isCarousel && (
               <>
                 {slideIndex > 0 && (
@@ -103,7 +145,7 @@ export function InstagramPreview({
                   </button>
                 )}
                 <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
-                  {carouselImages.map((_, i) => (
+                  {(carouselImages ?? []).map((_, i) => (
                     <div
                       key={i}
                       className={cn(

@@ -5,14 +5,16 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { chatAPI } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { getChannelMemberIds, normalizeChannelList } from '@/lib/chatChannelUtils';
+import { useState, useMemo } from 'react';
 
 interface ChannelListProps {
   onRetry?: () => void;
 }
 
 export function ChannelList({ onRetry }: ChannelListProps) {
-  const channels = useChatStore((s) => s.channels);
+  const channelsRaw = useChatStore((s) => s.channels);
+  const channels = useMemo(() => normalizeChannelList(channelsRaw), [channelsRaw]);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
   const addChannel = useChatStore((s) => s.addChannel);
@@ -55,7 +57,7 @@ export function ChannelList({ onRetry }: ChannelListProps) {
 
   const getChannelDisplayName = (c: (typeof channels)[0]) =>
     c.type === 'dm'
-      ? (users.find((u) => c.members.includes(u.id) && u.id !== currentUser?.id)?.name ?? c.name)
+      ? (users.find((u) => getChannelMemberIds(c).includes(u.id) && u.id !== currentUser?.id)?.name ?? c.name)
       : c.name;
 
   const ChannelSection = ({ 

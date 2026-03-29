@@ -15,6 +15,7 @@ import { AIProcessingSteps } from '@/components/dora/AIProcessingSteps';
 import { DoraFollowUpChips } from './DoraFollowUpChips';
 import { ActionConfirmationInline } from '@/components/dora/ActionConfirmationInline';
 import { Link } from 'react-router-dom';
+import { LucyStructuredReply } from '@/components/marketing/LucyStructuredReply';
 
 interface AIMessageBubbleProps {
   message: AIMessage;
@@ -75,6 +76,10 @@ export function AIMessageBubble({
   }
 
   const isEmptyStreaming = message.isStreaming && !message.content;
+  const useStructuredMarketingReply =
+    !message.isStreaming &&
+    (message.specialist?.module?.toLowerCase() === 'marketing' ||
+      message.metadata?.specialist?.toLowerCase() === 'marketing');
 
   return (
     <div className="flex justify-start mb-4">
@@ -99,7 +104,11 @@ export function AIMessageBubble({
           ) : (
             <div className="dora-glass px-4 py-3 rounded-2xl rounded-tl-md">
               <div className="max-w-3xl text-sm text-app-muted leading-relaxed whitespace-pre-wrap [&_strong]:text-app-text [&_h1]:text-app-text [&_h2]:text-app-text [&_h3]:text-app-text [&_ul]:my-1 [&_li]:text-app-muted">
-                <DoraReactMarkdown content={message.content} />
+                {useStructuredMarketingReply ? (
+                  <LucyStructuredReply content={message.content} />
+                ) : (
+                  <DoraReactMarkdown content={message.content} />
+                )}
                 {message.isStreaming && (
                   <span
                     style={{
@@ -183,15 +192,17 @@ export function AIMessageBubble({
               {message.metadata?.marketingContentId &&
                 (!message.metadata.marketingImageUrl ||
                   String(message.metadata.marketingImageUrl).includes('storage.mock.local')) && (
-                  <p className="mt-3 text-xs text-amber-400/90">
-                    Draft saved — open in Content to view or generate the image when storage is configured.
+                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2">
+                    <p className="text-[11px] text-amber-100/90 flex-1 min-w-[200px] m-0 leading-snug">
+                      Draft saved — open in Content to finish or generate the image when storage is configured.
+                    </p>
                     <Link
                       to={`/marketing/content?contentId=${encodeURIComponent(message.metadata.marketingContentId)}`}
-                      className="ml-2 text-sky-400 hover:text-sky-300"
+                      className="inline-flex shrink-0 items-center justify-center rounded-lg bg-sky-500/90 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-sky-400 transition-colors"
                     >
                       Open in Content
                     </Link>
-                  </p>
+                  </div>
                 )}
               {import.meta.env.DEV && message.metadata && (
                 <AIMetadataBar metadata={message.metadata} />

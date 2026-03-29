@@ -9,47 +9,45 @@ export interface WidgetActionDef {
 }
 
 export const WIDGET_ACTIONS: Partial<Record<AIWidgetType, WidgetActionDef[]>> = {
-  financial_summary: [
-    { label: 'Drill into Unpaid', message: 'Break down unpaid invoices' },
-    { label: 'Compare Quarters', message: 'Compare financial performance to last quarter' },
-    { label: 'Export PDF', exportPdf: true },
-  ],
+  /** Toolbar from server (see widgetResolve finance:get_financial_summary). */
+  financial_summary: [],
   revenue_chart: [
     { label: 'Compare to last quarter', message: 'Compare this revenue view to last quarter' },
     { label: 'Export PDF', exportPdf: true },
   ],
-  system_overview: [
-    { label: 'Open task list', message: 'Show my open tasks', intentId: 'quick.open_tasks' },
-    { label: 'Company finances', message: 'Summarize outstanding invoices and cash position' },
-  ],
+  /** Toolbar from server (see widgetResolve analytics:get_system_stats). */
+  system_overview: [],
+  /** Toolbar from server (see widgetResolve analytics:get_department_report). */
+  executive_report: [],
   command_center: [
     { label: 'Open tasks', message: 'What are my open tasks?', intentId: 'quick.open_tasks' },
     { label: 'Finance KPIs', message: 'Show finance dashboard KPIs', intentId: 'finance.company_summary' },
   ],
-  task_table: [
-    { label: 'What is overdue?', message: 'Which of my tasks are overdue?' },
-    { label: 'Export PDF', exportPdf: true },
-  ],
-  performance_overview: [
-    { label: 'Team breakdown', message: 'Break down team performance by member' },
-    { label: 'Export PDF', exportPdf: true },
-  ],
-  project_status: [
-    { label: 'Sprint status', message: 'What is the current sprint status across projects?' },
-    { label: 'Export PDF', exportPdf: true },
-  ],
+  /** Toolbar actions come from server widget payload + default "Open projects" nav (see widgetResolve). */
+  task_table: [],
+  /** Server-driven actions for bounties (see widgetResolve achievements:get_bounty_board). */
+  bounty_board: [],
+  badges_earned: [],
+  reimbursement_claims: [],
+  /** Server-driven actions (see widgetResolve knowledge:search_knowledge_base). */
+  knowledge_doc_list: [],
+  /** Toolbar: server widget payload + people nav (see widgetResolve people:get_employee_performance). */
+  performance_overview: [],
+  /** Server-driven actions (see widgetResolve people:get_team_overview). */
+  team_overview: [],
+  /** Server-driven actions (see widgetResolve projects:get_project_status). */
+  project_status: [],
+  /** Server-driven actions (see widgetResolve projects:get_sprint_status). */
+  sprint_status: [],
+  /** Server-driven actions (see widgetResolve analytics:get_approval_queue). */
+  approval_queue: [],
   data_table: [{ label: 'Export PDF', exportPdf: true }],
   dora_dash: [{ label: 'Refresh overview', message: 'Refresh the company overview dashboard' }],
   invoice_preview: [
     { label: 'Open invoices', message: 'Show outstanding invoices', intentId: 'finance.pending_invoices' },
   ],
-  leaderboard_list: [
-    { label: 'Top performers', message: 'Who are the top performers this month?', intentId: 'dashboard.top_performers' },
-  ],
-  knowledge_doc_list: [
-    { label: 'Search docs', message: 'Find onboarding guides in the knowledge base' },
-    { label: 'Document stats', message: 'How many documents are in the knowledge base?', intentId: 'knowledge.stats' },
-  ],
+  /** Toolbar from server widget payload (see widgetResolve achievements:get_achievements_leaderboard). */
+  leaderboard_list: [],
 };
 
 export function exportWidget(widgetType: AIWidgetType, format: 'pdf'): void {

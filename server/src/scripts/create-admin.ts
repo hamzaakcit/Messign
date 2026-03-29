@@ -2,11 +2,16 @@
  * One-off script to create the first admin user in production (Neon PostgreSQL).
  * Uses the same bcrypt hashing and tables (employee_auth, reimbursement_users) as the app.
  *
- * Usage:
- *   Set ADMIN_PASSWORD to your chosen password, then run from the server directory:
+ * Usage (local DB):
+ *   Set ADMIN_PASSWORD (min 8 chars). Optional: ADMIN_EMAIL (default hamza@messign.com).
  *     ADMIN_PASSWORD='YourSecurePassword' npx tsx src/scripts/create-admin.ts
  *   Or: npm run create-admin
- *   (with ADMIN_PASSWORD in .env or exported in the shell)
+ *
+ * Usage (Railway — injects DATABASE_URL from the linked service):
+ *   cd server && npx @railway/cli login && npx @railway/cli link
+ *   Select the **API/Node** service that has `DATABASE_URL` (not the Postgres plugin URL alone unless that is what the app uses).
+ *   npx @railway/cli run -- bash -c 'export ADMIN_PASSWORD="YourSecurePassword"; export ADMIN_EMAIL="you@yourdomain.com"; npm run create-admin'
+ *   If you have multiple services: `npx @railway/cli service` (pick the API), or `npx @railway/cli run -s <api-service-name> -- ...`.
  */
 import 'dotenv/config';
 import bcrypt from 'bcrypt';
@@ -15,8 +20,14 @@ import { query } from '../db/index.js';
 import { upsert as upsertEmployeeAuth } from '../db/employeeAuthDb.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
-const ADMIN_EMAIL = 'hamza@messign.com';
+const DEFAULT_ADMIN_EMAIL = 'hamza@messign.com';
 const SALT_ROUNDS = 12;
+
+function resolveAdminEmail(): string {
+  const raw = process.env.ADMIN_EMAIL?.trim();
+  if (raw && raw.includes('@')) return raw.toLowerCase();
+  return DEFAULT_ADMIN_EMAIL;
+}
 
 async function main(): Promise<void> {
   const password = process.env.ADMIN_PASSWORD;
@@ -26,6 +37,8 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
+
+  const ADMIN_EMAIL = resolveAdminEmail();
 
   const orgResult = await query<{ id: string }>(
     `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
@@ -37,7 +50,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const emailNormalized = ADMIN_EMAIL.trim().toLowerCase();
+  const emailNormalized = ADMIN_EMAIL;
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
   // Reuse existing auth_user_id if this email already has a reimbursement_users row

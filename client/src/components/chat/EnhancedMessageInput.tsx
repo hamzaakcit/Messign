@@ -311,6 +311,49 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
         </div>
       )}
 
+      {/* Always-visible quick actions (Dora, search, attach, emoji) */}
+      <div className="flex items-center gap-0.5 mb-2 px-0.5" role="toolbar" aria-label="Composer quick actions">
+        <button
+          type="button"
+          onClick={() => { if (!doraPanelOpen) toggleDoraPanel(); }}
+          className={cn(
+            'p-1.5 rounded-lg transition-colors',
+            doraPanelOpen ? 'text-primary-400 bg-primary-500/10' : 'text-app-muted hover:text-app hover:bg-app-hover',
+          )}
+          title="Dora AI"
+          aria-label="Open Dora AI assistant"
+        >
+          <Sparkles className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+          title="Search messages"
+          aria-label="Search messages"
+        >
+          <Search className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+          title="Attach files"
+          aria-label="Attach files"
+        >
+          <Paperclip className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => { setMentionPickerOpen(false); setEmojiPickerOpen((o) => !o); }}
+          className="p-1.5 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors"
+          title="Emoji"
+          aria-label="Insert emoji"
+        >
+          <Smile className="w-4 h-4" />
+        </button>
+      </div>
+
       <div
         className={cn(
           'flex items-end gap-2 p-3 rounded-xl border transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none',
@@ -319,10 +362,6 @@ export function EnhancedMessageInput({ channelName }: EnhancedMessageInputProps)
         )}
       >
         <input ref={fileInputRef} type="file" multiple className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.csv" onChange={handleFileChange} aria-label="Attach files" />
-
-        <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors" aria-label="Attach file">
-          <Paperclip className="w-4.5 h-4.5" />
-        </button>
 
         <button type="button" onClick={() => { slash.open(); textareaRef.current?.focus(); }} className="p-2 rounded-lg text-app-muted hover:text-app hover:bg-app-hover transition-colors" aria-label="Slash commands" title="Slash commands">
           <Slash className="w-4.5 h-4.5" />

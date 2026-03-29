@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Users, Pin, FileText, Settings, X, ExternalLink, Loader2, AlertCircle, Grid, List, Download, Image as ImageIcon } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { PresenceAvatar } from './PresenceAvatar';
 import { ImagePreviewModal } from './ImagePreviewModal';
 import { cn } from '@/lib/utils';
+import { getChannelMemberIds, normalizeChannelList } from '@/lib/chatChannelUtils';
 import { formatTime } from '@/lib/utils';
 import type { DetailTab } from '@/stores/chatStore';
 
@@ -17,8 +18,15 @@ const TABS: { id: DetailTab; label: string; icon: typeof Users }[] = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export function ChatDetailPanel() {
-  const channels = useChatStore((s) => s.channels);
+interface ChatDetailPanelProps {
+  /** Hide top "Details" title row when wrapped by ChatRightRail (tabs stay) */
+  embedded?: boolean;
+}
+
+export function ChatDetailPanel({ embedded = false }: ChatDetailPanelProps) {
+  const showDetailsHeader = !embedded;
+  const channelsRaw = useChatStore((s) => s.channels);
+  const channels = useMemo(() => normalizeChannelList(channelsRaw), [channelsRaw]);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const detailTab = useChatStore((s) => s.detailTab);
   const setDetailTab = useChatStore((s) => s.setDetailTab);
@@ -47,12 +55,13 @@ export function ChatDetailPanel() {
   }, [activeChannelId, detailTab, fetchPins, fetchMedia]);
 
   useEffect(() => {
+    if (embedded) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') toggleDetailPanel();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleDetailPanel]);
+  }, [toggleDetailPanel, embedded]);
 
   if (!activeChannel) {
     return (
@@ -62,24 +71,25 @@ export function ChatDetailPanel() {
     );
   }
 
-  const membersList = activeChannel.members
+  const membersList = getChannelMemberIds(activeChannel)
     .map((id) => users.find((u) => u.id === id))
     .filter(Boolean);
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-app flex items-center justify-between bg-app-sidebar/80 backdrop-blur-md shrink-0">
-        <h3 className="font-semibold text-app text-sm">Details</h3>
-        <button
-          type="button"
-          onClick={toggleDetailPanel}
-          className="p-1 rounded text-app-muted hover:text-app transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
-          aria-label="Close details panel"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+    <div className="h-full flex flex-col min-h-0">
+      {showDetailsHeader && (
+        <div className="px-4 py-3 border-b border-app flex items-center justify-between bg-app-sidebar/80 backdrop-blur-md shrink-0">
+          <h3 className="font-semibold text-app text-sm">Details</h3>
+          <button
+            type="button"
+            onClick={toggleDetailPanel}
+            className="p-1 rounded text-app-muted hover:text-app transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+            aria-label="Close details panel"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-app">

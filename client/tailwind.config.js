@@ -109,6 +109,8 @@ export default {
       fontSize: {
         xs:   ['12px', { lineHeight: '16px' }],
         sm:   ['14px', { lineHeight: '20px' }],
+        /** v2 high-density surfaces (Bento / Mission Control) */
+        compact: ['13px', { lineHeight: '1.45' }],
         base: ['16px', { lineHeight: '24px' }],
         lg:   ['20px', { lineHeight: '28px' }],
         xl:   ['28px', { lineHeight: '36px' }],

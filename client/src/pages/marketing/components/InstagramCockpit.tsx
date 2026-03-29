@@ -9,7 +9,8 @@
 // ============================================================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Download, ImageOff } from 'lucide-react';
+import { Camera, Download, ImageOff, Sparkles } from 'lucide-react';
+import { cacheBustImageUrl } from '@/lib/cacheBustImageUrl';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +43,13 @@ export interface InstagramCockpitProps {
   contentId?: string;
   /** Post title — used to build a default image prompt when the agent did not set `image_prompt`. */
   contentTitle?: string | null;
+  /** Public URL after user uploaded a real-world reference photo (Kontext input). */
+  referenceImageUrl?: string | null;
+  /** Upload a JPEG/PNG/WebP; parent persists via API and updates `referenceImageUrl`. */
+  onUploadReferenceImage?: (file: File) => Promise<void>;
+  /** Run FLUX Kontext on `referenceImageUrl` with the given instruction. */
+  /** Second arg is style preset (same values as regenerate), sent to Kontext as `style_preset`. */
+  onApplyAiPhotoEdit?: (editPrompt: string, stylePreset: string) => Promise<void>;
   className?: string;
 }
 
@@ -60,7 +68,30 @@ function buildFallbackImagePrompt(caption: string, title?: string | null): strin
 // Style presets for the dropdown
 // ---------------------------------------------------------------------------
 
+/** Short snippets appended to the AI photo edit prompt — explicit shadows/material beat vague “add X”. */
+const AI_PHOTO_REALISM_CHIPS: ReadonlyArray<{ label: string; snippet: string }> = [
+  {
+    label: '+Shadows',
+    snippet:
+      'Include a soft contact shadow on the surface beneath the object; penumbra must match other shadows in the frame.',
+  },
+  {
+    label: '+Paper texture',
+    snippet: 'Matte folded paper with subtle creases and edge thickness — not a flat vector or sticker.',
+  },
+  {
+    label: '+Match light',
+    snippet: 'Match highlight direction and color temperature to the existing scene; no neon or poster saturation.',
+  },
+  {
+    label: '+Camera match',
+    snippet:
+      'Match the background sharpness and ISO noise — the object must not look cleaner or more “3D render” than the rest of the photo.',
+  },
+];
+
 const STYLE_PRESETS = [
+  { value: 'photoreal', label: 'Photoreal', desc: 'Natural light, documentary photo look' },
   { value: 'modern_noir', label: 'Modern Noir', desc: 'Dark tones, purple accents, studio glow' },
   { value: 'vibrant_lifestyle', label: 'Vibrant Lifestyle', desc: 'Warm golden-hour, saturated colors' },
   { value: 'minimal_flat', label: 'Minimal Flat-Lay', desc: 'Top-down, clean surface, editorial' },
@@ -85,16 +116,43 @@ export function InstagramCockpit({
   onApprove,
   contentId,
   contentTitle,
+  referenceImageUrl,
+  onUploadReferenceImage,
+  onApplyAiPhotoEdit,
   className,
 }: InstagramCockpitProps) {
   const [isPromptEditorOpen, setPromptEditorOpen] = useState(false);
   const [editedPrompt, setEditedPrompt] = useState(() => imagePrompt ?? buildFallbackImagePrompt(caption, contentTitle));
-  const [selectedStyle, setSelectedStyle] = useState('modern_noir');
+  const [selectedStyle, setSelectedStyle] = useState('photoreal');
   const [isExpanded, setIsExpanded] = useState(false);
   const [imgLoadError, setImgLoadError] = useState(false);
+  const [postImgCacheBust, setPostImgCacheBust] = useState(0);
+  const [refUploading, setRefUploading] = useState(false);
+  const [aiEditBusy, setAiEditBusy] = useState(false);
+  const [aiEditPrompt, setAiEditPrompt] = useState('');
+  const refInputRef = useRef<HTMLInputElement>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { setImgLoadError(false); }, [imageUrl]);
+  useEffect(() => {
+    setImgLoadError(false);
+    setPostImgCacheBust((n) => n + 1);
+  }, [imageUrl]);
+
+  const postImageSrc =
+    imageUrl && !imageUrl.startsWith('data:') ? cacheBustImageUrl(imageUrl, postImgCacheBust) : (imageUrl ?? '');
+
+  const [generatingElapsedSec, setGeneratingElapsedSec] = useState(0);
+  useEffect(() => {
+    if (!isGenerating) {
+      setGeneratingElapsedSec(0);
+      return;
+    }
+    setGeneratingElapsedSec(0);
+    const id = window.setInterval(() => {
+      setGeneratingElapsedSec((s) => s + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isGenerating]);
 
   // Sync from server; when `image_prompt` is absent, pre-fill a valid prompt so Regenerate works (server min 10 chars).
   useEffect(() => {
@@ -126,6 +184,38 @@ export function InstagramCockpit({
       setPromptEditorOpen(false);
     }
   }, [editedPrompt, selectedStyle, onRegenerateImage]);
+
+  const handleReferenceFile = useCallback(
+    async (file: File | undefined) => {
+      if (!file || !onUploadReferenceImage) return;
+      setRefUploading(true);
+      try {
+        await onUploadReferenceImage(file);
+      } finally {
+        setRefUploading(false);
+        if (refInputRef.current) refInputRef.current.value = '';
+      }
+    },
+    [onUploadReferenceImage],
+  );
+
+  const handleAiPhotoEdit = useCallback(async () => {
+    const q = aiEditPrompt.trim();
+    if (q.length < 10 || !onApplyAiPhotoEdit) return;
+    setAiEditBusy(true);
+    try {
+      await onApplyAiPhotoEdit(q, selectedStyle);
+    } finally {
+      setAiEditBusy(false);
+    }
+  }, [aiEditPrompt, onApplyAiPhotoEdit, selectedStyle]);
+
+  const appendAiRealismChip = useCallback((snippet: string) => {
+    setAiEditPrompt((prev) => {
+      const t = prev.trim();
+      return t ? `${t} ${snippet}` : snippet;
+    });
+  }, []);
 
   const handleDownloadImage = useCallback(async () => {
     if (!imageUrl) return;
@@ -223,13 +313,23 @@ export function InstagramCockpit({
                 <p style={styles.generatingText}>
                   {progressMessage ?? 'Generating visual...'}
                 </p>
+                <p style={styles.generatingSubtext}>
+                  {generatingElapsedSec}s · Photo edits often take 1–3 minutes; the request is still running.
+                </p>
               </div>
             ) : imageUrl && !imgLoadError ? (
               <img
-                src={imageUrl}
+                key={`${imageUrl}-${postImgCacheBust}`}
+                src={postImageSrc}
                 alt={altText ?? 'Generated Instagram post image'}
                 style={styles.postImage}
-                onError={() => setImgLoadError(true)}
+                referrerPolicy="no-referrer"
+                onError={() => {
+                  console.warn('[InstagramCockpit] post_image_load_error', {
+                    url: imageUrl?.slice(0, 120),
+                  });
+                  setImgLoadError(true);
+                }}
               />
             ) : imageUrl && imgLoadError ? (
               <div style={styles.placeholderState}>
@@ -289,6 +389,148 @@ export function InstagramCockpit({
 
       {/* ── Controls Panel ─────────────────────────────────────── */}
       <div style={styles.controls}>
+        {onUploadReferenceImage && contentId && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: 12,
+              borderRadius: 10,
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(15,23,42,0.6)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Camera size={14} style={{ opacity: 0.85 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>Real photo (AI additive edit)</span>
+            </div>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10, lineHeight: 1.45 }}>
+              Upload a picture from your phone or camera. Then describe what to add — e.g. a paper plane in the sky, or a bear near the desk. Uses FLUX Kontext to blend into your scene.
+            </p>
+            <input
+              ref={refInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              disabled={refUploading}
+              onChange={(e) => void handleReferenceFile(e.target.files?.[0])}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              <button
+                type="button"
+                disabled={refUploading}
+                onClick={() => refInputRef.current?.click()}
+                style={{
+                  ...styles.controlBtn,
+                  fontSize: 11,
+                  padding: '6px 12px',
+                  opacity: refUploading ? 0.6 : 1,
+                }}
+              >
+                {refUploading ? 'Uploading…' : 'Choose photo'}
+              </button>
+              {referenceImageUrl ? (
+                <span style={{ fontSize: 10, color: '#86efac', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Reference saved
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, color: '#64748b' }}>No reference yet</span>
+              )}
+            </div>
+            {referenceImageUrl && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: 'column' }}>
+                <img
+                  src={referenceImageUrl}
+                  alt="Your reference"
+                  style={{ maxHeight: 96, maxWidth: '100%', borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,0.06)' }}
+                />
+                <label style={{ fontSize: 10, color: '#94a3b8', alignSelf: 'stretch' }} htmlFor={`ig-ai-style-${contentId ?? 'x'}`}>
+                  Style preset (AI edit — same as regenerate)
+                </label>
+                <select
+                  id={`ig-ai-style-${contentId ?? 'x'}`}
+                  value={selectedStyle}
+                  onChange={(e) => setSelectedStyle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontSize: 11,
+                    color: '#e2e8f0',
+                    background: 'rgba(0,0,0,0.35)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8,
+                    padding: '6px 10px',
+                  }}
+                >
+                  {STYLE_PRESETS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  value={aiEditPrompt}
+                  onChange={(e) => setAiEditPrompt(e.target.value)}
+                  placeholder="e.g. Small red paper plane on the cobblestones — matte folded paper, match the sun direction and shadows in this photo"
+                  rows={2}
+                  style={{
+                    width: '100%',
+                    resize: 'vertical',
+                    minHeight: 52,
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(0,0,0,0.25)',
+                    color: '#e2e8f0',
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                  }}
+                />
+                <p style={{ fontSize: 10, color: '#64748b', margin: 0, lineHeight: 1.45 }}>
+                  Vague prompts often look flat. Tap a chip to add shadow/lighting language, or write your own.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                  {AI_PHOTO_REALISM_CHIPS.map((c) => (
+                    <button
+                      key={c.label}
+                      type="button"
+                      disabled={aiEditBusy}
+                      onClick={() => appendAiRealismChip(c.snippet)}
+                      style={{
+                        fontSize: 10,
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        background: 'rgba(148,163,184,0.12)',
+                        color: '#cbd5e1',
+                        cursor: aiEditBusy ? 'not-allowed' : 'pointer',
+                        opacity: aiEditBusy ? 0.5 : 1,
+                      }}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  disabled={aiEditBusy || aiEditPrompt.trim().length < 10}
+                  onClick={() => void handleAiPhotoEdit()}
+                  style={{
+                    ...styles.controlBtn,
+                    ...styles.controlBtnPrimary,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 11,
+                    opacity: aiEditBusy || aiEditPrompt.trim().length < 10 ? 0.5 : 1,
+                  }}
+                >
+                  <Sparkles size={14} />
+                  {aiEditBusy ? 'Applying AI…' : 'Apply AI to photo'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Regenerate Image */}
         <button
           style={{
@@ -529,7 +771,8 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative' as const,
     width: '100%',
     aspectRatio: '1 / 1',
-    background: '#111',
+    /** Light matte so any residual alpha / load gaps do not read as black on dark chrome. */
+    backgroundColor: '#e5e7eb',
     overflow: 'hidden',
   },
   postImage: {
@@ -537,6 +780,8 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     objectFit: 'cover' as const,
     display: 'block',
+    /** Transparent PNG/JPEG regions composite here; white avoids a void that reads as black on dark chrome. */
+    backgroundColor: '#ffffff',
   },
   generatingState: {
     width: '100%',
@@ -572,6 +817,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     letterSpacing: '0.04em',
     textTransform: 'uppercase' as const,
+    position: 'relative' as const,
+    zIndex: 1,
+  },
+  generatingSubtext: {
+    fontSize: '11px',
+    lineHeight: 1.45,
+    color: 'rgba(255,255,255,0.32)',
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none' as const,
+    textAlign: 'center' as const,
+    maxWidth: '220px',
+    margin: '8px 0 0',
     position: 'relative' as const,
     zIndex: 1,
   },

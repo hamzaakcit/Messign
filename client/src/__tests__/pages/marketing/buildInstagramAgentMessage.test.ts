@@ -3,6 +3,7 @@ import {
   buildInstagramAgentMessage,
   validateInstagramAgentForm,
   MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH,
+  MIN_INSTAGRAM_IMAGE_DESCRIPTION_WITH_REFERENCE_LENGTH,
 } from '@/pages/marketing/lib/buildInstagramAgentMessage';
 
 describe('buildInstagramAgentMessage', () => {
@@ -45,6 +46,19 @@ describe('buildInstagramAgentMessage', () => {
     });
     expect(msg).toContain('Square 1:1');
   });
+
+  it('prepends REFERENCE_IMAGE_URL when a reference is set', () => {
+    const msg = buildInstagramAgentMessage({
+      topic: 'Launch',
+      heroImageDescription: '1234567890',
+      referenceImageUrl: 'https://cdn.example.com/ref.jpg',
+      format: 'feed',
+    });
+    expect(msg).toContain('[REFERENCE_IMAGE_URL]');
+    expect(msg).toContain('https://cdn.example.com/ref.jpg');
+    expect(msg).toContain('[/REFERENCE_IMAGE_URL]');
+    expect(msg).toContain('[IMAGE_PROMPT]');
+  });
 });
 
 describe('validateInstagramAgentForm', () => {
@@ -61,5 +75,14 @@ describe('validateInstagramAgentForm', () => {
       heroImageDescription: 'x'.repeat(MIN_INSTAGRAM_IMAGE_DESCRIPTION_LENGTH),
     });
     expect(Object.keys(e2).length).toBe(0);
+  });
+
+  it('allows shorter hero text when a reference image URL is set', () => {
+    const ok = validateInstagramAgentForm({
+      topic: 'OK',
+      heroImageDescription: 'x'.repeat(MIN_INSTAGRAM_IMAGE_DESCRIPTION_WITH_REFERENCE_LENGTH),
+      referenceImageUrl: 'https://example.com/a.jpg',
+    });
+    expect(Object.keys(ok).length).toBe(0);
   });
 });

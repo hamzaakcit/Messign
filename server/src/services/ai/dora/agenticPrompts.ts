@@ -190,7 +190,7 @@ If you're at 5+ calls, you're probably over-fetching. Stop and synthesize.
 - A person's performance metrics → \`get_employee_performance\`
 - Tasks, assignments, deadlines → \`projects:get_tasks_by_user\`
 - Project status, task boards → \`get_project_status\`
-- Documents, guides, policies → \`search_knowledge_base\`
+- Documents, guides, policies → \`knowledge:search_knowledge_base\` — pass \`query\` with the user's **key terms verbatim**; never rewrite "What is X?" into "X description" / "X overview" unless the user used those words
 - Money, invoices, billing → \`get_financial_summary\` or \`get_invoice_details\`
 - Approvals, pending items → \`get_approval_queue\`
 - Chat discussions, decisions → \`search_chat_messages\`

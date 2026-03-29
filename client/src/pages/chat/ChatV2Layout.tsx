@@ -1,46 +1,44 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChannelSidebar } from '@/components/chat/ChannelSidebar';
 import { ChatMainPanel } from '@/components/chat/ChatMainPanel';
-import { ChatDetailPanel } from '@/components/chat/ChatDetailPanel';
+import { ChatRightRail } from '@/components/chat/ChatRightRail';
 import { AdminMessagesPanel } from '@/components/chat/AdminMessagesPanel';
 import { ChannelCreateModal } from '@/components/chat/ChannelCreateModal';
 import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
-import { ThreadPanel } from '@/components/chat/ThreadPanel';
 import { ChatDuelHub } from '@/components/chat/ChatDuelHub';
 import { cn } from '@/lib/utils';
-import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { useMediaQueryMatch } from '@/hooks/useMediaQueryMatch';
+import { ViewportContainer } from '@/components/layout/ViewportContainer';
 import { useChatChannelsQuery } from '@/hooks/useChatChannelsQuery';
+import { useUIStore } from '@/stores/uiStore';
 
 export function ChatV2Layout() {
   const user = useAuthStore((s) => s.user);
+  const isMobile = useUIStore((s) => s.isMobile);
+  const focusMode = useUIStore((s) => s.focusMode);
+  const leftSidebarOpen = useUIStore((s) => s.leftSidebarOpen);
+  const leftSidebarCollapsed = useUIStore((s) => s.leftSidebarCollapsed);
   const fetchUsers = useUsersStore((s) => s.fetchUsers);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
   const fetchChannels = useChatStore((s) => s.fetchChannels);
   const hydrateChannels = useChatStore((s) => s.hydrateChannels);
   const { data: channelsQueryData, isSuccess: channelsQuerySuccess } = useChatChannelsQuery(user?.id);
-  const detailPanelOpen = useChatStore((s) => s.detailPanelOpen);
   const mobileSidebarOpen = useChatStore((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useChatStore((s) => s.setMobileSidebarOpen);
   const channelCreateOpen = useChatStore((s) => s.channelCreateOpen);
   const contextMenuMessage = useChatStore((s) => s.contextMenuMessage);
   const activeThreadId = useChatStore((s) => s.activeThreadId);
-  const closeThread = useChatStore((s) => s.closeThread);
-  const toggleDetailPanel = useChatStore((s) => s.toggleDetailPanel);
+  const detailPanelOpen = useChatStore((s) => s.detailPanelOpen);
   const channelRailCollapsed = useChatStore((s) => s.channelRailCollapsed);
-  const threadSheetRef = useRef<HTMLDivElement>(null);
-  const detailSheetRef = useRef<HTMLDivElement>(null);
-  const isNarrowViewport = useMediaQueryMatch('(max-width: 1023px)');
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (channelsQuerySuccess && channelsQueryData !== undefined) {
+    if (channelsQuerySuccess && Array.isArray(channelsQueryData)) {
       hydrateChannels(channelsQueryData);
     }
   }, [channelsQuerySuccess, channelsQueryData, hydrateChannels]);
@@ -58,11 +56,28 @@ export function ChatV2Layout() {
 
   const showAdminMessages = activeChannelId === ADMIN_MESSAGES_CHANNEL_ID;
 
-  useFocusTrap(!!activeThreadId && !showAdminMessages && isNarrowViewport, threadSheetRef);
-  useFocusTrap(detailPanelOpen && !activeThreadId && !showAdminMessages && isNarrowViewport, detailSheetRef);
+  /** When <lg, the app LeftSidebar is absolute (z-40); main is full-width. Offset the channel rail so it does not sit under the nav. */
+  const showAppLeftSidebar = !focusMode && leftSidebarOpen;
+  const channelRailLeftClass =
+    isMobile && showAppLeftSidebar ? (leftSidebarCollapsed ? 'left-16' : 'left-60') : 'left-0';
+  /** Off-screen transform must account for `left` offset so the drawer fully clears the viewport. */
+  const channelRailClosedTransformClass =
+    isMobile && showAppLeftSidebar
+      ? leftSidebarCollapsed
+        ? '-translate-x-[calc(100%+4rem)]'
+        : '-translate-x-[calc(100%+15rem)]'
+      : '-translate-x-full';
+  const channelRailZClass =
+    mobileSidebarOpen && isMobile ? 'z-[45]' : 'z-[35]';
+
+  const showRightRail = !showAdminMessages && (Boolean(activeThreadId) || detailPanelOpen);
 
   return (
-    <div className="chat-surface relative flex h-full min-h-0 w-full flex-1 flex-row overflow-hidden bg-app-bg">
+    <ViewportContainer
+      orientation="row"
+      density="compact"
+      className="chat-surface relative flex-1 bg-app-bg"
+    >
       <div className="chat-atmosphere pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden />
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
@@ -76,69 +91,35 @@ export function ChatV2Layout() {
       {/* Channel rail: off-canvas on small viewports; in-flow from lg so it shares width with app LeftSidebar correctly */}
       <div
         className={cn(
-          'z-50 flex min-h-0 w-72 shrink-0 flex-col border-r border-app bg-app-sidebar transition-[width,transform] duration-300 ease-out',
+          channelRailZClass,
+          'flex min-h-0 w-72 shrink-0 flex-col border-r border-app bg-app-sidebar transition-[width,transform] duration-300 ease-out',
           'lg:relative lg:inset-auto lg:translate-x-0',
           channelRailCollapsed && 'lg:w-[3.75rem] lg:min-w-[3.75rem]',
           !channelRailCollapsed && 'lg:w-72',
+          channelRailLeftClass,
           mobileSidebarOpen
-            ? 'absolute inset-y-0 left-0 translate-x-0 shadow-xl lg:relative lg:shadow-none'
-            : 'absolute inset-y-0 left-0 -translate-x-full lg:translate-x-0 lg:relative',
+            ? 'absolute inset-y-0 translate-x-0 shadow-xl lg:relative lg:shadow-none'
+            : cn(
+                'absolute inset-y-0',
+                channelRailClosedTransformClass,
+                'lg:translate-x-0 lg:relative',
+              ),
         )}
       >
         <ChannelSidebar onRetry={() => user?.id && fetchChannels(user.id)} />
       </div>
 
-      {/* Main chat area */}
-      <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* Main chat area — only child that scrolls is the transcript inside ChatMainPanel */}
+      <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {showAdminMessages ? <AdminMessagesPanel /> : <ChatMainPanel />}
       </div>
 
-      {/* Thread panel — mobile: full-height sheet; desktop: fixed column */}
-      {activeThreadId && !showAdminMessages && (
-        <div className="fixed inset-0 z-[60] flex justify-end lg:static lg:inset-auto lg:z-10 lg:w-96 lg:shrink-0 lg:flex">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/50 lg:hidden border-0 cursor-default p-0"
-            onClick={closeThread}
-            aria-label="Close thread"
-          />
-          <div
-            ref={threadSheetRef}
-            className="relative z-10 flex h-full w-full max-w-lg flex-col min-h-0 border-l border-app bg-app-sidebar shadow-xl lg:max-w-none lg:shadow-none"
-            role={isNarrowViewport ? 'dialog' : undefined}
-            aria-modal={isNarrowViewport ? 'true' : undefined}
-            aria-label="Thread"
-          >
-            <ThreadPanel />
-          </div>
-        </div>
-      )}
-
-      {/* Detail panel — mobile: sheet; desktop: column */}
-      {detailPanelOpen && !activeThreadId && !showAdminMessages && (
-        <div className="fixed inset-0 z-[55] flex justify-end lg:static lg:inset-auto lg:z-10 lg:w-80 lg:shrink-0 lg:flex">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/50 lg:hidden border-0 cursor-default p-0"
-            onClick={toggleDetailPanel}
-            aria-label="Close channel details"
-          />
-          <div
-            ref={detailSheetRef}
-            className="relative z-10 flex h-full w-full max-w-lg flex-col min-h-0 border-l border-app bg-app-sidebar shadow-xl lg:max-w-none lg:shadow-none"
-            role={isNarrowViewport ? 'dialog' : undefined}
-            aria-modal={isNarrowViewport ? 'true' : undefined}
-            aria-label="Channel details"
-          >
-            <ChatDetailPanel />
-          </div>
-        </div>
-      )}
+      {showRightRail && <ChatRightRail />}
 
       {/* Modals */}
       {channelCreateOpen && <ChannelCreateModal />}
       {contextMenuMessage && <MessageContextMenu />}
       {!showAdminMessages && <ChatDuelHub />}
-    </div>
+    </ViewportContainer>
   );
 }

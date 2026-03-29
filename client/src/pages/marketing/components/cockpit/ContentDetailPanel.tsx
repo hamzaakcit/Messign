@@ -13,10 +13,49 @@ import { StatusBadge } from './StatusBadge';
 import { ValidationScores } from './ValidationScores';
 import { InstagramPreview, type CarouselSlide } from './InstagramPreview';
 import { RepurposeModal } from './RepurposeModal';
-import { ContentEmailUnlayerControls } from '../ContentEmailUnlayerControls';
-import { InstagramIntelligencePanel } from './InstagramIntelligencePanel';
+import { ContentEmailSection } from '../ContentEmailSection';
 import { isEmailContentItem } from '../../lib/contentEmailGuards';
+import { InstagramIntelligencePanel } from './InstagramIntelligencePanel';
 import { ComplianceDetailPanel } from '../ComplianceDetailPanel';
+
+/** True when both URLs point at the same path (ignore query — tokens / cache-bust params). */
+function sameStorageObjectUrl(a: string | null | undefined, b: string): boolean {
+  if (!a) return false;
+  if (a === b) return true;
+  try {
+    const ua = new URL(a);
+    const ub = new URL(b);
+    return ua.origin === ub.origin && ua.pathname === ub.pathname;
+  } catch {
+    return false;
+  }
+}
+
+/** Merge regenerate response into local content so the preview updates immediately (matches full-page ContentDetailPanel). */
+function patchContentAfterImageRegen(
+  prev: ContentItem,
+  imageUrl: string,
+  newPrompt: string,
+): ContentItem {
+  const carousel = prev.carousel_images;
+  let nextCarousel = carousel;
+  if (Array.isArray(carousel) && carousel.length > 0) {
+    nextCarousel = carousel.map((slide, i) => {
+      if (i !== 0) return slide;
+      if (slide && typeof slide === 'object') {
+        return { ...(slide as Record<string, unknown>), image_url: imageUrl };
+      }
+      return slide;
+    });
+  }
+  return {
+    ...prev,
+    image_url: imageUrl,
+    image_prompt: newPrompt,
+    visual_description: newPrompt,
+    carousel_images: nextCarousel,
+  };
+}
 
 function PanelSkeleton() {
   return (
@@ -58,26 +97,35 @@ export function ContentDetailPanel({
   const [rejectReason, setRejectReason] = useState('');
   const [showRegenerate, setShowRegenerate] = useState(false);
   const [regenPrompt, setRegenPrompt] = useState('');
-  const [regenStyle, setRegenStyle] = useState<string>('modern_noir');
+  const [regenStyle, setRegenStyle] = useState<string>('photoreal');
   const [regenAspectRatio, setRegenAspectRatio] = useState<string>('1:1');
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
   const [repurposeOpen, setRepurposeOpen] = useState(false);
   const [childVariants, setChildVariants] = useState<ContentItem[]>([]);
 
-  const load = useCallback(async () => {
-    if (!userId || !contentId) return;
-    setLoading(true);
-    try {
-      const c = await marketingAPI.getContent(userId, contentId);
-      setContent(c);
-    } catch (e) {
-      toast.error('Could not load content', { description: e instanceof Error ? e.message : 'Unknown error' });
-      setContent(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, contentId]);
+  const load = useCallback(
+    async (opts?: { preserveImageRegen?: { url: string; prompt: string } }) => {
+      if (!userId || !contentId) return;
+      setLoading(true);
+      try {
+        const c = await marketingAPI.getContent(userId, contentId);
+        const preserve = opts?.preserveImageRegen;
+        if (preserve && c && !sameStorageObjectUrl(c.image_url, preserve.url)) {
+          /** GET can lag the row the regenerate handler just wrote (replica / HTTP cache). Keep the POST response URL. */
+          setContent(patchContentAfterImageRegen(c, preserve.url, preserve.prompt));
+        } else {
+          setContent(c);
+        }
+      } catch (e) {
+        toast.error('Could not load content', { description: e instanceof Error ? e.message : 'Unknown error' });
+        setContent(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userId, contentId],
+  );
 
   useEffect(() => {
     void load();
@@ -207,10 +255,12 @@ export function ContentDetailPanel({
         toast.error('Image generation failed', { description: r.error ?? 'Unknown error' });
         return;
       }
+      const regenUrl = r.image_url;
+      setContent((c) => (c ? patchContentAfterImageRegen(c, regenUrl, p) : c));
       toast.success('Image updated');
       setShowRegenerate(false);
       await onDataChanged();
-      await load();
+      await load({ preserveImageRegen: { url: regenUrl, prompt: p } });
     } catch (e) {
       toast.error('Regenerate failed', { description: e instanceof Error ? e.message : 'Unknown' });
     } finally {
@@ -260,7 +310,6 @@ export function ContentDetailPanel({
   }
 
   const isInstagram = (content.channel ?? '').toLowerCase() === 'instagram';
-  const isEmail = isEmailContentItem(content);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -401,6 +450,7 @@ export function ContentDetailPanel({
               {showRegenerate && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <select value={regenStyle} onChange={(e) => setRegenStyle(e.target.value)} title="Style" className="h-7 rounded-md border border-white/[0.08] bg-black/30 px-1.5 text-[10px] text-slate-200">
+                    <option value="photoreal">Photoreal</option>
                     <option value="modern_noir">Noir</option>
                     <option value="vibrant_lifestyle">Vibrant</option>
                     <option value="minimal_flat">Flat</option>
@@ -443,10 +493,10 @@ export function ContentDetailPanel({
           </>
         )}
 
-        {/* Email: VA2 manifest + cockpit assembly details — ContentEmailUnlayerControls */}
-        {isEmail ? (
+        {/* Email: VA2 manifest + cockpit assembly details */}
+        {isEmailContentItem(content) ? (
           <div className="border-b border-white/[0.06] px-3 py-3">
-            <ContentEmailUnlayerControls
+            <ContentEmailSection
               content={content}
               surface="cockpit"
               onAskDoraRegenerate={onAskDora}

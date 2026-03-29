@@ -15,9 +15,11 @@ interface TaskCardProps {
   projectName?: string;
   /** Called when user clicks the project name to view project details. */
   onProjectClick?: () => void;
+  /** Mission Control compact density (13px, tighter padding). */
+  compact?: boolean;
 }
 
-export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjectClick }: TaskCardProps) {
+export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjectClick, compact }: TaskCardProps) {
   const { getUserById } = useUsersStore();
   const assignees = task.assignees.slice(0, 3).map((id) => getUserById(id)).filter(Boolean);
 
@@ -40,7 +42,8 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
       ref={setNodeRef}
       style={style}
       className={cn(
-        'glass-card p-3',
+        'glass-card border border-app-border/80 bg-app-sidebar/60 backdrop-blur-sm',
+        compact ? 'p-2' : 'p-3',
         disabledDrag ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
         (isDragging || isSortableDragging) && 'opacity-50 shadow-xl ring-2 ring-primary-500'
       )}
@@ -54,31 +57,37 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
             e.preventDefault();
             onProjectClick();
           }}
-          className="flex items-center gap-1 text-[10px] text-primary-400 hover:text-primary-300 mb-1.5 w-full text-left"
+          className={cn(
+            'flex items-center gap-1 text-primary-400 hover:text-primary-300 w-full text-left',
+            compact ? 'text-[9px] mb-1' : 'text-[10px] mb-1.5',
+          )}
         >
           <FolderOpen className="w-3 h-3 shrink-0" />
           <span className="truncate">{projectName}</span>
         </button>
       )}
       {/* Header */}
-      <div className="flex items-start gap-2 mb-2">
+      <div className={cn('flex items-start gap-1.5', compact ? 'mb-1' : 'mb-2')}>
         {!disabledDrag && (
-          <button {...attributes} {...listeners} className="mt-1 text-gray-600 hover:text-app-muted">
-            <GripVertical className="w-4 h-4" />
+          <button {...attributes} {...listeners} className={cn('text-gray-600 hover:text-app-muted', compact ? 'mt-0.5' : 'mt-1')}>
+            <GripVertical className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
           </button>
         )}
-        <div className="flex-1">
-          <h4 className="font-medium text-app-text text-sm leading-tight">{task.title}</h4>
+        <div className="flex-1 min-w-0">
+          <h4 className={cn('font-medium text-app-text leading-tight', compact ? 'text-[13px]' : 'text-sm')}>{task.title}</h4>
         </div>
       </div>
 
       {/* Tags */}
       {task.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
+        <div className={cn('flex flex-wrap gap-1', compact ? 'mb-1' : 'mb-2')}>
           {task.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 text-[10px] bg-app-surface-tertiary text-app-muted rounded"
+              className={cn(
+                'px-1.5 py-0.5 bg-app-surface-tertiary text-app-muted rounded',
+                compact ? 'text-[9px]' : 'text-[10px]',
+              )}
             >
               {tag}
             </span>
@@ -87,7 +96,7 @@ export function TaskCard({ task, isDragging, disabledDrag, projectName, onProjec
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-app-border">
+      <div className={cn('flex items-center justify-between border-t border-app-border', compact ? 'mt-2 pt-1.5' : 'mt-3 pt-2')}>
         <div className="flex items-center gap-2">
           {/* Priority */}
           <Badge className={cn('text-[10px]', getPriorityColor(task.priority))}>

@@ -21,13 +21,36 @@ function storageAuthHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` };
 }
 
-export function buildStorageKey(orgId: string, contentId: string): string {
+export function buildStorageKey(orgId: string, contentId: string, ext: 'png' | 'jpg' = 'png'): string {
   const timestamp = Date.now();
   const nonce = randomUUID().slice(0, 8);
-  return `${orgId}/instagram/${contentId}_${timestamp}_${nonce}.png`;
+  const safeExt = ext === 'jpg' ? 'jpg' : 'png';
+  return `${orgId}/instagram/${contentId}_${timestamp}_${nonce}.${safeExt}`;
 }
 
-export async function uploadToStorage(buffer: Buffer, key: string): Promise<string> {
+/**
+ * Object path for a user-uploaded reference JPEG/PNG before AI edit (Kontext).
+ */
+export function buildReferenceUploadStorageKey(orgId: string, contentId: string, ext: string): string {
+  const nonce = randomUUID().slice(0, 8);
+  const safeExt = ext.replace(/^\./, '').toLowerCase() || 'jpg';
+  return `${orgId}/reference/${contentId}_${nonce}.${safeExt}`;
+}
+
+/**
+ * Ephemeral reference uploads from Lucy (Instagram modal) before a `marketing_content` row exists.
+ */
+export function buildLucyReferenceUploadStorageKey(orgId: string, ext: string): string {
+  const nonce = randomUUID().slice(0, 8);
+  const safeExt = ext.replace(/^\./, '').toLowerCase() || 'jpg';
+  return `${orgId}/reference/lucy_${nonce}.${safeExt}`;
+}
+
+export async function uploadToStorage(
+  buffer: Buffer,
+  key: string,
+  contentType: string = 'image/png',
+): Promise<string> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     console.warn('[imageService] No Supabase config — returning mock URL');
     return `https://storage.mock.local/${STORAGE_BUCKET}/${key}`;
@@ -40,7 +63,7 @@ export async function uploadToStorage(buffer: Buffer, key: string): Promise<stri
       method: 'POST',
       headers: {
         ...storageAuthHeaders(),
-        'Content-Type': 'image/png',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',
         'x-upsert': 'true',
       },

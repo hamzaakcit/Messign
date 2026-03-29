@@ -27,11 +27,23 @@ export const ROUTES = {
   SETTINGS: '/settings',
 
   FINANCE: '/finance',
+  /** Finance shell invoices tab (pathname-driven). Distinct from INVOICES (legacy reimbursements invoices path). */
+  FINANCE_INVOICES: '/finance/invoices',
   REIMBURSEMENTS: '/reimbursements',
   INVOICES: '/reimbursements/invoices',
 
   CRM: '/crm',
+  /** Lucy home: navigator + Dora rail. */
   MARKETING: '/marketing',
+  /** Legacy combined hub — redirect to {@link ROUTES.MARKETING}. */
+  MARKETING_WORKSPACE: '/marketing/workspace',
+  MARKETING_BRAND_SOCIAL: '/marketing/brand-social',
+  MARKETING_FUNNEL: '/marketing/funnel',
+  MARKETING_EXPERIMENTS: '/marketing/experiments',
+  MARKETING_SANDBOX: '/marketing/sandbox',
+  MARKETING_PIPELINE: '/marketing/pipeline',
+  MARKETING_CALENDAR: '/marketing/calendar',
+  MARKETING_INTELLIGENCE: '/marketing/intelligence',
   MARKETING_COMMAND_CENTER: '/marketing/command-center',
   MARKETING_CAMPAIGNS: '/marketing/campaigns',
   MARKETING_CONTENT: '/marketing/content',

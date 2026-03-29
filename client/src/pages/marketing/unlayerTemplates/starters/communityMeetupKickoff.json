@@ -1,0 +1,73 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "layoutDensity": "airy",
+  "subject": "You're in — community night + product roadmap (Thursday)",
+  "preheader": "Food, a short founder talk, and small-group tables for builders who want honest feedback — bring one problem; leave with three ideas and a few new names in your phone.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Builders night at the studio",
+        "subheadline": "Sixty minutes of food, a ten-minute roadmap, and open tables — no slides marathon.",
+        "ctaText": "RSVP",
+        "ctaUrl": "https://example.com/meetup",
+        "imagePrompt": "Warm evening community event in a bright studio, long wooden tables, string lights, diverse group in conversation, shallow depth of field, no readable text",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "content": {
+        "columns": 2,
+        "sectionTitle": "Why come",
+        "items": [
+          {
+            "icon": "Users",
+            "heading": "Small tables",
+            "description": "Facilitated rotations so you meet people who ship similar stacks."
+          },
+          {
+            "icon": "Lightbulb",
+            "heading": "One problem rule",
+            "description": "Share one concrete challenge — the group pressure-tests it in fifteen minutes."
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "Save your spot",
+        "description": "We cap at forty guests so every voice gets airtime.",
+        "buttonText": "Confirm attendance",
+        "buttonUrl": "https://example.com/meetup",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Studio North",
+        "address": "1200 River Road, Portland, OR 97209",
+        "unsubscribeText": "You received this because you opted into local events."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm",
+    "audience": "local builders",
+    "visual_density": "rich",
+    "target_image_slots": 5
+  },
+  "artDirection": {
+    "mood": "welcoming",
+    "imageStyle": "Lifestyle community photography"
+  }
+}

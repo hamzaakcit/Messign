@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { ROUTES } from '@/lib/routes';
 import { DoraWidgetShell } from './DoraWidgetShell';
 import type { InvoicePreviewData } from '@/types/knowledge-hub/ai';
 import type { DoraBlockProps } from '@/types/dora/dynamic-blocks';
@@ -38,7 +39,7 @@ export function InvoicePreviewCard({ block, delay = 0 }: InvoicePreviewCardProps
   const { data, host } = block;
 
   const handleView = () => {
-    host.dispatch({ kind: 'navigate', to: '/finance', state: { financeView: 'invoices' } });
+    host.dispatch({ kind: 'navigate', to: ROUTES.FINANCE_INVOICES });
   };
   const [linesOpen, setLinesOpen] = useState(false);
   const hasLines = data.lineItems && data.lineItems.length > 0;
@@ -64,7 +65,7 @@ export function InvoicePreviewCard({ block, delay = 0 }: InvoicePreviewCardProps
             background: 'rgba(15, 23, 42, 0.6)',
           }}
         >
-          Open Finance
+          Open invoices
         </button>
       }
     >

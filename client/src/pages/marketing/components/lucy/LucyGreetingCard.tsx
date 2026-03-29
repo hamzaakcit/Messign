@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { lucyTokens } from '../../lib/lucyVisualTokens';
 import { LUCY_UI_GREETING } from '../../lib/lucyUiGreeting';
 import { LucyHeroLogo } from './LucyHeroLogo';
@@ -32,10 +33,18 @@ const DEFAULT_CHIPS: LucyGreetingChip[] = [
   },
 ];
 
+const CHIP_CLASS = cn(
+  'dp-font text-xs font-semibold rounded-full px-3.5 py-2 cursor-pointer transition-all duration-200',
+  'border border-violet-500/25 bg-gradient-to-b from-violet-950/50 to-slate-950/80 text-violet-100/95',
+  'shadow-sm shadow-black/25 ring-1 ring-violet-500/10 hover:brightness-110 hover:border-violet-400/35',
+);
+
 export interface LucyGreetingCardProps {
   chips?: LucyGreetingChip[];
   onChipSelect?: (text: string) => void;
   heroSize?: number;
+  /** Use full width of the parent (e.g. marketing home split column). */
+  wide?: boolean;
 }
 
 /**
@@ -45,6 +54,7 @@ export function LucyGreetingCard({
   chips = DEFAULT_CHIPS,
   onChipSelect,
   heroSize = 180,
+  wide = false,
 }: LucyGreetingCardProps): JSX.Element {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -55,7 +65,7 @@ export function LucyGreetingCard({
   return (
     <div
       style={{
-        maxWidth: 520,
+        maxWidth: wide ? '100%' : 520,
         margin: '0 auto',
         padding: 24,
         borderRadius: 24,
@@ -98,33 +108,9 @@ export function LucyGreetingCard({
       </div>
 
       {onChipSelect && (
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-2 justify-center mt-6">
           {chips.map((c) => (
-            <button
-              key={c.label}
-              type="button"
-              className="dp-font"
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#A855F7',
-                background: 'rgba(124,58,237,0.08)',
-                border: '1px solid rgba(124,58,237,0.2)',
-                borderRadius: 20,
-                padding: '6px 14px',
-                cursor: 'pointer',
-                transition: 'all 0.25s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(124,58,237,0.16)';
-                e.currentTarget.style.borderColor = 'rgba(168,85,247,0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(124,58,237,0.08)';
-                e.currentTarget.style.borderColor = 'rgba(124,58,237,0.2)';
-              }}
-              onClick={() => onChipSelect(c.text)}
-            >
+            <button key={c.label} type="button" className={CHIP_CLASS} onClick={() => onChipSelect(c.text)}>
               {c.label}
             </button>
           ))}

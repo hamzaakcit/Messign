@@ -1,0 +1,125 @@
+{
+  "version": "2.0",
+  "theme": "minimal",
+  "layoutDensity": "comfortable",
+  "subject": "Your gift restores 200 meals this week — match ends Friday",
+  "preheader": "Spring hunger relief: every dollar unlocks pantry staples for families and seniors in our county. Corporate match doubles impact through Friday midnight — see where funds go, meet a volunteer, and give in one secure link.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Neighbors still choosing between rent and groceries",
+        "subheadline": "This spring campaign funds pantry boxes, weekend kids packs, and home delivery for seniors — your gift ships this month.",
+        "ctaText": "Give now (matched)",
+        "ctaUrl": "https://example.org/give/spring-match?utm_source=email&utm_medium=crm&utm_campaign=spring_relief",
+        "imagePrompt": "Volunteers packing grocery bags in bright community room, diverse hands, hopeful atmosphere, documentary nonprofit photography, no readable labels",
+        "alignment": "center",
+        "heroLayout": "editorial_tall",
+        "altText": "Volunteers packing food bags"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Meals funded YTD", "value": "1.2M" },
+          { "label": "Volunteer hours (Mar)", "value": "3,400" },
+          { "label": "Counties served", "value": "4" }
+        ]
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Where your donation goes",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Heart",
+            "heading": "Pantry staples",
+            "description": "Rice, beans, eggs, and fresh produce bundles sized for a family of four for one week.",
+            "imagePrompt": "Colorful fresh produce on wooden table, soft natural light, editorial food bank story, no packaging text"
+          },
+          {
+            "icon": "Backpack",
+            "heading": "Weekend kids packs",
+            "description": "Discrete bags for schoolchildren — ready-to-eat items that do not require cooking.",
+            "imagePrompt": "Child backpack on bench with soft morning light, anonymous composition, no logos"
+          },
+          {
+            "icon": "Truck",
+            "heading": "Senior delivery",
+            "description": "Doorstep drops for neighbors who cannot stand in line — routed by volunteer drivers.",
+            "imagePrompt": "Delivery tote at front door mat, respectful distance, suburban porch, no house numbers readable"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "headline": "Meet Jamie — route driver on Saturdays",
+        "body": "Jamie started after their own family used the pantry in 2022. Now they pack Friday nights and deliver Saturday mornings — your match funds the fuel and cold bags that make the route possible.",
+        "imagePrompt": "Person loading insulated bags into car trunk in parking lot, sunrise light, documentary nonprofit style, face partially turned away for privacy",
+        "altText": "Volunteer loading delivery bags",
+        "layout": "image_right",
+        "ctaText": "Read volunteer stories",
+        "ctaUrl": "https://example.org/stories/volunteers?utm_source=email&utm_medium=crm&utm_campaign=spring_relief"
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 5,
+      "content": {
+        "quote": "The weekend pack meant my kids had breakfast before school on Monday — I could focus on the rent conversation without an empty fridge.",
+        "authorName": "A community member",
+        "authorRole": "Parent",
+        "authorCompany": "County schools",
+        "rating": 5
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Double your impact before the match ends",
+        "description": "Prefer monthly giving? You can still unlock the match on your first installment this week.",
+        "buttonText": "Donate — spring match",
+        "buttonUrl": "https://example.org/give/spring-match?utm_source=email&utm_medium=crm&utm_campaign=spring_relief",
+        "variant": "fullWidth"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "content": {
+        "companyName": "County Food Coalition",
+        "address": "501(c)(3) · Tax receipt emailed automatically",
+        "links": [
+          { "text": "Unsubscribe", "url": "/unsubscribe" },
+          { "text": "Financials", "url": "/impact" }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "hopeful, transparent",
+    "audience": "donors and recurring supporters",
+    "campaign_id": "nonprofit_spring_match",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "dignified, community-centered",
+    "imageStyle": "Documentary nonprofit; anonymized subjects where needed"
+  }
+}

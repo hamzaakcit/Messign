@@ -27,7 +27,18 @@ import {
   extractCaption,
   extractAltText,
 } from '../../../modules/marketing/prompts/instagramChannelSpec.js';
-import { generateImage, enhanceImagePrompt, resolveStockImageUrl } from '../publishing/imageService.js';
+import {
+  generateImage,
+  resolveStockImageUrl,
+  editMarketingPhotoWithKontext,
+} from '../publishing/imageService.js';
+import {
+  buildInstagramFeedT2iPrompt,
+  isInstagramImageFalOnlyFromEnv,
+  type InstagramPromptIntentContext,
+} from './instagramFeedT2i.js';
+
+export type { InstagramPromptIntentContext } from './instagramFeedT2i.js';
 
 const LOG = '[instagramImagePipeline]';
 
@@ -55,12 +66,6 @@ export interface InstagramImageGenResult {
   promptSource: 'extracted' | 'synthesized' | 'none';
   /** Carousel slide images (populated when draft had multiple [IMAGE_PROMPT:N] blocks). */
   carouselImages?: CarouselSlideImage[];
-}
-
-/** Optional: original user ask — used to align image gen when the draft lacks [IMAGE_PROMPT] or is generic. */
-export interface InstagramPromptIntentContext {
-  title?: string | null;
-  userBrief?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +132,29 @@ export function parseInstagramDraft(
  * When the strategist's [IMAGE_PROMPT] is present but misses the user's stated topic,
  * prepend the original ask so the image model stays aligned.
  */
+const INTENT_MERGE_STOPWORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'from',
+  'this',
+  'that',
+  'your',
+  'our',
+  'are',
+  'was',
+  'has',
+  'have',
+  'been',
+  'will',
+  'can',
+  'not',
+  'but',
+  'any',
+  'all',
+]);
+
 function mergeIntentWithExtractedPrompt(
   extracted: string,
   intentContext?: InstagramPromptIntentContext,
@@ -140,10 +168,13 @@ function mergeIntentWithExtractedPrompt(
   const words = combined
     .toLowerCase()
     .split(/\s+/)
-    .filter((w) => w.length > 4);
+    .map((w) => w.replace(/[^a-z0-9]/g, ''))
+    .filter((w) => w.length >= 3 && !INTENT_MERGE_STOPWORDS.has(w));
   if (words.length === 0) return extracted;
   const matches = words.filter((w) => extLower.includes(w)).length;
-  if (matches >= Math.min(4, Math.max(1, words.length))) return extracted;
+  const ratio = matches / words.length;
+  /** Brand names (e.g. Mavi) are length 4; older logic used >4 and skipped them. */
+  if (ratio >= 0.4 && matches >= Math.min(4, Math.max(1, words.length))) return extracted;
 
   return [
     "User's request — the image must reflect this:",
@@ -178,11 +209,12 @@ function synthesizeImagePromptFromCaption(caption: string, intent?: InstagramPro
 
   return [
     `Create a photorealistic or polished marketing photograph that literally depicts: ${primaryTopic}.`,
-    'Show concrete, recognizable subjects (people, product, place, or object) that match the topic — avoid unrelated generic office stock unless the topic is about that.',
+    'Show concrete subjects that match the topic: products, location, environment, props, or people **only if** the topic requires humans (e.g. fashion on models, founders).',
+    'Do not default to generic office meetings, conference rooms, coworking tables, or anonymous “team” stock unless the topic is explicitly about that.',
     '',
     'Visual direction:',
     '- Scene must communicate the topic at a glance.',
-    '- Composition: balanced, scroll-stopping, square 1:1 frame for Instagram feed.',
+    '- Composition: balanced, scroll-stopping, square 1:1 frame for Instagram feed unless the brief specifies another aspect ratio.',
     '- Lighting and color: appropriate to the scene (do not force a purple/dark “tech” palette unless it fits the topic).',
     '- No overlaid text, logos, or watermarks in the frame.',
     '- Sharp focus on the main subject; professional marketing quality.',
@@ -193,9 +225,9 @@ function synthesizeImagePromptFromCaption(caption: string, intent?: InstagramPro
 function resolveResolution(
   aspectRatio?: AspectRatio,
 ): ImageGenerationInput['resolution'] {
-  if (!aspectRatio) return '1024x1024';
+  if (!aspectRatio) return '1080x1080';
   const r = ASPECT_RATIO_RESOLUTIONS[aspectRatio];
-  return (r as ImageGenerationInput['resolution']) ?? '1024x1024';
+  return (r as ImageGenerationInput['resolution']) ?? '1080x1080';
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +241,9 @@ function resolveResolution(
  *
  * Shared by both `marketingAgentOrchestrator.executeContentWorkflow` and
  * `marketingContentWorkflow.executeContentWorkflow` to prevent behavioral drift.
+ *
+ * **Fal routing:** every Instagram T2I `generateImage` call in this module passes
+ * `instagram_feed: true` so `FAL_INSTAGRAM_IMAGE_MODEL` / Instagram-tuned negatives apply (orchestrator included).
  */
 export async function runInstagramImageGeneration(opts: {
   orgId: string;
@@ -220,7 +255,7 @@ export async function runInstagramImageGeneration(opts: {
   /** Optional: original user ask — improves prompt alignment when the draft is generic. */
   intentContext?: InstagramPromptIntentContext;
 }): Promise<InstagramImageGenResult> {
-  const { orgId, contentId, rawDraft, caller, stylePreset = 'modern_noir', aspectRatio, intentContext } = opts;
+  const { orgId, contentId, rawDraft, caller, stylePreset = 'photoreal', aspectRatio, intentContext } = opts;
 
   const parsed = parseInstagramDraft(rawDraft, intentContext);
 
@@ -235,8 +270,12 @@ export async function runInstagramImageGeneration(opts: {
     visual_description: parsed.visualDescription,
   });
 
+  const contentRow = await contentDal.getContentById(caller, contentId);
+  const refUrl = contentRow?.reference_image_url?.trim() ?? null;
+  /** Carousel multi-gen does not use a single reference upload; force single-image path when ref is set. */
+  const isCarousel = parsed.allImagePrompts.length > 1 && !refUrl;
+
   const resolution = resolveResolution(aspectRatio);
-  const isCarousel = parsed.allImagePrompts.length > 1;
 
   console.log(`${LOG} gen_start`, {
     contentId,
@@ -245,8 +284,44 @@ export async function runInstagramImageGeneration(opts: {
     aspectRatio: aspectRatio ?? '1:1',
     resolution,
     slides: parsed.allImagePrompts.length,
+    referencePhoto: Boolean(refUrl),
     promptPreview: parsed.imagePrompt.slice(0, 120),
   });
+
+  // --- User reference photo: FLUX Kontext additive edit ---
+  if (refUrl) {
+    /** Do not use `enhanceImagePrompt` here — it is for T2I; Kontext needs a short edit instruction + real image. */
+    const editResult = await editMarketingPhotoWithKontext({
+      org_id: orgId,
+      content_id: contentId,
+      reference_image_url: refUrl,
+      edit_instruction: parsed.imagePrompt,
+      style_preset: stylePreset,
+    });
+
+    console.log(`${LOG} kontext_result`, {
+      contentId,
+      success: editResult.success,
+      imageUrl: editResult.image_url?.slice(0, 80),
+      error: editResult.error,
+      durationMs: editResult.metadata?.duration_ms,
+    });
+
+    if (editResult.success && editResult.image_url) {
+      await contentDal.updateContent(caller, contentId, {
+        image_url: editResult.image_url,
+        image_generation_metadata: editResult.metadata,
+      });
+    }
+
+    return {
+      success: editResult.success,
+      imageUrl: editResult.image_url ?? null,
+      metadata: editResult.metadata,
+      error: editResult.error,
+      promptSource: parsed.autoSynthesized ? 'synthesized' : 'extracted',
+    };
+  }
 
   // --- Carousel: generate all slide images in parallel ---
   if (isCarousel) {
@@ -276,17 +351,17 @@ export async function runInstagramImageGeneration(opts: {
     };
   }
 
-  const enhanced = enhanceImagePrompt(parsed.imagePrompt, stylePreset, {
-    channel: 'instagram',
-    sectionType: 'standalone',
-  });
+  const t2i = buildInstagramFeedT2iPrompt(parsed.imagePrompt, stylePreset, intentContext);
   const genResult = await generateImage({
     org_id: orgId,
     content_id: contentId,
-    prompt: enhanced,
+    prompt: t2i.prompt,
     resolution,
     style_preset: stylePreset,
     aspect_ratio: aspectRatio,
+    instagram_feed: true,
+    instagram_fal_only: isInstagramImageFalOnlyFromEnv(),
+    instagram_direct_prompt: t2i.instagram_direct_prompt,
   });
 
   console.log(`${LOG} gen_result`, {
@@ -346,16 +421,16 @@ async function runCarouselGeneration(opts: {
           },
         };
       }
-      const enhanced = enhanceImagePrompt(p.prompt, stylePreset, {
-        channel: 'instagram',
-        sectionType: 'standalone',
-      });
+      const t2i = buildInstagramFeedT2iPrompt(p.prompt, stylePreset, undefined);
       const result = await generateImage({
         org_id: orgId,
         content_id: contentId,
-        prompt: enhanced,
+        prompt: t2i.prompt,
         resolution,
         style_preset: stylePreset,
+        instagram_feed: true,
+        instagram_fal_only: isInstagramImageFalOnlyFromEnv(),
+        instagram_direct_prompt: t2i.instagram_direct_prompt,
       });
       return { index: p.index, prompt: p.prompt, result };
     }),
@@ -442,14 +517,17 @@ export async function generateImageVariations(opts: {
 
   const results = await Promise.allSettled(
     stylePresets.map(async (preset) => {
-      const enhanced = enhanceImagePrompt(prompt, preset);
+      const t2i = buildInstagramFeedT2iPrompt(prompt, preset, undefined);
       const result = await generateImage({
         org_id: orgId,
         content_id: contentId,
-        prompt: enhanced,
+        prompt: t2i.prompt,
         resolution,
         style_preset: preset,
         aspect_ratio: aspectRatio,
+        instagram_feed: true,
+        instagram_fal_only: isInstagramImageFalOnlyFromEnv(),
+        instagram_direct_prompt: t2i.instagram_direct_prompt,
       });
       return { preset, result };
     }),

@@ -1,0 +1,92 @@
+{
+  "version": "2.0",
+  "theme": "minimal",
+  "layoutDensity": "airy",
+  "subject": "You unlocked Milestone 3 — here is what opens next",
+  "preheader": "Progress email for your onboarding path: what you have shipped, the one checklist item left, and the shortcut to the next milestone — same tone as the in-app celebration, in your inbox.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Milestone 3 — connectors live",
+        "subheadline": "Your first sync completed without errors. Next: invite your team and turn on alerts.",
+        "ctaText": "Open onboarding",
+        "ctaUrl": "https://example.com/onboarding/m3?utm_source=email&utm_medium=crm&utm_campaign=onboard_milestone",
+        "imagePrompt": "Minimal product illustration: three ascending steps with soft green check on step three, clean white background, no readable text, friendly SaaS onboarding style",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "What you have done",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "CheckCircle",
+            "heading": "Workspace live",
+            "description": "Org settings and SSO path verified."
+          },
+          {
+            "icon": "Layers",
+            "heading": "First connector",
+            "description": "Read-only sync ran end-to-end."
+          },
+          {
+            "icon": "Mail",
+            "heading": "Alert channel",
+            "description": "Slack or email — your pick."
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "content": {
+        "headline": "The one step before Milestone 4",
+        "body": "Invite at least one teammate with admin rights so approvals are not single-threaded on you. It takes under a minute and unlocks shared audit views.",
+        "imagePrompt": "Diverse team at small conference table with single laptop open, bright office, candid collaboration, no readable UI on screen",
+        "altText": "Team collaborating at table",
+        "layout": "image_right",
+        "ctaText": "Invite teammates",
+        "ctaUrl": "https://example.com/settings/team?utm_source=email&utm_medium=crm&utm_campaign=onboard_milestone"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 4,
+      "content": {
+        "headline": "Continue your checklist",
+        "description": "Milestone 4 ships saved views — finish invites first.",
+        "buttonText": "Resume onboarding",
+        "buttonUrl": "https://example.com/onboarding?utm_source=email&utm_medium=crm&utm_campaign=onboard_milestone",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 5,
+      "content": {
+        "companyName": "LatticeShip",
+        "address": "Onboarding · success@example.com",
+        "unsubscribeText": "You received this because you started onboarding. Turn off tips in notification settings."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "encouraging, clear",
+    "audience": "new workspace admins",
+    "campaign_id": "onboard_milestone",
+    "visual_density": "rich",
+    "target_image_slots": 5
+  },
+  "artDirection": {
+    "mood": "friendly, progress-forward",
+    "imageStyle": "Clean product and workplace photography"
+  }
+}

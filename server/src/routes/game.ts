@@ -37,7 +37,7 @@ gameRouter.post('/scores', async (req, res) => {
       played_at: string;
     }>(
       `SELECT DISTINCT ON (gs.user_id)
-              gs.user_id, ru.name AS user_name, ru.avatar,
+              gs.user_id, ru.full_name AS user_name, ru.avatar,
               gs.score, gs.duration_ms, gs.played_at
        FROM game_scores gs
        JOIN reimbursement_users ru ON ru.id = gs.user_id
@@ -80,7 +80,7 @@ gameRouter.get('/leaderboard', async (_req, res) => {
       played_at: string;
     }>(
       `SELECT DISTINCT ON (gs.user_id)
-              gs.user_id, ru.name AS user_name, ru.avatar,
+              gs.user_id, ru.full_name AS user_name, ru.avatar,
               gs.score, gs.duration_ms, gs.played_at
        FROM game_scores gs
        JOIN reimbursement_users ru ON ru.id = gs.user_id

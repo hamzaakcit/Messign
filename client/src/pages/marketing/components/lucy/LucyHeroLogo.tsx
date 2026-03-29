@@ -82,7 +82,7 @@ export function LucyHeroLogo({ size = 280 }: LucyHeroLogoProps): JSX.Element {
             transform: hovered ? 'scale(1.04)' : 'scale(1)',
           }}
         >
-          <LucyPilotSVG size={pilotPx} title="Lucy — Dora's CMO" />
+          <LucyPilotSVG size={pilotPx} title="Lucy — your CMO" />
         </div>
 
         {hovered && (
@@ -126,7 +126,7 @@ export function LucyHeroLogo({ size = 280 }: LucyHeroLogoProps): JSX.Element {
             textTransform: 'uppercase',
           }}
         >
-          Dora&apos;s CMO
+          Your CMO
         </p>
       </div>
     </div>

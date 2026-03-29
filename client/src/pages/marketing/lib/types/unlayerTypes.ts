@@ -98,5 +98,11 @@ export interface AssemblyResult {
     sectionCount: number;
     assembledAt: string;
     accessibilityScore?: number;
+    /** Detailed WCAG-oriented messages from `enforceAccessibility` (same strings as appended to `warnings`). */
+    accessibilityWarnings?: string[];
+    /** Count of image slots (prompts/URLs/items) in the manifest for layout richness hints. */
+    imageSlotCount?: number;
+    /** Non-blocking suggestion when slot count is below 3 or above ~12 (not shown as a toast). */
+    layoutRichnessHint?: string;
   };
 }

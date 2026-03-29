@@ -18,6 +18,7 @@ import {
   extractAltText,
   extractCaption,
   extractImagePrompts,
+  stripReferenceImageUrlBlock,
 } from '../../../modules/marketing/prompts/instagramChannelSpec.js';
 import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/imageService.js';
 import { parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
@@ -27,6 +28,11 @@ import { query as dbQuery } from '../../../db/index.js';
 import { runBrandVoiceCheck, type BrandVoiceCheckResult } from './brandVoiceChecker.js';
 import { runComplianceScan, type ComplianceScanResult } from './complianceScanner.js';
 import { runProductTruthValidation, type ProductTruthValidationResult } from './productTruthValidator.js';
+import {
+  flattenEmailManifestForGatekeepers,
+  looksLikeVa2EmailManifest,
+  parseAndValidateEmailManifestDraft,
+} from '../../marketing/validateEmailManifestDraft.js';
 
 const LOG = '[marketingContentWorkflow]';
 
@@ -174,14 +180,17 @@ export async function executeContentWorkflow(
   const maxRetries = Math.max(0, Math.min(4, context.maxTruthRetries ?? 2));
   const maxAttempts = maxRetries + 1;
 
+  const refStrip = stripReferenceImageUrlBlock(brief);
+  const briefForGeneration = refStrip.referenceUrl ? refStrip.cleaned : brief;
+
   let contentRow = context.contentId ? await getContentById(caller, context.contentId) : null;
   if (context.contentId && !contentRow) {
     return { status: 'failed', reason: 'Content not found', attempts: 0 };
   }
   if (!contentRow) {
-    const userBriefLine = brief.includes('\n\n---\n')
-      ? brief.split('\n\n---\n')[0].trim()
-      : brief.trim();
+    const userBriefLine = briefForGeneration.includes('\n\n---\n')
+      ? briefForGeneration.split('\n\n---\n')[0].trim()
+      : briefForGeneration.trim();
     contentRow = await createContent(caller, {
       title: (context.title ?? 'AI draft').slice(0, 500),
       content_type: context.contentType ?? 'social',
@@ -193,6 +202,15 @@ export async function executeContentWorkflow(
   }
 
   const contentId = contentRow.id;
+  if (refStrip.referenceUrl) {
+    try {
+      await updateContent(caller, contentId, {
+        reference_image_url: refStrip.referenceUrl,
+      });
+    } catch (e) {
+      console.error('[marketingContentWorkflow] reference_image_url update failed', e);
+    }
+  }
   let lastDraft = '';
   let lastTruth: ProductTruthValidationResult | undefined;
 
@@ -208,6 +226,9 @@ export async function executeContentWorkflow(
 
   const normalizedChannel = (context.channel ?? contentRow.channel ?? '').toLowerCase().trim();
   const isInstagram = normalizedChannel === 'instagram';
+  const isEmail = normalizedChannel === 'email';
+
+  let lastManifestErrors: string[] | undefined;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const revisionBlock =
@@ -215,7 +236,14 @@ export async function executeContentWorkflow(
         ? `Your previous draft failed product truth validation for these reasons:\n${lastTruth.failed_reasons.map((r) => `- ${r}`).join('\n')}\n\nPlease revise the draft to fix these issues. Stay factual and aligned with product truth.`
         : undefined;
 
-    const rawDraft = await generateDraft(brief, revisionBlock, context, gen);
+    const manifestRevision =
+      attempt > 0 && lastManifestErrors?.length
+        ? `Your previous VA2 DesignManifest JSON was invalid:\n${lastManifestErrors.map((e) => `- ${e}`).join('\n')}\n\nOutput a single valid JSON object with theme, subject, preheader, sections (array), and metadata.visual_density.`
+        : undefined;
+
+    const combinedRevision = [manifestRevision, revisionBlock].filter(Boolean).join('\n\n');
+
+    const rawDraft = await generateDraft(briefForGeneration, combinedRevision || undefined, context, gen);
     let draft = rawDraft.trim();
     let imagePrompt: string | null = null;
     let visualDesc: string | null = null;
@@ -229,6 +257,32 @@ export async function executeContentWorkflow(
       imagePrompt = parsed.imagePrompt;
       visualDesc = parsed.visualDescription;
     }
+
+    let validationTextForGates = draft;
+    let emailManifestForStorage: Record<string, unknown> | undefined;
+    if (isEmail && looksLikeVa2EmailManifest(draft)) {
+      const parsed = parseAndValidateEmailManifestDraft(draft);
+      if (!parsed.ok) {
+        lastManifestErrors = parsed.errors;
+        lastDraft = draft;
+        if (attempt + 1 >= maxAttempts) {
+          return {
+            status: 'failed',
+            reason: `Invalid VA2 email manifest: ${parsed.errors.join('; ')}`,
+            attempts: attempt + 1,
+            lastDraft,
+            lastTruth,
+          };
+        }
+        continue;
+      }
+      validationTextForGates = flattenEmailManifestForGatekeepers(parsed.manifest);
+      emailManifestForStorage = parsed.manifest;
+      lastManifestErrors = undefined;
+    } else if (isEmail) {
+      lastManifestErrors = undefined;
+    }
+
     lastDraft = draft;
     if (!draft) {
       return {
@@ -250,6 +304,13 @@ export async function executeContentWorkflow(
             visual_description: visualDesc,
           }
         : {}),
+      ...(isEmail && emailManifestForStorage
+        ? {
+            body_design: {
+              va2_manifest: emailManifestForStorage,
+            },
+          }
+        : {}),
     });
 
     const truthQuery = workflowQueryKey('truth', contentId);
@@ -259,14 +320,14 @@ export async function executeContentWorkflow(
     const [truth, brandVoice, compliance] = await Promise.all([
       runTruth({
         organizationId: orgId,
-        contentText: draft,
+        contentText: validationTextForGates,
         tenantId: context.tenantId,
         userQuery: truthQuery,
         productTruthContextMdOverride: context.productTruthContextMdOverride,
       }),
       runBrand({
         organizationId: orgId,
-        contentText: draft,
+        contentText: validationTextForGates,
         tenantId: context.tenantId,
         userQuery: brandQuery,
         brandVoiceContextMdOverride: context.brandVoiceContextMdOverride,
@@ -274,7 +335,7 @@ export async function executeContentWorkflow(
       }),
       runComp({
         organizationId: orgId,
-        contentText: draft,
+        contentText: validationTextForGates,
         tenantId: context.tenantId,
         userQuery: compQuery,
         contentType: context.contentType ?? contentRow.content_type ?? 'social',
@@ -311,7 +372,7 @@ export async function executeContentWorkflow(
         contentId,
         rawDraft,
         caller,
-        stylePreset: 'modern_noir',
+        stylePreset: 'photoreal',
         intentContext: {
           title: context.title ?? contentRow.title,
           userBrief: contentRow.user_brief ?? null,

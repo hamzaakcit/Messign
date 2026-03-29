@@ -8,6 +8,7 @@ import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import { buildShortSystemStatsSummary } from './systemStatsSummary.js';
 
 const systemStatsTool: Tool = {
   name: 'analytics:get_system_stats',
@@ -105,18 +106,7 @@ Use this tool when someone asks:
     const d = (docs.rows[0] as Record<string, unknown>) || {};
     const a = (activities.rows[0] as Record<string, unknown>) || {};
 
-    const totalTasks = (t.total as number) || 0;
-    const completedTasks = (t.completed as number) || 0;
-    const taskCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-    let summary = `**Messign Workspace — System Overview:**
-
-**People:** ${u.active ?? 0} active users (${u.total ?? 0} total)
-**Projects:** ${p.active ?? 0} active projects (${p.total ?? 0} total)
-**Tasks:** ${totalTasks} total — ${completedTasks} completed (${taskCompletionRate}% rate), ${t.in_progress ?? 0} in progress, ${t.open ?? 0} open, ${t.blocked ?? 0} blocked, ${t.overdue ?? 0} overdue
-**Knowledge Base:** ${d.total ?? 0} documents — ${d.published ?? 0} published, ${d.drafts ?? 0} drafts, ${d.in_review ?? 0} in review
-**Activity:** ${a.today ?? 0} actions today, ${a.this_week ?? 0} this week (${a.total ?? 0} all time)`;
-
+    let detailSuffix = '';
     if (detailLevel === 'detailed') {
       try {
         const topActiveResult = await query(
@@ -130,11 +120,17 @@ Use this tool when someone asks:
           [orgId]
         );
         const topActive = topActiveResult.rows as Record<string, unknown>[];
-        summary += `\n\n**Most Active This Week:**\n${topActive.map((r, i) => `${i + 1}. ${r.full_name || r.user_id}: ${r.activity_count} actions`).join('\n')}`;
+        if (topActive.length > 0) {
+          detailSuffix = `Most active this week: ${topActive
+            .map((r) => `${String(r.full_name ?? r.user_id ?? 'User')}: ${r.activity_count}`)
+            .join(', ')}.`;
+        }
       } catch {
         /* skip */
       }
     }
+
+    const summary = buildShortSystemStatsSummary(u, t, p, d, a, { detailSuffix });
 
     return {
       success: true,

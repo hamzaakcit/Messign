@@ -13,7 +13,11 @@ export type EmailGoal =
   | 'seasonal'
   | 're_engagement'
   | 'feature_update'
-  | 'minimalist_cta';
+  | 'minimalist_cta'
+  | 'real_estate_open_house'
+  | 'nonprofit_giving'
+  | 'food_hospitality'
+  | 'music_tour';
 
 export type ContentDensity = 'light' | 'medium' | 'rich';
 
@@ -49,6 +53,10 @@ const GOALS: { id: EmailGoal; label: string; description: string; icon: string }
   { id: 're_engagement', label: 'Re-engagement', description: 'Win back inactive subscribers', icon: '🔄' },
   { id: 'feature_update', label: 'Feature Update', description: 'Announce new features or improvements', icon: '✨' },
   { id: 'minimalist_cta', label: 'Minimalist CTA', description: 'Single focused action', icon: '🎯' },
+  { id: 'real_estate_open_house', label: 'Real estate', description: 'Open house or listing showcase', icon: '🏠' },
+  { id: 'nonprofit_giving', label: 'Nonprofit', description: 'Impact, match, or donation drive', icon: '💜' },
+  { id: 'food_hospitality', label: 'Food & dining', description: 'Chef’s table, tasting, reservation', icon: '🍽️' },
+  { id: 'music_tour', label: 'Music & events', description: 'Tour dates, presale, entertainment', icon: '🎸' },
 ];
 
 const DENSITIES: { id: ContentDensity; label: string; description: string; sectionHint: string }[] = [

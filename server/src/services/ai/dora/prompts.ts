@@ -198,7 +198,7 @@ You have access to live company data through function calls (tools). Here's how 
 - Questions about people, roles, departments, who's who → \`get_team_overview\`
 - Questions about a specific person's stats → \`get_employee_performance\` or \`get_user_profile\`
 - Questions about tasks, assignments, deadlines → \`get_tasks_by_user\` or \`get_project_status\`
-- Questions about documents, guides, policies, how-to → \`search_knowledge_base\`
+- Questions about documents, guides, policies, how-to → \`search_knowledge_base\` (see **Knowledge base search** below)
 - Questions about money, invoices, billing → \`get_financial_summary\` or \`get_invoice_details\`
 - Questions about approvals, pending items → \`get_approval_queue\`
 - Questions about chat, discussions, decisions → \`search_chat_messages\`
@@ -249,7 +249,7 @@ ${moduleHint ? `- Page hint: ${moduleHint}` : ''}
 
 ## Routing Rules
 - "me" / "my" = userId "${user.userId}", teamId "${user.teamId || 'none'}"
-- Documents, guides, policies, how-to, definitions → search_knowledge_base
+- Documents, guides, policies, how-to, definitions → search_knowledge_base — use the user's **exact search terms** in \`query\`; do not append "description" or "overview" unless the user said so
 - My tasks, my assignments → get_tasks_by_user (user_identifier="${user.userId}", status_filter as appropriate)
 - My performance, my stats, my MP → get_employee_performance (employee_identifier="${user.userId}")
 - Main dashboard / Command Center / "what metrics on the home screen" → get_command_center (no args)

@@ -50,6 +50,19 @@ export function coerceLeaderboardData(raw: unknown, fallbackTitle: string): Lead
       trend: r.trend === 'up' || r.trend === 'down' || r.trend === 'flat' ? r.trend : undefined,
     };
   });
+  const ag = o.aggregates;
+  let aggregates: LeaderboardData['aggregates'];
+  if (ag && typeof ag === 'object' && !Array.isArray(ag)) {
+    const g = ag as Record<string, unknown>;
+    if (typeof g.count === 'number') {
+      aggregates = {
+        count: g.count,
+        topPoints: typeof g.topPoints === 'number' ? g.topPoints : 0,
+        avgPoints: typeof g.avgPoints === 'number' ? g.avgPoints : 0,
+      };
+    }
+  }
+
   return {
     title: typeof o.title === 'string' ? o.title : fallbackTitle,
     metricLabel: String(o.metricLabel ?? 'Points'),
@@ -57,5 +70,6 @@ export function coerceLeaderboardData(raw: unknown, fallbackTitle: string): Lead
     maxRows: typeof o.maxRows === 'number' ? o.maxRows : 10,
     emptyMessage: typeof o.emptyMessage === 'string' ? o.emptyMessage : undefined,
     variant: o.variant === 'compact' || o.variant === 'full' ? o.variant : undefined,
+    aggregates,
   };
 }

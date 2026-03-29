@@ -1,0 +1,78 @@
+{
+  "version": "2.0",
+  "theme": "tech",
+  "layoutDensity": "compact",
+  "subject": "Live: Shipping AI guardrails — seats are limited",
+  "preheader": "Join the live teardown, Q&A, and a downloadable checklist — same time as last month's series, but new demos and attendee-only office hours.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Guardrails that ship with your models",
+        "subheadline": "Live teardown plus twenty minutes of Q&A — bring your stack questions.",
+        "ctaText": "Save a seat",
+        "ctaUrl": "https://example.com/webinar",
+        "imagePrompt": "Split-friendly editorial: wide laptop screen glow with abstract neural motif, cool teal rim light, no readable text on screens, generous negative space for copy column",
+        "alignment": "left",
+        "heroLayout": "split"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "content": {
+        "columns": 3,
+        "sectionTitle": "Agenda",
+        "items": [
+          {
+            "icon": "Clock",
+            "heading": "00:00 — Kickoff",
+            "description": "What changed since last release"
+          },
+          {
+            "icon": "Layers",
+            "heading": "00:12 — Live teardown",
+            "description": "Tracing a failing eval run end-to-end"
+          },
+          {
+            "icon": "Mail",
+            "heading": "00:32 — Office hours",
+            "description": "Ask-your-stack Q&A (attendee-only)"
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 3,
+      "content": {
+        "headline": "Register now",
+        "description": "Calendar invite and replay link sent one hour before.",
+        "buttonText": "Join the live session",
+        "buttonUrl": "https://example.com/webinar",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 4,
+      "content": {
+        "companyName": "Northline AI",
+        "address": "548 Market St, San Francisco, CA 94104",
+        "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "professional",
+    "audience": "engineering leaders",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "focused, technical",
+    "imageStyle": "Editorial product photography with teal accents"
+  }
+}

@@ -4,7 +4,13 @@ export { uid, pad, wrapHtml, makeRow, makeColumn, resolveButtonStyle } from './s
 
 export type { BlockBuilderOptions, BlockBuilder } from './types';
 
-export { createSingleColumnRow, createTwoColumnRow } from './va2Shared';
+export {
+  createSingleColumnRow,
+  createTwoColumnRow,
+  buildBrandLogoHeaderRowVa2,
+  buildSubtleCardBorder,
+  buildAccentOutlineBorder,
+} from './va2Shared';
 
 export {
   buildLogoHeaderRow,

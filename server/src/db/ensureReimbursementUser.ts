@@ -33,11 +33,23 @@ export async function ensureReimbursementUserForAuth(
   );
   if (already.rows.length > 0) return;
 
-  const orgResult = await query<{ id: string }>(
-    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-    [DEFAULT_ORG_SLUG]
+  let orgResult = await query<{ id: string }>(
+    `SELECT id::text AS id FROM organizations WHERE slug = $1 LIMIT 1`,
+    [DEFAULT_ORG_SLUG],
   );
-  const orgId = orgResult.rows[0]?.id;
+  let orgId = orgResult.rows[0]?.id;
+  if (!orgId) {
+    const anyOrg = await query<{ id: string }>(
+      `SELECT id::text AS id FROM organizations ORDER BY created_at ASC NULLS LAST LIMIT 1`,
+      [],
+    );
+    orgId = anyOrg.rows[0]?.id;
+    if (orgId) {
+      console.warn(
+        '[ensureReimbursementUserForAuth] No organization with slug "messign"; provisioning against first organization row',
+      );
+    }
+  }
   if (!orgId) return;
 
   const normalizedEmail = email.trim().toLowerCase();

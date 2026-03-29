@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Hash, Lock, MessageCircle, Plus, ChevronDown, ChevronLeft, ChevronRight, Mail, Loader2, AlertCircle, Search, X, FolderOpen, Trash2 } from 'lucide-react';
 import type { Channel, SmartFolder } from '@/types';
 import { useChatStore, ADMIN_MESSAGES_CHANNEL_ID } from '@/stores/chatStore';
@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { chatAPI } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { getChannelMemberIds, normalizeChannelList } from '@/lib/chatChannelUtils';
 import { PresenceAvatar } from './PresenceAvatar';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -14,7 +15,8 @@ interface ChannelSidebarProps {
 }
 
 export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
-  const channels = useChatStore((s) => s.channels);
+  const channelsRaw = useChatStore((s) => s.channels);
+  const channels = useMemo(() => normalizeChannelList(channelsRaw), [channelsRaw]);
   const activeChannelId = useChatStore((s) => s.activeChannelId);
   const setActiveChannel = useChatStore((s) => s.setActiveChannel);
   const addChannel = useChatStore((s) => s.addChannel);
@@ -76,11 +78,11 @@ export function ChannelSidebar({ onRetry }: ChannelSidebarProps) {
 
   const getChannelDisplayName = (c: Channel) =>
     c.type === 'dm'
-      ? (users.find((u) => c.members.includes(u.id) && u.id !== currentUser?.id)?.name ?? c.name)
+      ? (users.find((u) => getChannelMemberIds(c).includes(u.id) && u.id !== currentUser?.id)?.name ?? c.name)
       : c.name;
 
   const getDmUser = (c: Channel) =>
-    c.type === 'dm' ? users.find((u) => c.members.includes(u.id) && u.id !== currentUser?.id) : null;
+    c.type === 'dm' ? users.find((u) => getChannelMemberIds(c).includes(u.id) && u.id !== currentUser?.id) : null;
 
   const showCollapsedRail = channelRailCollapsed && !isMobile;
 

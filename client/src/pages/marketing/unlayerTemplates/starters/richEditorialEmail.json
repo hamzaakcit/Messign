@@ -1,0 +1,91 @@
+{
+  "version": "2.0",
+  "theme": "tech",
+  "subject": "Editorial launch story — hero, rhythm, and proof in one scroll",
+  "preheader": "See how we structured this campaign: a bold hero, a magazine-style image and copy row, an inset text card, social proof, dividers for breathing room, and a framed CTA—open for the full Visual Architect layout.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Ship the story, not the slide deck",
+        "subheadline": "One narrative arc from first impression to proof—built with VA2 sections you can still edit freely in Unlayer.",
+        "ctaText": "View the playbook",
+        "ctaUrl": "https://example.com/editorial",
+        "imagePrompt": "[STOCK] Editorial workspace with large monitor, soft window light, minimal desk, plants, calm professional atmosphere, wide negative space for headline overlay, no readable text in scene",
+        "altText": "Calm editorial workspace with natural light",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "divider",
+      "order": 2,
+      "content": {}
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "content": {
+        "headline": "Why rhythm beats density",
+        "body": "Readers skim in F-patterns. Alternate imagery and copy, add dividers between ideas, and let testimonials sit on their own row so proof does not compete with the pitch.",
+        "imagePrompt": "[STOCK] Magazine spread on a wooden table, coffee cup, soft morning light, editorial photography, shallow depth of field",
+        "altText": "Magazine spread and coffee on a table",
+        "layout": "image_left",
+        "ctaText": "See layout tips",
+        "ctaUrl": "https://example.com/rhythm"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 4,
+      "variant": "card",
+      "content": {
+        "body": "Use <strong>inset cards</strong> for long explanations so the eye gets a clear boundary. Pair with a <em>band</em> or <em>flush</em> section variant when you want full-bleed strips or flat copy.",
+        "alignment": "left",
+        "insetCard": true
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 5,
+      "content": {
+        "quote": "The template finally looks like our brand—not a blank stack of blocks. The framed CTA and testimonial sold our exec team.",
+        "authorName": "Jordan Lee",
+        "authorRole": "VP Marketing",
+        "authorCompany": "Northline Studio",
+        "rating": 5
+      }
+    },
+    {
+      "type": "divider",
+      "order": 6,
+      "content": {}
+    },
+    {
+      "type": "cta",
+      "order": 7,
+      "variant": "card",
+      "content": {
+        "headline": "Open the full editorial kit",
+        "description": "Duplicate this starter, swap copy, and keep section variants for rhythm.",
+        "buttonText": "Get the kit",
+        "buttonUrl": "https://example.com/kit",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 8,
+      "content": {
+        "companyName": "Messign Labs, Inc.",
+        "address": "500 Market Street, Suite 1200, San Francisco, CA 94105",
+        "unsubscribeText": "You received this because you opted in at messign.example. Unsubscribe anytime."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "confident, editorial",
+    "audience": "marketing leads evaluating campaign structure"
+  }
+}

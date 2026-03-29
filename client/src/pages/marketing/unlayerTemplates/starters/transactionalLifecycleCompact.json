@@ -1,0 +1,74 @@
+{
+  "version": "2.0",
+  "theme": "minimal",
+  "layoutDensity": "compact",
+  "subject": "Subscription renewed — receipt #INV-9281",
+  "preheader": "Thank you for your payment. This message confirms amount charged, renewal date, and how to download your invoice or update billing—keep this email for your records.",
+  "sections": [
+    {
+      "type": "text_block",
+      "order": 1,
+      "variant": "flush",
+      "content": {
+        "body": "<p style=\"margin:0 0 6px;font-weight:700;font-size:16px\">Payment received</p><p style=\"margin:0;color:#64748b;font-size:13px\">Plan · Pro · Billed annually · Next renewal Apr 1 next year</p>",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "content": {
+        "sectionTitle": "Summary",
+        "columns": 2,
+        "items": [
+          {
+            "name": "Workspace Pro (annual)",
+            "description": "1 seat · taxes included where applicable",
+            "price": "$199.00"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider",
+      "order": 3,
+      "content": {}
+    },
+    {
+      "type": "text_block",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "body": "<p style=\"margin:0;font-size:13px\">Questions? Reply to this email or visit the billing portal—responses typically within one business day.</p>",
+        "alignment": "left",
+        "insetCard": false
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "variant": "flush",
+      "content": {
+        "buttonText": "Download invoice PDF",
+        "buttonUrl": "https://example.com/billing/invoice",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Messign Billing",
+        "address": "Automated message · billing@example.com"
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "transactional",
+    "audience": "subscribers post-charge",
+    "visual_density": "minimal",
+    "campaign_id": "txn_sub_renewal"
+  }
+}

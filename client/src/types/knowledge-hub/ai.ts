@@ -175,9 +175,15 @@ export type AIWidgetType =
   | 'system_overview'
   | 'task_table'
   | 'performance_overview'
+  | 'bounty_board'
+  | 'badges_earned'
+  | 'reimbursement_claims'
   | 'financial_summary'
   | 'team_overview'
   | 'project_status'
+  | 'sprint_status'
+  | 'executive_report'
+  | 'approval_queue'
   | 'revenue_chart'
   | 'data_table'
   | 'dora_dash'
@@ -241,6 +247,8 @@ export interface LeaderboardData {
   maxRows?: number;
   emptyMessage?: string;
   variant?: 'compact' | 'full';
+  /** Optional KPI strip from server aggregates (XP leaderboard). */
+  aggregates?: { count: number; topPoints: number; avgPoints: number };
 }
 
 export interface SystemOverviewData {

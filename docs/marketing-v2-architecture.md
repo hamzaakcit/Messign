@@ -79,5 +79,6 @@ When the planner emits a step with **`step_kind`: `research`**, the sub-orchestr
 
 ## Related docs
 
+- [email-design-pipeline.md](./email-design-pipeline.md) — VA2 manifest → Unlayer assembly (client)
 - [marketing-perfect-agent-research-summary.md](./marketing-perfect-agent-research-summary.md)
 - Server: `services/ai/marketing/marketingAgentFlow.ts`, `services/marketing/marketingAutomationTriggerService.ts`

@@ -88,6 +88,7 @@ export interface CreateContentInput {
   revision_history?: unknown[];
   image_prompt?: string | null;
   image_url?: string | null;
+  reference_image_url?: string | null;
   visual_description?: string | null;
   image_generation_metadata?: ImageGenerationMetadata | null;
   carousel_images?: CarouselSlideImage[] | null;
@@ -140,6 +141,69 @@ function parseImageGenerationMetadata(raw: unknown): ImageGenerationMetadata | n
     }
   }
   return null;
+}
+
+function parseCarouselImagesJson(raw: unknown): CarouselSlideImage[] | null {
+  if (raw == null) return null;
+  const parsed: unknown =
+    typeof raw === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(raw) as unknown;
+          } catch {
+            return null;
+          }
+        })()
+      : raw;
+  if (!Array.isArray(parsed)) return null;
+  const out: CarouselSlideImage[] = [];
+  for (const item of parsed) {
+    if (item == null || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const url = o.image_url;
+    if (typeof url !== 'string' || url.length === 0) continue;
+    const idx = o.index;
+    out.push({
+      index: typeof idx === 'number' && Number.isFinite(idx) ? idx : Number(idx) || 0,
+      image_url: url,
+      prompt: typeof o.prompt === 'string' ? o.prompt : '',
+      storage_key: o.storage_key != null ? String(o.storage_key) : null,
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+
+function parseImageVariantsJson(raw: unknown): ImageVariant[] | null {
+  if (raw == null) return null;
+  const parsed: unknown =
+    typeof raw === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(raw) as unknown;
+          } catch {
+            return null;
+          }
+        })()
+      : raw;
+  if (!Array.isArray(parsed)) return null;
+  const out: ImageVariant[] = [];
+  for (const item of parsed) {
+    if (item == null || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const id = o.id;
+    const imageUrl = o.image_url;
+    if (typeof id !== 'string' || typeof imageUrl !== 'string') continue;
+    out.push({
+      id,
+      image_url: imageUrl,
+      style_preset: typeof o.style_preset === 'string' ? o.style_preset : 'photoreal',
+      prompt: typeof o.prompt === 'string' ? o.prompt : '',
+      selected: typeof o.selected === 'boolean' ? o.selected : undefined,
+      generated_at:
+        typeof o.generated_at === 'string' ? o.generated_at : new Date().toISOString(),
+    });
+  }
+  return out.length > 0 ? out : null;
 }
 
 function mapContent(row: Record<string, unknown>): Content {
@@ -199,8 +263,11 @@ function mapContent(row: Record<string, unknown>): Content {
     revision_history: parseRevisionHistory(row.revision_history),
     image_prompt: row.image_prompt != null ? String(row.image_prompt) : null,
     image_url: row.image_url != null ? String(row.image_url) : null,
+    reference_image_url: row.reference_image_url != null ? String(row.reference_image_url) : null,
     visual_description: row.visual_description != null ? String(row.visual_description) : null,
     image_generation_metadata: parseImageGenerationMetadata(row.image_generation_metadata),
+    carousel_images: parseCarouselImagesJson(row.carousel_images),
+    image_variants: parseImageVariantsJson(row.image_variants),
     instagram_media_id: row.instagram_media_id != null ? String(row.instagram_media_id) : null,
     parent_content_id: row.parent_content_id ? String(row.parent_content_id) : null,
     parent_title: row.parent_title != null ? String(row.parent_title) : null,
@@ -432,10 +499,10 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
          body_html, body_design, scheduled_date, scheduled_time, author_id, reviewer_id, tags,
          truth_validation, truth_validated_at, brand_voice_check, brand_voice_checked_at,
          user_brief, revision_history,
-         image_prompt, image_url, visual_description, image_generation_metadata, instagram_media_id,
+         image_prompt, image_url, reference_image_url, visual_description, image_generation_metadata, instagram_media_id,
          parent_content_id
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
        RETURNING *`,
       [
         tenantId,
@@ -460,6 +527,7 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
         data.revision_history != null ? JSON.stringify(data.revision_history) : '[]',
         data.image_prompt ?? null,
         data.image_url ?? null,
+        data.reference_image_url ?? null,
         data.visual_description ?? null,
         data.image_generation_metadata ?? null,
         data.instagram_media_id ?? null,
@@ -520,6 +588,9 @@ export async function updateContent(
   }
   if (data.image_url !== undefined) {
     fields.push(['image_url', data.image_url ?? null]);
+  }
+  if (data.reference_image_url !== undefined) {
+    fields.push(['reference_image_url', data.reference_image_url ?? null]);
   }
   if (data.visual_description !== undefined) {
     fields.push(['visual_description', data.visual_description ?? null]);

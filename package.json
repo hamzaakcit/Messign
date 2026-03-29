@@ -27,7 +27,8 @@
     "db:diagnose-rls": "npm run db:diagnose-rls --workspace=server",
     "db:apply-rls": "npm run db:apply-rls --workspace=server",
     "db:check-org-gaps": "npm run db:check-org-gaps --workspace=server",
-    "render:dora-logo": "node scripts/render-dora-logo.mjs"
+    "render:dora-logo": "node scripts/render-dora-logo.mjs",
+    "generate:login-plane": "node scripts/generate-login-paper-plane-fal.mjs"
   },
   "workspaces": [
     "client",
@@ -43,6 +44,7 @@
     "kill-port": "^2.0.1",
     "wait-on": "^8.0.1",
     "typescript": "^5.3.3",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "@fal-ai/client": "^1.9.5"
   }
 }

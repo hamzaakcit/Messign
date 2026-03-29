@@ -6,6 +6,7 @@ import { selectModelTier, streamWithFallback } from '../gateway/modelRouter.js';
 import { assemblePrompt, buildKBSynthesisPrompt } from '../prompts/assemble.js';
 import type { DoraContext } from '../types.js';
 import type { StreamController } from './StreamController.js';
+import { documentsFromKnowledgeSearchData } from '../../tools/knowledgeSearchAggregates.js';
 
 export async function streamKBSynthesis(params: {
   controller: StreamController;
@@ -52,7 +53,7 @@ export async function streamKBSynthesis(params: {
 
   controller.emit('metadata', {
     toolsUsed: ['knowledge:search_knowledge_base'],
-    dataPoints: kb.success && Array.isArray(kb.data) ? kb.data.length : 0,
+    dataPoints: kb.success && kb.data != null ? documentsFromKnowledgeSearchData(kb.data).length : 0,
     responseTimeMs: Date.now() - startedAt,
     steps: 1,
     terminationReason: 'complete',

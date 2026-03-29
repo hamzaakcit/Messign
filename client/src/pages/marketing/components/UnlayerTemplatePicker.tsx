@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import type { TemplateCategory, UnlayerStarterTemplate } from '../unlayerTemplates/types';
+import {
+  DEFAULT_VA2_STARTER_MANIFEST_FIELDS,
+  type TemplateCategory,
+  type UnlayerStarterTemplate,
+} from '../unlayerTemplates/types';
 
 type Props = {
   templates: UnlayerStarterTemplate[];
@@ -13,6 +17,10 @@ const CATEGORY_FILTERS: { id: TemplateCategory | 'all'; label: string }[] = [
   { id: 'announce', label: 'Announce' },
   { id: 'engage', label: 'Engage' },
   { id: 'general', label: 'General' },
+  { id: 'real_estate', label: 'Real estate' },
+  { id: 'nonprofit', label: 'Nonprofit' },
+  { id: 'food', label: 'Food' },
+  { id: 'music', label: 'Music' },
 ];
 
 const CATEGORY_COLORS: Record<TemplateCategory, string> = {
@@ -21,6 +29,10 @@ const CATEGORY_COLORS: Record<TemplateCategory, string> = {
   announce: 'bg-amber-500/20 text-amber-300',
   engage: 'bg-purple-500/20 text-purple-300',
   general: 'bg-slate-500/20 text-slate-300',
+  real_estate: 'bg-emerald-500/20 text-emerald-300',
+  nonprofit: 'bg-rose-500/20 text-rose-300',
+  food: 'bg-orange-500/20 text-orange-300',
+  music: 'bg-fuchsia-500/20 text-fuchsia-300',
 };
 
 function getSubtitle(t: UnlayerStarterTemplate): string {
@@ -84,13 +96,24 @@ export function UnlayerTemplatePicker({ templates, onSelect }: Props) {
                 </div>
               )}
               {t.category && t.category !== 'general' && (
-                <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider ${CATEGORY_COLORS[t.category]}`}>
-                  {t.category}
+                <span
+                  className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider max-w-[calc(100%-0.75rem)] truncate ${CATEGORY_COLORS[t.category]}`}
+                  title={t.category.replace(/_/g, ' ')}
+                >
+                  {t.category.replace(/_/g, ' ')}
                 </span>
               )}
             </div>
             <p className="text-sm font-medium text-app-text group-hover:text-app-text transition-colors">{t.title}</p>
             <p className="text-[11px] text-app-muted mt-0.5 line-clamp-2">{getSubtitle(t)}</p>
+            {t.manifest ? (
+              <p
+                className="text-[9px] text-app-muted/70 mt-1 line-clamp-2"
+                title={(t.requiredManifestFields ?? DEFAULT_VA2_STARTER_MANIFEST_FIELDS).join(', ')}
+              >
+                Manifest: {(t.requiredManifestFields ?? DEFAULT_VA2_STARTER_MANIFEST_FIELDS).join(' · ')}
+              </p>
+            ) : null}
           </button>
         ))}
         {filtered.length === 0 && (

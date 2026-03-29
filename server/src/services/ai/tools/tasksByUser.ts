@@ -10,6 +10,7 @@ import { registerTool } from '../toolRegistry.js';
 import { limitRecords } from '../dataSanitizer.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
 import { resolveOrgIdForTool } from './resolveOrgIdForTool.js';
+import { computeTaskAggregates, type TaskRowLike } from './taskAggregates.js';
 
 const tasksByUserTool: Tool = {
   name: 'projects:get_tasks_by_user',
@@ -187,9 +188,11 @@ Use this tool when someone asks:
     const tasks = limitRecords(tasksResult.rows as Record<string, unknown>[], 50);
 
     if (tasks.length === 0) {
+      const emptyStats = { total: 0, overdue: 0, highPriority: 0 };
+      const emptyAggregates = computeTaskAggregates([]);
       return {
         success: true,
-        data: [],
+        data: { tasks: [], stats: emptyStats, aggregates: emptyAggregates },
         summary: `${targetUserName} has no tasks matching the filter (status: ${statusFilter}, scope: ${timeScope}).`,
         metadata: { source: 'tasks, projects', count: 0 },
       };
@@ -200,20 +203,15 @@ Use this tool when someone asks:
       ['critical', 'urgent', 'high'].includes((t.priority as string) || '')
     ).length;
 
-    const summary = `**${targetUserName}'s Tasks** (filter: ${statusFilter}, scope: ${timeScope}):
-- Total: ${tasks.length} tasks
-- Overdue: ${overdue} | High priority: ${highPriority}
+    const aggregates = computeTaskAggregates(tasks as TaskRowLike[]);
 
-${tasks.slice(0, 25).map((t: Record<string, unknown>, i: number) => {
-  const due = t.due_date ? new Date(t.due_date as string).toLocaleDateString() : 'no due date';
-  const overdueFlag = t.is_overdue ? ' OVERDUE' : '';
-  const idPart = t.id ? ` (id: ${t.id})` : '';
-  return `${i + 1}.${idPart} [${t.status}] [${(t.priority as string) || 'normal'}] ${t.title} — ${(t.project_name as string) || 'no project'} (due: ${due})${overdueFlag}`;
-}).join('\n')}${tasks.length > 25 ? `\n... and ${tasks.length - 25} more tasks` : ''}`;
+    const summary =
+      `**${targetUserName}'s tasks** — ${tasks.length} shown (filter: ${statusFilter}, scope: ${timeScope}). ` +
+      `Overdue: ${overdue}. High priority: ${highPriority}. Full list appears in the interactive widget.`;
 
     return {
       success: true,
-      data: { tasks, stats: { total: tasks.length, overdue, highPriority } },
+      data: { tasks, stats: { total: tasks.length, overdue, highPriority }, aggregates },
       summary,
       metadata: { source: 'tasks, projects', count: tasks.length },
     };

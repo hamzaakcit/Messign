@@ -709,3 +709,12 @@
   transition: background-color 99999s ease-out 0s;
 }
 
+/* Float labels when browser autofill sets value before React sees it */
+.login-page-autofill .group:has(input:-webkit-autofill) .login-float-label {
+  top: 0.5rem;
+  transform: translateY(0);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.75);
+}
+

@@ -7,7 +7,12 @@ import { Avatar } from '@/components/ui';
 import { formatTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
-export function ThreadPanel() {
+interface ThreadPanelProps {
+  /** Hide duplicate header when wrapped by ChatRightRail */
+  embedded?: boolean;
+}
+
+export function ThreadPanel({ embedded = false }: ThreadPanelProps) {
   const activeThreadId = useChatStore((s) => s.activeThreadId);
   const threadMessages = useChatStore((s) => s.threadMessages);
   const threadLoading = useChatStore((s) => s.threadLoading);
@@ -44,12 +49,13 @@ export function ThreadPanel() {
   }, [activeThreadId]);
 
   useEffect(() => {
+    if (embedded) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeThread();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [closeThread]);
+  }, [closeThread, embedded]);
 
   if (!activeThreadId || !parentMessage) return null;
 
@@ -63,25 +69,26 @@ export function ThreadPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col border-l border-app bg-app-bg min-h-0">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-app flex items-center justify-between shrink-0 bg-app-sidebar/80 backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-primary-400" />
-          <span className="text-sm font-semibold text-app">Thread</span>
-          <span className="text-xs text-app-muted">
-            {threadMessages.length} {threadMessages.length === 1 ? 'reply' : 'replies'}
-          </span>
+    <div className={cn('h-full flex flex-col bg-app-bg min-h-0', !embedded && 'border-l border-app')}>
+      {!embedded && (
+        <div className="px-4 py-3 border-b border-app flex items-center justify-between shrink-0 bg-app-sidebar/80 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-primary-400" />
+            <span className="text-sm font-semibold text-app">Thread</span>
+            <span className="text-xs text-app-muted">
+              {threadMessages.length} {threadMessages.length === 1 ? 'reply' : 'replies'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={closeThread}
+            aria-label="Close thread"
+            className="p-1 rounded text-app-muted hover:text-app transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={closeThread}
-          aria-label="Close thread"
-          className="p-1 rounded text-app-muted hover:text-app transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      )}
 
       {/* Thread Dora — collapsible to give more room for replies */}
       {activeChannelId && activeThreadId && (

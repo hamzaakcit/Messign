@@ -8,6 +8,15 @@
 import { query } from '../../../db/index.js';
 import { registerTool } from '../toolRegistry.js';
 import type { Tool, ToolContext, ToolResult } from '../types.js';
+import { computeProjectStatusAggregates, type ProjectStatusAggregates } from './projectStatusAggregates.js';
+
+function buildShortProjectStatusSummary(
+  projects: Record<string, unknown>[],
+  aggregates: ProjectStatusAggregates,
+): string {
+  if (projects.length === 0) return '**No projects** matched this query.';
+  return `**${aggregates.projectCount} project(s)** · ${aggregates.avgCompletion}% avg completion · ${aggregates.completedTasks}/${aggregates.totalTasks} tasks done — details in the widget below.`;
+}
 
 const projectStatusTool: Tool = {
   name: 'projects:get_project_status',
@@ -183,37 +192,15 @@ Use this tool when someone asks:
       });
     }
 
-    const summary = enrichedProjects
-      .map((p) => {
-        const stats = p.taskStats as Record<string, unknown>;
-        let section = `**${p.name}** (${p.status || 'active'}):
-- Progress: ${p.completionPercentage}% complete
-- Tasks: ${stats.completed}/${stats.total} done, ${stats.in_progress} in progress, ${stats.todo} todo
-- Blocked: ${stats.blocked} | Overdue: ${stats.overdue}`;
-
-        const mems = p.members as { user_id?: string; full_name?: string; task_count?: number }[] | null;
-        if (mems && mems.length > 0) {
-          section += `\n- Team (${mems.length}): ${mems.map((m) => `${m.full_name || m.user_id || 'Unknown'} (${m.task_count} tasks)`).join(', ')}`;
-        }
-
-        const taskList = p.tasks as { title?: string; status?: string }[] | null;
-        if (taskList && taskList.length > 0) {
-          section += `\n- Task details:`;
-          for (const task of taskList.slice(0, 15)) {
-            section += `\n  • [${task.status}] ${task.title}`;
-          }
-          if (taskList.length > 15) {
-            section += `\n  ... and ${taskList.length - 15} more tasks`;
-          }
-        }
-
-        return section;
-      })
-      .join('\n\n');
+    const aggregates: ProjectStatusAggregates = computeProjectStatusAggregates(enrichedProjects);
+    const summary = buildShortProjectStatusSummary(enrichedProjects, aggregates);
 
     return {
       success: true,
-      data: enrichedProjects,
+      data: {
+        projects: enrichedProjects,
+        aggregates,
+      },
       summary,
       metadata: {
         source: 'projects, tasks, reimbursement_users',

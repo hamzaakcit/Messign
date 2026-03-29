@@ -27,3 +27,25 @@ This Mother’s Day, say thank you with something thoughtful.
     expect(body.toLowerCase()).toMatch(/mother|mom/);
   });
 });
+
+describe('normalizeManifest', () => {
+  it('preserves metadata.target_image_slots and visual_density from LLM JSON', () => {
+    const m = normalizeManifest({
+      version: '2.0',
+      theme: 'minimal',
+      subject: 'S',
+      preheader: 'p'.repeat(100),
+      sections: [
+        {
+          type: 'hero',
+          order: 1,
+          content: { headline: 'H', imagePrompt: 'wide hero scene', ctaText: 'Go', ctaUrl: '#' },
+        },
+        { type: 'footer', order: 2, content: { companyName: 'C', address: 'A', links: [] } },
+      ],
+      metadata: { channel: 'email', tone: '', audience: '', visual_density: 'rich', target_image_slots: 8 },
+    } as Record<string, unknown>);
+    expect(m.metadata?.visual_density).toBe('rich');
+    expect(m.metadata?.target_image_slots).toBe(8);
+  });
+});

@@ -6,7 +6,7 @@ export interface DoraPlayCardProps {
 }
 
 /**
- * AI strategy block with Execute with Dora CTA.
+ * AI strategy block with Execute with Lucy CTA.
  */
 export function DoraPlayCard({ play, onExecuteWithDora }: DoraPlayCardProps): JSX.Element {
   const pri =
@@ -28,7 +28,7 @@ export function DoraPlayCard({ play, onExecuteWithDora }: DoraPlayCardProps): JS
         onClick={() => onExecuteWithDora(play)}
         className="w-full mt-0.5 rounded-md bg-violet-600/80 hover:bg-violet-500 text-[10px] font-medium text-white py-1 px-2 transition-colors"
       >
-        Execute with Dora
+        Execute with Lucy
       </button>
     </div>
   );

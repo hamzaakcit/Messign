@@ -7,6 +7,7 @@ import { assemblePrompt, buildAgentPrompt } from '../prompts/assemble.js';
 import type { StreamController } from '../stream/StreamController.js';
 import type { DoraContext, EngineConfig, ExecutionTrace, ToolDefinitionV2 } from '../types.js';
 import { StepTracker } from './stepTracker.js';
+import { documentsFromKnowledgeSearchData } from '../../tools/knowledgeSearchAggregates.js';
 
 const DEFAULT_CONFIG: EngineConfig = {
   maxSteps: 3,
@@ -179,7 +180,11 @@ export async function runAgenticEngine(params: {
 
   const dataPoints = toolResults.reduce((n, r) => {
     if (Array.isArray(r.data)) return n + r.data.length;
-    if (r.data && typeof r.data === 'object') return n + 1;
+    if (r.data && typeof r.data === 'object') {
+      const d = documentsFromKnowledgeSearchData(r.data);
+      if (d.length > 0) return n + d.length;
+      return n + 1;
+    }
     return n;
   }, 0);
 

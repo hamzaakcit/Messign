@@ -303,7 +303,11 @@ export function setupSocketHandlers(io: Server) {
         const updatedUser = empRow ? await getEmployeeByIdAsUser(userId) : null;
 
         eventBus.emit('chat.message.sent', {
-          messageId: row.id, channelId, userId, hasAttachment: attachments.length > 0,
+          messageId: row.id,
+          channelId,
+          userId,
+          hasAttachment: attachments.length > 0,
+          content: row.content,
         });
 
         const message = {

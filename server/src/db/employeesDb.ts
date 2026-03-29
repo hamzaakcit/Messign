@@ -98,17 +98,17 @@ export async function getEmployeeById(id: string): Promise<DbEmployeeRow | null>
 }
 
 export async function getEmployeeByEmail(email: string): Promise<DbEmployeeRow | null> {
-  const orgResult = await query<{ id: string }>(
-    `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-    [DEFAULT_ORG_SLUG]
-  );
-  const orgId = orgResult.rows[0]?.id;
-  if (!orgId) return null;
   const normalized = (email ?? '').trim().toLowerCase();
+  /** Do not require slug `messign` to exist: single-org / migrated DBs may only have another tenant row. Prefer default org when present. */
   const result = await query<DbEmployeeRow>(
     `SELECT ${EMPLOYEE_SELECT}
-     FROM reimbursement_users ru WHERE ru.organization_id = $1 AND LOWER(TRIM(ru.email)) = $2 LIMIT 1`,
-    [orgId, normalized]
+     FROM reimbursement_users ru
+     WHERE LOWER(TRIM(ru.email)) = $1
+     ORDER BY
+       CASE WHEN ru.organization_id = (SELECT id FROM organizations WHERE slug = $2 LIMIT 1) THEN 0 ELSE 1 END,
+       ru.created_at ASC NULLS LAST
+     LIMIT 1`,
+    [normalized, DEFAULT_ORG_SLUG],
   );
   return result.rows[0] ?? null;
 }

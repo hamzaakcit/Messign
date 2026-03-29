@@ -1,0 +1,86 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "subject": "Slow Sunday — Recipes, Reads, and One Small Upgrade",
+  "preheader": "This issue: a citrus-forward brunch idea, a photo essay from the coast, and a kitchen tool our editors bought twice. Unwind with something beautiful—no hustle language, just calm weekend energy.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Your slow Sunday starts here",
+        "subheadline": "Food, place, and a little domestic joy—curated for readers who like their inboxes soft, not loud.",
+        "ctaText": "Open the web issue",
+        "ctaUrl": "https://example.com/sunday/issue",
+        "imagePrompt": "[STOCK] Sunlit dining table with fresh citrus, linen napkin, and ceramic plates, editorial lifestyle photography, warm tones",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "headline": "Brunch: citrus + herbs",
+        "body": "We tested a skillet cake that leans on cara cara oranges and a whisper of rosemary. It feeds a table of four without turning your morning into a project—mix the night before if you want an even softer start.",
+        "imagePrompt": "[STOCK] Citrus fruit and rosemary sprigs on marble cutting board, overhead food photography, soft shadows",
+        "altText": "Citrus and herbs arranged for brunch baking",
+        "layout": "image_left"
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "variant": "card",
+      "content": {
+        "headline": "A coastal photo essay",
+        "body": "Fog lifting off the pier, bikes leaned against weathered wood, and the sound of gulls mixed with espresso steam. We kept captions short so the images can breathe—tap through on the web version.",
+        "imagePrompt": "[STOCK] Coastal boardwalk at golden hour, gentle waves, muted pastel sky, cinematic travel photography",
+        "altText": "Coastal boardwalk at sunset",
+        "layout": "image_right"
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 4,
+      "content": {
+        "quote": "I read this on my phone in the garden. The recipes are practical and the photos feel human—not like an ad pretending to be a magazine.",
+        "authorName": "Morgan Lee",
+        "authorRole": "Newsletter reader",
+        "authorCompany": "Portland, OR",
+        "rating": 5
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "Prefer the browser?",
+        "description": "Full-width images, printable recipe card, and past issues in one calm archive.",
+        "buttonText": "View in browser",
+        "buttonUrl": "https://example.com/sunday/latest",
+        "variant": "ghost"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Slow Sunday Journal",
+        "address": "1440 Willow St, Portland, OR 97201",
+        "unsubscribeText": "You subscribed to Slow Sunday. Unsubscribe or change frequency below."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm, editorial, unhurried",
+    "audience": "Lifestyle readers and home cooks",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "calm, tactile, sunlit",
+    "imageStyle": "Editorial lifestyle photography with warm natural light"
+  }
+}

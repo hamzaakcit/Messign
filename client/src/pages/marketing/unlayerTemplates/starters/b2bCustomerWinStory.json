@@ -1,0 +1,92 @@
+{
+  "version": "2.0",
+  "theme": "executive",
+  "layoutDensity": "airy",
+  "subject": "How Meridian cut review time 41% in six weeks",
+  "preheader": "Customer story: procurement, engineering, and security aligned on one workflow — without adding headcount. Metrics, quote, and a single CTA to the full case PDF.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "From spreadsheet chaos to one audit trail",
+        "subheadline": "Meridian Health’s platform team shares what changed after week three.",
+        "ctaText": "Read the case",
+        "ctaUrl": "https://example.com/customers/meridian?utm_source=email&utm_medium=b2b&utm_campaign=customer_win_story",
+        "imagePrompt": "Modern hospital corridor with soft natural light, blurred medical staff, professional healthcare architecture, no readable signage or patient identifiers",
+        "alignment": "center",
+        "heroLayout": "editorial_tall"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Review time reduction", "value": "41%" },
+          { "label": "Weeks to rollout", "value": "6" },
+          { "label": "Teams on one workflow", "value": "3" }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "headline": "What the CIO cared about",
+        "body": "Not another tool — evidence their auditors could replay. We built exports to match their SOC2 calendar without custom scripts.",
+        "imagePrompt": "Executive reviewing documents on tablet in bright office, shallow depth of field, no readable text on screens",
+        "altText": "Executive with tablet",
+        "layout": "image_left",
+        "ctaText": "See integration map",
+        "ctaUrl": "https://example.com/integrations?utm_source=email&utm_medium=b2b&utm_campaign=customer_win_story"
+      }
+    },
+    {
+      "type": "testimonial",
+      "order": 4,
+      "content": {
+        "quote": "We stopped chasing screenshots in Slack. The audit trail is the product.",
+        "authorName": "Jordan Lee",
+        "authorRole": "VP Platform",
+        "authorCompany": "Meridian Health",
+        "rating": 5
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "Get the full Meridian story",
+        "description": "PDF + architecture diagram — no form for existing customers.",
+        "buttonText": "Download case study",
+        "buttonUrl": "https://example.com/customers/meridian/pdf?utm_source=email&utm_medium=b2b&utm_campaign=customer_win_story",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Northline Governance",
+        "address": "Marketing · hello@example.com",
+        "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "credible, metrics-led",
+    "audience": "enterprise IT and security buyers",
+    "campaign_id": "customer_win_story",
+    "visual_density": "rich",
+    "target_image_slots": 4
+  },
+  "artDirection": {
+    "mood": "trustworthy, outcomes-first",
+    "imageStyle": "Healthcare and executive photography; no PHI"
+  }
+}

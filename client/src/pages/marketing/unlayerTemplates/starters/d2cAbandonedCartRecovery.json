@@ -1,0 +1,91 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "layoutDensity": "compact",
+  "subject": "Still thinking about what’s in your cart?",
+  "preheader": "Your picks are saved for a little longer—free shipping unlocks at checkout, and you can swap sizes before we pack. Tap to return to your bag; this reminder expires when stock runs low on your size.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Your cart is waiting",
+        "subheadline": "Soft layers, everyday fit—complete checkout before your size sells through.",
+        "ctaText": "Return to bag",
+        "ctaUrl": "https://example.com/cart?utm_source=email&utm_medium=transactional&utm_campaign=cart_recovery",
+        "imagePrompt": "Flat lay of folded knit sweater and denim on warm neutral linen, soft daylight, lifestyle product photography, no brand logos",
+        "alignment": "center"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 2,
+      "content": {
+        "sectionTitle": "Saved for you",
+        "columns": 2,
+        "items": [
+          {
+            "name": "Merino crew — oatmeal",
+            "description": "Size M · in stock",
+            "price": "$78.00",
+            "badge": "Almost gone",
+            "imagePrompt": "Folded oatmeal merino sweater on wooden surface, soft shadow, warm tones, no text"
+          },
+          {
+            "name": "Slim taper denim",
+            "description": "Size 32 · low stock",
+            "price": "$98.00",
+            "imagePrompt": "Indigo denim folded neatly, minimal styling, warm natural light, no labels"
+          }
+        ]
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Happy customers", "value": "120k+" },
+          { "label": "Avg rating", "value": "4.8" },
+          { "label": "Free returns", "value": "30 days" }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "headline": "Finish checkout",
+        "description": "Shipping and tax calculated at checkout. Apple Pay and Shop Pay available.",
+        "buttonText": "Complete purchase",
+        "buttonUrl": "https://example.com/cart?utm_source=email&utm_medium=transactional&utm_campaign=cart_recovery",
+        "variant": "fullWidth",
+        "urgencyText": "Offer reflects inventory in your region"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 5,
+      "content": {
+        "companyName": "Harbor & Fold",
+        "address": "Cart reminders · help@example.com",
+        "unsubscribeText": "You are receiving cart reminders because you left items behind. Turn off cart emails in your account."
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm, helpful",
+    "audience": "shoppers with abandoned cart",
+    "campaign_id": "d2c_cart_recovery",
+    "visual_density": "rich",
+    "target_image_slots": 5
+  },
+  "artDirection": {
+    "mood": "cozy retail, trustworthy",
+    "imageStyle": "Lifestyle product photography; warm neutrals"
+  }
+}

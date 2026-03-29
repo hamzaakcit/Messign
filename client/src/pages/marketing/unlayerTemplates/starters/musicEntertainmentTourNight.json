@@ -1,0 +1,119 @@
+{
+  "version": "2.0",
+  "theme": "startup",
+  "layoutDensity": "comfortable",
+  "subject": "Northline — spring tour adds two cities + VIP soundcheck",
+  "preheader": "Presale opens Thursday for subscribers: new dates in Austin and Denver, upgraded VIP with soundcheck and limited poster. Fan club gets code 24h early — link your account so we can send the right window.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Lights up — the spring leg is bigger",
+        "subheadline": "Same set, new rooms — we are bringing the full rig to two cities that sold out last year.",
+        "ctaText": "Get presale access",
+        "ctaUrl": "https://example.com/tour/spring?utm_source=email&utm_medium=crm&utm_campaign=tour_spring",
+        "imagePrompt": "Concert stage with beams of light and haze, silhouetted crowd with raised hands, editorial live music photography, no readable screens or logos",
+        "alignment": "center",
+        "heroLayout": "split",
+        "altText": "Concert stage lights and crowd"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "New dates — mark your city",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Calendar",
+            "heading": "Austin · Apr 18",
+            "description": "Outdoor amphitheater — early entry for VIP; bag policy on the site.",
+            "imagePrompt": "Outdoor amphitheater at dusk with string lights, soft bokeh, no readable signage"
+          },
+          {
+            "icon": "Calendar",
+            "heading": "Denver · Apr 22",
+            "description": "Indoor hall — improved sightlines in sections B–D; ADA seats held until 48h before.",
+            "imagePrompt": "Modern concert hall interior with warm uplighting, empty seats before show, no text"
+          },
+          {
+            "icon": "Star",
+            "heading": "VIP soundcheck",
+            "description": "Limited run of poster + early merch — separate queue at doors.",
+            "imagePrompt": "Guitar and setlist on amp, backstage warm light, editorial music tour, no legible setlist text"
+          }
+        ]
+      }
+    },
+    {
+      "type": "divider",
+      "order": 3,
+      "content": {}
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "variant": "band",
+      "content": {
+        "headline": "Why we added Austin and Denver first",
+        "body": "Both markets sold secondary fast last cycle — this time we are holding more face-value inventory for fan club and presale before the general on-sale. Link your account so we can verify your tier.",
+        "imagePrompt": "Band rehearsing in studio with colored LED wash, documentary music photography, instruments in silhouette",
+        "altText": "Band rehearsing in studio",
+        "layout": "image_right",
+        "ctaText": "Link fan account",
+        "ctaUrl": "https://example.com/fans/link?utm_source=email&utm_medium=crm&utm_campaign=tour_spring"
+      }
+    },
+    {
+      "type": "social_proof",
+      "order": 5,
+      "variant": "band",
+      "content": {
+        "style": "metrics",
+        "items": [
+          { "label": "Shows (last tour)", "value": "34" },
+          { "label": "Fan club members", "value": "120k" },
+          { "label": "Avg rating", "value": "4.9" }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 6,
+      "content": {
+        "headline": "Presale Thursday — code in tomorrow’s reminder",
+        "description": "General on-sale Friday 10am local — set a calendar hold from the tour page.",
+        "buttonText": "View all tour dates",
+        "buttonUrl": "https://example.com/tour/spring?utm_source=email&utm_medium=crm&utm_campaign=tour_spring",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 7,
+      "content": {
+        "companyName": "Northline Touring",
+        "address": "Fan support · fans@example.com",
+        "links": [
+          { "text": "Unsubscribe", "url": "/unsubscribe" },
+          { "text": "Ticket policy", "url": "/policy" }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "electric, fan-first",
+    "audience": "subscribers and fan club",
+    "campaign_id": "music_tour_spring",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "high-energy, live-first",
+    "imageStyle": "Concert and rehearsal editorial; no trademarked venue names in art"
+  }
+}

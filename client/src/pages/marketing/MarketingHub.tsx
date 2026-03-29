@@ -12,10 +12,9 @@ import {
   type CommandCenterStrategyPlay,
 } from '@/lib/marketingApi';
 import { useMarketingApprovalQueue } from '@/hooks/useMarketingApprovalQueue';
-import { SparkBar, type ViewMode } from './components/SparkBar';
+import { SparkBar } from './components/SparkBar';
 import type { LaneId } from './components/KanbanBoard';
 import { FunnelStrip } from './components/FunnelStrip';
-import { DoraRail, MARKETING_DORA_RAIL_OUTSET_RIGHT } from './components/DoraRail';
 import type { BoardCardData } from './components/BoardCard';
 import type { ApprovalQueueItem } from './approvalQueue/types';
 import { CampaignDetailPanel } from './components/CampaignDetailPanel';
@@ -25,9 +24,12 @@ import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
 import { EmailCampaignDetailPanel } from './components/EmailCampaignDetailPanel';
 import { useMarketingWorkspace } from './hooks/useMarketingWorkspace';
-import { buildMarketingModeLocation, pathnameToViewMode } from './lib/marketingPathUtils';
+import { buildMarketingModeLocation, isMarketingLucyHome } from './lib/marketingPathUtils';
+import { LucyMarketingPage } from './LucyMarketingPage';
 import { MarketingWorkspaceSecondaryAlerts } from './components/MarketingWorkspaceSecondaryAlerts';
-import { MarketingBoardAndPipeline } from './components/MarketingBoardAndPipeline';
+import { MarketingPipelinePage } from './components/MarketingPipelinePage';
+import { MarketingCommandCenter } from './MarketingCommandCenter';
+import { ROUTES } from '@/lib/routes';
 
 const ContentDetailPanel = React.lazy(() =>
   import('./components/ContentDetailPanel').then((m) => ({ default: m.ContentDetailPanel })),
@@ -46,15 +48,28 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   pages: '/marketing/builder?type=landing_page',
   popups: '/marketing/builder?type=popup',
   documents: '/marketing/builder?type=document',
-  agent: '/marketing',
-  'command-center': '/marketing',
-  dashboard: '/marketing',
-  'creative-hub': '/marketing',
-  automation: '/marketing',
+  agent: ROUTES.MARKETING,
+  'command-center': ROUTES.MARKETING_PIPELINE,
+  dashboard: ROUTES.MARKETING_PIPELINE,
+  'creative-hub': ROUTES.MARKETING_PIPELINE,
+  automation: ROUTES.MARKETING_PIPELINE,
   /** Do not redirect `/marketing/content` — it is used for deep links (`?contentId=`). */
-  leads: '/marketing',
-  approvals: '/marketing',
+  leads: ROUTES.MARKETING_PIPELINE,
+  approvals: ROUTES.MARKETING_PIPELINE,
 };
+
+/** One-pager segments rendered under MarketingHub (not legacy redirects). */
+const MARKETING_HUB_FEATURE_SEGMENTS = new Set([
+  'brand-social',
+  'funnel',
+  'experiments',
+  'sandbox',
+  'pipeline',
+  'content',
+  'calendar',
+  'builder',
+  'intelligence',
+]);
 
 type DetailTarget =
   | { type: 'content'; id: string }
@@ -99,21 +114,10 @@ export function MarketingHub(): JSX.Element {
   const accessToken = useAuthStore((s) => s.accessToken);
   const userId = user?.authUserId || user?.id || '';
 
-  const mode = pathnameToViewMode(location.pathname);
-  const setMode = useCallback(
-    (m: ViewMode) => {
-      navigate(buildMarketingModeLocation(m, location.search));
-    },
-    [navigate, location.search],
-  );
-  const [doraOpen, setDoraOpen] = useState(true);
-  const [selectedCard, setSelectedCard] = useState<BoardCardData | null>(null);
-
   const [detail, setDetail] = useState<DetailTarget>(null);
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const [createContentOpen, setCreateContentOpen] = useState(false);
   const [contentCreatePreset, setContentCreatePreset] = useState<ContentCreatePreset>('default');
-  const [igModalSignal, setIgModalSignal] = useState(0);
   const [brandManagerOpen, setBrandManagerOpen] = useState(false);
   const [brandFilter, setBrandFilter] = useState<string | null>(null);
   const [ccDays, setCcDays] = useState(7);
@@ -160,10 +164,10 @@ export function MarketingHub(): JSX.Element {
   }, []);
 
   const handleExecuteWithDora = useCallback((play: CommandCenterStrategyPlay) => {
-    setDoraOpen(true);
     const text = `[Marketing Command Center — ${play.title}]\nContext: ${JSON.stringify(play.contextJson)}\n\n${play.snippet}\n\nHelp me execute this strategy step by step.`;
     setDoraExecutePrompt({ id: Date.now(), text });
-  }, []);
+    navigate('/marketing');
+  }, [navigate]);
 
   const openCreateContentDefault = useCallback(() => {
     setContentCreatePreset('default');
@@ -171,9 +175,8 @@ export function MarketingHub(): JSX.Element {
   }, []);
 
   const handleInstagramDraftAi = useCallback(() => {
-    setDoraOpen(true);
-    setIgModalSignal((k) => k + 1);
-  }, []);
+    navigate('/marketing', { state: { openInstagramAi: true } });
+  }, [navigate]);
 
   const handleCreateInstagramContent = useCallback(() => {
     setContentCreatePreset('instagram');
@@ -183,31 +186,21 @@ export function MarketingHub(): JSX.Element {
   const handleDraftWithMarketingFromPanel = useCallback(() => {
     setCreateContentOpen(false);
     setContentCreatePreset('default');
-    setDoraOpen(true);
-    setIgModalSignal((k) => k + 1);
-  }, []);
-
-  const sparkInstagramFromSubsegment = useMemo(
-    () => ({
-      onInstagramDraftAi: () => navigate('/marketing', { state: { openInstagramAi: true } }),
-      onCreateInstagramContent: () => navigate('/marketing', { state: { openInstagramContent: true } }),
-    }),
-    [navigate],
-  );
+    navigate('/marketing', { state: { openInstagramAi: true } });
+  }, [navigate]);
 
   useEffect(() => {
     const st = location.state as {
-      openInstagramAi?: boolean;
       openInstagramContent?: boolean;
       openPipeline?: boolean;
     } | null;
     if (!st) return;
-    let handled = false;
-    if (st.openInstagramAi) {
-      setDoraOpen(true);
-      setIgModalSignal((k) => k + 1);
-      handled = true;
+    const pathNorm = location.pathname.replace(/\/$/, '') || '/';
+    if (st.openPipeline && pathNorm === ROUTES.MARKETING) {
+      navigate(ROUTES.MARKETING_PIPELINE, { replace: true, state: { openPipeline: true } });
+      return;
     }
+    let handled = false;
     if (st.openInstagramContent) {
       setContentCreatePreset('instagram');
       setCreateContentOpen(true);
@@ -224,6 +217,17 @@ export function MarketingHub(): JSX.Element {
 
   const segment = location.pathname.split('/').filter(Boolean)[1];
 
+  const commandCenterColumn =
+    segment === 'brand-social'
+      ? ('brand-social' as const)
+      : segment === 'funnel'
+        ? ('funnel' as const)
+        : segment === 'experiments'
+          ? ('experiments' as const)
+          : segment === 'sandbox'
+            ? ('sandbox' as const)
+            : null;
+
   /** Deep link: `/marketing/content?contentId=<uuid>` opens the content slide-over (cockpit & "Open full page" rely on this). */
   useEffect(() => {
     if (segment !== 'content') return;
@@ -238,9 +242,27 @@ export function MarketingHub(): JSX.Element {
     return content.filter((c) => c.brand_profile_id === brandFilter);
   }, [content, brandFilter]);
 
-  if (segment === 'builder') {
+  if (segment === 'lucy') {
+    return <Navigate to="/marketing" replace />;
+  }
+
+  const normMarketingPath = location.pathname.replace(/\/$/, '') || '/';
+  if (normMarketingPath === '/marketing') {
+    const panelParams = new URLSearchParams(
+      location.search.startsWith('?') ? location.search.slice(1) : location.search,
+    );
+    const legacyPanel = panelParams.get('panel');
+    if (legacyPanel === 'builder' || legacyPanel === 'intelligence') {
+      panelParams.delete('panel');
+      const qs = panelParams.toString();
+      const path = legacyPanel === 'builder' ? '/marketing/builder' : '/marketing/intelligence';
+      return <Navigate to={{ pathname: path, search: qs ? `?${qs}` : '' }} replace />;
+    }
+  }
+
+  if (isMarketingLucyHome(location.pathname)) {
     return (
-      <div className="flex flex-col h-full min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <MarketingBootstrapErrorBanner error={bootstrapError} onRetry={() => void refetchBootstrap()} />
         <MarketingWorkspaceSecondaryAlerts
           funnelError={funnelError}
@@ -248,76 +270,136 @@ export function MarketingHub(): JSX.Element {
           onRetryFunnel={() => void refetchFunnel()}
           onRetryBrands={() => void refetchBrands()}
         />
-        <div className="shrink-0 px-4 py-2">
-          <SparkBar
-            mode="builder"
-            onModeChange={setMode}
-            metrics={metrics}
-            loading={metricsLoading}
-            doraOpen={doraOpen}
-            onToggleDora={() => setDoraOpen((o) => !o)}
-            onCreateCampaign={() => setCreateCampaignOpen(true)}
-            onCreateContent={openCreateContentDefault}
-            onCreateEmail={() => setMode('builder')}
-            {...sparkInstagramFromSubsegment}
-          />
-        </div>
-        <main className="flex-1 min-h-0 overflow-y-auto">
-          <ErrorBoundary resetKey="builder">
+        <LucyMarketingPage
+          executePrompt={doraExecutePrompt}
+          metrics={metrics}
+          metricsLoading={metricsLoading}
+          approvalQueueCount={approvalItems.length}
+          onOpenCampaign={() => setCreateCampaignOpen(true)}
+          onOpenContent={openCreateContentDefault}
+          onOpenInstagramContent={handleCreateInstagramContent}
+        />
+
+        <SlideOverPanel
+          isOpen={detail?.type === 'content'}
+          onClose={() => {
+            setDetail(null);
+            if (segment === 'content') {
+              navigate(ROUTES.MARKETING_PIPELINE, { replace: true });
+            }
+          }}
+          title="Content Detail"
+          width={1200}
+        >
+          {detail?.type === 'content' && (
             <Suspense fallback={<SectionFallback />}>
-              <BuilderSection />
+              <ContentDetailPanel contentId={detail.id} onUpdated={handleDetailUpdated} />
             </Suspense>
-          </ErrorBoundary>
-        </main>
+          )}
+        </SlideOverPanel>
+
+        <SlideOverPanel
+          isOpen={detail?.type === 'campaign'}
+          onClose={() => { setDetail(null); }}
+          title="Campaign Detail"
+          width={760}
+        >
+          {detail?.type === 'campaign' && (
+            <CampaignDetailPanel campaignId={detail.id} onUpdated={handleDetailUpdated} />
+          )}
+        </SlideOverPanel>
+
+        <SlideOverPanel
+          isOpen={detail?.type === 'lead'}
+          onClose={() => { setDetail(null); }}
+          title="Lead Detail"
+          width={720}
+        >
+          {detail?.type === 'lead' && (
+            <LeadDetailPanel leadId={detail.id} onUpdated={handleDetailUpdated} />
+          )}
+        </SlideOverPanel>
+
+        <SlideOverPanel
+          isOpen={detail?.type === 'email'}
+          onClose={() => { setDetail(null); }}
+          title="Email campaign"
+          width={960}
+        >
+          {detail?.type === 'email' && (
+            <EmailCampaignDetailPanel emailId={detail.id} onUpdated={handleDetailUpdated} />
+          )}
+        </SlideOverPanel>
+
+        <SlideOverPanel
+          isOpen={createCampaignOpen}
+          onClose={() => setCreateCampaignOpen(false)}
+          title="New Campaign"
+          width={520}
+        >
+          <CampaignCreatePanel
+            onCreated={() => {
+              setCreateCampaignOpen(false);
+              void invalidateWorkspace();
+            }}
+            onCancel={() => setCreateCampaignOpen(false)}
+          />
+        </SlideOverPanel>
+
+        <SlideOverPanel
+          isOpen={createContentOpen}
+          onClose={() => {
+            setCreateContentOpen(false);
+            setContentCreatePreset('default');
+          }}
+          title={contentCreatePreset === 'instagram' ? 'New Instagram content' : 'New Content'}
+          width={560}
+        >
+          <ContentCreatePanel
+            preset={contentCreatePreset}
+            onDraftWithMarketingAgent={handleDraftWithMarketingFromPanel}
+            onCreated={() => {
+              setCreateContentOpen(false);
+              setContentCreatePreset('default');
+              void invalidateWorkspace();
+            }}
+            onCancel={() => {
+              setCreateContentOpen(false);
+              setContentCreatePreset('default');
+            }}
+          />
+        </SlideOverPanel>
+
+        <SlideOverPanel
+          isOpen={brandManagerOpen}
+          onClose={() => setBrandManagerOpen(false)}
+          title="Brand Profiles"
+          width={560}
+        >
+          <BrandProfileManager />
+        </SlideOverPanel>
+
+        <button
+          type="button"
+          onClick={() => setBrandManagerOpen(true)}
+          className="fixed bottom-6 right-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-app-nav-hover transition-colors"
+        >
+          Brands
+        </button>
       </div>
     );
   }
 
-  if (segment === 'intelligence') {
-    return (
-      <div className="flex flex-col h-full min-h-0">
-        <MarketingBootstrapErrorBanner error={bootstrapError} onRetry={() => void refetchBootstrap()} />
-        <MarketingWorkspaceSecondaryAlerts
-          funnelError={funnelError}
-          brandsError={brandsError}
-          onRetryFunnel={() => void refetchFunnel()}
-          onRetryBrands={() => void refetchBrands()}
-        />
-        <div className="shrink-0 px-4 py-2">
-          <SparkBar
-            mode="intelligence"
-            onModeChange={setMode}
-            metrics={metrics}
-            loading={metricsLoading}
-            doraOpen={doraOpen}
-            onToggleDora={() => setDoraOpen((o) => !o)}
-            onCreateCampaign={() => setCreateCampaignOpen(true)}
-            onCreateContent={openCreateContentDefault}
-            onCreateEmail={() => setMode('builder')}
-            {...sparkInstagramFromSubsegment}
-          />
-        </div>
-        <main className="flex-1 min-h-0 overflow-hidden">
-          <ErrorBoundary resetKey="intelligence">
-            <Suspense fallback={<SectionFallback />}>
-              <CompetitorDashboard />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
-      </div>
-    );
+  if (segment === 'workspace') {
+    return <Navigate to={ROUTES.MARKETING} replace />;
   }
 
   if (segment === 'executive') {
-    return <Navigate to="/marketing" replace />;
-  }
-
-  if (segment === 'pipeline') {
-    return <Navigate to="/marketing" replace state={{ openPipeline: true }} />;
+    return <Navigate to={ROUTES.MARKETING} replace />;
   }
 
   if (segment === 'campaigns') {
-    return <Navigate to="/marketing" replace />;
+    return <Navigate to={ROUTES.MARKETING_EXPERIMENTS} replace />;
   }
 
   const redirect = segment ? LEGACY_REDIRECTS[segment] : undefined;
@@ -325,8 +407,11 @@ export function MarketingHub(): JSX.Element {
     return <Navigate to={redirect} replace />;
   }
 
+  if (segment && !MARKETING_HUB_FEATURE_SEGMENTS.has(segment)) {
+    return <Navigate to={ROUTES.MARKETING} replace />;
+  }
+
   const handleCardClick = (card: BoardCardData) => {
-    setSelectedCard(card);
     if (card.type === 'content') {
       const c = card.sourceData as ContentItem;
       setDetail({ type: 'content', id: c.id });
@@ -377,48 +462,51 @@ export function MarketingHub(): JSX.Element {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 min-w-0 overflow-x-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden">
       <MarketingBootstrapErrorBanner error={bootstrapError} onRetry={() => void refetchBootstrap()} />
       <MarketingWorkspaceSecondaryAlerts
-        funnelError={mode === 'calendar' ? null : funnelError}
+        funnelError={segment === 'calendar' ? null : funnelError}
         brandsError={brandsError}
         onRetryFunnel={() => void refetchFunnel()}
         onRetryBrands={() => void refetchBrands()}
       />
       <SparkBar
-        mode={mode}
-        onModeChange={setMode}
         metrics={metrics}
         loading={metricsLoading}
-        doraOpen={doraOpen}
-        onToggleDora={() => setDoraOpen((o) => !o)}
         onCreateCampaign={() => setCreateCampaignOpen(true)}
         onCreateContent={openCreateContentDefault}
-        onCreateEmail={() => setMode('builder')}
+        onCreateEmail={() => void navigate(buildMarketingModeLocation('builder', location.search))}
         onInstagramDraftAi={handleInstagramDraftAi}
         onCreateInstagramContent={handleCreateInstagramContent}
       />
 
       <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-        {mode === 'board' && (
-          <MarketingBoardAndPipeline
-            ccData={ccData}
-            ccLoading={ccLoading}
-            ccError={ccError}
-            ccDays={ccDays}
-            onCcDaysChange={setCcDays}
+        {commandCenterColumn != null && (
+          <MarketingCommandCenter
+            visibleColumn={commandCenterColumn}
+            variant="full"
+            data={ccData}
+            loading={ccLoading}
+            error={ccError}
+            brandsError={brandsError}
+            days={ccDays}
+            onDaysChange={setCcDays}
             brandList={brandList}
             brandFilter={brandFilter}
             onBrandFilterChange={setBrandFilter}
-            onRefreshCommandCenter={() => void refreshCommandCenter({ fresh: true })}
+            onRefresh={() => void refreshCommandCenter({ fresh: true })}
             onExecuteWithDora={handleExecuteWithDora}
             onOpenCampaign={(id) => setDetail({ type: 'campaign', id })}
             onOpenEmail={(id) => setDetail({ type: 'email', id })}
-            onOpenPipeline={scrollToPipeline}
-            onOpenBuilder={() => setMode('builder')}
-            onOpenIntelligence={() => setMode('intelligence')}
+            onOpenPipeline={() => void navigate(ROUTES.MARKETING_PIPELINE)}
+            onOpenBuilder={() => void navigate(buildMarketingModeLocation('builder', location.search))}
+            onOpenIntelligence={() => void navigate(buildMarketingModeLocation('intelligence', location.search))}
             onReconnectSocial={() => void refreshCommandCenter({ fresh: true })}
-            brandsError={brandsError}
+          />
+        )}
+
+        {(segment === 'pipeline' || segment === 'content') && (
+          <MarketingPipelinePage
             pipelineSectionRef={pipelineSectionRef}
             filteredContent={filteredContent}
             campaigns={campaigns}
@@ -430,7 +518,7 @@ export function MarketingHub(): JSX.Element {
           />
         )}
 
-        {mode === 'calendar' && (
+        {segment === 'calendar' && (
           <ErrorBoundary resetKey="calendar">
             <Suspense fallback={<SectionFallback />}>
               <ContentCalendarTab />
@@ -438,16 +526,32 @@ export function MarketingHub(): JSX.Element {
           </ErrorBoundary>
         )}
 
-        {doraOpen && (mode === 'board' || mode === 'calendar') && (
-          <DoraRail
-            selectedCard={selectedCard}
-            instagramModalSignal={igModalSignal}
-            executePrompt={doraExecutePrompt}
-          />
+        {segment === 'builder' && (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <ErrorBoundary resetKey="builder">
+              <Suspense fallback={<SectionFallback />}>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <BuilderSection />
+                </div>
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        )}
+
+        {segment === 'intelligence' && (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <ErrorBoundary resetKey="intelligence">
+              <Suspense fallback={<SectionFallback />}>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <CompetitorDashboard />
+                </div>
+              </Suspense>
+            </ErrorBoundary>
+          </div>
         )}
       </div>
 
-      {mode === 'calendar' && funnelError ? (
+      {segment === 'calendar' && funnelError ? (
         <div
           className="shrink-0 px-4 py-1 text-[10px] bg-amber-950/35 text-amber-100/95 border-t border-amber-500/20 flex items-center justify-between gap-2"
           role="status"
@@ -462,7 +566,7 @@ export function MarketingHub(): JSX.Element {
           </button>
         </div>
       ) : null}
-      {mode === 'calendar' && (
+      {segment === 'calendar' && (
         <FunnelStrip
           funnel={funnel}
           hotLeads={hotLeads}
@@ -475,9 +579,8 @@ export function MarketingHub(): JSX.Element {
         isOpen={detail?.type === 'content'}
         onClose={() => {
           setDetail(null);
-          setSelectedCard(null);
           if (segment === 'content') {
-            navigate('/marketing', { replace: true });
+            navigate(ROUTES.MARKETING_PIPELINE, { replace: true });
           }
         }}
         title="Content Detail"
@@ -492,7 +595,7 @@ export function MarketingHub(): JSX.Element {
 
       <SlideOverPanel
         isOpen={detail?.type === 'campaign'}
-        onClose={() => { setDetail(null); setSelectedCard(null); }}
+        onClose={() => { setDetail(null); }}
         title="Campaign Detail"
         width={760}
       >
@@ -503,7 +606,7 @@ export function MarketingHub(): JSX.Element {
 
       <SlideOverPanel
         isOpen={detail?.type === 'lead'}
-        onClose={() => { setDetail(null); setSelectedCard(null); }}
+        onClose={() => { setDetail(null); }}
         title="Lead Detail"
         width={720}
       >
@@ -514,7 +617,7 @@ export function MarketingHub(): JSX.Element {
 
       <SlideOverPanel
         isOpen={detail?.type === 'email'}
-        onClose={() => { setDetail(null); setSelectedCard(null); }}
+        onClose={() => { setDetail(null); }}
         title="Email campaign"
         width={960}
       >
@@ -574,9 +677,7 @@ export function MarketingHub(): JSX.Element {
       <button
         type="button"
         onClick={() => setBrandManagerOpen(true)}
-        className={`fixed bottom-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-app-nav-hover transition-colors ${
-          doraOpen && mode === 'board' ? MARKETING_DORA_RAIL_OUTSET_RIGHT : 'right-6'
-        }`}
+        className="fixed bottom-6 right-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-app-nav-hover transition-colors"
       >
         Brands
       </button>

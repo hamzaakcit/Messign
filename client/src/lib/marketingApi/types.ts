@@ -121,6 +121,8 @@ export interface ContentItem {
   scheduled_date?: string | null;
   scheduled_time?: string | null;
   image_prompt?: string | null;
+  /** User-uploaded real photo URL for Kontext edits (composite in image_url). */
+  reference_image_url?: string | null;
   parent_title?: string | null;
   carousel_images?: unknown[] | null;
   body_html?: string | null;

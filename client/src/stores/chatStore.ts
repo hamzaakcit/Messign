@@ -9,10 +9,12 @@ import { chatAPI } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { joinChannel, leaveChannel } from '@/lib/socket';
 import { toast } from 'sonner';
+import { normalizeChannel, normalizeChannelList } from '@/lib/chatChannelUtils';
 
 export const ADMIN_MESSAGES_CHANNEL_ID = '__admin_messages__';
 
 const CHANNEL_RAIL_COLLAPSED_KEY = 'messign-chat-channel-rail-collapsed';
+const CHAT_COMPACT_MODE_KEY = 'messign-chat-compact-mode';
 
 function readChannelRailCollapsed(): boolean {
   if (typeof window === 'undefined') return false;
@@ -23,7 +25,17 @@ function readChannelRailCollapsed(): boolean {
   }
 }
 
+function readChatCompactMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(CHAT_COMPACT_MODE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export type DetailTab = 'members' | 'pins' | 'media' | 'settings';
+export type RightRailTab = 'thread' | 'details';
 export type UniversalSearchTab = 'all' | 'messages' | 'tasks' | 'docs' | 'people';
 
 interface ChatState {
@@ -119,6 +131,12 @@ interface ChatState {
   setChannelRailCollapsed: (collapsed: boolean) => void;
   /** When rail collapsed, use wider max-width for message column */
   chatTranscriptWide: boolean;
+
+  chatCompactMode: boolean;
+  setChatCompactMode: (compact: boolean) => void;
+  rightRailTab: RightRailTab;
+  setRightRailTab: (tab: RightRailTab) => void;
+  closeRightRail: () => void;
 
   // Actions: Core
   hydrateChannels: (channels: Channel[]) => void;
@@ -263,6 +281,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
   duelHubOpen: false,
   channelRailCollapsed: readChannelRailCollapsed(),
   chatTranscriptWide: readChannelRailCollapsed(),
+  chatCompactMode: readChatCompactMode(),
+  rightRailTab: 'details',
+
+  setChatCompactMode: (compact) => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CHAT_COMPACT_MODE_KEY, compact ? '1' : '0');
+      }
+    } catch {
+      /* ignore */
+    }
+    set({ chatCompactMode: compact });
+  },
+
+  setRightRailTab: (tab) => set({ rightRailTab: tab }),
+
+  closeRightRail: () => {
+    const s = get();
+    if (s.activeThreadId) {
+      get().closeThread();
+    }
+    if (get().detailPanelOpen) {
+      set({ detailPanelOpen: false });
+    }
+  },
 
   setChannelRailCollapsed: (collapsed) => {
     try {
@@ -278,9 +321,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // ── Core Actions ──
 
   hydrateChannels: (channels) => {
-    set({ channels, isLoading: false, chatError: null });
-    if (channels.length > 0 && !get().activeChannelId) {
-      get().setActiveChannel(channels[0].id);
+    const list = normalizeChannelList(channels);
+    set({ channels: list, isLoading: false, chatError: null });
+    if (list.length > 0 && !get().activeChannelId) {
+      get().setActiveChannel(list[0].id);
     }
   },
 
@@ -326,9 +370,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   addChannel: (channel) => {
+    const safe = normalizeChannel(channel);
+    if (!safe) return;
     set((state) => {
-      if (state.channels.some((c) => c.id === channel.id)) return state;
-      return { channels: [...state.channels, channel] };
+      const list = normalizeChannelList(state.channels);
+      if (list.some((c) => c.id === safe.id)) return state;
+      return { channels: [...list, safe] };
     });
   },
 
@@ -413,7 +460,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   incrementChannelUnread: (channelId) => {
     set((state) => ({
-      channels: state.channels.map((c) =>
+      channels: normalizeChannelList(state.channels).map((c) =>
         c.id === channelId ? { ...c, unreadCount: (c.unreadCount ?? 0) + 1 } : c
       ),
     }));
@@ -442,7 +489,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       chatAPI.markAsRead(channelId, uid).catch(() => {});
     }
     set((state) => ({
-      channels: state.channels.map((c) =>
+      channels: normalizeChannelList(state.channels).map((c) =>
         c.id === channelId ? { ...c, unreadCount: 0 } : c
       ),
     }));
@@ -523,8 +570,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // ── v2 Detail Panel ──
 
-  toggleDetailPanel: () => set((s) => ({ detailPanelOpen: !s.detailPanelOpen })),
-  setDetailTab: (tab) => set({ detailTab: tab, detailPanelOpen: true }),
+  toggleDetailPanel: () =>
+    set((s) => {
+      const next = !s.detailPanelOpen;
+      return {
+        detailPanelOpen: next,
+        rightRailTab: next ? 'details' : s.rightRailTab,
+      };
+    }),
+  setDetailTab: (tab) => set({ detailTab: tab, detailPanelOpen: true, rightRailTab: 'details' }),
 
   fetchPins: async (channelId) => {
     set({ pinsLoading: true, pinsError: null });
@@ -740,7 +794,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       activeThreadId: messageId,
       threadMessages: [],
       threadLoading: true,
-      detailPanelOpen: false,
+      rightRailTab: 'thread',
       threadDoraSummary: null,
       threadDoraActionItems: null,
       threadDoraDecisions: null,

@@ -328,8 +328,8 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
 | achievementsBadges.ts | achievements:get_achievements_leaderboard | Leaderboard | — | Read | badges, xp |
 | activityFeed.ts | analytics:get_recent_activity | Recent activity | — | Read | activities |
 | userProfile.ts | team:get_user_profile | User profile | — | Read | users |
-| departmentReport.ts | analytics:get_department_report | Department report | manager, admin | Read | departments |
-| availableQuestions.ts | core:get_available_questions | Available questions | — | Read | — |
+| departmentReport.ts | analytics:get_department_report | Department report | admin, cpo | Read | departments |
+| availableQuestions.ts | system:get_available_questions | Available questions | — | Read | — |
 | knowledgeBaseStats.ts | knowledge:get_knowledge_base_stats | KB stats | — | Read | knowledge_documents |
 | doraDash.ts | fun:play_dora_dash | Dora Dash game | — | Read | — |
 | write/writeToolsV2.ts | projects:create_task, projects:update_task, finance:draft_invoice, etc. | Write tools | Various | Write | projects, finance, crm, support, etc. |

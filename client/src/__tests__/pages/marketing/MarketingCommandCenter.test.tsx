@@ -97,7 +97,7 @@ describe('MarketingCommandCenter', () => {
     expect(screen.getByText('Brand & Social')).toBeTruthy();
     expect(screen.getByText('The Funnel')).toBeTruthy();
     expect(screen.getByText('Campaigns & Lab')).toBeTruthy();
-    expect(screen.getByText('Dora Sandbox')).toBeTruthy();
+    expect(screen.getByText('Lucy Sandbox')).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Pipeline$/i })).toBeTruthy();
   });
 

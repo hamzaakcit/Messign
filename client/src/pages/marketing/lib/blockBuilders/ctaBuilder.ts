@@ -4,9 +4,16 @@ import type {
 } from '../types/unlayerTypes';
 import type { CTAContent } from '../types/manifestTypes';
 import type { DesignTheme } from '../types/designTokenTypes';
-import { generateId, adjustBrightness } from '../designTokens';
-import { createSingleColumnRow } from './va2Shared';
+import { generateId, adjustBrightness, VA2_SECTION_HORIZONTAL_GUTTER_PX } from '../designTokens';
+import { buildSubtleCardBorder, createSingleColumnRow } from './va2Shared';
 import type { BlockBuilderOptions } from './types';
+import {
+  getDensityTypeScale,
+  getEffectiveLayoutDensity,
+  scaledBodyFontSize,
+  scaledCtaFontSize,
+  scaledSectionHeadingFromTheme,
+} from '../emailTypography';
 
 /**
  * Build a CTA (call-to-action) section with 3 button variants.
@@ -19,10 +26,17 @@ import type { BlockBuilderOptions } from './types';
 export function buildCTASection(
   content: CTAContent,
   theme: DesignTheme,
-  _options?: BlockBuilderOptions,
+  options?: BlockBuilderOptions,
 ): Va2UnlayerRow[] {
   const spacing = theme.spacing;
+  const g = VA2_SECTION_HORIZONTAL_GUTTER_PX;
   const typo = theme.typography;
+  const density = getEffectiveLayoutDensity(options?.layoutDensity);
+  const extraTop = getDensityTypeScale(density).sectionPaddingTopExtraPx;
+  const h2Px = scaledSectionHeadingFromTheme(theme, density);
+  const bodyPx = scaledBodyFontSize(theme, density);
+  const ctaPx = scaledCtaFontSize(theme, density);
+  const urgencyPx = Math.max(12, Math.round(bodyPx * 0.9));
   const variant = content.variant ?? 'pill';
   const contents: Va2UnlayerContent[] = [];
 
@@ -37,12 +51,12 @@ export function buildCTASection(
           label: typo.heading.fontFamily.split(',')[0].trim(),
           value: typo.heading.fontFamily,
         },
-        fontSize: `${typo.heading.fontSize}px`,
+        fontSize: `${h2Px}px`,
         fontWeight: typo.heading.fontWeight,
         textAlign: 'center',
         lineHeight: `${Math.round(typo.heading.lineHeight * 100)}%`,
         color: theme.colors.primary,
-        containerPadding: `${spacing.lg}px ${spacing.lg}px ${spacing.xs}px`,
+        containerPadding: `${spacing.lg}px ${g}px ${spacing.xs}px`,
         anchor: '',
         hideDesktop: false,
         hideMobile: false,
@@ -56,8 +70,8 @@ export function buildCTASection(
       id: generateId('content'),
       type: 'text',
       values: {
-        text: `<p style="color:${theme.colors.textMuted};font-size:${typo.body.fontSize}px;text-align:center;line-height:${Math.round(typo.body.lineHeight * 100)}%;font-family:${typo.body.fontFamily}">${content.description}</p>`,
-        containerPadding: `${spacing.xs}px ${spacing.lg}px ${spacing.md}px`,
+        text: `<p style="color:${theme.colors.textMuted};font-size:${bodyPx}px;text-align:center;line-height:${Math.round(typo.body.lineHeight * 100)}%;font-family:${typo.body.fontFamily}">${content.description}</p>`,
+        containerPadding: `${spacing.xs}px ${g}px ${spacing.md}px`,
         anchor: '',
         hideDesktop: false,
         hideMobile: false,
@@ -83,7 +97,7 @@ export function buildCTASection(
         label: typo.cta.fontFamily.split(',')[0].trim(),
         value: typo.cta.fontFamily,
       },
-      fontSize: `${typo.cta.fontSize}px`,
+      fontSize: `${ctaPx}px`,
       fontWeight: typo.cta.fontWeight,
       textAlign: 'center',
       lineHeight: `${Math.round(typo.cta.lineHeight * 100)}%`,
@@ -105,7 +119,7 @@ export function buildCTASection(
       padding: `${spacing.sm}px ${spacing.lg}px`,
       borderRadius: '50px',
       border: {},
-      containerPadding: `${spacing.sm}px ${spacing.lg}px ${spacing.xs}px`,
+      containerPadding: `${spacing.sm}px ${g}px ${spacing.xs}px`,
     };
   } else if (variant === 'ghost') {
     buttonBase.values = {
@@ -118,7 +132,7 @@ export function buildCTASection(
         label: typo.cta.fontFamily.split(',')[0].trim(),
         value: typo.cta.fontFamily,
       },
-      fontSize: `${typo.cta.fontSize}px`,
+      fontSize: `${ctaPx}px`,
       fontWeight: typo.cta.fontWeight,
       textAlign: 'center',
       lineHeight: `${Math.round(typo.cta.lineHeight * 100)}%`,
@@ -153,7 +167,7 @@ export function buildCTASection(
         borderRightStyle: 'solid',
         borderRightColor: theme.colors.ctaPrimary,
       },
-      containerPadding: `${spacing.sm}px ${spacing.lg}px ${spacing.xs}px`,
+      containerPadding: `${spacing.sm}px ${g}px ${spacing.xs}px`,
     };
   } else {
     buttonBase.values = {
@@ -166,7 +180,7 @@ export function buildCTASection(
         label: typo.cta.fontFamily.split(',')[0].trim(),
         value: typo.cta.fontFamily,
       },
-      fontSize: `${typo.cta.fontSize}px`,
+      fontSize: `${ctaPx}px`,
       fontWeight: typo.cta.fontWeight,
       textAlign: 'center',
       lineHeight: `${Math.round(typo.cta.lineHeight * 100)}%`,
@@ -188,7 +202,7 @@ export function buildCTASection(
       padding: `${spacing.sm}px 0px`,
       borderRadius: `${theme.borderRadius}px`,
       border: {},
-      containerPadding: `${spacing.sm}px ${spacing.md}px ${spacing.xs}px`,
+      containerPadding: `${spacing.sm}px ${g}px ${spacing.xs}px`,
     };
   }
 
@@ -199,8 +213,8 @@ export function buildCTASection(
       id: generateId('content'),
       type: 'text',
       values: {
-        text: `<p style="color:${theme.colors.accent};font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${content.urgencyText}</p>`,
-        containerPadding: `${spacing.xs}px ${spacing.lg}px ${spacing.lg}px`,
+        text: `<p style="color:${theme.colors.primary};font-size:${urgencyPx}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${content.urgencyText}</p>`,
+        containerPadding: `${spacing.xs}px ${g}px ${spacing.lg}px`,
         anchor: '',
         hideDesktop: false,
         hideMobile: false,
@@ -209,11 +223,37 @@ export function buildCTASection(
     });
   }
 
+  const layout = options?.layoutVariant ?? 'card';
+
+  if (layout === 'flush') {
+    return [
+      createSingleColumnRow(contents, theme, {
+        backgroundColor: theme.colors.background,
+        padding: `${spacing.xl + extraTop}px 0px`,
+        className: 'cta-section cta-flush',
+      }),
+    ];
+  }
+
+  if (layout === 'band') {
+    return [
+      createSingleColumnRow(contents, theme, {
+        backgroundColor: theme.colors.surface,
+        padding: `${spacing.xl + extraTop}px ${g}px`,
+        className: 'cta-section cta-band',
+      }),
+    ];
+  }
+
   return [
     createSingleColumnRow(contents, theme, {
       backgroundColor: theme.colors.background,
-      padding: `${spacing.xl}px 0px`,
-      className: 'cta-section',
+      padding: `${spacing.xl + extraTop}px ${g}px`,
+      className: 'cta-section cta-card',
+      columnBgColor: theme.colors.surface,
+      columnPadding: `${spacing.lg}px ${spacing.md}px`,
+      columnBorderRadius: `${theme.borderRadius}px`,
+      columnBorder: buildSubtleCardBorder(theme),
     }),
   ];
 }
@@ -224,9 +264,12 @@ export function buildCTASection(
 export function buildDividerBlock(
   _content: { text?: string },
   theme: DesignTheme,
-  _options?: BlockBuilderOptions,
+  options?: BlockBuilderOptions,
 ): Va2UnlayerRow[] {
   const spacing = theme.spacing;
+  const density = getEffectiveLayoutDensity(options?.layoutDensity);
+  const densityExtra = getDensityTypeScale(density).sectionPaddingTopExtraPx;
+  const padV = spacing.md + Math.min(6, Math.round(densityExtra / 2));
 
   const dividerContent: Va2UnlayerContent = {
     id: generateId('content'),
@@ -239,7 +282,7 @@ export function buildDividerBlock(
         borderTopColor: theme.colors.divider,
       },
       textAlign: 'center',
-      containerPadding: `${spacing.md}px ${spacing.lg}px`,
+      containerPadding: `${padV}px ${spacing.lg}px`,
       anchor: '',
       hideDesktop: false,
       hideMobile: false,

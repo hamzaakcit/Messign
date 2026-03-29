@@ -11,6 +11,8 @@ export const APP_ROUTES = {
   KNOWLEDGE_HUB: '/knowledge-hub',
   PROJECTS: '/projects',
   FINANCE: '/finance',
+  /** Finance shell invoices tab — matches {@link client/src/lib/financeRoutes.ts financePathForView('invoices')}. */
+  FINANCE_INVOICES: '/finance/invoices',
   REIMBURSEMENTS: '/reimbursements',
   CRM: '/crm',
   MARKETING: '/marketing',

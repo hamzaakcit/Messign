@@ -9,9 +9,16 @@ import type {
   FooterContent,
 } from '../types/manifestTypes';
 import type { DesignTheme } from '../types/designTokenTypes';
-import { generateId } from '../designTokens';
-import { createSingleColumnRow } from './va2Shared';
+import { generateId, VA2_SECTION_HORIZONTAL_GUTTER_PX } from '../designTokens';
+import { buildSubtleCardBorder, createSingleColumnRow } from './va2Shared';
 import type { BlockBuilderOptions } from './types';
+import {
+  getDensityTypeScale,
+  getEffectiveLayoutDensity,
+  scaledBodyFontSize,
+  scaledSectionHeadingFromTheme,
+  scaledSubheadingFontSize,
+} from '../emailTypography';
 
 /**
  * Build a testimonial card — customer quote with attribution.
@@ -24,11 +31,37 @@ import type { BlockBuilderOptions } from './types';
 export function buildTestimonialCard(
   content: TestimonialContent,
   theme: DesignTheme,
-  _options?: BlockBuilderOptions,
+  options?: BlockBuilderOptions,
 ): Va2UnlayerRow[] {
   const spacing = theme.spacing;
   const typo = theme.typography;
+  const density = getEffectiveLayoutDensity(options?.layoutDensity);
+  const densityExtra = getDensityTypeScale(density).sectionPaddingTopExtraPx;
+  const bodyPx = scaledBodyFontSize(theme, density);
+  const subPx = scaledSubheadingFontSize(theme, density);
+  const captionPx = Math.max(12, Math.round(bodyPx * 0.88));
+  const lv = options?.layoutVariant;
+  const padOuter =
+    lv === 'flush' ? spacing.md + densityExtra : spacing.lg + densityExtra;
+  const rowBg = lv === 'band' ? theme.colors.surface : theme.colors.background;
+  const colBorder = lv === 'band' || lv === 'flush' ? {} : buildSubtleCardBorder(theme);
+  const colRadius = lv === 'band' || lv === 'flush' ? '0px' : `${theme.borderRadius}px`;
+  const colPad =
+    lv === 'flush' ? `${spacing.sm}px` : lv === 'band' ? `${spacing.md}px` : `${spacing.lg}px`;
   const contents: Va2UnlayerContent[] = [];
+
+  contents.push({
+    id: generateId('content'),
+    type: 'html',
+    values: {
+      html: `<div style="height:2px;background:${theme.colors.accent};line-height:0;font-size:0" role="presentation"></div>`,
+      containerPadding: '0px',
+      anchor: '',
+      hideDesktop: false,
+      hideMobile: false,
+      _meta: { htmlID: '', htmlClassNames: 'testimonial-accent-bar' },
+    },
+  });
 
   if (content.rating && content.rating >= 1 && content.rating <= 5) {
     const stars = '★'.repeat(content.rating) + '☆'.repeat(5 - content.rating);
@@ -60,7 +93,7 @@ export function buildTestimonialCard(
   });
 
   const quoteFontSize =
-    content.quote.length > 250 ? Math.round(typo.body.fontSize * 0.9) : typo.body.fontSize;
+    content.quote.length > 250 ? Math.round(bodyPx * 0.9) : bodyPx;
 
   contents.push({
     id: generateId('content'),
@@ -92,7 +125,7 @@ export function buildTestimonialCard(
     id: generateId('content'),
     type: 'text',
     values: {
-      text: `<p style="color:${theme.colors.primary};font-size:${typo.subheading.fontSize}px;font-weight:${typo.subheading.fontWeight};text-align:center;line-height:${Math.round(typo.subheading.lineHeight * 100)}%;font-family:${typo.subheading.fontFamily}">${content.authorName}</p>`,
+      text: `<p style="color:${theme.colors.primary};font-size:${subPx}px;font-weight:${typo.subheading.fontWeight};text-align:center;line-height:${Math.round(typo.subheading.lineHeight * 100)}%;font-family:${typo.subheading.fontFamily}">${content.authorName}</p>`,
       containerPadding: `0px ${spacing.lg}px ${spacing.xs}px`,
       anchor: '',
       hideDesktop: false,
@@ -110,7 +143,7 @@ export function buildTestimonialCard(
       id: generateId('content'),
       type: 'text',
       values: {
-        text: `<p style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${roleParts.join(', ')}</p>`,
+        text: `<p style="color:${theme.colors.textMuted};font-size:${captionPx}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${roleParts.join(', ')}</p>`,
         containerPadding: `0px ${spacing.lg}px ${spacing.md}px`,
         anchor: '',
         hideDesktop: false,
@@ -122,12 +155,13 @@ export function buildTestimonialCard(
 
   return [
     createSingleColumnRow(contents, theme, {
-      backgroundColor: theme.colors.background,
-      padding: `${spacing.lg}px ${spacing.md}px`,
+      backgroundColor: rowBg,
+      padding: `${padOuter}px ${VA2_SECTION_HORIZONTAL_GUTTER_PX}px`,
       className: 'testimonial-section',
       columnBgColor: theme.colors.surface,
-      columnPadding: `${spacing.lg}px`,
-      columnBorderRadius: `${theme.borderRadius}px`,
+      columnPadding: colPad,
+      columnBorderRadius: colRadius,
+      columnBorder: colBorder,
     }),
   ];
 }
@@ -143,12 +177,16 @@ export function buildTestimonialCard(
 export function buildSocialProofBar(
   content: SocialProofContent,
   theme: DesignTheme,
-  _options?: BlockBuilderOptions,
+  options?: BlockBuilderOptions,
 ): Va2UnlayerRow[] {
   if (!content.items || content.items.length === 0) return [];
 
   const spacing = theme.spacing;
   const typo = theme.typography;
+  const density = getEffectiveLayoutDensity(options?.layoutDensity);
+  const densityExtra = getDensityTypeScale(density).sectionPaddingTopExtraPx;
+  const metricHeadingPx = scaledSectionHeadingFromTheme(theme, density);
+  const labelSmallPx = Math.max(12, Math.round(scaledBodyFontSize(theme, density) * 0.88));
   const items = content.items.slice(0, 5);
 
   const metricItems = items.filter((i) => i.value);
@@ -167,7 +205,7 @@ export function buildSocialProofBar(
             id: generateId('content'),
             type: 'text' as const,
             values: {
-              text: `<p style="color:${theme.colors.primary};font-size:${typo.heading.fontSize}px;font-weight:${typo.heading.fontWeight};text-align:center;line-height:1.2;font-family:${typo.heading.fontFamily}">${item.value || item.label}</p>`,
+              text: `<p style="color:${theme.colors.primary};font-size:${metricHeadingPx}px;font-weight:${typo.heading.fontWeight};text-align:center;line-height:1.2;font-family:${typo.heading.fontFamily}">${item.value || item.label}</p>`,
               containerPadding: `${spacing.sm}px ${spacing.xs}px ${spacing.xs}px`,
               anchor: '',
               hideDesktop: false,
@@ -179,7 +217,7 @@ export function buildSocialProofBar(
             id: generateId('content'),
             type: 'text' as const,
             values: {
-              text: `<p style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${item.label}</p>`,
+              text: `<p style="color:${theme.colors.textMuted};font-size:${labelSmallPx}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${item.label}</p>`,
               containerPadding: `0px ${spacing.xs}px ${spacing.sm}px`,
               anchor: '',
               hideDesktop: false,
@@ -197,6 +235,7 @@ export function buildSocialProofBar(
         },
       }));
 
+      const metricsPadV = spacing.sm + Math.min(6, Math.round(densityExtra / 2));
       rows.push({
         id: generateId('row'),
         cells: cellFractions,
@@ -207,7 +246,7 @@ export function buildSocialProofBar(
           backgroundColor: theme.colors.surface,
           columnsBackgroundColor: '',
           backgroundImage: {},
-          padding: `${spacing.sm}px ${spacing.md}px`,
+          padding: `${metricsPadV}px ${spacing.md}px`,
           anchor: '',
           hideDesktop: false,
           hideMobile: false,
@@ -247,6 +286,7 @@ export function buildSocialProofBar(
         },
       }));
 
+      const logosPadV = spacing.xs + Math.min(4, Math.round(densityExtra / 3));
       rows.push({
         id: generateId('row'),
         cells: cellFractions,
@@ -257,7 +297,7 @@ export function buildSocialProofBar(
           backgroundColor: theme.colors.surface,
           columnsBackgroundColor: '',
           backgroundImage: {},
-          padding: `${spacing.xs}px ${spacing.md}px`,
+          padding: `${logosPadV}px ${spacing.md}px`,
           anchor: '',
           hideDesktop: false,
           hideMobile: false,
@@ -278,17 +318,29 @@ export function buildSocialProofBar(
 export function buildFooterBlock(
   content: FooterContent,
   theme: DesignTheme,
-  _options?: BlockBuilderOptions,
+  options?: BlockBuilderOptions,
 ): Va2UnlayerRow[] {
   const spacing = theme.spacing;
   const typo = theme.typography;
+  const density = getEffectiveLayoutDensity(options?.layoutDensity);
+  const densityExtra = getDensityTypeScale(density).sectionPaddingTopExtraPx;
+  const footCaptionPx = Math.max(12, Math.round(scaledBodyFontSize(theme, density) * 0.92));
+  const footFinePx = Math.max(11, Math.round(scaledBodyFontSize(theme, density) * 0.85));
+  const lv = options?.layoutVariant;
+  const padTop = (lv === 'flush' ? spacing.md : spacing.xl) + densityExtra;
+  const padBottom = (lv === 'flush' ? spacing.sm : spacing.lg) + Math.min(8, Math.round(densityExtra / 2));
+  const rowBg = lv === 'band' ? theme.colors.surface : theme.colors.background;
+  const colBorder = lv === 'band' || lv === 'flush' ? {} : buildSubtleCardBorder(theme);
+  const colRadius = lv === 'band' || lv === 'flush' ? '0px' : `${theme.borderRadius}px`;
+  const colPad =
+    lv === 'flush' ? `${spacing.sm}px` : lv === 'band' ? `${spacing.md}px` : `${spacing.lg}px`;
   const contents: Va2UnlayerContent[] = [];
 
   contents.push({
     id: generateId('content'),
     type: 'text',
     values: {
-      text: `<p style="color:${theme.colors.primary};font-size:${typo.caption.fontSize}px;font-weight:600;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${content.companyName}</p>`,
+      text: `<p style="color:${theme.colors.primary};font-size:${footCaptionPx}px;font-weight:600;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${content.companyName}</p>`,
       containerPadding: `${spacing.md}px ${spacing.md}px ${spacing.xs}px`,
       anchor: '',
       hideDesktop: false,
@@ -301,7 +353,7 @@ export function buildFooterBlock(
     id: generateId('content'),
     type: 'text',
     values: {
-      text: `<p style="color:${theme.colors.textMuted};font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${content.address}</p>`,
+      text: `<p style="color:${theme.colors.textMuted};font-size:${footCaptionPx}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${content.address}</p>`,
       containerPadding: `0px ${spacing.md}px ${spacing.sm}px`,
       anchor: '',
       hideDesktop: false,
@@ -314,15 +366,15 @@ export function buildFooterBlock(
     const linkHtml = content.links
       .map(
         (l) =>
-          `<a href="${l.url}" style="color:${theme.colors.accent};text-decoration:underline">${l.text}</a>`,
+          `<a href="${l.url}" style="color:${theme.colors.primary};text-decoration:underline">${l.text}</a>`,
       )
-      .join(` <span style="color:${theme.colors.divider}">|</span> `);
+      .join(` <span style="color:${theme.colors.textMuted}" aria-hidden="true">|</span> `);
 
     contents.push({
       id: generateId('content'),
       type: 'text',
       values: {
-        text: `<p style="font-size:${typo.caption.fontSize}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${linkHtml}</p>`,
+        text: `<p style="font-size:${footCaptionPx}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${linkHtml}</p>`,
         containerPadding: `0px ${spacing.md}px ${spacing.sm}px`,
         anchor: '',
         hideDesktop: false,
@@ -336,7 +388,7 @@ export function buildFooterBlock(
     const socialHtml = content.socialLinks
       .map(
         (s) =>
-          `<a href="${s.url}" style="color:${theme.colors.textMuted};text-decoration:none;margin:0 8px;font-size:${typo.caption.fontSize}px">${s.platform}</a>`,
+          `<a href="${s.url}" style="color:${theme.colors.textMuted};text-decoration:none;margin:0 8px;font-size:${footCaptionPx}px">${s.platform}</a>`,
       )
       .join('');
 
@@ -356,13 +408,26 @@ export function buildFooterBlock(
 
   const unsubText =
     content.unsubscribeText ||
-    `You're receiving this because you signed up. <a href="{{unsubscribe_url}}" style="color:${theme.colors.accent};text-decoration:underline">Unsubscribe</a>`;
+    `You're receiving this because you signed up. <a href="{{unsubscribe_url}}" style="color:${theme.colors.primary};text-decoration:underline">Unsubscribe</a>`;
+
+  contents.unshift({
+    id: generateId('content'),
+    type: 'html',
+    values: {
+      html: `<div style="height:1px;background:${theme.colors.divider};line-height:0;font-size:0;margin:0" role="presentation"></div>`,
+      containerPadding: `0px 0px ${spacing.md}px`,
+      anchor: '',
+      hideDesktop: false,
+      hideMobile: false,
+      _meta: { htmlID: '', htmlClassNames: 'footer-separator' },
+    },
+  });
 
   contents.push({
     id: generateId('content'),
     type: 'text',
     values: {
-      text: `<p style="color:${theme.colors.textMuted};font-size:${Math.max(typo.caption.fontSize - 1, 11)}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${unsubText}</p>`,
+      text: `<p style="color:${theme.colors.textMuted};font-size:${footFinePx}px;text-align:center;line-height:${Math.round(typo.caption.lineHeight * 100)}%;font-family:${typo.caption.fontFamily}">${unsubText}</p>`,
       containerPadding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
       anchor: '',
       hideDesktop: false,
@@ -373,9 +438,13 @@ export function buildFooterBlock(
 
   return [
     createSingleColumnRow(contents, theme, {
-      backgroundColor: theme.colors.surface,
-      padding: `${spacing.lg}px 0px`,
+      backgroundColor: rowBg,
+      padding: `${padTop}px 0px ${padBottom}px`,
       className: 'footer-section',
+      columnBgColor: theme.colors.surface,
+      columnPadding: colPad,
+      columnBorderRadius: colRadius,
+      columnBorder: colBorder,
     }),
   ];
 }

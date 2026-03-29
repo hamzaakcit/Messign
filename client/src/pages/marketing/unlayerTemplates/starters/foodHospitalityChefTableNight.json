@@ -1,0 +1,114 @@
+{
+  "version": "2.0",
+  "theme": "warm",
+  "layoutDensity": "airy",
+  "subject": "Chef’s table — four courses, wine pairings, 12 seats",
+  "preheader": "Saturday 7:30: seasonal tasting menu at our kitchen counter — optional non-alcoholic pairings, dietary notes welcomed when you book. See the menu waves below; deposits hold your seats through Thursday.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "A slow dinner at the pass",
+        "subheadline": "Watch the team finish plates in front of you — four courses, paired pours, and one dessert you will argue about on the walk home.",
+        "ctaText": "Reserve seats",
+        "ctaUrl": "https://example.com/book/chefs-table?utm_source=email&utm_medium=crm&utm_campaign=chef_table_apr",
+        "imagePrompt": "Open kitchen chef plating dish with tweezers, warm copper and wood interior, shallow depth of field, fine dining editorial, no readable tickets or screens",
+        "alignment": "center",
+        "heroLayout": "editorial_tall",
+        "altText": "Chef plating at the pass"
+      }
+    },
+    {
+      "type": "text_block",
+      "order": 2,
+      "variant": "band",
+      "content": {
+        "body": "<strong>When:</strong> Saturday 7:30 PM · <strong>Duration:</strong> ~2.5 hours · <strong>Location:</strong> Harborline Kitchen — 412 River St. <strong>Deposit:</strong> $40 per guest; balance at service.",
+        "alignment": "center",
+        "insetCard": true
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "sectionTitle": "Menu waves (subject to market)",
+        "columns": 3,
+        "items": [
+          {
+            "name": "Spring roots & dairy",
+            "description": "Chilled soup, cultured butter, herbs",
+            "price": "Course 1",
+            "imagePrompt": "Elegant bowl of chilled soup with herb oil, overhead food photography, dark ceramic",
+            "linkUrl": "https://example.com/menu/spring?utm_source=email&utm_medium=crm&utm_campaign=chef_table_apr",
+            "badge": "Starter"
+          },
+          {
+            "name": "Fire & smoke",
+            "description": "Grilled fish, ember oil, pickles",
+            "price": "Course 2–3",
+            "imagePrompt": "Grilled fish fillet with char marks, lemon and herbs, restaurant plating",
+            "linkUrl": "https://example.com/menu/spring?utm_source=email&utm_medium=crm&utm_campaign=chef_table_apr",
+            "badge": "Main"
+          },
+          {
+            "name": "Citrus finish",
+            "description": "Olive oil cake, meringue, tea",
+            "price": "Dessert",
+            "imagePrompt": "Slice of olive oil cake with citrus segments, soft dessert photography",
+            "linkUrl": "https://example.com/menu/spring?utm_source=email&utm_medium=crm&utm_campaign=chef_table_apr",
+            "badge": "Sweet"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 4,
+      "variant": "card",
+      "content": {
+        "headline": "Pairings — classic or spirit-free",
+        "body": "Sommelier picks three pours; our bar lead mirrors the arc with zero-proof builds — same rhythm, no compromise. Note preferences when you book — we will confirm 48 hours before service.",
+        "imagePrompt": "Wine glasses and small plates on marble bar, warm candlelight, editorial hospitality photography, no readable labels",
+        "altText": "Wine glasses and small plates on the bar",
+        "layout": "image_left",
+        "ctaText": "See pairing philosophy",
+        "ctaUrl": "https://example.com/pairings?utm_source=email&utm_medium=crm&utm_campaign=chef_table_apr"
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "Twelve seats — deposits close Thursday",
+        "description": "Waitlist opens automatically if the night sells out — you will get first notice for May.",
+        "buttonText": "Book chef’s table",
+        "buttonUrl": "https://example.com/book/chefs-table?utm_source=email&utm_medium=crm&utm_campaign=chef_table_apr",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Harborline Kitchen",
+        "address": "Reservations · hello@harborline.example",
+        "links": [{ "text": "Unsubscribe", "url": "/unsubscribe" }]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "inviting, sensory",
+    "audience": "local diners and past guests",
+    "campaign_id": "food_chefs_table",
+    "visual_density": "rich",
+    "target_image_slots": 6
+  },
+  "artDirection": {
+    "mood": "warm, intimate",
+    "imageStyle": "Editorial hospitality; no legible menu prices in hero art"
+  }
+}

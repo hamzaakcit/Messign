@@ -1,0 +1,136 @@
+{
+  "version": "2.0",
+  "theme": "nature",
+  "layoutDensity": "airy",
+  "subject": "Open house Sat — light-filled 3BR with city skyline",
+  "preheader": "Tour 2–4pm: new listing in River North, staged for move-in, parking included. See the floor plan, neighborhood walk score, and one-click RSVP for your preferred slot — we will hold overlapping tours to keep traffic smooth.",
+  "sections": [
+    {
+      "type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "Your next chapter starts on the 14th floor",
+        "subheadline": "Corner unit, south light, and a balcony made for sunset coffee — open house this Saturday.",
+        "ctaText": "RSVP for a time slot",
+        "ctaUrl": "https://example.com/listings/river-north-1402/open-house?utm_source=email&utm_medium=crm&utm_campaign=open_house_rn",
+        "imagePrompt": "Modern high-rise living room with floor-to-ceiling windows, soft daylight, neutral staging, city skyline bokeh, real estate editorial photography, no readable signage",
+        "alignment": "center",
+        "heroLayout": "split",
+        "altText": "Bright living room with skyline view"
+      }
+    },
+    {
+      "type": "value_prop",
+      "order": 2,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Why buyers tour this week",
+        "columns": 3,
+        "items": [
+          {
+            "icon": "Home",
+            "heading": "Layout",
+            "description": "Split bedrooms, walk-in closet, and a dedicated office nook — floor plan attached after RSVP.",
+            "imagePrompt": "Architectural floor plan sketch on desk, soft overhead light, no legible text"
+          },
+          {
+            "icon": "MapPin",
+            "heading": "Neighborhood",
+            "description": "Two blocks to the river trail; grocery and pharmacy within a five-minute walk.",
+            "imagePrompt": "Tree-lined urban sidewalk at golden hour, soft depth of field, no readable storefronts"
+          },
+          {
+            "icon": "Car",
+            "heading": "Parking",
+            "description": "Deeded spot in the building — no street hunting after late showings.",
+            "imagePrompt": "Clean residential parking garage aisle with soft lighting, no license plates readable"
+          }
+        ]
+      }
+    },
+    {
+      "type": "image_text",
+      "order": 3,
+      "variant": "band",
+      "content": {
+        "headline": "What to expect at the open house",
+        "body": "We run 20-minute tours with buffer between groups. Bring questions about HOA reserves, assessments, and the recent facade refresh — disclosure packet is emailed after you RSVP.",
+        "imagePrompt": "Real estate agent opening door to bright foyer, warm welcoming light, professional staging, no readable faces or badges",
+        "altText": "Agent welcoming visitors at the door",
+        "layout": "image_left",
+        "ctaText": "Download disclosure preview",
+        "ctaUrl": "https://example.com/listings/river-north-1402/disclosures?utm_source=email&utm_medium=crm&utm_campaign=open_house_rn"
+      }
+    },
+    {
+      "type": "product_grid",
+      "order": 4,
+      "variant": "card",
+      "content": {
+        "sectionTitle": "Comparable move-in ready",
+        "columns": 3,
+        "items": [
+          {
+            "name": "River North — 2BR",
+            "description": "Lower floor, similar finishes",
+            "price": "$685k",
+            "imagePrompt": "Compact modern condo living room, soft daylight, staged neutral palette",
+            "linkUrl": "https://example.com/listings/compare/a?utm_source=email&utm_medium=crm&utm_campaign=open_house_rn",
+            "badge": "Sold"
+          },
+          {
+            "name": "This unit — 3BR",
+            "description": "Corner, balcony, parking",
+            "price": "$798k",
+            "imagePrompt": "Corner living room with two walls of windows, editorial real estate photo",
+            "linkUrl": "https://example.com/listings/river-north-1402?utm_source=email&utm_medium=crm&utm_campaign=open_house_rn",
+            "badge": "New"
+          },
+          {
+            "name": "West Loop — 2BR",
+            "description": "Walk-up, boutique building",
+            "price": "$712k",
+            "imagePrompt": "Boutique building exterior at dusk, warm lobby glow, no readable numbers",
+            "linkUrl": "https://example.com/listings/compare/c?utm_source=email&utm_medium=crm&utm_campaign=open_house_rn",
+            "badge": "Open"
+          }
+        ]
+      }
+    },
+    {
+      "type": "cta",
+      "order": 5,
+      "content": {
+        "headline": "Save your slot — limited overlap tours",
+        "description": "Prefer a private second showing? Reply to this email and we will coordinate.",
+        "buttonText": "Confirm open house time",
+        "buttonUrl": "https://example.com/listings/river-north-1402/open-house?utm_source=email&utm_medium=crm&utm_campaign=open_house_rn",
+        "variant": "pill"
+      }
+    },
+    {
+      "type": "footer",
+      "order": 6,
+      "content": {
+        "companyName": "Harborline Realty",
+        "address": "Chicago · IL · Equal Housing Opportunity",
+        "links": [
+          { "text": "Unsubscribe", "url": "/unsubscribe" },
+          { "text": "Privacy", "url": "/privacy" }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "channel": "email",
+    "tone": "warm, confident",
+    "audience": "qualified buyers in metro search",
+    "campaign_id": "real_estate_open_house",
+    "visual_density": "rich",
+    "target_image_slots": 7
+  },
+  "artDirection": {
+    "mood": "aspirational, trustworthy",
+    "imageStyle": "Editorial real estate; no legible addresses or MLS numbers in art"
+  }
+}

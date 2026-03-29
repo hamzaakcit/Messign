@@ -1,33 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ChevronDown, Instagram, Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
+import { Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
 import { LucyGreetingCard, LucySidebarLogo } from '@/pages/marketing/components/lucy';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import type { BoardCardData } from './BoardCard';
+import type { MarketingChannelAgentModalId } from '@/pages/marketing/lib/marketingChannelAgentBuilders';
 import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
-import { MARKETING_COMPOSER_QUICK_ACTIONS } from './marketingDoraQuickActions';
-import { MarketingDoraQuickActionIcon } from './MarketingDoraQuickActionIcon';
+import { MarketingChannelAgentModal } from './MarketingChannelAgentModal';
+import { MarketingComposerChannelButtons } from './MarketingComposerChannelButtons';
 
 const noop = (): void => {};
 
-/** Tailwind classes: floating controls sit left of the open marketing Dora rail. */
+/** Tailwind classes: floating controls sit left of the open marketing Lucy rail. */
 export const MARKETING_DORA_RAIL_OUTSET_RIGHT = 'max-sm:right-6 sm:right-[424px]';
 
 interface DoraRailProps {
   selectedCard: BoardCardData | null;
   /** Increment to open the Instagram agent modal (e.g. SparkBar “Instagram (AI)”). */
   instagramModalSignal?: number;
-  /** Auto-send a prefilled prompt (Command Center “Execute with Dora”). */
+  /** Auto-send a prefilled prompt (Command Center “Execute with Lucy”). */
   executePrompt?: { id: number; text: string } | null;
+  /**
+   * `rail`: fixed-width right column on the marketing workspace.
+   * `page`: full-width centered panel on the Lucy home route (`/marketing`).
+   * `pageSplit`: left column in Lucy split layout — full height, flush edge, border on the right.
+   */
+  layout?: 'rail' | 'page' | 'pageSplit';
 }
 
 export function DoraRail({
   selectedCard,
   instagramModalSignal = 0,
   executePrompt = null,
+  layout = 'rail',
 }: DoraRailProps): JSX.Element {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
@@ -55,7 +63,7 @@ export function DoraRail({
 
   const [inputValue, setInputValue] = useState('');
   const [igModalOpen, setIgModalOpen] = useState(false);
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [channelModal, setChannelModal] = useState<MarketingChannelAgentModalId | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastExecutePromptId = useRef<number | null>(null);
@@ -93,11 +101,29 @@ export function DoraRail({
     }
   };
 
+  const shellClass =
+    layout === 'pageSplit'
+      ? 'flex flex-col h-full min-h-0 w-full min-w-0 flex-1 border-r border-white/[0.08] bg-[#080a0e] overflow-hidden'
+      : layout === 'page'
+        ? 'flex flex-col h-full min-h-0 w-full max-w-[min(880px,100%)] min-w-0 shrink-0 rounded-2xl border border-white/[0.08] bg-[#080a0e] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.35)]'
+        : 'flex flex-col h-full min-h-0 w-[min(400px,92vw)] min-w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden';
+
   return (
-    <div className="flex flex-col h-full min-h-0 w-[min(400px,92vw)] min-w-[280px] shrink-0 border-l border-white/[0.06] bg-[#080a0e] overflow-hidden">
+    <div className={shellClass}>
       <InstagramAgentPromptModal
         isOpen={igModalOpen}
         onClose={() => setIgModalOpen(false)}
+        onSend={(msg) => void sendMessage(msg)}
+        onApplyToComposer={(msg) => {
+          setInputValue(msg);
+          inputRef.current?.focus();
+        }}
+        defaultTopic={selectedCard?.title ?? null}
+      />
+      <MarketingChannelAgentModal
+        channel={channelModal}
+        isOpen={channelModal !== null}
+        onClose={() => setChannelModal(null)}
         onSend={(msg) => void sendMessage(msg)}
         onApplyToComposer={(msg) => {
           setInputValue(msg);
@@ -134,11 +160,16 @@ export function DoraRail({
         {messages.length === 0 && !isLoading && (
           <div className="py-2 px-0 w-full min-w-0 overflow-x-hidden">
             <LucyGreetingCard
-              heroSize={120}
-              onChipSelect={(text) => {
-                setInputValue(text);
-                inputRef.current?.focus();
-              }}
+              heroSize={layout === 'pageSplit' ? 140 : 120}
+              wide={layout === 'pageSplit'}
+              onChipSelect={
+                layout === 'pageSplit'
+                  ? undefined
+                  : (text) => {
+                      setInputValue(text);
+                      inputRef.current?.focus();
+                    }
+              }
             />
           </div>
         )}
@@ -167,62 +198,16 @@ export function DoraRail({
         <div ref={chatEndRef} />
       </div>
 
-      <div className="relative z-20 border-t border-white/[0.06] bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] py-2 px-2 space-y-2">
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={() => setIgModalOpen(true)}
-            title="Instagram"
-            className="inline-flex items-center gap-1.5 rounded-lg border bg-gradient-to-b px-2.5 py-2 text-sm font-medium text-app-text transition hover:brightness-110 disabled:opacity-40 from-pink-500/30 to-rose-600/20 border-pink-500/25"
-          >
-            <Instagram className="w-4 h-4 text-pink-300 shrink-0" />
-            <span className="leading-tight">Instagram</span>
-          </button>
-          <div className="relative">
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => setQuickActionsOpen((o) => !o)}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/[0.12] bg-app-surface-tertiary px-2.5 py-2 text-sm font-medium text-app-text hover:bg-app-nav-hover disabled:opacity-40"
-              title="Prefill composer with a channel template"
-              aria-expanded={quickActionsOpen}
-            >
-              Quick prompts
-              <ChevronDown className={`w-4 h-4 ${quickActionsOpen ? 'rotate-180' : ''} transition-transform`} />
-            </button>
-            {quickActionsOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  aria-hidden
-                  onClick={() => setQuickActionsOpen(false)}
-                />
-                <div className="absolute bottom-full left-0 right-0 z-20 mb-1 max-h-[min(50vh,280px)] overflow-y-auto rounded-lg border border-white/[0.1] bg-[#12151c] py-1 shadow-xl">
-                  {MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
-                    <button
-                      key={q.id}
-                      type="button"
-                      disabled={isLoading}
-                      onClick={() => {
-                        setInputValue(q.text);
-                        inputRef.current?.focus();
-                        setQuickActionsOpen(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-app-text hover:bg-app-nav-hover disabled:opacity-40"
-                    >
-                      <span className="shrink-0">
-                        <MarketingDoraQuickActionIcon icon={q.icon} />
-                      </span>
-                      <span className="min-w-0 leading-snug">{q.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+      <div className="relative z-20 flex min-h-0 flex-col border-t border-white/[0.06] bg-[#0a0c10] shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
+        <div className="max-h-[min(36vh,340px)] min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2.5 sm:px-3">
+          <MarketingComposerChannelButtons
+            isLoading={isLoading}
+            onOpenInstagram={() => setIgModalOpen(true)}
+            onOpenChannelModal={(ch) => setChannelModal(ch)}
+            variant="comfortable"
+          />
         </div>
-        <div className="flex items-end gap-2 pt-0.5">
+        <div className="flex items-end gap-2 border-t border-white/[0.05] px-2 py-2.5 sm:px-3">
           <textarea
             ref={inputRef}
             value={inputValue}
@@ -233,7 +218,7 @@ export function DoraRail({
               t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
             }}
             onKeyDown={onKeyDown}
-            placeholder="Ask Dora\u2026"
+            placeholder={layout === 'page' || layout === 'pageSplit' ? 'Ask Lucy\u2026' : 'Ask Dora\u2026'}
             disabled={isLoading}
             rows={2}
             className="flex-1 min-h-[44px] max-h-[120px] px-3 py-2.5 rounded-xl text-sm leading-relaxed resize-none bg-app-inputBg border border-app-inputBorder text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-primary-500/30"
