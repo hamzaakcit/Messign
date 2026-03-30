@@ -248,8 +248,8 @@ const TIER_DIRECT: Record<ModelTier, { provider: DirectProvider; model: string }
 const FALLBACK_CHAIN: Record<ModelTier, ModelTier[]> = {
   fast: ['balanced', 'complex'],
   balanced: ['complex', 'fast'],
-  complex: ['fast', 'balanced'],
-  frontier: ['complex', 'fast'],
+  complex: ['balanced', 'fast'],       // Gemini first — much better content quality than Llama
+  frontier: ['complex', 'balanced'],    // Gemini before Groq for frontier fallback too
   vision: ['balanced', 'fast'],
 };
 
