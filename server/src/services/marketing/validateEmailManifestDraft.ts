@@ -164,6 +164,15 @@ export function checkCopyQualityForRetry(manifest: Record<string, unknown>): str
     );
   }
 
+  // --- Subject variants check ---
+  const metadata = manifest.metadata as Record<string, unknown> | undefined;
+  const subjectVariants = Array.isArray(metadata?.subject_variants) ? metadata.subject_variants : [];
+  if (subjectVariants.length < 2) {
+    issues.push(
+      'Missing metadata.subject_variants. Generate 3 subject line candidates: best → subject field, other two → metadata.subject_variants (array of exactly 2 strings). Use curiosity-gap, benefit-first, and pattern-interrupt strategies.',
+    );
+  }
+
   // --- Concrete numbers check (hero, value_prop, image_text, social_proof) ---
   const numberPattern = /\d+[%$€£KkMm+]|\d{2,}|\$\d|\d+\s*(percent|hours?|minutes?|days?|weeks?|months?|years?|users?|customers?|teams?|companies)/i;
   const numberSectionTypes = new Set(['hero', 'value_prop', 'image_text', 'social_proof']);

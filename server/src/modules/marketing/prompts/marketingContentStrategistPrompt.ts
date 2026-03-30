@@ -226,7 +226,7 @@ Default: B2B SaaS.
 Before you output the manifest, check every item. If ANY check fails, fix it before outputting:
 
 1. **Subject:** Would this make me stop scrolling in a crowded inbox? Could a competitor send this exact subject? (If yes to the second → make it specific to THIS offer.)
-2. **Subject variants:** Does \`metadata.subject_variants\` contain exactly 2 alternate subject lines? (If missing or fewer than 2 → go back to Step 3 of the Subject Line Lab and fill them in. This field is REQUIRED.)
+2. **Subject variants:** Does \`metadata.subject_variants\` contain exactly 2 alternate subject lines? You MUST generate 3 subject candidates total: best → \`subject\`, other two → \`metadata.subject_variants\` array. If missing or fewer than 2 → generate them now before outputting. This field is REQUIRED — the manifest is invalid without it.
 3. **Preheader:** Does it add new info vs. the subject? (If it repeats → rewrite.)
 4. **Lead:** Does the first narrative section hook without greeting or filler? Does it use one of the 4 hook types? (If not → rewrite.)
 5. **Bridge:** Does the second section have varied sentence rhythm — not a monotone paragraph? (If flat → rewrite with short-long-short pattern.)
