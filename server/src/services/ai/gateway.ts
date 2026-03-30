@@ -400,7 +400,7 @@ async function callDirectProviders(
         continue;
       }
       // Retry with backoff for rate-limit (429) errors — don't fall back to Groq for temporary limits
-      const maxRetries = 3;
+      const maxRetries = 2;
       let retried = false;
       for (let retry = 0; retry <= maxRetries; retry++) {
         try {
@@ -416,7 +416,7 @@ async function callDirectProviders(
           const msg = err instanceof Error ? err.message : String(err);
           const isRateLimit = msg.includes('429') || msg.includes('rate_limit');
           if (isRateLimit && retry < maxRetries) {
-            const delayMs = (retry + 1) * 15_000; // 15s, 30s, 45s — rate limit resets per minute
+            const delayMs = (retry + 1) * 5_000; // 5s, 10s, 15s — keep short to avoid pipeline timeout
             console.warn(`[LLM] ⏳ ${tier} rate-limited (attempt ${retry + 1}/${maxRetries + 1}), waiting ${delayMs / 1000}s before retry…`);
             await new Promise((r) => setTimeout(r, delayMs));
             retried = true;

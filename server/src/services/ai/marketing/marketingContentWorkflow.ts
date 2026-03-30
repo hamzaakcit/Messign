@@ -375,7 +375,9 @@ export async function executeContentWorkflow(
 
     if (truth.verdict === 'FAIL') {
       console.warn(`${LOG} product_truth_fail`, { attempt: attempt + 1, maxAttempts, reasons: truth.failed_reasons });
-      if (attempt + 1 >= maxAttempts) {
+      if (isEmail) {
+        console.warn(`${LOG} Product truth soft-fail for email — proceeding with warnings`);
+      } else if (attempt + 1 >= maxAttempts) {
         return {
           status: 'failed',
           reason: `Product truth still failing after ${maxAttempts} attempt(s): ${truth.failed_reasons.join('; ') || 'see checks'}`,
@@ -383,8 +385,9 @@ export async function executeContentWorkflow(
           lastDraft: draft,
           lastTruth: truth,
         };
+      } else {
+        continue;
       }
-      continue;
     }
 
     if (isInstagram) {

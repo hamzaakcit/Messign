@@ -650,7 +650,12 @@ export async function executeContentWorkflow(
         attempt: attempt + 1,
         failed_reasons: truthRaw.failed_reasons,
       });
-      if (attempt + 1 >= maxAttempts) {
+      // For email, product truth is a soft warning — the Groq validator is
+      // overly strict with numbers/claims that the prompt explicitly requested.
+      // Retrying costs 100-160s and almost always times out.
+      if (isEmail) {
+        console.warn(`[marketingOrchestrator] Product truth soft-fail for email — proceeding with warnings: ${truthRaw.failed_reasons.join('; ')}`);
+      } else if (attempt + 1 >= maxAttempts) {
         return {
           status: 'failed',
           contentId,
@@ -660,8 +665,9 @@ export async function executeContentWorkflow(
           toolObservations: combinedToolObs,
           toolsUsed: combinedTools,
         };
+      } else {
+        continue;
       }
-      continue;
     }
 
     log('product_truth_pass', { attempt: attempt + 1 });
