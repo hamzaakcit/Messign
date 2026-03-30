@@ -57,6 +57,7 @@ import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
 import { responseTimer } from './middleware/responseTimer.js';
 import { initializeAuthRecords } from './services/initAuth.js';
+import instagramOAuthRouter from './routes/integrations/instagram.js';
 import { initNewTables } from './db/initNewTables.js';
 import { isOriginAllowed } from './config/corsOrigins.js';
 
@@ -281,6 +282,11 @@ app.use('/api/seed', seedRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/notifications', notificationsRouter);
+
+// Social / OAuth integrations
+// /callback is public (Meta redirects here with state; auth is verified via signed state param)
+// all other routes require auth
+app.use('/api/integrations/instagram', instagramOAuthRouter);
 
 // Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,okr,heart,executive}
 await initializeModules(app);
