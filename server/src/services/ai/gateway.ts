@@ -399,22 +399,36 @@ async function callDirectProviders(
         lastErrors.push(`${tier}: no API key for anthropic`);
         continue;
       }
-      try {
-        const startMs = Date.now();
-        const result = await callAnthropicDirect({ ...options, tier, maxTokens, temperature }, tierModel);
-        console.log(`[LLM] ✅ ${tier} → anthropic/${tierModel} (${Date.now() - startMs}ms)`);
-        if (attemptIndex > 0) {
-          _cascadeStats.cascaded++;
-          _cascadeStats.failedTiers += attemptIndex;
+      // Retry with backoff for rate-limit (429) errors — don't fall back to Groq for temporary limits
+      const maxRetries = 3;
+      let retried = false;
+      for (let retry = 0; retry <= maxRetries; retry++) {
+        try {
+          const startMs = Date.now();
+          const result = await callAnthropicDirect({ ...options, tier, maxTokens, temperature }, tierModel);
+          console.log(`[LLM] ✅ ${tier} → anthropic/${tierModel} (${Date.now() - startMs}ms)${retry > 0 ? ` (after ${retry} rate-limit retries)` : ''}`);
+          if (attemptIndex > 0) {
+            _cascadeStats.cascaded++;
+            _cascadeStats.failedTiers += attemptIndex;
+          }
+          return result;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const isRateLimit = msg.includes('429') || msg.includes('rate_limit');
+          if (isRateLimit && retry < maxRetries) {
+            const delayMs = (retry + 1) * 15_000; // 15s, 30s, 45s — rate limit resets per minute
+            console.warn(`[LLM] ⏳ ${tier} rate-limited (attempt ${retry + 1}/${maxRetries + 1}), waiting ${delayMs / 1000}s before retry…`);
+            await new Promise((r) => setTimeout(r, delayMs));
+            retried = true;
+            continue;
+          }
+          attemptIndex++;
+          lastErrors.push(`${tier} (${tierModel}): ${msg}`);
+          console.warn(`[LLM] ⚠️ ${tier} failed via anthropic/${tierModel}: ${msg} — falling back`);
+          break;
         }
-        return result;
-      } catch (err) {
-        attemptIndex++;
-        const msg = err instanceof Error ? err.message : String(err);
-        lastErrors.push(`${tier} (${tierModel}): ${msg}`);
-        console.warn(`[LLM] ⚠️ ${tier} failed via anthropic/${tierModel}: ${msg} — falling back`);
-        continue;
       }
+      continue;
     }
 
     const client = directClientForTier(tier);

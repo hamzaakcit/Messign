@@ -355,7 +355,7 @@ export async function runMarketingMiniLoop(options: {
   const stepTimeoutMs = researchMode
     ? CONTENT_STRATEGIST_STEP_MS
     : contentStrategist
-      ? (isEmailCh ? 60_000 : CONTENT_STRATEGIST_STEP_MS)
+      ? (isEmailCh ? 120_000 : CONTENT_STRATEGIST_STEP_MS)
       : campaignManager
         ? CAMPAIGN_MANAGER_STEP_MS
         : STEP_MS;
