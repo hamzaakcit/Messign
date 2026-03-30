@@ -179,7 +179,7 @@ export async function executeContentWorkflow(
     return { status: 'failed', reason: 'Missing organization context', attempts: 0 };
   }
 
-  const maxRetries = Math.max(0, Math.min(4, context.maxTruthRetries ?? 2));
+  const maxRetries = Math.max(0, Math.min(4, context.maxTruthRetries ?? 1));
   const maxAttempts = maxRetries + 1;
 
   const refStrip = stripReferenceImageUrlBlock(brief);

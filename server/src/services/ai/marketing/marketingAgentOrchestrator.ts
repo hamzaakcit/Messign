@@ -380,7 +380,7 @@ export async function executeContentWorkflow(
     };
   }
 
-  const maxAttempts = Math.max(1, Math.min(5, brief.maxTruthRetries ?? 3));
+  const maxAttempts = Math.max(1, Math.min(5, brief.maxTruthRetries ?? 2));
   let contentRow =
     brief.contentId != null
       ? await contentDal.getContentById(caller, brief.contentId)
