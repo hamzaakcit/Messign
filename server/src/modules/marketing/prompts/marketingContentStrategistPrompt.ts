@@ -1427,7 +1427,7 @@ export function buildMarketingContentStrategistPrompt(input: MarketingContentStr
     qualityTier = 'full',
   } = input;
 
-  const defaultGolden = qualityTier === 'minimal' ? GOLDEN_EMAIL_EXAMPLES_COMPACT_MD : GOLDEN_EMAIL_EXAMPLES_MD;
+  const defaultGolden = qualityTier === 'full' ? GOLDEN_EMAIL_EXAMPLES_MD : GOLDEN_EMAIL_EXAMPLES_COMPACT_MD;
   const golden = goldenExamplesMd?.trim() || defaultGolden;
   const competitor = competitorContextMd?.trim() || NONE_LOADED;
 

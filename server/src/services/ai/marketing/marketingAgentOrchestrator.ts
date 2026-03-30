@@ -293,8 +293,10 @@ async function buildContentStrategistLoopArgs(
     }
   }
 
-  // Complex tier now routes to Claude via Anthropic direct — use full quality
-  const qualityTier = channel === 'email' ? 'full' : 'standard';
+  // 'standard' includes copywriting engine + brand voice (~6.3K tokens) — fits within
+  // Anthropic's 30K tokens/min rate limit. 'full' adds subject lab + industry playbooks
+  // (~17K tokens total) which exhausts the rate limit on back-to-back calls.
+  const qualityTier = 'standard';
   const contentBase = buildMarketingContentStrategistPrompt({
     userRole: ctx.agentContext.userRole,
     productTruthMd,
