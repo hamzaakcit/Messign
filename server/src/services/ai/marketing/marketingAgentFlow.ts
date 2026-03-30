@@ -381,7 +381,7 @@ ${priorBlock ? `\nContext from prior step:\n${priorBlock}\n` : ''}`;
       ? 2000
       : role === 'content'
         ? contentStrategist
-          ? (isEmailChannel ? 8192 : 2200)
+          ? (isEmailChannel ? 4096 : 2200)
           : 1800
         : campaignManager
           ? 2000
@@ -586,7 +586,7 @@ Stay under ~200 words. **Do not** repeat tool names or restate the outcome list.
     synthMaxTokens = 1200;
   } else if (contentStrategist) {
     synthTier = 'complex';
-    synthMaxTokens = emailChannel ? 8192 : 1000;
+    synthMaxTokens = emailChannel ? 4096 : 1000;
   } else if (role === 'campaign' && campaignManager) {
     synthTier = metricsOnlySynthesis ? 'fast' : 'complex';
     synthMaxTokens = metricsOnlySynthesis ? 900 : 1100;

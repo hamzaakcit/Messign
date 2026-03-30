@@ -147,7 +147,7 @@ async function generateDraft(
     userMessage,
     tenantId: ctx.tenantId,
     temperature: 0.35,
-    maxTokens: 8192,
+    maxTokens: 4096,
   });
 
   return res.content.trim();
