@@ -89,7 +89,7 @@ function convertToAnthropicMessages(
           if (tc.type === 'function' && tc.function) {
             let input: Record<string, unknown> = {};
             try { input = JSON.parse(tc.function.arguments || '{}'); } catch { /* noop */ }
-            blocks.push({ type: 'tool_use', id: tc.id, name: tc.function.name, input });
+            blocks.push({ type: 'tool_use', id: tc.id, name: sanitizeToolNameForAnthropic(tc.function.name), input });
           }
         }
       }
@@ -109,8 +109,20 @@ function convertToAnthropicMessages(
 }
 
 /** Convert OpenAI tool definitions to Anthropic tool format. */
-function openaiToolsToAnthropicFormat(tools: OpenAI.ChatCompletionTool[]): Anthropic.Tool[] {
-  return tools
+/**
+ * Sanitize tool name for Anthropic API (must match ^[a-zA-Z0-9_-]{1,128}$).
+ * Registry uses colons (e.g. "marketing:product_truth_lookup") — replace with underscores.
+ */
+function sanitizeToolNameForAnthropic(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128);
+}
+
+function openaiToolsToAnthropicFormat(tools: OpenAI.ChatCompletionTool[]): {
+  anthropicTools: Anthropic.Tool[];
+  nameMap: Map<string, string>; // sanitized → original
+} {
+  const nameMap = new Map<string, string>();
+  const anthropicTools = tools
     .filter((t): t is OpenAI.ChatCompletionTool & { type: 'function' } => t.type === 'function' && !!t.function?.name)
     .map((t) => {
       const params = t.function.parameters;
@@ -118,8 +130,13 @@ function openaiToolsToAnthropicFormat(tools: OpenAI.ChatCompletionTool[]): Anthr
         params && typeof params === 'object' && !Array.isArray(params) && (params as { type?: string }).type === 'object'
           ? (params as Anthropic.Tool.InputSchema)
           : ({ type: 'object', properties: {}, additionalProperties: true } as Anthropic.Tool.InputSchema);
-      return { name: t.function.name, description: t.function.description ?? '', input_schema };
+      const sanitizedName = sanitizeToolNameForAnthropic(t.function.name);
+      if (sanitizedName !== t.function.name) {
+        nameMap.set(sanitizedName, t.function.name);
+      }
+      return { name: sanitizedName, description: t.function.description ?? '', input_schema };
     });
+  return { anthropicTools, nameMap };
 }
 
 /** Call Anthropic directly for complex-tier requests; return OpenAI-shaped response. */
@@ -131,7 +148,7 @@ async function callAnthropicDirect(
   if (!client) throw new Error('ANTHROPIC_API_KEY not set');
 
   const { system, messages: anthropicMsgs } = convertToAnthropicMessages(options.messages);
-  const anthropicTools = options.tools?.length ? openaiToolsToAnthropicFormat(options.tools) : undefined;
+  const toolConversion = options.tools?.length ? openaiToolsToAnthropicFormat(options.tools) : undefined;
 
   const request: Anthropic.MessageCreateParams = {
     model,
@@ -139,12 +156,14 @@ async function callAnthropicDirect(
     temperature: options.temperature ?? 0.3,
     system: system || undefined,
     messages: anthropicMsgs,
-    ...(anthropicTools?.length ? { tools: anthropicTools } : {}),
+    ...(toolConversion?.anthropicTools?.length ? { tools: toolConversion.anthropicTools } : {}),
   };
 
   const response = await client.messages.create(request);
 
   // Convert Anthropic response to OpenAI ChatCompletion shape
+  // Reverse-map sanitized tool names back to originals (e.g. marketing_product_truth_lookup → marketing:product_truth_lookup)
+  const nameMap = toolConversion?.nameMap;
   let textContent = '';
   const toolCalls: OpenAI.ChatCompletionMessageToolCall[] = [];
   let toolCallIndex = 0;
@@ -153,10 +172,11 @@ async function callAnthropicDirect(
     if (block.type === 'text') {
       textContent += block.text;
     } else if (block.type === 'tool_use') {
+      const originalName = nameMap?.get(block.name) ?? block.name;
       toolCalls.push({
         id: block.id,
         type: 'function',
-        function: { name: block.name, arguments: JSON.stringify(block.input ?? {}) },
+        function: { name: originalName, arguments: JSON.stringify(block.input ?? {}) },
       });
       toolCallIndex++;
     }
