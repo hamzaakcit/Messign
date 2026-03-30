@@ -119,7 +119,7 @@ const CAMPAIGN_METRICS_ONLY_TOOLS = new Set([
 const TOTAL_MS = (() => {
   const raw = Number(process.env.MARKETING_FLOW_TIMEOUT_MS?.trim());
   if (Number.isFinite(raw) && raw >= 30_000) return Math.min(raw, 600_000);
-  return 180_000;
+  return 300_000;
 })();
 
 const ROUTE_MARKETING_TOOL: OpenAI.ChatCompletionTool = {
@@ -232,7 +232,7 @@ export async function runMarketingRouteDecision(
   try {
     const response = await withTimeout(
       callModelSafe({
-        tier: 'complex',
+        tier: 'fast',
         messages,
         tools: [ROUTE_MARKETING_TOOL],
         toolChoice: { type: 'function', function: { name: ROUTE_TOOL_NAME } },

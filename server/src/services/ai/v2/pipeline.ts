@@ -24,7 +24,7 @@ const PIPELINE_TIMEOUT_MS_DEFAULT = 55_000;
  * Marketing / Lucy paths run the full orchestrator (routing, gatekeepers, Fal image gen, approvals).
  * 55s is routinely exceeded; extending avoids a false "timeout" after successful work (see pipeline safety timer).
  */
-const PIPELINE_TIMEOUT_MS_MARKETING = 180_000;
+const PIPELINE_TIMEOUT_MS_MARKETING = 300_000;
 
 function resolvePipelineTimeoutMs(body: PipelineRequest): number {
   if (body.marketingAgentMode === true) return PIPELINE_TIMEOUT_MS_MARKETING;
