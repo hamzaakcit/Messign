@@ -40,6 +40,9 @@ const NEGATIVE_PROMPT_BLOCK = [
   '- Multiple competing focal points — keep one clear subject',
   '- Blurry or out-of-focus primary subjects',
   '- Overly saturated neon colors that look artificial',
+  '- Flat, 2D, cartoon, or vector-style handheld objects (props must be 3D and photorealistic)',
+  '- Handheld props with mismatched lighting or pasted-on appearance',
+  '- Plastic-looking, CGI, or glossy renders of paper or fabric objects',
 ].join('\n');
 
 export function buildChannelCompositionHint(ctx?: ImageGenContext): string {
@@ -183,7 +186,7 @@ export function buildDirectInstagramFalPrompt(params: {
   const paperOrCraftProp =
     /\b(paper|paperplane|paper[\s-]?plane|origami|folded|airplane|craft)\b/i.test(scene);
   const materialHint = paperOrCraftProp
-    ? ' Single coherent photograph (not a composite). The child holds the paper plane only with fingers and thumb—no stick, skewer, wire, or rod attaching it. The plane must be lit by the same directional light as the face: matching highlights and cast shadows on the folds and edges. Real folded craft paper with visible creases, fibrous matte texture, slight thickness at folds, softly imperfect edges—not uniform flat red fill, not vector art, not plastic, not a glossy layer that looks pasted on.'
+    ? ' Single coherent photograph (not a composite). The child holds the paper plane only with fingers and thumb—no stick, skewer, wire, or rod attaching it. The plane must be lit by the same directional light as the face: matching highlights and cast shadows on the folds and edges. CRITICAL REALISM for paper plane: Real folded kraft paper with sharp, deep crease lines showing true 3D geometry and physical folds. Each crease must cast its own shadow. Matte paper texture with visible fibrous surface detail, subtle color variations in the paper. Visible thickness and dimension at all fold edges. Paper should have slightly imperfect hand-creased edges, not smooth or uniform. Colored paper coating if applicable, but showing real material. AVOID: flat shapes, vector graphics, uniform fills, plastic shine, CGI smoothness, 2D appearance, pasted-on look, shadows that don\'t match scene lighting, or glossy surfaces.'
     : ' Handheld objects must match real-world materials and the same lighting as skin and clothing (not vector icons, plastic CGI, or mismatched light on props).';
 
   return `${scene}\n\n${realismLine}${materialHint}`.trim();

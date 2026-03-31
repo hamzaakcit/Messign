@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Bookmark, ChevronDown, Download, HelpCircle, Mail, RefreshCw, Sparkles, Square, Wand2 } from 'lucide-react';
+import { Bookmark, ChevronDown, Download, FileDown, HelpCircle, Mail, RefreshCw, Sparkles, Square, Wand2 } from 'lucide-react';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
@@ -36,6 +36,33 @@ function hashBodyKey(s: string): string {
     h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   }
   return String(h);
+}
+
+/**
+ * Programmatic download after async work: the user activation may be gone, so some
+ * browsers block a bare `a.click()`. Double rAF + append-to-body matches common fixes.
+ */
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener noreferrer';
+  a.style.position = 'fixed';
+  a.style.left = '-9999px';
+  document.body.appendChild(a);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        a.click();
+      } finally {
+        window.setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 250);
+      }
+    });
+  });
 }
 
 export function ContentEmailUnlayerControls({
@@ -94,6 +121,9 @@ export function ContentEmailUnlayerControls({
   } = state;
 
   const [exportQaBusy, setExportQaBusy] = useState(false);
+  const [exportHtmlBusy, setExportHtmlBusy] = useState(false);
+  /** Mirrors Unlayer embed + iframe readiness — avoids exportHtml before internal `frame` exists. */
+  const [editorExportReady, setEditorExportReady] = useState(false);
 
   /** Block layout-disrupting actions while images generate or assembly runs. */
   const pipelineBusy = va2IsResolvingImage || va2IsAssembling;
@@ -177,6 +207,10 @@ export function ContentEmailUnlayerControls({
   applyDraftRef.current = wizard.handleApplyAiDraft;
 
   useEffect(() => {
+    if (!builderOpen) setEditorExportReady(false);
+  }, [builderOpen]);
+
+  useEffect(() => {
     const raw = content.body ?? '';
     if (!raw.trim() || !mightContainManifest(raw)) return;
     if (
@@ -208,6 +242,41 @@ export function ContentEmailUnlayerControls({
     return () => window.clearTimeout(t);
   }, [content.id, content.body, content.body_design, content.body_html, va2Manifest, applyAiBusy]);
 
+  const handleDownloadHtml = async () => {
+    setExportHtmlBusy(true);
+    try {
+      const ex = await editorRef.current?.exportNow();
+      const html = (ex?.html ?? bodyHtml)?.trim() ?? '';
+      if (!html) {
+        toast.error('No HTML yet. Open the builder, wait until the canvas loads, then try again.');
+        return;
+      }
+      const safeName = `email-${content.id.slice(0, 8)}.html`;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      triggerBlobDownload(blob, safeName);
+      toast.success('HTML download started — check your Downloads folder.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Export failed';
+      if (bodyHtml.trim()) {
+        try {
+          await navigator.clipboard.writeText(bodyHtml);
+          toast.message('Editor export failed; last saved HTML copied to clipboard instead.', {
+            description: 'Paste into a file and save as .html',
+          });
+        } catch {
+          toast.error(msg);
+        }
+      } else {
+        const suffix = /still attaching|Download HTML|enabled, then try/i.test(msg)
+          ? ''
+          : ' — wait for the editor to finish loading, then try again.';
+        toast.error(`${msg}${suffix}`);
+      }
+    } finally {
+      setExportHtmlBusy(false);
+    }
+  };
+
   const handleExportQaBundle = async () => {
     setExportQaBusy(true);
     try {
@@ -222,13 +291,8 @@ export function ContentEmailUnlayerControls({
         unlayerDesign: design,
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      a.href = url;
-      a.download = `email-qa-${content.id.slice(0, 8)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Exported HTML + manifest JSON for QA.');
+      triggerBlobDownload(blob, `email-qa-${content.id.slice(0, 8)}.json`);
+      toast.success('QA bundle download started (JSON with HTML + manifest).');
     } catch {
       toast.error('Export failed — wait for the editor to finish loading, then try again.');
     } finally {
@@ -557,6 +621,7 @@ export function ContentEmailUnlayerControls({
                 initialDesign={bodyDesign}
                 initialHtml={bodyHtml}
                 starterTemplates={mergedStarters}
+                onExportReady={setEditorExportReady}
                 user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
                 onApply={({ html, design }) => {
                   setBodyHtml(html);
@@ -582,13 +647,31 @@ export function ContentEmailUnlayerControls({
           <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-app-border">
             <button
               type="button"
+              onClick={() => void handleDownloadHtml()}
+              disabled={!editorExportReady || exportHtmlBusy || exportQaBusy || pipelineBusy}
+              title={
+                !editorExportReady
+                  ? 'Wait until the Unlayer canvas finishes loading'
+                  : 'Download the rendered email as a .html file (for local preview or ESP upload)'
+              }
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-app-surface-tertiary text-app-text hover:bg-app-hover disabled:opacity-50"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              {exportHtmlBusy ? 'Preparing…' : !editorExportReady ? 'Loading builder…' : 'Download HTML'}
+            </button>
+            <button
+              type="button"
               onClick={() => void handleExportQaBundle()}
-              disabled={exportQaBusy || pipelineBusy}
-              title="Download JSON bundle with exported HTML, Unlayer design, and VA2 manifest"
+              disabled={!editorExportReady || exportQaBusy || exportHtmlBusy || pipelineBusy}
+              title={
+                !editorExportReady
+                  ? 'Wait until the Unlayer canvas finishes loading'
+                  : 'Download JSON bundle with exported HTML, Unlayer design, and VA2 manifest'
+              }
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm bg-app-surface-tertiary text-app-text hover:bg-app-hover disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" />
-              {exportQaBusy ? 'Exporting…' : 'Export QA bundle'}
+              {exportQaBusy ? 'Exporting…' : !editorExportReady ? 'Loading builder…' : 'Export QA bundle'}
             </button>
             <button
               type="button"

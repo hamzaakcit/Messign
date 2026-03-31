@@ -6,7 +6,7 @@ import {
   pathnameToViewMode,
   viewModeToPath,
 } from '@/pages/marketing/lib/marketingPathUtils';
-import type { ViewMode } from '@/pages/marketing/components/SparkBar';
+import type { ViewMode } from '@/pages/marketing/lib/marketingPathUtils';
 
 describe('marketingPathUtils', () => {
   it('detects Lucy home only on /marketing', () => {

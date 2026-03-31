@@ -191,7 +191,7 @@ export function DoraRail({
         ))}
 
         {!messages.some((m) => m.role === 'assistant' && m.isStreaming && !m.content) && (
-          <AITypingIndicator isLoading={isLoading} isStreaming={isStreaming} />
+          <AITypingIndicator isLoading={isLoading} isStreaming={isStreaming} brand="lucy" />
         )}
 
         {error && <p className="text-[10px] text-red-400 px-1">{error}</p>}

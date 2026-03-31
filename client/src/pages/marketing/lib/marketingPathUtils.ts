@@ -1,4 +1,4 @@
-import type { ViewMode } from '../components/SparkBar';
+export type ViewMode = 'pipeline' | 'calendar' | 'builder' | 'intelligence';
 
 /**
  * Marketing routes: Lucy home vs feature paths.
@@ -6,7 +6,7 @@ import type { ViewMode } from '../components/SparkBar';
  * - `/marketing` — Lucy navigator + Dora rail (see {@link isMarketingLucyHome}).
  * - `/marketing/pipeline`, `/marketing/brand-social`, etc. — one-pager features.
  * - `/marketing/calendar`, `/marketing/builder`, `/marketing/intelligence` — single-page features.
- * - Legacy `?panel=` on `/marketing` redirects in MarketingHub to `/marketing/builder` / `/marketing/intelligence`.
+ * - Legacy `?panel=` on `/marketing` redirects to `/marketing/builder` / `/marketing/intelligence`.
  *
  * Use {@link buildMarketingModeLocation} when navigating to builder/calendar/intelligence with preserved search.
  */

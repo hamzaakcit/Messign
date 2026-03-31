@@ -156,7 +156,7 @@ export function DoraDrawer({ open, onClose }: DoraDrawerProps): JSX.Element {
             ))}
 
             {!messages.some((m) => m.role === 'assistant' && m.isStreaming && !m.content) && (
-              <AITypingIndicator isLoading={isLoading} isStreaming={isStreaming} />
+              <AITypingIndicator isLoading={isLoading} isStreaming={isStreaming} brand="lucy" />
             )}
 
             {error && (

@@ -1,38 +1,17 @@
-import type { RefObject } from 'react';
-import type { Campaign, ContentItem, EmailCampaign } from '@/lib/marketingApi';
-import type { ApprovalQueueItem } from '@/pages/marketing/approvalQueue/types';
-import { KanbanBoard, BoardSkeleton, type LaneId } from '@/pages/marketing/components/KanbanBoard';
-import type { BoardCardData } from '@/pages/marketing/components/BoardCard';
+import { KanbanBoard, BoardSkeleton } from '@/pages/marketing/components/KanbanBoard';
 import { marketingShell } from '@/pages/marketing/lib/marketingShellTheme';
-
-export interface MarketingPipelinePageProps {
-  pipelineSectionRef?: RefObject<HTMLDivElement | null>;
-  filteredContent: ContentItem[];
-  campaigns: Campaign[];
-  emailCampaigns: EmailCampaign[];
-  approvalItems: ApprovalQueueItem[];
-  metricsLoading: boolean;
-  onCardClick: (card: BoardCardData) => void;
-  onCardMove: (cardId: string, fromLane: LaneId, toLane: LaneId, card: BoardCardData) => void;
-}
+import { useMarketingContext } from '@/pages/marketing/MarketingContext';
 
 /**
- * Content pipeline one-pager: Kanban lanes (extracted from the former workspace board).
+ * Content pipeline one-pager: Kanban lanes.
+ * Reads all data from {@link useMarketingContext}.
  */
-export function MarketingPipelinePage({
-  pipelineSectionRef,
-  filteredContent,
-  campaigns,
-  emailCampaigns,
-  approvalItems,
-  metricsLoading,
-  onCardClick,
-  onCardMove,
-}: MarketingPipelinePageProps): JSX.Element {
+export function MarketingPipelinePage(): JSX.Element {
+  const ctx = useMarketingContext();
+
   return (
     <div className={`flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden ${marketingShell.bgStack}`}>
       <section
-        ref={pipelineSectionRef as RefObject<HTMLElement>}
         className={`flex flex-1 min-h-0 flex-col border-t ${marketingShell.borderSubtle} overflow-hidden`}
         aria-label="Content pipeline"
       >
@@ -45,16 +24,16 @@ export function MarketingPipelinePage({
           <p className="text-[10px] text-app-muted sm:hidden">Pipeline</p>
         </div>
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-1">
-          {metricsLoading ? (
+          {ctx.metricsLoading ? (
             <BoardSkeleton />
           ) : (
             <KanbanBoard
-              content={filteredContent}
-              campaigns={campaigns}
-              emailCampaigns={emailCampaigns}
-              approvalItems={approvalItems}
-              onCardClick={onCardClick}
-              onCardMove={onCardMove}
+              content={ctx.filteredContent}
+              campaigns={ctx.campaigns}
+              emailCampaigns={ctx.emailCampaigns}
+              approvalItems={ctx.approvalItems}
+              onCardClick={ctx.handleCardClick}
+              onCardMove={(cardId, from, to, card) => void ctx.handleCardMove(cardId, from, to, card)}
             />
           )}
         </div>

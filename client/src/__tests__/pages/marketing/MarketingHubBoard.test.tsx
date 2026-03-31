@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MarketingHub } from '@/pages/marketing/MarketingHub';
+import { MarketingLayout } from '@/pages/marketing/MarketingLayout';
 
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: (selector?: (s: { user: { authUserId: string; id: string; role: string }; accessToken: string }) => unknown) => {
@@ -88,7 +88,7 @@ function wrap(ui: ReactElement): JSX.Element {
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
-describe('MarketingHub pipeline page', () => {
+describe('Marketing pipeline page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -98,7 +98,7 @@ describe('MarketingHub pipeline page', () => {
       wrap(
         <MemoryRouter initialEntries={['/marketing/pipeline']}>
           <Routes>
-            <Route path="/marketing/*" element={<MarketingHub />} />
+            <Route path="/*" element={<MarketingLayout />} />
           </Routes>
         </MemoryRouter>,
       ),
@@ -109,6 +109,5 @@ describe('MarketingHub pipeline page', () => {
     });
 
     expect(screen.getByRole('heading', { name: /content pipeline/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Pipeline$/i })).toBeTruthy();
   });
 });

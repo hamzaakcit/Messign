@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DoraProcessingDual } from './DoraPilot';
+import { DoraProcessingDual, LucyProcessingDual } from './DoraPilot';
 
 const CYCLING_MESSAGES = [
   'Analyzing your question...',
@@ -17,13 +17,18 @@ interface ThinkingIndicatorProps {
   variant?: ThinkingIndicatorVariant;
   /** Override label when variant is `static` */
   label?: string;
+  /** Marketing Lucy rail uses Lucy marks; default Dora elsewhere. */
+  brand?: 'dora' | 'lucy';
 }
 
 function ThinkingIndicatorShell({
   children,
+  brand = 'dora',
 }: {
   children: React.ReactNode;
+  brand?: 'dora' | 'lucy';
 }) {
+  const lucy = brand === 'lucy';
   return (
     <div
       className="dora-fade-up"
@@ -33,17 +38,17 @@ function ThinkingIndicatorShell({
         gap: 0,
         padding: '8px 16px 8px 10px',
         background: 'rgba(15, 23, 42, 0.5)',
-        border: '1px solid rgba(56, 189, 248, 0.08)',
+        border: lucy ? '1px solid rgba(168, 85, 247, 0.12)' : '1px solid rgba(56, 189, 248, 0.08)',
         borderRadius: 16,
         backdropFilter: 'blur(12px)',
       }}
     >
-      <DoraProcessingDual size={20} />
+      {lucy ? <LucyProcessingDual size={20} /> : <DoraProcessingDual size={20} />}
       <div
         style={{
           width: 1,
-          height: 24,
-          background: 'rgba(56, 189, 248, 0.12)',
+        height: 24,
+        background: lucy ? 'rgba(168, 85, 247, 0.15)' : 'rgba(56, 189, 248, 0.12)',
           marginLeft: 4,
           marginRight: 14,
           flexShrink: 0,
@@ -54,9 +59,9 @@ function ThinkingIndicatorShell({
   );
 }
 
-function ThinkingIndicatorStatic({ label }: { label: string }) {
+function ThinkingIndicatorStatic({ label, brand }: { label: string; brand: 'dora' | 'lucy' }) {
   return (
-    <ThinkingIndicatorShell>
+    <ThinkingIndicatorShell brand={brand}>
       <span
         className="dora-font dora-chat-text-secondary"
         style={{ fontSize: 13, whiteSpace: 'nowrap' }}
@@ -67,7 +72,7 @@ function ThinkingIndicatorStatic({ label }: { label: string }) {
   );
 }
 
-function ThinkingIndicatorCycling() {
+function ThinkingIndicatorCycling({ brand }: { brand: 'dora' | 'lucy' }) {
   const [messageIdx, setMessageIdx] = useState(0);
   const [visible, setVisible] = useState(true);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,7 +93,7 @@ function ThinkingIndicatorCycling() {
   }, []);
 
   return (
-    <ThinkingIndicatorShell>
+    <ThinkingIndicatorShell brand={brand}>
       <span
         className="dora-font dora-chat-text-secondary"
         style={{
@@ -107,9 +112,10 @@ function ThinkingIndicatorCycling() {
 export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   variant = 'static',
   label = 'Working on your answer…',
+  brand = 'dora',
 }) => {
   if (variant === 'cycling') {
-    return <ThinkingIndicatorCycling />;
+    return <ThinkingIndicatorCycling brand={brand} />;
   }
-  return <ThinkingIndicatorStatic label={label} />;
+  return <ThinkingIndicatorStatic label={label} brand={brand} />;
 };

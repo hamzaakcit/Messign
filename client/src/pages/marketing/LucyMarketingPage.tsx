@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   FlaskConical,
@@ -15,7 +15,6 @@ import {
   TrendingUp,
   Workflow,
 } from 'lucide-react';
-import type { DashboardMetrics } from '@/lib/marketingApi';
 import { ROUTES } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { BentoCard } from '@/pages/marketing/components/bento/BentoCard';
@@ -25,6 +24,7 @@ import { MarketingMetricChips } from '@/pages/marketing/components/MarketingMetr
 import { LUCY_UI_GREETING } from '@/pages/marketing/lib/lucyUiGreeting';
 import { lucyTokens } from '@/pages/marketing/lib/lucyVisualTokens';
 import { marketingShell } from '@/pages/marketing/lib/marketingShellTheme';
+import { useMarketingContext } from './MarketingContext';
 
 const TILE_BTN =
   'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/[0.12] bg-slate-950/50 px-2 py-1.5 text-xs font-medium text-app-text shadow-sm ring-1 ring-violet-500/10 transition-all hover:brightness-110 sm:justify-start';
@@ -39,29 +39,12 @@ const IG_BTN =
 const LUCY_BENTO_GRID_CLASS =
   'grid h-full min-h-0 w-full min-w-0 grid-cols-1 gap-2 p-2 md:gap-3 md:p-4 lg:grid-cols-5 lg:grid-rows-1 xl:gap-3';
 
-export interface LucyMarketingPageProps {
-  onOpenCampaign: () => void;
-  onOpenContent: () => void;
-  onOpenInstagramContent: () => void;
-  executePrompt?: { id: number; text: string } | null;
-  metrics: DashboardMetrics | null;
-  metricsLoading?: boolean;
-  /** Approval queue size for social-proof strip */
-  approvalQueueCount?: number;
-}
-
 /**
- * Lucy CMO bento (`/marketing`): viewport-locked grid with Lucy (Dora rail). Other marketing areas live on dedicated routes (see {@link ROUTES}).
+ * Lucy CMO bento (`/marketing`): viewport-locked grid with Lucy (Dora rail).
+ * Reads all data from {@link useMarketingContext}.
  */
-export function LucyMarketingPage({
-  onOpenCampaign,
-  onOpenContent,
-  onOpenInstagramContent,
-  executePrompt = null,
-  metrics,
-  metricsLoading = false,
-  approvalQueueCount = 0,
-}: LucyMarketingPageProps): JSX.Element {
+export function LucyMarketingPage(): JSX.Element {
+  const ctx = useMarketingContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [igModalSignal, setIgModalSignal] = useState(0);
@@ -91,7 +74,7 @@ export function LucyMarketingPage({
             layout="pageSplit"
             selectedCard={null}
             instagramModalSignal={igModalSignal}
-            executePrompt={executePrompt}
+            executePrompt={ctx.doraExecutePrompt}
           />
         </div>
 
@@ -182,23 +165,12 @@ export function LucyMarketingPage({
                   <span className="truncate">Intel</span>
                 </button>
               </div>
-              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-white/[0.06] pt-2 text-[10px]">
-                <Link to={ROUTES.LOGIN} className="text-app-muted underline-offset-2 hover:text-primary-300 hover:underline">
-                  Login
-                </Link>
-                <Link to={ROUTES.SIGNUP} className="text-app-muted underline-offset-2 hover:text-primary-300 hover:underline">
-                  Signup
-                </Link>
-                <Link to={ROUTES.SUPPORT} className="text-app-muted underline-offset-2 hover:text-primary-300 hover:underline">
-                  Contact
-                </Link>
-              </div>
             </div>
 
             <div className="border-t border-white/[0.06] pt-2">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-app-muted">Live stats</p>
               <div className="mt-1.5">
-                <MarketingMetricChips metrics={metrics} loading={metricsLoading} variant="bento" />
+                <MarketingMetricChips metrics={ctx.metrics} loading={ctx.metricsLoading} variant="bento" />
               </div>
               <div className="mt-2 rounded-lg border border-white/[0.06] bg-slate-950/40 px-2 py-1.5 ring-1 ring-cyan-500/10">
                 <p className="text-[9px] font-semibold uppercase tracking-wider text-cyan-400/90">Social proof</p>
@@ -208,7 +180,7 @@ export function LucyMarketingPage({
                 </div>
                 <p className="mt-1 text-[10px] text-app-muted">
                   Approvals in queue:{' '}
-                  <span className="font-semibold text-app-text">{approvalQueueCount}</span>
+                  <span className="font-semibold text-app-text">{ctx.approvalItems.length}</span>
                 </p>
               </div>
             </div>
@@ -216,11 +188,11 @@ export function LucyMarketingPage({
             <div className="border-t border-white/[0.06] pt-2">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-app-muted">Quick actions</p>
               <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                <button type="button" onClick={onOpenCampaign} className={PRIMARY_CREATE}>
+                <button type="button" onClick={ctx.openCreateCampaign} className={PRIMARY_CREATE}>
                   <Megaphone className="h-3.5 w-3.5 shrink-0 text-primary-400" />
                   <span className="truncate">Campaign</span>
                 </button>
-                <button type="button" onClick={onOpenContent} className={TILE_BTN}>
+                <button type="button" onClick={() => ctx.openCreateContent('default')} className={TILE_BTN}>
                   <Target className="h-3.5 w-3.5 shrink-0 text-amber-400/90" />
                   <span className="truncate">Content</span>
                 </button>
@@ -228,7 +200,7 @@ export function LucyMarketingPage({
                   <Instagram className="h-3.5 w-3.5 shrink-0 text-pink-300" />
                   <span className="truncate">IG AI</span>
                 </button>
-                <button type="button" onClick={onOpenInstagramContent} className={TILE_BTN}>
+                <button type="button" onClick={ctx.handleCreateInstagramContent} className={TILE_BTN}>
                   <Instagram className="h-3.5 w-3.5 shrink-0 text-pink-300/80" />
                   <span className="truncate">IG post</span>
                 </button>

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MarketingHub } from '@/pages/marketing/MarketingHub';
+import { MarketingLayout } from '@/pages/marketing/MarketingLayout';
 
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: (selector?: (s: { user: { authUserId: string; id: string; role: string }; accessToken: string }) => unknown) => {
@@ -92,7 +92,7 @@ function wrap(ui: ReactElement): JSX.Element {
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
-describe('MarketingHub calendar navigation', () => {
+describe('Marketing calendar navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -102,7 +102,7 @@ describe('MarketingHub calendar navigation', () => {
       wrap(
         <MemoryRouter initialEntries={['/marketing/calendar']}>
           <Routes>
-            <Route path="/marketing/*" element={<MarketingHub />} />
+            <Route path="/*" element={<MarketingLayout />} />
           </Routes>
         </MemoryRouter>,
       ),
@@ -113,12 +113,12 @@ describe('MarketingHub calendar navigation', () => {
     });
   });
 
-  it('navigates to /marketing/calendar when Calendar mode is selected from pipeline', async () => {
+  it('navigates to /marketing/calendar when Calendar tab is clicked from pipeline', async () => {
     render(
       wrap(
         <MemoryRouter initialEntries={['/marketing/pipeline']}>
           <Routes>
-            <Route path="/marketing/*" element={<MarketingHub />} />
+            <Route path="/*" element={<MarketingLayout />} />
           </Routes>
         </MemoryRouter>,
       ),
@@ -128,7 +128,8 @@ describe('MarketingHub calendar navigation', () => {
       expect(screen.getByRole('region', { name: /content pipeline/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByTitle('Calendar'));
+    // New WorkspaceTopBar uses text-labeled tabs
+    fireEvent.click(screen.getByRole('button', { name: /Calendar/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('content-calendar-tab')).toBeTruthy();

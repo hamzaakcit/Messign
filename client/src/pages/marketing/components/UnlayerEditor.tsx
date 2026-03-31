@@ -36,6 +36,8 @@ export type UnlayerEditorProps = {
   onManifestAssembled?: (manifest: Record<string, unknown>, assemblyResult: Record<string, unknown>) => void | Promise<void>;
   /** When true, blocks interaction with the template picker and editor (e.g. while images resolve). */
   interactionLocked?: boolean;
+  /** Same readiness gate as “Apply HTML & design” — use to disable export until the embed iframe is usable. */
+  onExportReady?: (ready: boolean) => void;
 };
 
 export type UnlayerEditorHandle = {
@@ -91,6 +93,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
     onRegenerateImage,
     onManifestAssembled,
     interactionLocked,
+    onExportReady,
   },
   ref,
 ) {
@@ -101,12 +104,16 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
   /** Unlayer instance from `onReady(unlayer)` — `emailEditorRef.current?.editor` is often still undefined there (see unlayer/react-email-editor#248). */
   const unlayerFromReadyRef = useRef<NonNullable<EditorRef['editor']> | null>(null);
   /**
-   * UI gate for Apply: true when embed is usable for the current `editorMountKey` + `retryCount`.
-   * We store which mount generation is ready instead of a boolean so parent `useEffect` cannot reset
-   * readiness *after* Unlayer `onReady` (child runs before parent effects — last writer was `false`).
-   * `react-email-editor` onReady can miss — we also poll ref + timeout fallback.
+   * UI gate for Apply / export: set only after a delay once `onReady` fires (or fallback).
+   * Do not mark from a short ref poll — `emailEditorRef.editor` / `onLoad` can exist before Unlayer’s
+   * internal iframe (`frame`) is attached, which throws on exportHtml.
    */
   const [exportReadyMountKey, setExportReadyMountKey] = useState<string | null>(null);
+  const exportReadyTimerRef = useRef<number | null>(null);
+  /** If `exportHtml` never invokes its callback (Unlayer quirk), still unblock the UI after this cap. */
+  const exportReadyForceTimerRef = useRef<number | null>(null);
+  /** Current embed mount id — read in delayed `onReady` callbacks without stale closures. */
+  const embedInstanceKeyRef = useRef<string>('');
   const [editorLoadError, setEditorLoadError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const projectId = useMemo(() => parseProjectId(import.meta.env.VITE_UNLAYER_PROJECT_ID), []);
@@ -223,8 +230,12 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
   }, [aiImageDraft, onRegenerateImage, closeAiImageModal]);
 
   const exportNow = useCallback(async (): Promise<UnlayerExportPayload> => {
+    /**
+     * Do not fall back to `emailEditorRef.current?.editor` here: it is often set before Unlayer’s
+     * internal iframe (`frame`) exists, which throws "Cannot read properties of undefined (reading 'frame')".
+     */
     const getEditor = (): NonNullable<EditorRef['editor']> | undefined =>
-      unlayerFromReadyRef.current ?? emailEditorRef.current?.editor ?? undefined;
+      unlayerFromReadyRef.current ?? undefined;
 
     const waitForEditor = (): Promise<NonNullable<EditorRef['editor']>> =>
       new Promise((resolve, reject) => {
@@ -248,33 +259,72 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
         }, 200);
       });
 
-    const editor = await waitForEditor();
-    await new Promise((r) => setTimeout(r, 600));
+    await waitForEditor();
+    /** Extra settle — Unlayer’s iframe can lag the JS `unlayer` handle by 1–3s. */
+    await new Promise((r) => setTimeout(r, 1200));
 
-    return new Promise<UnlayerExportPayload>((resolve, reject) => {
-      const exportTimeout = window.setTimeout(() => {
-        reject(new Error('Unlayer exportHtml did not return within 60s.'));
-      }, 60_000);
-      try {
-        const popupOpts =
-          displayMode === 'popup' && exportPopupId ? { popupId: exportPopupId } : undefined;
-        const exportHtml = editor.exportHtml as UnlayerExportHtmlFn;
-        exportHtml(
-          (data: { html: string; design?: unknown }) => {
-            window.clearTimeout(exportTimeout);
-            const design =
-              data.design && typeof data.design === 'object'
-                ? (data.design as Record<string, unknown>)
-                : {};
-            resolve({ html: data.html, design });
-          },
-          popupOpts,
-        );
-      } catch (e) {
-        window.clearTimeout(exportTimeout);
-        reject(e instanceof Error ? e : new Error('exportHtml failed'));
+    const popupOpts =
+      displayMode === 'popup' && exportPopupId ? { popupId: exportPopupId } : undefined;
+
+    const isTransientExportError = (e: unknown): boolean => {
+      const msg = e instanceof Error ? e.message : String(e);
+      return /Cannot read properties of undefined \(reading 'frame'\)|reading 'frame'|still loading|not ready/i.test(
+        msg,
+      );
+    };
+
+    const MAX_EXPORT_ATTEMPTS = 24;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < MAX_EXPORT_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 500));
       }
-    });
+      const editor = unlayerFromReadyRef.current;
+      if (!editor) {
+        lastErr = new Error('Editor is still loading.');
+        if (attempt === MAX_EXPORT_ATTEMPTS - 1) {
+          throw lastErr;
+        }
+        continue;
+      }
+      try {
+        const result = await new Promise<UnlayerExportPayload>((resolve, reject) => {
+          const exportTimeout = window.setTimeout(() => {
+            reject(new Error('Unlayer exportHtml did not return within 60s.'));
+          }, 60_000);
+          try {
+            const exportHtml = editor.exportHtml as UnlayerExportHtmlFn;
+            exportHtml(
+              (data: { html: string; design?: unknown }) => {
+                window.clearTimeout(exportTimeout);
+                const design =
+                  data.design && typeof data.design === 'object'
+                    ? (data.design as Record<string, unknown>)
+                    : {};
+                resolve({ html: data.html, design });
+              },
+              popupOpts,
+            );
+          } catch (e) {
+            window.clearTimeout(exportTimeout);
+            reject(e instanceof Error ? e : new Error('exportHtml failed'));
+          }
+        });
+        return result;
+      } catch (e) {
+        lastErr = e;
+        if (!isTransientExportError(e) || attempt === MAX_EXPORT_ATTEMPTS - 1) {
+          const raw = e instanceof Error ? e.message : String(e);
+          if (/reading 'frame'|Cannot read properties of undefined \(reading 'frame'\)/i.test(raw)) {
+            throw new Error(
+              'The email editor is still attaching its preview. Wait until “Download HTML” is enabled, then try again.',
+            );
+          }
+          throw e instanceof Error ? e : new Error('exportHtml failed');
+        }
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error('exportHtml failed');
   }, [displayMode, exportPopupId]);
 
   const loadDesign = useCallback((design: Record<string, unknown>): boolean => {
@@ -312,6 +362,8 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
 
   const handleLoad = useCallback(
     (unlayer: NonNullable<EditorRef['editor']>) => {
+      /** Same instance `onReady` will set — needed so export does not use `emailEditorRef.editor` before the iframe exists (Unlayer throws on `.frame`). */
+      unlayerFromReadyRef.current = unlayer;
       if (pickedTemplate?.htmlImportUrl) {
         const url = resolvePublicAssetUrl(pickedTemplate.htmlImportUrl);
         void fetch(url)
@@ -342,6 +394,79 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
       unlayer.loadBlank();
     },
     [pickedTemplate, effectiveInitialDesign],
+  );
+
+  /**
+   * Prefer marking ready when `exportHtml` runs (proves iframe is usable). If the callback never
+   * fires (seen in the wild), a force timer still enables Apply/Download so the UI cannot hang forever.
+   */
+  const scheduleExportReadyProbe = useCallback(
+    (embedKey: string, opts: { initialDelayMs: number }) => {
+      const popupOptsLocal =
+        displayMode === 'popup' && exportPopupId ? { popupId: exportPopupId } : undefined;
+
+      const clearProbeTimers = (): void => {
+        if (exportReadyTimerRef.current != null) {
+          window.clearTimeout(exportReadyTimerRef.current);
+          exportReadyTimerRef.current = null;
+        }
+        if (exportReadyForceTimerRef.current != null) {
+          window.clearTimeout(exportReadyForceTimerRef.current);
+          exportReadyForceTimerRef.current = null;
+        }
+      };
+
+      clearProbeTimers();
+
+      const markReadyFromProbe = (): void => {
+        if (embedInstanceKeyRef.current !== embedKey) return;
+        clearProbeTimers();
+        setExportReadyMountKey(embedKey);
+      };
+
+      /** ms after `initialDelayMs` — if exportHtml callback never runs, unblock anyway. */
+      const FORCE_READY_AFTER_MS = 6000;
+
+      exportReadyForceTimerRef.current = window.setTimeout(() => {
+        exportReadyForceTimerRef.current = null;
+        if (embedInstanceKeyRef.current !== embedKey) return;
+        if (exportReadyTimerRef.current != null) {
+          window.clearTimeout(exportReadyTimerRef.current);
+          exportReadyTimerRef.current = null;
+        }
+        setExportReadyMountKey(embedKey);
+      }, opts.initialDelayMs + FORCE_READY_AFTER_MS);
+
+      const runProbe = (attempt: number): void => {
+        if (embedInstanceKeyRef.current !== embedKey) return;
+        const ed = unlayerFromReadyRef.current;
+        if (!ed) {
+          if (attempt < 45) {
+            exportReadyTimerRef.current = window.setTimeout(() => runProbe(attempt + 1), 400);
+          }
+          return;
+        }
+        try {
+          const exportHtml = ed.exportHtml as UnlayerExportHtmlFn;
+          exportHtml(
+            () => {
+              markReadyFromProbe();
+            },
+            popupOptsLocal,
+          );
+        } catch {
+          if (attempt < 55) {
+            exportReadyTimerRef.current = window.setTimeout(() => runProbe(attempt + 1), 500);
+          }
+        }
+      };
+
+      exportReadyTimerRef.current = window.setTimeout(() => {
+        exportReadyTimerRef.current = null;
+        runProbe(0);
+      }, opts.initialDelayMs);
+    },
+    [displayMode, exportPopupId],
   );
 
   const showLegacyPreview =
@@ -397,36 +522,60 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
       : editorKey;
 
   const embedInstanceKey = `${editorMountKey ?? 'unlayer'}-${retryCount}`;
+  embedInstanceKeyRef.current = embedInstanceKey;
+
   const editorExportReady = exportReadyMountKey === embedInstanceKey;
+  /** Avoid treating the 15s “fallback mark” as ready while the template grid is shown (no embed mounted yet). */
+  const editorExportReadyForActions =
+    editorExportReady && (!shouldOfferPicker || pickedStarterId != null);
+
+  useEffect(() => {
+    onExportReady?.(editorExportReadyForActions);
+    return () => {
+      onExportReady?.(false);
+    };
+  }, [editorExportReadyForActions, onExportReady]);
 
   useEffect(() => {
     setEditorLoadError(false);
+    setExportReadyMountKey(null);
+    if (exportReadyTimerRef.current != null) {
+      window.clearTimeout(exportReadyTimerRef.current);
+      exportReadyTimerRef.current = null;
+    }
+    if (exportReadyForceTimerRef.current != null) {
+      window.clearTimeout(exportReadyForceTimerRef.current);
+      exportReadyForceTimerRef.current = null;
+    }
     let cancelled = false;
-    const mark = () => {
-      if (!cancelled) setExportReadyMountKey(embedInstanceKey);
-    };
+    const key = embedInstanceKey;
     const hasEditor = (): boolean =>
       Boolean(unlayerFromReadyRef.current || emailEditorRef.current?.editor);
-    const poll = window.setInterval(() => {
-      if (hasEditor()) {
-        window.clearInterval(poll);
-        window.setTimeout(mark, 400);
-      }
-    }, 120);
+    /** If `onReady` never fires, still try the same export probe after 15s. */
     const fallback = window.setTimeout(() => {
-      if (!cancelled && !hasEditor()) {
+      if (cancelled) return;
+      if (!hasEditor()) {
         setEditorLoadError(true);
         console.warn('[UnlayerEditor] Editor did not initialize within timeout — CDN may be unreachable or embed script changed.');
+        return;
       }
-      mark();
+      if (cancelled || embedInstanceKeyRef.current !== key) return;
+      scheduleExportReadyProbe(key, { initialDelayMs: 0 });
     }, 15000);
     return () => {
       cancelled = true;
       unlayerFromReadyRef.current = null;
-      window.clearInterval(poll);
       window.clearTimeout(fallback);
+      if (exportReadyTimerRef.current != null) {
+        window.clearTimeout(exportReadyTimerRef.current);
+        exportReadyTimerRef.current = null;
+      }
+      if (exportReadyForceTimerRef.current != null) {
+        window.clearTimeout(exportReadyForceTimerRef.current);
+        exportReadyForceTimerRef.current = null;
+      }
     };
-  }, [embedInstanceKey]);
+  }, [embedInstanceKey, scheduleExportReadyProbe]);
 
   if (shouldOfferPicker && pickedStarterId === null) {
     return (
@@ -553,8 +702,9 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
           onLoad={handleLoad}
           onReady={(unlayer) => {
             unlayerFromReadyRef.current = unlayer;
-            setExportReadyMountKey(embedInstanceKey);
             setEditorLoadError(false);
+            const key = embedInstanceKey;
+            scheduleExportReadyProbe(key, { initialDelayMs: 600 });
             if (onRegenerateImage) {
               if (typeof (unlayer as Record<string, unknown>).registerCallback === 'function') {
                 (unlayer as Record<string, unknown> & { registerCallback: (name: string, cb: (file: File, done: (data: { progress: number; url?: string }) => void) => void) => void })
