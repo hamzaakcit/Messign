@@ -53,7 +53,8 @@ import notificationsRouter from './routes/notifications/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { startMarketingPublisherCron } from './jobs/marketingPublisherCron.js';
 import { requireAuth } from './middleware/requireAuth.js';
-import { mountsFrozenModules, mountsSeedRoutes } from './config/productSurface.js';
+import { mountsEngage, mountsFrozenModules, mountsSeedRoutes } from './config/productSurface.js';
+import { mountEngage } from './engage/index.js';
 import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
 import { responseTimer } from './middleware/responseTimer.js';
@@ -288,6 +289,8 @@ if (mountsFrozenModules()) {
 
 // Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,okr,heart,executive}
 await initializeModules(app);
+
+if (mountsEngage()) await mountEngage(app);
 
 app.get('/api/health', async (_req, res) => {
   if (healthCache && Date.now() < healthCache.expiresAt) {
