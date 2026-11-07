@@ -1,4 +1,0 @@
-# Optional: ComfyUI automation (generate_dora.py) + convert_refs.py
-requests>=2.28.0
-pillow>=10.0.0
-pillow-avif-plugin>=1.4.0

@@ -1,5 +1,7 @@
 # Messign Workspace
 
+**Product direction:** Messign is being re-directed to **Messign Engage**, a customer engagement platform for Turkish e-commerce. New work goes under `server/src/engage` and `client/src/engage`. The Company OS described below is frozen and stays in the repo behind `PRODUCT_SURFACE` ([ADR-001](docs/architecture/decisions/ADR-001-engage-module-and-product-surface.md)). Start with [CLAUDE.md](CLAUDE.md).
+
 Messign Workspace is an AI-native Company OS — a single web app that replaces the patchwork of SaaS tools a growing company needs. It covers finance, CRM, marketing, HR, projects, knowledge management, support, OKRs, time tracking, and more, all tied together by **Dora**, an AI assistant that can read data and take actions across every module. The platform is multi-tenant with row-level security, gamified with XP and badges, and built for real-time collaboration.
 
 ## Core Technologies

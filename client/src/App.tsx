@@ -9,6 +9,7 @@ import { ReimbursementProvider } from '@/contexts/ReimbursementContext';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignUpPage } from '@/pages/SignUpPage';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
+import { ENGAGE_HOME_PATH, isPathOnSurface } from '@/lib/productSurface';
 
 const AdminLayout = lazy(() => import('@/admin/layouts/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const AdminDashboard = lazy(() => import('@/admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -60,10 +61,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function MainApp() {
   const { user } = useAuthStore();
+  const { pathname } = useLocation();
 
   /** AuthGuard should guarantee `user`; if not, recover instead of an infinite "Restoring session…". */
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!isPathOnSurface(pathname)) {
+    return <Navigate to={ENGAGE_HOME_PATH} replace />;
   }
 
   return (

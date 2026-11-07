@@ -53,6 +53,7 @@ import notificationsRouter from './routes/notifications/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { startMarketingPublisherCron } from './jobs/marketingPublisherCron.js';
 import { requireAuth } from './middleware/requireAuth.js';
+import { mountsFrozenModules, mountsSeedRoutes } from './config/productSurface.js';
 import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
 import { responseTimer } from './middleware/responseTimer.js';
@@ -245,42 +246,45 @@ app.use('/api', optionalJwt);
 // API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/users', requireAuth, usersRouter);
-app.use('/api/channels', requireAuth, channelsRouter);
-app.use('/api/messages', requireAuth, messagesRouter);
-app.use('/api/chat', requireAuth, chatRouter);
-app.use('/api/projects', requireAuth, projectsRouter);
-app.use('/api/tasks', requireAuth, tasksRouter);
-app.use('/api/badges', requireAuth, badgesRouter);
-app.use('/api/documents', requireAuth, documentsRouter);
-app.use('/api/activities', requireAuth, activitiesRouter);
-app.use('/api/leaderboard', requireAuth, leaderboardRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/categories', requireAuth, categoriesRouter);
-app.use('/api/exchange-rates', requireAuth, exchangeRatesRouter);
-app.use('/api/mileage', requireAuth, mileageRouter);
-app.use('/api/settings/reimbursement', requireAuth, reimbursementSettingsRouter);
-app.use('/api/signatures', requireAuth, signaturesRouter);
-app.use('/api/performance', requireAuth, performanceRouter);
-app.use('/api/dashboard', requireAuth, dashboardRouter);
-app.use('/api/departments', requireAuth, departmentsRouter);
-app.use('/api/bounties', requireAuth, bountiesRouter);
-app.use('/api/sprints', requireAuth, sprintsRouter);
-app.use('/api/showcase', requireAuth, showcaseRouter);
-app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/ai/actions', requireAuth, actionRoutes);
-app.use('/api/v2/ai', requireAuth, aiV2Router);
-app.use('/api/game', requireAuth, gameRouter);
-app.use('/api/dora', doraInsightsRouter);
-app.use('/api/dora/automations', doraAutomationsRouter);
-app.use('/api/dora', doraFiltersRouter);
-app.use('/api/dora', doraBriefingRouter);
-app.use('/api/dora', doraApprovalsRouter);
-app.use('/api/dora', requireAuth, doraHistoryRouter);
-// Assets, Contracts: mounted via modules/registry at /api/assets, /api/contracts
-app.use('/api/seed', seedRouter);
-app.use('/api/reports', reportsRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/notifications', notificationsRouter);
+
+if (mountsFrozenModules()) {
+  app.use('/api/channels', requireAuth, channelsRouter);
+  app.use('/api/messages', requireAuth, messagesRouter);
+  app.use('/api/chat', requireAuth, chatRouter);
+  app.use('/api/projects', requireAuth, projectsRouter);
+  app.use('/api/tasks', requireAuth, tasksRouter);
+  app.use('/api/badges', requireAuth, badgesRouter);
+  app.use('/api/documents', requireAuth, documentsRouter);
+  app.use('/api/activities', requireAuth, activitiesRouter);
+  app.use('/api/leaderboard', requireAuth, leaderboardRouter);
+  app.use('/api/categories', requireAuth, categoriesRouter);
+  app.use('/api/exchange-rates', requireAuth, exchangeRatesRouter);
+  app.use('/api/mileage', requireAuth, mileageRouter);
+  app.use('/api/settings/reimbursement', requireAuth, reimbursementSettingsRouter);
+  app.use('/api/signatures', requireAuth, signaturesRouter);
+  app.use('/api/performance', requireAuth, performanceRouter);
+  app.use('/api/dashboard', requireAuth, dashboardRouter);
+  app.use('/api/departments', requireAuth, departmentsRouter);
+  app.use('/api/bounties', requireAuth, bountiesRouter);
+  app.use('/api/sprints', requireAuth, sprintsRouter);
+  app.use('/api/showcase', requireAuth, showcaseRouter);
+  app.use('/api/knowledge', knowledgeRouter);
+  app.use('/api/v2/ai', requireAuth, aiV2Router);
+  app.use('/api/game', requireAuth, gameRouter);
+  app.use('/api/dora', doraInsightsRouter);
+  app.use('/api/dora/automations', doraAutomationsRouter);
+  app.use('/api/dora', doraFiltersRouter);
+  app.use('/api/dora', doraBriefingRouter);
+  app.use('/api/dora', doraApprovalsRouter);
+  app.use('/api/dora', requireAuth, doraHistoryRouter);
+  // Assets, Contracts: mounted via modules/registry at /api/assets, /api/contracts
+  app.use('/api/reports', reportsRouter);
+  if (mountsSeedRoutes()) app.use('/api/seed', seedRouter);
+}
 
 // Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,okr,heart,executive}
 await initializeModules(app);
@@ -488,8 +492,10 @@ httpServer.listen(Number(port), '0.0.0.0', async () => {
   } catch (e) {
     console.warn('[initAuth]', e);
   }
-  startBudgetAlertJob();
-  startMarketingPublisherCron();
+  if (mountsFrozenModules()) {
+    startBudgetAlertJob();
+    startMarketingPublisherCron();
+  }
 });
 
 // Graceful shutdown (guard: Ctrl+C / concurrently can deliver SIGINT twice; avoid double-close races on Redis/pg)

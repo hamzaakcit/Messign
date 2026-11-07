@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/routes';
+import { isPathOnSurface } from '@/lib/productSurface';
 import { useFinanceStore, type FinanceView } from '@/stores/financeStore';
 import { useDoraStore } from '@/stores/doraStore';
 import type { RecentPage } from './useRecentPages';
@@ -72,7 +73,7 @@ interface CommandItem {
   projectsFocusProjectId?: string;
 }
 
-const NAV_ITEMS: CommandItem[] = [
+const UNFILTERED_NAV_ITEMS: CommandItem[] = [
   { id: 'nav-dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', keywords: 'home overview', type: 'navigate' },
   { id: 'nav-executive', label: 'Executive Dashboard', icon: LayoutDashboard, path: '/executive', keywords: 'executive leadership overview kpis', type: 'navigate' },
   { id: 'nav-reports', label: 'Report Hub', icon: BarChart3, path: '/reports', keywords: 'reports analytics data charts', type: 'navigate' },
@@ -106,7 +107,7 @@ const NAV_ITEMS: CommandItem[] = [
   { id: 'nav-admin', label: 'Admin', icon: Shield, path: '/admin', keywords: 'administration management employees', type: 'navigate' },
 ];
 
-const ACTION_ITEMS: CommandItem[] = [
+const UNFILTERED_ACTION_ITEMS: CommandItem[] = [
   { id: 'act-chat-search', label: 'Chat: Search messages', icon: Search, path: '/chat', keywords: 'chat search messages channel find', type: 'action', chatAction: 'search' },
   { id: 'act-chat-duels', label: 'Chat: Channel duels', icon: Swords, path: '/chat', keywords: 'chat duels rock paper scissors coin chamber rps', type: 'action', chatAction: 'duels' },
   { id: 'act-chat-dora', label: 'Chat: Dora assistant', icon: Sparkles, path: '/chat', keywords: 'chat dora ai sidebar assistant', type: 'action', chatAction: 'dora' },
@@ -165,7 +166,10 @@ const PROJECTS_CMD_ITEMS: CommandItem[] = [
   },
 ];
 
-const ALL_ITEMS = [...NAV_ITEMS, ...ACTION_ITEMS, ...PROJECTS_CMD_ITEMS];
+const onSurface = (item: CommandItem) => !item.path || isPathOnSurface(item.path);
+const NAV_ITEMS = UNFILTERED_NAV_ITEMS.filter(onSurface);
+const ACTION_ITEMS = UNFILTERED_ACTION_ITEMS.filter(onSurface);
+const ALL_ITEMS = [...NAV_ITEMS, ...ACTION_ITEMS, ...PROJECTS_CMD_ITEMS.filter(onSurface)];
 
 const TYPE_BADGES: Record<ItemType, string> = {
   navigate: 'Navigate',
