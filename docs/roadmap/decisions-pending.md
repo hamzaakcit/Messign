@@ -40,8 +40,8 @@ Only decisions that are genuinely Hamza's (product, commercial, legal, irreversi
 - **Consequence → ADR-002 amended:** engage gets its **own connection pool on a dedicated non-bypass role** (`messign_engage`). Legacy keeps `postgres` until it is retired. Work lands in WP-01 (verify script) and WP-04 (role + pool).
 
 ## Open items from WP-02 (2026-11-07)
-- **D-10 / `dal/time` not removed:** the approval rested on "no routes, no UI", which is wrong. `routes/executive/index.ts` (timesheet approve/reject) and the client's `TimesheetActions` use it. Removing it means also removing that Executive feature. Your call.
-- **Dumps in git history:** `messign_main.dump` and `messign_knowledge.dump` are removed from the tree but remain in history, and they contain table data (86 and 18 `COPY` sections; rows not inspected). Decide whether to purge history and rotate any credentials or hashes they held. Purging rewrites history, so it was not done in WP-02.
+- **D-10 / `dal/time`: decided, keep.** The approval rested on "no routes, no UI", which was wrong: `routes/executive/index.ts` (timesheet approve/reject) and the client's `TimesheetActions` use it. It stays until the Executive module is retired. Decided by Hamza 2026-11-07.
+- **Dumps in public git history (open):** `messign_main.dump` (added 2026-02-25, commit `4b3ad8df`) and `messign_knowledge.dump` are removed from the tree but remain in history of a public repo (0 forks at the time of checking). Pattern counts only, no values read: main dump has about 10 password hashes, 10 distinct email addresses and 2 64-hex values (possibly token hashes), no IBAN-like or phone-like values; knowledge dump has 1 email. The schema also lists `employee_auth`, `bank_details`, `auth_sessions`, `sessions`, `signatures`, but rows per table were not counted. Whether the data is seed or real is unknown. Purging rewrites history and needs a force-push; not done.
 
 ## Open clarification
 - **D-06:** earlier you said Kitapyurdu has no customer engagement tool, then answered D-06 with "Related Digital". Which is it: does a prospect use Related Digital, or is Related Digital the competitor to beat? It doesn't block Week 1.
