@@ -6,7 +6,7 @@
 
 | WP | Title | Pri | Week | Status | Acceptance (short) |
 |---|---|---|---|---|---|
-| WP-01 | Safety & CI baseline: fix server `tsc`; CI runs unit tests (Node 22); `SEND_MODE` guard on legacy adapters; publisher cron default OFF; remove `x-user-id` dev auth; rewrite `db:verify-rls` to test via a non-bypass role | P0 | W1 | todo | CI red on failing test; unset `SEND_MODE` → mock everywhere; `tsc` clean |
+| WP-01 | Safety & CI baseline: fix server `tsc`; CI runs unit tests (Node 22); `SEND_MODE` guard on legacy adapters; publisher cron default OFF; remove `x-user-id` dev auth; rewrite `db:verify-rls` to test via a non-bypass role | P0 | W1 | done | CI red on failing test; unset `SEND_MODE` → mock everywhere; `tsc` clean |
 | WP-02 | Repo cleanup + `PRODUCT_SURFACE` flag + CLAUDE.md refresh + README product line | P0 | W1 | todo | Removed list per ADR-001; frozen routes 404 under `engage` |
 | WP-03 | Migration baseline (`000_baseline`), single runner, delete duplicate migration dir, no new runtime DDL | P0 | W1 | blocked(schema-only dump: `pg_dump -s`) | Fresh DB = live schema (diff empty) |
 | WP-04 | `engage` schema; dedicated `messign_engage` role + separate engage pool (ADR-002 amendment); org `product`; api_keys; tenant_settings; tenant_readiness; `requireEngageUser`; `requireApiKey`; admin org provisioning; BYPASSRLS boot check | P0 | W2 | todo | Two orgs provisioned; no fallback org on engage routes |

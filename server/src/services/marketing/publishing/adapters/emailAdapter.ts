@@ -2,7 +2,7 @@
  * Email blast / sequence — stub Resend/SendGrid; production: template + audience list from workspace settings.
  */
 import type { AdapterPublishSuccess, CalendarRecordForPublish, ContentPayloadForPublish } from '../types.js';
-import { withTransientRetry, errorFromResponse } from '../adapterUtils.js';
+import { withTransientRetry, errorFromResponse, isSendModeLive } from '../adapterUtils.js';
 
 export interface EmailAdapterInput {
   calendar: CalendarRecordForPublish;
@@ -16,7 +16,7 @@ export async function publishEmailCampaign(input: EmailAdapterInput): Promise<Ad
   return withTransientRetry(async () => {
     const apiKey = process.env.RESEND_API_KEY ?? process.env.SENDGRID_API_KEY;
 
-    if (apiKey && process.env.EMAIL_FORCE_REAL === '1') {
+    if (apiKey && isSendModeLive()) {
       const provider = process.env.RESEND_API_KEY ? 'resend' : 'sendgrid';
       const res = await fetch(provider === 'resend' ? 'https://api.resend.com/emails' : 'https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',

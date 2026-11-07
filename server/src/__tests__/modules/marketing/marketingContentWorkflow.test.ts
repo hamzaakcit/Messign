@@ -166,7 +166,10 @@ describe('executeContentWorkflow', () => {
   it('retries generation when Truth FAILs until max attempts', async () => {
     mockTruth.mockResolvedValueOnce(failTruth()).mockResolvedValueOnce(failTruth()).mockResolvedValue(passTruth());
 
-    const result = await executeContentWorkflow('Brief', baseCtx, {
+    // Explicit maxTruthRetries: this test exercises two retries before a pass, which needs
+    // more attempts than the default (reduced to 1 retry / 2 attempts for latency — see
+    // perf commit d1e2d110). Set it here rather than raising the production default.
+    const result = await executeContentWorkflow('Brief', { ...baseCtx, maxTruthRetries: 2 }, {
       generateResponseFn: mockGen,
       runProductTruthValidationFn: mockTruth,
       runBrandVoiceCheckFn: mockBrand,

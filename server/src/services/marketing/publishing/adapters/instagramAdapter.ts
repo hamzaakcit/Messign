@@ -14,6 +14,7 @@ import type {
   ContentPayloadForPublish,
 } from '../types.js';
 import { validateInstagramImageUrlStruct, verifyInstagramImageUrlReachable } from './instagramImageUrl.js';
+import { isSendModeLive } from '../adapterUtils.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -76,7 +77,7 @@ export async function publishInstagramPost(
   }
 
   // ── Production path: Meta Graph API ─────────────────────────────
-  if (META_ACCESS_TOKEN && INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+  if (META_ACCESS_TOKEN && INSTAGRAM_BUSINESS_ACCOUNT_ID && isSendModeLive()) {
     return publishViaMeta({ caption, imageUrl, calendarId: input.calendar.id });
   }
 

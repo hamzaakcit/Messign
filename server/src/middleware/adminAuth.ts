@@ -4,13 +4,10 @@ import { query } from '../db/index.js';
 const DEFAULT_ORG_SLUG = 'messign';
 let cachedOrgId: string | undefined;
 
-const isDev = process.env.NODE_ENV !== 'production';
-
 export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const userId = (req as Request & { userId?: string }).userId
-    ?? (isDev ? (req.headers['x-user-id'] as string | undefined) : undefined);
+  const userId = (req as Request & { userId?: string }).userId;
   if (!userId) {
-    res.status(401).json({ error: 'Authorization or X-User-Id required for admin' });
+    res.status(401).json({ error: 'Authorization required for admin' });
     return;
   }
   try {
