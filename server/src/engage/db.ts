@@ -9,12 +9,26 @@ let pool: pg.Pool | null = null;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Rejects a value that is not a full connection string. pg silently ignores a malformed one (for example a bare
+ * "host:5432") and connects to localhost instead, which fails with an unhelpful error. The message never includes the value.
+ */
+export function assertValidEngageUrl(value: string): void {
+  let u: URL | null = null;
+  try { u = new URL(value); } catch { /* handled below */ }
+  const ok = u !== null && (u.protocol === 'postgresql:' || u.protocol === 'postgres:') && u.hostname !== '' && u.username !== '' && u.pathname.length > 1;
+  if (!ok) {
+    throw new Error('ENGAGE_DATABASE_URL must be a full connection string: postgresql://USER:PASSWORD@HOST:PORT/DATABASE');
+  }
+}
+
 export function getEngagePool(): pg.Pool {
   if (pool) return pool;
   let connectionString = process.env.ENGAGE_DATABASE_URL?.trim();
   if (!connectionString) {
     throw new Error('ENGAGE_DATABASE_URL is required for engage (no fallback to DATABASE_URL).');
   }
+  assertValidEngageUrl(connectionString);
   const railway = /rlwy\.net|railway\.app|railway\.net/.test(connectionString);
   if (railway) connectionString = connectionString.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '');
   pool = new pg.Pool({
