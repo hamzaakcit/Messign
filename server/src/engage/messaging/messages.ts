@@ -30,6 +30,9 @@ export interface CreateMessageInput {
   /** Already rendered (WP-14). Email: {subject, html?, text?}. SMS and WhatsApp: {text} or {template, variables}. */
   content: Record<string, unknown>;
   maxAttempts?: number;
+  /** The gate refuses to send after this many seconds (default 24 h, 60 s to 30 days). A message held by a kill switch
+   *  is therefore not sent days later. */
+  ttlSeconds?: number;
 }
 
 export interface MessageRow {
@@ -94,6 +97,9 @@ export async function createMessage(orgId: string, input: CreateMessageInput): P
   if (input.maxAttempts !== undefined && (!Number.isInteger(input.maxAttempts) || input.maxAttempts < 1 || input.maxAttempts > 10)) {
     throw new MessageInputError('maxAttempts must be an integer from 1 to 10');
   }
+  if (input.ttlSeconds !== undefined && (!Number.isInteger(input.ttlSeconds) || input.ttlSeconds < 60 || input.ttlSeconds > 30 * 86400)) {
+    throw new MessageInputError('ttlSeconds must be an integer from 60 to 2592000');
+  }
   if (!input.content || typeof input.content !== 'object' || Array.isArray(input.content)) throw new MessageInputError('content must be an object');
   const hash = requestHash(input);
   return withEngageTenant(orgId, async (c) => {
@@ -102,11 +108,11 @@ export async function createMessage(orgId: string, input: CreateMessageInput): P
       [orgId, input.channelAccountId, input.channel]);
     if (!acct.rows[0]) throw new MessageInputError('No active account of that channel for this tenant');
     const ins = await c.query(
-      `INSERT INTO engage.messages (organization_id, profile_id, channel, purpose, channel_account_id, provider, idempotency_key, request_hash, content, max_attempts)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, COALESCE($10, 5))
+      `INSERT INTO engage.messages (organization_id, profile_id, channel, purpose, channel_account_id, provider, idempotency_key, request_hash, content, max_attempts, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, COALESCE($10, 5), now() + make_interval(secs => COALESCE($11, 86400)))
        ON CONFLICT (organization_id, idempotency_key) DO NOTHING RETURNING ${COLS}`,
       [orgId, input.profileId, input.channel, input.purpose, input.channelAccountId, acct.rows[0].provider, input.idempotencyKey, hash,
-        JSON.stringify(input.content), input.maxAttempts ?? null]);
+        JSON.stringify(input.content), input.maxAttempts ?? null, input.ttlSeconds ?? null]);
     if (ins.rows[0]) return { message: toRow(ins.rows[0]), created: true };
     const existing = await c.query(
       `SELECT ${COLS}, request_hash FROM engage.messages WHERE organization_id = $1 AND idempotency_key = $2`, [orgId, input.idempotencyKey]);

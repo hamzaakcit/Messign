@@ -83,6 +83,20 @@ export const SEEDERS: Record<string, Seeder> = {
       await c.query('RESET app.current_tenant');
     }
   },
+  send_decisions: async (c, org) => {
+    const m = await seedMessage(c, org);
+    await c.query(`INSERT INTO engage.send_decisions (organization_id, message_id, decision, code, send_mode) VALUES ($1, $2, 'deny', 'seed', 'sandbox')`, [org, m]);
+  },
+  send_allowlist: async (c, org) => {
+    await c.query(`INSERT INTO engage.send_allowlist (organization_id, channel, value_normalized) VALUES ($1, 'email', $2)`, [org, `seed-${Math.random()}@example.com`]);
+  },
+  rate_cards: async (c, org) => {
+    await c.query(`INSERT INTO engage.rate_cards (organization_id, channel, category, unit_cost_minor, currency) VALUES ($1, 'email', 'marketing', 1, 'TRY')`, [org]);
+  },
+  budget_caps: async (c, org) => {
+    await c.query(`INSERT INTO engage.budget_caps (organization_id, channel, monthly_cap_minor, currency) VALUES ($1, $2, 100, 'TRY') ON CONFLICT DO NOTHING`,
+      [org, ['email', 'sms', 'whatsapp'][Math.floor(Math.random() * 3)]]);
+  },
   tenant_settings: async (c, org) => {
     await c.query('INSERT INTO engage.tenant_settings (organization_id) VALUES ($1)', [org]);
   },

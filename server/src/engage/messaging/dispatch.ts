@@ -1,20 +1,17 @@
 import type { PoolClient } from 'pg';
 import { withEngageTenant } from '../db.js';
 import { loadAccountSecrets, type Channel } from '../credentials.js';
-import { hasConsent, isSuppressed, type ConsentChannel } from '../profiles.js';
 import { logError, logInfo } from '../log.js';
 import { getAdapter, type AdapterAccount } from './adapter.js';
+import { currentSendMode, evaluateGate } from './gate.js';
 import { listDueMessageIds } from './messages.js';
 
+export { currentSendMode, type SendMode } from './gate.js';
+
 /**
- * Dispatch (WP-10): the ONLY code that calls an adapter's send(). A lint test enforces that.
- *
- * INTERIM GATE. The full send gate (rules, `send_decisions`, readiness, quiet hours, caps, budget, kill switch) arrives
- * with WP-11 and replaces `interimGate` below. Until then the rules here are deliberately stricter than needed:
- *   - SEND_MODE off (the default, also when unset or invalid): nothing leaves the queue.
- *   - sandbox: only the mock adapter on a test-mode account.
- *   - live: refused outright, because the full gate does not exist yet.
- *   - marketing needs a current consent grant; any message to a suppressed address is blocked.
+ * Dispatch: the ONLY code that calls an adapter's send() (a test enforces it). Every attempt goes through the send gate
+ * (gate.ts) first; engage.claim_message then refuses to start without the gate's ALLOW decision for this message.
+ * SEND_MODE is read again for every message, so switching it off stops a running batch at the next message.
  */
 
 export type DispatchOutcome =
@@ -23,6 +20,7 @@ export type DispatchOutcome =
   | { outcome: 'failed'; code: string }
   | { outcome: 'blocked'; code: string }
   | { outcome: 'held'; code: string }
+  | { outcome: 'deferred'; code: 'quiet_hours'; retryAt: Date }
   | { outcome: 'skipped'; code: 'not_due_or_claimed' };
 
 export interface DispatchOptions {
@@ -30,15 +28,6 @@ export interface DispatchOptions {
   leaseSeconds?: number;
   /** Retry delay is base * 2^(attempt-1) seconds, capped at one hour. Default 30. */
   backoffBaseSeconds?: number;
-}
-
-const CHANNEL_IDENTIFIER: Record<Channel, 'email' | 'phone'> = { email: 'email', sms: 'phone', whatsapp: 'phone' };
-const CONSENT_CHANNEL: Record<Channel, ConsentChannel> = { email: 'email', sms: 'sms', whatsapp: 'whatsapp' };
-
-export type SendMode = 'off' | 'sandbox' | 'live';
-export function currentSendMode(env: NodeJS.ProcessEnv = process.env): SendMode {
-  const v = env.SEND_MODE;
-  return v === 'sandbox' || v === 'live' ? v : 'off';
 }
 
 interface Loaded {
@@ -55,28 +44,6 @@ async function recordEvent(orgId: string, messageId: string, type: string, error
   });
 }
 
-async function resolveRecipient(orgId: string, profileId: string, channel: Channel): Promise<string | null> {
-  return withEngageTenant(orgId, async (c) => {
-    const r = await c.query<{ value_normalized: string }>(
-      `SELECT i.value_normalized FROM engage.identifiers i JOIN engage.profiles p ON p.organization_id = i.organization_id AND p.id = i.profile_id
-        WHERE i.organization_id = $1 AND i.profile_id = $2 AND i.type = $3 AND i.is_active AND p.erased_at IS NULL`,
-      [orgId, profileId, CHANNEL_IDENTIFIER[channel]]);
-    return r.rows[0]?.value_normalized ?? null;
-  });
-}
-
-/** Returns a denial code, or null to proceed. Replaced by the full gate in WP-11. */
-async function interimGate(orgId: string, m: Loaded, to: string | null, accountMode: string | null): Promise<{ kind: 'hold' | 'block'; code: string } | null> {
-  const mode = currentSendMode();
-  if (mode === 'off') return { kind: 'hold', code: 'send_mode_off' };
-  if (mode === 'live') return { kind: 'block', code: 'live_not_available' };
-  if (m.provider !== 'mock' || accountMode !== 'test') return { kind: 'block', code: 'sandbox_mock_only' };
-  if (!to) return { kind: 'block', code: 'no_recipient' };
-  if (await isSuppressed(orgId, CONSENT_CHANNEL[m.channel], to)) return { kind: 'block', code: 'suppressed' };
-  if (m.purpose === 'marketing' && !(await hasConsent(orgId, m.profile_id, CONSENT_CHANNEL[m.channel]))) return { kind: 'block', code: 'no_consent' };
-  return null;
-}
-
 export async function dispatchMessage(orgId: string, messageId: string, opts: DispatchOptions = {}): Promise<DispatchOutcome> {
   if (currentSendMode() === 'off') return { outcome: 'held', code: 'send_mode_off' }; // before anything is read or claimed
 
@@ -86,18 +53,18 @@ export async function dispatchMessage(orgId: string, messageId: string, opts: Di
   if (!m) return { outcome: 'skipped', code: 'not_due_or_claimed' };
   if (m.status !== 'queued' && m.status !== 'sending') return { outcome: 'skipped', code: 'not_due_or_claimed' };
 
-  const to = await resolveRecipient(orgId, m.profile_id, m.channel);
-  const acct = await withEngageTenant(orgId, async (c) => (await c.query<{ mode: string }>(
-    `SELECT mode FROM engage.channel_accounts WHERE organization_id = $1 AND id = $2 AND status = 'active'`, [orgId, m.channel_account_id])).rows[0]);
-  const denial = await interimGate(orgId, m, to, acct?.mode ?? null);
-  if (denial?.kind === 'hold') return { outcome: 'held', code: denial.code };
-  if (denial) {
-    await recordEvent(orgId, m.id, 'blocked', denial.code);
-    return { outcome: 'blocked', code: denial.code };
+  const gate = await evaluateGate(orgId, m.id);
+  if (gate.kind === 'hold') return { outcome: 'held', code: gate.code };
+  if (gate.kind === 'defer') return { outcome: 'deferred', code: gate.code, retryAt: gate.retryAt };
+  if (gate.kind === 'deny') {
+    await recordEvent(orgId, m.id, 'blocked', gate.code, { decision_id: gate.decisionId });
+    return { outcome: 'blocked', code: gate.code };
   }
+  const to = gate.recipient;
 
   const claimed = await withEngageTenant(orgId, async (c) =>
-    (await c.query<{ ok: boolean }>('SELECT engage.claim_message($1, $2, make_interval(secs => $3)) AS ok', [orgId, m.id, opts.leaseSeconds ?? 300])).rows[0]!.ok);
+    (await c.query<{ ok: boolean }>('SELECT engage.claim_message($1, $2, make_interval(secs => $3), $4) AS ok',
+      [orgId, m.id, opts.leaseSeconds ?? 300, gate.decisionId])).rows[0]!.ok);
   if (!claimed) return { outcome: 'skipped', code: 'not_due_or_claimed' };
   const attempt = m.attempt_count + 1;
 
@@ -108,7 +75,7 @@ export async function dispatchMessage(orgId: string, messageId: string, opts: Di
   try {
     const { account, secrets } = await loadAccountSecrets(orgId, m.channel_account_id);
     const adapterAccount: AdapterAccount = { id: account.id, channel: account.channel, provider: account.provider, mode: account.mode, config: account.config, secrets };
-    const res = await adapter.send({ idempotencyKey: m.idempotency_key, channel: m.channel, to: to!, content: m.content }, adapterAccount);
+    const res = await adapter.send({ idempotencyKey: m.idempotency_key, channel: m.channel, to, content: m.content }, adapterAccount);
     await recordEvent(orgId, m.id, 'sent', null, { attempt }, async (c) => {
       await c.query(`UPDATE engage.messages SET provider_message_id = $3 WHERE organization_id = $1 AND id = $2`, [orgId, m.id, res.providerMessageId]);
     });

@@ -10,3 +10,7 @@
 
 ### WP-10
 `engage.messages` has `cost_estimate_minor` (integer minor units) and `currency`, both empty for now. Rate cards, `rate_card_id`, `cost_actual_minor` and the budget cap arrive with WP-11; the columns exist so that WP-11 adds data, not a rewrite of the ledger.
+
+### WP-11
+- `engage.rate_cards` (append-only versions per channel, category, route, with `effective_from`) and `engage.budget_caps` (one monthly cap per tenant and channel). The gate reserves `cost_estimate_minor`, `currency` and `rate_card_id` on the message when it first allows it (`gate_allowed_at`); the reservation is frozen afterwards.
+- The budget check counts reserved messages of the current month in the tenant's time zone, excluding blocked messages and failures the provider never accepted. One unit per message: SMS segment counts and actual provider cost are not modelled yet.
