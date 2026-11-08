@@ -32,6 +32,7 @@
     "engage:import": "tsx src/scripts/engageImport.ts",
     "engage:add-account": "tsx src/scripts/engageAddAccount.ts",
     "engage:provision": "tsx src/scripts/engageProvision.ts",
+    "engage:send-test": "tsx src/scripts/engageSendTest.ts",
     "engage:synthetic": "tsx src/scripts/engageSynthetic.ts",
     "litellm": "python3 -m litellm --config ../litellm/config.yaml",
     "test:agents": "vitest run",
