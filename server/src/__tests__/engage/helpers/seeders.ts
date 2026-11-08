@@ -9,7 +9,34 @@ export type Seeder = (client: pg.PoolClient, organizationId: string) => Promise<
 /** Placeholder bytes: these rows only test isolation, never decryption. */
 const DUMMY = Buffer.from('seed');
 
+/** A profile for the seeded org. Child-table seeders create their own so each fails on RLS first for a foreign org. */
+async function seedProfile(c: pg.PoolClient, org: string): Promise<string> {
+  const r = await c.query<{ id: string }>(
+    `INSERT INTO engage.profiles (organization_id, external_id) VALUES ($1, $2) RETURNING id`, [org, `seed-${org}-${Math.random()}`]);
+  return r.rows[0]!.id;
+}
+
 export const SEEDERS: Record<string, Seeder> = {
+  profiles: async (c, org) => { await seedProfile(c, org); },
+  identifiers: async (c, org) => {
+    const id = await seedProfile(c, org);
+    await c.query(`INSERT INTO engage.identifiers (organization_id, profile_id, type, value_normalized) VALUES ($1, $2, 'email', $3)`,
+      [org, id, `seed-${Math.random()}@example.com`]);
+  },
+  consents: async (c, org) => {
+    const id = await seedProfile(c, org);
+    await c.query(`INSERT INTO engage.consents (organization_id, profile_id, channel, status, source, evidence)
+                   VALUES ($1, $2, 'email', 'granted', 'import', '{"file":"seed"}'::jsonb)`, [org, id]);
+  },
+  // consent_state is written only by the trigger on the ledger, so seeding it means appending a consent.
+  consent_state: async (c, org) => {
+    const id = await seedProfile(c, org);
+    await c.query(`INSERT INTO engage.consents (organization_id, profile_id, channel, status, source) VALUES ($1, $2, 'sms', 'revoked', 'stop_keyword')`, [org, id]);
+  },
+  suppressions: async (c, org) => {
+    await c.query(`INSERT INTO engage.suppressions (organization_id, channel, value_normalized, reason) VALUES ($1, 'email', $2, 'manual')`,
+      [org, `seed-${Math.random()}@example.com`]);
+  },
   channel_accounts: async (c, org) => {
     await c.query(
       `INSERT INTO engage.channel_accounts (organization_id, channel, provider, mode, label, secret_ciphertext, wrapped_data_key, key_id, secret_fingerprint)
