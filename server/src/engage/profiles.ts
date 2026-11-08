@@ -121,11 +121,25 @@ async function loadView(c: PoolClient, orgId: string, profileId: string): Promis
  */
 export async function upsertProfile(orgId: string, input: UpsertProfileInput): Promise<ProfileView> {
   parseUpsert(input);
+  prepareIdentifiers(input);
+  return withEngageTenant(orgId, (c) => upsertProfileOn(c, orgId, input));
+}
+
+function prepareIdentifiers(input: UpsertProfileInput): void {
   const email = input.email === undefined || input.email === null ? input.email : normalizeEmail(input.email);
   const phone = input.phone === undefined || input.phone === null ? input.phone : normalizePhone(input.phone);
   if (email === null && typeof input.email === 'string') throw new ProfileInputError('email is not a valid address');
   if (phone === null && typeof input.phone === 'string') throw new ProfileInputError('phone is not a valid number');
-  return withEngageTenant(orgId, async (c) => {
+}
+
+/** Same as upsertProfile, inside a transaction the caller already opened for this tenant (so it can be combined with other writes). */
+export async function upsertProfileOn(c: PoolClient, orgId: string, input: UpsertProfileInput): Promise<ProfileView> {
+  parseUpsert(input);
+  const email = input.email === undefined || input.email === null ? input.email : normalizeEmail(input.email);
+  const phone = input.phone === undefined || input.phone === null ? input.phone : normalizePhone(input.phone);
+  if (email === null && typeof input.email === 'string') throw new ProfileInputError('email is not a valid address');
+  if (phone === null && typeof input.phone === 'string') throw new ProfileInputError('phone is not a valid number');
+  {
     const res = await c.query<{ id: string; erased_at: Date | null }>(
       `INSERT INTO engage.profiles (organization_id, external_id, attributes, timezone, locale)
        VALUES ($1, $2, '{}'::jsonb, $3, $4)
@@ -159,7 +173,7 @@ export async function upsertProfile(orgId: string, input: UpsertProfileInput): P
       }
     }
     return (await loadView(c, orgId, id))!;
-  });
+  }
 }
 
 export async function getProfile(orgId: string, profileId: string): Promise<ProfileView> {
@@ -203,7 +217,13 @@ export async function recordConsent(orgId: string, profileId: string, input: Con
     throw new ProfileInputError('A consent that did not come through IYS needs evidence (source, text version, timestamp, IP or channel)');
   }
   if (!UUID_RE.test(profileId)) throw new ProfileNotFoundError('Profile not found');
-  return withEngageTenant(orgId, async (c) => {
+  return withEngageTenant(orgId, (c) => recordConsentOn(c, orgId, profileId, input));
+}
+
+/** Same as recordConsent, inside a transaction the caller already opened for this tenant. Input must already be validated by recordConsent's rules. */
+export async function recordConsentOn(c: PoolClient, orgId: string, profileId: string, input: ConsentInput): Promise<ProfileView> {
+  const evidence = input.evidence ?? {};
+  {
     const owned = await c.query(`SELECT 1 FROM engage.profiles WHERE organization_id = $1 AND id = $2`, [orgId, profileId]);
     if (owned.rowCount === 0) throw new ProfileNotFoundError('Profile not found');
     await c.query(
@@ -218,7 +238,7 @@ export async function recordConsent(orgId: string, profileId: string, input: Con
       if (addr.rows[0]) await addSuppressionOn(c, orgId, input.channel, addr.rows[0].value_normalized, 'opt_out');
     }
     return (await loadView(c, orgId, profileId))!;
-  });
+  }
 }
 
 async function addSuppressionOn(c: PoolClient, orgId: string, channel: ConsentChannel, normalized: string, reason: SuppressionReason): Promise<void> {
