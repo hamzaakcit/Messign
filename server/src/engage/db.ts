@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { errorFields, logError } from './log.js';
 
 /**
  * The only DB access for engage code (ADR-002). Uses its own pool on the dedicated messign_engage role.
@@ -21,7 +22,7 @@ export function getEngagePool(): pg.Pool {
     max: 10,
     ...(railway ? { ssl: { rejectUnauthorized: false } } : {}),
   });
-  pool.on('error', (err) => console.error('[engage pool] idle client error', err));
+  pool.on('error', (err) => logError('pool idle client error', errorFields(err)));
   return pool;
 }
 

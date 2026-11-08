@@ -68,6 +68,27 @@ describe('engage import lint', () => {
     expect(found).toEqual([]);
   });
 
+  it('never reads platform-wide provider credentials from the environment (ADR-006: the tenant is the sender)', () => {
+    const PROVIDER_ENV = /process\.env\.(?:RESEND|SENDGRID|TWILIO|ALARIS|MAILGUN|POSTMARK|SES_|AWS_|META_|WHATSAPP|X_BEARER|TWITTER|LINKEDIN|INSTAGRAM|SMTP|NETGSM|VERIMOR)[A-Z0-9_]*|process\.env\[/;
+    const offenders = engageFiles(ENGAGE)
+      .filter((p) => PROVIDER_ENV.test(readFileSync(p, 'utf-8')))
+      .map((p) => relative(SRC, p).replace(/\\/g, '/'));
+    expect(offenders).toEqual([]);
+  });
+
+  it('routes never call the function that returns decrypted secrets', () => {
+    for (const file of ['engage/routes.ts', 'engage/credentialRoutes.ts']) {
+      expect(readFileSync(join(SRC, file), 'utf-8'), file).not.toMatch(/loadAccountSecrets|decryptSecrets/);
+    }
+  });
+
+  it('engage code logs only through the redacting logger', () => {
+    const offenders = engageFiles(ENGAGE)
+      .filter((p) => !p.endsWith('engage/log.ts') && /\bconsole\.(log|info|warn|error|debug)\b/.test(readFileSync(p, 'utf-8')))
+      .map((p) => relative(SRC, p).replace(/\\/g, '/'));
+    expect(offenders).toEqual([]);
+  });
+
   describe('the linter itself', () => {
     it('flags direct pool and query imports', () => {
       expect(violations('engage/routes.ts', `import { pool } from '../db/index.js';`)).toHaveLength(1);
@@ -92,6 +113,12 @@ describe('engage import lint', () => {
       expect(violations('engage/routes.ts', `import { verifyAccess } from '../utils/jwt.js';`)).toEqual([]);
       expect(violations('engage/routes.ts', `import { generate } from '../services/ai/gateway.js';`)).toEqual([]);
       expect(violations('engage/middleware/auth.ts', `import { a } from '../db.js';`)).toEqual([]);
+    });
+    it('flags the platform-credential patterns the lint looks for', () => {
+      const re = /process\.env\.(?:RESEND|SENDGRID|TWILIO)[A-Z0-9_]*|process\.env\[/;
+      expect(re.test('const k = process.env.RESEND_API_KEY')).toBe(true);
+      expect(re.test('process.env[name]')).toBe(true);
+      expect(re.test('process.env.ENGAGE_MASTER_KEY')).toBe(false);
     });
     it('ignores third-party packages', () => {
       expect(violations('engage/routes.ts', `import express from 'express';\nimport bcrypt from 'bcrypt';`)).toEqual([]);
