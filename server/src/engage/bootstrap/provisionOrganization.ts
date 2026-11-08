@@ -64,10 +64,11 @@ export async function provisionOrganization(client: PoolClient, input: Provision
     const orgId = org.rows[0]?.id;
     if (!orgId) throw new ProvisionConflictError('slug already exists');
 
+    // Legacy reimbursement_users has a NOT NULL tenant_id (same value as organization_id) and no default.
     // reimbursement_users first: employee_auth upserts elsewhere would otherwise attach new users to the default org.
     const user = await client.query<{ id: string }>(
-      `INSERT INTO reimbursement_users (organization_id, auth_user_id, email, full_name, role, status)
-       VALUES ($1, $2, $3, $4, 'admin', 'active') RETURNING id`,
+      `INSERT INTO reimbursement_users (organization_id, tenant_id, auth_user_id, email, full_name, role, status)
+       VALUES ($1, $1, $2, $3, $4, 'admin', 'active') RETURNING id`,
       [orgId, authUserId, input.adminEmail, input.adminFullName],
     );
     await client.query(

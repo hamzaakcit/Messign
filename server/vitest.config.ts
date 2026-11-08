@@ -11,6 +11,7 @@ export default defineConfig({
       'src/__tests__/agents/**/*.test.ts',
       'src/__tests__/dal/**/*.test.ts',
       'src/__tests__/engage/**/*.test.ts',
+      'src/__tests__/migrations/**/*.test.ts',
       'src/__tests__/middleware/**/*.test.ts',
       'src/__tests__/modules/**/*.test.ts',
       'src/__tests__/services/**/*.test.ts',
