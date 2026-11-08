@@ -39,5 +39,9 @@ Only decisions that are genuinely Hamza's (product, commercial, legal, irreversi
 - `db:verify-rls` cannot pass while it connects as a bypassing role. It must test through a non-bypass role.
 - **Consequence → ADR-002 amended:** engage gets its **own connection pool on a dedicated non-bypass role** (`messign_engage`). Legacy keeps `postgres` until it is retired. Work lands in WP-01 (verify script) and WP-04 (role + pool).
 
+## Open items from WP-02 (2026-11-07)
+- **D-10 / `dal/time`: decided, keep.** The approval rested on "no routes, no UI", which was wrong: `routes/executive/index.ts` (timesheet approve/reject) and the client's `TimesheetActions` use it. It stays until the Executive module is retired. Decided by Hamza 2026-11-07.
+- **Dumps in public git history: decided, no purge (2026-11-07).** `messign_main.dump` and `messign_knowledge.dump` (commit `4b3ad8df`) hold test users only per Hamza (about 10 password hashes and 10 emails, found by pattern count, no values read). They stay in history: a purge needs a force-push to a public repo and breaks open PRs and clones for little gain. Revisit if any real account turns out to use the seed password (`SEED_DEFAULT_PASSWORD`, the `.env.example` note says it is shared across environments) and rotate it if so.
+
 ## Open clarification
 - **D-06:** earlier you said Kitapyurdu has no customer engagement tool, then answered D-06 with "Related Digital". Which is it: does a prospect use Related Digital, or is Related Digital the competitor to beat? It doesn't block Week 1.

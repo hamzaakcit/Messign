@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { isNavItemOnSurface } from '@/lib/productSurface';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -79,7 +80,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+const ALL_NAV_GROUPS: NavGroup[] = [
   {
     key: 'core',
     label: 'Core',
@@ -130,6 +131,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+const NAV_GROUPS: NavGroup[] = ALL_NAV_GROUPS
+  .map((group) => ({ ...group, items: group.items.filter((item) => isNavItemOnSurface(item.id)) }))
+  .filter((group) => group.items.length > 0);
 
 const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 

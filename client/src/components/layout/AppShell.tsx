@@ -17,6 +17,9 @@ import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthr
 import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport } from '@/lib/socket';
 import { installChatSocketHandlers } from '@/lib/chatSocketBridge';
+import { getProductSurface, isPathOnSurface } from '@/lib/productSurface';
+
+const showCompanyOsWidgets = getProductSurface() !== 'engage';
 
 const PATH_TO_VIEW: Record<string, string> = {
   '/': 'dashboard',
@@ -248,7 +251,7 @@ export function AppShell() {
       <XPGainNotification amount={lastXPGain} show={showXPGain} />
 
       {user && <CelebrationOverlay />}
-      {user && <MorningBriefingToast />}
+      {user && showCompanyOsWidgets && <MorningBriefingToast />}
 
       {/* Left Sidebar */}
       <div
@@ -286,8 +289,8 @@ export function AppShell() {
         </div>
       )}
 
-      {user && !isMobile && <FloatingWidget />}
-      {user && <OnboardingWalkthrough />}
+      {user && !isMobile && showCompanyOsWidgets && <FloatingWidget />}
+      {user && showCompanyOsWidgets && <OnboardingWalkthrough />}
 
       {/* Mobile bottom tab bar */}
       {isMobile && user && !focusMode && <MobileTabBar />}
@@ -327,7 +330,7 @@ function MobileTabBar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around h-14 bg-app-sidebar border-t border-app safe-area-bottom">
-      {MOBILE_TABS.map((tab) => {
+      {MOBILE_TABS.filter((tab) => !tab.path || isPathOnSurface(tab.path)).map((tab) => {
         const isActive = tab.id === currentView;
         const Icon = tab.icon;
         return (

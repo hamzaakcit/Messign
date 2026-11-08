@@ -1,7 +1,7 @@
 /**
  * Phase 5 — publisher execution matrix (EX-01…EX-03).
- * Integration tests: real PostgreSQL + SKIP LOCKED. Requires migrations through
- * `075_marketing_calendar_budget.sql` (and later) so `marketing_content_calendar` exists.
+ * Integration tests: real PostgreSQL + SKIP LOCKED. Requires a database built by `npm run db:migrate`
+ * so `marketing_content_calendar` exists.
  *
  * Run: `DATABASE_URL=... npx vitest run src/__tests__/modules/marketing/publisherExecution.test.ts`
  */
@@ -67,13 +67,13 @@ describe.skipIf(!hasDb)('Phase 5 — publisher execution matrix', { timeout: 30_
     calendarTableReady = Boolean(r.rows[0]?.reg);
     if (!calendarTableReady) {
       console.warn(
-        '[publisherExecution] public.marketing_content_calendar not found — Phase 5 tests will be skipped. Apply server migrations (075+).',
+        '[publisherExecution] public.marketing_content_calendar not found — Phase 5 tests will be skipped. Run `npm run db:migrate`.',
       );
     }
   });
 
   beforeEach(({ skip }) => {
-    skip(!calendarTableReady, 'Requires marketing_content_calendar (migrations 075+)');
+    skip(!calendarTableReady, 'Requires marketing_content_calendar (run npm run db:migrate)');
     vi.restoreAllMocks();
   });
 
