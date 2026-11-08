@@ -290,7 +290,7 @@ if (mountsFrozenModules()) {
 // Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,okr,heart,executive}
 await initializeModules(app);
 
-if (mountsEngage()) await mountEngage(app);
+const engageMounted = mountsEngage() ? await mountEngage(app) : false;
 
 app.get('/api/health', async (_req, res) => {
   if (healthCache && Date.now() < healthCache.expiresAt) {
@@ -443,6 +443,15 @@ if (pgBossEnabled) {
         console.log('[Server] Competitor scrape handler registered');
       } catch (scrapeErr) {
         console.warn('[Server] Competitor scrape handler failed (non-fatal):', scrapeErr instanceof Error ? scrapeErr.message : scrapeErr);
+      }
+
+      if (engageMounted) {
+        try {
+          const { registerEngageImportHandler } = await import('./engage/import/importJob.js');
+          await registerEngageImportHandler();
+        } catch (importErr) {
+          console.warn('[Server] Engage import handler failed (non-fatal):', importErr instanceof Error ? importErr.message : importErr);
+        }
       }
 
       console.log('[Server] pg-boss job queue + batch handler initialized');

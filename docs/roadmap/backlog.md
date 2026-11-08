@@ -14,7 +14,7 @@
 | WP-06 | Credential store (ADR-006) | P0 | W2 | done | Write-only, fail-closed, rotation, redaction tests |
 | WP-07 | Profiles, identifiers, consents (+state), suppressions | P0 | W3 | done | One active email/phone per profile enforced in the DB |
 | WP-08 | Ingestion API v1 (upsert, identify/update, track, trigger stub), dedup, partitions, transactional enqueue | P0 | W3 | done | Duplicate event → one row; OpenAPI published |
-| WP-09 | CSV import (profiles, consents with evidence, orders) + synthetic tenant generator (bookstore, florist) feeding the importer | P0 | W3 | todo | 100k round-trip; generator emits only test phone ranges/`example.*` emails |
+| WP-09 | CSV import (profiles, consents with evidence, orders) + synthetic tenant generator (bookstore, florist) feeding the importer | P0 | W3 | done | 100k round-trip; generator emits only test phone ranges/`example.*` emails |
 | WP-10 | Messaging core: adapter interface, messages ledger, idempotency, mock adapter, DLR simulator | P0 | W4 | todo | Duplicate/out-of-order DLRs handled |
 | WP-11 | Send gate full rules + `send_decisions` + rate cards/budget caps + sandbox recipient allowlist + kill switch | P0 | W4 | todo | Adversarial consent/suppression/budget/allowlist suite green |
 | WP-12 | Email adapter (provider-neutral; sandbox ESP now, tenant ESP at business start) + signed webhooks + bounce/complaint suppression | P0 | W5 | todo | Forged webhook rejected; delivery to verified test inbox |

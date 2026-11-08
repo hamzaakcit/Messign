@@ -16,6 +16,7 @@ const ALLOWED_OUTSIDE = [
   /^utils\/jwt$/,
   /^middleware\/authMiddleware$/,
   /^services\/ai\/gateway$/,
+  /^services\/jobQueue$/,
   /^dal\/marketing\//,
 ];
 const POOL_FILES = [/^engage\/db\.ts$/];

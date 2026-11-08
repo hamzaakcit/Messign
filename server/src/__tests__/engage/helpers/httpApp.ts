@@ -6,6 +6,7 @@ import { signAccess } from '../../../utils/jwt.js';
 export const token = (sub: string, org?: string) => signAccess({ sub, role: 'admin', ...(org ? { organizationId: org } : {}) });
 
 export interface TestApp {
+  baseUrl: string;
   http: (path: string, opts?: { token?: string; key?: string; method?: string; body?: unknown }) => Promise<{ status: number; json: Record<string, unknown>; text: string; headers: Headers }>;
   close: () => Promise<void>;
 }
@@ -25,6 +26,7 @@ export async function startEngageApp(): Promise<TestApp> {
   await new Promise<void>((resolve) => { server = app.listen(0, '127.0.0.1', resolve); });
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/engage`;
   return {
+    baseUrl: base,
     async http(path, opts = {}) {
       const method = opts.method ?? (opts.body === undefined ? 'GET' : 'POST');
       const r = await fetch(base + path, {

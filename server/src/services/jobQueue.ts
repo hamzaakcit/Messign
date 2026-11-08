@@ -16,6 +16,8 @@ export const JOB_NAMES = {
   DASHBOARD_SNAPSHOT: 'marketing/dashboard-snapshot',
   /** Weekly email performance aggregation for Content Strategist calibration (Phase 7). */
   CALIBRATION_SNAPSHOT: 'marketing/calibration-snapshot',
+  /** Engage CSV import (ADR-003). */
+  ENGAGE_IMPORT: 'engage/import',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

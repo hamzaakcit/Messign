@@ -41,7 +41,17 @@ export async function setupTenancyFixture(): Promise<TenancyFixture> {
   const lock = await admin.connect();
   try {
     await lock.query('SELECT pg_advisory_lock(7040501)');
-    await lock.query(`ALTER ROLE messign_engage LOGIN PASSWORD '${ENGAGE_PASSWORD}'`);
+    // The role is cluster-wide, so the migration-runner tests (which apply migration 111 in other databases, where this
+    // advisory lock does not reach) can race this statement. Retrying is the only fix on the test side.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await lock.query(`ALTER ROLE messign_engage LOGIN PASSWORD '${ENGAGE_PASSWORD}'`);
+        break;
+      } catch (err) {
+        if (attempt >= 8 || !/tuple concurrently updated/.test(String(err))) throw err;
+        await new Promise((r) => setTimeout(r, 150 * attempt));
+      }
+    }
   } finally {
     await lock.query('SELECT pg_advisory_unlock(7040501)').catch(() => undefined);
     lock.release();
