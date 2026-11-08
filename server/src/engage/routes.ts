@@ -10,6 +10,7 @@ import {
 } from './bootstrap/provisionOrganization.js';
 import { credentialRouter } from './credentialRoutes.js';
 import { profileRouter } from './profileRoutes.js';
+import { v1Router } from './v1Routes.js';
 import { errorFields, logError, logInfo } from './log.js';
 import './types.js';
 
@@ -18,6 +19,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const engageRouter = Router();
 engageRouter.use('/channel-accounts', credentialRouter);
 engageRouter.use('/profiles', profileRouter);
+engageRouter.use('/v1', v1Router);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;

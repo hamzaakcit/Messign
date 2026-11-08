@@ -33,6 +33,19 @@ export const SEEDERS: Record<string, Seeder> = {
     const id = await seedProfile(c, org);
     await c.query(`INSERT INTO engage.consents (organization_id, profile_id, channel, status, source) VALUES ($1, $2, 'sms', 'revoked', 'stop_keyword')`, [org, id]);
   },
+  event_keys: async (c, org) => {
+    await c.query(`INSERT INTO engage.event_keys (organization_id, client_event_id, event_id, occurred_at) VALUES ($1, $2, gen_random_uuid(), now())`,
+      [org, `seed-${Math.random()}`]);
+  },
+  events: async (c, org) => {
+    const id = await seedProfile(c, org);
+    await c.query('SELECT engage.ensure_event_partition(now())');
+    await c.query(`INSERT INTO engage.events (organization_id, profile_id, client_event_id, name, occurred_at) VALUES ($1, $2, $3, 'seed_event', now())`,
+      [org, id, `seed-${Math.random()}`]);
+  },
+  trigger_outbox: async (c, org) => {
+    await c.query(`INSERT INTO engage.trigger_outbox (organization_id, event_id, occurred_at) VALUES ($1, gen_random_uuid(), now())`, [org]);
+  },
   suppressions: async (c, org) => {
     await c.query(`INSERT INTO engage.suppressions (organization_id, channel, value_normalized, reason) VALUES ($1, 'email', $2, 'manual')`,
       [org, `seed-${Math.random()}@example.com`]);

@@ -2,6 +2,14 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-08 · WP-08 (Ingestion API v1)
+- **Done:** migration `114_engage_events.sql` (partitioned `events`, `event_keys` for dedup, `trigger_outbox`); `POST /api/engage/v1/profiles:upsert`, `events:track` (batch of 500), `journeys/:key/trigger` (validates, answers 501 until WP-16), `GET openapi.json`; API-key auth with scopes and a per-key rate limit; profile service can now run inside a caller's transaction. Details in ADR-007 (implementation notes).
+- **Verified:** `tsc` clean; full suite 1195 passed. 45 new tests (unit and real-Postgres over HTTP): duplicate event gives one row and one outbox row, also when replayed with another timestamp, within one batch, and the same id in another tenant is separate; rejected events leave no trace and can be resent corrected; cross-tenant profile ids rejected; events immutable, partitions unreachable except through the parent; no PII or keys in logs; OpenAPI matches the routes; limiter sits between authentication and scope on every route. Broke the migration and code 21 ways: all caught after two test additions (a lock on partition creation and strict consent bodies had survived).
+- **Bug found by the tests and fixed:** two requests creating the same new month's partition at once could fail (the existence re-check after taking the lock did not see the other transaction's commit). Fixed before it ever reached a database.
+- **Not done:** the pg-boss drain and trigger evaluation (WP-16), retention scheduling, shared rate-limit counter, SDKs.
+- **For you:** run `npm run db:migrate` against production to apply 113 and 114. Then an ingest key can be created with `POST /api/engage/admin/organizations/:orgId/api-keys` (scopes `ingest`, optionally `journeys:trigger`).
+- **Next:** WP-09 (CSV import and synthetic tenant generator).
+
 ## 2026-11-08 · WP-07 (Profiles, identifiers, consents, suppressions)
 - **Done:** migration `113_engage_profiles.sql` (five RLS-forced tables), `engage/profiles.ts` (normalization, upsert with identifier history, consent ledger, suppression, fail-closed checks), read-only `GET /api/engage/profiles/:id`. Details in ADR-005 (implementation notes).
 - **Verified:** `tsc` clean; 29 unit tests; 35 real-Postgres tests as the non-bypass role (identifier uniqueness and normalization in the DB, cross-tenant child rows refused, append-only ledger and suppressions, state only via trigger, late-arriving older consent, opt-out atomicity, 404 for another tenant's id, no emails or phones in logs); the isolation suite now covers all five tables. Full suite 1150 passed. Broke the migration 14 ways on fresh databases: 12 caught outright; 2 survived because a second layer catches the same thing (purpose CHECK repeated on `consent_state`; composite foreign key repeated on `consent_state`), and removing both foreign-key layers together was caught.
