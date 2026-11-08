@@ -18,12 +18,12 @@ import { parseAddAccountArgs } from './engageAddAccountArgs.js';
 function promptHidden(question: string): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!process.stdin.isTTY) { reject(new Error('Secrets are only read from an interactive terminal.')); return; }
+    // The prompt text is written directly so it is always visible; only what the user types is muted.
+    process.stdout.write(question);
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    const out = rl as unknown as { _writeToOutput: (s: string) => void; output: NodeJS.WritableStream };
-    let muted = false;
-    out._writeToOutput = (s: string) => { if (!muted) out.output.write(s); };
-    rl.question(question, (answer) => { rl.close(); process.stdout.write('\n'); resolve(answer.trim()); });
-    muted = true;
+    const out = rl as unknown as { _writeToOutput: (s: string) => void };
+    out._writeToOutput = () => undefined; // swallow echo of typed characters (and the empty prompt)
+    rl.question('', (answer) => { rl.close(); process.stdout.write('\n'); resolve(answer.trim()); });
   });
 }
 
