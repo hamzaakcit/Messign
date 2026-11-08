@@ -2,6 +2,13 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-08 · WP-07 (Profiles, identifiers, consents, suppressions)
+- **Done:** migration `113_engage_profiles.sql` (five RLS-forced tables), `engage/profiles.ts` (normalization, upsert with identifier history, consent ledger, suppression, fail-closed checks), read-only `GET /api/engage/profiles/:id`. Details in ADR-005 (implementation notes).
+- **Verified:** `tsc` clean; 29 unit tests; 35 real-Postgres tests as the non-bypass role (identifier uniqueness and normalization in the DB, cross-tenant child rows refused, append-only ledger and suppressions, state only via trigger, late-arriving older consent, opt-out atomicity, 404 for another tenant's id, no emails or phones in logs); the isolation suite now covers all five tables. Full suite 1150 passed. Broke the migration 14 ways on fresh databases: 12 caught outright; 2 survived because a second layer catches the same thing (purpose CHECK repeated on `consent_state`; composite foreign key repeated on `consent_state`), and removing both foreign-key layers together was caught.
+- **Not done:** events (WP-08), CSV import (WP-09), erasure (WP-35), IYS (WP-26), gate wiring (WP-11), any UI (WP-19).
+- **For you:** run `npm run db:migrate` against production to apply 113 (additive; engage code does not need it until WP-08 uses it).
+- **Next:** WP-08 (ingestion API), then WP-09.
+
 ## 2026-11-08 · Release safety (not a WP)
 - **Done (PR #12):** CI job **Production build** (production env, the real `railway.json` build command, server and client); **Post-deploy smoke** workflow (fails loudly on a failed Railway deploy, otherwise runs `scripts/smoke-production.sh`, 12 read-only checks, also runnable by hand); `docs/runbooks/release-and-rollback.md`. Branch protection on `main`: PR required (0 approvals), checks "Type-check & test" and "Production build" required, no force-push or deletion, enforced for admins too.
 - **Verified:** the old build command under production env reproduces the TS2688 outage (so the job would have failed on it); both CI jobs green on the PR; after merge, the smoke workflow triggered on Railway's success status and passed.
