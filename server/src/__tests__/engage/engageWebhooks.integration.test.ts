@@ -201,12 +201,25 @@ describe.skipIf(!adminUrl)('email channel: SES adapter and signed webhooks (real
     expect(await status(A, s.messageId)).toBe('sent');
   });
 
+  it('a report that beats the send call\'s bookkeeping is retried, not lost (observed with real SES: delivery report within a second)', async () => {
+    process.env.SEND_MODE = 'sandbox';
+    const acct = await sesAccount(A);
+    const s = await sent(A, acct);
+    await sql(A, `UPDATE engage.messages SET provider_message_id = NULL WHERE id = $1`, [s.messageId]); // the id is not stored yet
+    const note = sns(delivery(s.sesId));
+    expect(await post(acct, note)).toMatchObject({ status: 503, json: { unmatched: 1, applied: 0 } });
+    expect(await status(A, s.messageId)).toBe('sent');
+    await sql(A, `UPDATE engage.messages SET provider_message_id = $2 WHERE id = $1`, [s.messageId, s.sesId]); // now it is
+    expect(await post(acct, note)).toMatchObject({ status: 200, json: { applied: 1, unmatched: 0 } }); // SNS retries the same notification
+    expect(await status(A, s.messageId)).toBe('delivered');
+  });
+
   it('never applies a report to another tenant\'s message, even with the same topic', async () => {
     process.env.SEND_MODE = 'sandbox';
     const acctA = await sesAccount(A);
     const acctB = await sesAccount(B);
     const s = await sent(A, acctA);
-    expect(await post(acctB, sns(bounce(s.sesId, s.email)))).toMatchObject({ status: 200, json: { unmatched: 1, applied: 0, suppressed: 0 } });
+    expect(await post(acctB, sns(bounce(s.sesId, s.email)))).toMatchObject({ status: 503, json: { unmatched: 1, applied: 0, suppressed: 0 } });
     expect(await status(A, s.messageId)).toBe('sent');
     expect(await suppression(A, s.email)).toBeNull();
     expect(await suppression(B, s.email)).toBeNull();

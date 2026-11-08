@@ -67,7 +67,7 @@ Everything below happens in one AWS region. The examples use `eu-central-1` (Fra
 
 - A dispatched message goes through the send gate (consent, suppression, allow-list, budget, content), then to SES. The SES `MessageId` is stored on the message.
 - SES publishes Delivery, Bounce and Complaint to the topic; SNS posts them to the webhook. A hard bounce or a complaint suppresses the address for that tenant immediately, so the gate denies the next send to it.
-- Webhook responses: 200 verified, 401 bad signature or wrong topic, 404 unknown or disabled account, 503 cannot fetch AWS's signing certificate right now (SNS retries).
+- Webhook responses: 200 verified, 401 bad signature or wrong topic, 404 unknown or disabled account, 503 cannot fetch AWS's signing certificate right now, or the report names a message not recorded yet (SNS retries). The second case is real: SES reported delivery within a second of accepting the message, before Messign had stored the SES message id. Answering 200 there lost the report (first real send, 2026-11-08); 503 makes SNS retry (default: 3 retries, 20 s apart).
 
 ## Limits and honest notes
 
