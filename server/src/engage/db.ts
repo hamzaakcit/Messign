@@ -94,3 +94,12 @@ export function withApiKeyLookup<T>(keyHash: string, fn: (client: pg.PoolClient)
     fn,
   );
 }
+
+/** Runs fn with no tenant but permission to read the one channel_accounts row with this id (provider webhooks). */
+export function withAccountLookup<T>(accountId: string, fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  if (!UUID_RE.test(accountId)) throw new Error('withAccountLookup requires a UUID account id.');
+  return inTransaction(
+    (client) => client.query("SELECT set_config('engage.lookup_account_id', $1, true)", [accountId]).then(() => undefined),
+    fn,
+  );
+}

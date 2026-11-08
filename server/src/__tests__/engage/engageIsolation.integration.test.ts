@@ -65,7 +65,8 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
         `SELECT tablename, policyname, cmd, qual, with_check FROM pg_policies WHERE schemaname = 'engage'`);
       for (const t of tables) expect(r.rows.filter((p) => p.tablename === t).length, `${t} has no policy`).toBeGreaterThan(0);
       for (const p of r.rows) {
-        const bound = /current_org_id|lookup_key_hash/;
+        // The only non-tenant reads: the API-key lookup by hash, and (WP-12) the webhook lookup of ONE channel account by id.
+        const bound = p.tablename === 'channel_accounts' && p.cmd === 'SELECT' ? /current_org_id|lookup_account_id/ : /current_org_id|lookup_key_hash/;
         expect(p.qual ?? '', `${p.tablename}.${p.policyname} USING`).toMatch(bound);
         if (p.cmd !== 'SELECT') expect(p.with_check ?? '', `${p.tablename}.${p.policyname} WITH CHECK`).toMatch(/current_org_id/);
         expect(p.cmd === 'SELECT' || /current_org_id/.test(p.qual ?? ''), `${p.tablename}.${p.policyname} writes must use the tenant`).toBe(true);
@@ -254,7 +255,13 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
       walk((engageRouter as unknown as { stack: Layer[] }).stack, '');
       expect(found.length).toBeGreaterThanOrEqual(9);
       expect(found.some((r) => r.path.startsWith('(nested)')), 'nested routers must be inspected').toBe(true);
-      for (const r of found) expect(guards.includes(r.first as never), `${r.path} must start with an auth middleware`).toBe(true);
+      // Provider webhooks authenticate by signature; their guard is accepted on /webhooks routes only.
+      const { requireWebhookAccount } = await import('../../engage/webhookRoutes.js');
+      for (const r of found) {
+        const ok = guards.includes(r.first as never) || (r.first === requireWebhookAccount && r.path === '(nested)/:accountId');
+        expect(ok, `${r.path} must start with an auth middleware`).toBe(true);
+      }
+      expect(found.filter((r) => r.first === requireWebhookAccount)).toHaveLength(1);
     });
 
     it('test 7: secrets are never logged or returned after creation', async () => {

@@ -40,7 +40,7 @@ export interface AdapterSendResult {
   providerMessageId: string;
 }
 
-export type ProviderEventType = 'sent' | 'delivered' | 'failed' | 'bounced';
+export type ProviderEventType = 'sent' | 'delivered' | 'failed' | 'bounced' | 'complained';
 
 export interface ProviderEvent {
   providerMessageId: string;
@@ -49,6 +49,9 @@ export interface ProviderEvent {
   type: ProviderEventType;
   occurredAt: Date;
   errorCode?: string;
+  /** Addresses the provider says must not be mailed again (hard bounce, complaint). Applied only when the report
+   *  matches a message of this tenant, and only to that message's channel. */
+  suppress?: { addresses: string[]; reason: 'hard_bounce' | 'complaint' | 'opt_out' };
 }
 
 export interface RawWebhook {
@@ -82,8 +85,10 @@ export interface ChannelAdapter {
   readonly provider: string;
   capabilities(): AdapterCapabilities;
   send(req: AdapterSendRequest, account: AdapterAccount): Promise<AdapterSendResult>;
-  /** Verifies the signature first and throws WebhookSignatureError if it does not match. Returns normalised events. */
-  parseWebhook(raw: RawWebhook, account: AdapterAccount): ProviderEvent[];
+  /** Verifies the signature first and throws WebhookSignatureError if it does not match. Returns normalised events.
+   *  May be async (a provider may need to fetch its signing certificate). Throws AdapterError('transient') when the
+   *  report cannot be verified right now, so the provider retries. */
+  parseWebhook(raw: RawWebhook, account: AdapterAccount): ProviderEvent[] | Promise<ProviderEvent[]>;
   normalizeError(err: unknown): NormalizedError;
 }
 

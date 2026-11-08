@@ -1,9 +1,11 @@
 import { getAdapter, registerAdapter } from './adapter.js';
 import { mockAdapter } from './mockAdapter.js';
+import { createSesAdapter } from './sesAdapter.js';
 
-/** The mock adapter is always available. Real adapters register themselves here as their work packages land. */
+/** Built-in adapters: the mock (sandbox only, enforced by the gate's account-mode rule) and Amazon SES. */
 export function registerBuiltInAdapters(): void {
   if (!getAdapter(mockAdapter.provider)) registerAdapter(mockAdapter);
+  if (!getAdapter('ses')) registerAdapter(createSesAdapter());
 }
 registerBuiltInAdapters();
 
@@ -14,3 +16,4 @@ export { evaluateGate, checkContent, REQUIRED_READINESS, type GateResult, type G
 export * from './gateConfig.js';
 export * from './dlrSimulator.js';
 export { MOCK_PROVIDER, MOCK_SIGNATURE_HEADER, mockProviderMessageId, signMockPayload, resetMockAdapter } from './mockAdapter.js';
+export { createSesAdapter, SES_PROVIDER, snsStringToSign, mapSesNotification } from './sesAdapter.js';
