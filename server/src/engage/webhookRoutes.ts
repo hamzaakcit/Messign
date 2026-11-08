@@ -9,7 +9,8 @@ import { createKeyRateLimiter } from './rateLimit.js';
  * Provider webhooks (WP-12): POST /api/engage/webhooks/:accountId. No user or API key: the provider proves itself by
  * its signature, which the account's adapter verifies over the exact bytes received. The account id in the URL only
  * says which tenant and which secret to check against; an unknown, disabled or malformed id is a plain 404.
- *   200 verified (including duplicates and reports for unknown messages, so the provider stops retrying)
+ *   200 verified (including duplicates, so the provider stops retrying)
+ *   503 also when a report names a message not recorded yet (the report can beat the send call's own bookkeeping)
  *   401 signature missing or invalid            400 signed but malformed
  *   503 cannot verify right now (the provider retries)    429 too many requests for this account
  * Nothing from the body is logged.
@@ -51,6 +52,16 @@ webhookRouter.post('/:accountId',
       const headers: Record<string, string | undefined> = {};
       for (const [k, v] of Object.entries(req.headers)) headers[k.toLowerCase()] = Array.isArray(v) ? v.join(',') : v;
       const result = await ingestWebhook(orgId, accountId, { headers, body: req.body });
+      // A report for a message we cannot find yet is most likely a race: the provider's report can arrive before the
+      // send call has returned and its provider message id has been stored (observed with SES: delivery report within a
+      // second of acceptance). Answering 200 would make the provider stop retrying and the report would be lost for good.
+      // 503 makes it retry (SNS: 3 retries 20 s apart by default). Everything matched in this call is already stored,
+      // and a repeat is skipped by the unique provider event id, so retrying is safe. Reports for a message that never
+      // existed here (stale, another account) exhaust the retries and are dropped, which is what they were before.
+      if (result.unmatched > 0) {
+        logWarn('webhook: report for a message not recorded yet', { accountId, unmatched: result.unmatched });
+        return void res.status(503).json({ ...result, error: 'Message not recorded yet, try again later' });
+      }
       res.json(result);
     } catch (err) {
       if (err instanceof WebhookSignatureError) {
