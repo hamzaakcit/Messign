@@ -3,6 +3,7 @@ import { withEngageTenant } from '../db.js';
 import type { Channel } from '../credentials.js';
 import { getAdapter, type RawWebhook, type ProviderEvent } from './adapter.js';
 import { loadAccountSecrets } from '../credentials.js';
+import { normalizeEmail } from '../profiles.js';
 
 /**
  * The messages ledger (WP-10). Creating a message only records the intent; nothing is sent until dispatch (dispatch.ts),
@@ -156,6 +157,8 @@ export interface IngestResult {
   unmatched: number;
   /** Stored but changed nothing (already further along, for example a late "sent" after "delivered"). */
   ignored: number;
+  /** Addresses suppressed because of these reports (hard bounces, complaints). */
+  suppressed: number;
 }
 
 /**
@@ -164,12 +167,12 @@ export interface IngestResult {
  * reports, where the first to arrive wins.
  */
 export async function ingestProviderEvents(orgId: string, provider: string, events: ProviderEvent[], source: 'provider' | 'simulator' = 'provider'): Promise<IngestResult> {
-  const out: IngestResult = { received: events.length, applied: 0, duplicates: 0, unmatched: 0, ignored: 0 };
+  const out: IngestResult = { received: events.length, applied: 0, duplicates: 0, unmatched: 0, ignored: 0, suppressed: 0 };
   if (events.length === 0) return out;
   await withEngageTenant(orgId, async (c) => {
     for (const [i, ev] of events.entries()) {
-      const m = await c.query<{ id: string }>(
-        `SELECT id FROM engage.messages WHERE organization_id = $1 AND provider = $2 AND provider_message_id = $3`,
+      const m = await c.query<{ id: string; channel: string }>(
+        `SELECT id, channel FROM engage.messages WHERE organization_id = $1 AND provider = $2 AND provider_message_id = $3`,
         [orgId, provider, ev.providerMessageId]);
       if (!m.rows[0]) { out.unmatched++; continue; }
       // A repeat of a known provider event id is skipped by the unique index. The apply trigger runs first but cannot
@@ -181,6 +184,16 @@ export async function ingestProviderEvents(orgId: string, provider: string, even
          VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (organization_id, message_id, provider_event_id) WHERE provider_event_id IS NOT NULL DO NOTHING
          RETURNING applied`,
         [orgId, m.rows[0].id, ev.type, ev.providerEventId, source, ev.occurredAt, ev.errorCode ?? null]);
+      // A hard bounce or complaint suppresses the address at once for this tenant and channel (R-3), whatever the
+      // message status ended up as. Repeats are harmless (unique per tenant, channel and address).
+      for (const address of ins.rows[0] ? ev.suppress?.addresses ?? [] : []) {
+        const value = normalizeEmail(address);
+        if (!value || m.rows[0].channel !== 'email') continue;
+        await c.query(
+          `INSERT INTO engage.suppressions (organization_id, channel, value_normalized, reason) VALUES ($1, 'email', $2, $3)
+           ON CONFLICT (organization_id, channel, value_normalized) DO NOTHING`, [orgId, value, ev.suppress!.reason]);
+        out.suppressed++;
+      }
       await c.query(`RELEASE SAVEPOINT ${sp}`);
       if (!ins.rows[0]) out.duplicates++;
       else if (ins.rows[0].applied) out.applied++;
@@ -195,7 +208,7 @@ export async function ingestWebhook(orgId: string, accountId: string, raw: RawWe
   const { account, secrets } = await loadAccountSecrets(orgId, accountId);
   const adapter = getAdapter(account.provider);
   if (!adapter) throw new MessageInputError('No adapter registered for this account provider');
-  const events = adapter.parseWebhook(raw, {
+  const events = await adapter.parseWebhook(raw, {
     id: account.id, channel: account.channel, provider: account.provider, mode: account.mode, config: account.config, secrets,
   });
   return ingestProviderEvents(orgId, account.provider, events);

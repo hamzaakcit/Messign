@@ -5,11 +5,11 @@ import './types.js';
  * Per-API-key fixed-window limiter. State is per process: with N replicas a key can send up to N times the limit.
  * That is acceptable as abuse protection for the pilot; a shared counter belongs with the WP-31 hardening.
  */
-export function createKeyRateLimiter(opts: { limit: number; windowMs: number; now?: () => number }) {
+export function createKeyRateLimiter(opts: { limit: number; windowMs: number; now?: () => number; key?: (req: Request) => string | undefined }) {
   const hits = new Map<string, { windowStart: number; count: number }>();
   const now = opts.now ?? Date.now;
   return function keyRateLimit(req: Request, res: Response, next: NextFunction): void {
-    const key = req.engageApiKey?.keyId;
+    const key = opts.key ? opts.key(req) : req.engageApiKey?.keyId;
     if (!key) { res.status(401).json({ error: 'API key required' }); return; } // never run before authentication
     const t = now();
     if (hits.size > 10_000) for (const [k, v] of hits) if (t - v.windowStart >= opts.windowMs) hits.delete(k);
