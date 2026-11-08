@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { runMarketingPublisherTick } from '../services/marketing/marketingPublisherService.js';
+import { isSendModeLive } from '../services/marketing/publishing/adapterUtils.js';
 
 /**
  * Runs every minute — claim due calendar rows and push to external adapters.
@@ -9,6 +10,12 @@ export function startMarketingPublisherCron(): void {
   if (process.env.MARKETING_PUBLISHER_ENABLED !== '1') {
     console.log('[MarketingPublisherCron] Disabled by default — set MARKETING_PUBLISHER_ENABLED=1 to enable');
     return;
+  }
+
+  if (!isSendModeLive()) {
+    console.warn(
+      '[MarketingPublisherCron] SEND_MODE is not "live": every adapter returns a mock result, so due posts are marked published without being sent. Set SEND_MODE=live to send for real, or unset MARKETING_PUBLISHER_ENABLED.',
+    );
   }
 
   cron.schedule(
