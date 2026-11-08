@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { getEngagePool, withApiKeyLookup, withEngageTenant } from '../db.js';
 import { hashApiKey, looksLikeApiKey, type ApiKeyScope } from '../apiKeys.js';
 import type { EngageUserContext } from '../types.js';
+import { errorFields, logError } from '../log.js';
 
 interface LookupRow {
   user_id: string;
@@ -53,9 +54,18 @@ export async function requireEngageUser(req: Request, res: Response, next: NextF
     req.engageUser = r.user;
     next();
   } catch (err) {
-    console.error('[engage] requireEngageUser failed:', err instanceof Error ? err.message : err);
+    logError('requireEngageUser failed', errorFields(err));
     res.status(500).json({ error: 'Authentication failed' });
   }
+}
+
+/** Use after requireEngageUser: only a tenant admin may continue. */
+export function requireEngageAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (req.engageUser?.role !== 'admin') {
+    res.status(403).json({ error: 'Admin role required' });
+    return;
+  }
+  next();
 }
 
 /** Platform operators only: an admin of the platform organization. Used for tenant provisioning. */
@@ -70,7 +80,7 @@ export async function requirePlatformAdmin(req: Request, res: Response, next: Ne
     req.engageUser = r.user;
     next();
   } catch (err) {
-    console.error('[engage] requirePlatformAdmin failed:', err instanceof Error ? err.message : err);
+    logError('requirePlatformAdmin failed', errorFields(err));
     res.status(500).json({ error: 'Authentication failed' });
   }
 }
@@ -112,7 +122,7 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
     req.engageApiKey = { organizationId: row.organization_id, keyId: row.id, scopes: row.scopes as ApiKeyScope[] };
     next();
   } catch (err) {
-    console.error('[engage] requireApiKey failed:', err instanceof Error ? err.message : err);
+    logError('requireApiKey failed', errorFields(err));
     res.status(500).json({ error: 'Authentication failed' });
   }
 }

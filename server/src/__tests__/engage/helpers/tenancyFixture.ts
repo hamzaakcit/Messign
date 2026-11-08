@@ -1,32 +1,16 @@
 /**
  * Shared real-Postgres fixture for the engage isolation tests. Needs ENGAGE_TEST_ADMIN_URL pointing at a scratch
- * database whose role may CREATE ROLE. Applies a minimal legacy fixture, migration 111 and every later engage
- * migration, gives messign_engage a test-only login, and provisions two tenants (A and B) plus a platform admin.
+ * database (Postgres 17 + pgvector, role allowed to CREATE ROLE and CREATE EXTENSION). It builds the schema with the
+ * real migration runner (production baseline + engage migrations), gives messign_engage a test-only login, and
+ * provisions two tenants (A and B) plus a platform admin.
  */
 import { randomUUID } from 'crypto';
-import { readdirSync, readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import pg from 'pg';
+import { runMigrations } from '../../../migrations/runner.js';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS = join(here, '..', '..', '..', 'migrations');
 const ENGAGE_PASSWORD = 'engage-test-only';
 
 export const adminUrl = process.env.ENGAGE_TEST_ADMIN_URL;
-
-const EMPLOYEE_AUTH_FIXTURE = `
-CREATE TABLE IF NOT EXISTS employee_auth (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  auth_user_id VARCHAR(100) UNIQUE NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
-  temporary_password VARCHAR(255),
-  account_status VARCHAR(20) NOT NULL DEFAULT 'active',
-  created_by VARCHAR(100) NOT NULL DEFAULT 'system',
-  updated_by VARCHAR(100) NOT NULL DEFAULT 'system'
-);`;
 
 export type Tenant = Awaited<ReturnType<typeof import('../../../engage/bootstrap/provisionOrganization.js').provisionOrganization>>;
 
@@ -45,19 +29,18 @@ export interface TenancyFixture {
   teardown: () => Promise<void>;
 }
 
-function engageMigrationFiles(): string[] {
-  return readdirSync(MIGRATIONS).filter((f) => /^\d+_engage_.*\.sql$/.test(f)).sort();
-}
-
 export async function setupTenancyFixture(): Promise<TenancyFixture> {
   const admin = new pg.Pool({ connectionString: adminUrl, max: 3 });
-  // Test files run in parallel against one database; serialize the shared schema and role setup.
+  // Test files run in parallel against one database; the runner serializes itself with an advisory lock.
+  const vector = await admin.query(`SELECT 1 FROM pg_available_extensions WHERE name = 'vector'`);
+  if (vector.rowCount === 0) {
+    throw new Error('ENGAGE_TEST_ADMIN_URL must point at a Postgres with pgvector (the production baseline needs it), e.g. pgvector/pgvector:pg17.');
+  }
+  await runMigrations({ connectionString: adminUrl!, log: () => undefined });
+  // ALTER ROLE updates a shared catalog row; two test files doing it at once fail with "tuple concurrently updated".
   const lock = await admin.connect();
   try {
     await lock.query('SELECT pg_advisory_lock(7040501)');
-    await lock.query(readFileSync(join(MIGRATIONS, '001_base_schema.sql'), 'utf-8'));
-    await lock.query(EMPLOYEE_AUTH_FIXTURE);
-    for (const file of engageMigrationFiles()) await lock.query(readFileSync(join(MIGRATIONS, file), 'utf-8'));
     await lock.query(`ALTER ROLE messign_engage LOGIN PASSWORD '${ENGAGE_PASSWORD}'`);
   } finally {
     await lock.query('SELECT pg_advisory_unlock(7040501)').catch(() => undefined);
@@ -94,8 +77,8 @@ export async function setupTenancyFixture(): Promise<TenancyFixture> {
   created.push(platformOrgId);
   const platformUser = `platform-admin-${suffix}`;
   await admin.query(
-    `INSERT INTO reimbursement_users (organization_id, auth_user_id, email, full_name, role, status)
-     VALUES ($1, $2, $3, 'Platform Admin', 'admin', 'active')`, [platformOrgId, platformUser, `root@platform-${suffix}.example.com`]);
+    `INSERT INTO reimbursement_users (organization_id, tenant_id, auth_user_id, email, full_name, role, status)
+     VALUES ($1, $1, $2, $3, 'Platform Admin', 'admin', 'active')`, [platformOrgId, platformUser, `root@platform-${suffix}.example.com`]);
   process.env.PLATFORM_ORG_SLUG = `platform-${suffix}`;
 
   async function provisionTenant(name: string): Promise<Tenant> {

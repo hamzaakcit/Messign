@@ -13,7 +13,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # Matches production (Postgres 17) and ships pgvector, which the baseline schema needs.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -48,5 +49,5 @@ jobs:
       - name: Unit tests
         run: npm test
         env:
-          # Scratch database for the engage tenancy tests (they create and drop their own rows).
+          # Scratch database for the migration and engage tests (they build the schema with the real runner).
           ENGAGE_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres

@@ -8,10 +8,10 @@
 |---|---|---|---|---|---|
 | WP-01 | Safety & CI baseline: fix server `tsc`; CI runs unit tests (Node 22); `SEND_MODE` guard on legacy adapters; publisher cron default OFF; remove `x-user-id` dev auth; rewrite `db:verify-rls` to test via a non-bypass role | P0 | W1 | done | CI red on failing test; unset `SEND_MODE` → mock everywhere; `tsc` clean |
 | WP-02 | Repo cleanup + `PRODUCT_SURFACE` flag + CLAUDE.md refresh + README product line (`dal/time` kept pending D-10 review) | P0 | W1 | done | Removed list per ADR-001; frozen routes 404 under `engage` |
-| WP-03 | Migration baseline (`000_baseline`), single runner, delete duplicate migration dir, no new runtime DDL | P0 | W1 | blocked(schema-only dump: `pg_dump -s`) | Fresh DB = live schema (diff empty) |
+| WP-03 | Migration baseline (`000_baseline`), single runner, delete duplicate migration dir, no new runtime DDL | P0 | W1 | done | Fresh DB = live schema (diff empty) |
 | WP-04 | `engage` schema; dedicated `messign_engage` role + separate engage pool (ADR-002 amendment); org `product`; api_keys; tenant_settings; tenant_readiness; `requireEngageUser`; `requireApiKey`; admin org provisioning; BYPASSRLS boot check | P0 | W2 | done | Two orgs provisioned; no fallback org on engage routes |
 | WP-05 | Tenant-isolation adversarial harness (CI Postgres as `messign_app`, schema guard, import lint) | P0 | W2 | done | target-state §A tests 1–4, 7, 8 green |
-| WP-06 | Credential store (ADR-006) | P0 | W2 | todo | Write-only, fail-closed, rotation, redaction tests |
+| WP-06 | Credential store (ADR-006) | P0 | W2 | done | Write-only, fail-closed, rotation, redaction tests |
 | WP-07 | Profiles, identifiers, consents (+state), suppressions | P0 | W3 | todo | One active email/phone per profile enforced in the DB |
 | WP-08 | Ingestion API v1 (upsert, identify/update, track, trigger stub), dedup, partitions, transactional enqueue | P0 | W3 | todo | Duplicate event → one row; OpenAPI published |
 | WP-09 | CSV import (profiles, consents with evidence, orders) + synthetic tenant generator (bookstore, florist) feeding the importer | P0 | W3 | todo | 100k round-trip; generator emits only test phone ranges/`example.*` emails |
