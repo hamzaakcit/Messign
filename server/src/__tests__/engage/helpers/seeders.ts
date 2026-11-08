@@ -16,6 +16,19 @@ async function seedProfile(c: pg.PoolClient, org: string): Promise<string> {
   return r.rows[0]!.id;
 }
 
+/** A message needs its own profile and mock account, so each fails on RLS first for a foreign org. */
+async function seedMessage(c: pg.PoolClient, org: string): Promise<string> {
+  const profile = await seedProfile(c, org);
+  const acct = await c.query<{ id: string }>(
+    `INSERT INTO engage.channel_accounts (organization_id, channel, provider, mode, label, secret_ciphertext, wrapped_data_key, key_id, secret_fingerprint)
+     VALUES ($1, 'email', 'mock', 'test', $2, $3, $3, 'k1', 'seed') RETURNING id`, [org, `msg-seed-${org}-${Math.random()}`, DUMMY]);
+  const m = await c.query<{ id: string }>(
+    `INSERT INTO engage.messages (organization_id, profile_id, channel, purpose, channel_account_id, provider, idempotency_key, request_hash, content)
+     VALUES ($1, $2, 'email', 'transactional', $3, 'mock', $4, $5, '{}'::jsonb) RETURNING id`,
+    [org, profile, acct.rows[0]!.id, `seed-${Math.random()}`, 'a'.repeat(64)]);
+  return m.rows[0]!.id;
+}
+
 export const SEEDERS: Record<string, Seeder> = {
   profiles: async (c, org) => { await seedProfile(c, org); },
   identifiers: async (c, org) => {
@@ -58,6 +71,17 @@ export const SEEDERS: Record<string, Seeder> = {
       `INSERT INTO engage.channel_accounts (organization_id, channel, provider, mode, label, secret_ciphertext, wrapped_data_key, key_id, secret_fingerprint)
        VALUES ($1, 'email', 'mock', 'test', $2, $3, $3, 'k1', 'seed')`,
       [org, `seed-${org}-${Math.random()}`, DUMMY]);
+  },
+  messages: async (c, org) => { await seedMessage(c, org); },
+  message_events: async (c, org) => {
+    const m = await seedMessage(c, org);
+    // The event trigger insists on a tenant context (the other seeders are only checked by RLS, which the admin bypasses).
+    await c.query("SELECT set_config('app.current_tenant', $1, false)", [org]);
+    try {
+      await c.query(`INSERT INTO engage.message_events (organization_id, message_id, type, source) VALUES ($1, $2, 'sent', 'system')`, [org, m]);
+    } finally {
+      await c.query('RESET app.current_tenant');
+    }
   },
   tenant_settings: async (c, org) => {
     await c.query('INSERT INTO engage.tenant_settings (organization_id) VALUES ($1)', [org]);
