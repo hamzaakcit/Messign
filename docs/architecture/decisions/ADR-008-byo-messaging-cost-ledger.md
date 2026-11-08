@@ -5,3 +5,8 @@
 - **Decision:** No wallet, balance or spread code. Each `engage.messages` row records `cost_estimate_minor`, `currency`, and `rate_card_id` from the tenant's configured rate card per channel/route/category. Where the provider returns actual cost in DLR or billing data, store `cost_actual_minor`. Monthly budget caps per tenant and channel are enforced by the send gate (ADR-004). Money uses integer minor units plus a currency code. EUR conversion reuses `exchange_rates` for reporting only.
 - **Consequences:** + transparent-economics feature ships early; the same ledger later supports margin if resale starts (Q6 triggers). − no messaging revenue for Messign in year 1 (accepted).
 - **Rejected:** prepaid wallet (requires an entity, handles customer money, and requires reseller status).
+
+## Implementation notes
+
+### WP-10
+`engage.messages` has `cost_estimate_minor` (integer minor units) and `currency`, both empty for now. Rate cards, `rate_card_id`, `cost_actual_minor` and the budget cap arrive with WP-11; the columns exist so that WP-11 adds data, not a rewrite of the ledger.
