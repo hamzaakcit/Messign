@@ -80,7 +80,7 @@ function convertToAnthropicMessages(
       });
     } else if (msg.role === 'assistant') {
       const assistantMsg = msg as OpenAI.ChatCompletionAssistantMessageParam;
-      const blocks: Anthropic.ContentBlockParam[] = [];
+      const blocks: Array<Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam> = [];
       if (assistantMsg.content) {
         blocks.push({ type: 'text', text: typeof assistantMsg.content === 'string' ? assistantMsg.content : JSON.stringify(assistantMsg.content) });
       }

@@ -3,11 +3,11 @@ import { runMarketingPublisherTick } from '../services/marketing/marketingPublis
 
 /**
  * Runs every minute — claim due calendar rows and push to external adapters.
- * Disable with `MARKETING_PUBLISHER_ENABLED=0`.
+ * Default OFF (ADR-004); enable with `MARKETING_PUBLISHER_ENABLED=1`.
  */
 export function startMarketingPublisherCron(): void {
-  if (process.env.MARKETING_PUBLISHER_ENABLED === '0') {
-    console.log('[MarketingPublisherCron] Disabled (MARKETING_PUBLISHER_ENABLED=0)');
+  if (process.env.MARKETING_PUBLISHER_ENABLED !== '1') {
+    console.log('[MarketingPublisherCron] Disabled by default — set MARKETING_PUBLISHER_ENABLED=1 to enable');
     return;
   }
 

@@ -4,7 +4,6 @@ import { ensureReimbursementUserForAuth } from '../db/ensureReimbursementUser.js
 import { getByAuthUserId } from '../db/employeeAuthDb.js';
 
 const DEFAULT_ORG_SLUG = 'messign';
-const isDev = process.env.NODE_ENV !== 'production';
 
 export interface AuthenticatedRequest extends Request {
   userId: string;
@@ -50,11 +49,7 @@ export function invalidateAuthCache(authUserId: string): void {
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  let userId = (req as Request & { userId?: string }).userId;
-
-  if (!userId && isDev) {
-    userId = req.headers['x-user-id'] as string | undefined;
-  }
+  const userId = (req as Request & { userId?: string }).userId;
 
   if (!userId) {
     res.status(401).json({ error: 'Authorization required' });

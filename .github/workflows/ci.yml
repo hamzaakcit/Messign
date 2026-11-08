@@ -8,17 +8,31 @@ on:
 
 jobs:
   build:
-    name: Type-check
+    name: Type-check & test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Matches production (Postgres 17) and ships pgvector, which the baseline schema needs.
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -31,3 +45,9 @@ jobs:
       - name: Type-check server
         working-directory: server
         run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+        env:
+          # Scratch database for the migration and engage tests (they build the schema with the real runner).
+          ENGAGE_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres

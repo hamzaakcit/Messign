@@ -36,25 +36,16 @@ function mockRes(): Response {
   return res as Response;
 }
 
-const originalEnv = process.env.NODE_ENV;
-
 afterEach(() => {
   vi.clearAllMocks();
-  process.env.NODE_ENV = originalEnv;
 });
 
 describe('requireAuth', () => {
-  it('returns 401 when no userId and not in dev mode', async () => {
+  it('returns 401 when no userId is set on the request', async () => {
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
 
-    /*
-     * The module reads `isDev` at import time (const isDev = process.env.NODE_ENV !== 'production').
-     * To test production behaviour we must re-import the module. Here we approximate by
-     * passing a request that has neither userId nor X-User-Id header, which triggers the
-     * 401 path regardless of isDev when userId is undefined.
-     */
     await requireAuth(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
@@ -62,45 +53,15 @@ describe('requireAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('accepts X-User-Id header in dev mode (NODE_ENV !== production)', async () => {
-    const uid = 'dev-user-123';
-    const orgId = 'org-1';
-    const req = mockReq({ headers: { 'x-user-id': uid } });
-    const res = mockRes();
-    const next = vi.fn();
-
-    mockedQuery.mockResolvedValueOnce({
-      rows: [{ id: uid, role: 'admin', organization_id: orgId }],
-      command: '',
-      rowCount: 1,
-      oid: 0,
-      fields: [],
-    } as any);
-
-    await requireAuth(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect((req as any).userId).toBe(uid);
-    expect((req as any).role).toBe('admin');
-    expect((req as any).tenantId).toBe(orgId);
-    expect((req as any).organizationId).toBe(orgId);
-  });
-
-  it('does NOT accept X-User-Id when NODE_ENV=production (module-level isDev is false)', async () => {
-    /*
-     * isDev is captured at module load time, so toggling NODE_ENV after import has no effect.
-     * This test verifies the 401 path when userId is absent on the request object.
-     * In production the header is ignored and no userId means 401.
-     * Because we can't re-evaluate the module constant we simply assert the baseline:
-     * a request with no userId property (and no dev fallback) is rejected.
-     */
-    const req = mockReq();
+  it('never accepts an X-User-Id header — only req.userId set upstream by JWT auth', async () => {
+    const req = mockReq({ headers: { 'x-user-id': 'attacker-supplied-id' } });
     const res = mockRes();
     const next = vi.fn();
 
     await requireAuth(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
+    expect(mockedQuery).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
 

@@ -1,5 +1,0 @@
-# Same as requirements-comfyui-cloud.txt — merge into your ComfyUI image requirements.
-# Dockerfile: RUN pip install --no-cache-dir -r requirements-comfyui-cloud.txt
-# Or use scripts/comfyui-entrypoint.example.sh for pip-on-boot.
-
-pillow-avif-plugin>=1.4.0

@@ -12,8 +12,6 @@ export interface ReimbursementRequest extends Request {
   tenantId?: string;
 }
 
-const isDev = process.env.NODE_ENV !== 'production';
-
 interface CachedReimbUser { user: ReimbursementUser; cachedAt: number }
 const reimbUserCache = new Map<string, CachedReimbUser>();
 const REIMB_CACHE_TTL_MS = 60_000;
@@ -42,8 +40,7 @@ export function invalidateReimbAuthCache(authUserId: string, orgId: string): voi
 }
 
 export async function reimbursementAuth(req: ReimbursementRequest, res: Response, next: NextFunction): Promise<void> {
-  const authUserId = (req as Request & { userId?: string }).userId
-    ?? (isDev ? (req.headers['x-user-id'] as string | undefined) : undefined);
+  const authUserId = (req as Request & { userId?: string }).userId;
   if (!authUserId) {
     res.status(401).json({ error: 'Authorization required' });
     return;

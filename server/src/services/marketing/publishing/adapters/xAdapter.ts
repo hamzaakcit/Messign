@@ -2,7 +2,7 @@
  * X (Twitter) API v2 — stub POST /2/tweets; production needs OAuth 2.0 user context + media upload if needed.
  */
 import type { AdapterPublishSuccess, CalendarRecordForPublish, ContentPayloadForPublish } from '../types.js';
-import { withTransientRetry, errorFromResponse } from '../adapterUtils.js';
+import { withTransientRetry, errorFromResponse, isSendModeLive } from '../adapterUtils.js';
 
 export interface XAdapterInput {
   calendar: CalendarRecordForPublish;
@@ -15,7 +15,7 @@ export async function publishXTweet(input: XAdapterInput): Promise<AdapterPublis
   return withTransientRetry(async () => {
     const token = process.env.X_BEARER_TOKEN ?? process.env.TWITTER_BEARER_TOKEN;
 
-    if (token && process.env.X_FORCE_REAL === '1') {
+    if (token && isSendModeLive()) {
       const res = await fetch('https://api.twitter.com/2/tweets', {
         method: 'POST',
         headers: {
