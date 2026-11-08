@@ -21,3 +21,12 @@
   - Legacy keeps the `postgres` connection until Company-OS retirement. It is **not** switched to `messign_app` in 90 days, because ~77 legacy inserts omit `tenant_id` and would break.
   - `db:verify-rls` is rewritten to run its checks via `SET ROLE` to a non-bypass role (or a separate URL) and to report the connecting role's bypass status as a separate result.
 - **Why:** isolation for engage is enforced by the database regardless of what legacy does, and nothing legacy breaks.
+
+## Implementation notes (WP-04, 2026-11-07)
+- **Own tenant function:** migration 111 defines `engage.current_org_id()` (reads `app.current_tenant`, empty means none) instead of using `current_tenant_id()`. The legacy function lives in scripts outside the migration runner, so a fresh database lacks it.
+- **Role creation:** migration 111 creates `messign_engage` as `NOLOGIN`, with all grants. The operator adds the login and password out of band (`db/scripts/create_engage_role.sql`), so no secret is in the repo.
+- **Legacy user lookup:** the engage role has no access to legacy tables. Auth uses `engage.lookup_user(auth_user_id)`, a `SECURITY DEFINER` function that returns only id, role, organization, slug and product.
+- **API key lookup before a tenant exists:** `engage.api_keys` has a second `SELECT` policy that exposes only the row whose hash equals the transaction-local setting `engage.lookup_key_hash`. Writes still need the tenant policy. `last_used_at` is updated under the key's own tenant.
+- **Provisioning writes legacy tables** (`organizations`, `reimbursement_users`, `employee_auth`), so it runs on the legacy admin pool in one transaction, in the allow-listed `server/src/engage/bootstrap/`. The first admin gets a random one-time password (bcrypt hashed, `must_change_password`), returned once with `Cache-Control: no-store`.
+- **Platform admin** means role `admin` in the organization whose slug is `PLATFORM_ORG_SLUG` (default `messign`). Engage routes mount only when `PRODUCT_SURFACE` is `engage` or `all`, and only after the role check passes.
+- **Enforced since WP-05:** the import-lint rule (point 2) and the adversarial suite (`server/src/__tests__/engage/`). The suite enumerates the `engage` schema, so any new table must have a seeder in `helpers/seeders.ts` and passes the same read/update/delete/move/insert, no-context, schema-guard and policy checks. Per-key rate limiting is a column only until ingestion (WP-08).

@@ -17,6 +17,10 @@ export function mountsFrozenModules(surface: ProductSurface = getProductSurface(
   return surface !== 'engage';
 }
 
+export function mountsEngage(surface: ProductSurface = getProductSurface()): boolean {
+  return surface !== 'workspace';
+}
+
 export function isModuleOnSurface(
   namespace: string,
   surface: ProductSurface = getProductSurface(),

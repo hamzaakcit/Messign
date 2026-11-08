@@ -11,6 +11,20 @@ jobs:
     name: Type-check & test
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        # Matches production (Postgres 17) and ships pgvector, which the baseline schema needs.
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,3 +48,6 @@ jobs:
 
       - name: Unit tests
         run: npm test
+        env:
+          # Scratch database for the migration and engage tests (they build the schema with the real runner).
+          ENGAGE_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
