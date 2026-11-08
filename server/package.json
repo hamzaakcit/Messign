@@ -28,6 +28,7 @@
     "db:diagnose-rls": "tsx src/scripts/diagnoseRls.ts",
     "db:apply-rls": "tsx src/scripts/applyRlsMigrations.ts",
     "db:check-org-gaps": "tsx src/scripts/checkOrganizationIdGaps.ts",
+    "engage:rewrap-keys": "tsx src/scripts/rewrapEngageKeys.ts",
     "litellm": "python3 -m litellm --config ../litellm/config.yaml",
     "test:agents": "vitest run",
     "test:red-team": "tsx src/scripts/redTeam/testMarketingGatekeepers.ts",

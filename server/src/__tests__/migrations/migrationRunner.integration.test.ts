@@ -102,7 +102,8 @@ describe.skipIf(!adminUrl)('migration runner (real Postgres)', () => {
     expect(first.applied).toEqual(listMigrationFiles(MIGRATIONS));
     const rows = await q<{ filename: string }>(db, 'SELECT filename FROM public.schema_migrations ORDER BY filename');
     expect(rows.map((r) => r.filename)).toEqual(listMigrationFiles(MIGRATIONS));
-    expect((await q<{ n: string }>(db, `SELECT count(*) AS n FROM pg_tables WHERE schemaname = 'engage'`))[0]!.n).toBe('3');
+    const engageTables = (await q<{ tablename: string }>(db, `SELECT tablename FROM pg_tables WHERE schemaname = 'engage'`)).map((r) => r.tablename);
+    expect(engageTables).toEqual(expect.arrayContaining(['api_keys', 'tenant_readiness', 'tenant_settings']));
     expect((await q<{ search_path: string }>(db, 'SHOW search_path'))[0]!.search_path).toContain('public');
     const second = await runMigrations({ connectionString: urlFor(db), ...quiet });
     expect(second).toEqual({ applied: [], adoptedBaseline: false });

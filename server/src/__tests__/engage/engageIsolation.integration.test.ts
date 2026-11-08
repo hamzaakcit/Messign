@@ -80,33 +80,46 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
   });
 
   describe('test 1: cross-tenant access, per table', () => {
-    it.each(['tenant_settings', 'tenant_readiness', 'api_keys'])('%s: A cannot read, update, delete, move or insert B rows', async (table) => {
+    it('for every engage table, A cannot read, update, delete, move or insert B rows', async () => {
       const A = f.A.organization.id;
       const B = f.B.organization.id;
-      await f.engage.withEngageTenant(A, async (c) => {
-        const own = await c.query(`SELECT DISTINCT organization_id FROM engage.${table}`);
-        expect(own.rows.map((r) => r.organization_id), `${table} visible orgs`).toEqual([A]);
-        expect((await c.query(`SELECT 1 FROM engage.${table} WHERE organization_id = $1`, [B])).rowCount).toBe(0);
-        expect((await c.query(`UPDATE engage.${table} SET organization_id = organization_id WHERE organization_id = $1`, [B])).rowCount).toBe(0);
-        expect((await c.query(`DELETE FROM engage.${table} WHERE organization_id = $1`, [B])).rowCount).toBe(0);
-      });
-      await expect(f.engage.withEngageTenant(A, (c) =>
-        c.query(`UPDATE engage.${table} SET organization_id = $1 WHERE organization_id = $2`, [B, A]),
-      ), `${table} move A row to B`).rejects.toThrow(/row-level security/);
-      await expect(f.engage.withEngageTenant(A, async (c) => SEEDERS[table]!(c, C)), `${table} insert for another org`).rejects.toThrow(/row-level security/);
-      const bRows = await f.admin.query(`SELECT count(*)::int AS n FROM engage.${table} WHERE organization_id = $1`, [B]);
-      expect(bRows.rows[0].n, `${table} B rows intact`).toBeGreaterThan(0);
+      for (const table of tables) {
+        await f.engage.withEngageTenant(A, async (c) => {
+          const own = await c.query(`SELECT DISTINCT organization_id FROM engage.${table}`);
+          expect(own.rows.map((r) => r.organization_id), `${table} visible orgs`).toEqual([A]);
+          expect((await c.query(`SELECT 1 FROM engage.${table} WHERE organization_id = $1`, [B])).rowCount, `${table} read B`).toBe(0);
+        });
+        for (const [what, sql] of [
+          ['update', `UPDATE engage.${table} SET organization_id = organization_id WHERE organization_id = $1`],
+          ['delete', `DELETE FROM engage.${table} WHERE organization_id = $1`],
+        ] as const) {
+          // Affecting zero rows, or being forbidden outright by the table's privileges, are both safe.
+          const hits = await f.engage.withEngageTenant(A, async (c) => (await c.query(sql, [B])).rowCount ?? 0).catch((e) => {
+            if (/permission denied/.test(String(e))) return 0;
+            throw e;
+          });
+          expect(hits, `${table} ${what} B rows`).toBe(0);
+        }
+        await expect(f.engage.withEngageTenant(A, (c) =>
+          c.query(`UPDATE engage.${table} SET organization_id = $1 WHERE organization_id = $2`, [B, A]),
+        ), `${table} move A row to B`).rejects.toThrow(/row-level security|permission denied/);
+        await expect(f.engage.withEngageTenant(A, async (c) => SEEDERS[table]!(c, C)), `${table} insert for another org`).rejects.toThrow(/row-level security/);
+        const bRows = await f.admin.query(`SELECT count(*)::int AS n FROM engage.${table} WHERE organization_id = $1`, [B]);
+        expect(bRows.rows[0].n, `${table} B rows intact`).toBeGreaterThan(0);
+      }
     });
   });
 
   describe('test 2: no tenant context', () => {
-    it.each(['tenant_settings', 'tenant_readiness', 'api_keys'])('%s returns nothing and accepts no writes', async (table) => {
+    it('every table returns nothing and accepts no writes', async () => {
       const pool = f.engage.getEngagePool();
-      expect((await pool.query(`SELECT 1 FROM engage.${table}`)).rowCount).toBe(0);
-      const client = await pool.connect();
-      try {
-        await expect(SEEDERS[table]!(client, f.A.organization.id)).rejects.toThrow(/row-level security/);
-      } finally { client.release(); }
+      for (const table of tables) {
+        expect((await pool.query(`SELECT 1 FROM engage.${table}`)).rowCount, table).toBe(0);
+        const client = await pool.connect();
+        try {
+          await expect(SEEDERS[table]!(client, f.A.organization.id), `${table} write without tenant`).rejects.toThrow(/row-level security/);
+        } finally { client.release(); }
+      }
     });
     it('an empty tenant setting is treated as no tenant', async () => {
       const client = await f.engage.getEngagePool().connect();
@@ -227,16 +240,21 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
       expect(evil.rowCount).toBe(0);
     });
 
-    it('every engage route is behind an authentication middleware', async () => {
+    it('every engage route, including those in nested routers, starts with an authentication middleware', async () => {
       const { engageRouter } = await import('../../engage/routes.js');
       const guards = [f.auth.requireEngageUser, f.auth.requireApiKey, f.auth.requirePlatformAdmin];
-      const stack = (engageRouter as unknown as { stack: Array<{ route?: { path: string; stack: Array<{ handle: unknown }> } }> }).stack;
-      const routes = stack.filter((l) => l.route);
-      expect(routes.length).toBeGreaterThanOrEqual(4);
-      for (const l of routes) {
-        const first = l.route!.stack[0]!.handle;
-        expect(guards.includes(first as never), `${l.route!.path} must start with an auth middleware`).toBe(true);
-      }
+      interface Layer { route?: { path: string; stack: Array<{ handle: unknown }> }; handle?: { stack?: Layer[] } }
+      const found: Array<{ path: string; first: unknown }> = [];
+      const walk = (stack: Layer[], prefix: string) => {
+        for (const l of stack) {
+          if (l.route) found.push({ path: `${prefix}${l.route.path}`, first: l.route.stack[0]!.handle });
+          else if (l.handle?.stack) walk(l.handle.stack, `${prefix}(nested)`);
+        }
+      };
+      walk((engageRouter as unknown as { stack: Layer[] }).stack, '');
+      expect(found.length).toBeGreaterThanOrEqual(9);
+      expect(found.some((r) => r.path.startsWith('(nested)')), 'nested routers must be inspected').toBe(true);
+      for (const r of found) expect(guards.includes(r.first as never), `${r.path} must start with an auth middleware`).toBe(true);
     });
 
     it('test 7: secrets are never logged or returned after creation', async () => {

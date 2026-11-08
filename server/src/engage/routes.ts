@@ -8,11 +8,14 @@ import {
   provisionWithAdminPool,
   validateProvisionInput,
 } from './bootstrap/provisionOrganization.js';
+import { credentialRouter } from './credentialRoutes.js';
+import { errorFields, logError, logInfo } from './log.js';
 import './types.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const engageRouter = Router();
+engageRouter.use('/channel-accounts', credentialRouter);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;
@@ -28,13 +31,13 @@ engageRouter.post('/admin/organizations', requirePlatformAdmin, async (req, res)
   try {
     const input = validateProvisionInput(req.body);
     const result = await provisionWithAdminPool(input);
-    console.info('[engage] organization provisioned', { organizationId: result.organization.id, slug: result.organization.slug });
+    logInfo('organization provisioned', { organizationId: result.organization.id, slug: result.organization.slug });
     res.setHeader('Cache-Control', 'no-store');
     res.status(201).json(result);
   } catch (err) {
     if (err instanceof ProvisionValidationError) return void res.status(400).json({ error: err.message });
     if (err instanceof ProvisionConflictError) return void res.status(409).json({ error: err.message });
-    console.error('[engage] provisioning failed:', err instanceof Error ? err.message : err);
+    logError('provisioning failed', errorFields(err));
     res.status(500).json({ error: 'Provisioning failed' });
   }
 });
@@ -62,7 +65,7 @@ engageRouter.post('/admin/organizations/:orgId/api-keys', requirePlatformAdmin, 
     res.setHeader('Cache-Control', 'no-store');
     res.status(201).json({ id: row.id, name, scopes, prefix: key.prefix, apiKey: key.plaintext });
   } catch (err) {
-    console.error('[engage] api key creation failed:', err instanceof Error ? err.message : err);
+    logError('api key creation failed', errorFields(err));
     res.status(500).json({ error: 'API key creation failed' });
   }
 });
