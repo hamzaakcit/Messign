@@ -4,6 +4,7 @@ import { dirname, join, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { AdapterError, WebhookSignatureError } from '../../engage/messaging/adapter.js';
 import { currentSendMode } from '../../engage/messaging/dispatch.js';
+import { checkContent } from '../../engage/messaging/gate.js';
 import { requestHash } from '../../engage/messaging/messages.js';
 import { simulateReports, signedMockWebhook } from '../../engage/messaging/dlrSimulator.js';
 import { MOCK_SIGNATURE_HEADER, mockAdapter, mockProviderMessageId, signMockPayload } from '../../engage/messaging/mockAdapter.js';
@@ -28,6 +29,12 @@ describe('send boundary', () => {
     }
     expect(callers).toEqual(['messaging/dispatch.ts']);
     expect(resolvers.sort()).toEqual(['messaging/dispatch.ts', 'messaging/index.ts', 'messaging/messages.ts']);
+  });
+
+  it('only the gate writes send decisions', () => {
+    const writers = sources(ENGAGE).filter((f) => /INSERT\s+INTO\s+engage\.send_decisions/i.test(readFileSync(f, 'utf8')))
+      .map((f) => relative(ENGAGE, f).replace(/\\/g, '/'));
+    expect(writers).toEqual(['messaging/gate.ts']);
   });
 
   it('keeps vendor names out of the core (adapters are looked up by the account provider)', () => {
@@ -136,5 +143,34 @@ describe('delivery-report simulator', () => {
 
   it('refuses all-zero weights', () => {
     expect(() => simulateReports(ids, { weights: { delivered: 0 } })).toThrow(/weights/);
+  });
+});
+
+describe('content checks', () => {
+  const U = 'https://example.com/u/1';
+  it.each<[string, Parameters<typeof checkContent>, string[]]>([
+    ['valid marketing email', ['email', 'marketing', { subject: 's', html: `<a href="${U}">x</a>`, unsubscribe_url: U }, {}], []],
+    ['link only in text body', ['email', 'marketing', { subject: 's', text: `Unsubscribe: ${U}`, unsubscribe_url: U }, {}], []],
+    ['transactional email needs no unsubscribe link', ['email', 'transactional', { subject: 's', text: 'Order shipped' }, {}], []],
+    ['marketing email, link missing from body', ['email', 'marketing', { subject: 's', html: 'hi', unsubscribe_url: U }, {}], ['content_no_unsubscribe']],
+    ['marketing email, no unsubscribe url', ['email', 'marketing', { subject: 's', html: 'hi' }, {}], ['content_no_unsubscribe']],
+    ['marketing email, http link', ['email', 'marketing', { subject: 's', html: 'http://example.com/u', unsubscribe_url: 'http://example.com/u' }, {}], ['content_no_unsubscribe']],
+    ['email without subject or body', ['email', 'transactional', {}, {}], ['content_missing_subject', 'content_missing_body']],
+    ['blank subject', ['email', 'transactional', { subject: '   ', text: 'x' }, {}], ['content_missing_subject']],
+    ['marketing sms with IPTAL', ['sms', 'marketing', { text: 'Indirim! IPTAL yaz 3030', sender_id: 'KITAPCI' }, {}], []],
+    ['marketing sms with Turkish dotted İptal', ['sms', 'marketing', { text: 'Indirim. İptal için yanıtla', sender_id: 'KITAPCI' }, {}], []],
+    ['marketing sms with STOP', ['sms', 'marketing', { text: 'Sale. Reply stop to end', sender_id: 'KITAPCI' }, {}], []],
+    ['marketing sms without opt-out', ['sms', 'marketing', { text: 'Indirim basladi', sender_id: 'KITAPCI' }, {}], ['content_no_opt_out']],
+    ['"iptal" inside another word does not count', ['sms', 'marketing', { text: 'Siparisiptaledildi', sender_id: 'KITAPCI' }, {}], ['content_no_opt_out']],
+    ['sender id from account config', ['sms', 'transactional', { text: 'Kargoda' }, { sender_id: 'KITAPCI' }], []],
+    ['sender id too short', ['sms', 'transactional', { text: 'Kargoda', sender_id: 'AB' }, {}], ['sender_id_invalid']],
+    ['sender id 11 chars', ['sms', 'transactional', { text: 'Kargoda', sender_id: 'ABCDEFGHIJK' }, {}], []],
+    ['sender id 12 chars', ['sms', 'transactional', { text: 'Kargoda', sender_id: 'ABCDEFGHIJKL' }, {}], ['sender_id_invalid']],
+    ['sender id with non-ASCII', ['sms', 'transactional', { text: 'Kargoda', sender_id: 'KİTAPÇI' }, {}], ['sender_id_invalid']],
+    ['sms without text', ['sms', 'transactional', { sender_id: 'KITAPCI' }, {}], ['content_missing_body']],
+    ['marketing whatsapp without template', ['whatsapp', 'marketing', { text: 'hi' }, {}], ['content_no_template']],
+    ['transactional whatsapp text', ['whatsapp', 'transactional', { text: 'hi' }, {}], []],
+  ])('%s', (_n, args, expected) => {
+    expect(checkContent(...args)).toEqual(expected);
   });
 });

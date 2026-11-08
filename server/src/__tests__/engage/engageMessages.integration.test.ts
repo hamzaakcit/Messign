@@ -34,10 +34,30 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
     const phone = o.phone === undefined ? phoneN() : o.phone;
     const p = await P.upsertProfile(org, { externalId: `m-${u()}`, email, phone });
     for (const ch of o.consent ?? []) await P.recordConsent(org, p.id, { channel: ch, status: 'granted', source: 'api', evidence: { test: 'wp10' } });
+    // Sandbox sends only reach allow-listed addresses (WP-11); these tests are about the pipeline, so list them all.
+    if (email) await M.addAllowlistEntry(org, 'email', email);
+    if (phone) { await M.addAllowlistEntry(org, 'sms', phone); await M.addAllowlistEntry(org, 'whatsapp', phone); }
     return { id: p.id, email, phone };
   };
   const msg = async (org: string, acct: string, profileId: string, over: Partial<import('../../engage/messaging/messages.js').CreateMessageInput> = {}) =>
-    (await M.createMessage(org, { profileId, channel: 'email', purpose: 'transactional', channelAccountId: acct, idempotencyKey: `k-${u()}`, content: { subject: 's' }, ...over })).message;
+    (await M.createMessage(org, { profileId, channel: 'email', purpose: 'transactional', channelAccountId: acct, idempotencyKey: `k-${u()}`, content: VALID[over.channel ?? 'email'], ...over })).message;
+  // An allow decision written directly, for tests that call claim_message without the gate.
+  const allow = async (org: string, messageId: string) =>
+    (await sql(org, `INSERT INTO engage.send_decisions (organization_id, message_id, decision, code, send_mode) VALUES ($1, $2, 'allow', 'allowed', 'sandbox') RETURNING id`, [org, messageId])).rows[0].id as string;
+  // Configure a tenant so the gate's budget, readiness and kill-switch rules pass unless a test changes them.
+  const gateReady = async (org: string) => {
+    await sql(org, `UPDATE engage.tenant_settings SET send_enabled = true, frequency_cap_max = 1000 WHERE organization_id = $1`, [org]);
+    for (const channel of ['email', 'sms', 'whatsapp'] as const) {
+      for (const category of ['marketing', 'transactional'] as const) await M.addRateCard(org, { channel, category, unitCostMinor: 1, currency: 'TRY' });
+      await M.setBudgetCap(org, channel, 1_000_000_000_000, 'TRY');
+    }
+  };
+  const UNSUB = 'https://example.com/u/abc123';
+  const VALID: Record<'email' | 'sms' | 'whatsapp', Record<string, unknown>> = {
+    email: { subject: 'Hello', html: `<p>Hi</p><a href="${UNSUB}">unsubscribe</a>`, unsubscribe_url: UNSUB },
+    sms: { text: 'Kampanya basladi. Iptal icin IPTAL yazin', sender_id: 'MESSIGN' },
+    whatsapp: { template: 'promo_v1' },
+  };
   const status = async (org: string, id: string) => (await M.getMessage(org, id)).message.status;
   const sendSpies: Array<{ mockRestore: () => void }> = [];
   const spySend = () => { const s = vi.spyOn(mock.mockAdapter, 'send'); sendSpies.push(s); return s; };
@@ -57,6 +77,8 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
     P = await import('../../engage/profiles.js');
     A = f.A.organization.id;
     B = f.B.organization.id;
+    await gateReady(A);
+    await gateReady(B);
   }, 90_000);
 
   afterEach(() => { setMode(undefined); mock.resetMockAdapter(); sendSpies.splice(0).forEach((s) => s.mockRestore()); });
@@ -107,7 +129,7 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
       const m = await msg(A, a.id, (await profile(A)).id);
       await expect(sql(B, `INSERT INTO engage.message_events (organization_id, message_id, type, source) VALUES ($1, $2, 'sent', 'system')`, [A, m.id])).rejects.toThrow();
       await expect(sql(B, `INSERT INTO engage.message_events (organization_id, message_id, type, source) VALUES ($1, $2, 'sent', 'system')`, [B, m.id])).rejects.toThrow();
-      await expect(sql(B, `SELECT engage.claim_message($1, $2, interval '1 minute')`, [A, m.id])).rejects.toThrow(/outside the current tenant/);
+      await expect(sql(B, `SELECT engage.claim_message($1, $2, interval '1 minute', 1)`, [A, m.id])).rejects.toThrow(/outside the current tenant/);
       expect(await status(A, m.id)).toBe('queued');
     });
 
@@ -116,8 +138,9 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
       const m = await msg(A, a.id, (await profile(A)).id);
       await expect(f.admin.query(`INSERT INTO engage.message_events (organization_id, message_id, type, source) VALUES ($1, $2, 'sent', 'system')`, [A, m.id]))
         .rejects.toThrow(/message event outside the current tenant/);
-      await expect(f.admin.query(`SELECT engage.claim_message($1, $2, interval '1 minute')`, [A, m.id])).rejects.toThrow(/claim outside the current tenant/);
-      await expect(sql(B, `SELECT engage.claim_message($1, $2, interval '1 minute')`, [A, m.id])).rejects.toThrow(/claim outside the current tenant/);
+      const d = await allow(A, m.id);
+      await expect(f.admin.query(`SELECT engage.claim_message($1, $2, interval '1 minute', $3)`, [A, m.id, d])).rejects.toThrow(/claim outside the current tenant/);
+      await expect(sql(B, `SELECT engage.claim_message($1, $2, interval '1 minute', $3)`, [A, m.id, d])).rejects.toThrow(/claim outside the current tenant/);
       expect(await status(A, m.id)).toBe('queued');
     });
 
@@ -196,7 +219,8 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
   });
 
   describe('atomic claim', () => {
-    const claim = (org: string, id: string, lease = '300 seconds') => sql(org, `SELECT engage.claim_message($1, $2, $3::interval) AS ok`, [org, id, lease]).then((r) => r.rows[0].ok as boolean);
+    const claim = async (org: string, id: string, lease = '300 seconds') =>
+      sql(org, `SELECT engage.claim_message($1, $2, $3::interval, $4) AS ok`, [org, id, lease, await allow(org, id)]).then((r) => r.rows[0].ok as boolean);
 
     it('lets exactly one of many concurrent callers win', async () => {
       const a = await account(A);
@@ -305,16 +329,16 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
       expect((await M.getMessage(A, m.id)).message.attemptCount).toBe(1);
     });
 
-    it('blocks live mode until the full gate exists, and anything but a mock account in sandbox', async () => {
+    it('blocks an account whose mode does not match SEND_MODE (test account in live, live account in sandbox)', async () => {
       const send = spySend();
       const a = await account(A);
       const real = await account(A, { provider: 'ses', mode: 'live', secrets: { api_key: 'fakekey_not_real_1234' } });
       const m1 = await msg(A, a.id, (await profile(A)).id);
       setMode('live');
-      expect(await M.dispatchMessage(A, m1.id)).toEqual({ outcome: 'blocked', code: 'live_not_available' });
+      expect(await M.dispatchMessage(A, m1.id)).toEqual({ outcome: 'blocked', code: 'account_mode_mismatch' });
       const m2 = await msg(A, real.id, (await profile(A)).id);
       setMode('sandbox');
-      expect(await M.dispatchMessage(A, m2.id)).toEqual({ outcome: 'blocked', code: 'sandbox_mock_only' });
+      expect(await M.dispatchMessage(A, m2.id)).toEqual({ outcome: 'blocked', code: 'account_mode_mismatch' });
       expect(send).not.toHaveBeenCalled();
       expect(await status(A, m1.id)).toBe('blocked');
       expect(await status(A, m2.id)).toBe('blocked');
@@ -405,7 +429,7 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
       setMode('sandbox');
       const a = await account(A);
       const m = await msg(A, a.id, (await profile(A)).id);
-      await sql(A, `SELECT engage.claim_message($1, $2, interval '300 seconds')`, [A, m.id]); // the "crashed" worker
+      await sql(A, `SELECT engage.claim_message($1, $2, interval '300 seconds', $3)`, [A, m.id, await allow(A, m.id)]); // the "crashed" worker
       expect(await M.dispatchMessage(A, m.id)).toEqual({ outcome: 'skipped', code: 'not_due_or_claimed' }); // still leased
       const res = await M.dispatchMessage(A, m.id, { leaseSeconds: 0 });
       expect(res).toEqual({ outcome: 'sent', providerMessageId: M.mockProviderMessageId(a.id, m.idempotencyKey) });
@@ -446,7 +470,7 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
       setMode('sandbox');
       const send = spySend();
       const live = await account(A, { mode: 'live' });
-      expect(await M.dispatchMessage(A, (await msg(A, live.id, (await profile(A)).id)).id)).toEqual({ outcome: 'blocked', code: 'sandbox_mock_only' });
+      expect(await M.dispatchMessage(A, (await msg(A, live.id, (await profile(A)).id)).id)).toEqual({ outcome: 'blocked', code: 'account_mode_mismatch' });
       expect(send).not.toHaveBeenCalled();
     });
 

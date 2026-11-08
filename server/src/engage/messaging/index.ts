@@ -10,5 +10,7 @@ registerBuiltInAdapters();
 export * from './adapter.js';
 export * from './messages.js';
 export * from './dispatch.js';
+export { evaluateGate, checkContent, REQUIRED_READINESS, type GateResult, type GateReason } from './gate.js';
+export * from './gateConfig.js';
 export * from './dlrSimulator.js';
 export { MOCK_PROVIDER, MOCK_SIGNATURE_HEADER, mockProviderMessageId, signMockPayload, resetMockAdapter } from './mockAdapter.js';
