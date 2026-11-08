@@ -43,6 +43,31 @@ describe('describeError', () => {
   });
 });
 
+describe('ENGAGE_DATABASE_URL validation', () => {
+  it('rejects values that are not a full connection string, without echoing them', async () => {
+    const { assertValidEngageUrl } = await vi.importActual<typeof import('../../engage/db.js')>('../../engage/db.js');
+    for (const bad of ['postgres.railway.internal:5432', 'localhost', 'https://user:pw@host:5432/db', 'postgresql://host:5432/db', 'postgresql://user:pw@/db', 'postgresql://user:pw@host:5432', 'user:pw@host:5432/db']) {
+      let message = '';
+      try { assertValidEngageUrl(bad); } catch (e) { message = (e as Error).message; }
+      expect(message, bad).toMatch(/must be a full connection string/);
+      expect(message).not.toContain('pw@');
+    }
+  });
+  it('accepts a full connection string for Railway internal and public hosts', async () => {
+    const { assertValidEngageUrl } = await vi.importActual<typeof import('../../engage/db.js')>('../../engage/db.js');
+    expect(() => assertValidEngageUrl('postgresql://messign_engage:s3cret@postgres.railway.internal:5432/railway')).not.toThrow();
+    expect(() => assertValidEngageUrl('postgres://messign_engage:s3cret@caboose.proxy.rlwy.net:40126/railway?sslmode=require')).not.toThrow();
+  });
+  it('mountEngage logs the format error as the reason', async () => {
+    const { getEngagePool } = await vi.importActual<typeof import('../../engage/db.js')>('../../engage/db.js');
+    vi.stubEnv('ENGAGE_DATABASE_URL', 'postgres.railway.internal:5432');
+    assertEngageRoleSafe.mockImplementation(() => { getEngagePool(); });
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(await mountEngage({ use: vi.fn() } as unknown as import('express').Express)).toBe(false);
+    expect(String(spy.mock.calls[0]?.[0])).toContain('must be a full connection string');
+  });
+});
+
 describe('mountEngage reports why it did not mount', () => {
   const app = () => ({ use: vi.fn() }) as unknown as import('express').Express;
 
