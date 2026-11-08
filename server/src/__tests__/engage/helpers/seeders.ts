@@ -46,6 +46,9 @@ export const SEEDERS: Record<string, Seeder> = {
   trigger_outbox: async (c, org) => {
     await c.query(`INSERT INTO engage.trigger_outbox (organization_id, event_id, occurred_at) VALUES ($1, gen_random_uuid(), now())`, [org]);
   },
+  imports: async (c, org) => {
+    await c.query(`INSERT INTO engage.imports (organization_id, kind, content) VALUES ($1, 'profiles', 'external_id\nseed')`, [org]);
+  },
   suppressions: async (c, org) => {
     await c.query(`INSERT INTO engage.suppressions (organization_id, channel, value_normalized, reason) VALUES ($1, 'email', $2, 'manual')`,
       [org, `seed-${Math.random()}@example.com`]);
