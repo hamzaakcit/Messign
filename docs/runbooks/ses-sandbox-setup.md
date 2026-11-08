@@ -41,6 +41,14 @@ Everything below happens in one AWS region. The examples use `eu-central-1` (Fra
    ```
    The response contains the account `id`. The secret is encrypted with `ENGAGE_MASTER_KEY` and never returned again.
    `mode` must be `test` for `SEND_MODE=sandbox`; the gate refuses a `live` account in sandbox and a `test` account in live.
+   **No tenant-admin token handy? Use the operator script** (the secret is typed at a hidden prompt, so it never appears in shell history or chat). From `server/`, with the production `ENGAGE_DATABASE_URL`, `ENGAGE_MASTER_KEY` and `ENGAGE_MASTER_KEY_ID` in the environment (the master key MUST be the production one, or the server cannot decrypt what you store):
+   ```bash
+   npm run engage:add-account -- --org <org uuid> --channel email --provider ses --mode test --label "SES sandbox" \
+     --config region=eu-central-1 --config from_address=hello@messign.com --config from_name="Demo Kitap" \
+     --config sns_topic_arn=arn:aws:sns:eu-central-1:<account-id>:messign-ses-events \
+     --secret access_key_id --secret secret_access_key
+   ```
+   It prints the account id and the webhook path. To load variables from another `.env`: `DOTENV_CONFIG_PATH=/path/to/server/.env npm run engage:add-account -- ...`
 3. **Subscribe the webhook.** SNS console → the topic → *Create subscription* → protocol **HTTPS**, endpoint:
    `https://<your-railway-host>/api/engage/webhooks/<account id>`
    Messign verifies SNS's signed confirmation message and confirms the subscription by itself; the subscription shows *Confirmed* within seconds. If it stays *Pending*, check that the topic ARN in the account config matches exactly (anything from another topic is refused with 401).
