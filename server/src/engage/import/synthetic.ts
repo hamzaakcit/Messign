@@ -31,7 +31,8 @@ export function assertSafePhone(v: string): string {
   throw new Error('Synthetic generator refused to emit a non-test phone number');
 }
 
-function mulberry32(seed: number): () => number {
+/** Small seeded PRNG: the same seed gives the same sequence (also used by the cart simulator, WP-18). */
+export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -42,7 +43,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-const FIRST = ['Ayşe', 'Fatma', 'Elif', 'Zeynep', 'Merve', 'Büşra', 'Emine', 'Hatice', 'Selin', 'Ceren', 'Mehmet', 'Mustafa', 'Ahmet', 'Ali', 'Hüseyin', 'İbrahim', 'Emre', 'Burak', 'Can', 'Ömer', 'Gülşen', 'Özlem', 'Şule', 'Çağla', 'Yusuf', 'Kemal', 'Deniz', 'Ece', 'Tuğba', 'Barış'];
+export const SYNTHETIC_FIRST_NAMES: readonly string[] = ['Ayşe', 'Fatma', 'Elif', 'Zeynep', 'Merve', 'Büşra', 'Emine', 'Hatice', 'Selin', 'Ceren', 'Mehmet', 'Mustafa', 'Ahmet', 'Ali', 'Hüseyin', 'İbrahim', 'Emre', 'Burak', 'Can', 'Ömer', 'Gülşen', 'Özlem', 'Şule', 'Çağla', 'Yusuf', 'Kemal', 'Deniz', 'Ece', 'Tuğba', 'Barış'];
 const LAST = ['Yılmaz', 'Kaya', 'Demir', 'Şahin', 'Çelik', 'Yıldız', 'Yıldırım', 'Öztürk', 'Aydın', 'Özdemir', 'Arslan', 'Doğan', 'Kılıç', 'Aslan', 'Çetin', 'Kara', 'Koç', 'Kurt', 'Özkan', 'Şimşek', 'Polat', 'Güneş', 'Erdoğan', 'Aksoy', 'Tekin', 'Uçar', 'Bulut', 'Korkmaz', 'Ünal', 'Işık'];
 const CITIES = ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Gaziantep', 'Eskişehir', 'Trabzon'];
 const GENRES = ['roman', 'tarih', 'bilim', 'cocuk', 'felsefe', 'siir', 'polisiye'];
@@ -90,7 +91,7 @@ export function generateSyntheticTenant(opts: SyntheticOptions): SyntheticTenant
   const sharedEmailPool: string[] = [];
 
   for (let i = 1; i <= opts.profiles; i++) {
-    const first = pick(FIRST); const last = pick(LAST);
+    const first = pick(SYNTHETIC_FIRST_NAMES); const last = pick(LAST);
     const id = `syn-${opts.kind}-${String(i).padStart(7, '0')}`;
     let email = assertSafeEmail(`${ascii(first)}.${ascii(last)}.${i}@${pick(DOMAINS)}`);
     if (chance(0.01) && sharedEmailPool.length) email = sharedEmailPool[Math.floor(rnd() * sharedEmailPool.length)]!; // two customers, one address

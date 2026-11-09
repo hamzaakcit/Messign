@@ -116,9 +116,10 @@ export async function dispatchDueAcrossTenants(opts: DispatchOptions & { limit?:
   const tally: Record<string, number> = {};
   if (currentSendMode() === 'off') return tally;
   const work = (await withEngageScheduler((c) => c.query<{ organization_id: string; message_id: string }>(
-    'SELECT organization_id, message_id FROM engage.due_message_work($1)', [opts.limit ?? 200]))).rows;
-  // onlyOrganizations narrows a run to some tenants (tests running in parallel, an operator script).
-  for (const w of work.filter((x) => !opts.onlyOrganizations || opts.onlyOrganizations.includes(x.organization_id))) {
+    'SELECT organization_id, message_id FROM engage.due_message_work($1, $2::uuid[])', [opts.limit ?? 200, opts.onlyOrganizations ?? null]))).rows;
+  // onlyOrganizations narrows a run to some tenants (tests running in parallel, an operator script); the database does
+  // the narrowing, so other tenants' messages never fill the batch.
+  for (const w of work) {
     let key: string;
     try { key = (await dispatchMessage(w.organization_id, w.message_id, opts)).outcome; } catch (err) {
       key = 'error';

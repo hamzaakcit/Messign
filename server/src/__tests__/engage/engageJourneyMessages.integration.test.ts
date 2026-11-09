@@ -330,13 +330,14 @@ describe.skipIf(!adminUrl)('journey messages, branch, re-entry and holdout (real
     await E.runEnrollment(t.org, await cart(t, c.ext), at(61));
     const [m] = await messages(t);
     await f.engage.withEngageScheduler(async (s) => {
-      const r = await s.query('SELECT * FROM engage.due_message_work(1000)');
+      const r = await s.query('SELECT * FROM engage.due_message_work(1000, $1::uuid[])', [[t.org]]);
       expect(r.fields.map((x) => x.name)).toEqual(['organization_id', 'message_id']);
-      expect(r.rows).toContainEqual({ organization_id: t.org, message_id: m.id });
+      expect(r.rows).toEqual([{ organization_id: t.org, message_id: m.id }]);
+      expect((await s.query('SELECT * FROM engage.due_message_work(1000, $1::uuid[])', [[f.A.organization.id]])).rows.map((x) => x.message_id)).not.toContain(m.id);
     });
     await sql(t.org, `UPDATE engage.messages SET next_attempt_at = now() + interval '1 hour' WHERE id = $1`, [m.id]);
     await f.engage.withEngageScheduler(async (s) => {
-      expect((await s.query('SELECT message_id FROM engage.due_message_work(1000)')).rows.map((r) => r.message_id)).not.toContain(m.id);
+      expect((await s.query('SELECT message_id FROM engage.due_message_work(1000, $1::uuid[])', [[t.org]])).rows).toEqual([]);
     });
   });
 });
