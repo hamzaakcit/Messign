@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { Search, ChevronRight, Menu } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { mountsFrozenModules } from '@/lib/productSurface';
 
 const viewTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -118,7 +119,7 @@ export function Header() {
           </button>
         )}
 
-        <NotificationBell />
+        {mountsFrozenModules() && <NotificationBell />}
       </div>
     </header>
   );

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { getProductSurface, isNavItemOnSurface, isPathOnSurface } from '@/lib/productSurface';
+import { getProductSurface, isNavItemOnSurface, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
 
 describe('productSurface', () => {
+  it('frozen Company-OS modules exist everywhere except engage (mirrors the server)', () => {
+    expect(mountsFrozenModules('engage')).toBe(false);
+    expect(mountsFrozenModules('workspace')).toBe(true);
+    expect(mountsFrozenModules('all')).toBe(true);
+  });
+
   it('defaults to workspace when unset or blank', () => {
     expect(getProductSurface('')).toBe('workspace');
     expect(getProductSurface('  ')).toBe('workspace');

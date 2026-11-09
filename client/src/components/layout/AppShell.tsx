@@ -17,9 +17,11 @@ import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthr
 import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport } from '@/lib/socket';
 import { installChatSocketHandlers } from '@/lib/chatSocketBridge';
-import { getProductSurface, isPathOnSurface } from '@/lib/productSurface';
+import { getProductSurface, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
 
 const showCompanyOsWidgets = getProductSurface() !== 'engage';
+/** Chat, projects, tasks, badges, activities, leaderboard: Company-OS data the engage server does not serve. */
+const loadsCompanyOsData = mountsFrozenModules();
 
 const PATH_TO_VIEW: Record<string, string> = {
   '/': 'dashboard',
@@ -152,7 +154,7 @@ export function AppShell() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !loadsCompanyOsData) return;
     if (user.id) fetchChannels(user.id);
     fetchProjects();
     fetchTasks();
@@ -213,10 +215,11 @@ export function AppShell() {
 
     socket.on('employee:updated', handleEmployeeUpdated);
 
-    const unsubAdded = onEmployeeAdded(() => fetchUsers());
-    const unsubUpdated = onEmployeeUpdated(() => fetchUsers());
-    const unsubDeleted = onEmployeeDeleted(() => fetchUsers());
-    const unsubBulkImport = onEmployeeBulkImport(() => fetchUsers());
+    const refetchUsers = () => { if (loadsCompanyOsData) void fetchUsers(); };
+    const unsubAdded = onEmployeeAdded(refetchUsers);
+    const unsubUpdated = onEmployeeUpdated(refetchUsers);
+    const unsubDeleted = onEmployeeDeleted(refetchUsers);
+    const unsubBulkImport = onEmployeeBulkImport(refetchUsers);
 
     return () => {
       unsubChat();

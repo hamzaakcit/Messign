@@ -9,7 +9,7 @@ import { ReimbursementProvider } from '@/contexts/ReimbursementContext';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignUpPage } from '@/pages/SignUpPage';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
-import { ENGAGE_HOME_PATH, isPathOnSurface } from '@/lib/productSurface';
+import { ENGAGE_HOME_PATH, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
 
 const AdminLayout = lazy(() => import('@/admin/layouts/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const AdminDashboard = lazy(() => import('@/admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -71,6 +71,9 @@ function MainApp() {
   if (!isPathOnSurface(pathname)) {
     return <Navigate to={ENGAGE_HOME_PATH} replace />;
   }
+
+  // Reimbursements are a frozen Company-OS module; on engage there is nothing to load (callers read the context with ?.).
+  if (!mountsFrozenModules()) return <AppShell />;
 
   return (
     <ReimbursementProvider>
