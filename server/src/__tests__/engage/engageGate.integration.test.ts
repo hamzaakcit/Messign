@@ -482,7 +482,8 @@ describe.skipIf(!adminUrl)('send gate (real Postgres, non-bypass role)', () => {
       const t = await tenant();
       await M.updateGateSettings(t.org, { quietHoursStart: '00:00', quietHoursEnd: '23:59' });
       const a = await account(t);
-      const m = await msg(t, a, (await profile(t)).id, { purpose: 'marketing' }); // no consent
+      // TTL longer than the default 24 h: "tomorrow 09:00 UTC" is more than 24 h away when this runs before 09:00 UTC.
+      const m = await msg(t, a, (await profile(t)).id, { purpose: 'marketing', ttlSeconds: 4 * 86400 }); // no consent
       const r = await M.evaluateGate(t.org, m.id, { now: at(tomorrow, '09:00') });
       expect(r).toMatchObject({ kind: 'deny', code: 'no_consent' });
       expect(r.kind === 'deny' && codes(r.reasons)).toEqual(['no_consent', 'quiet_hours']);
