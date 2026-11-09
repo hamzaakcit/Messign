@@ -19,7 +19,7 @@
 | WP-11 | Send gate full rules + `send_decisions` + rate cards/budget caps + sandbox recipient allowlist + kill switch | P0 | W4 | done | Adversarial consent/suppression/budget/allowlist suite green |
 | WP-12 | Email adapter (provider-neutral; sandbox ESP now, tenant ESP at business start) + signed webhooks + bounce/complaint suppression | P0 | W5 | done (real SES sandbox send delivered and reported, 2026-11-08) | Forged webhook rejected; delivery to verified test inbox |
 | WP-13 | Unsubscribe token + one-click List-Unsubscribe + preference page | P0 | W5 | done (opt-out blocks the next send; not yet seen by a real mailbox provider) | Opt-out effective before next send |
-| WP-14 | Template rendering from Unlayer HTML with safe variables + preview | P0 | W5 | todo | Missing variable → deny |
+| WP-14 | Template rendering from Unlayer HTML with safe variables + preview | P0 | W5 | done (API and service; editor UI with WP-20) | Missing variable → deny |
 | WP-15 | Journey definitions, versions, approval/activation | P0 | W6 | todo | Unapproved version cannot activate |
 | WP-16 | Executor: event/API triggers (idempotency key), delay, wait-until/timeout, exit conditions | P0 | W6 | todo | Retry → no duplicate step effect |
 | WP-17 | Branch, re-entry, holdout, message-step integration | P0 | W6 | todo | Holdout 10% ±2% over 10k |

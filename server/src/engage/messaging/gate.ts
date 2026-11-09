@@ -52,6 +52,12 @@ export interface GateOptions {
 export function checkContent(channel: Channel, purpose: 'marketing' | 'transactional', content: Record<string, unknown>, accountConfig: Record<string, unknown>): string[] {
   const codes: string[] = [];
   const str = (v: unknown) => (typeof v === 'string' && v.trim() !== '' ? v : null);
+  // A templated message whose render failed (WP-14): denied with the render's own reason, never sent blank.
+  const renderError = content.render_error as { code?: unknown } | undefined;
+  if (renderError && typeof renderError === 'object') {
+    const code = typeof renderError.code === 'string' && /^[a-z_]{1,40}$/.test(renderError.code) ? renderError.code : 'failed';
+    return [`render_${code}`];
+  }
   if (channel === 'email') {
     if (!str(content.subject)) codes.push('content_missing_subject');
     const body = `${str(content.html) ?? ''}\n${str(content.text) ?? ''}`;
