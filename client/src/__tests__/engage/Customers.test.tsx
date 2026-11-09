@@ -145,3 +145,11 @@ describe('engage customers (WP-19)', () => {
     expect(decisionText('something_new')).toBe('something new');
   });
 });
+
+describe('header breadcrumbs (WP-19)', () => {
+  it('show a record id as "Details", not as a string of words', async () => {
+    const { breadcrumbLabel } = await import('@/components/layout/Header');
+    expect(breadcrumbLabel('3d0aae44-b1cb-49c0-9457-0523a2289b01')).toBe('Details');
+    expect(breadcrumbLabel('brand-profiles')).toBe('Brand Profiles');
+  });
+});

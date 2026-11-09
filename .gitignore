@@ -37,3 +37,4 @@ server/uploads/
 /playwright/.cache/
 /playwright/.auth/
 e2e/.auth/
+e2e-engage/.auth/

@@ -21,10 +21,14 @@ Append one entry per session: date · session · WP · done · remaining · next
   - **Root cause of the random timeouts:** creating an event partition needs an exclusive lock on `engage.events`. It waits for other files' long transactions, and every other query on events queues behind it.
   - The test fixture now creates every monthly partition of the window once, before any test runs. So the ingestion tests named "on demand" and "creation race" now find their partition already there. Partition creation itself still runs: in the fixture, and on any month that is missing.
   - **Follow-up (production):** the same queue can briefly stall event ingestion on the first event of a new month while a long transaction runs. A small scheduled job that creates next month's partition ahead of time would remove that.
+- **Follow-ups done in the same PR (Hamza: "first do what was not done"):**
+  - **Browser E2E (Playwright)** `e2e-engage/customer-trace.spec.ts` with `playwright.engage.config.ts`. It runs its own stack beside the usual dev servers (client 3200, API 3201, engage surface, sandbox, mock email) on a throwaway database. The database is seeded by `server/src/scripts/engageE2eSeed.ts`: a tenant with a generated password and the cart journey run over 30 simulated carts. The test signs in, opens Customers, then traces a sent message (allow, consent granted) and a blocked one (deny, no consent in force); a made-up customer id shows "does not exist". Run: `ENGAGE_E2E_ADMIN_URL=<local throwaway db> npx playwright test -c playwright.engage.config.ts`. Two passed. Not in CI yet (CI has no browser job).
+  - **Clicked through in the browser** on the same stack, at mobile and desktop widths: list, search, detail pages for a blocked and a sent customer, journeys, consent history, addresses and events. No console errors; one API call per screen, no request loop. Found and fixed: the header breadcrumb showed the customer's UUID as words ("3d0aae44 B1cb …") and the root label in lowercase; it now reads "Customers › Details".
+  - **Event partitions ahead of time:** an hourly pg-boss job (`engage/partition-maintenance`, also run once at boot) creates the next two days' partitions, so the first event of a month no longer has to create its partition (and take the exclusive lock) on the request path.
+  - **Dev proxy target:** `client/vite.config.js` is the config Vite actually loads (it is tracked next to `vite.config.ts`, and Vite prefers `.js`), so the proxy change went into both. Worth tidying later: one config file instead of two.
 - **Honest caveats:**
-  - Not clicked through in a browser: the local dev server runs the Company-OS workspace setup, where these screens are hidden by design.
-  - No Playwright E2E yet (the roadmap asks for one).
-  - English UI, like the rest of the app.
+  - The engage browser test is not part of CI.
+  - The UI stays English (decided: English only).
   - The trail shows at most the newest 100 messages and events, 50 journeys and 200 consent records.
 - **Next:** WP-36 (rule-based segments and a scheduled segment trigger), then WP-20 (journey builder UI).
 

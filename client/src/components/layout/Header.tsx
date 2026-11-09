@@ -27,7 +27,15 @@ const viewTitles: Record<string, string> = {
   assets: 'Assets',
   contracts: 'Contracts',
   culture: 'Culture',
+  customers: 'Customers',
 };
+
+const ID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A path segment as a breadcrumb label: words for slugs, "Details" for record ids (a UUID is not a title). */
+export function breadcrumbLabel(segment: string): string {
+  if (ID_SEGMENT.test(segment)) return 'Details';
+  return segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 function Breadcrumbs({ pathname, currentView }: { pathname: string; currentView: string }) {
   const segments = pathname.split('/').filter(Boolean);
@@ -39,7 +47,7 @@ function Breadcrumbs({ pathname, currentView }: { pathname: string; currentView:
 
   const sub = segments
     .slice(1)
-    .map((s) => s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+    .map(breadcrumbLabel);
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">

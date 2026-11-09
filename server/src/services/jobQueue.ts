@@ -20,6 +20,8 @@ export const JOB_NAMES = {
   ENGAGE_IMPORT: 'engage/import',
   /** Engage journey executor tick (WP-16): drains the trigger outbox and runs due enrollments. */
   ENGAGE_JOURNEY_TICK: 'engage/journey-tick',
+  /** Engage: create the coming days' event partitions ahead of time (hourly). */
+  ENGAGE_PARTITIONS: 'engage/partition-maintenance',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
