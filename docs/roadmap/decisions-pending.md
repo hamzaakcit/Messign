@@ -16,6 +16,7 @@ Only decisions that are genuinely Hamza's (product, commercial, legal, irreversi
 | D-10 | Approve removals: `dal/time`, `knowledge-hub/`, `knowledge-hub.zip/`, `*.dump`, root ComfyUI/Python scripts, RLS-unblock SQL, seed routes in prod | **Approve** | Dead code, clutter, safety hazards; all recoverable from git history | W1 | ✅ approved 2026-11-07 |
 | D-11 | Holdout group (10% of eligible carts receive no message) acceptable to Kitapyurdu | **Approve 10%** | The only credible way to prove revenue uplift | W6 | ✅ approved 2026-11-07 (10%) |
 | D-12 | Lucy Content Studio track paused; spec not executed as written; surviving parts folded into engage (product-vision Q2) | **Approve** | Content layer, not a separate product | W1 | ✅ approved 2026-11-07 |
+| D-13 | Must a journey version be approved by someone other than its author (two-person rule)? | **Not yet**: allow self-approval during the pilot, revisit when a tenant has two admins | Most pilot tenants have one admin; every approval is recorded with who and when either way (ADR-011) | Before a tenant with several admins goes live | open |
 
 ## Questions that change strategy — answered 2026-11-07
 1. Does Kitapyurdu already use a CEP/ESP? → **No. Greenfield, no incumbent to displace.**

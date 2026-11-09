@@ -109,6 +109,11 @@ export const SEEDERS: Record<string, Seeder> = {
       [org, `seed-hash-${org}-${Math.random()}`]);
   },
   templates: async (c, org) => { await seedTemplate(c, org); },
+  journeys: async (c, org) => { await seedJourney(c, org); },
+  journey_versions: async (c, org) => {
+    const j = await seedJourney(c, org);
+    await c.query(`INSERT INTO engage.journey_versions (organization_id, journey_id, version, definition) VALUES ($1, $2, 1, '{"steps":[]}'::jsonb)`, [org, j]);
+  },
   template_versions: async (c, org) => {
     const t = await seedTemplate(c, org);
     await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
@@ -118,6 +123,13 @@ export const SEEDERS: Record<string, Seeder> = {
 async function seedTemplate(c: pg.PoolClient, org: string): Promise<string> {
   const r = await c.query<{ id: string }>(
     `INSERT INTO engage.templates (organization_id, key, name, channel) VALUES ($1, $2, 'seed', 'email') RETURNING id`,
+    [org, `seed-${Math.random().toString(36).slice(2, 12)}`]);
+  return r.rows[0]!.id;
+}
+
+async function seedJourney(c: pg.PoolClient, org: string): Promise<string> {
+  const r = await c.query<{ id: string }>(
+    `INSERT INTO engage.journeys (organization_id, key, name) VALUES ($1, $2, 'seed') RETURNING id`,
     [org, `seed-${Math.random().toString(36).slice(2, 12)}`]);
   return r.rows[0]!.id;
 }
