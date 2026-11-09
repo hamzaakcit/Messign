@@ -26,6 +26,11 @@ Append one entry per session: date · session · WP · done · remaining · next
 - **For you:** after merging, run `npm run db:migrate` on production (migration 123).
 - **Next:** WP-19 (engage UI shell and profile list/detail with an audit trail).
 
+## 2026-11-09 · Decisions D-13 and D-14, production state after WP-15..17
+- **Decided:** D-13: the approver of a journey version may be its author (Hamza). D-14: an unsubscribe keeps suppressing the address for every purpose, transactional mail included (decided by Claude on Hamza's delegation; no code change). Reasons: the compliance table says transactional never bypasses suppression for hard opt-outs, R-3 is instant and global per channel, the stricter rule is the one that cannot create a legal problem, and the pilot sends only marketing journeys. Cost: nothing in the app can lift a suppression (append-only ledger), so a customer who unsubscribes from marketing gets no order mail from Messign; revisit before a tenant sends transactional mail through Messign **[LC]**. Corrected ADR-004, which wrongly said the tenant could remove a suppression.
+- **Production (Hamza ran the migrations):** migrations 120, 121 and 122 applied. demo-kitap had five active SES email accounts, which would make every journey message step fail (`email_account_ambiguous`); four old ones were disabled, the one that delivered the test mail (`63deec80`) stays. No queued messages. `SEND_MODE` set to sandbox on Railway.
+- **Cleanup:** temporary migration worktree removed. The exposed AWS root key and the shared passwords were left to Hamza (not done by Claude).
+
 ## 2026-11-09 · WP-17 (branch, re-entry, holdout, message step, dispatcher)
 - **Done:**
   - Migration `122_engage_journey_messages.sql`:
