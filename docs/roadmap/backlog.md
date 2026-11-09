@@ -17,7 +17,7 @@
 | WP-09 | CSV import (profiles, consents with evidence, orders) + synthetic tenant generator (bookstore, florist) feeding the importer | P0 | W3 | done | 100k round-trip; generator emits only test phone ranges/`example.*` emails |
 | WP-10 | Messaging core: adapter interface, messages ledger, idempotency, mock adapter, DLR simulator | P0 | W4 | done | Duplicate/out-of-order DLRs handled |
 | WP-11 | Send gate full rules + `send_decisions` + rate cards/budget caps + sandbox recipient allowlist + kill switch | P0 | W4 | done | Adversarial consent/suppression/budget/allowlist suite green |
-| WP-12 | Email adapter (provider-neutral; sandbox ESP now, tenant ESP at business start) + signed webhooks + bounce/complaint suppression | P0 | W5 | done (sandbox-tested; real SES send pending account) | Forged webhook rejected; delivery to verified test inbox |
+| WP-12 | Email adapter (provider-neutral; sandbox ESP now, tenant ESP at business start) + signed webhooks + bounce/complaint suppression | P0 | W5 | done (real SES sandbox send delivered and reported, 2026-11-08) | Forged webhook rejected; delivery to verified test inbox |
 | WP-13 | Unsubscribe token + one-click List-Unsubscribe + preference page | P0 | W5 | done (opt-out blocks the next send; not yet seen by a real mailbox provider) | Opt-out effective before next send |
 | WP-14 | Template rendering from Unlayer HTML with safe variables + preview | P0 | W5 | done (API and service; editor UI with WP-20) | Missing variable → deny |
 | WP-15 | Journey definitions, versions, approval/activation | P0 | W6 | todo | Unapproved version cannot activate |

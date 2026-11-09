@@ -4,6 +4,9 @@ import { useLocation } from 'react-router-dom';
 import { PageSkeleton } from '@/components/ui';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Header } from './Header';
+import { mountsFrozenModules } from '@/lib/productSurface';
+
+const EngageHomePage = React.lazy(() => import('@/engage/EngageHomePage').then((m) => ({ default: m.EngageHomePage })));
 
 const DashboardView = React.lazy(() => import('@/pages/DashboardView').then((m) => ({ default: m.DashboardView })));
 const ChatView = React.lazy(() => import('@/pages/ChatView').then((m) => ({ default: m.ChatView })));
@@ -79,7 +82,8 @@ export function MainContent() {
       case 'crm':
         return wrap('crm', <CRMLayout />);
       case 'marketing':
-        return wrap('marketing', <MarketingLayout />);
+        // On engage the legacy marketing hub would call a non-tenant-safe API and the frozen Lucy assistant.
+        return mountsFrozenModules() ? wrap('marketing', <MarketingLayout />) : wrap('marketing', <EngageHomePage />);
       case 'recruitment':
         return wrap('recruitment', <RecruitmentLayout />);
       case 'support':

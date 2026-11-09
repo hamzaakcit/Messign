@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { isNavItemOnSurface } from '@/lib/productSurface';
+import { isNavItemOnSurface, mountsFrozenModules } from '@/lib/productSurface';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -247,7 +247,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !mountsFrozenModules()) return; // Dora insights are frozen on engage (ADR-009)
     const userId = user.authUserId || user.id;
     if (!userId) return;
 
