@@ -105,7 +105,7 @@ export function parseCreateInput(body: unknown): CreateInput {
   return { channel, provider, mode, label, config: parseConfig(b.config), secrets: parseSecrets(b.secrets, { required: false }) };
 }
 
-async function insertAccount(client: PoolClient, organizationId: string, createdBy: string, input: CreateInput, supersedesId: string | null, keyring: Keyring): Promise<AccountMeta> {
+async function insertAccount(client: PoolClient, organizationId: string, createdBy: string | null, input: CreateInput, supersedesId: string | null, keyring: Keyring): Promise<AccountMeta> {
   const id = randomUUID();
   const enc = encryptSecrets(input.secrets, { organizationId, accountId: id }, keyring);
   try {
@@ -125,7 +125,7 @@ async function insertAccount(client: PoolClient, organizationId: string, created
   }
 }
 
-export async function createAccount(organizationId: string, createdBy: string, input: CreateInput, keyring: Keyring = loadKeyring()): Promise<AccountMeta> {
+export async function createAccount(organizationId: string, createdBy: string | null, input: CreateInput, keyring: Keyring = loadKeyring()): Promise<AccountMeta> {
   return withEngageTenant(organizationId, (client) => insertAccount(client, organizationId, createdBy, input, null, keyring));
 }
 

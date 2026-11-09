@@ -202,11 +202,12 @@ export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Prom
         if (retryResponse.ok) return retryResponse.json();
       }
       onUnauthorized?.();
-      throw new Error(message);
+      throw Object.assign(new Error(message), { status: response.status });
     }
 
     if (isAuthError(response.status, message)) onUnauthorized?.();
-    throw new Error(message);
+    // The status lets callers (e.g. the query client) tell "will never work" (4xx) from "try again" (5xx/network).
+    throw Object.assign(new Error(message), { status: response.status });
   }
 
   return response.json();

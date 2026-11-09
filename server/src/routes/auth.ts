@@ -3,6 +3,7 @@ import * as authService from '../services/authService.js';
 import * as passwordService from '../services/passwordService.js';
 import * as sessionService from '../services/sessionService.js';
 import { requireJwt } from '../middleware/authMiddleware.js';
+import { mountsEngage } from '../config/productSurface.js';
 
 export const authRouter = Router();
 
@@ -48,10 +49,13 @@ authRouter.post('/login', (req, res) => {
         return res.status(400).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Password is required' } });
       }
       const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail.endsWith('@messign.com')) {
+      // Company-OS accounts are @messign.com. Any other address can only be an engage tenant's account, and only
+      // where engage is mounted; the service refuses every other account like a wrong password (no account probing).
+      const companyAccount = normalizedEmail.endsWith('@messign.com');
+      if (!companyAccount && !mountsEngage()) {
         return res.status(403).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Only Messign company accounts (@messign.com) can sign in.' } });
       }
-      const result = await authService.login(normalizedEmail, password, req);
+      const result = await authService.login(normalizedEmail, password, req, { engageOnly: !companyAccount });
       if (result.success) {
         const { refreshToken, ...responseData } = result.data;
         res.cookie('refreshToken', refreshToken, getRefreshCookieOptions());

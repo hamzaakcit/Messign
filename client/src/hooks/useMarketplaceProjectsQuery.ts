@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { projectsAPI, type MarketplaceProject } from '@/lib/api';
+import { mountsFrozenModules } from '@/lib/productSurface';
 
 export const marketplaceProjectsQueryKey = (userId: string): readonly string[] => ['marketplace-projects', userId];
 
@@ -19,7 +20,7 @@ export function useMarketplaceProjectsQuery(userId: string | undefined): {
       const raw = await projectsAPI.getMarketplace();
       return Array.isArray(raw) ? raw : [];
     },
-    enabled: Boolean(userId),
+    enabled: Boolean(userId) && mountsFrozenModules(),
   });
   return {
     data: q.data ?? [],

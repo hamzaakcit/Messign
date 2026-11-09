@@ -14,6 +14,14 @@ export function getProductSurface(
   return value === 'workspace' || value === 'all' ? value : 'engage';
 }
 
+/**
+ * Whether the frozen Company-OS modules exist on this surface (mirror of the server's `mountsFrozenModules`). On
+ * `engage` the server does not mount them, so the client must not call them (they only answer 404/403).
+ */
+export function mountsFrozenModules(surface: ProductSurface = getProductSurface()): boolean {
+  return surface !== 'engage';
+}
+
 export function isNavItemOnSurface(
   navId: string,
   surface: ProductSurface = getProductSurface(),

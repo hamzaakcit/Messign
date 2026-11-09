@@ -168,6 +168,20 @@ export async function getEmployeeByIdAsUser(id: string): Promise<User | null> {
   return row ? mapRowToUser(row) : null;
 }
 
+/**
+ * The signed-in user as seen from their own organization. Engage tenants are organizations of their own, so the
+ * default-org lookup above never finds their users; this one is scoped to the organization the caller already
+ * resolved for this auth user, never to one named by a request.
+ */
+export async function getEmployeeInOrgAsUser(authUserId: string, organizationId: string): Promise<User | null> {
+  const result = await query<DbEmployeeRow>(
+    `SELECT ${EMPLOYEE_SELECT}
+     FROM reimbursement_users ru WHERE ru.organization_id = $1 AND ru.auth_user_id = $2 LIMIT 1`,
+    [organizationId, authUserId],
+  );
+  return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
+}
+
 /** Batch-fetch multiple employees by ID in a single query. */
 export async function getEmployeesByIdsAsUsers(ids: string[]): Promise<Map<string, User>> {
   const result = new Map<string, User>();
