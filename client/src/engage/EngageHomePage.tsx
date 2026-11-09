@@ -1,9 +1,10 @@
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Home of the engage surface. The Company-OS marketing hub (Lucy, campaigns, approvals) is not tenant-safe and its API
  * stays closed to engage tenants, and the Dora/Lucy assistant is frozen for them (ADR-009). This page calls no API;
- * the engage screens (profiles, journeys, settings) replace it as they ship (WP-19 onward).
+ * it points to the engage screens as they ship (Customers: WP-19).
  */
 export function EngageHomePage(): JSX.Element {
   const user = useAuthStore((s) => s.user);
@@ -15,8 +16,9 @@ export function EngageHomePage(): JSX.Element {
         <p className="text-xs font-semibold uppercase tracking-wider text-app-muted">Messign Engage</p>
         <h1 className="mt-2 text-2xl font-bold text-app">{firstName ? `Welcome, ${firstName}` : 'Welcome'}</h1>
         <p className="mt-3 text-sm leading-relaxed text-app-muted">
-          Your workspace is set up. Customer profiles, journeys and message reports will appear here as they become
-          available.
+          Your workspace is set up. See every customer, with their consent history, the journeys they are in and each
+          message's send decision, under{' '}
+          <Link to="/customers" className="font-medium text-app underline">Customers</Link>. Journey and report screens follow.
         </p>
       </div>
     </div>

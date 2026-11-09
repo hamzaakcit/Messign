@@ -61,7 +61,8 @@ describe('cart simulator (WP-18)', () => {
     const deliveries = all(plan);
     const dup = deliveries.filter((d) => d.duplicate);
     expect(dup.length / (deliveries.length - dup.length)).toBeCloseTo(0.1, 1);
-    for (const d of dup) expect(deliveries.some((x) => !x.duplicate && x.clientEventId === d.clientEventId && x.arrivesAt < d.arrivesAt)).toBe(true);
+    const firstArrival = new Map(deliveries.filter((x) => !x.duplicate).map((x) => [x.clientEventId, x.arrivesAt]));
+    for (const d of dup) expect(firstArrival.get(d.clientEventId)).toBeLessThan(d.arrivesAt);
     expect(plan.customers.filter((c) => !c.consent).length / 10_000).toBeCloseTo(0.05, 1);
     for (const d of deliveries.slice(0, 2000)) {
       if (d.name === 'cart_updated') expect(d.properties).toMatchObject({ cart_id: expect.any(String), items: expect.any(Array) });

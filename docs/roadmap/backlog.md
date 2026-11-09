@@ -24,7 +24,7 @@
 | WP-16 | Executor: event/API triggers (idempotency key), delay, wait-until/timeout, exit conditions | P0 | W6 | done (ADR-012) | Retry → no duplicate step effect |
 | WP-17 | Branch, re-entry, holdout, message-step integration | P0 | W6 | done (plus the dispatcher; ADR-012 §8) | Holdout 10% ±2% over 10k |
 | WP-18 | Cart-abandonment template + event simulator + 10k load | P0 | W7 | done (ADR-012 §9) | Zero duplicate messages; correct exits |
-| WP-19 | Engage UI shell + profile list/detail with audit trail | P0 | W7 | todo | Message traceable to gate decision + consent |
+| WP-19 | Engage UI shell + profile list/detail with audit trail | P0 | W7 | done (no Playwright E2E yet) | Message traceable to gate decision + consent |
 | WP-36 | Rule-based segments (attributes + order history) + scheduled segment trigger (win-back / new-release on imported data) | P0 | W7 | todo | Segment counts match SQL; scheduled run enrolls once per profile per run |
 | WP-20 | Journey builder UI (form-based) | P0 | W8 | todo | Create + activate fully in UI |
 | WP-21 | Analytics: funnel, delivery, conversions vs holdout with CI | P0 | W8 | todo | Reconciles with ledger SQL |

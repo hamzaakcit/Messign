@@ -37,4 +37,16 @@ describe('productSurface', () => {
     expect(isPathOnSurface('/marketingfoo', 'engage')).toBe(false);
     expect(isPathOnSurface('/finance', 'workspace')).toBe(true);
   });
+
+  it('shows the engage customer screens where engage is mounted, never on the Company-OS workspace (WP-19)', () => {
+    expect(isNavItemOnSurface('customers', 'engage')).toBe(true);
+    expect(isNavItemOnSurface('customers', 'all')).toBe(true);
+    expect(isNavItemOnSurface('customers', 'workspace')).toBe(false);
+    expect(isPathOnSurface('/customers', 'engage')).toBe(true);
+    expect(isPathOnSurface('/customers/0b8e', 'engage')).toBe(true);
+    expect(isPathOnSurface('/customers/0b8e', 'all')).toBe(true);
+    expect(isPathOnSurface('/customers', 'workspace')).toBe(false);
+    expect(isPathOnSurface('/customers/0b8e', 'workspace')).toBe(false);
+    expect(isPathOnSurface('/customersfoo', 'workspace')).toBe(true);
+  });
 });

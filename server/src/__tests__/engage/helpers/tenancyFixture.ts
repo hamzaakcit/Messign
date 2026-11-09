@@ -37,6 +37,11 @@ export async function setupTenancyFixture(): Promise<TenancyFixture> {
     throw new Error('ENGAGE_TEST_ADMIN_URL must point at a Postgres with pgvector (the production baseline needs it), e.g. pgvector/pgvector:pg17.');
   }
   await runMigrations({ connectionString: adminUrl!, log: () => undefined });
+  // Every monthly event partition of the retention window exists before any test runs. Creating one needs an exclusive
+  // lock on engage.events, which waits for other files' long transactions while every other query on events queues
+  // behind it: under a fully parallel suite that turned into random timeouts far from the cause.
+  await admin.query(`SELECT engage.ensure_event_partition(GREATEST(m, now() - interval '399 days'))
+                       FROM generate_series(date_trunc('month', now() - interval '399 days'), now() + interval '1 day', interval '1 month') AS m`);
   // ALTER ROLE updates a shared catalog row; two test files doing it at once fail with "tuple concurrently updated".
   const lock = await admin.connect();
   try {
@@ -121,15 +126,16 @@ export async function setupTenancyFixture(): Promise<TenancyFixture> {
 }
 
 /**
- * Deletes test organizations. The delete cascades into engage.events, while creating an event partition (another test
- * file, at the same moment) locks engage.events and then organizations (the partition's foreign key): each would wait
- * for the other. Taking the partition lock of engage.ensure_event_partition (migration 114) first puts them in order.
+ * Deletes test organizations. The delete cascades from organizations into engage.events, while creating an event
+ * partition (another test file, at the same moment) locks engage.events and then organizations (the partition's
+ * foreign key): opposite orders, so each could wait for the other. Locking engage.events first gives the delete the
+ * creator's order. (Not the partition advisory lock: that made every teardown wait for the slowest one.)
  */
 export async function deleteOrganizations(admin: pg.Pool, ids: string[]): Promise<void> {
   const c = await admin.connect();
   try {
     await c.query('BEGIN');
-    await c.query('SELECT pg_advisory_xact_lock(7040802)');
+    await c.query('LOCK TABLE engage.events IN ROW EXCLUSIVE MODE');
     await c.query('DELETE FROM organizations WHERE id = ANY($1)', [ids]);
     await c.query('COMMIT');
   } catch (err) {
