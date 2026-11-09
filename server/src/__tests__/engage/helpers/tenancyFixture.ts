@@ -114,8 +114,28 @@ export async function setupTenancyFixture(): Promise<TenancyFixture> {
       await engage.closeEngagePool();
       await legacy.pool.end();
       await admin.query('DELETE FROM employee_auth WHERE auth_user_id = ANY($1)', [authUserIds]);
-      await admin.query('DELETE FROM organizations WHERE id = ANY($1)', [created]);
+      await deleteOrganizations(admin, created);
       await admin.end();
     },
   };
+}
+
+/**
+ * Deletes test organizations. The delete cascades into engage.events, while creating an event partition (another test
+ * file, at the same moment) locks engage.events and then organizations (the partition's foreign key): each would wait
+ * for the other. Taking the partition lock of engage.ensure_event_partition (migration 114) first puts them in order.
+ */
+export async function deleteOrganizations(admin: pg.Pool, ids: string[]): Promise<void> {
+  const c = await admin.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query('SELECT pg_advisory_xact_lock(7040802)');
+    await c.query('DELETE FROM organizations WHERE id = ANY($1)', [ids]);
+    await c.query('COMMIT');
+  } catch (err) {
+    await c.query('ROLLBACK').catch(() => undefined);
+    throw err;
+  } finally {
+    c.release();
+  }
 }

@@ -2,6 +2,41 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-09 · WP-17 (branch, re-entry, holdout, message step, dispatcher)
+- **Done:**
+  - Migration `122_engage_journey_messages.sql`:
+    - **Cohort:** each enrollment gets a cohort, treatment or holdout. It is drawn once and is part of the enrollment's identity.
+    - **Message link:** a step row records the message it created; one message belongs to at most one step.
+    - **Dispatcher work list:** a third id-only work list, `due_message_work`.
+  - **Branch:** branches are tried in order on profile attributes and the payload; the first match wins, otherwise the fallback.
+  - **Message step:** creates the templated message in the same transaction as the step, with key `journey:<enrollment>:<step>`. It uses the tenant's one active email account and fails closed with none or several.
+  - **Re-entry:** `never` by default, or `after_exit`.
+  - **Holdout:** `holdout_percent` (0–50, default 10, D-11). A holdout enrollment runs every step and records its message steps as `held_out`; no message is created.
+  - **Dispatcher:** the journey tick now also sends due messages of every tenant, each through the send gate. With `SEND_MODE` off it does nothing.
+  - **Refactor:** `createMessageOn` and `createTemplatedMessageOn` run inside the caller's transaction.
+  - **Docs:** ADR-012 §8; notes in ADR-004 and ADR-011.
+- **Verified:**
+  - Server full suite: 1681 passed, 9 skipped, three runs in a row on fresh databases; `tsc` clean. 15 new end-to-end tests on real Postgres and the mock channel.
+  - **Acceptance:**
+    - Event → delay → message → dispatcher → gate → mock adapter sends once.
+    - A run that crashes after creating the message leaves no message; the retry creates exactly one.
+    - Concurrent and repeated runs create one message per enrollment.
+    - An order after the cart, also out of order, leaves no message.
+    - Re-entry `never` and `after_exit` hold.
+    - Holdout is 10% ±2% over 10,000 real enrollments; at 0% nobody is held out.
+    - Nobody, not even the database owner, can change a cohort.
+  - **Mutation check:** broke the code 21 ways; all 21 were caught on the first run.
+- **Also fixed (found by the heavier test load):**
+  - **Ingestion deadlock (real):** a batch spanning two months wrote its first event, then waited to create the second month's partition, while another partition creation waited for it. Partitions are now created before anything is written. A test reproduces the deadlock without the fix.
+  - **Test teardown (test-only):** deleting organizations could deadlock with a partition creation in a parallel test file; the delete now takes the partition lock first.
+- **Honest caveats:**
+  - **Dispatcher goes live on deploy:** any queued message in production will be dispatched once the deploy is up, if `SEND_MODE` on Railway is not off. Old test messages have expired and will be blocked, with no send.
+  - **Account choice:** the email account is chosen only when the tenant has exactly one active email account. Disable the old SES accounts first, or journeys fail with `email_account_ambiguous`.
+  - **Not done:** frequency cap overrides per journey, SMS/WhatsApp steps and webhook steps.
+  - **Not verified:** a real send through SES from a journey.
+- **For you:** after merging, run `npm run db:migrate` on production (migration 122).
+- **Next:** WP-18 (cart-abandonment template, event simulator, 10k load).
+
 ## 2026-11-09 · WP-16 (journey executor: triggers, delay, wait-until, exits)
 - **Done:** migration `121_engage_enrollments.sql`: enrollments (unique per journey and trigger key; one active per profile and journey) and a step ledger (one row per step); the database refuses changes to an ended enrollment, a finished step, an enrollment's identity or a step's deadline, and the engage role cannot delete. Two SECURITY DEFINER work lists (`pending_trigger_work`, `due_enrollment_work`) give the scheduler tenant and row ids only. Executor `engage/journeys/engine.ts`: events start the journeys whose filter they match and wake the profile's running enrollments; `POST /v1/journeys/:key/trigger` now enrolls (202), answers a repeat with the same enrollment (`duplicate`) and refuses a reused key with another request (409); delay, wait-until with timeout (continue or exit), exit conditions checked by event time before every run. A pg-boss tick runs every minute and right after accepted events or triggers. Pure condition evaluator (`conditions.ts`). New ADR-012; notes in ADR-007 and ADR-011.
 - **Verified:** server full suite 1665 passed, 9 skipped; `tsc` clean. 31 engine tests on real Postgres and HTTP, 33 condition tests. Acceptance: concurrent, repeated and crashed runs (a simulated failure between two writes) leave one ledger row per step and act once; replayed and concurrent triggers enroll once; an order after the cart ends the enrollment and wakes it at once, also when the order is processed before the cart event. The isolation suite now lists every SECURITY DEFINER function the engage role can call. Broke the code 43 ways: 34 caught at once; 8 survivors led to sharper tests (concurrent runs now repeat five rounds because overlap depends on timing, a deterministic race for the trigger API, the database uniques tested directly, the tick with a batch of one); 1 was an equivalent mutant and that check was removed. All are now caught.

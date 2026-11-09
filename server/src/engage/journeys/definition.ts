@@ -6,7 +6,8 @@ import { z } from 'zod';
  *
  *   trigger    event {event, filter?} | api | date_attribute {attribute, offset_days, at_local_time}
  *   exit_when  events that end an enrollment early (for example order_completed for cart abandonment)
- *   re_entry   never | after_exit (enforced by the executor, WP-17)
+ *   re_entry   never (a profile enters once) | after_exit (again once its previous enrollment has ended)
+ *   holdout_percent  share of enrollments that run every step but get no message (default 10, D-11)
  *   steps      delay · wait_until {event, filter?, timeout, on_timeout} · branch {branches[], otherwise} ·
  *              message {channel email, template key, version?, purpose} · exit
  *
@@ -17,6 +18,8 @@ import { z } from 'zod';
  */
 
 export const DEFINITION_SCHEMA_VERSION = 1;
+/** D-11: 10% of enrollments are a randomized holdout, so the uplift of a journey can be measured. */
+export const DEFAULT_HOLDOUT_PERCENT = 10;
 const MAX_STEPS = 50;
 const MAX_CONDITION_DEPTH = 4;
 const MINUTES_PER_YEAR = 365 * 24 * 60;
@@ -77,6 +80,7 @@ const definitionSchema = z.object({
   trigger,
   exit_when: z.array(z.object({ event: eventName, filter: condition.optional() }).strict()).max(10).default([]),
   re_entry: z.enum(['never', 'after_exit']).default('never'),
+  holdout_percent: z.number().int().min(0).max(50).default(DEFAULT_HOLDOUT_PERCENT),
   steps: z.array(step).min(1).max(MAX_STEPS),
 }).strict();
 

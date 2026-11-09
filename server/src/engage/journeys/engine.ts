@@ -1,10 +1,11 @@
-import { createHash } from 'crypto';
+import { createHash, randomInt } from 'crypto';
 import { withEngageScheduler, withEngageTenant } from '../db.js';
 import { errorFields, logError } from '../log.js';
 import { canonical } from '../messaging/messages.js';
 import { upsertProfileOn } from '../profiles.js';
+import { createTemplatedMessageOn } from '../templates/templates.js';
 import { matches, type ConditionContext } from './conditions.js';
-import { defaultNext, type JourneyDefinition } from './definition.js';
+import { DEFAULT_HOLDOUT_PERCENT, defaultNext, type JourneyDefinition, type JourneyStep } from './definition.js';
 
 /**
  * The journey executor (WP-16, ADR-012). The database is the truth; pg-boss only wakes the executor up.
@@ -16,13 +17,17 @@ import { defaultNext, type JourneyDefinition } from './definition.js';
  *   due enrollment (next_run_at <= now)
  *     -> runEnrollment: exit check, then steps until one has to wait or the journey ends
  *
+ * Enrolling (WP-17) applies the re-entry rule and draws the cohort once: treatment, or holdout (the definition's
+ * holdout_percent, default 10). A message step creates the message in the same transaction as the step, with the
+ * idempotency key journey:<enrollment>:<step>; a holdout enrollment records the step as held out and gets no message.
+ * The message is then sent by the dispatcher, through the send gate, like any other message.
+ *
  * Every function here does its work in one tenant transaction and holds the row lock of what it works on
  * (FOR UPDATE SKIP LOCKED), so two workers never act on the same enrollment, and a crash rolls back to the last
  * committed state. Each step is recorded once in engage.enrollment_steps; a step that is recorded as done is never
  * run again, so a retry, a crash or a duplicate wake-up never repeats a step's effect.
  *
- * Time is passed in (`now`) so tests can drive the clock. Branch and message steps arrive with WP-17: until then an
- * enrollment that reaches one ends as failed and nothing is sent.
+ * Time is passed in (`now`) so tests can drive the clock.
  */
 
 type Tx = Parameters<Parameters<typeof withEngageTenant>[1]>[0];
@@ -40,18 +45,35 @@ export class JourneyTriggerError extends Error {
 
 interface EnrollInput {
   journeyId: string; versionId: string; profileId: string; kind: 'event' | 'api'; key: string;
-  requestHash: string | null; payload: Record<string, unknown>; enteredAt: Date; firstStep: string; now: Date;
+  requestHash: string | null; payload: Record<string, unknown>; enteredAt: Date; definition: JourneyDefinition; now: Date;
+}
+type EnrollOutcome = { id: string } | { refused: 'already_in_journey' | 're_entry_not_allowed' };
+
+/** treatment or holdout, drawn once per enrollment. */
+export function drawCohort(holdoutPercent: number, draw: (max: number) => number = (max) => randomInt(max)): 'treatment' | 'holdout' {
+  return draw(10_000) < Math.round(holdoutPercent * 100) ? 'holdout' : 'treatment';
 }
 
-/** Inserts an enrollment unless one exists for this trigger key, or the profile is already in the journey. */
-async function enroll(c: Tx, orgId: string, e: EnrollInput): Promise<string | null> {
+/**
+ * Inserts an enrollment unless one exists for this trigger key, the profile is already in the journey, or the
+ * journey's re-entry rule refuses it. The lock per (journey, profile) makes the re-entry check and the insert one step.
+ */
+async function enroll(c: Tx, orgId: string, e: EnrollInput): Promise<EnrollOutcome> {
+  await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`engage-enroll:${orgId}:${e.journeyId}:${e.profileId}`]);
+  const prior = (await c.query<{ active: boolean }>(
+    `SELECT bool_or(status = 'active') AS active FROM engage.enrollments WHERE organization_id = $1 AND journey_id = $2 AND profile_id = $3`,
+    [orgId, e.journeyId, e.profileId])).rows[0]?.active;
+  if (prior === true) return { refused: 'already_in_journey' };
+  if (prior === false && (e.definition.re_entry ?? 'never') === 'never') return { refused: 're_entry_not_allowed' };
+  const cohort = drawCohort(e.definition.holdout_percent ?? DEFAULT_HOLDOUT_PERCENT);
   const r = await c.query<{ id: string }>(
     `INSERT INTO engage.enrollments (organization_id, journey_id, journey_version_id, profile_id, trigger_kind, trigger_key,
-       request_hash, payload, entered_at, current_step, next_run_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
+       request_hash, payload, entered_at, current_step, next_run_at, cohort)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12)
      ON CONFLICT DO NOTHING RETURNING id`,
-    [orgId, e.journeyId, e.versionId, e.profileId, e.kind, e.key, e.requestHash, JSON.stringify(e.payload), e.enteredAt, e.firstStep, e.now]);
-  return r.rows[0]?.id ?? null;
+    [orgId, e.journeyId, e.versionId, e.profileId, e.kind, e.key, e.requestHash, JSON.stringify(e.payload), e.enteredAt,
+      e.definition.steps[0]!.id, e.now, cohort]);
+  return r.rows[0] ? { id: r.rows[0].id } : { refused: 'already_in_journey' };
 }
 
 const ACTIVE_VERSION = `v.activated_at IS NOT NULL AND v.deactivated_at IS NULL`;
@@ -96,11 +118,11 @@ export async function processTriggerOutbox(orgId: string, outboxId: string, now:
         const t = j.definition.trigger;
         if (t.type !== 'event' || t.event !== ev.name) continue;
         if (!matches(t.filter, { attributes: ev.attributes, event: ev.properties })) continue;
-        const id = await enroll(c, orgId, {
+        const out = await enroll(c, orgId, {
           journeyId: j.journey_id, versionId: j.version_id, profileId: ev.profile_id, kind: 'event', key: `event:${ev.id}`,
-          requestHash: null, payload: ev.properties, enteredAt: ev.occurred_at, firstStep: j.definition.steps[0]!.id, now,
+          requestHash: null, payload: ev.properties, enteredAt: ev.occurred_at, definition: j.definition, now,
         });
-        if (id) enrolled++;
+        if ('id' in out) enrolled++;
       }
     }
 
@@ -122,7 +144,7 @@ export async function processTriggerOutbox(orgId: string, outboxId: string, now:
 export interface ApiTriggerInput { externalId: string; idempotencyKey: string; payload: Record<string, unknown>; createIfMissing?: boolean }
 export type ApiTriggerResult =
   | { status: 'enrolled' | 'duplicate'; enrollmentId: string }
-  | { status: 'not_enrolled'; reason: 'already_in_journey' };
+  | { status: 'not_enrolled'; reason: 'already_in_journey' | 're_entry_not_allowed' };
 
 export const triggerRequestHash = (externalId: string, payload: Record<string, unknown>) =>
   createHash('sha256').update(canonical({ externalId, payload })).digest('hex');
@@ -163,14 +185,14 @@ export async function triggerApiJourney(orgId: string, journeyKey: string, input
     if (!p && input.createIfMissing) profileId = (await upsertProfileOn(c, orgId, { externalId: input.externalId })).id;
     if (!profileId) throw new JourneyTriggerError('Unknown or erased profile', 'profile_not_found');
 
-    const id = await enroll(c, orgId, {
+    const out = await enroll(c, orgId, {
       journeyId: j.journey_id, versionId: j.version_id, profileId, kind: 'api', key: triggerKey,
-      requestHash: hash, payload: input.payload, enteredAt: now, firstStep: j.definition.steps[0]!.id, now,
+      requestHash: hash, payload: input.payload, enteredAt: now, definition: j.definition, now,
     });
-    if (id) return { status: 'enrolled', enrollmentId: id };
+    if ('id' in out) return { status: 'enrolled', enrollmentId: out.id };
     // Not inserted: either a concurrent request with the same key won (answer like a retry), or the profile is
-    // already in this journey.
-    return (await previous()) ?? { status: 'not_enrolled', reason: 'already_in_journey' };
+    // already in this journey, or was and may not come back.
+    return (await previous()) ?? { status: 'not_enrolled', reason: out.refused };
   });
 }
 
@@ -185,7 +207,7 @@ export type RunResult =
 
 interface EnrollmentRow {
   id: string; journey_id: string; profile_id: string; trigger_kind: 'event' | 'api'; trigger_key: string;
-  payload: Record<string, unknown>; entered_at: Date; current_step: string;
+  payload: Record<string, unknown>; entered_at: Date; current_step: string; cohort: 'treatment' | 'holdout';
   definition: JourneyDefinition; attributes: Record<string, unknown>; erased_at: Date | null; journey_running: boolean;
 }
 
@@ -194,7 +216,7 @@ interface StepRow { status: 'started' | 'done'; started_at: Date; wake_at: Date 
 export async function runEnrollment(orgId: string, enrollmentId: string, now: Date = new Date()): Promise<RunResult> {
   return withEngageTenant(orgId, async (c) => {
     const e = (await c.query<EnrollmentRow>(
-      `SELECT e.id, e.journey_id, e.profile_id, e.trigger_kind, e.trigger_key, e.payload, e.entered_at, e.current_step,
+      `SELECT e.id, e.journey_id, e.profile_id, e.trigger_kind, e.trigger_key, e.payload, e.entered_at, e.current_step, e.cohort,
               v.definition, p.attributes, p.erased_at,
               EXISTS (SELECT 1 FROM engage.journey_versions a WHERE a.organization_id = e.organization_id AND a.journey_id = e.journey_id
                          AND a.activated_at IS NOT NULL AND a.deactivated_at IS NULL) AS journey_running
@@ -256,7 +278,6 @@ export async function runEnrollment(orgId: string, enrollmentId: string, now: Da
         `SELECT status, started_at, wake_at, next_step FROM engage.enrollment_steps
           WHERE organization_id = $1 AND enrollment_id = $2 AND step_id = $3`, [orgId, e.id, step.id])).rows[0];
       if (s?.status === 'done') { current = s.next_step; continue; }
-      if (step.type === 'branch' || step.type === 'message') return end('failed', 'step_not_supported_yet');
 
       if (!s) {
         // The first step counts from when the trigger happened (a one-hour delay after a cart event means one hour
@@ -269,16 +290,33 @@ export async function runEnrollment(orgId: string, enrollmentId: string, now: Da
            VALUES ($1, $2, $3, $4, $5, $6) RETURNING status, started_at, wake_at, next_step`,
           [orgId, e.id, step.id, step.type, startedAt, wakeAt])).rows[0]!;
       }
-      const done = async (outcome: string, next: string | null) => {
+      const done = async (outcome: string, next: string | null, messageId: string | null = null) => {
         await c.query(
-          `UPDATE engage.enrollment_steps SET status = 'done', outcome = $4, next_step = $5, done_at = $6
-            WHERE organization_id = $1 AND enrollment_id = $2 AND step_id = $3`, [orgId, e.id, step.id, outcome, next, now]);
+          `UPDATE engage.enrollment_steps SET status = 'done', outcome = $4, next_step = $5, done_at = $6, message_id = $7
+            WHERE organization_id = $1 AND enrollment_id = $2 AND step_id = $3`, [orgId, e.id, step.id, outcome, next, now, messageId]);
         current = next;
       };
 
       if (step.type === 'exit') {
         await done('exit', null);
         return end('completed', 'exit_step');
+      }
+      if (step.type === 'branch') {
+        // Branches are tried in order on the profile's attributes and the enrollment's payload; the first match wins.
+        const hit = step.branches.find((b) => matches(b.when, base));
+        await done(hit ? 'matched' : 'otherwise', hit ? hit.next : step.otherwise);
+        continue;
+      }
+      if (step.type === 'message') {
+        // Holdout: the step runs (and is recorded) but no message is created, so the uplift can be measured.
+        if (e.cohort === 'holdout') {
+          await done('held_out', defaultNext(def.steps, i));
+          continue;
+        }
+        const msg = await createStepMessage(c, orgId, e, step);
+        if ('failed' in msg) return end('failed', msg.failed);
+        await done('queued', defaultNext(def.steps, i), msg.messageId);
+        continue;
       }
       if (step.type === 'delay') {
         if (now < s.wake_at!) return wait(step.id, s.wake_at!);
@@ -300,6 +338,27 @@ export async function runEnrollment(orgId: string, enrollmentId: string, now: Da
     }
     return end('failed', 'step_limit');
   });
+}
+
+type MessageStep = Extract<JourneyStep, { type: 'message' }>;
+
+/**
+ * Creates the message of a message step, in the run's transaction. The idempotency key is the enrollment and the step,
+ * so even a step whose recording was lost could not create a second message. The account is the tenant's one active
+ * email account; with none, or more than one, the enrollment fails rather than guess.
+ */
+async function createStepMessage(c: Tx, orgId: string, e: EnrollmentRow, step: MessageStep): Promise<{ messageId: string } | { failed: string }> {
+  const t = (await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2`, [orgId, step.template])).rows[0];
+  if (!t) return { failed: 'template_missing' };
+  const accounts = (await c.query<{ id: string }>(
+    `SELECT id FROM engage.channel_accounts WHERE organization_id = $1 AND channel = 'email' AND status = 'active' ORDER BY created_at LIMIT 2`, [orgId])).rows;
+  if (accounts.length === 0) return { failed: 'no_email_account' };
+  if (accounts.length > 1) return { failed: 'email_account_ambiguous' };
+  const { message } = await createTemplatedMessageOn(c, orgId, {
+    profileId: e.profile_id, templateId: t.id, version: step.template_version, purpose: step.purpose,
+    channelAccountId: accounts[0]!.id, idempotencyKey: `journey:${e.id}:${step.id}`, payload: e.payload,
+  });
+  return { messageId: message.id };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

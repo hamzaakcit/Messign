@@ -111,6 +111,16 @@ export async function upsertFromApi(orgId: string, body: z.infer<typeof upsertSc
 export async function trackEvents(orgId: string, events: Array<z.infer<typeof eventSchema>>): Promise<TrackResult[]> {
   const now = Date.now();
   return withEngageTenant(orgId, async (c) => {
+    // Create missing monthly partitions before writing anything. Creating one waits for a lock on engage.events; if
+    // this transaction already held that table (an earlier event of the batch), a second batch creating another month
+    // at the same time would wait for us while we wait for it: a deadlock (seen with a batch across a month boundary).
+    const months = new Map<string, string>();
+    for (const ev of events) {
+      const at = new Date(ev.occurred_at).getTime();
+      if (at <= now + FUTURE_SKEW_MS && at >= now - MAX_AGE_MS) months.set(new Date(at).toISOString().slice(0, 7), ev.occurred_at);
+    }
+    for (const ts of months.values()) await c.query('SELECT engage.ensure_event_partition($1)', [ts]);
+
     const profiles = new Map<string, string | null>();
     const out: TrackResult[] = [];
     for (const [i, ev] of events.entries()) {

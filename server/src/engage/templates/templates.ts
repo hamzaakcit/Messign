@@ -1,6 +1,6 @@
 import { withEngageTenant } from '../db.js';
 import { buildUnsubscribeLinks } from '../unsubscribe.js';
-import { createMessage, MessageInputError, type MessageRow } from '../messaging/messages.js';
+import { createMessageOn, MessageInputError, type MessageRow } from '../messaging/messages.js';
 import { parseTemplate, renderTemplate, TemplateSyntaxError, type RenderIssue, type VariableRef } from './render.js';
 
 /**
@@ -180,14 +180,17 @@ export interface TemplatedMessageInput {
  * recipient's unsubscribe links; building them fails closed when the public URLs are not configured.
  */
 export async function createTemplatedMessage(orgId: string, input: TemplatedMessageInput): Promise<{ message: MessageRow; created: boolean }> {
+  return withEngageTenant(orgId, (c) => createTemplatedMessageOn(c, orgId, input));
+}
+
+/** createTemplatedMessage inside the caller's tenant transaction (WP-17 journey message steps). */
+export async function createTemplatedMessageOn(c: Tx, orgId: string, input: TemplatedMessageInput): Promise<{ message: MessageRow; created: boolean }> {
   const payload = checkPayload(input.payload);
   if (!UUID_RE.test(input.profileId)) throw new MessageInputError('profileId must be a UUID');
-  const loaded = await withEngageTenant(orgId, async (c) => {
-    const v = await loadVersion(c, orgId, input.templateId, input.version);
-    const p = await c.query<{ attributes: Record<string, unknown> }>(`SELECT attributes FROM engage.profiles WHERE organization_id = $1 AND id = $2`, [orgId, input.profileId]);
-    if (!p.rows[0]) throw new MessageInputError('Profile not found');
-    return { v, attributes: p.rows[0].attributes };
-  });
+  const v = await loadVersion(c, orgId, input.templateId, input.version);
+  const p = await c.query<{ attributes: Record<string, unknown> }>(`SELECT attributes FROM engage.profiles WHERE organization_id = $1 AND id = $2`, [orgId, input.profileId]);
+  if (!p.rows[0]) throw new MessageInputError('Profile not found');
+  const loaded = { v, attributes: p.rows[0].attributes };
   const links = input.purpose === 'marketing'
     ? buildUnsubscribeLinks({ organizationId: orgId, profileId: input.profileId, channel: 'email' })
     : null;
@@ -203,7 +206,7 @@ export async function createTemplatedMessage(orgId: string, input: TemplatedMess
       ...(links ? { unsubscribe_url: links.pageUrl, unsubscribe_one_click_url: links.oneClickUrl } : {}),
     }
     : { ...trace, render_error: { code: rendered.errors[0]!.code, variables: rendered.errors.map((e) => e.variable).filter(Boolean) } };
-  return createMessage(orgId, {
+  return createMessageOn(c, orgId, {
     profileId: input.profileId, channel: 'email', purpose: input.purpose, channelAccountId: input.channelAccountId,
     idempotencyKey: input.idempotencyKey, content, maxAttempts: input.maxAttempts, ttlSeconds: input.ttlSeconds,
     // The request as asked ("latest" stays "latest"), so a retry after a new version is published is still the same request.

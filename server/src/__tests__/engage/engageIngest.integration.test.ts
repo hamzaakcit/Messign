@@ -248,6 +248,30 @@ describe.skipIf(!adminUrl)('ingestion API v1 (real Postgres, non-bypass role)', 
       await expect(sql(A, `INSERT INTO engage.${part} (organization_id, profile_id, client_event_id, name, occurred_at) VALUES ($1, gen_random_uuid(), 'x', 'x', $2)`, [A, at.toISOString()])).rejects.toThrow(/permission denied/);
     });
 
+    it('a batch creates its missing partitions before writing anything, so it cannot deadlock with another partition creation', async () => {
+      const ext = `p-${u()}`;
+      await upsert(keyA, { external_id: ext });
+      const old = new Date(Date.now() - 330 * DAY);
+      const part = `events_${old.getUTCFullYear()}${String(old.getUTCMonth() + 1).padStart(2, '0')}`;
+      await f.admin.query(`DROP TABLE IF EXISTS engage.${part}`);
+      const holder = await f.admin.connect();
+      try {
+        // Hold the lock ensure_event_partition takes (migration 114) so the batch has to wait for it mid-way.
+        await holder.query('BEGIN');
+        await holder.query('SELECT pg_advisory_xact_lock(7040802)');
+        const batch = track(keyA, [ev(ext), ev(ext, { occurred_at: old.toISOString() })]); // this month first, then the missing one
+        await new Promise((r) => setTimeout(r, 400));
+        // While it waits, the batch must hold nothing on engage.events: if it did, a partition creation here would deadlock.
+        await holder.query("SET LOCAL lock_timeout = '2s'");
+        await holder.query('LOCK TABLE engage.events IN ACCESS EXCLUSIVE MODE');
+        await holder.query('COMMIT');
+        expect((await batch).json).toMatchObject({ accepted: 2 });
+      } finally {
+        await holder.query('ROLLBACK').catch(() => undefined);
+        holder.release();
+      }
+    });
+
     it('two transactions creating the same new month at once both succeed (no partition-creation race)', async () => {
       const pool = f.engage.getEngagePool();
       const ts = new Date(Date.now() - 270 * DAY).toISOString();

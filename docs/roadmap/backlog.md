@@ -21,8 +21,8 @@
 | WP-13 | Unsubscribe token + one-click List-Unsubscribe + preference page | P0 | W5 | done (opt-out blocks the next send; not yet seen by a real mailbox provider) | Opt-out effective before next send |
 | WP-14 | Template rendering from Unlayer HTML with safe variables + preview | P0 | W5 | done (API and service; editor UI with WP-20) | Missing variable → deny |
 | WP-15 | Journey definitions, versions, approval/activation | P0 | W6 | done (definitions and lifecycle; nothing runs until WP-16) | Unapproved version cannot activate |
-| WP-16 | Executor: event/API triggers (idempotency key), delay, wait-until/timeout, exit conditions | P0 | W6 | done (branch/message steps fail closed until WP-17; ADR-012) | Retry → no duplicate step effect |
-| WP-17 | Branch, re-entry, holdout, message-step integration | P0 | W6 | todo | Holdout 10% ±2% over 10k |
+| WP-16 | Executor: event/API triggers (idempotency key), delay, wait-until/timeout, exit conditions | P0 | W6 | done (ADR-012) | Retry → no duplicate step effect |
+| WP-17 | Branch, re-entry, holdout, message-step integration | P0 | W6 | done (plus the dispatcher; ADR-012 §8) | Holdout 10% ±2% over 10k |
 | WP-18 | Cart-abandonment template + event simulator + 10k load | P0 | W7 | todo | Zero duplicate messages; correct exits |
 | WP-19 | Engage UI shell + profile list/detail with audit trail | P0 | W7 | todo | Message traceable to gate decision + consent |
 | WP-36 | Rule-based segments (attributes + order history) + scheduled segment trigger (win-back / new-release on imported data) | P0 | W7 | todo | Segment counts match SQL; scheduled run enrolls once per profile per run |

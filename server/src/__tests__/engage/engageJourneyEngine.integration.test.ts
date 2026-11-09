@@ -291,14 +291,6 @@ describe.skipIf(!adminUrl)('journey executor (real Postgres, non-bypass role)', 
     });
   });
 
-  it('branch and message steps fail closed until WP-17: the enrollment ends as failed and nothing is sent', async () => {
-    const c = await journey(cartJourney({ exit_when: [], steps: [{ id: 'b', type: 'branch', branches: [{ when: { field: 'attributes.tier', op: 'eq', value: 'gold' }, next: 'x' }], otherwise: 'x' }, { id: 'x', type: 'exit' }] }));
-    const { id } = await enrolled(c);
-    expect(await E.runEnrollment(c.org, id, at(1))).toEqual({ status: 'failed', reason: 'step_not_supported_yet' });
-    expect(await ledger(c.org, id)).toEqual([]);
-    expect((await sql(c.org, 'SELECT count(*)::int AS n FROM engage.messages')).rows[0].n).toBe(0);
-  });
-
   describe('API trigger (HTTP)', () => {
     async function apiKey(org: string): Promise<string> {
       const k = f.keys.generateApiKey();
@@ -382,16 +374,18 @@ describe.skipIf(!adminUrl)('journey executor (real Postgres, non-bypass role)', 
   it('the tick drains the outbox and runs what is due, across tenants', async () => {
     const one = await journey(cartJourney());
     const two = await journey(cartJourney());
-    const p1 = await person(one.org);
-    const p2 = await person(two.org);
-    await track(one.org, p1, 'cart_updated', 0);
-    await track(two.org, p2, 'cart_updated', 0);
-    // A batch of one: the tick keeps going until the outbox is empty, not just one batch.
-    await E.runJourneyTick({ now: () => at(0), batch: 1 });
-    for (const c of [one, two]) expect(await enrollments(c.org)).toMatchObject([{ status: 'active', next_run_at: at(60) }]);
-    await E.runJourneyTick({ now: () => at(61) });
-    for (const c of [one, two]) expect(await enrollments(c.org)).toMatchObject([{ status: 'completed', end_reason: 'exit_step' }]);
-  }, 60_000);
+    for (const c of [one, two]) for (let i = 0; i < 3; i++) await track(c.org, await person(c.org), 'cart_updated', 0);
+    const states = async () => (await Promise.all([one, two].map((c) => enrollments(c.org)))).flat();
+    // A batch of one: one tick keeps draining the outbox batch after batch, so six triggers need at most two ticks (a
+    // second only when a parallel test file holds the row the first reached, which stops a tick early by design).
+    for (let tick = 0; tick < 2 && (await states()).length < 6; tick++) await E.runJourneyTick({ now: () => at(0), batch: 1 });
+    expect(await states()).toHaveLength(6);
+    // Then the due enrollments, with the normal batch size.
+    for (let tick = 0; tick < 3 && (await states()).some((e) => e.next_run_at.getTime() !== at(60).getTime()); tick++) await E.runJourneyTick({ now: () => at(0) });
+    for (const e of await states()) expect(e).toMatchObject({ status: 'active', next_run_at: at(60) });
+    for (let tick = 0; tick < 3 && (await states()).some((e) => e.status !== 'completed'); tick++) await E.runJourneyTick({ now: () => at(61) });
+    for (const e of await states()) expect(e).toMatchObject({ status: 'completed', end_reason: 'exit_step' });
+  }, 90_000);
 
   describe('database guards', () => {
     it('an ended enrollment and a finished step cannot change; nothing can be deleted', async () => {

@@ -100,7 +100,14 @@ export function requestHash(input: CreateMessageInput): string {
   })).digest('hex');
 }
 
+type Tx = Parameters<Parameters<typeof withEngageTenant>[1]>[0];
+
 export async function createMessage(orgId: string, input: CreateMessageInput): Promise<{ message: MessageRow; created: boolean }> {
+  return withEngageTenant(orgId, (c) => createMessageOn(c, orgId, input));
+}
+
+/** createMessage inside the caller's tenant transaction (WP-17: a journey step records its message atomically). */
+export async function createMessageOn(c: Tx, orgId: string, input: CreateMessageInput): Promise<{ message: MessageRow; created: boolean }> {
   if (!input.idempotencyKey || input.idempotencyKey.length > 200) throw new MessageInputError('idempotencyKey must be 1 to 200 characters');
   if (!PURPOSES.includes(input.purpose)) throw new MessageInputError('purpose must be marketing or transactional');
   if (input.maxAttempts !== undefined && (!Number.isInteger(input.maxAttempts) || input.maxAttempts < 1 || input.maxAttempts > 10)) {
@@ -111,7 +118,7 @@ export async function createMessage(orgId: string, input: CreateMessageInput): P
   }
   if (!input.content || typeof input.content !== 'object' || Array.isArray(input.content)) throw new MessageInputError('content must be an object');
   const hash = requestHash(input);
-  return withEngageTenant(orgId, async (c) => {
+  {
     const acct = await c.query<{ provider: string }>(
       `SELECT provider FROM engage.channel_accounts WHERE organization_id = $1 AND id = $2 AND channel = $3 AND status = 'active'`,
       [orgId, input.channelAccountId, input.channel]);
@@ -127,7 +134,7 @@ export async function createMessage(orgId: string, input: CreateMessageInput): P
       `SELECT ${COLS}, request_hash FROM engage.messages WHERE organization_id = $1 AND idempotency_key = $2`, [orgId, input.idempotencyKey]);
     if (existing.rows[0].request_hash !== hash) throw new IdempotencyConflictError();
     return { message: toRow(existing.rows[0]), created: false };
-  });
+  }
 }
 
 export async function getMessage(orgId: string, messageId: string): Promise<{ message: MessageRow; events: MessageEventRow[] }> {
