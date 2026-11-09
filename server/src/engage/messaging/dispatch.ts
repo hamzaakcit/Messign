@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { withEngageTenant } from '../db.js';
+import { withEngageScheduler, withEngageTenant } from '../db.js';
 import { loadAccountSecrets, type Channel } from '../credentials.js';
 import { logError, logInfo } from '../log.js';
 import { getAdapter, type AdapterAccount } from './adapter.js';
@@ -102,6 +102,28 @@ export async function dispatchDue(orgId: string, limit = 100, opts: DispatchOpti
   for (const id of await listDueMessageIds(orgId, limit)) {
     let key: string;
     try { key = (await dispatchMessage(orgId, id, opts)).outcome; } catch (err) { key = 'error'; logError('dispatch error', { messageId: id, name: err instanceof Error ? err.name : 'error' }); }
+    tally[key] = (tally[key] ?? 0) + 1;
+  }
+  return tally;
+}
+
+/**
+ * The dispatcher (WP-17): every due message of every tenant, once. It finds work through engage.due_message_work
+ * (ids only) and dispatches each message in its own tenant, so the gate, SEND_MODE, the tenant's send_enabled and
+ * the claim apply exactly as for a single message. With SEND_MODE off it reads nothing at all.
+ */
+export async function dispatchDueAcrossTenants(opts: DispatchOptions & { limit?: number; onlyOrganizations?: string[] } = {}): Promise<Record<string, number>> {
+  const tally: Record<string, number> = {};
+  if (currentSendMode() === 'off') return tally;
+  const work = (await withEngageScheduler((c) => c.query<{ organization_id: string; message_id: string }>(
+    'SELECT organization_id, message_id FROM engage.due_message_work($1)', [opts.limit ?? 200]))).rows;
+  // onlyOrganizations narrows a run to some tenants (tests running in parallel, an operator script).
+  for (const w of work.filter((x) => !opts.onlyOrganizations || opts.onlyOrganizations.includes(x.organization_id))) {
+    let key: string;
+    try { key = (await dispatchMessage(w.organization_id, w.message_id, opts)).outcome; } catch (err) {
+      key = 'error';
+      logError('dispatch error', { organizationId: w.organization_id, messageId: w.message_id, name: err instanceof Error ? err.name : 'error' });
+    }
     tally[key] = (tally[key] ?? 0) + 1;
   }
   return tally;

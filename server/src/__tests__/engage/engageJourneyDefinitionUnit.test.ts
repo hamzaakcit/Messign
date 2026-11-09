@@ -25,7 +25,13 @@ describe('journey definition v1', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.definition.re_entry).toBe('never');
+    expect(r.definition.holdout_percent).toBe(10);
     expect(r.templates).toEqual([{ key: 'cart-reminder', version: null, stepId: 'first' }, { key: 'cart-gold', version: 2, stepId: 'gold-offer' }]);
+  });
+
+  it('holdout_percent is a whole number from 0 to 50', () => {
+    for (const ok of [0, 25, 50]) expect(validateDefinition({ ...clone(CART_ABANDONMENT), holdout_percent: ok }).ok).toBe(true);
+    for (const bad of [-1, 51, 10.5, '10']) expect(errorsOf({ ...clone(CART_ABANDONMENT), holdout_percent: bad }).join()).toMatch(/holdout_percent/);
   });
 
   it('accepts the other two triggers', () => {
