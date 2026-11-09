@@ -8,6 +8,7 @@ import { AdminGuard } from '@/admin/AdminGuard';
 import { ReimbursementProvider } from '@/contexts/ReimbursementContext';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignUpPage } from '@/pages/SignUpPage';
+import { UnsubscribePage } from '@/engage/UnsubscribePage';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
 import { ENGAGE_HOME_PATH, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
 
@@ -125,6 +126,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        {/* Public, no sign-in: the signed token in the link is the credential (engage unsubscribe, WP-13). */}
+        <Route path="/u/:token" element={<UnsubscribePage />} />
         <Route path="/force-password-change" element={<RequireAuth><ForcePasswordChangePage /></RequireAuth>} />
         <Route path="/approvals" element={<Navigate to="/admin/reimbursements" replace />} />
         <Route path="/notifications" element={<AuthGuard><Navigate to="/dashboard" replace /></AuthGuard>} />

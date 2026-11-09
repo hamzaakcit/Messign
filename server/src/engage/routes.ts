@@ -13,6 +13,7 @@ import { profileRouter } from './profileRoutes.js';
 import { v1Router } from './v1Routes.js';
 import { importRouter } from './import/importRoutes.js';
 import { webhookRouter } from './webhookRoutes.js';
+import { unsubscribeRouter } from './unsubscribeRoutes.js';
 import { errorFields, logError, logInfo } from './log.js';
 import './types.js';
 
@@ -24,6 +25,7 @@ engageRouter.use('/profiles', profileRouter);
 engageRouter.use('/v1', v1Router);
 engageRouter.use('/imports', importRouter);
 engageRouter.use('/webhooks', webhookRouter);
+engageRouter.use('/unsubscribe', unsubscribeRouter);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;

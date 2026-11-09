@@ -164,12 +164,19 @@ export function createSesAdapter(deps: Partial<SesDeps> = {}): ChannelAdapter {
       const text = typeof req.content.text === 'string' ? req.content.text : undefined;
       if (!subject || (!html && !text)) throw new AdapterError('permanent', 'ses_content_invalid');
 
+      // RFC 8058 one-click unsubscribe (WP-13), for marketing mail that carries the target. Only a plain https URL goes
+      // into a header: anything with whitespace or angle brackets could break the header, so it is left out.
+      const oneClick = typeof req.content.unsubscribe_one_click_url === 'string' ? req.content.unsubscribe_one_click_url : '';
+      const listHeaders = /^https:\/\/[^\s<>]+$/.test(oneClick)
+        ? [{ Name: 'List-Unsubscribe', Value: `<${oneClick}>` }, { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' }]
+        : [];
       const body = JSON.stringify({
         FromEmailAddress: cfg.from,
         Destination: { ToAddresses: [req.to] },
         Content: { Simple: {
           Subject: { Data: subject, Charset: 'UTF-8' },
           Body: { ...(html ? { Html: { Data: html, Charset: 'UTF-8' } } : {}), ...(text ? { Text: { Data: text, Charset: 'UTF-8' } } : {}) },
+          ...(listHeaders.length ? { Headers: listHeaders } : {}),
         } },
         ...(cfg.configurationSet ? { ConfigurationSetName: cfg.configurationSet } : {}),
       });
