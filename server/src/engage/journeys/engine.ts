@@ -366,7 +366,11 @@ async function createStepMessage(c: Tx, orgId: string, e: EnrollmentRow, step: M
 // ---------------------------------------------------------------------------------------------------------------
 
 export interface TickSummary { triggers: number; enrolled: number; runs: number; errors: number }
-export interface TickOptions { now?: () => Date; batch?: number; budgetMs?: number }
+export interface TickOptions {
+  now?: () => Date; batch?: number; budgetMs?: number;
+  /** Only these tenants (tests and tools on their own tenants). The scheduled tick passes nothing: every tenant. */
+  onlyOrganizations?: string[];
+}
 
 async function deferEnrollment(orgId: string, id: string, until: Date): Promise<void> {
   await withEngageTenant(orgId, (c) => c.query(
@@ -382,7 +386,7 @@ export async function runJourneyTick(opts: TickOptions = {}): Promise<TickSummar
 
   for (;;) {
     const work = (await withEngageScheduler((c) => c.query<{ organization_id: string; outbox_id: string }>(
-      'SELECT organization_id, outbox_id FROM engage.pending_trigger_work($1)', [batch]))).rows;
+      'SELECT organization_id, outbox_id FROM engage.pending_trigger_work($1, $2::uuid[])', [batch, opts.onlyOrganizations ?? null]))).rows;
     let progressed = 0;
     for (const w of work) {
       try {
@@ -399,7 +403,7 @@ export async function runJourneyTick(opts: TickOptions = {}): Promise<TickSummar
   for (;;) {
     const now = clock();
     const work = (await withEngageScheduler((c) => c.query<{ organization_id: string; enrollment_id: string }>(
-      'SELECT organization_id, enrollment_id FROM engage.due_enrollment_work($1, $2)', [batch, now]))).rows;
+      'SELECT organization_id, enrollment_id FROM engage.due_enrollment_work($1, $2, $3::uuid[])', [batch, now, opts.onlyOrganizations ?? null]))).rows;
     let progressed = 0;
     for (const w of work) {
       try {
@@ -412,6 +416,48 @@ export async function runJourneyTick(opts: TickOptions = {}): Promise<TickSummar
       }
     }
     if (work.length < batch || progressed === 0 || Date.now() > stopAt) break;
+  }
+  return summary;
+}
+
+/** Runs fn over items with at most `concurrency` at a time. */
+async function inParallel<T>(items: readonly T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  const worker = async () => { while (next < items.length) await fn(items[next++]!); };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, worker));
+}
+
+export interface TenantTickSummary { triggers: number; enrolled: number; runs: number }
+
+/**
+ * One tick for ONE tenant, inside its own tenant context (no work lists across tenants), for tools that drive a
+ * tenant's journeys on their own clock: the cart simulator (WP-18), demos. Errors are thrown, not deferred, so a tool
+ * sees them. The scheduled tick (runJourneyTick) is unchanged: the clock passed here never touches other tenants.
+ */
+export async function runTenantTick(orgId: string, now: Date, opts: { concurrency?: number } = {}): Promise<TenantTickSummary> {
+  const concurrency = opts.concurrency ?? 4;
+  const summary: TenantTickSummary = { triggers: 0, enrolled: 0, runs: 0 };
+  for (let round = 0; round < 1000; round++) {
+    const ids = (await withEngageTenant(orgId, (c) => c.query<{ id: string }>(
+      `SELECT id FROM engage.trigger_outbox WHERE organization_id = $1 AND status = 'pending' ORDER BY id LIMIT 500`, [orgId]))).rows.map((r) => String(r.id));
+    if (!ids.length) break;
+    let progressed = 0;
+    await inParallel(ids, concurrency, async (id) => {
+      const r = await processTriggerOutbox(orgId, id, now);
+      if (r.status !== 'skipped') { progressed++; summary.triggers++; summary.enrolled += r.enrolled; }
+    });
+    if (!progressed) break;
+  }
+  for (let round = 0; round < 1000; round++) {
+    const ids = (await withEngageTenant(orgId, (c) => c.query<{ id: string }>(
+      `SELECT id FROM engage.enrollments WHERE organization_id = $1 AND status = 'active' AND next_run_at <= $2 ORDER BY next_run_at LIMIT 500`,
+      [orgId, now]))).rows.map((r) => r.id);
+    if (!ids.length) break;
+    let progressed = 0;
+    await inParallel(ids, concurrency, async (id) => {
+      if ((await runEnrollment(orgId, id, now)).status !== 'skipped') { progressed++; summary.runs++; }
+    });
+    if (!progressed) break;
   }
   return summary;
 }

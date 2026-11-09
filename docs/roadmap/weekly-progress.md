@@ -2,6 +2,30 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-09 · WP-18 (cart abandonment: journey template, event simulator, 10k load)
+- **Done:**
+  - **Ready-made journey** (`engage/journeys/cartAbandonment.ts`): cart_updated → 1 h → reminder 1 → 24 h → reminder 2 → end. An order (by when it happened) ends it; re-entry after exit; 10% holdout. It comes with two Turkish email templates that include the unsubscribe link. `installCartAbandonment` creates the templates and a **draft** journey; a tenant admin approves and activates it.
+  - **Seeded event simulator** (`engage/simulator/cartSimulator.ts`, pure). It covers carts that are abandoned, bought before the reminder, bought between the reminders, or reported late; repeated cart updates; 10% duplicate deliveries; and 5% of customers without consent. It derives each customer's expected outcome from the scenario alone.
+  - **Harness:** `runCartSimulation` drives the real path on a simulation clock: ingestion, executor (new tenant-only `runTenantTick`), dispatcher, gate and mock adapter. `verifyCartSimulation` compares the database with the expectation.
+  - **Operator script:** `npm run engage:simulate-carts` (`--install`; `--dispatch` only with mock accounts, sandbox forced).
+  - **Migration `123`:** the work lists take an optional tenant filter.
+- **Verified:**
+  - **10,000-cart acceptance run** (`ENGAGE_SIM_CARTS=10000`, 236 s): all 10,000 customers matched the expected outcome. Detail:
+    - every customer enrolled once; 6,072 exited on an order, 3,928 completed;
+    - 10,358 messages created, 9,865 sent and 493 blocked (no consent);
+    - holdout 9.5%;
+    - every send reached the adapter exactly once, and no message has two `sent` events.
+  - The regular suite runs the same test at 1,000 carts (about 30–60 s). Server full suite: 1689 passed, 9 skipped, two runs in a row on fresh databases; `tsc` clean.
+  - **Mutation check:** 13 mutants, all caught on the first run. They covered the tenant tick's clock, the template (exit, delay, holdout, auto-activation), the simulator's timings and duplicates, the verifier, the harness's consent and ingestion dedup.
+- **Found and fixed:** the cross-tenant tick in one test file, run on that test's own clock, acted on the simulation tenant's enrollments (reminder 2 never came). This can't happen in production (one clock), but the work lists now take a tenant filter and every test that drives the tick names its tenants.
+- **Honest caveats:**
+  - An order that is recorded only after reminder 1 went out cannot undo that reminder. The simulator expects exactly that.
+  - No UI yet (WP-19/20): installing, approving and watching happen through the API, the script and the database.
+  - The 10,000-cart run is not part of every CI run (it takes about 4 minutes); it is one command.
+  - Nothing was sent through SES.
+- **For you:** after merging, run `npm run db:migrate` on production (migration 123).
+- **Next:** WP-19 (engage UI shell and profile list/detail with an audit trail).
+
 ## 2026-11-09 · WP-17 (branch, re-entry, holdout, message step, dispatcher)
 - **Done:**
   - Migration `122_engage_journey_messages.sql`:

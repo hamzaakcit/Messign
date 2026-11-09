@@ -34,6 +34,7 @@
     "engage:provision": "tsx src/scripts/engageProvision.ts",
     "engage:send-test": "tsx src/scripts/engageSendTest.ts",
     "engage:synthetic": "tsx src/scripts/engageSynthetic.ts",
+    "engage:simulate-carts": "tsx src/scripts/engageSimulateCarts.ts",
     "litellm": "python3 -m litellm --config ../litellm/config.yaml",
     "test:agents": "vitest run",
     "test:red-team": "tsx src/scripts/redTeam/testMarketingGatekeepers.ts",

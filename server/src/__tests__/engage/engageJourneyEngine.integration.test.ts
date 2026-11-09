@@ -376,14 +376,13 @@ describe.skipIf(!adminUrl)('journey executor (real Postgres, non-bypass role)', 
     const two = await journey(cartJourney());
     for (const c of [one, two]) for (let i = 0; i < 3; i++) await track(c.org, await person(c.org), 'cart_updated', 0);
     const states = async () => (await Promise.all([one, two].map((c) => enrollments(c.org)))).flat();
-    // A batch of one: one tick keeps draining the outbox batch after batch, so six triggers need at most two ticks (a
-    // second only when a parallel test file holds the row the first reached, which stops a tick early by design).
-    for (let tick = 0; tick < 2 && (await states()).length < 6; tick++) await E.runJourneyTick({ now: () => at(0), batch: 1 });
+    // Only these two tenants: a tick on this test's clock must not act on other test files' tenants (and vice versa).
+    const orgs = [one.org, two.org];
+    // A batch of one: one tick keeps going batch after batch until the outbox and the due list are empty.
+    await E.runJourneyTick({ now: () => at(0), batch: 1, onlyOrganizations: orgs });
     expect(await states()).toHaveLength(6);
-    // Then the due enrollments, with the normal batch size.
-    for (let tick = 0; tick < 3 && (await states()).some((e) => e.next_run_at.getTime() !== at(60).getTime()); tick++) await E.runJourneyTick({ now: () => at(0) });
     for (const e of await states()) expect(e).toMatchObject({ status: 'active', next_run_at: at(60) });
-    for (let tick = 0; tick < 3 && (await states()).some((e) => e.status !== 'completed'); tick++) await E.runJourneyTick({ now: () => at(61) });
+    await E.runJourneyTick({ now: () => at(61), onlyOrganizations: orgs });
     for (const e of await states()) expect(e).toMatchObject({ status: 'completed', end_reason: 'exit_step' });
   }, 90_000);
 
@@ -413,11 +412,14 @@ describe.skipIf(!adminUrl)('journey executor (real Postgres, non-bypass role)', 
       await E.runEnrollment(c.org, id, at(1));
       await f.engage.withEngageScheduler(async (s) => {
         expect((await s.query('SELECT 1 FROM engage.enrollments')).rowCount).toBe(0);
-        const due = (when: Date) => s.query('SELECT * FROM engage.due_enrollment_work(1000, $1)', [when]);
+        const due = (when: Date, orgs: string[] | null = [c.org]) => s.query('SELECT * FROM engage.due_enrollment_work(1000, $1, $2::uuid[])', [when, orgs]);
         const later = await due(at(60));
         expect(later.fields.map((x) => x.name)).toEqual(['organization_id', 'enrollment_id']);
-        expect(later.rows).toContainEqual({ organization_id: c.org, enrollment_id: id });
-        expect((await due(at(59))).rows.map((r) => r.enrollment_id)).not.toContain(id);
+        expect(later.rows).toEqual([{ organization_id: c.org, enrollment_id: id }]);
+        expect((await due(at(59))).rows).toEqual([]);
+        // Narrowed to another tenant, this one's work is not listed; without a filter (the scheduled tick) every tenant's is.
+        expect((await due(at(60), [f.A.organization.id])).rows.map((r) => r.enrollment_id)).not.toContain(id);
+        expect(new Set((await due(new Date('2100-01-01'), null)).rows.map((r) => r.organization_id)).size).toBeGreaterThan(0);
       });
     });
 
