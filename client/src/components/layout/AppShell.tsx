@@ -9,6 +9,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { useGameStore } from '@/stores/gameStore';
 import { LeftSidebar } from './LeftSidebar';
+import { effectiveSidebarCollapsed } from './sidebarLayout';
 import { MainContent } from './MainContent';
 import { XPGainNotification, CelebrationOverlay } from '@/components/ui';
 import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
@@ -235,6 +236,7 @@ export function AppShell() {
   }, [updateUser]);
 
   const showSidebar = !focusMode && leftSidebarOpen;
+  const sidebarCollapsed = effectiveSidebarCollapsed(leftSidebarCollapsed, isMobile);
 
   return (
     <div className="h-screen flex bg-app overflow-hidden transition-colors duration-200">
@@ -259,12 +261,12 @@ export function AppShell() {
       {/* Left Sidebar */}
       <div
         className={`
-          ${!showSidebar ? 'w-0' : leftSidebarCollapsed ? 'w-16' : 'w-60'}
+          ${!showSidebar ? 'w-0' : sidebarCollapsed ? 'w-16' : 'w-60'}
           ${isMobile ? 'absolute z-40 h-full' : 'relative'}
           transition-all duration-200 ease-out overflow-visible
         `}
       >
-        {showSidebar && <LeftSidebar collapsed={leftSidebarCollapsed} />}
+        {showSidebar && <LeftSidebar collapsed={sidebarCollapsed} />}
       </div>
 
       {/* Main Content */}
