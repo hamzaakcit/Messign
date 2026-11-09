@@ -34,6 +34,12 @@ export interface CreateMessageInput {
   /** The gate refuses to send after this many seconds (default 24 h, 60 s to 30 days). A message held by a kill switch
    *  is therefore not sent days later. */
   ttlSeconds?: number;
+  /**
+   * What the idempotency check compares instead of `content` (WP-14). A templated message is rendered from profile
+   * attributes that may change between a first attempt and a retry; the request (template, version, payload) is what
+   * identifies it, not the rendered text.
+   */
+  requestBasis?: unknown;
 }
 
 export interface MessageRow {
@@ -88,7 +94,8 @@ function canonical(v: unknown): string {
 
 export function requestHash(input: CreateMessageInput): string {
   return createHash('sha256').update(canonical({
-    profileId: input.profileId, channel: input.channel, purpose: input.purpose, channelAccountId: input.channelAccountId, content: input.content,
+    profileId: input.profileId, channel: input.channel, purpose: input.purpose, channelAccountId: input.channelAccountId,
+    content: input.requestBasis === undefined ? input.content : { requestBasis: input.requestBasis },
   })).digest('hex');
 }
 

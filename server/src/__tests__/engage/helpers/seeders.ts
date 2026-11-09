@@ -108,4 +108,16 @@ export const SEEDERS: Record<string, Seeder> = {
       `INSERT INTO engage.api_keys (organization_id, name, key_prefix, key_hash, scopes) VALUES ($1, 'seed', 'mke_seed', $2, '{ingest}')`,
       [org, `seed-hash-${org}-${Math.random()}`]);
   },
+  templates: async (c, org) => { await seedTemplate(c, org); },
+  template_versions: async (c, org) => {
+    const t = await seedTemplate(c, org);
+    await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
+  },
 };
+
+async function seedTemplate(c: pg.PoolClient, org: string): Promise<string> {
+  const r = await c.query<{ id: string }>(
+    `INSERT INTO engage.templates (organization_id, key, name, channel) VALUES ($1, $2, 'seed', 'email') RETURNING id`,
+    [org, `seed-${Math.random().toString(36).slice(2, 12)}`]);
+  return r.rows[0]!.id;
+}
