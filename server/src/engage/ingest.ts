@@ -37,7 +37,7 @@ export const upsertSchema = z.object({
   timezone: z.string().max(64).nullable().optional(),
   locale: z.string().max(35).nullable().optional(),
   consents: z.array(consentSchema).max(8).optional(),
-  // Accepted for forward compatibility; profile upserts start no journeys until WP-16, so there is nothing to skip yet.
+  // Accepted for forward compatibility; profile upserts start no journeys yet (attribute triggers are WP-25).
   skip_triggers: z.boolean().optional(),
 }).strict();
 
@@ -155,9 +155,4 @@ async function findLiveProfileId(c: PoolClient, orgId: string, externalIdValue: 
   const r = await c.query<{ id: string }>(
     `SELECT id FROM engage.profiles WHERE organization_id = $1 AND external_id = $2 AND erased_at IS NULL`, [orgId, externalIdValue]);
   return r.rows[0]?.id ?? null;
-}
-
-/** Resolve a profile for a journey trigger request (the trigger itself arrives with WP-16). */
-export async function resolveTriggerProfile(orgId: string, externalIdValue: string): Promise<string | null> {
-  return withEngageTenant(orgId, (c) => findLiveProfileId(c, orgId, externalIdValue));
 }
