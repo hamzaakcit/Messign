@@ -3,13 +3,24 @@
  * @messign.com addresses and looked users up in the default organization, so no tenant admin could sign in.
  * ENGAGE_TEST_ADMIN_URL=postgresql://me@localhost:5432/scratch npx vitest run src/__tests__/engage
  */
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 import type { AddressInfo } from 'net';
 import type { Server } from 'http';
 import { adminUrl, setupTenancyFixture, type TenancyFixture } from './helpers/tenancyFixture.js';
+
+// A real login token carries a session id, so the JWT middleware asks Redis whether that session was revoked. CI has
+// no Redis, and the BullMQ connection queues commands forever without one; an in-memory stand-in keeps the check real.
+vi.mock('../../queue/connection.js', () => {
+  const store = new Map<string, string>();
+  const redisConnection = {
+    get: async (k: string) => store.get(k) ?? null,
+    setex: async (k: string, _ttl: number, v: string) => { store.set(k, v); return 'OK'; },
+  };
+  return { redisConnection, default: redisConnection };
+});
 
 describe.skipIf(!adminUrl)('engage tenant login (real Postgres, HTTP)', () => {
   let f: TenancyFixture;
