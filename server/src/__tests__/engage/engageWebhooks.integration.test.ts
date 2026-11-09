@@ -30,7 +30,7 @@ describe.skipIf(!adminUrl)('email channel: SES adapter and signed webhooks (real
   const u = () => Math.random().toString(36).slice(2, 10);
   const sql = (org: string, text: string, params: unknown[] = []) => f.engage.withEngageTenant(org, (c) => c.query(text, params));
   const UNSUB = 'https://example.com/u/ses1';
-  const CONTENT = { subject: 'Yeni kitaplar', html: `<p>Merhaba</p><a href="${UNSUB}">abonelikten cik</a>`, text: `Merhaba. ${UNSUB}`, unsubscribe_url: UNSUB };
+  const CONTENT = { subject: 'Yeni kitaplar', html: `<p>Merhaba</p><a href="${UNSUB}">abonelikten cik</a>`, text: `Merhaba. ${UNSUB}`, unsubscribe_url: UNSUB, unsubscribe_one_click_url: 'https://api.example.com/api/engage/unsubscribe/t' };
 
   const fakeFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);

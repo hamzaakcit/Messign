@@ -59,6 +59,9 @@ export function checkContent(channel: Channel, purpose: 'marketing' | 'transacti
     if (purpose === 'marketing') {
       const url = str(content.unsubscribe_url);
       if (!url || !/^https:\/\/\S+$/.test(url) || !body.includes(url)) codes.push('content_no_unsubscribe');
+      // The RFC 8058 target that goes into the List-Unsubscribe header (WP-13): mailbox providers ask bulk senders for it.
+      const oneClick = str(content.unsubscribe_one_click_url);
+      if (!oneClick || !/^https:\/\/\S+$/.test(oneClick)) codes.push('content_no_one_click_unsubscribe');
     }
   } else if (channel === 'sms') {
     const text = str(content.text);

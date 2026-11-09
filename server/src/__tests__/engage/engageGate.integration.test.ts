@@ -21,7 +21,7 @@ describe.skipIf(!adminUrl)('send gate (real Postgres, non-bypass role)', () => {
   const phoneN = (() => { let n = 100000 + Math.floor(Math.random() * 800000); return () => `+905000${n++}`; })();
   const UNSUB = 'https://example.com/u/xyz789';
   const VALID: Record<'email' | 'sms', Record<string, unknown>> = {
-    email: { subject: 'Hello', html: `<p>Hi</p><a href="${UNSUB}">unsubscribe</a>`, unsubscribe_url: UNSUB },
+    email: { subject: 'Hello', html: `<p>Hi</p><a href="${UNSUB}">unsubscribe</a>`, unsubscribe_url: UNSUB, unsubscribe_one_click_url: 'https://api.example.com/api/engage/unsubscribe/t' },
     sms: { text: 'Yeni kitaplar geldi. Iptal icin IPTAL yazin', sender_id: 'KITAPCI' },
   };
   const setMode = (m: string | undefined) => { if (m === undefined) delete process.env.SEND_MODE; else process.env.SEND_MODE = m; };
@@ -199,7 +199,7 @@ describe.skipIf(!adminUrl)('send gate (real Postgres, non-bypass role)', () => {
       expect(res).toEqual({ outcome: 'blocked', code: 'not_allowlisted' });
       const [d] = await decisions(t, m.id);
       expect(d).toMatchObject({ decision: 'deny', code: 'not_allowlisted' });
-      expect(codes(d.reasons)).toEqual(['not_allowlisted', 'suppressed', 'no_consent', 'content_no_unsubscribe']);
+      expect(codes(d.reasons)).toEqual(['not_allowlisted', 'suppressed', 'no_consent', 'content_no_unsubscribe', 'content_no_one_click_unsubscribe']);
       expect(JSON.stringify(d.reasons)).not.toMatch(/@|\+90/);
       const blocked = (await M.getMessage(t.org, m.id)).events.find((e) => e.type === 'blocked');
       expect(blocked?.errorCode).toBe('not_allowlisted');
@@ -482,7 +482,8 @@ describe.skipIf(!adminUrl)('send gate (real Postgres, non-bypass role)', () => {
       const t = await tenant();
       await M.updateGateSettings(t.org, { quietHoursStart: '00:00', quietHoursEnd: '23:59' });
       const a = await account(t);
-      const m = await msg(t, a, (await profile(t)).id, { purpose: 'marketing' }); // no consent
+      // TTL longer than the default 24 h: "tomorrow 09:00 UTC" is more than 24 h away when this runs before 09:00 UTC.
+      const m = await msg(t, a, (await profile(t)).id, { purpose: 'marketing', ttlSeconds: 4 * 86400 }); // no consent
       const r = await M.evaluateGate(t.org, m.id, { now: at(tomorrow, '09:00') });
       expect(r).toMatchObject({ kind: 'deny', code: 'no_consent' });
       expect(r.kind === 'deny' && codes(r.reasons)).toEqual(['no_consent', 'quiet_hours']);
@@ -559,8 +560,11 @@ describe.skipIf(!adminUrl)('send gate (real Postgres, non-bypass role)', () => {
         const r = await M.evaluateGate(t.org, (await msg(t, over.channel === 'sms' ? smsAcct : a, p.id, over)).id);
         return r.kind === 'deny' ? codes(r.reasons) : [];
       };
-      expect(await deny({ purpose: 'marketing', content: { subject: 's', html: '<p>hi</p>', unsubscribe_url: UNSUB } })).toEqual(['content_no_unsubscribe']);
-      expect(await deny({ purpose: 'marketing', content: { subject: 's', html: `<a href="${UNSUB.replace('https', 'http')}">x</a>`, unsubscribe_url: UNSUB.replace('https', 'http') } })).toEqual(['content_no_unsubscribe']);
+      expect(await deny({ purpose: 'marketing', content: { subject: 's', html: '<p>hi</p>', unsubscribe_url: UNSUB, unsubscribe_one_click_url: 'https://api.example.com/api/engage/unsubscribe/t' } })).toEqual(['content_no_unsubscribe']);
+      // WP-13: the List-Unsubscribe one-click target is required for marketing email, and must be https.
+      expect(await deny({ purpose: 'marketing', content: { subject: 's', html: `<a href="${UNSUB}">x</a>`, unsubscribe_url: UNSUB } } )).toEqual(['content_no_one_click_unsubscribe']);
+      expect(await deny({ purpose: 'marketing', content: { subject: 's', html: `<a href="${UNSUB}">x</a>`, unsubscribe_url: UNSUB, unsubscribe_one_click_url: 'http://api.example.com/u/t' } })).toEqual(['content_no_one_click_unsubscribe']);
+      expect(await deny({ purpose: 'marketing', content: { subject: 's', html: `<a href="${UNSUB.replace('https', 'http')}">x</a>`, unsubscribe_url: UNSUB.replace('https', 'http'), unsubscribe_one_click_url: 'https://api.example.com/api/engage/unsubscribe/t' } })).toEqual(['content_no_unsubscribe']);
       expect(await deny({ content: { html: '<p>hi</p>' } })).toEqual(['content_missing_subject']);
       expect(await deny({ channel: 'sms', purpose: 'marketing', content: { text: 'Kampanya basladi', sender_id: 'KITAPCI' } })).toEqual(['content_no_opt_out']);
       expect(await deny({ channel: 'sms', content: { text: 'Siparisiniz kargoda' } })).toEqual(['sender_id_invalid']);

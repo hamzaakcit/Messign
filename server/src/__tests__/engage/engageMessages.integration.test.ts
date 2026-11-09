@@ -54,7 +54,7 @@ describe.skipIf(!adminUrl)('messaging core (real Postgres, non-bypass role)', ()
   };
   const UNSUB = 'https://example.com/u/abc123';
   const VALID: Record<'email' | 'sms' | 'whatsapp', Record<string, unknown>> = {
-    email: { subject: 'Hello', html: `<p>Hi</p><a href="${UNSUB}">unsubscribe</a>`, unsubscribe_url: UNSUB },
+    email: { subject: 'Hello', html: `<p>Hi</p><a href="${UNSUB}">unsubscribe</a>`, unsubscribe_url: UNSUB, unsubscribe_one_click_url: 'https://api.example.com/api/engage/unsubscribe/t' },
     sms: { text: 'Kampanya basladi. Iptal icin IPTAL yazin', sender_id: 'MESSIGN' },
     whatsapp: { template: 'promo_v1' },
   };

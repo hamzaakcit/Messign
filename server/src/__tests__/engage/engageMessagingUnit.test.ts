@@ -148,13 +148,16 @@ describe('delivery-report simulator', () => {
 
 describe('content checks', () => {
   const U = 'https://example.com/u/1';
+  const O = 'https://api.example.com/api/engage/unsubscribe/t';
   it.each<[string, Parameters<typeof checkContent>, string[]]>([
-    ['valid marketing email', ['email', 'marketing', { subject: 's', html: `<a href="${U}">x</a>`, unsubscribe_url: U }, {}], []],
-    ['link only in text body', ['email', 'marketing', { subject: 's', text: `Unsubscribe: ${U}`, unsubscribe_url: U }, {}], []],
+    ['valid marketing email', ['email', 'marketing', { subject: 's', html: `<a href="${U}">x</a>`, unsubscribe_url: U, unsubscribe_one_click_url: O }, {}], []],
+    ['link only in text body', ['email', 'marketing', { subject: 's', text: `Unsubscribe: ${U}`, unsubscribe_url: U, unsubscribe_one_click_url: O }, {}], []],
+    ['marketing email, no one-click target', ['email', 'marketing', { subject: 's', html: `<a href="${U}">x</a>`, unsubscribe_url: U }, {}], ['content_no_one_click_unsubscribe']],
+    ['marketing email, http one-click target', ['email', 'marketing', { subject: 's', html: `<a href="${U}">x</a>`, unsubscribe_url: U, unsubscribe_one_click_url: 'http://example.com/u/1' }, {}], ['content_no_one_click_unsubscribe']],
     ['transactional email needs no unsubscribe link', ['email', 'transactional', { subject: 's', text: 'Order shipped' }, {}], []],
-    ['marketing email, link missing from body', ['email', 'marketing', { subject: 's', html: 'hi', unsubscribe_url: U }, {}], ['content_no_unsubscribe']],
-    ['marketing email, no unsubscribe url', ['email', 'marketing', { subject: 's', html: 'hi' }, {}], ['content_no_unsubscribe']],
-    ['marketing email, http link', ['email', 'marketing', { subject: 's', html: 'http://example.com/u', unsubscribe_url: 'http://example.com/u' }, {}], ['content_no_unsubscribe']],
+    ['marketing email, link missing from body', ['email', 'marketing', { subject: 's', html: 'hi', unsubscribe_url: U, unsubscribe_one_click_url: O }, {}], ['content_no_unsubscribe']],
+    ['marketing email, no unsubscribe url', ['email', 'marketing', { subject: 's', html: 'hi', unsubscribe_one_click_url: O }, {}], ['content_no_unsubscribe']],
+    ['marketing email, http link', ['email', 'marketing', { subject: 's', html: 'http://example.com/u', unsubscribe_url: 'http://example.com/u', unsubscribe_one_click_url: O }, {}], ['content_no_unsubscribe']],
     ['email without subject or body', ['email', 'transactional', {}, {}], ['content_missing_subject', 'content_missing_body']],
     ['blank subject', ['email', 'transactional', { subject: '   ', text: 'x' }, {}], ['content_missing_subject']],
     ['marketing sms with IPTAL', ['sms', 'marketing', { text: 'Indirim! IPTAL yaz 3030', sender_id: 'KITAPCI' }, {}], []],

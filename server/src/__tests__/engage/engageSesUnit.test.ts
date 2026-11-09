@@ -71,6 +71,30 @@ describe('SES send', () => {
     });
   });
 
+  it('sends List-Unsubscribe and List-Unsubscribe-Post (RFC 8058) when the message carries an https one-click target', async () => {
+    const f = okFetch();
+    const ses = createSesAdapter({ fetch: f as unknown as typeof fetch });
+    const target = 'https://api.example.com/api/engage/unsubscribe/abc.def';
+    await ses.send({ ...req, content: { ...req.content, unsubscribe_one_click_url: target } }, account());
+    expect(JSON.parse(f.mock.calls[0]![1]!.body as string).Content.Simple.Headers).toEqual([
+      { Name: 'List-Unsubscribe', Value: `<${target}>` },
+      { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+    ]);
+  });
+
+  it.each([
+    ['absent', undefined],
+    ['http', 'http://api.example.com/u/x'],
+    ['with whitespace (header injection)', 'https://api.example.com/u/x\r\nBcc: evil@example.com'],
+    ['with angle brackets', 'https://api.example.com/u/x>,<https://evil.example.com'],
+    ['not a string', 42],
+  ])('sends no list headers when the one-click target is %s', async (_n, value) => {
+    const f = okFetch();
+    const ses = createSesAdapter({ fetch: f as unknown as typeof fetch });
+    await ses.send({ ...req, content: { ...req.content, ...(value === undefined ? {} : { unsubscribe_one_click_url: value }) } }, account());
+    expect(JSON.parse(f.mock.calls[0]![1]!.body as string).Content.Simple).not.toHaveProperty('Headers');
+  });
+
   it('adds the configuration set when configured, and strips header-breaking characters from the display name', async () => {
     const f = okFetch();
     const ses = createSesAdapter({ fetch: f as unknown as typeof fetch });

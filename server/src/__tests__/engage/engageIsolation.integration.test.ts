@@ -255,13 +255,18 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
       walk((engageRouter as unknown as { stack: Layer[] }).stack, '');
       expect(found.length).toBeGreaterThanOrEqual(9);
       expect(found.some((r) => r.path.startsWith('(nested)')), 'nested routers must be inspected').toBe(true);
-      // Provider webhooks authenticate by signature; their guard is accepted on /webhooks routes only.
+      // Provider webhooks authenticate by signature; their guard is accepted on /webhooks routes only. Unsubscribe links
+      // (WP-13) authenticate by a signed token; that guard is accepted on the two /unsubscribe/:token routes only.
       const { requireWebhookAccount } = await import('../../engage/webhookRoutes.js');
+      const { requireUnsubscribeToken } = await import('../../engage/unsubscribeRoutes.js');
       for (const r of found) {
-        const ok = guards.includes(r.first as never) || (r.first === requireWebhookAccount && r.path === '(nested)/:accountId');
+        const ok = guards.includes(r.first as never)
+          || (r.first === requireWebhookAccount && r.path === '(nested)/:accountId')
+          || (r.first === requireUnsubscribeToken && r.path === '(nested)/:token');
         expect(ok, `${r.path} must start with an auth middleware`).toBe(true);
       }
       expect(found.filter((r) => r.first === requireWebhookAccount)).toHaveLength(1);
+      expect(found.filter((r) => r.first === requireUnsubscribeToken)).toHaveLength(2); // GET and POST
     });
 
     it('test 7: secrets are never logged or returned after creation', async () => {

@@ -50,6 +50,8 @@ Everything below happens in one AWS region. The examples use `eu-central-1` (Fra
    - each recipient on the sandbox allow-list (`addAllowlistEntry`), matching the addresses verified in step 1.2.
 5. **Set `SEND_MODE=sandbox`** on the server. Off is the default; live is not for this account.
 
+7. **Unsubscribe links (WP-13), for marketing email.** Set on the server: `ENGAGE_PUBLIC_APP_URL` (where the web app is served, `https`, for example `https://messign.vercel.app`) and `ENGAGE_PUBLIC_API_URL` (this API from the internet, `https`, for example `https://server-production-7283.up.railway.app`). Without both, building the links fails on purpose. Callers build the two links per recipient with `buildUnsubscribeLinks` and put them in the message content: `unsubscribe_url` (the page link, also in the body) and `unsubscribe_one_click_url` (becomes the `List-Unsubscribe` header). A person who opens the page confirms with a button; a mail client's "unsubscribe" button posts straight to the API. Both write the same opt-out, effective for the very next send. To try it: send a marketing test message to your verified inbox, open the link, confirm, and check the next message to that address is blocked (`suppressed`).
+
 ## 3. What happens then
 
 - A dispatched message goes through the send gate (consent, suppression, allow-list, budget, content), then to SES. The SES `MessageId` is stored on the message.
@@ -60,5 +62,5 @@ Everything below happens in one AWS region. The examples use `eu-central-1` (Fra
 
 - SES has no idempotency key. If the server dies after SES accepted a message but before Messign recorded it, the retry can send the email twice.
 - A soft bounce is reported by SES only when it has given up; the message is marked failed and the address is **not** suppressed.
-- `List-Unsubscribe` headers are not set yet (WP-13).
+- Marketing mail needs the unsubscribe links (section 2.7); transactional mail needs none.
 - Nothing here has been run against real AWS. The request format and the SNS signature scheme follow the AWS documentation (cited in `server/src/engage/messaging/sesAdapter.ts`), and request signing matches AWS's published SigV4 test vector, but the first real send is the first end-to-end proof.
