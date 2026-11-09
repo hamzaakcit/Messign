@@ -173,7 +173,9 @@ describe.skipIf(!adminUrl)('csv import (real Postgres, non-bypass role)', () => 
     });
   });
 
-  describe('orders', () => {
+  // Order imports create partitions for past months; under a fully parallel suite that waits for long transactions
+  // (other files deleting large test tenants), so these tests get more time than the default.
+  describe('orders', { timeout: 60_000 }, () => {
     const OH = 'order_id,external_id,ordered_at,total,currency,product_ids\n';
     it('imports orders as order_completed events without starting any journey, and is idempotent', async () => {
       const x = u();

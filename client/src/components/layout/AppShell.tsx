@@ -40,6 +40,7 @@ const PATH_TO_VIEW: Record<string, string> = {
   '/finance': 'finance',
   '/crm': 'crm',
   '/marketing': 'marketing',
+  '/customers': 'customers',
   '/recruitment': 'recruitment',
   '/support': 'support',
   '/okr': 'okr',
@@ -54,6 +55,7 @@ function getViewFromPath(path: string): string {
   if (path.startsWith('/reports')) return 'reports';
   if (path.startsWith('/crm')) return 'crm';
   if (path.startsWith('/marketing')) return 'marketing';
+  if (path === '/customers' || path.startsWith('/customers/')) return 'customers';
   if (path.startsWith('/recruitment')) return 'recruitment';
   if (path.startsWith('/support')) return 'support';
   if (path.startsWith('/assets')) return 'assets';
@@ -91,6 +93,7 @@ const VIEW_LABELS: Record<string, string> = {
   invoices: 'Invoices',
   crm: 'Sales CRM',
   marketing: 'Marketing',
+  customers: 'Customers',
   recruitment: 'Recruitment',
   support: 'Support',
   okr: 'OKRs & Goals',

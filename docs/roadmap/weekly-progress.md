@@ -2,6 +2,36 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-09 · WP-19 (engage customers: list and audit trail)
+- **Done:**
+  - **Server** (`engage/profileTrail.ts`, read only, tenant context):
+    - `GET /api/engage/profiles`: newest first; keyset cursor; `q` is an email (any address the customer ever had) or the start of a customer ID, with `%` and `_` taken literally.
+    - `GET /api/engage/profiles/:id/trail`: messages with delivery events and every send-gate decision, each decision with the consent record in force when it was taken (the newest ledger row for that channel at or before the decision); journeys step by step, with cohort and how they ended; consent history; suppressions of every address the customer ever had; addresses with history; recent events.
+  - **Client** (`client/src/engage/`): a **Customers** item in the engage sidebar; a list (search, consent/suppressed/erased badges, load more) and a detail page (messages with decisions in words and the consent in force, journeys, consent history, suppressions, addresses, events). The engage home links to it. On the Company-OS workspace the item and its paths stay hidden, because the engage API is not mounted there.
+- **Verified:**
+  - Server full suite: 1695 passed, 9 skipped, three runs in a row on fresh databases (121–135 s, down from 150–250 s).
+  - Client: 591 tests passed; `tsc` clean on both.
+  - New tests: 6 server end-to-end on real Postgres and HTTP. **Acceptance:** a sent message shows its allow decision with the grant in force; after a revocation, the next message shows its deny with the revocation in force; a decision taken before any consent shows none. Also tenant isolation, paging, search and wildcards, journey links, an old address's suppression. 7 client component tests and the surface rules.
+  - Mutation check: 4 client mutants and 9 server mutants. All but one were caught at once. The survivor (consent taken from another customer would have gone unnoticed) led to a sharper test.
+- **Also fixed (test reliability):**
+  - The WP-18 simulator unit test had a quadratic duplicate check; it is now a lookup.
+  - Test teardown now locks `engage.events` before deleting organizations, so it locks in the same order as partition creation and cannot deadlock with it. The WP-17 partition-lock approach made teardowns wait for each other and time out under load.
+  - The WP-17 ingestion-deadlock test dropped a partition that another test file could be filling. It is replaced by a statement-order check (every partition is ensured before the first event is written), which fails without the fix and needs no missing partition.
+  - The CSV order-import tests get 60 s.
+  - **Root cause of the random timeouts:** creating an event partition needs an exclusive lock on `engage.events`. It waits for other files' long transactions, and every other query on events queues behind it.
+  - The test fixture now creates every monthly partition of the window once, before any test runs. So the ingestion tests named "on demand" and "creation race" now find their partition already there. Partition creation itself still runs: in the fixture, and on any month that is missing.
+  - **Follow-up (production):** the same queue can briefly stall event ingestion on the first event of a new month while a long transaction runs. A small scheduled job that creates next month's partition ahead of time would remove that.
+- **Follow-ups done in the same PR (Hamza: "first do what was not done"):**
+  - **Browser E2E (Playwright)** `e2e-engage/customer-trace.spec.ts` with `playwright.engage.config.ts`. It runs its own stack beside the usual dev servers (client 3200, API 3201, engage surface, sandbox, mock email) on a throwaway database. The database is seeded by `server/src/scripts/engageE2eSeed.ts`: a tenant with a generated password and the cart journey run over 30 simulated carts. The test signs in, opens Customers, then traces a sent message (allow, consent granted) and a blocked one (deny, no consent in force); a made-up customer id shows "does not exist". Run: `ENGAGE_E2E_ADMIN_URL=<local throwaway db> npx playwright test -c playwright.engage.config.ts`. Two passed. Not in CI yet (CI has no browser job).
+  - **Clicked through in the browser** on the same stack, at mobile and desktop widths: list, search, detail pages for a blocked and a sent customer, journeys, consent history, addresses and events. No console errors; one API call per screen, no request loop. Found and fixed: the header breadcrumb showed the customer's UUID as words ("3d0aae44 B1cb …") and the root label in lowercase; it now reads "Customers › Details".
+  - **Event partitions ahead of time:** an hourly pg-boss job (`engage/partition-maintenance`, also run once at boot) creates the next two days' partitions, so the first event of a month no longer has to create its partition (and take the exclusive lock) on the request path.
+  - **Dev proxy target:** `client/vite.config.js` is the config Vite actually loads (it is tracked next to `vite.config.ts`, and Vite prefers `.js`), so the proxy change went into both. Worth tidying later: one config file instead of two.
+- **Honest caveats:**
+  - The engage browser test is not part of CI.
+  - The UI stays English (decided: English only).
+  - The trail shows at most the newest 100 messages and events, 50 journeys and 200 consent records.
+- **Next:** WP-36 (rule-based segments and a scheduled segment trigger), then WP-20 (journey builder UI).
+
 ## 2026-11-09 · WP-18 (cart abandonment: journey template, event simulator, 10k load)
 - **Done:**
   - **Ready-made journey** (`engage/journeys/cartAbandonment.ts`): cart_updated → 1 h → reminder 1 → 24 h → reminder 2 → end. An order (by when it happened) ends it; re-entry after exit; 10% holdout. It comes with two Turkish email templates that include the unsubscribe link. `installCartAbandonment` creates the templates and a **draft** journey; a tenant admin approves and activates it.

@@ -3,7 +3,7 @@ import { mountsFrozenModules } from '@/lib/productSurface';
 
 const STORAGE_KEY = 'sidebar-layout';
 
-export type View = 'dashboard' | 'executive' | 'reports' | 'dora' | 'game' | 'chat' | 'projects' | 'knowledge' | 'achievements' | 'team' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'recruitment' | 'support' | 'okr' | 'assets' | 'contracts' | 'culture';
+export type View = 'dashboard' | 'executive' | 'reports' | 'dora' | 'game' | 'chat' | 'projects' | 'knowledge' | 'achievements' | 'team' | 'settings' | 'finance' | 'reimbursements' | 'invoices' | 'crm' | 'marketing' | 'customers' | 'recruitment' | 'support' | 'okr' | 'assets' | 'contracts' | 'culture';
 
 interface SidebarLayout {
   leftOpen: boolean;

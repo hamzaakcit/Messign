@@ -451,6 +451,8 @@ if (pgBossEnabled) {
           await registerEngageImportHandler();
           const { registerEngageJourneyHandler } = await import('./engage/journeys/journeyJob.js');
           await registerEngageJourneyHandler();
+          const { registerEngagePartitionJob } = await import('./engage/partitions.js');
+          await registerEngagePartitionJob();
         } catch (importErr) {
           console.warn('[Server] Engage import handler failed (non-fatal):', importErr instanceof Error ? importErr.message : importErr);
         }

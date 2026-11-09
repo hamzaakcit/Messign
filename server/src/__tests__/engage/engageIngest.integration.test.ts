@@ -248,28 +248,32 @@ describe.skipIf(!adminUrl)('ingestion API v1 (real Postgres, non-bypass role)', 
       await expect(sql(A, `INSERT INTO engage.${part} (organization_id, profile_id, client_event_id, name, occurred_at) VALUES ($1, gen_random_uuid(), 'x', 'x', $2)`, [A, at.toISOString()])).rejects.toThrow(/permission denied/);
     });
 
-    it('a batch creates its missing partitions before writing anything, so it cannot deadlock with another partition creation', async () => {
+    it('a batch makes sure of its partitions before writing any event, so it cannot deadlock with another partition creation', async () => {
+      // The deadlock (WP-17): a batch spanning two months held engage.events (first event written) while it waited to
+      // create the second month's partition, and another creation waited for it. Checked here by statement order,
+      // which needs no particular partition to be missing (other test files create and fill them concurrently).
       const ext = `p-${u()}`;
       await upsert(keyA, { external_id: ext });
-      const old = new Date(Date.now() - 330 * DAY);
-      const part = `events_${old.getUTCFullYear()}${String(old.getUTCMonth() + 1).padStart(2, '0')}`;
-      await f.admin.query(`DROP TABLE IF EXISTS engage.${part}`);
-      const holder = await f.admin.connect();
+      const pg = (await import('pg')).default;
+      const seen: string[] = [];
+      // Record every statement this process sends, then call the real query.
+      const real = pg.Client.prototype.query;
+      pg.Client.prototype.query = function (this: unknown, ...args: unknown[]) {
+        const q = args[0];
+        seen.push(typeof q === 'string' ? q : String((q as { text?: string })?.text ?? ''));
+        return (real as (...a: unknown[]) => unknown).apply(this, args);
+      } as typeof real;
       try {
-        // Hold the lock ensure_event_partition takes (migration 114) so the batch has to wait for it mid-way.
-        await holder.query('BEGIN');
-        await holder.query('SELECT pg_advisory_xact_lock(7040802)');
-        const batch = track(keyA, [ev(ext), ev(ext, { occurred_at: old.toISOString() })]); // this month first, then the missing one
-        await new Promise((r) => setTimeout(r, 400));
-        // While it waits, the batch must hold nothing on engage.events: if it did, a partition creation here would deadlock.
-        await holder.query("SET LOCAL lock_timeout = '2s'");
-        await holder.query('LOCK TABLE engage.events IN ACCESS EXCLUSIVE MODE');
-        await holder.query('COMMIT');
-        expect((await batch).json).toMatchObject({ accepted: 2 });
+        const old = new Date(Date.now() - 330 * DAY).toISOString();
+        expect((await track(keyA, [ev(ext), ev(ext, { occurred_at: old })])).json).toMatchObject({ accepted: 2 });
       } finally {
-        await holder.query('ROLLBACK').catch(() => undefined);
-        holder.release();
+        pg.Client.prototype.query = real;
       }
+      const ensures = seen.map((q, i) => (q.includes('ensure_event_partition') ? i : -1)).filter((i) => i >= 0);
+      const firstInsert = seen.findIndex((q) => q.includes('INSERT INTO engage.events'));
+      expect(ensures.length).toBeGreaterThanOrEqual(2);
+      expect(firstInsert).toBeGreaterThan(-1);
+      expect(ensures.filter((i) => i < firstInsert).length).toBeGreaterThanOrEqual(2);
     });
 
     it('two transactions creating the same new month at once both succeed (no partition-creation race)', async () => {

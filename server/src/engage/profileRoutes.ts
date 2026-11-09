@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireEngageUser } from './middleware/auth.js';
 import { ProfileNotFoundError, getProfile } from './profiles.js';
+import { ProfileListInputError, getProfileTrail, listProfiles } from './profileTrail.js';
 import { errorFields, logError } from './log.js';
 import './types.js';
 
@@ -9,6 +10,33 @@ import './types.js';
  * the tenant always comes from the verified token, never from the request.
  */
 export const profileRouter = Router();
+
+const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+
+/** Customer list (WP-19): newest first, ?q= email or external-id prefix, ?cursor=, ?limit= (1-100). */
+profileRouter.get('/', requireEngageUser, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    const limit = str(req.query.limit) ? Number(req.query.limit) : undefined;
+    res.json(await listProfiles(req.engageUser!.organizationId, { q: str(req.query.q), cursor: str(req.query.cursor), limit: Number.isFinite(limit) ? limit : undefined }));
+  } catch (err) {
+    if (err instanceof ProfileListInputError) return void res.status(400).json({ error: err.message });
+    logError('profile list failed', errorFields(err));
+    res.status(500).json({ error: 'Request failed' });
+  }
+});
+
+/** Audit trail (WP-19): messages with delivery events and gate decisions (with the consent in force), journeys, consents, suppressions, events. */
+profileRouter.get('/:id/trail', requireEngageUser, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await getProfileTrail(req.engageUser!.organizationId, req.params.id ?? ''));
+  } catch (err) {
+    if (err instanceof ProfileNotFoundError) return void res.status(404).json({ error: 'Profile not found' });
+    logError('profile trail failed', errorFields(err));
+    res.status(500).json({ error: 'Request failed' });
+  }
+});
 
 profileRouter.get('/:id', requireEngageUser, async (req, res) => {
   try {
