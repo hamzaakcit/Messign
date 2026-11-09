@@ -114,6 +114,11 @@ export const SEEDERS: Record<string, Seeder> = {
     const j = await seedJourney(c, org);
     await c.query(`INSERT INTO engage.journey_versions (organization_id, journey_id, version, definition) VALUES ($1, $2, 1, '{"steps":[]}'::jsonb)`, [org, j]);
   },
+  enrollments: async (c, org) => { await seedEnrollment(c, org); },
+  enrollment_steps: async (c, org) => {
+    const e = await seedEnrollment(c, org);
+    await c.query(`INSERT INTO engage.enrollment_steps (organization_id, enrollment_id, step_id, step_type, started_at, wake_at) VALUES ($1, $2, 's1', 'delay', now(), 'infinity')`, [org, e]);
+  },
   template_versions: async (c, org) => {
     const t = await seedTemplate(c, org);
     await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
@@ -131,5 +136,17 @@ async function seedJourney(c: pg.PoolClient, org: string): Promise<string> {
   const r = await c.query<{ id: string }>(
     `INSERT INTO engage.journeys (organization_id, key, name) VALUES ($1, $2, 'seed') RETURNING id`,
     [org, `seed-${Math.random().toString(36).slice(2, 12)}`]);
+  return r.rows[0]!.id;
+}
+
+/** next_run_at = infinity: a seeded enrollment is never due, so a journey tick in a parallel test file never runs it. */
+async function seedEnrollment(c: pg.PoolClient, org: string): Promise<string> {
+  const j = await seedJourney(c, org);
+  const v = await c.query<{ id: string }>(
+    `INSERT INTO engage.journey_versions (organization_id, journey_id, version, definition) VALUES ($1, $2, 1, '{"steps":[]}'::jsonb) RETURNING id`, [org, j]);
+  const p = await seedProfile(c, org);
+  const r = await c.query<{ id: string }>(
+    `INSERT INTO engage.enrollments (organization_id, journey_id, journey_version_id, profile_id, trigger_kind, trigger_key, entered_at, current_step, next_run_at)
+     VALUES ($1, $2, $3, $4, 'api', $5, now(), 's1', 'infinity') RETURNING id`, [org, j, v.rows[0]!.id, p, `api:seed-${Math.random()}`]);
   return r.rows[0]!.id;
 }

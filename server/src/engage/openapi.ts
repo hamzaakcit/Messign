@@ -36,11 +36,17 @@ export const openApiDocument = {
     },
     '/journeys/{key}/trigger': {
       post: {
-        summary: 'Start a journey for a profile (not available yet)',
-        description: 'Validated but not executed until the journey engine ships. Returns 501.',
+        summary: 'Start an API-triggered journey for a profile',
+        description: 'Enrolls the profile in the active version of the journey. The idempotency key is unique per journey: '
+          + 'repeating a request returns the same enrollment with duplicate: true (200); reusing the key for a different '
+          + 'profile or payload is a 409. A profile already in the journey is not enrolled again (200, not_enrolled).',
         parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TriggerRequest' } } } },
-        responses: { '400': error, '401': error, '403': error, '404': error, '429': error, '501': error },
+        responses: {
+          '202': { description: 'Enrolled' },
+          '200': { description: 'Duplicate request, or the profile is already in the journey' },
+          '400': error, '401': error, '403': error, '404': error, '409': error, '429': error,
+        },
       },
     },
     '/openapi.json': {

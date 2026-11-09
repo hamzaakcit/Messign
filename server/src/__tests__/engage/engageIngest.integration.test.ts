@@ -310,14 +310,14 @@ describe.skipIf(!adminUrl)('ingestion API v1 (real Postgres, non-bypass role)', 
     }, 30_000);
   });
 
-  describe('journeys/:key/trigger (stub until the journey engine)', () => {
-    it('validates, checks the profile, and answers 501', async () => {
+  describe('journeys/:key/trigger (the engine itself is tested in engageJourneyEngine.integration.test.ts)', () => {
+    it('validates the body, and answers 404 for a journey that is not active', async () => {
       const ext = `p-${u()}`;
       await upsert(keyA, { external_id: ext });
       const path = '/v1/journeys/cart-abandonment/trigger';
-      expect((await app.http(path, { key: keyTriggerA, body: { external_id: ext, idempotency_key: 'k1' } })).status).toBe(501);
-      expect((await app.http(path, { key: keyTriggerA, body: { external_id: `nobody-${u()}`, idempotency_key: 'k1' } })).status).toBe(404);
+      expect((await app.http(path, { key: keyTriggerA, body: { external_id: ext, idempotency_key: 'k1' } })).status).toBe(404);
       expect((await app.http(path, { key: keyTriggerA, body: { external_id: ext } })).status).toBe(400);
+      expect((await app.http(path, { key: keyTriggerA, body: { external_id: ext, idempotency_key: 'k1', organization_id: B } })).status).toBe(400);
     });
   });
 

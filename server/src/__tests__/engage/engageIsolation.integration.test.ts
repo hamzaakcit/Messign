@@ -73,6 +73,23 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
       }
     });
 
+    it('the only SECURITY DEFINER functions the engage role can call are the reviewed ones, and the work lists return ids only', async () => {
+      // A definer function runs as its owner and so bypasses RLS: each one is a hole in tenant isolation unless it is
+      // narrow. Adding one means reviewing it and listing it here.
+      const r = await f.admin.query<{ proname: string; result: string }>(
+        `SELECT p.proname, pg_get_function_result(p.oid) AS result FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+          WHERE p.prosecdef AND has_function_privilege('messign_engage', p.oid, 'EXECUTE') AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+          ORDER BY 1`);
+      expect(r.rows).toEqual([
+        { proname: 'claim_message', result: 'boolean' }, // claims one message of the given tenant
+        { proname: 'due_enrollment_work', result: 'TABLE(organization_id uuid, enrollment_id uuid)' }, // migration 121: ids only
+        { proname: 'ensure_event_partition', result: 'void' }, // migration 114: creates event partitions only
+        { proname: 'lookup_user', result: 'TABLE(user_id uuid, role text, organization_id uuid, org_slug text, org_product text)' }, // migration 111: sign-in lookup
+        { proname: 'pending_trigger_work', result: 'TABLE(organization_id uuid, outbox_id bigint)' }, // migration 121: ids only
+        { proname: 'set_app_tenant', result: 'void' }, // legacy baseline: sets a setting, reads nothing
+      ]);
+    });
+
     it('the engage role holds no privileges on any legacy (public) table', async () => {
       const r = await f.admin.query(
         `SELECT table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee = 'messign_engage' AND table_schema = 'public'`);

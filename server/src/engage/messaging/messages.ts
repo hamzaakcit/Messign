@@ -84,7 +84,8 @@ function toRow(r: Record<string, unknown>): MessageRow {
   };
 }
 
-function canonical(v: unknown): string {
+/** JSON with sorted keys, so equal requests hash equally (also used by the journey trigger API). */
+export function canonical(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
   if (v && typeof v === 'object') {
     return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(',')}}`;

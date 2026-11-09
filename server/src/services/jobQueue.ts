@@ -18,6 +18,8 @@ export const JOB_NAMES = {
   CALIBRATION_SNAPSHOT: 'marketing/calibration-snapshot',
   /** Engage CSV import (ADR-003). */
   ENGAGE_IMPORT: 'engage/import',
+  /** Engage journey executor tick (WP-16): drains the trigger outbox and runs due enrollments. */
+  ENGAGE_JOURNEY_TICK: 'engage/journey-tick',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -145,6 +147,12 @@ export async function enqueueJob(
     console.error(`[JobQueue] Enqueue failed for ${jobName}:`, message);
     return null;
   }
+}
+
+/** Run a job on a cron schedule (pg-boss keeps one schedule per name, so calling this on every boot is safe). */
+export async function scheduleJob(jobName: JobName, cron: string, data: Record<string, unknown> = {}): Promise<void> {
+  await getQueue().schedule(jobName, cron, data);
+  console.info(`[JobQueue] Scheduled ${jobName} (${cron})`);
 }
 
 /** Cancel a job by queue name and ID. */

@@ -87,6 +87,15 @@ export function withEngageTenant<T>(organizationId: string, fn: (client: pg.Pool
   );
 }
 
+/**
+ * Runs fn with no tenant at all, for the journey scheduler (WP-16). RLS shows it no rows of any table; it can only call
+ * the SECURITY DEFINER work-listing functions of migration 121, which return tenant and row ids and nothing else.
+ * Each piece of work is then done in its own withEngageTenant transaction.
+ */
+export function withEngageScheduler<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  return inTransaction(async () => undefined, fn);
+}
+
 /** Runs fn with no tenant but permission to read the one api_keys row whose hash is given (pre-auth lookup). */
 export function withApiKeyLookup<T>(keyHash: string, fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
   return inTransaction(
