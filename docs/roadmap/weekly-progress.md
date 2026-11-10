@@ -2,6 +2,18 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · Local fixes after WP-38 (dev server, CORS, remount loop, customer add path)
+- **Done:**
+  - **Development CORS:** the local engage (3200) and merged (3300) previews are in the development allow-list (`server/src/config/corsOrigins.ts`), with a test. Before, their requests were refused and the session dropped to the login page.
+  - **Remount loop (client):** on the shared (`all`) surface the engage answer gate hid the app on every refetch. A query that never succeeded goes back to `pending` on each fetch, so the app unmounted and remounted with every request it makes: hundreds per second, rate-limited (429), then logout. The answer now stands once it has arrived (`hasAnsweredEngageMe`, used by `SurfaceGate` and `useEngageAccess`). A test fails on the old condition.
+  - **Add customer path:** `createCustomer` posted to `/api/api/engage/profiles` (`fetchAPI` adds `/api` itself) and got "Not found". The test matched the URL by substring and missed it; it now matches the exact path.
+  - **Test setup:** `client/vitest.config.ts` pins the default surface to `workspace` for tests, so a developer's `client/.env.local` cannot change them (the login test failed on `all`).
+- **Verified:** client `tsc` clean; engage client tests 81 passed (10 files); `corsOrigins` server test 5 passed. Full client suite 675 passed with the remount fix (before the final test-default change; re-run before merging).
+- **Not verified:** the full server suite on this branch; the `all` surface on the dev server (blocked by the engage database configuration, see the next item).
+- **Local setup, not in git:** `server/.env` and `client/.env.local` point the dev server at the `all` surface, `ENGAGE_DATABASE_URL` at `messign_local`, `SEND_MODE=sandbox`, and `ENGAGE_PUBLIC_*` at `https://messign.com` and the Railway API. Originals are in `/private/tmp/claude-501/`.
+- **Open outside the repo:** the SES production access case (179435046400769) has our answer and a correction: bounce and complaint processing via SNS is not active yet and is due by the end of December. Until the SNS endpoint is set up, the code path is not live.
+- **Next:** WP-22 (settings: channel accounts, readiness checks, send enabled), which replaces the manual SQL used in this session.
+
 ## 2026-11-10 · Add one customer by hand (Customers page)
 - **Done:**
   - **Add customer** on the Customers section, admins only (`NewCustomerPanel`): customer ID (required), email, phone, and a "This customer agreed to receive marketing email" checkbox. Ticking it requires the email address and a note of where the customer agreed; the note is kept as the consent's evidence.
