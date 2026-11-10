@@ -1,6 +1,6 @@
 # ADR-015: Engage screens live inside the Lucy marketing page; records and editors open as panels over it
 
-- **Status:** Accepted (2026-11-10, restructure after WP-21)
+- **Status:** Accepted (2026-11-10, restructure after WP-21). Extended by ADR-016: the engage page is the tenant view; on the Company-OS Lucy page the same sections are tabs next to the chat.
 - **Context:** WP-19 to WP-21 built the engage screens as their own shell: sidebar entries and routes (`/customers`, `/journeys`, `/segments`, `/templates`) and an engage home page. The product owner does not want a second shell or separate pages for engage. The engage work belongs on the Lucy page the team already designs and shows (`/marketing`, the bento layout with the CMO column).
 - **Decision:**
   1. On the engage surface, `/marketing` renders `EngageHub` (`client/src/engage/EngageHub.tsx`) in the Lucy layout. The engage sections (Customers, Journeys, Segments, Templates) are tabs in the main column. The right column is the CMO-style column with "Go to" tiles and quick actions (new journey, segment, template; tenant admins only).

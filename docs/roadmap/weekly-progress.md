@@ -2,6 +2,29 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · WP-37 (one Lucy page for Company-OS and engage)
+- **Done:**
+  - **The platform organization may use engage:** migration `126_engage_org_product_all.sql` widens the product check to `workspace`, `engage` and `all`. `requireEngageUser` accepts `engage` and `all` and refuses everything else. `GET /api/engage/me` also reports the product. `npm run engage:platform` (`-- --off` to undo) sets `all` for the organization named by `PLATFORM_ORG_SLUG` and creates its engage settings row with sending off; it refuses a tenant and an organization that does not exist. Applying the migration changes no organization, so production is unchanged until the command is run.
+  - **One `/marketing` page, chosen by organization** (`MarketingEntry`): the engage surface shows the engage page; the workspace surface shows the Lucy page as before and never asks the engage API; on the `all` surface the client asks `/api/engage/me` first. A tenant gets the engage page alone (never the Lucy chat or tools); the platform organization gets the Lucy page with engage on it; an organization the engage API refuses gets the Lucy page as before. Nothing is shown until the answer arrives, so a tenant never sees the Lucy page flash by.
+  - **On the Lucy page:** tabs Lucy, Customers, Journeys, Segments, Templates; the engage "Go to" tiles under Lucy's own; New journey, segment and email template next to Lucy's quick actions; records and editors in panels over the page. The chat is hidden, not unmounted, while an engage tab is open, so it keeps its conversation.
+  - **Shared parts** (`client/src/engage/engageWorkspace.tsx`): the engage hub for tenants and the Lucy page are thin hosts over the same tabs, tiles, quick actions and panels.
+  - **Docs:** ADR-016, decision D-15, an ADR-002 note, the ADR-015 status, the `CLAUDE.md` rule (the Lucy page is the one frozen module that hosts engage), runbook `docs/runbooks/one-lucy-page.md` (local setup and production), backlog row WP-37.
+- **Verified:**
+  - **Server:** `tsc` clean; full suite 169 files, 1744 tests passed, 9 skipped (they need live services). Five new real-Postgres tests (the product values, the switch on and off, a tenant and a missing organization refused, the platform user passing the engage auth only while the switch is on, and the platform organization's engage data invisible to tenants and the other way round) and one unit test. Mutation check: 11 mutants (the product rule, the settings row, the tenant refusal, the changed flag, the off value, the platform slug), all caught.
+  - **Client:** `tsc` clean; full Vitest 110 files, 629 tests passed. The real Lucy page is tested on each surface: workspace (exactly the Lucy page, the engage API never asked), `all` with the engage API refusing (unchanged), `all` with engage allowed (tabs, tiles, quick actions, panels, the chat kept mounted, a tile or tab closing the open panel, a member without the create actions). `MarketingEntry` is tested for each organization, including the wait for the answer. Mutation check: 22 mutants over the access rule, the tabs, the chat and the page choice; one survivor was a real gap (a tile did not close the open panel) and now has a test, one was a no-op mutation.
+  - **Playwright (engage stack, 4 tests):** passed again on the refactored hub.
+  - **Browser (a private copy of the dev database, `PRODUCT_SURFACE=all`):** migrations 120 to 126 applied cleanly; a Messign admin sees Lucy and the four engage tabs on one page, opens Customers (empty, from a real 200), creates an email template from the quick action (the row is in the `messign` tenant), and the Company-OS tiles and chat are all still there. A tenant signed in on the same deployment gets the engage page only: no Lucy chat, no Lucy greeting, no Company-OS tiles, and no Lucy API calls. Your dev database was not touched.
+- **Found and fixed:**
+  - A tenant on a shared deployment would have received the Company-OS Lucy chat and tools on the merged page. `/api/engage/me` now reports the product and `MarketingEntry` sends tenants to the engage page.
+  - A tile or a tab did not close an open panel (caught by the mutation check).
+- **Honest caveats:**
+  - The `all` surface still shows the other Company-OS pages to anyone who signs in there; a tenant should sign in on an `engage` deployment (ADR-016).
+  - `all` is meant for the platform organization only; the command is the only guard, the database cannot tell which organization is the platform one.
+  - Engage still has no one-off "send now" action: email goes out as a step of an activated journey.
+  - The password stored in `client/.env.local` for the dev auto sign-in does not match your dev database, so that sign-in fails (local only; not in this PR).
+  - The engage browser tests are still not in CI.
+- **Next:** run the runbook on your port 3000 (two lines in two env files, then `npm run db:migrate` and `npm run engage:platform`), then WP-22 (settings: channel accounts, readiness, quiet hours, caps, send enabled).
+
 ## 2026-11-10 · Engage inside the Lucy page (restructure of the WP-19 to WP-21 screens)
 - **Done:**
   - **One page for engage:** on the engage surface `/marketing` is the Lucy page, rendered as the engage hub (`client/src/engage/EngageHub.tsx`). Customers, Journeys, Segments and Templates are tabs in the main column; the right column has the "Go to" tiles and quick actions (new journey, segment, template; tenant admins only). Lucy's chat is not offered on engage (ADR-009).

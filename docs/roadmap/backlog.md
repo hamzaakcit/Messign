@@ -28,6 +28,7 @@
 | WP-36 | Rule-based segments (attributes + order history) + scheduled segment trigger (win-back / new-release on imported data) | P0 | W7 | done (API only; UI with WP-20; ADR-013) | Segment counts match SQL; scheduled run enrolls once per profile per run |
 | WP-20 | Journey builder UI (form-based) | P0 | W8 | done (sections and panels on the Lucy page; Playwright: create and activate in the UI) | Create + activate fully in UI |
 | WP-21 | Analytics: funnel, delivery, conversions vs holdout with CI | P0 | W8 | done (journey results; ADR-014) | Reconciles with ledger SQL |
+| WP-37 | One Lucy page for Company-OS and engage: platform org may use engage (product `all`, migration 126, `npm run engage:platform`), `/marketing` chosen by organization, engage tabs, tiles and panels on the Lucy page | P0 | W8 | done (ADR-016; runbook one-lucy-page.md) | A Messign admin sees Lucy and engage on one page; a tenant never sees Lucy |
 | WP-22 | Settings UI: channel accounts, readiness, quiet hours, caps, send_enabled | P0 | W8 | todo | send_enabled blocked without readiness |
 | WP-23 | AI gateway metering for all callers + per-tenant cap | P0 | W9 | todo | Telemetry row per call |
 | WP-24 | AI copy drafting for message steps → gatekeepers → approval queue (no PII) | P1 | W9 | todo | PII-in-prompt test green |

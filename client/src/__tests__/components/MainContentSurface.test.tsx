@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const surface = vi.hoisted(() => ({ frozen: false }));
 
@@ -16,7 +17,11 @@ vi.mock('@/stores/uiStore', () => ({
 
 import { MainContent } from '@/components/layout/MainContent';
 
-const show = () => render(<MemoryRouter initialEntries={['/marketing']}><MainContent /></MemoryRouter>);
+const show = () => render(
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <MemoryRouter initialEntries={['/marketing']}><MainContent /></MemoryRouter>
+  </QueryClientProvider>,
+);
 
 describe('MainContent marketing view by product surface', () => {
   it('engage: the Lucy page holds the engage hub, never the legacy marketing hub (its API is not tenant-safe; Lucy is frozen)', async () => {

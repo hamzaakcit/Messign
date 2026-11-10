@@ -19,6 +19,10 @@ async function post<T>(endpoint: string, json: unknown): Promise<T> {
   }
 }
 
+/** Who the signed-in user is to engage. Answers 403 for an organization that may not use it (ADR-016). */
+export interface EngageMe { organizationId: string; userId: string; role: string; product: 'engage' | 'all' }
+export const getEngageMe = () => call<EngageMe>('/engage/me');
+
 export type VersionStatus = 'draft' | 'approved' | 'active' | 'retired';
 export interface JourneySummary { id: string; key: string; name: string; createdAt: string; activeVersion: number | null; latestVersion: number }
 export interface JourneyVersion {
