@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { requireEngageUser } from './middleware/auth.js';
+import { requireEngageAdmin, requireEngageUser } from './middleware/auth.js';
+import { CustomerExistsError, createCustomer, createCustomerSchema } from './customerEntry.js';
+import { describeIssues } from './ingest.js';
+import { IdentifierConflictError, ProfileInputError } from './profiles.js';
 import { ProfileNotFoundError, getProfile } from './profiles.js';
 import { ProfileListInputError, getProfileTrail, listProfiles } from './profileTrail.js';
 import { errorFields, logError } from './log.js';
@@ -12,6 +15,22 @@ import './types.js';
 export const profileRouter = Router();
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+
+/** Add one customer by hand (admins only). The same writes as the ingestion API; the email consent needs a note (customerEntry.ts). */
+profileRouter.post('/', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  const parsed = createCustomerSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return void res.status(400).json({ error: 'Check the customer details', issues: describeIssues(parsed.error) });
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    const profile = await createCustomer(req.engageUser!.organizationId, req.engageUser!.userId, parsed.data);
+    res.status(201).json(profile);
+  } catch (err) {
+    if (err instanceof ProfileInputError) return void res.status(400).json({ error: err.message });
+    if (err instanceof CustomerExistsError || err instanceof IdentifierConflictError) return void res.status(409).json({ error: err.message });
+    logError('manual customer add failed', errorFields(err));
+    res.status(500).json({ error: 'Request failed' });
+  }
+});
 
 /** Customer list (WP-19): newest first, ?q= email or external-id prefix, ?cursor=, ?limit= (1-100). */
 profileRouter.get('/', requireEngageUser, async (req, res) => {

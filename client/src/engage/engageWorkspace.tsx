@@ -5,9 +5,10 @@ import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { cn } from '@/lib/utils';
 import { getProductSurface, type ProductSurface } from '@/lib/productSurface';
 import { useAuthStore } from '@/stores/authStore';
-import { engageMeQuery } from './engageMe';
+import { engageMeQuery, hasAnsweredEngageMe } from './engageMe';
 import { CampaignPanel, CampaignsSection, NewCampaignPanel } from './CampaignsView';
 import { CustomerDetailPage } from './CustomerDetailPage';
+import { NewCustomerPanel } from './NewCustomerPanel';
 import { CustomersSection } from './CustomersPage';
 import { JourneyEditPanel, JourneyPanel, JourneysSection } from './JourneysView';
 import { NewSegmentPanel, SegmentPanel, SegmentsSection } from './SegmentsView';
@@ -25,6 +26,7 @@ export type Section = 'customers' | 'journeys' | 'campaigns' | 'segments' | 'tem
 export type Tab = 'lucy' | Section;
 export type Panel =
   | { kind: 'customer'; id: string }
+  | { kind: 'customer-new' }
   | { kind: 'journey'; id: string }
   | { kind: 'journey-new' }
   | { kind: 'journey-version'; id: string; from: number }
@@ -46,6 +48,7 @@ export const SECTIONS: Array<{ id: Section; label: string; icon: typeof Users; t
 
 const TITLES: Record<Exclude<Panel, null>['kind'], string> = {
   customer: 'Customer',
+  'customer-new': 'Add a customer',
   journey: 'Journey',
   'journey-new': 'New journey',
   'journey-version': 'New journey version',
@@ -57,7 +60,7 @@ const TITLES: Record<Exclude<Panel, null>['kind'], string> = {
   'template-new': 'New email template',
 };
 const PANEL_WIDTH: Record<Exclude<Panel, null>['kind'], number> = {
-  customer: 900, journey: 900, 'journey-new': 960, 'journey-version': 960, campaign: 900, 'campaign-new': 860, segment: 900, 'segment-new': 900, template: 900, 'template-new': 800,
+  customer: 900, 'customer-new': 760, journey: 900, 'journey-new': 960, 'journey-version': 960, campaign: 900, 'campaign-new': 860, segment: 900, 'segment-new': 900, template: 900, 'template-new': 800,
 };
 
 export const TILE_BTN =
@@ -91,7 +94,7 @@ export function useEngageAccess(surface: ProductSurface = getProductSurface()): 
   const probe = useQuery({ ...engageMeQuery(userId), enabled: surface === 'all' });
   if (surface === 'engage') return { available: true, isAdmin: Boolean(storeAdmin), product: 'engage', loading: false };
   if (surface === 'all' && probe.data) return { available: true, isAdmin: probe.data.role === 'admin', product: probe.data.product, loading: false };
-  return { available: false, isAdmin: false, loading: surface === 'all' && probe.isLoading };
+  return { available: false, isAdmin: false, loading: surface === 'all' && !hasAnsweredEngageMe(probe) };
 }
 
 export interface EngageWorkspace {
@@ -143,7 +146,7 @@ export function EngageTabStrip({ workspace, withLucy = false }: { workspace: Eng
 /** The section the workspace is on. Renders nothing while the Lucy chat tab is active. */
 export function EngageSectionBody({ workspace }: { workspace: EngageWorkspace }): JSX.Element | null {
   const { tab, open } = workspace;
-  if (tab === 'customers') return <CustomersSection onOpen={(id) => open({ kind: 'customer', id })} />;
+  if (tab === 'customers') return <CustomersSection onOpen={(id) => open({ kind: 'customer', id })} onNew={workspace.isAdmin ? () => open({ kind: 'customer-new' }) : undefined} />;
   if (tab === 'journeys') return <JourneysSection onOpen={(id) => open({ kind: 'journey', id })} onNew={() => open({ kind: 'journey-new' })} />;
   if (tab === 'campaigns') return <CampaignsSection onOpen={(id) => open({ kind: 'campaign', id })} onNew={() => open({ kind: 'campaign-new' })} />;
   if (tab === 'segments') return <SegmentsSection onOpen={(id) => open({ kind: 'segment', id })} onNew={() => open({ kind: 'segment-new' })} />;
@@ -203,6 +206,7 @@ export function EngagePanels({ workspace }: { workspace: EngageWorkspace }): JSX
   const render = (p: NonNullable<Panel>): JSX.Element => {
     switch (p.kind) {
       case 'customer': return <CustomerDetailPage id={p.id} />;
+      case 'customer-new': return <NewCustomerPanel onSaved={(id) => { void refreshAll(); show('customers', { kind: 'customer', id }); }} />;
       case 'journey': return <JourneyPanel id={p.id} onNewVersion={(from) => show('journeys', { kind: 'journey-version', id: p.id, from })} />;
       case 'journey-new': return <JourneyEditPanel onSaved={(id) => { void refreshAll(); show('journeys', { kind: 'journey', id }); }} />;
       case 'journey-version': return <JourneyEditPanel journeyId={p.id} from={p.from} onSaved={(id) => { void refreshAll(); show('journeys', { kind: 'journey', id }); }} />;

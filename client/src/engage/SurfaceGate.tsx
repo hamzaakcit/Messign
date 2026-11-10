@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getProductSurface, setSessionSurface } from '@/lib/productSurface';
 import { useAuthStore } from '@/stores/authStore';
-import { engageMeQuery } from './engageMe';
+import { engageMeQuery, hasAnsweredEngageMe } from './engageMe';
 
 /**
  * Decides the surface of a signed-in session before anything of the app is drawn (ADR-017). On a shared (`all`) build
@@ -18,7 +18,8 @@ export function SurfaceGate({ children }: { children: ReactNode }): JSX.Element 
 
   useEffect(() => () => setSessionSurface(null), []);
 
-  if (shared && me.isLoading) {
+  // Hiding the app while a refetch runs would unmount and remount it (and every request it makes) again and again.
+  if (shared && !hasAnsweredEngageMe(me)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-app">
         <div className="text-app-muted">Loading…</div>

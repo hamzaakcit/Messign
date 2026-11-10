@@ -65,6 +65,26 @@ describe('SurfaceGate', () => {
     expect(getEffectiveSurface()).toBe('all');
   });
 
+  it('after a refusal, a refetch does not hide the app again (no remount loop)', async () => {
+    vi.stubEnv('VITE_PRODUCT_SURFACE', 'all');
+    mockMe(() => json({ error: 'Organization is not an engage tenant' }, 403));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <SurfaceGate><div data-testid="app" /></SurfaceGate>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByTestId('app')).toBeInTheDocument();
+
+    let release: (r: Response) => void = () => undefined;
+    mockMe(() => new Promise<Response>((resolve) => { release = resolve; }));
+    void client.refetchQueries({ queryKey: ['engage', 'me'] });
+    await waitFor(() => expect(urls).toHaveLength(1));
+    expect(screen.getByTestId('app')).toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).toBeNull();
+    release(json({ error: 'Organization is not an engage tenant' }, 403));
+  });
+
   it('signing out undoes the narrowing, so the next user starts from the build surface', async () => {
     vi.stubEnv('VITE_PRODUCT_SURFACE', 'all');
     mockMe(() => json({ organizationId: 'o', userId: 'u', role: 'admin', product: 'engage' }));
