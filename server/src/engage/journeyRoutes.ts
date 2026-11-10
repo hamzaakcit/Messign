@@ -7,6 +7,7 @@ import {
   getJourney, listJourneys,
 } from './journeys/journeys.js';
 import { listSegmentRuns } from './segments/runs.js';
+import { journeyResults } from './analytics/journeyAnalytics.js';
 import './types.js';
 
 /**
@@ -32,6 +33,16 @@ journeyRouter.get('/', requireEngageUser, async (req, res) => {
 
 journeyRouter.post('/validate', requireEngageUser, async (req, res) => {
   try { res.json(await checkJourneyDefinition(req.engageUser!.organizationId, body(req.body).definition)); } catch (err) { fail(res, err); }
+});
+
+/** Results of a journey (WP-21): treatment versus holdout, conversions in a window, the uplift with its 95% interval. */
+journeyRouter.get('/:id/analytics', requireEngageUser, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    const raw = typeof req.query.windowHours === 'string' ? req.query.windowHours : undefined;
+    const windowHours = raw === undefined ? undefined : Number(raw);
+    res.json(await journeyResults(req.engageUser!.organizationId, req.params.id!, { windowHours: windowHours as number | undefined }));
+  } catch (err) { fail(res, err); }
 });
 
 /** Scheduled segment runs of a journey (WP-36), newest first. */

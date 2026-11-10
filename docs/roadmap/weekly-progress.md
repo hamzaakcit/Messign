@@ -2,6 +2,31 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · WP-21 (journey results: treatment versus holdout with a confidence interval)
+- **Done:**
+  - **Results** (`engage/analytics/journeyAnalytics.ts`, `GET /api/engage/journeys/:id/analytics?windowHours=`): enrolments by group and status, message counts (created, by status, held out), conversion (at least one order in the window after entry) and revenue per customer for treatment and holdout.
+  - **Maturity:** only customers whose window has ended are counted in the rates.
+  - **Statistics** (`engage/analytics/stats.ts`, pure): the difference treatment minus holdout, a 95% interval, "significant" when the interval excludes zero, and the relative uplift.
+  - **Journey page:** a Results panel with a 24 h / 72 h / 7 day window, the result in words, and a table for both groups.
+  - ADR-014.
+- **Verified:**
+  - **Reconciliation:** an independent computation in the test (enrolments and orders read one by one, with the window and the evaluation moment) gives the same counts, conversions and revenue, for three windows, with orders exactly at the window edges and at entry, and orders after the evaluation moment.
+  - **Statuses:** the completed counts are checked against the ledger.
+  - **Statistics:** hand-computed values; the zero-interval case; empty groups.
+  - **HTTP:** the window bounds, 401, and a tenant cannot read another's journey (404).
+  - **Client:** 616 tests passed (4 results-panel tests); `tsc` clean.
+  - **Server full suite:** 1741 passed, 6 skipped, twice in a row on fresh databases. The skipped tests need live services.
+  - **Mutation check:** 13 mutants. 12 were caught. The one left (removing the order-side evaluation-moment bound) is equivalent: maturity already requires the window to have ended before the evaluation moment, so the bound never changes a result. It stays as a second line of defence.
+- **Found and fixed:**
+  - The reconciliation test did not cover window-edge orders, a completed enrolment, or the revenue difference sign; the mutants showed it, and the test now covers all three.
+  - The results panel crashed on an unexpected answer; it now shows that results are not available.
+- **Honest caveats:**
+  - The interval is a normal approximation, rough for small groups. The pilot's groups are in the hundreds and up.
+  - Results are computed per request. That is fine for one journey; a summary table is the next step at tens of millions of events.
+  - Conversion counts any order in the window, not only one caused by the journey; the holdout is what separates the two.
+  - The page does not show a per-step funnel chart (the counts exist in the ledger).
+- **Next:** WP-22 (settings: channel accounts, readiness checks, quiet hours, caps, send enabled). This is also the screen that makes sending possible without commands.
+
 ## 2026-11-10 · WP-20 (journey builder UI: journeys, segments, templates)
 - **Done (client only, over the existing APIs):**
   - **Engage sidebar:** Journeys, Segments and Templates now appear, on the engage surface only, next to Customers.

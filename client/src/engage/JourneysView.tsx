@@ -6,6 +6,7 @@ import {
   activateVersion, approveVersion, getJourney, listJourneys, listSegmentRuns, stopJourney, type JourneyVersion,
 } from './builderApi';
 import { JourneyEditor } from './JourneyEditor';
+import { JourneyResults } from './JourneyResults';
 import { definitionToForm, describeStep } from './journeyForm';
 import { Button, Card, Empty, ErrorLine, LinkButton, Page, StatusBadge, formatTime } from './ui';
 
@@ -149,6 +150,7 @@ function JourneyDetail({ id }: { id: string }): JSX.Element {
       <Card title="Versions">
         <ul className="space-y-3">{versions.map((v) => <VersionCard key={v.id} journeyId={id} v={v} isAdmin={isAdmin} />)}</ul>
       </Card>
+      <JourneyResults journeyId={id} />
       {isSegment && <SegmentRuns journeyId={id} />}
     </Page>
   );
