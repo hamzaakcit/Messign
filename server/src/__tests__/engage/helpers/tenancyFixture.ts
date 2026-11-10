@@ -26,7 +26,7 @@ export interface TenancyFixture {
   auth: typeof import('../../../engage/middleware/auth.js');
   keys: typeof import('../../../engage/apiKeys.js');
   provisionTenant: (name: string) => Promise<Tenant>;
-  teardown: () => Promise<void>;
+  teardown: (opts?: { keepOrganizations?: boolean }) => Promise<void>;
 }
 
 export async function setupTenancyFixture(): Promise<TenancyFixture> {
@@ -115,11 +115,16 @@ export async function setupTenancyFixture(): Promise<TenancyFixture> {
 
   return {
     admin, suffix, A, B, platformOrgId, platformUser, engage, provision, auth, keys, provisionTenant,
-    teardown: async () => {
+    /**
+     * Closes the pools and removes the test organizations. `keepOrganizations` leaves them (and their data) in place: a
+     * tenant with 100,000 customers can take longer to delete than a test run allows on a busy CI runner, and the
+     * names are unique per run, so leftover rows in a throwaway test database do no harm.
+     */
+    teardown: async (opts: { keepOrganizations?: boolean } = {}) => {
       await engage.closeEngagePool();
       await legacy.pool.end();
       await admin.query('DELETE FROM employee_auth WHERE auth_user_id = ANY($1)', [authUserIds]);
-      await deleteOrganizations(admin, created);
+      if (!opts.keepOrganizations) await deleteOrganizations(admin, created);
       await admin.end();
     },
   };

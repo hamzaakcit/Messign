@@ -2,6 +2,33 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · WP-20 (journey builder UI: journeys, segments, templates)
+- **Done (client only, over the existing APIs):**
+  - **Engage sidebar:** Journeys, Segments and Templates now appear, on the engage surface only, next to Customers.
+  - **Journeys:**
+    - A list shows whether each journey runs and on which version.
+    - A journey page shows each version in words (trigger, stop-early events, holdout, re-entry, steps), with Approve / Activate for drafts and approved versions, and Stop with a confirmation. Admins only; members see why the buttons are missing. Segment journeys also show their scheduled runs.
+    - The form editor covers the trigger (event with an optional filter, API, or a scheduled segment with a pinned version), stop-early events, re-entry, holdout and steps (wait, wait for an event with timeout and filter, branch rules, send email from a template list with an optional pinned version, end), with "then go to" targets and reordering.
+    - A JSON tab handles anything the form cannot show. Combined conditions open there and are saved unchanged, never dropped.
+    - "Check" asks the server without saving. A refused save shows the server's field issues next to the form and keeps what was typed.
+  - **Segments:** conditions (all/any of field, operator, value) over order history, consent and attributes, with suggested fields and a JSON tab. "Count" shows how many customers match now, with a few examples, before saving. Versions and per-version counts are shown too.
+  - **Templates:** create with a starter that already has the unsubscribe link, versions, and a rendered preview with a sample first name. The preview is in a sandboxed frame: no scripts, no access to the app.
+  - **Pure form model** (`client/src/engage/journeyForm.ts`): form ↔ definition, round-trip tested.
+  - **Smaller changes:** `fetchAPI` errors now carry the response body, so forms can show field issues. The engage home links to the new screens.
+- **Verified:**
+  - **Acceptance, in a browser (Playwright, engage stack):** a tenant admin creates a template (and previews it), creates and counts a segment, builds an event-triggered journey in the form (wait 30 minutes, then the email), checks it, saves it as a draft, approves and activates it, and the list shows it active. A second test shows a refused save with the server's reason. All four engage browser tests pass.
+  - **Client:** 612 tests passed (11 builder component tests, 8 form-model tests, surface rules); `tsc` clean. Server full suite 1729 passed, 9 skipped (no server change).
+  - **Clicked through in the browser:** editor, journey page, segment count, template preview. No console errors.
+- **Found and fixed:**
+  - **Journey list:** it stayed stale after creating, approving or activating, so a new journey did not show as running until a reload. Every change now refreshes the list. A test with a never-stale cache fails without the fix.
+  - **Unreadable fields:** inputs and selects on the engage screens (WP-19's customer search too) used colours that are not theme tokens, so typed text was white on white. They now use the app's own `input-theme` / `select-theme`.
+- **Honest caveats:**
+  - Conditions in the form are single comparisons; combined trees are edited as JSON.
+  - No drag-and-drop canvas (out of scope by design).
+  - Templates are pasted HTML (no visual editor yet).
+  - The engage browser tests are not in CI.
+- **Next:** WP-21 (analytics: funnel, delivery, conversions vs holdout).
+
 ## 2026-11-10 · WP-36 (rule-based segments and the scheduled segment trigger)
 - **Done:**
   - **Migration `124_engage_segments.sql`:** segments with immutable versions, and a run table with one row per (journey, slot). The migration also adds the segment enrollment kind and a fourth id-only definer list for the scheduler.

@@ -28,6 +28,9 @@ const viewTitles: Record<string, string> = {
   contracts: 'Contracts',
   culture: 'Culture',
   customers: 'Customers',
+  journeys: 'Journeys',
+  segments: 'Segments',
+  templates: 'Templates',
 };
 
 const ID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

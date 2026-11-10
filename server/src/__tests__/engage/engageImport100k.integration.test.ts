@@ -17,8 +17,8 @@ describe.skipIf(!adminUrl)('synthetic tenant round trip at 100k (real Postgres)'
     gen = await import('../../engage/import/synthetic.js');
     org = (await f.provisionTenant(`Synthetic ${f.suffix}`)).organization.id;
   }, 90_000);
-  // Deleting a tenant with 100,000 customers and their orders can take a while when the whole suite is running.
-  afterAll(async () => { await f?.teardown(); }, 240_000);
+  // The 100,000-customer tenant is kept after the run (see teardown); deleting it is slow under a full parallel suite.
+  afterAll(async () => { await f?.teardown({ keepOrganizations: true }); }, 60_000);
 
   const count = async (table: string) => (await f.engage.withEngageTenant(org, (c) => c.query(`SELECT count(*)::int AS n FROM engage.${table}`))).rows[0].n as number;
 

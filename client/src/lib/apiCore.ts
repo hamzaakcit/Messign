@@ -206,8 +206,9 @@ export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Prom
     }
 
     if (isAuthError(response.status, message)) onUnauthorized?.();
-    // The status lets callers (e.g. the query client) tell "will never work" (4xx) from "try again" (5xx/network).
-    throw Object.assign(new Error(message), { status: response.status });
+    // The status lets callers (e.g. the query client) tell "will never work" (4xx) from "try again" (5xx/network); the
+    // body lets a form show the server's field-level issues.
+    throw Object.assign(new Error(message), { status: response.status, body });
   }
 
   return response.json();
