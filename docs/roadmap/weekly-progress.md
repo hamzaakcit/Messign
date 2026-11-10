@@ -2,6 +2,18 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-11 · WP-22 (settings: channel accounts, readiness, quiet hours, caps, send_enabled)
+- **Done:**
+  - **Settings tab** for tenant admins on the engage page (`SettingsView.tsx`, `settingsApi.ts`): sending switch with its reasons, readiness items (value and https evidence link), quiet hours, time zone and frequency cap, monthly budget caps, rate cards, and channel accounts (view and disable only; secrets stay in `npm run engage:add-account`).
+  - **Server:** `/api/engage/settings` (admins only, `settingsRoutes.ts`, `settings/settings.ts`). `send_enabled` is turned on only if `readinessOn` (the campaign readiness, now exported) has no problems other than the flag itself. The check runs under a row lock; a refusal is 409 with the reasons. Turning it off is always allowed. Other writes reuse the gate's setters (`updateGateSettings`, `setBudgetCap`, `addRateCard`).
+  - No migration: the tables already exist.
+- **Verified:**
+  - `engageSettings.integration.test.ts` (real Postgres 17 + pgvector, HTTP): 10 tests, including refused without readiness with the flag still off, live mode needing the legal items, admin-only, validation, and tenant isolation. A mutation that disables the readiness check makes 3 of them fail.
+  - `EngageSettings.test.tsx`: 5 client tests (admin-only tab, refusal reasons shown, quiet-hours validation).
+  - Full suites on the rebased branch: server 175 files, 1793 passed, 9 skipped (with `ENGAGE_TEST_ADMIN_URL`); client 117 files, 675 passed; `tsc` clean on both.
+- **Not done:** SMS and WhatsApp readiness is recorded but not checked by `send_enabled` (no adapter exists yet). No audit table for settings changes; changes are logged with ids and codes only. `SEND_MODE` must be `sandbox` or `live` before sending can be switched on.
+- **Next:** review PR (stacked on #39). Then the SMS/WhatsApp readiness rules once their adapters exist.
+
 ## 2026-11-10 · Local fixes after WP-38 (dev server, CORS, remount loop, customer add path)
 - **Done:**
   - **Development CORS:** the local engage (3200) and merged (3300) previews are in the development allow-list (`server/src/config/corsOrigins.ts`), with a test. Before, their requests were refused and the session dropped to the login page.
