@@ -5,7 +5,7 @@ import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { cn } from '@/lib/utils';
 import { getProductSurface, type ProductSurface } from '@/lib/productSurface';
 import { useAuthStore } from '@/stores/authStore';
-import { getEngageMe } from './builderApi';
+import { engageMeQuery } from './engageMe';
 import { CustomerDetailPage } from './CustomerDetailPage';
 import { CustomersSection } from './CustomersPage';
 import { JourneyEditPanel, JourneyPanel, JourneysSection } from './JourneysView';
@@ -81,14 +81,8 @@ export interface EngageAccess {
  */
 export function useEngageAccess(surface: ProductSurface = getProductSurface()): EngageAccess {
   const storeAdmin = useAuthStore((s) => s.isAdmin);
-  const probe = useQuery({
-    queryKey: ['engage', 'me'],
-    queryFn: getEngageMe,
-    enabled: surface === 'all',
-    retry: false,
-    staleTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-  });
+  const userId = useAuthStore((s) => s.user?.id);
+  const probe = useQuery({ ...engageMeQuery(userId), enabled: surface === 'all' });
   if (surface === 'engage') return { available: true, isAdmin: Boolean(storeAdmin), product: 'engage', loading: false };
   if (surface === 'all' && probe.data) return { available: true, isAdmin: probe.data.role === 'admin', product: probe.data.product, loading: false };
   return { available: false, isAdmin: false, loading: surface === 'all' && probe.isLoading };

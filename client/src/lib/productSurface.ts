@@ -15,23 +15,49 @@ export function getProductSurface(
 }
 
 /**
- * Whether the frozen Company-OS modules exist on this surface (mirror of the server's `mountsFrozenModules`). On
+ * The surface this signed-in session runs on (ADR-017). It is the build's surface, except that on a shared (`all`)
+ * build a session of an engage tenant is narrowed to `engage`: a tenant gets the engage pages and none of the
+ * Company-OS ones (the server refuses them too). Only `engage` can be set, and only on an `all` build, so a session can
+ * never be widened.
+ */
+let sessionSurface: ProductSurface | null = null;
+const surfaceListeners = new Set<() => void>();
+
+export function setSessionSurface(next: 'engage' | null): void {
+  const allowed = next === null || getProductSurface() === 'all';
+  const value = allowed ? next : null;
+  if (value === sessionSurface) return;
+  sessionSurface = value;
+  surfaceListeners.forEach((listener) => listener());
+}
+
+export function getEffectiveSurface(): ProductSurface {
+  return sessionSurface ?? getProductSurface();
+}
+
+export function subscribeEffectiveSurface(listener: () => void): () => void {
+  surfaceListeners.add(listener);
+  return () => { surfaceListeners.delete(listener); };
+}
+
+/**
+ * Whether the frozen Company-OS modules exist for this session (mirror of the server's `mountsFrozenModules`). On
  * `engage` the server does not mount them, so the client must not call them (they only answer 404/403).
  */
-export function mountsFrozenModules(surface: ProductSurface = getProductSurface()): boolean {
+export function mountsFrozenModules(surface: ProductSurface = getEffectiveSurface()): boolean {
   return surface !== 'engage';
 }
 
 export function isNavItemOnSurface(
   navId: string,
-  surface: ProductSurface = getProductSurface(),
+  surface: ProductSurface = getEffectiveSurface(),
 ): boolean {
   return surface !== 'engage' || ENGAGE_NAV_IDS.has(navId);
 }
 
 export function isPathOnSurface(
   path: string,
-  surface: ProductSurface = getProductSurface(),
+  surface: ProductSurface = getEffectiveSurface(),
 ): boolean {
   if (surface !== 'engage') return true;
   return ENGAGE_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));

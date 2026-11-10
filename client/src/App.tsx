@@ -11,6 +11,8 @@ import { SignUpPage } from '@/pages/SignUpPage';
 import { UnsubscribePage } from '@/engage/UnsubscribePage';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
 import { ENGAGE_HOME_PATH, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
+import { useEffectiveSurface } from '@/lib/useEffectiveSurface';
+import { SurfaceGate } from '@/engage/SurfaceGate';
 
 const AdminLayout = lazy(() => import('@/admin/layouts/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const AdminDashboard = lazy(() => import('@/admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -61,8 +63,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 function MainApp() {
+  // Which surface this session runs on is decided before any page is drawn (ADR-017).
+  return <SurfaceGate><MainAppPages /></SurfaceGate>;
+}
+
+function MainAppPages() {
   const { user } = useAuthStore();
   const { pathname } = useLocation();
+  useEffectiveSurface(); // re-render if the session is narrowed to the engage surface
 
   /** AuthGuard should guarantee `user`; if not, recover instead of an infinite "Restoring session…". */
   if (!user) {

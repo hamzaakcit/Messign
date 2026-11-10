@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { setSessionSurface } from '@/lib/productSurface';
 import { MarketingLayout } from '@/pages/marketing/MarketingLayout';
 
 /**
@@ -80,7 +81,7 @@ function renderLucy(): void {
   );
 }
 
-afterEach(() => { globalThis.fetch = original; vi.unstubAllEnvs(); });
+afterEach(() => { globalThis.fetch = original; vi.unstubAllEnvs(); setSessionSurface(null); });
 
 describe('the Lucy page and engage as one page (ADR-016)', () => {
   it('workspace surface: exactly the Lucy page, and the engage API is never asked', async () => {

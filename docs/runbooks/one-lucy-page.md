@@ -12,7 +12,7 @@ The Marketing page (`/marketing`) is one page. For the platform organization (Me
 | `all` | the platform organization, not enabled | the Lucy page as before |
 | `all` | a tenant | the engage page (never the Lucy chat or tools) |
 
-A tenant should sign in on an `engage` deployment: the `all` surface also shows the other Company-OS pages.
+On the `all` surface a tenant is refused every Company-OS route at the server and shown the engage pages only (ADR-017), so a tenant may sign in on either kind of deployment.
 
 ## Turn it on locally
 

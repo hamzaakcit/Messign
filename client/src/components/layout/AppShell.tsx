@@ -18,11 +18,8 @@ import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthr
 import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport } from '@/lib/socket';
 import { installChatSocketHandlers } from '@/lib/chatSocketBridge';
-import { getProductSurface, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
-
-const showCompanyOsWidgets = getProductSurface() !== 'engage';
-/** Chat, projects, tasks, badges, activities, leaderboard: Company-OS data the engage server does not serve. */
-const loadsCompanyOsData = mountsFrozenModules();
+import { isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
+import { useEffectiveSurface } from '@/lib/useEffectiveSurface';
 
 const PATH_TO_VIEW: Record<string, string> = {
   '/': 'dashboard',
@@ -115,6 +112,10 @@ export function AppShell() {
   const user = useAuthStore(s => s.user);
   const updateUser = useAuthStore(s => s.updateUser);
   const { recentPages, trackPage } = useRecentPages();
+  const surface = useEffectiveSurface();
+  const showCompanyOsWidgets = surface !== 'engage';
+  /** Chat, projects, tasks, badges, activities, leaderboard: Company-OS data an engage session has no access to (ADR-017). */
+  const loadsCompanyOsData = mountsFrozenModules(surface);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

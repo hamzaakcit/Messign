@@ -7,6 +7,7 @@ import { setupKnowledgeSocketHandlers } from './knowledgeHandlers.js';
 import { eventBus } from '../events/index.js';
 import { query } from '../db/index.js';
 import { verifyAccess } from '../utils/jwt.js';
+import { isEngageTenantOrg } from '../middleware/tenantGuard.js';
 import { matchAccessTokenFingerprint } from '../services/authService.js';
 import { shouldEnforceAccessTokenFingerprint } from '../middleware/authMiddleware.js';
 import { blacklistSession } from '../middleware/authMiddleware.js';
@@ -223,6 +224,9 @@ export function setupSocketHandlers(io: Server) {
           }
         } catch { /* Redis unavailable — allow through */ }
       }
+
+      // The broadcasts on this socket carry Company-OS data (activity, presence, tasks); an engage tenant gets none (ADR-017).
+      if (await isEngageTenantOrg(payload.organizationId)) return next(new Error('Not available for this organization'));
 
       socket.data.userId = payload.sub;
       socket.data.role = payload.role;
