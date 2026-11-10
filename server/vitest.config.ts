@@ -11,6 +11,7 @@ export default defineConfig({
     globals: true,
     include: [
       'src/__tests__/agents/**/*.test.ts',
+      'src/__tests__/ai/**/*.test.ts',
       'src/__tests__/dal/**/*.test.ts',
       'src/__tests__/engage/**/*.test.ts',
       'src/__tests__/migrations/**/*.test.ts',

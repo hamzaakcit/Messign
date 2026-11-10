@@ -7,6 +7,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import type { ChatCompletionCreateParamsNonStreaming, ChatCompletionTool } from 'openai/resources/chat/completions';
+import { meterAiCall, recordServed } from './metering.js';
 
 /** Public routing tiers for marketing agents & orchestration */
 export const LLM_TIER = {
@@ -251,6 +252,7 @@ async function callGroq(
   const content = msg?.content?.trim() ?? '';
   const toolCalls = normalizeOpenAIToolCalls(msg);
   const u = completion.usage;
+  recordServed({ provider: 'groq', model: cfg.model, tokensIn: u?.prompt_tokens, tokensOut: u?.completion_tokens });
 
   return {
     content,
@@ -288,6 +290,12 @@ async function callAnthropic(
   };
 
   const message = await client.messages.create(request, { signal });
+  recordServed({
+    provider: 'anthropic',
+    model: cfg.model,
+    tokensIn: message.usage?.input_tokens,
+    tokensOut: message.usage?.output_tokens,
+  });
 
   let text = '';
   const toolCalls: NormalizedToolCall[] = [];
@@ -381,8 +389,13 @@ function wrapSdkError(err: unknown): LLMGatewayError {
 
 /**
  * Single entry: route by tier (Claude vs Groq), apply timeout, retries on 429/5xx.
+ * Metered (WP-23): one ai_call_telemetry row per call, however many retries it made.
  */
-export async function generateResponse(config: PromptConfig): Promise<LLMGatewayResult> {
+export function generateResponse(config: PromptConfig): Promise<LLMGatewayResult> {
+  return meterAiCall({ kind: 'chat', tier: config.tier, tenantId: config.tenantId ?? null }, () => generateResponseCore(config));
+}
+
+async function generateResponseCore(config: PromptConfig): Promise<LLMGatewayResult> {
   const tierCfg = config.tier === LLM_TIER.FAST ? LLM_TIER_CONFIG.fast : LLM_TIER_CONFIG.complex;
   const maxRetries = tierCfg.maxRetries;
   const timeoutMs = tierCfg.timeoutMs;

@@ -9,6 +9,7 @@ import type OpenAI from 'openai';
 import type { ChatMessage, LLMRouterResponse, LLMToolDefinition, ParsedToolCall } from './types.js';
 import type { StepTokenUsage } from './orchestrator/types.js';
 import { callModelSafe } from './gateway.js';
+import { meterAiCall, meterAiStream, recordServed } from './metering.js';
 
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const GROQ_SYNTHESIS_MODEL = 'llama-3.3-70b-versatile';
@@ -72,7 +73,7 @@ export interface GroqMessage {
 /**
  * Send a query with tool definitions. Tries LiteLLM gateway first, then direct APIs.
  */
-export async function callGroqWithTools(
+async function callGroqWithToolsCore(
   systemPrompt: string,
   userQuery: string,
   history: ChatMessage[],
@@ -149,6 +150,7 @@ export async function callGroqWithTools(
     throw new Error('No message in Groq response');
   }
 
+  recordServed({ provider: 'groq', model: GROQ_MODEL });
   let toolCalls: ParsedToolCall[] | null = null;
   if (message.tool_calls && message.tool_calls.length > 0) {
     toolCalls = message.tool_calls.map((tc) => {
@@ -175,7 +177,7 @@ export async function callGroqWithTools(
 /**
  * Multi-turn call with full message history. Tries LiteLLM gateway first.
  */
-export async function callGroqWithToolsMultiTurn(
+async function callGroqWithToolsMultiTurnCore(
   messages: GroqMessage[],
   tools: LLMToolDefinition[],
   tenantId: string = 'system',
@@ -257,6 +259,7 @@ export async function callGroqWithToolsMultiTurn(
     throw new Error('No message in Groq response');
   }
 
+  recordServed({ provider: 'groq', model: GROQ_MODEL });
   let toolCalls: ParsedToolCall[] | null = null;
   if (message.tool_calls && message.tool_calls.length > 0) {
     toolCalls = message.tool_calls.map((tc) => {
@@ -283,7 +286,7 @@ export async function callGroqWithToolsMultiTurn(
 /**
  * Multi-turn call with token usage. Tries LiteLLM gateway first.
  */
-export async function callGroqWithToolsMultiTurnTracked(
+async function callGroqWithToolsMultiTurnTrackedCore(
   messages: GroqMessage[],
   tools: LLMToolDefinition[],
   options?: { model?: string; temperature?: number; maxTokens?: number; tenantId?: string },
@@ -396,6 +399,7 @@ export async function callGroqWithToolsMultiTurnTracked(
     totalTokens: (data.usage?.prompt_tokens ?? 0) + (data.usage?.completion_tokens ?? 0),
   };
 
+  recordServed({ provider: 'groq', model, tokensIn: usage.promptTokens, tokensOut: usage.completionTokens });
   let toolCalls: ParsedToolCall[] | null = null;
   let rawToolCalls: GroqTrackedResponse['rawToolCalls'] | undefined;
 
@@ -436,7 +440,7 @@ export async function callGroqWithToolsMultiTurnTracked(
 /**
  * Streaming completion for final synthesis. Tries gateway streamModel first.
  */
-export async function* streamGroqCompletion(
+async function* streamGroqCompletionCore(
   messages: GroqMessage[],
   options?: { model?: string; temperature?: number; maxTokens?: number; tenantId?: string },
 ): AsyncGenerator<string> {
@@ -497,6 +501,7 @@ export async function* streamGroqCompletion(
     throw new Error('No response body for streaming');
   }
 
+  recordServed({ provider: 'groq', model });
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -531,7 +536,7 @@ export async function* streamGroqCompletion(
 /**
  * Direct Gemini streaming (no LiteLLM). Used when gateway is unreachable.
  */
-export async function* streamGeminiCompletion(
+async function* streamGeminiCompletionCore(
   systemPrompt: string,
   userContent: string,
 ): AsyncGenerator<string> {
@@ -560,6 +565,7 @@ export async function* streamGeminiCompletion(
 
   if (!res.body) throw new Error('No response body for Gemini streaming');
 
+  recordServed({ provider: 'gemini', model: 'gemini-2.0-flash-lite' });
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -595,7 +601,7 @@ export async function* streamGeminiCompletion(
  * Web search using Groq's compound-beta model.
  * Streams text and includes web search context automatically.
  */
-export async function* streamGroqWebSearch(
+async function* streamGroqWebSearchCore(
   query: string,
   systemContext: string,
   history: GroqMessage[],
@@ -638,6 +644,7 @@ export async function* streamGroqWebSearch(
 
   if (!res.body) throw new Error('No response body for web search streaming');
 
+  recordServed({ provider: 'groq', model: 'compound-beta-mini' });
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -672,7 +679,7 @@ export async function* streamGroqWebSearch(
 /**
  * Fallback: Use Gemini for tool routing if Groq fails.
  */
-export async function callGeminiWithTools(
+async function callGeminiWithToolsCore(
   systemPrompt: string,
   userQuery: string,
   history: ChatMessage[],
@@ -730,6 +737,7 @@ export async function callGeminiWithTools(
     throw new Error('No candidate in Gemini response');
   }
 
+  recordServed({ provider: 'gemini', model: 'gemini-2.0-flash-lite' });
   let toolCalls: ParsedToolCall[] | null = null;
   let textContent: string | null = null;
 
@@ -753,7 +761,7 @@ export async function callGeminiWithTools(
  * Fallback: Use Anthropic Claude for tool routing when Groq and Gemini fail.
  * Reduces dependency on Gemini (which has strict rate limits).
  */
-export async function callClaudeWithTools(
+async function callClaudeWithToolsCore(
   systemPrompt: string,
   userQuery: string,
   history: ChatMessage[],
@@ -809,6 +817,7 @@ export async function callClaudeWithTools(
     }>;
   };
 
+  recordServed({ provider: 'anthropic', model: 'claude-sonnet-4-20250514' });
   let toolCalls: ParsedToolCall[] | null = null;
   let textContent: string | null = null;
 
@@ -826,4 +835,42 @@ export async function callClaudeWithTools(
   }
 
   return { content: textContent, toolCalls };
+}
+
+/* ---------------------------------------------------------------------------------------------------------------
+ * Metered entry points (WP-23). These call provider HTTP APIs directly (or through callModelSafe, which nests).
+ * --------------------------------------------------------------------------------------------------------------- */
+
+export function callGroqWithTools(...args: Parameters<typeof callGroqWithToolsCore>): ReturnType<typeof callGroqWithToolsCore> {
+  return meterAiCall({ kind: 'chat', tenantId: args[4] ?? 'system' }, () => callGroqWithToolsCore(...args));
+}
+
+export function callGroqWithToolsMultiTurn(...args: Parameters<typeof callGroqWithToolsMultiTurnCore>): ReturnType<typeof callGroqWithToolsMultiTurnCore> {
+  return meterAiCall({ kind: 'chat', tenantId: args[2] ?? 'system' }, () => callGroqWithToolsMultiTurnCore(...args));
+}
+
+export function callGroqWithToolsMultiTurnTracked(
+  ...args: Parameters<typeof callGroqWithToolsMultiTurnTrackedCore>
+): ReturnType<typeof callGroqWithToolsMultiTurnTrackedCore> {
+  return meterAiCall({ kind: 'chat', tenantId: args[2]?.tenantId ?? 'system' }, () => callGroqWithToolsMultiTurnTrackedCore(...args));
+}
+
+export function streamGroqCompletion(...args: Parameters<typeof streamGroqCompletionCore>): AsyncGenerator<string> {
+  return meterAiStream({ kind: 'stream', tenantId: args[1]?.tenantId ?? 'system' }, () => streamGroqCompletionCore(...args));
+}
+
+export function streamGeminiCompletion(...args: Parameters<typeof streamGeminiCompletionCore>): AsyncGenerator<string> {
+  return meterAiStream({ kind: 'stream' }, () => streamGeminiCompletionCore(...args));
+}
+
+export function streamGroqWebSearch(...args: Parameters<typeof streamGroqWebSearchCore>): AsyncGenerator<string> {
+  return meterAiStream({ kind: 'stream' }, () => streamGroqWebSearchCore(...args));
+}
+
+export function callGeminiWithTools(...args: Parameters<typeof callGeminiWithToolsCore>): ReturnType<typeof callGeminiWithToolsCore> {
+  return meterAiCall({ kind: 'chat' }, () => callGeminiWithToolsCore(...args));
+}
+
+export function callClaudeWithTools(...args: Parameters<typeof callClaudeWithToolsCore>): ReturnType<typeof callClaudeWithToolsCore> {
+  return meterAiCall({ kind: 'chat' }, () => callClaudeWithToolsCore(...args));
 }
