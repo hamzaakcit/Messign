@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Filter, Mail, Users, Workflow } from 'lucide-react';
+import { Filter, Mail, Send, Users, Workflow } from 'lucide-react';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { cn } from '@/lib/utils';
 import { getProductSurface, type ProductSurface } from '@/lib/productSurface';
 import { useAuthStore } from '@/stores/authStore';
 import { engageMeQuery } from './engageMe';
+import { CampaignPanel, CampaignsSection, NewCampaignPanel } from './CampaignsView';
 import { CustomerDetailPage } from './CustomerDetailPage';
 import { CustomersSection } from './CustomersPage';
 import { JourneyEditPanel, JourneyPanel, JourneysSection } from './JourneysView';
@@ -19,7 +20,7 @@ import { NewTemplatePanel, TemplatePanel, TemplatesSection } from './TemplatesVi
  * the host decides where each part goes.
  */
 
-export type Section = 'customers' | 'journeys' | 'segments' | 'templates';
+export type Section = 'customers' | 'journeys' | 'campaigns' | 'segments' | 'templates';
 /** `lucy` is the Company-OS chat; only the Lucy page has it. */
 export type Tab = 'lucy' | Section;
 export type Panel =
@@ -27,6 +28,8 @@ export type Panel =
   | { kind: 'journey'; id: string }
   | { kind: 'journey-new' }
   | { kind: 'journey-version'; id: string; from: number }
+  | { kind: 'campaign'; id: string }
+  | { kind: 'campaign-new' }
   | { kind: 'segment'; id: string }
   | { kind: 'segment-new' }
   | { kind: 'template'; id: string }
@@ -36,6 +39,7 @@ export type Panel =
 export const SECTIONS: Array<{ id: Section; label: string; icon: typeof Users; tint: string }> = [
   { id: 'customers', label: 'Customers', icon: Users, tint: 'text-sky-400/90' },
   { id: 'journeys', label: 'Journeys', icon: Workflow, tint: 'text-amber-400/90' },
+  { id: 'campaigns', label: 'Campaigns', icon: Send, tint: 'text-rose-400/90' },
   { id: 'segments', label: 'Segments', icon: Filter, tint: 'text-violet-400/90' },
   { id: 'templates', label: 'Templates', icon: Mail, tint: 'text-emerald-400/90' },
 ];
@@ -45,13 +49,15 @@ const TITLES: Record<Exclude<Panel, null>['kind'], string> = {
   journey: 'Journey',
   'journey-new': 'New journey',
   'journey-version': 'New journey version',
+  campaign: 'Campaign',
+  'campaign-new': 'New campaign',
   segment: 'Segment',
   'segment-new': 'New segment',
   template: 'Email template',
   'template-new': 'New email template',
 };
 const PANEL_WIDTH: Record<Exclude<Panel, null>['kind'], number> = {
-  customer: 900, journey: 900, 'journey-new': 960, 'journey-version': 960, segment: 900, 'segment-new': 900, template: 900, 'template-new': 800,
+  customer: 900, journey: 900, 'journey-new': 960, 'journey-version': 960, campaign: 900, 'campaign-new': 860, segment: 900, 'segment-new': 900, template: 900, 'template-new': 800,
 };
 
 export const TILE_BTN =
@@ -139,6 +145,7 @@ export function EngageSectionBody({ workspace }: { workspace: EngageWorkspace })
   const { tab, open } = workspace;
   if (tab === 'customers') return <CustomersSection onOpen={(id) => open({ kind: 'customer', id })} />;
   if (tab === 'journeys') return <JourneysSection onOpen={(id) => open({ kind: 'journey', id })} onNew={() => open({ kind: 'journey-new' })} />;
+  if (tab === 'campaigns') return <CampaignsSection onOpen={(id) => open({ kind: 'campaign', id })} onNew={() => open({ kind: 'campaign-new' })} />;
   if (tab === 'segments') return <SegmentsSection onOpen={(id) => open({ kind: 'segment', id })} onNew={() => open({ kind: 'segment-new' })} />;
   if (tab === 'templates') return <TemplatesSection onOpen={(id) => open({ kind: 'template', id })} onNew={() => open({ kind: 'template-new' })} />;
   return null;
@@ -165,7 +172,10 @@ export function EngageQuickActions({ workspace }: { workspace: EngageWorkspace }
   }
   return (
     <>
-      <button type="button" onClick={() => workspace.show('journeys', { kind: 'journey-new' })} className={PRIMARY_CREATE} data-testid="hub-new-journey">
+      <button type="button" onClick={() => workspace.show('campaigns', { kind: 'campaign-new' })} className={cn(PRIMARY_CREATE, 'col-span-2')} data-testid="hub-new-campaign">
+        <Send className="h-3.5 w-3.5 shrink-0 text-rose-300" /><span className="truncate">Send an email now</span>
+      </button>
+      <button type="button" onClick={() => workspace.show('journeys', { kind: 'journey-new' })} className={TILE_BTN} data-testid="hub-new-journey">
         <Workflow className="h-3.5 w-3.5 shrink-0 text-amber-400/90" /><span className="truncate">New journey</span>
       </button>
       <button type="button" onClick={() => workspace.show('segments', { kind: 'segment-new' })} className={TILE_BTN} data-testid="hub-new-segment">
@@ -185,6 +195,7 @@ export function EngagePanels({ workspace }: { workspace: EngageWorkspace }): JSX
   const refreshAll = () => Promise.all([
     qc.invalidateQueries({ queryKey: ['engage', 'customers'] }),
     qc.invalidateQueries({ queryKey: ['engage', 'journeys'] }),
+    qc.invalidateQueries({ queryKey: ['engage', 'campaigns'] }),
     qc.invalidateQueries({ queryKey: ['engage', 'segments'] }),
     qc.invalidateQueries({ queryKey: ['engage', 'templates'] }),
   ]);
@@ -195,6 +206,8 @@ export function EngagePanels({ workspace }: { workspace: EngageWorkspace }): JSX
       case 'journey': return <JourneyPanel id={p.id} onNewVersion={(from) => show('journeys', { kind: 'journey-version', id: p.id, from })} />;
       case 'journey-new': return <JourneyEditPanel onSaved={(id) => { void refreshAll(); show('journeys', { kind: 'journey', id }); }} />;
       case 'journey-version': return <JourneyEditPanel journeyId={p.id} from={p.from} onSaved={(id) => { void refreshAll(); show('journeys', { kind: 'journey', id }); }} />;
+      case 'campaign': return <CampaignPanel id={p.id} isAdmin={workspace.isAdmin} />;
+      case 'campaign-new': return <NewCampaignPanel onSent={(id) => { void refreshAll(); show('campaigns', { kind: 'campaign', id }); }} />;
       case 'segment': return <SegmentPanel id={p.id} />;
       case 'segment-new': return <NewSegmentPanel onSaved={(id) => { void refreshAll(); show('segments', { kind: 'segment', id }); }} />;
       case 'template': return <TemplatePanel id={p.id} />;

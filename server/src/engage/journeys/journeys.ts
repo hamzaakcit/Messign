@@ -94,19 +94,22 @@ async function insertVersion(c: Tx, orgId: string, journeyId: string, userId: st
   return toVersion(r.rows[0]);
 }
 
-export async function createJourney(orgId: string, userId: string | null, input: { key: string; name: string; definition: unknown }): Promise<{ journey: JourneyView; version: JourneyVersionView }> {
+/** Inside a transaction the caller owns (a campaign creates its journey and its record in one). */
+export async function createJourneyOn(c: Tx, orgId: string, userId: string | null, input: { key: string; name: string; definition: unknown }): Promise<{ journey: JourneyView; version: JourneyVersionView }> {
   if (typeof input?.key !== 'string' || !KEY_RE.test(input.key)) throw new JourneyInputError('key must be 1-64 of a-z, 0-9, _ or -, starting with a letter or digit');
   if (typeof input.name !== 'string' || input.name.trim().length < 1 || input.name.length > 200) throw new JourneyInputError('name must be 1-200 characters');
-  return withEngageTenant(orgId, async (c) => {
-    const definition = await checkDefinition(c, orgId, input.definition);
-    const ins = await c.query(
-      `INSERT INTO engage.journeys (organization_id, key, name, created_by) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (organization_id, key) DO NOTHING RETURNING id, key, name, created_at`, [orgId, input.key, input.name.trim(), userId]);
-    if (!ins.rows[0]) throw new JourneyConflictError('A journey with this key already exists');
-    const j = ins.rows[0];
-    const version = await insertVersion(c, orgId, j.id, userId, definition);
-    return { journey: { id: j.id, key: j.key, name: j.name, createdAt: iso(j.created_at)!, activeVersion: null, latestVersion: version.version }, version };
-  });
+  const definition = await checkDefinition(c, orgId, input.definition);
+  const ins = await c.query(
+    `INSERT INTO engage.journeys (organization_id, key, name, created_by) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (organization_id, key) DO NOTHING RETURNING id, key, name, created_at`, [orgId, input.key, input.name.trim(), userId]);
+  if (!ins.rows[0]) throw new JourneyConflictError('A journey with this key already exists');
+  const j = ins.rows[0];
+  const version = await insertVersion(c, orgId, j.id, userId, definition);
+  return { journey: { id: j.id, key: j.key, name: j.name, createdAt: iso(j.created_at)!, activeVersion: null, latestVersion: version.version }, version };
+}
+
+export async function createJourney(orgId: string, userId: string | null, input: { key: string; name: string; definition: unknown }): Promise<{ journey: JourneyView; version: JourneyVersionView }> {
+  return withEngageTenant(orgId, (c) => createJourneyOn(c, orgId, userId, input));
 }
 
 async function requireJourney(c: Tx, orgId: string, journeyId: string): Promise<void> {
@@ -144,41 +147,47 @@ async function loadVersion(c: Tx, orgId: string, journeyId: string, version: num
  * A person approves a draft version. The definition is checked again (templates referenced must still exist). Approval
  * by the person who created the version is allowed for now: most pilot tenants have one admin (decision D-13 open).
  */
+export async function approveJourneyVersionOn(c: Tx, orgId: string, userId: string, journeyId: string, version: number): Promise<JourneyVersionView> {
+  if (!UUID_RE.test(userId)) throw new JourneyInputError('an approval needs a known user');
+  await lockJourney(c, orgId, journeyId);
+  const v = await loadVersion(c, orgId, journeyId, version);
+  if (v.status !== 'draft') throw new JourneyConflictError(`Version ${version} is already ${v.status}`);
+  await checkDefinition(c, orgId, v.definition);
+  const r = await c.query(
+    `UPDATE engage.journey_versions SET approved_by = $4, approved_at = clock_timestamp()
+      WHERE organization_id = $1 AND journey_id = $2 AND version = $3 AND approved_at IS NULL RETURNING ${VERSION_COLS}`,
+    [orgId, journeyId, version, userId]);
+  return toVersion(r.rows[0]);
+}
+
 export async function approveJourneyVersion(orgId: string, userId: string, journeyId: string, version: number): Promise<JourneyVersionView> {
   if (!UUID_RE.test(userId)) throw new JourneyInputError('an approval needs a known user');
-  return withEngageTenant(orgId, async (c) => {
-    await lockJourney(c, orgId, journeyId);
-    const v = await loadVersion(c, orgId, journeyId, version);
-    if (v.status !== 'draft') throw new JourneyConflictError(`Version ${version} is already ${v.status}`);
-    await checkDefinition(c, orgId, v.definition);
-    const r = await c.query(
-      `UPDATE engage.journey_versions SET approved_by = $4, approved_at = clock_timestamp()
-        WHERE organization_id = $1 AND journey_id = $2 AND version = $3 AND approved_at IS NULL RETURNING ${VERSION_COLS}`,
-      [orgId, journeyId, version, userId]);
-    return toVersion(r.rows[0]);
-  });
+  return withEngageTenant(orgId, (c) => approveJourneyVersionOn(c, orgId, userId, journeyId, version));
 }
 
 /** Activates an approved version and retires the version that was active, in one transaction. */
+export async function activateJourneyVersionOn(c: Tx, orgId: string, userId: string, journeyId: string, version: number): Promise<JourneyVersionView> {
+  if (!UUID_RE.test(userId)) throw new JourneyInputError('an activation needs a known user');
+  await lockJourney(c, orgId, journeyId);
+  const v = await loadVersion(c, orgId, journeyId, version);
+  if (v.status === 'active') return v;
+  if (v.status === 'draft') throw new JourneyConflictError(`Version ${version} is not approved`);
+  if (v.status === 'retired') throw new JourneyConflictError(`Version ${version} was retired; publish a new version to use it again`);
+  await checkDefinition(c, orgId, v.definition);
+  await c.query(
+    `UPDATE engage.journey_versions SET deactivated_by = $3, deactivated_at = clock_timestamp()
+      WHERE organization_id = $1 AND journey_id = $2 AND activated_at IS NOT NULL AND deactivated_at IS NULL`,
+    [orgId, journeyId, userId]);
+  const r = await c.query(
+    `UPDATE engage.journey_versions SET activated_by = $4, activated_at = clock_timestamp()
+      WHERE organization_id = $1 AND journey_id = $2 AND version = $3 RETURNING ${VERSION_COLS}`,
+    [orgId, journeyId, version, userId]);
+  return toVersion(r.rows[0]);
+}
+
 export async function activateJourneyVersion(orgId: string, userId: string, journeyId: string, version: number): Promise<JourneyVersionView> {
   if (!UUID_RE.test(userId)) throw new JourneyInputError('an activation needs a known user');
-  return withEngageTenant(orgId, async (c) => {
-    await lockJourney(c, orgId, journeyId);
-    const v = await loadVersion(c, orgId, journeyId, version);
-    if (v.status === 'active') return v;
-    if (v.status === 'draft') throw new JourneyConflictError(`Version ${version} is not approved`);
-    if (v.status === 'retired') throw new JourneyConflictError(`Version ${version} was retired; publish a new version to use it again`);
-    await checkDefinition(c, orgId, v.definition);
-    await c.query(
-      `UPDATE engage.journey_versions SET deactivated_by = $3, deactivated_at = clock_timestamp()
-        WHERE organization_id = $1 AND journey_id = $2 AND activated_at IS NOT NULL AND deactivated_at IS NULL`,
-      [orgId, journeyId, userId]);
-    const r = await c.query(
-      `UPDATE engage.journey_versions SET activated_by = $4, activated_at = clock_timestamp()
-        WHERE organization_id = $1 AND journey_id = $2 AND version = $3 RETURNING ${VERSION_COLS}`,
-      [orgId, journeyId, version, userId]);
-    return toVersion(r.rows[0]);
-  });
+  return withEngageTenant(orgId, (c) => activateJourneyVersionOn(c, orgId, userId, journeyId, version));
 }
 
 /** Stops a journey: retires its active version. Nothing is active afterwards until a version is activated. */
@@ -200,7 +209,9 @@ export async function listJourneys(orgId: string): Promise<JourneyView[]> {
     `SELECT j.id, j.key, j.name, j.created_at, MAX(v.version) AS latest,
             MAX(v.version) FILTER (WHERE v.activated_at IS NOT NULL AND v.deactivated_at IS NULL) AS active
        FROM engage.journeys j JOIN engage.journey_versions v ON v.organization_id = j.organization_id AND v.journey_id = j.id
-      WHERE j.organization_id = $1 GROUP BY j.id ORDER BY j.created_at DESC`, [orgId])).rows.map((r) => ({
+      WHERE j.organization_id = $1
+        AND NOT EXISTS (SELECT 1 FROM engage.campaigns k WHERE k.organization_id = j.organization_id AND k.journey_id = j.id)
+      GROUP BY j.id ORDER BY j.created_at DESC`, [orgId])).rows.map((r) => ({
     id: r.id, key: r.key, name: r.name, createdAt: iso(r.created_at)!, latestVersion: Number(r.latest), activeVersion: r.active === null ? null : Number(r.active),
   })));
 }
