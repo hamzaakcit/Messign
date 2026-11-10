@@ -18,6 +18,7 @@ import { unsubscribeRouter } from './unsubscribeRoutes.js';
 import { templateRouter } from './templateRoutes.js';
 import { journeyRouter } from './journeyRoutes.js';
 import { campaignRouter } from './campaignRoutes.js';
+import { settingsRouter } from './settingsRoutes.js';
 import { errorFields, logError, logInfo } from './log.js';
 import './types.js';
 
@@ -34,6 +35,7 @@ engageRouter.use('/templates', templateRouter);
 engageRouter.use('/journeys', journeyRouter);
 engageRouter.use('/campaigns', campaignRouter);
 engageRouter.use('/segments', segmentRouter);
+engageRouter.use('/settings', settingsRouter);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;

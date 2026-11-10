@@ -4,8 +4,8 @@ import { normalizeEmail, normalizePhone } from '../profiles.js';
 
 /**
  * Gate configuration (WP-11): sandbox allow-list, rate cards, budget caps, quiet hours and frequency cap.
- * Server-side functions only for now; the settings UI and its routes arrive with WP-22. `send_enabled` is deliberately
- * not settable here: WP-22 sets it only when the channel's readiness items exist.
+ * The settings screen (WP-22) reaches the setters through settings/settings.ts. `send_enabled` is deliberately not
+ * settable here: it is set only by settings.setSendEnabled, which checks readiness first.
  */
 
 export class GateConfigError extends Error {}

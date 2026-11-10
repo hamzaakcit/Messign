@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Filter, Mail, Send, Users, Workflow } from 'lucide-react';
+import { Filter, Mail, Send, Settings, Users, Workflow } from 'lucide-react';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { cn } from '@/lib/utils';
 import { getProductSurface, type ProductSurface } from '@/lib/productSurface';
@@ -13,6 +13,7 @@ import { CustomersSection } from './CustomersPage';
 import { JourneyEditPanel, JourneyPanel, JourneysSection } from './JourneysView';
 import { NewSegmentPanel, SegmentPanel, SegmentsSection } from './SegmentsView';
 import { NewTemplatePanel, TemplatePanel, TemplatesSection } from './TemplatesView';
+import { SettingsSection } from './SettingsView';
 
 /**
  * The engage parts of the Lucy page (ADR-015, ADR-016): the four sections as tabs, the "Go to" tiles and quick actions,
@@ -21,7 +22,7 @@ import { NewTemplatePanel, TemplatePanel, TemplatesSection } from './TemplatesVi
  * the host decides where each part goes.
  */
 
-export type Section = 'customers' | 'journeys' | 'campaigns' | 'segments' | 'templates';
+export type Section = 'customers' | 'journeys' | 'campaigns' | 'segments' | 'templates' | 'settings';
 /** `lucy` is the Company-OS chat; only the Lucy page has it. */
 export type Tab = 'lucy' | Section;
 export type Panel =
@@ -45,6 +46,13 @@ export const SECTIONS: Array<{ id: Section; label: string; icon: typeof Users; t
   { id: 'segments', label: 'Segments', icon: Filter, tint: 'text-violet-400/90' },
   { id: 'templates', label: 'Templates', icon: Mail, tint: 'text-emerald-400/90' },
 ];
+/** Tenant admins only (WP-22): sending, readiness, quiet hours, caps and channel accounts. */
+const ADMIN_SECTION: { id: Section; label: string; icon: typeof Users; tint: string } = { id: 'settings', label: 'Settings', icon: Settings, tint: 'text-slate-300/90' };
+
+/** The sections this user sees: the four for everyone, settings for a tenant admin. */
+export function sectionsFor(isAdmin: boolean): Array<{ id: Section; label: string; icon: typeof Users; tint: string }> {
+  return isAdmin ? [...SECTIONS, ADMIN_SECTION] : SECTIONS;
+}
 
 const TITLES: Record<Exclude<Panel, null>['kind'], string> = {
   customer: 'Customer',
@@ -120,7 +128,7 @@ export function useEngageWorkspace(initial: Tab, isAdmin: boolean): EngageWorksp
 
 /** The tab row. `withLucy` puts the Lucy chat first (the Lucy page); the engage hub has no chat. */
 export function EngageTabStrip({ workspace, withLucy = false }: { workspace: EngageWorkspace; withLucy?: boolean }): JSX.Element {
-  const tabs: Array<{ id: Tab; label: string }> = [...(withLucy ? [{ id: 'lucy' as const, label: 'Lucy' }] : []), ...SECTIONS];
+  const tabs: Array<{ id: Tab; label: string }> = [...(withLucy ? [{ id: 'lucy' as const, label: 'Lucy' }] : []), ...sectionsFor(workspace.isAdmin)];
   return (
     <div role="tablist" aria-label="Page sections" className="flex flex-wrap gap-1.5">
       {tabs.map((t) => (
@@ -151,14 +159,15 @@ export function EngageSectionBody({ workspace }: { workspace: EngageWorkspace })
   if (tab === 'campaigns') return <CampaignsSection onOpen={(id) => open({ kind: 'campaign', id })} onNew={() => open({ kind: 'campaign-new' })} />;
   if (tab === 'segments') return <SegmentsSection onOpen={(id) => open({ kind: 'segment', id })} onNew={() => open({ kind: 'segment-new' })} />;
   if (tab === 'templates') return <TemplatesSection onOpen={(id) => open({ kind: 'template', id })} onNew={() => open({ kind: 'template-new' })} />;
+  if (tab === 'settings' && workspace.isAdmin) return <SettingsSection />;
   return null;
 }
 
-/** The "Go to" tiles for the four sections. */
+/** The "Go to" tiles for the sections this user sees. */
 export function EngageGoToTiles({ workspace }: { workspace: EngageWorkspace }): JSX.Element {
   return (
     <div className="mt-1 grid grid-cols-2 gap-1.5">
-      {SECTIONS.map((s) => (
+      {sectionsFor(workspace.isAdmin).map((s) => (
         <button key={s.id} type="button" onClick={() => workspace.goTo(s.id)} className={TILE_BTN} data-testid={`hub-go-${s.id}`}>
           <s.icon className={cn('h-3.5 w-3.5 shrink-0', s.tint)} />
           <span className="truncate">{s.label}</span>

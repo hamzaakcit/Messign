@@ -30,7 +30,7 @@
 | WP-21 | Analytics: funnel, delivery, conversions vs holdout with CI | P0 | W8 | done (journey results; ADR-014) | Reconciles with ledger SQL |
 | WP-37 | One Lucy page for Company-OS and engage: platform org may use engage (product `all`, migration 126, `npm run engage:platform`), `/marketing` chosen by organization, engage tabs, tiles and panels on the Lucy page | P0 | W8 | done (ADR-016; runbook one-lucy-page.md) | A Messign admin sees Lucy and engage on one page; a tenant never sees Lucy |
 | WP-38 | One-off campaign: send a template to a segment now (a one-step journey plus a record; consent-only audience, readiness check, idempotent, resumable) and the tenant guard that closes Company-OS routes to tenants | P0 | W8 | done (ADR-017, ADR-018; runbook send-a-campaign.md) | A tenant admin sends one email to a segment from the Lucy page; a tenant token reaches no Company-OS route |
-| WP-22 | Settings UI: channel accounts, readiness, quiet hours, caps, send_enabled | P0 | W8 | todo | send_enabled blocked without readiness |
+| WP-22 | Settings UI: channel accounts, readiness, quiet hours, caps, send_enabled | P0 | W8 | done (Settings tab for tenant admins; send_enabled refused without readiness, server-enforced; PR stacked on #39) | send_enabled blocked without readiness |
 | WP-23 | AI gateway metering for all callers + per-tenant cap | P0 | W9 | todo | Telemetry row per call |
 | WP-24 | AI copy drafting for message steps → gatekeepers → approval queue (no PII) | P1 | W9 | todo | PII-in-prompt test green |
 | WP-25 | Date-attribute trigger + florist occasion template (synthetic data) | P1 | W9 | todo | Fires once per occurrence |
