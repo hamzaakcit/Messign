@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { listCustomers, type CustomerListItem } from './customersApi';
 
 /** Engage customer list (WP-19): newest first, search by email or the start of an external id. */
@@ -15,8 +14,8 @@ function ConsentBadge({ c }: { c: CustomerListItem }): JSX.Element {
   return <span className="text-xs text-app-muted">none</span>;
 }
 
-export function CustomersPage(): JSX.Element {
-  const navigate = useNavigate();
+/** The customers section of the Lucy hub: search, the list, and opening one customer in a panel. */
+export function CustomersSection({ onOpen }: { onOpen: (id: string) => void }): JSX.Element {
   const [input, setInput] = useState('');
   const [q, setQ] = useState('');
   useEffect(() => {
@@ -33,10 +32,9 @@ export function CustomersPage(): JSX.Element {
   const rows = query.data?.pages.flatMap((p) => p.profiles) ?? [];
 
   return (
-    <div className="flex-1 overflow-y-auto bg-app px-4 py-6 sm:px-8" data-testid="engage-customers">
-      <div className="mx-auto max-w-5xl">
-        <h1 className="text-xl font-bold text-app">Customers</h1>
-        <p className="mt-1 text-sm text-app-muted">Every customer, with their consent, messages and journeys.</p>
+    <div data-testid="hub-customers">
+      <div>
+        <p className="text-sm text-app-muted">Every customer, with their consent, messages and journeys.</p>
         <input
           type="search"
           value={input}
@@ -68,8 +66,8 @@ export function CustomersPage(): JSX.Element {
                 {rows.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => navigate(`/customers/${c.id}`)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/customers/${c.id}`); }}
+                    onClick={() => onOpen(c.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') onOpen(c.id); }}
                     tabIndex={0}
                     className="cursor-pointer border-t border-app hover:bg-app-muted/10 focus:bg-app-muted/10 focus:outline-none"
                   >

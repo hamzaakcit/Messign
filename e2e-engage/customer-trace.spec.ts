@@ -2,9 +2,9 @@ import { readFileSync } from 'fs';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Engage, end to end in a browser (WP-19 acceptance): a tenant admin signs in, opens Customers, finds a customer and
- * sees each message traced to its send-gate decision and to the consent in force when it was taken. The data is
- * real pipeline output (scripts/engageE2eSeed.ts): simulated carts, the cart journey, the gate and a mock account.
+ * Engage, end to end in a browser (WP-19 acceptance, on the Lucy page): a tenant admin signs in, finds a customer in the
+ * Customers section and sees each message traced to its send-gate decision and to the consent in force when it was taken.
+ * The data is real pipeline output (scripts/engageE2eSeed.ts): simulated carts, the cart journey, the gate and a mock account.
  */
 interface Seed { email: string; password: string; sentCustomer: string; blockedCustomer: string }
 const seed = (): Seed => JSON.parse(readFileSync('e2e-engage/.auth/seed.json', 'utf8')) as Seed;
@@ -18,6 +18,7 @@ async function signIn(page: Page, s: Seed): Promise<void> {
   await page.getByRole('button', { name: 'Skip' }).click({ timeout: 2_000 }).catch(() => undefined);
 }
 
+/** Opens a customer in the panel over the Lucy page. */
 async function openCustomer(page: Page, externalId: string): Promise<void> {
   await page.getByLabel('Search customers').fill(externalId);
   await page.getByRole('cell', { name: externalId, exact: true }).click();
@@ -28,15 +29,13 @@ test('sign in, open a customer, and trace a sent and a blocked message to the ga
   const s = seed();
   await signIn(page, s);
 
-  // The engage shell: Customers in the sidebar, the frozen Company-OS modules nowhere.
+  // The engage page is the Lucy page: its hub opens on Customers, and the frozen Company-OS modules are nowhere.
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
-  await expect(nav.getByRole('button', { name: 'Customers' })).toBeVisible();
+  await expect(nav.getByRole('button', { name: 'Marketing' })).toBeVisible();
   await expect(nav.getByRole('button', { name: 'Finance' })).toHaveCount(0);
-  await nav.getByRole('button', { name: 'Customers' }).click();
-  // The collapsed sidebar opens over the page while the pointer is on it; move away, as a person would.
-  await page.mouse.move(900, 500);
-  await expect(page).toHaveURL(/\/customers$/);
-  await expect(page.getByTestId('engage-customers')).toBeVisible();
+  await expect(nav.getByRole('button', { name: 'Customers' })).toHaveCount(0);
+  await expect(page.getByTestId('engage-hub')).toBeVisible();
+  await expect(page.getByTestId('hub-customers')).toBeVisible();
 
   // A customer whose reminder went out: allowed by the gate, with the consent grant in force.
   await openCustomer(page, s.sentCustomer);
@@ -48,7 +47,8 @@ test('sign in, open a customer, and trace a sent and a blocked message to the ga
   await expect(page.getByTestId('trail-enrollment').first()).toContainText('Sepet terk');
 
   // A customer without consent: the gate blocked the message and the trail says no consent was in force.
-  await page.getByRole('link', { name: '← Customers' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('hub-panel')).toHaveCount(0);
   await openCustomer(page, s.blockedCustomer);
   const blocked = page.getByTestId('trail-message').first();
   await expect(blocked).toContainText('blocked');
@@ -58,9 +58,10 @@ test('sign in, open a customer, and trace a sent and a blocked message to the ga
   await expect(deny.getByTestId('consent-in-force')).toContainText('Consent in force: none recorded at that time');
 });
 
-test('a customer link for another tenant or a made-up id shows "does not exist", not someone else\'s data', async ({ page }) => {
+test('an old customer link lands on the Lucy page, not on a separate screen', async ({ page }) => {
   const s = seed();
   await signIn(page, s);
   await page.goto('/customers/00000000-0000-4000-8000-000000000000');
-  await expect(page.getByText('This customer does not exist.')).toBeVisible();
+  await expect(page).toHaveURL(/\/marketing$/);
+  await expect(page.getByTestId('engage-hub')).toBeVisible();
 });

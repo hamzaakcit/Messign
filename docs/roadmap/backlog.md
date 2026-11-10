@@ -26,7 +26,7 @@
 | WP-18 | Cart-abandonment template + event simulator + 10k load | P0 | W7 | done (ADR-012 §9) | Zero duplicate messages; correct exits |
 | WP-19 | Engage UI shell + profile list/detail with audit trail | P0 | W7 | done (Playwright E2E: playwright.engage.config.ts, not in CI) | Message traceable to gate decision + consent |
 | WP-36 | Rule-based segments (attributes + order history) + scheduled segment trigger (win-back / new-release on imported data) | P0 | W7 | done (API only; UI with WP-20; ADR-013) | Segment counts match SQL; scheduled run enrolls once per profile per run |
-| WP-20 | Journey builder UI (form-based) | P0 | W8 | done (journeys, segments, templates screens; Playwright: create and activate in the UI) | Create + activate fully in UI |
+| WP-20 | Journey builder UI (form-based) | P0 | W8 | done (sections and panels on the Lucy page; Playwright: create and activate in the UI) | Create + activate fully in UI |
 | WP-21 | Analytics: funnel, delivery, conversions vs holdout with CI | P0 | W8 | done (journey results; ADR-014) | Reconciles with ledger SQL |
 | WP-22 | Settings UI: channel accounts, readiness, quiet hours, caps, send_enabled | P0 | W8 | todo | send_enabled blocked without readiness |
 | WP-23 | AI gateway metering for all callers + per-tenant cap | P0 | W9 | todo | Telemetry row per call |

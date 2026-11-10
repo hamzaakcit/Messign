@@ -27,10 +27,6 @@ const viewTitles: Record<string, string> = {
   assets: 'Assets',
   contracts: 'Contracts',
   culture: 'Culture',
-  customers: 'Customers',
-  journeys: 'Journeys',
-  segments: 'Segments',
-  templates: 'Templates',
 };
 
 const ID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -103,7 +99,7 @@ export function Header() {
           >
             <Search className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1 text-sm">
-              {location.pathname.startsWith('/marketing') ? 'Search or ask Lucy...' : 'Search or ask Dora...'}
+              {!mountsFrozenModules() ? 'Search...' : location.pathname.startsWith('/marketing') ? 'Search or ask Lucy...' : 'Search or ask Dora...'}
             </span>
             <kbd
               className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono"

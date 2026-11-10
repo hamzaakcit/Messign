@@ -1,25 +1,9 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import type { Issue } from './builderApi';
 
-/** Small shared pieces for the engage builder screens (WP-20), in the app's existing visual language. */
+/** Small shared pieces for the engage sections and panels on the Lucy page (WP-20), in the app's visual language. */
 
 export const formatTime = (v: string | null | undefined): string => (v ? new Date(v).toLocaleString() : '—');
-
-export function Page({ title, back, actions, children, testId }: { title: ReactNode; back?: { to: string; label: string }; actions?: ReactNode; children: ReactNode; testId?: string }): JSX.Element {
-  return (
-    <div className="flex-1 overflow-y-auto bg-app px-4 py-6 sm:px-8" data-testid={testId}>
-      <div className="mx-auto max-w-5xl">
-        {back && <Link to={back.to} className="text-sm text-app-muted hover:text-app">← {back.label}</Link>}
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-bold text-app">{title}</h1>
-          {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-        </div>
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 export function Button({ children, onClick, kind = 'secondary', disabled, type = 'button', testId }: {
   children: ReactNode; onClick?: () => void; kind?: 'primary' | 'secondary' | 'danger'; disabled?: boolean; type?: 'button' | 'submit'; testId?: string;
@@ -32,11 +16,6 @@ export function Button({ children, onClick, kind = 'secondary', disabled, type =
       {children}
     </button>
   );
-}
-
-export function LinkButton({ to, children, kind = 'secondary' }: { to: string; children: ReactNode; kind?: 'primary' | 'secondary' }): JSX.Element {
-  const style = kind === 'primary' ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600' : 'border-app text-app hover:bg-app-muted/10';
-  return <Link to={to} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${style}`}>{children}</Link>;
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }): JSX.Element {

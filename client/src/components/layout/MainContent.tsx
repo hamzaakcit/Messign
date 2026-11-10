@@ -6,11 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Header } from './Header';
 import { mountsFrozenModules } from '@/lib/productSurface';
 
-const EngageHomePage = React.lazy(() => import('@/engage/EngageHomePage').then((m) => ({ default: m.EngageHomePage })));
-const CustomersView = React.lazy(() => import('@/engage/CustomersView').then((m) => ({ default: m.CustomersView })));
-const JourneysView = React.lazy(() => import('@/engage/JourneysView').then((m) => ({ default: m.JourneysView })));
-const SegmentsView = React.lazy(() => import('@/engage/SegmentsView').then((m) => ({ default: m.SegmentsView })));
-const TemplatesView = React.lazy(() => import('@/engage/TemplatesView').then((m) => ({ default: m.TemplatesView })));
+const EngageHub = React.lazy(() => import('@/engage/EngageHub').then((m) => ({ default: m.EngageHub })));
 
 const DashboardView = React.lazy(() => import('@/pages/DashboardView').then((m) => ({ default: m.DashboardView })));
 const ChatView = React.lazy(() => import('@/pages/ChatView').then((m) => ({ default: m.ChatView })));
@@ -86,16 +82,8 @@ export function MainContent() {
       case 'crm':
         return wrap('crm', <CRMLayout />);
       case 'marketing':
-        // On engage the legacy marketing hub would call a non-tenant-safe API and the frozen Lucy assistant.
-        return mountsFrozenModules() ? wrap('marketing', <MarketingLayout />) : wrap('marketing', <EngageHomePage />);
-      case 'customers':
-        return wrap('customers', <CustomersView />);
-      case 'journeys':
-        return wrap('journeys', <JourneysView />);
-      case 'segments':
-        return wrap('segments', <SegmentsView />);
-      case 'templates':
-        return wrap('templates', <TemplatesView />);
+        // Engage lives inside this page: the hub replaces Lucy there (the Company-OS Lucy page is frozen, ADR-009).
+        return mountsFrozenModules() ? wrap('marketing', <MarketingLayout />) : wrap('marketing', <EngageHub />);
       case 'recruitment':
         return wrap('recruitment', <RecruitmentLayout />);
       case 'support':

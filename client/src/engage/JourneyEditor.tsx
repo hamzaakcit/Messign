@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import {
   ApiIssues, addJourneyVersion, createJourney, listSegments, listTemplates, validateJourney, type Issue,
 } from './builderApi';
@@ -114,10 +113,11 @@ export interface JourneyEditorProps {
   /** Create a new journey, or publish a new version of an existing one. */
   target: { kind: 'create' } | { kind: 'version'; journeyId: string; journeyName: string };
   initialDefinition?: unknown;
+  /** Called with the journey's id after a successful save (the editor lives in a panel, not on its own page). */
+  onSaved: (journeyId: string) => void;
 }
 
-export function JourneyEditor({ target, initialDefinition }: JourneyEditorProps): JSX.Element {
-  const navigate = useNavigate();
+export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEditorProps): JSX.Element {
   const qc = useQueryClient();
   const start = useMemo(() => (initialDefinition === undefined ? { ok: true as const, form: emptyForm() } : definitionToForm(initialDefinition)), [initialDefinition]);
   const [form, setForm] = useState<JourneyForm>(start.ok ? start.form : emptyForm());
@@ -160,12 +160,12 @@ export function JourneyEditor({ target, initialDefinition }: JourneyEditorProps)
     if (target.kind === 'create') {
       const r = await createJourney({ key: key.trim(), name: name.trim(), definition: definition() });
       await qc.invalidateQueries({ queryKey: ['engage', 'journeys'] });
-      navigate(`/journeys/${r.journey.id}`);
+      onSaved(r.journey.id);
     } else {
       await addJourneyVersion(target.journeyId, definition());
       await qc.invalidateQueries({ queryKey: ['engage', 'journeys'] });
       await qc.invalidateQueries({ queryKey: ['engage', 'journey', target.journeyId] });
-      navigate(`/journeys/${target.journeyId}`);
+      onSaved(target.journeyId);
     }
   });
 

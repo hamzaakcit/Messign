@@ -1,10 +1,7 @@
 export type ProductSurface = 'engage' | 'workspace' | 'all';
 
-const ENGAGE_NAV_IDS: ReadonlySet<string> = new Set(['marketing', 'customers', 'journeys', 'segments', 'templates', 'settings']);
-const ENGAGE_PATH_PREFIXES: readonly string[] = ['/marketing', '/customers', '/journeys', '/segments', '/templates', '/settings', '/admin'];
-/** Engage screens: their API exists only where engage is mounted (engage, all), never on the Company-OS workspace. */
-const ENGAGE_ONLY_NAV_IDS: ReadonlySet<string> = new Set(['customers', 'journeys', 'segments', 'templates']);
-const ENGAGE_ONLY_PATH_PREFIXES: readonly string[] = ['/customers', '/journeys', '/segments', '/templates'];
+const ENGAGE_NAV_IDS: ReadonlySet<string> = new Set(['marketing', 'settings']);
+const ENGAGE_PATH_PREFIXES: readonly string[] = ['/marketing', '/settings', '/admin'];
 
 export const ENGAGE_HOME_PATH = '/marketing';
 
@@ -29,7 +26,6 @@ export function isNavItemOnSurface(
   navId: string,
   surface: ProductSurface = getProductSurface(),
 ): boolean {
-  if (surface === 'workspace') return !ENGAGE_ONLY_NAV_IDS.has(navId);
   return surface !== 'engage' || ENGAGE_NAV_IDS.has(navId);
 }
 
@@ -37,8 +33,6 @@ export function isPathOnSurface(
   path: string,
   surface: ProductSurface = getProductSurface(),
 ): boolean {
-  const under = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
-  if (surface === 'workspace') return !ENGAGE_ONLY_PATH_PREFIXES.some(under);
   if (surface !== 'engage') return true;
   return ENGAGE_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

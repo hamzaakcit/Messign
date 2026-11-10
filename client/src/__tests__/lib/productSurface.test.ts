@@ -38,26 +38,13 @@ describe('productSurface', () => {
     expect(isPathOnSurface('/finance', 'workspace')).toBe(true);
   });
 
-  it('shows the engage customer screens where engage is mounted, never on the Company-OS workspace (WP-19)', () => {
-    expect(isNavItemOnSurface('customers', 'engage')).toBe(true);
-    expect(isNavItemOnSurface('customers', 'all')).toBe(true);
-    expect(isNavItemOnSurface('customers', 'workspace')).toBe(false);
-    expect(isPathOnSurface('/customers', 'engage')).toBe(true);
-    expect(isPathOnSurface('/customers/0b8e', 'engage')).toBe(true);
-    expect(isPathOnSurface('/customers/0b8e', 'all')).toBe(true);
-    expect(isPathOnSurface('/customers', 'workspace')).toBe(false);
-    expect(isPathOnSurface('/customers/0b8e', 'workspace')).toBe(false);
-    expect(isPathOnSurface('/customersfoo', 'workspace')).toBe(true);
-  });
-
-  it('the builder screens (journeys, segments, templates) follow the same rule (WP-20)', () => {
-    for (const id of ['journeys', 'segments', 'templates']) {
-      expect(isNavItemOnSurface(id, 'engage')).toBe(true);
-      expect(isNavItemOnSurface(id, 'all')).toBe(true);
-      expect(isNavItemOnSurface(id, 'workspace')).toBe(false);
-      expect(isPathOnSurface(`/${id}`, 'engage')).toBe(true);
-      expect(isPathOnSurface(`/${id}/x/edit`, 'engage')).toBe(true);
-      expect(isPathOnSurface(`/${id}`, 'workspace')).toBe(false);
+  it('engage has no screens of its own besides the Lucy page: customers, journeys, segments and templates are sections of it', () => {
+    expect(isNavItemOnSurface('marketing', 'engage')).toBe(true);
+    for (const id of ['customers', 'journeys', 'segments', 'templates']) {
+      expect(isNavItemOnSurface(id, 'engage')).toBe(false);
+      expect(isPathOnSurface(`/${id}`, 'engage')).toBe(false);
+      expect(isPathOnSurface(`/${id}/0b8e`, 'engage')).toBe(false);
     }
+    expect(isPathOnSurface('/marketing', 'all')).toBe(true);
   });
 });

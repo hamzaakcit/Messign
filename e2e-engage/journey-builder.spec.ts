@@ -2,9 +2,10 @@ import { readFileSync } from 'fs';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * WP-20 acceptance, in a browser: a journey is created and activated entirely in the UI. A tenant admin writes a
- * template, builds a segment and counts it, builds an event-triggered journey in the form (wait, then the email),
- * saves it as a draft, approves it and activates it, and the journey list shows it running.
+ * WP-20 acceptance, in a browser, on the Lucy page: a journey is created and activated entirely in the UI. A tenant admin
+ * writes a template, builds a segment and counts it, builds an event-triggered journey in the form (wait, then the email),
+ * saves it as a draft, approves it and activates it, and the journey list shows it running. Every step happens in a
+ * section or a panel of the same page.
  */
 interface Seed { email: string; password: string }
 const seed = (): Seed => JSON.parse(readFileSync('e2e-engage/.auth/seed.json', 'utf8')) as Seed;
@@ -19,38 +20,44 @@ async function signIn(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/marketing$/, { timeout: 30_000 });
 }
 
-async function navTo(page: Page, name: string): Promise<void> {
-  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name }).click();
-  await page.mouse.move(900, 500); // the collapsed sidebar opens over the page while the pointer is on it
+/** The panel over the Lucy page. */
+const panel = (page: Page) => page.getByTestId('hub-panel');
+
+/** Closes the panel, as a person would (Escape). */
+async function closePanel(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(panel(page)).toHaveCount(0);
 }
 
 test('create a template, a segment and a journey in the UI, then approve and activate the journey', async ({ page }) => {
   await signIn(page);
 
-  // Template.
-  await navTo(page, 'Templates');
-  await page.getByRole('link', { name: 'New template' }).click();
+  // Template, in a panel over the page.
+  await page.getByTestId('hub-tab-templates').click();
+  await page.getByTestId('hub-new-template').click();
   await page.getByLabel('Template name').fill(`Welcome ${suffix}`);
   await page.getByLabel('Template key').fill(`welcome-${suffix}`);
   await page.getByLabel('Subject').fill('Welcome, {{first_name | default: "friend"}}');
   await page.getByTestId('save-template').click();
-  await expect(page).toHaveURL(/\/templates\/[0-9a-f-]{36}$/);
-  await page.getByTestId('preview-1').click();
-  await expect(page.getByText('Subject: Welcome, Ayşe')).toBeVisible();
+  await expect(panel(page).getByTestId('engage-template')).toBeVisible();
+  await panel(page).getByTestId('preview-1').click();
+  await expect(panel(page).getByText('Subject: Welcome, Ayşe')).toBeVisible();
+  await closePanel(page);
 
   // Segment: counted against the seeded customers before it is saved.
-  await navTo(page, 'Segments');
-  await page.getByRole('link', { name: 'New segment' }).click();
+  await page.getByTestId('hub-tab-segments').click();
+  await page.getByTestId('hub-new-segment').click();
   await page.getByLabel('Segment name').fill(`Lapsed ${suffix}`);
   await page.getByLabel('Segment key').fill(`lapsed-${suffix}`);
   await page.getByTestId('count-segment').click();
   await expect(page.getByTestId('segment-count')).toContainText('match now');
   await page.getByTestId('save-segment').click();
-  await expect(page).toHaveURL(/\/segments\/[0-9a-f-]{36}$/);
+  await expect(panel(page).getByTestId('engage-segment')).toBeVisible();
+  await closePanel(page);
 
   // Journey, built in the form.
-  await navTo(page, 'Journeys');
-  await page.getByRole('link', { name: 'New journey' }).click();
+  await page.getByTestId('hub-tab-journeys').click();
+  await page.getByTestId('hub-new-journey').click();
   await page.getByLabel('Journey name').fill(`Welcome series ${suffix}`);
   await page.getByLabel('Journey key').fill(`welcome-series-${suffix}`);
   await page.getByLabel('Trigger event').fill(`signed_up_${suffix.replace(/[^a-z0-9]/g, '')}`);
@@ -62,28 +69,28 @@ test('create a template, a segment and a journey in the UI, then approve and act
   await expect(page.getByText('The journey is valid.')).toBeVisible();
   await page.getByTestId('save-journey').click();
 
-  // Approve and activate on the journey page.
-  await expect(page).toHaveURL(/\/journeys\/[0-9a-f-]{36}$/);
-  await expect(page.getByTestId('version-1').getByTestId('status-draft')).toBeVisible();
-  await page.getByTestId('approve-1').click();
-  await expect(page.getByTestId('version-1').getByTestId('status-approved')).toBeVisible();
-  await page.getByTestId('activate-1').click();
-  await expect(page.getByTestId('version-1').getByTestId('status-active')).toBeVisible();
-  await expect(page.getByText(/Wait 30 minutes/)).toBeVisible();
-  await expect(page.getByText(new RegExp(`Send email "welcome-${suffix}"`))).toBeVisible();
+  // Approve and activate in the journey's panel.
+  await expect(panel(page).getByTestId('version-1').getByTestId('status-draft')).toBeVisible();
+  await panel(page).getByTestId('approve-1').click();
+  await expect(panel(page).getByTestId('version-1').getByTestId('status-approved')).toBeVisible();
+  await panel(page).getByTestId('activate-1').click();
+  await expect(panel(page).getByTestId('version-1').getByTestId('status-active')).toBeVisible();
+  await expect(panel(page).getByText(/Wait 30 minutes/)).toBeVisible();
+  await expect(panel(page).getByText(new RegExp(`Send email "welcome-${suffix}"`))).toBeVisible();
 
-  await navTo(page, 'Journeys');
-  const row = page.getByRole('row', { name: new RegExp(`Welcome series ${suffix}`) });
+  await closePanel(page);
+  const row = page.getByTestId('hub-journeys').getByRole('row', { name: new RegExp(`Welcome series ${suffix}`) });
   await expect(row.getByTestId('status-active')).toBeVisible();
 });
 
-test('a refused save shows the server\'s reasons next to the form', async ({ page }) => {
+test('a refused save shows the server\'s reasons next to the form, on the same page', async ({ page }) => {
   await signIn(page);
-  await page.goto('/journeys/new');
+  await page.getByTestId('hub-tab-journeys').click();
+  await page.getByTestId('hub-new-journey').click();
   await page.getByLabel('Journey name').fill('Broken');
   await page.getByLabel('Journey key').fill(`broken-${suffix}`);
   await page.getByLabel('Step 1 minutes').fill('soon');
   await page.getByTestId('save-journey').click();
-  await expect(page.getByTestId('issues')).toContainText('steps[0].minutes');
-  await expect(page).toHaveURL(/\/journeys\/new$/);
+  await expect(panel(page).getByTestId('issues')).toContainText('steps[0].minutes');
+  await expect(page).toHaveURL(/\/marketing$/);
 });

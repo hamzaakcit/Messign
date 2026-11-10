@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ApiIssues, addSegmentVersion, countSegmentVersion, createSegment, getSegment, listSegments, previewSegment, type Issue, type SegmentCount,
 } from './builderApi';
 import { OPS, conditionToLeaf, leafToCondition, type LeafForm, type Op } from './journeyForm';
-import { Button, Card, Empty, ErrorLine, Field, Issues, LinkButton, Page, Select, TextInput, formatTime, inputClass } from './ui';
+import { Button, Card, Empty, ErrorLine, Field, Issues, Select, TextInput, formatTime, inputClass } from './ui';
 
 /**
  * Segments (WP-20 screens over the WP-36 API): list, create, versions and counts. A segment is a list of conditions
@@ -122,11 +121,15 @@ function DefinitionEditor({ initial, onSave, saveLabel }: { initial?: unknown; o
   );
 }
 
-function SegmentList(): JSX.Element {
+/** The segments section of the Lucy hub: the list, and creating a segment. */
+export function SegmentsSection({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }): JSX.Element {
   const q = useQuery({ queryKey: ['engage', 'segments'], queryFn: listSegments });
   return (
-    <Page title="Segments" testId="engage-segments" actions={<LinkButton to="/segments/new" kind="primary">New segment</LinkButton>}>
-      <p className="text-sm text-app-muted">Audiences over attributes, order history and consent. A scheduled journey targets one version of a segment.</p>
+    <div data-testid="hub-segments">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-app-muted">Audiences over attributes, order history and consent. A scheduled journey targets one version of a segment.</p>
+        <Button kind="primary" onClick={onNew} testId="new-segment">New segment</Button>
+      </div>
       {q.isPending && <p className="mt-4 text-sm text-app-muted">Loading…</p>}
       <ErrorLine error={q.error} />
       {q.data && q.data.length === 0 && <Empty>No segments yet.</Empty>}
@@ -134,23 +137,23 @@ function SegmentList(): JSX.Element {
         <ul className="mt-4 divide-y divide-app rounded-md border border-app">
           {q.data.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-              <Link to={`/segments/${s.id}`} className="font-medium text-app hover:underline">{s.name}</Link>
+              <button type="button" onClick={() => onOpen(s.id)} className="font-medium text-app hover:underline">{s.name}</button>
               <span className="text-xs text-app-muted"><code className="font-mono">{s.key}</code> · v{s.latestVersion} · {formatTime(s.createdAt)}</span>
             </li>
           ))}
         </ul>
       )}
-    </Page>
+    </div>
   );
 }
 
-function NewSegment(): JSX.Element {
-  const navigate = useNavigate();
+/** The panel for a new segment. */
+export function NewSegmentPanel({ onSaved }: { onSaved: (id: string) => void }): JSX.Element {
   const qc = useQueryClient();
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   return (
-    <Page title="New segment" back={{ to: '/segments', label: 'Segments' }}>
+    <div>
       <div className="mb-3 grid gap-3 sm:grid-cols-2">
         <Field label="Name"><TextInput value={name} onChange={setName} placeholder="Lapsed buyers" ariaLabel="Segment name" /></Field>
         <Field label="Key" hint="what a journey refers to"><TextInput value={key} onChange={setKey} placeholder="lapsed" ariaLabel="Segment key" mono /></Field>
@@ -158,9 +161,9 @@ function NewSegment(): JSX.Element {
       <DefinitionEditor saveLabel="Save segment" onSave={async (definition) => {
         const r = await createSegment({ key: key.trim(), name: name.trim(), definition });
         await qc.invalidateQueries({ queryKey: ['engage', 'segments'] });
-        navigate(`/segments/${r.segment.id}`);
+        onSaved(r.segment.id);
       }} />
-    </Page>
+    </div>
   );
 }
 
@@ -175,15 +178,19 @@ function VersionCount({ id, version }: { id: string; version: number }): JSX.Ele
   );
 }
 
-function SegmentDetail({ id }: { id: string }): JSX.Element {
+/** One segment's versions, with counts and a new version. Shown in a panel. */
+export function SegmentPanel({ id }: { id: string }): JSX.Element {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['engage', 'segment', id], queryFn: () => getSegment(id) });
   const [editing, setEditing] = useState(false);
-  if (!q.data) return <Page title="Segment" back={{ to: '/segments', label: 'Segments' }}>{q.error ? <ErrorLine error={q.error} /> : <p className="text-sm text-app-muted">Loading…</p>}</Page>;
+  if (!q.data) return q.error ? <ErrorLine error={q.error} /> : <p className="text-sm text-app-muted">Loading…</p>;
   const { segment, versions } = q.data;
   return (
-    <Page title={segment.name} back={{ to: '/segments', label: 'Segments' }} actions={!editing && <Button onClick={() => setEditing(true)}>New version</Button>}>
-      <p className="text-sm text-app-muted">Key <code className="font-mono">{segment.key}</code>. Versions never change; a journey keeps the version it was approved with.</p>
+    <div className="space-y-4" data-testid="engage-segment">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-app-muted">Key <code className="font-mono">{segment.key}</code>. Versions never change; a journey keeps the version it was approved with.</p>
+        {!editing && <Button onClick={() => setEditing(true)}>New version</Button>}
+      </div>
       {editing && (
         <Card title={`New version (from v${versions[0]?.version})`}>
           <DefinitionEditor initial={versions[0]?.definition} saveLabel="Save new version" onSave={async (definition) => {
@@ -199,14 +206,6 @@ function SegmentDetail({ id }: { id: string }): JSX.Element {
           <VersionCount id={id} version={v.version} />
         </Card>
       ))}
-    </Page>
+    </div>
   );
-}
-
-export function SegmentsView(): JSX.Element {
-  const { pathname } = useLocation();
-  if (pathname === '/segments/new') return <NewSegment />;
-  const detail = /^\/segments\/([^/]+)\/?$/.exec(pathname);
-  if (detail) return <SegmentDetail key={detail[1]} id={decodeURIComponent(detail[1]!)} />;
-  return <SegmentList />;
 }

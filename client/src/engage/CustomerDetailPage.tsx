@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { getCustomerTrail, type CustomerTrail, type TrailDecision, type TrailMessage } from './customersApi';
 import { formatTime } from './CustomersPage';
 
@@ -86,7 +85,6 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
   return (
     <>
       <header>
-        <Link to="/customers" className="text-sm text-app-muted hover:text-app">← Customers</Link>
         <h1 className="mt-2 break-all font-mono text-lg font-bold text-app">{p.externalId}</h1>
         <p className="mt-1 text-sm text-app-muted">
           {p.identifiers.email ?? 'no email'} · {p.identifiers.phone ?? 'no phone'} · since {formatTime(p.createdAt)}
@@ -173,22 +171,18 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
   );
 }
 
+/** One customer's audit trail. Shown in a panel over the customers section. */
 export function CustomerDetailPage({ id }: { id: string }): JSX.Element {
   const query = useQuery({ queryKey: ['engage', 'customer-trail', id], queryFn: () => getCustomerTrail(id) });
   return (
-    <div className="flex-1 overflow-y-auto bg-app px-4 py-6 sm:px-8" data-testid="engage-customer">
-      <div className="mx-auto max-w-4xl">
-        {query.isPending && <p className="text-sm text-app-muted">Loading…</p>}
-        {query.isError && (
-          <div role="alert">
-            <Link to="/customers" className="text-sm text-app-muted hover:text-app">← Customers</Link>
-            <p className="mt-4 text-sm text-red-600">
-              {(query.error as { status?: number }).status === 404 ? 'This customer does not exist.' : 'Could not load this customer. Try again.'}
-            </p>
-          </div>
-        )}
-        {query.data && <Trail t={query.data} />}
-      </div>
+    <div data-testid="engage-customer">
+      {query.isPending && <p className="text-sm text-app-muted">Loading…</p>}
+      {query.isError && (
+        <p role="alert" className="text-sm text-red-600">
+          {(query.error as { status?: number }).status === 404 ? 'This customer does not exist.' : 'Could not load this customer. Try again.'}
+        </p>
+      )}
+      {query.data && <Trail t={query.data} />}
     </div>
   );
 }
