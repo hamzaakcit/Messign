@@ -2,6 +2,31 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · WP-38 (send one email to a segment now) and ADR-017 (tenants reach engage routes only)
+- **Done:**
+  - **Campaigns** (ADR-018, migration `127_engage_campaigns.sql`, `engage/campaigns/campaigns.ts`, `engage/campaignRoutes.ts`): a one-off send is a one-step `api` journey plus an `engage.campaigns` record, so every message still goes through the send gate, the holdout, the results and the customer trail. `POST /api/engage/campaigns` approves and activates the journey as the admin who pressed Send and enrols the audience in chunks (500; at most 100,000). `POST /campaigns/:id/resume` finishes an interrupted send with exact counts.
+  - **Audience and safety:** only customers with email consent are enrolled. A refusal writes nothing and lists every reason (`GET /campaigns/readiness`, the preview and the 409 report the same facts): send mode off, tenant not enabled, no or two email accounts, account mode not matching the send mode, no rate card or budget cap, public https origins for the unsubscribe links missing, live readiness items missing. One idempotency key is one campaign (a double click or two simultaneous requests send nothing twice). The record's status and counts are the only columns the engage role can change.
+  - **On the Lucy page:** a Campaigns tab, **Send an email now** at the top of the quick actions, a wizard in a panel (template, segment, optional holdout 0 to 50%, "Check who would receive it", confirmation, "Send now to N customers"), and a campaign panel that shows progress and what happened (delivered, blocked and why, held back) from the send gate's own decisions. Campaign journeys are not listed under Journeys.
+  - **Tenants reach engage routes only** (ADR-017, `middleware/tenantGuard.ts`): an engage tenant's token is refused on every `/api` route except `/api/auth`, `/api/engage` and `/api/health`, on sockets, and on production `/uploads`. The client waits for `/api/engage/me` before showing anything and narrows the `all` surface to the engage surface for a tenant (menu, routes, socket). Any new route is closed to tenants by default.
+  - **Dev sign-in:** the password stored for `client/.env.local` now matches the dev account in `messign_local` (only that one hash changed; no env file was touched).
+- **Verified:**
+  - **Server:** `tsc` clean; full suite 173 files, 1774 tests passed, 9 skipped (live services). New real-Postgres tests: 16 for campaigns (readiness reasons, consent-only audience, idempotent and concurrent repeats, chunked resume with exact counts, a stopped journey, outcome counts, forced RLS and column grants, no cross-tenant access) and the tenant guard (including the real routes). Mutation checks over the guard and the campaign rules; survivors (the query-string case, the skipped counter, a repeated key) each got a test.
+  - **Client:** `tsc` clean; full Vitest 116 files, 668 passed, four runs in a row (16 new campaign tests; the hub, surface and gate tests cover the tenant path). Mutation checks over the wizard, the panel and the polling; the survivors (a tile not closing a panel, polling stopping too early or too late, a redundant Send condition) were turned into tests or simplified.
+  - **Playwright (engage stack, 5 tests):** the new test checks the audience, confirms, sends, and opens the campaign; the four earlier tests pass again.
+  - **Browser (a private copy of the dev database, merged surface, sandbox mode, mock account):** a campaign to a 30-customer segment (consent for 30, 25 allow-listed, 2 of those suppressed) ended with 23 sent and 7 blocked with their reasons, exactly the predicted counts. A tenant token on the same deployment got 403 on `/api/users` and the other Company-OS routes, and its engage page worked. Your dev database was not used for sending.
+- **Found and fixed:**
+  - **A tenant token could read Company-OS data** (`/api/users` and others) because only the pages, not the API, were closed to it. The deny-by-default guard (ADR-017) closes this, with its own tests; checked live.
+  - A campaign without public unsubscribe origins queued messages that could not be created (30 tick errors in the first try). Readiness now refuses before anything is written.
+  - The client suite failed at random under load: `findBy*` waits gave up after 1 s (one hub test, three runs in six). `asyncUtilTimeout` is now 5 s in the test setup, like `testTimeout`; four full runs passed afterwards.
+- **Honest caveats:**
+  - Nothing changes in production until an operator runs migration 126 and 127 (`npm run db:migrate`) and, for the platform organization, `npm run engage:platform`.
+  - A campaign cannot be scheduled or cancelled once sent; there is no test send to oneself and no A/B variant (ADR-018, "Not in v1").
+  - The readiness items are set by an operator (SQL and scripts, `docs/runbooks/send-a-campaign.md`) until the settings screen (WP-22).
+  - With `ENABLE_PG_BOSS=false` the messages are not created until the scheduled tick runs.
+  - The `all` surface still shows the other Company-OS pages to anyone of the platform organization; tenants can no longer reach them either way (ADR-017).
+  - The engage browser tests are still not in CI.
+- **Next:** WP-22 (settings: channel accounts, readiness checks, quiet hours, caps, send enabled).
+
 ## 2026-11-10 · WP-37 (one Lucy page for Company-OS and engage)
 - **Done:**
   - **The platform organization may use engage:** migration `126_engage_org_product_all.sql` widens the product check to `workspace`, `engage` and `all`. `requireEngageUser` accepts `engage` and `all` and refuses everything else. `GET /api/engage/me` also reports the product. `npm run engage:platform` (`-- --off` to undo) sets `all` for the organization named by `PLATFORM_ORG_SLUG` and creates its engage settings row with sending off; it refuses a tenant and an organization that does not exist. Applying the migration changes no organization, so production is unchanged until the command is run.

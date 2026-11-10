@@ -94,3 +94,55 @@ test('a refused save shows the server\'s reasons next to the form, on the same p
   await expect(panel(page).getByTestId('issues')).toContainText('steps[0].minutes');
   await expect(page).toHaveURL(/\/marketing$/);
 });
+
+test('send an email to a segment now: check who would receive it, confirm, send, and see the campaign', async ({ page }) => {
+  await signIn(page);
+
+  // A template (with the starter's unsubscribe link) and a segment of everyone with email consent.
+  await page.getByTestId('hub-tab-templates').click();
+  await page.getByTestId('hub-new-template').click();
+  await page.getByLabel('Template name').fill(`Promo ${suffix}`);
+  await page.getByLabel('Template key').fill(`promo-${suffix}`);
+  await page.getByLabel('Subject').fill('New books for you');
+  await page.getByTestId('save-template').click();
+  await expect(panel(page).getByTestId('engage-template')).toBeVisible();
+  await closePanel(page);
+
+  await page.getByTestId('hub-tab-segments').click();
+  await page.getByTestId('hub-new-segment').click();
+  await page.getByLabel('Segment name').fill(`Consenting ${suffix}`);
+  await page.getByLabel('Segment key').fill(`consenting-${suffix}`);
+  await page.getByRole('button', { name: 'JSON' }).click();
+  await page.getByLabel('Segment definition JSON').fill(JSON.stringify({ where: { field: 'consent.email', op: 'eq', value: 'granted' } }));
+  await page.getByTestId('save-segment').click();
+  await expect(panel(page).getByTestId('engage-segment')).toBeVisible();
+  await closePanel(page);
+
+  // The wizard: nothing is sent until the audience was checked and the admin confirmed.
+  await page.getByTestId('hub-new-campaign').click();
+  await page.getByLabel('Campaign name').fill(`Autumn ${suffix}`);
+  await page.getByTestId('campaign-template').selectOption({ label: `Promo ${suffix} (promo-${suffix})` });
+  await page.getByTestId('campaign-segment').selectOption({ label: `Consenting ${suffix} (consenting-${suffix})` });
+  await expect(page.getByTestId('send-campaign')).toHaveCount(0);
+  await page.getByTestId('check-campaign').click();
+  const audience = page.getByTestId('audience-count');
+  await expect(audience).toContainText('customers have email consent');
+  const customers = Number((await audience.innerText()).match(/([\d,]+) customers have email consent/)![1]!.replace(/,/g, ''));
+  expect(customers).toBeGreaterThan(0);
+  await expect(page.getByTestId('send-problems')).toHaveCount(0);
+  await expect(page.getByTestId('send-campaign')).toBeDisabled();
+  await page.getByTestId('confirm-campaign').check();
+  await page.getByTestId('send-campaign').click();
+
+  // The campaign opens with its progress, and is in the list.
+  await expect(panel(page).getByTestId('engage-campaign')).toBeVisible();
+  await expect(panel(page).getByTestId('status-sent')).toBeVisible();
+  await expect(panel(page).getByTestId('campaign-enrolled')).toHaveText(customers.toLocaleString('en'));
+  await closePanel(page);
+  const row = page.getByTestId('hub-campaigns').getByRole('row', { name: new RegExp(`Autumn ${suffix}`) });
+  await expect(row.getByTestId('status-sent')).toBeVisible();
+  // The campaign's journey is not in the Journeys list.
+  await page.getByTestId('hub-tab-journeys').click();
+  await expect(page.getByTestId('hub-journeys').getByText(`Autumn ${suffix}`)).toHaveCount(0);
+});
+

@@ -77,6 +77,15 @@ function httpsOrigin(value: string | undefined, name: string): string {
   return u.origin;
 }
 
+/** What is wrong with the public origins the unsubscribe links are built from; empty when both are set to https URLs. */
+export function unsubscribeConfigProblems(env: NodeJS.ProcessEnv = process.env): string[] {
+  const problems: string[] = [];
+  for (const [value, name] of [[env.ENGAGE_PUBLIC_APP_URL, 'ENGAGE_PUBLIC_APP_URL'], [env.ENGAGE_PUBLIC_API_URL, 'ENGAGE_PUBLIC_API_URL']] as const) {
+    try { httpsOrigin(value, name); } catch (err) { problems.push((err as Error).message); }
+  }
+  return problems;
+}
+
 /**
  * The two links for one recipient. Fails closed when the public origins are not configured: a marketing email without
  * a working unsubscribe link must not be created. ENGAGE_PUBLIC_APP_URL is where the page is served (the web app),
