@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { randomBytes } from 'crypto';
 import { adminUrl, setupTenancyFixture, type TenancyFixture } from './helpers/tenancyFixture.js';
 import { startEngageApp, token, type TestApp } from './helpers/httpApp.js';
+import type { JourneyResults } from '../../engage/analytics/journeyAnalytics.js';
 
 const HOUR = 3600_000;
 
@@ -182,9 +183,10 @@ describe.skipIf(!adminUrl)('journey results (real Postgres, HTTP)', () => {
     const { t, journeyId } = await setup(12, entered);
     const r = await app.http(`/journeys/${journeyId}/analytics?windowHours=72`, { token: t.member });
     expect(r.status).toBe(200);
+    const body = r.json as unknown as JourneyResults;
     const direct = await A.journeyResults(t.org, journeyId, { windowHours: 72 });
-    expect(r.json.conversion.treatment.converted).toBe(direct.conversion.treatment.converted);
-    expect(r.json.windowHours).toBe(72);
+    expect(body.conversion.treatment.converted).toBe(direct.conversion.treatment.converted);
+    expect(body.windowHours).toBe(72);
     expect((await app.http(`/journeys/${journeyId}/analytics?windowHours=500`, { token: t.member })).status).toBe(400);
     expect((await app.http(`/journeys/${journeyId}/analytics`, {})).status).toBe(401);
     const other = await setup(1, entered);
