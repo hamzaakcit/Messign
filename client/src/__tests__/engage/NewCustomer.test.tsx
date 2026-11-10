@@ -19,7 +19,7 @@ function mockApi(handler: (url: string, method: string) => Response) {
     return handler(url, method);
   }) as typeof fetch;
 }
-const posted = () => calls.filter((c) => c.method === 'POST' && c.url.includes('/api/engage/profiles'));
+const posted = () => calls.filter((c) => c.method === 'POST' && new URL(c.url, 'http://localhost').pathname === '/api/engage/profiles');
 const lists = (url: string) => (url.includes('/engage/profiles') ? json({ profiles: [], nextCursor: null }) : null);
 
 const renderPanel = (onSaved = vi.fn()) => render(
@@ -73,7 +73,7 @@ describe('adding one customer by hand (Customers page)', () => {
 
   it('saves the customer with the note as evidence, and then opens it', async () => {
     mockApi((url, method) => {
-      if (method === 'POST' && url.includes('/api/engage/profiles')) return json({ id: 'p1', externalId: 'kitap-1' }, 201);
+      if (method === 'POST' && new URL(url, 'http://localhost').pathname === '/api/engage/profiles') return json({ id: 'p1', externalId: 'kitap-1' }, 201);
       return lists(url) ?? json({}, 404);
     });
     const onSaved = vi.fn();

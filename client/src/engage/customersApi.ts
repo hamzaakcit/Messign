@@ -58,5 +58,5 @@ export interface NewCustomerInput {
 }
 /** Add one customer by hand (admins). The server stores email consent only with a note of where the customer agreed. */
 export function createCustomer(input: NewCustomerInput): Promise<{ id: string; externalId: string }> {
-  return fetchAPI('/api/engage/profiles', { method: 'POST', body: JSON.stringify(input) });
+  return fetchAPI('/engage/profiles', { method: 'POST', body: JSON.stringify(input) });
 }
