@@ -16,9 +16,12 @@ export function EngageHomePage(): JSX.Element {
         <p className="text-xs font-semibold uppercase tracking-wider text-app-muted">Messign Engage</p>
         <h1 className="mt-2 text-2xl font-bold text-app">{firstName ? `Welcome, ${firstName}` : 'Welcome'}</h1>
         <p className="mt-3 text-sm leading-relaxed text-app-muted">
-          Your workspace is set up. See every customer, with their consent history, the journeys they are in and each
-          message's send decision, under{' '}
-          <Link to="/customers" className="font-medium text-app underline">Customers</Link>. Journey and report screens follow.
+          Your workspace is set up. Build automated email{' '}
+          <Link to="/journeys" className="font-medium text-app underline">journeys</Link> from{' '}
+          <Link to="/templates" className="font-medium text-app underline">templates</Link> and{' '}
+          <Link to="/segments" className="font-medium text-app underline">segments</Link>, and see every customer, their
+          consent and each message's send decision under{' '}
+          <Link to="/customers" className="font-medium text-app underline">Customers</Link>.
         </p>
       </div>
     </div>

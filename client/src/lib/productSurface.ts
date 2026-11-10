@@ -1,10 +1,10 @@
 export type ProductSurface = 'engage' | 'workspace' | 'all';
 
-const ENGAGE_NAV_IDS: ReadonlySet<string> = new Set(['marketing', 'customers', 'settings']);
-const ENGAGE_PATH_PREFIXES: readonly string[] = ['/marketing', '/customers', '/settings', '/admin'];
+const ENGAGE_NAV_IDS: ReadonlySet<string> = new Set(['marketing', 'customers', 'journeys', 'segments', 'templates', 'settings']);
+const ENGAGE_PATH_PREFIXES: readonly string[] = ['/marketing', '/customers', '/journeys', '/segments', '/templates', '/settings', '/admin'];
 /** Engage screens: their API exists only where engage is mounted (engage, all), never on the Company-OS workspace. */
-const ENGAGE_ONLY_NAV_IDS: ReadonlySet<string> = new Set(['customers']);
-const ENGAGE_ONLY_PATH_PREFIXES: readonly string[] = ['/customers'];
+const ENGAGE_ONLY_NAV_IDS: ReadonlySet<string> = new Set(['customers', 'journeys', 'segments', 'templates']);
+const ENGAGE_ONLY_PATH_PREFIXES: readonly string[] = ['/customers', '/journeys', '/segments', '/templates'];
 
 export const ENGAGE_HOME_PATH = '/marketing';
 

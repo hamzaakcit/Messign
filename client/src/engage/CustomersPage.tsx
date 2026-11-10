@@ -43,7 +43,7 @@ export function CustomersPage(): JSX.Element {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Search by email or customer ID"
           aria-label="Search customers"
-          className="mt-4 w-full rounded-md border border-app bg-app px-3 py-2 text-sm text-app sm:max-w-sm"
+          className="input-theme mt-4 text-sm sm:max-w-sm"
         />
 
         {query.isError && <p role="alert" className="mt-4 text-sm text-red-600">Could not load customers. Try again.</p>}

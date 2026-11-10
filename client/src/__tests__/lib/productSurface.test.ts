@@ -49,4 +49,15 @@ describe('productSurface', () => {
     expect(isPathOnSurface('/customers/0b8e', 'workspace')).toBe(false);
     expect(isPathOnSurface('/customersfoo', 'workspace')).toBe(true);
   });
+
+  it('the builder screens (journeys, segments, templates) follow the same rule (WP-20)', () => {
+    for (const id of ['journeys', 'segments', 'templates']) {
+      expect(isNavItemOnSurface(id, 'engage')).toBe(true);
+      expect(isNavItemOnSurface(id, 'all')).toBe(true);
+      expect(isNavItemOnSurface(id, 'workspace')).toBe(false);
+      expect(isPathOnSurface(`/${id}`, 'engage')).toBe(true);
+      expect(isPathOnSurface(`/${id}/x/edit`, 'engage')).toBe(true);
+      expect(isPathOnSurface(`/${id}`, 'workspace')).toBe(false);
+    }
+  });
 });
