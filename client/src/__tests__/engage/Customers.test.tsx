@@ -1,16 +1,23 @@
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CustomersView } from '@/engage/CustomersView';
-import { decisionText } from '@/engage/CustomerDetailPage';
+import { EngageHub } from '@/engage/EngageHub';
+import { CustomerDetailPage, decisionText } from '@/engage/CustomerDetailPage';
 import type { CustomerTrail, CustomerListItem } from '@/engage/customersApi';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-const show = (path: string) => render(
-  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <MemoryRouter initialEntries={[path]}>
-      <Routes><Route path="*" element={<CustomersView />} /></Routes>
-    </MemoryRouter>
+const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+/** The Lucy page on engage: customers is its first section. */
+const renderHub = () => render(
+  <QueryClientProvider client={client()}>
+    <MemoryRouter initialEntries={['/marketing']}><EngageHub /></MemoryRouter>
+  </QueryClientProvider>,
+);
+/** One customer's record, as the panel shows it. */
+const renderCustomer = (id: string) => render(
+  <QueryClientProvider client={client()}>
+    <MemoryRouter><CustomerDetailPage id={id} /></MemoryRouter>
   </QueryClientProvider>,
 );
 
@@ -58,7 +65,7 @@ const TRAIL: CustomerTrail = {
   events: [{ id: 'ev1', name: 'cart_updated', occurredAt: '2026-11-02T10:00:00Z', receivedAt: '2026-11-02T10:00:00Z', properties: {} }],
 };
 
-describe('engage customers (WP-19)', () => {
+describe('engage customers (WP-19, in the Lucy page)', () => {
   const original = globalThis.fetch;
   let urls: string[];
   const mockFetch = (handler: (url: string) => Response) => {
@@ -67,14 +74,15 @@ describe('engage customers (WP-19)', () => {
   };
   afterEach(() => { globalThis.fetch = original; });
 
-  it('lists customers with their consent state and opens one on click', async () => {
+  it('lists customers with their consent state and opens one in a panel on the page', async () => {
     mockFetch((url) => (url.includes('/trail') ? json(TRAIL) : json({ profiles: [row(1), row(2, { suppressed: true }), row(3, { emailConsent: null, email: null })], nextCursor: null })));
-    show('/customers');
+    renderHub();
     expect(await screen.findByText('kitap-1')).toBeInTheDocument();
     expect(screen.getByText('suppressed')).toBeInTheDocument();
     expect(screen.getByText('none')).toBeInTheDocument();
     fireEvent.click(screen.getByText('kitap-1'));
     expect(await screen.findByRole('heading', { name: 'kitap-1' })).toBeInTheDocument();
+    expect(screen.getByTestId('hub-panel')).toContainElement(screen.getByTestId('engage-customer'));
     expect(urls.some((u) => u.endsWith(`/engage/profiles/${ID}/trail`))).toBe(true);
   });
 
@@ -84,7 +92,7 @@ describe('engage customers (WP-19)', () => {
       if (url.includes('q=ayse')) return json({ profiles: [row(4)], nextCursor: 'next1' });
       return json({ profiles: [row(1)], nextCursor: null });
     });
-    show('/customers');
+    renderHub();
     await screen.findByText('kitap-1');
     fireEvent.change(screen.getByLabelText('Search customers'), { target: { value: 'ayse@example.com' } });
     expect(await screen.findByText('kitap-4')).toBeInTheDocument();
@@ -94,18 +102,19 @@ describe('engage customers (WP-19)', () => {
     expect(screen.getByText('kitap-4')).toBeInTheDocument();
   });
 
-  it('says so when nothing matches, and when loading fails', async () => {
+  it('says so when there are no customers, and when loading fails', async () => {
     mockFetch(() => json({ profiles: [], nextCursor: null }));
-    show('/customers');
+    const empty = renderHub();
     expect(await screen.findByText(/No customers yet/)).toBeInTheDocument();
+    empty.unmount();
     mockFetch(() => json({ error: 'boom' }, 500));
-    show('/customers');
+    renderHub();
     expect(await screen.findByText(/Could not load customers/)).toBeInTheDocument();
   });
 
   it('acceptance: each message shows its gate decision and the consent in force at that decision', async () => {
     mockFetch(() => json(TRAIL));
-    show(`/customers/${ID}`);
+    renderCustomer(ID);
     const messages = await screen.findAllByTestId('trail-message');
     expect(messages).toHaveLength(2);
     const blocked = within(messages[0]!);
@@ -123,7 +132,7 @@ describe('engage customers (WP-19)', () => {
 
   it('shows journeys step by step (holdout says so), consent history and events', async () => {
     mockFetch(() => json(TRAIL));
-    show(`/customers/${ID}`);
+    renderCustomer(ID);
     const enrollment = await screen.findByTestId('trail-enrollment');
     expect(within(enrollment).getByText(/holdout: no messages/)).toBeInTheDocument();
     expect(within(enrollment).getByText(/exit event/)).toBeInTheDocument();
@@ -135,7 +144,7 @@ describe('engage customers (WP-19)', () => {
 
   it('a missing customer is a clear message, not a crash', async () => {
     mockFetch(() => json({ error: 'Profile not found' }, 404));
-    show('/customers/00000000-0000-0000-0000-000000000009');
+    renderCustomer('00000000-0000-0000-0000-000000000009');
     expect(await screen.findByText('This customer does not exist.')).toBeInTheDocument();
   });
 

@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ApiIssues, addTemplateVersion, createTemplate, getTemplate, listTemplates, previewTemplate, type Issue, type TemplatePreview,
 } from './builderApi';
-import { Button, Card, Empty, ErrorLine, Field, Issues, LinkButton, Page, TextInput, formatTime, inputClass } from './ui';
+import { Button, Card, Empty, ErrorLine, Field, Issues, TextInput, formatTime, inputClass } from './ui';
 
 /**
  * Email templates (WP-20 screens over the WP-14 API): list, create, versions and a rendered preview. Variables:
@@ -39,34 +38,39 @@ function ContentForm({ initial, onSave, saveLabel }: { initial: { subject: strin
   );
 }
 
-function TemplateList(): JSX.Element {
+/** The templates section of the Lucy hub: the list, and creating a template. */
+export function TemplatesSection({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }): JSX.Element {
   const q = useQuery({ queryKey: ['engage', 'templates'], queryFn: listTemplates });
   return (
-    <Page title="Email templates" testId="engage-templates" actions={<LinkButton to="/templates/new" kind="primary">New template</LinkButton>}>
-      {q.isPending && <p className="text-sm text-app-muted">Loading…</p>}
+    <div data-testid="hub-templates">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-app-muted">Email content for journeys. A new version never changes a message already sent.</p>
+        <Button kind="primary" onClick={onNew} testId="new-template">New template</Button>
+      </div>
+      {q.isPending && <p className="mt-4 text-sm text-app-muted">Loading…</p>}
       <ErrorLine error={q.error} />
       {q.data && q.data.length === 0 && <Empty>No templates yet.</Empty>}
       {q.data && q.data.length > 0 && (
-        <ul className="divide-y divide-app rounded-md border border-app">
+        <ul className="mt-4 divide-y divide-app rounded-md border border-app">
           {q.data.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-              <Link to={`/templates/${t.id}`} className="font-medium text-app hover:underline">{t.name}</Link>
+              <button type="button" onClick={() => onOpen(t.id)} className="font-medium text-app hover:underline">{t.name}</button>
               <span className="text-xs text-app-muted"><code className="font-mono">{t.key}</code> · v{t.latestVersion} · {formatTime(t.createdAt)}</span>
             </li>
           ))}
         </ul>
       )}
-    </Page>
+    </div>
   );
 }
 
-function NewTemplate(): JSX.Element {
-  const navigate = useNavigate();
+/** The panel for a new template. */
+export function NewTemplatePanel({ onSaved }: { onSaved: (id: string) => void }): JSX.Element {
   const qc = useQueryClient();
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   return (
-    <Page title="New template" back={{ to: '/templates', label: 'Templates' }}>
+    <div>
       <div className="mb-3 grid gap-3 sm:grid-cols-2">
         <Field label="Name"><TextInput value={name} onChange={setName} placeholder="Cart reminder" ariaLabel="Template name" /></Field>
         <Field label="Key" hint="what a journey step refers to"><TextInput value={key} onChange={setKey} placeholder="cart-reminder" ariaLabel="Template key" mono /></Field>
@@ -74,9 +78,9 @@ function NewTemplate(): JSX.Element {
       <ContentForm initial={{ subject: '', html: STARTER }} saveLabel="Save template" onSave={async (v) => {
         const r = await createTemplate({ key: key.trim(), name: name.trim(), ...v });
         await qc.invalidateQueries({ queryKey: ['engage', 'templates'] });
-        navigate(`/templates/${r.template.id}`);
+        onSaved(r.template.id);
       }} />
-    </Page>
+    </div>
   );
 }
 
@@ -104,16 +108,20 @@ function Preview({ id, version }: { id: string; version: number }): JSX.Element 
   );
 }
 
-function TemplateDetail({ id }: { id: string }): JSX.Element {
+/** One template: its versions, a rendered preview of each, and a new version. Shown in a panel. */
+export function TemplatePanel({ id }: { id: string }): JSX.Element {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['engage', 'template', id], queryFn: () => getTemplate(id) });
   const [editing, setEditing] = useState(false);
-  if (!q.data) return <Page title="Template" back={{ to: '/templates', label: 'Templates' }}>{q.error ? <ErrorLine error={q.error} /> : <p className="text-sm text-app-muted">Loading…</p>}</Page>;
+  if (!q.data) return q.error ? <ErrorLine error={q.error} /> : <p className="text-sm text-app-muted">Loading…</p>;
   const { template, versions } = q.data;
   const latest = versions[0];
   return (
-    <Page title={template.name} back={{ to: '/templates', label: 'Templates' }} actions={!editing && <Button onClick={() => setEditing(true)}>New version</Button>}>
-      <p className="text-sm text-app-muted">Key <code className="font-mono">{template.key}</code>. Journeys use the latest version unless a step pins one.</p>
+    <div className="space-y-4" data-testid="engage-template">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-app-muted">Key <code className="font-mono">{template.key}</code>. Journeys use the latest version unless a step pins one.</p>
+        {!editing && <Button onClick={() => setEditing(true)}>New version</Button>}
+      </div>
       {editing && latest && (
         <Card title={`New version (from v${latest.version})`}>
           <ContentForm initial={{ subject: latest.subject, html: latest.html ?? '' }} saveLabel="Save new version" onSave={async (v) => {
@@ -129,14 +137,6 @@ function TemplateDetail({ id }: { id: string }): JSX.Element {
           <Preview id={id} version={v.version} />
         </Card>
       ))}
-    </Page>
+    </div>
   );
-}
-
-export function TemplatesView(): JSX.Element {
-  const { pathname } = useLocation();
-  if (pathname === '/templates/new') return <NewTemplate />;
-  const detail = /^\/templates\/([^/]+)\/?$/.exec(pathname);
-  if (detail) return <TemplateDetail key={detail[1]} id={decodeURIComponent(detail[1]!)} />;
-  return <TemplateList />;
 }

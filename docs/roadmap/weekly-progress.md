@@ -2,12 +2,31 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · Engage inside the Lucy page (restructure of the WP-19 to WP-21 screens)
+- **Done:**
+  - **One page for engage:** on the engage surface `/marketing` is the Lucy page, rendered as the engage hub (`client/src/engage/EngageHub.tsx`). Customers, Journeys, Segments and Templates are tabs in the main column; the right column has the "Go to" tiles and quick actions (new journey, segment, template; tenant admins only). Lucy's chat is not offered on engage (ADR-009).
+  - **Panels, not pages:** a customer, a journey (versions, results, scheduled runs), a new journey or version, a segment and a template open in a panel over the page. Nothing opens on its own route.
+  - **Removed:** the separate engage sidebar entries and routes, `EngageHomePage` and `CustomersView`. On engage, `/customers`, `/journeys`, `/segments` and `/templates` redirect to `/marketing`. The engage sidebar is Marketing and Settings only.
+  - **Header:** the search placeholder reads "Search..." on engage, not "Ask Lucy" or "Ask Dora". Unused `Page` and `LinkButton` helpers (only the separate pages used them) are gone.
+  - **Docs:** ADR-015 records the decision. ADR-013, the WP-20 backlog row and the WP-19 to WP-21 entries now describe panels and sections, not screens and routes.
+- **Verified:**
+  - **Client:** `tsc` clean. Full Vitest run: 108 files, 616 tests passed. `EngageHub.test.tsx` (12 tests) drives the tabs, the admin-only quick actions, the journey, segment and template flows, and list freshness through the hub. `Customers.test.tsx` (8) drives the list and the customer panel. The surface and layout tests cover the new engage nav and the hub on `/marketing`.
+  - **Playwright (engage stack, 4 tests, passed):** sign in and trace a sent and a blocked message; an old customer link lands on the Lucy page; create a template, a segment and a journey in the UI, then approve and activate; a refused save shows the server's reason on the same page. Run on spare ports 3202 and 3203 with a throwaway database, beside the running preview.
+  - **Browser (engage preview):** `/marketing` shows the hub; `/customers` redirects to `/marketing`; the only API call on load is `/api/engage/profiles`, so no frozen Company-OS endpoint is called. The New journey panel opens and closes with Escape. Checked at phone width and desktop width; the sidebar lists Marketing and Settings only.
+- **Found and fixed:**
+  - The engage Playwright specs and the component tests drove the removed routes; they now drive the hub.
+- **Honest caveats:**
+  - A panel is not a deep link: a customer or a journey cannot be shared by URL yet (ADR-015 names `?panel=` as the follow-up).
+  - The sidebar label stays "Marketing" on engage, although the page now holds the engage work.
+  - The engage browser tests are still not in CI.
+- **Next:** WP-22 (settings: channel accounts, readiness checks, quiet hours, caps, send enabled).
+
 ## 2026-11-10 · WP-21 (journey results: treatment versus holdout with a confidence interval)
 - **Done:**
   - **Results** (`engage/analytics/journeyAnalytics.ts`, `GET /api/engage/journeys/:id/analytics?windowHours=`): enrolments by group and status, message counts (created, by status, held out), conversion (at least one order in the window after entry) and revenue per customer for treatment and holdout.
   - **Maturity:** only customers whose window has ended are counted in the rates.
   - **Statistics** (`engage/analytics/stats.ts`, pure): the difference treatment minus holdout, a 95% interval, "significant" when the interval excludes zero, and the relative uplift.
-  - **Journey page:** a Results panel with a 24 h / 72 h / 7 day window, the result in words, and a table for both groups.
+  - **Journey panel:** a Results section over the Lucy page with a 24 h / 72 h / 7 day window, the result in words, and a table for both groups.
   - ADR-014.
 - **Verified:**
   - **Reconciliation:** an independent computation in the test (enrolments and orders read one by one, with the window and the evaluation moment) gives the same counts, conversions and revenue, for three windows, with orders exactly at the window edges and at entry, and orders after the evaluation moment.
@@ -29,17 +48,17 @@ Append one entry per session: date · session · WP · done · remaining · next
 
 ## 2026-11-10 · WP-20 (journey builder UI: journeys, segments, templates)
 - **Done (client only, over the existing APIs):**
-  - **Engage sidebar:** Journeys, Segments and Templates now appear, on the engage surface only, next to Customers.
+  - **Lucy page (engage hub):** Journeys, Segments and Templates are sections of the engage hub on `/marketing`, next to Customers. (The first version shipped them as sidebar pages; the restructure entry above moved them onto the Lucy page.)
   - **Journeys:**
     - A list shows whether each journey runs and on which version.
-    - A journey page shows each version in words (trigger, stop-early events, holdout, re-entry, steps), with Approve / Activate for drafts and approved versions, and Stop with a confirmation. Admins only; members see why the buttons are missing. Segment journeys also show their scheduled runs.
+    - A journey panel shows each version in words (trigger, stop-early events, holdout, re-entry, steps), with Approve / Activate for drafts and approved versions, and Stop with a confirmation. Admins only; members see why the buttons are missing. Segment journeys also show their scheduled runs.
     - The form editor covers the trigger (event with an optional filter, API, or a scheduled segment with a pinned version), stop-early events, re-entry, holdout and steps (wait, wait for an event with timeout and filter, branch rules, send email from a template list with an optional pinned version, end), with "then go to" targets and reordering.
     - A JSON tab handles anything the form cannot show. Combined conditions open there and are saved unchanged, never dropped.
     - "Check" asks the server without saving. A refused save shows the server's field issues next to the form and keeps what was typed.
   - **Segments:** conditions (all/any of field, operator, value) over order history, consent and attributes, with suggested fields and a JSON tab. "Count" shows how many customers match now, with a few examples, before saving. Versions and per-version counts are shown too.
   - **Templates:** create with a starter that already has the unsubscribe link, versions, and a rendered preview with a sample first name. The preview is in a sandboxed frame: no scripts, no access to the app.
   - **Pure form model** (`client/src/engage/journeyForm.ts`): form ↔ definition, round-trip tested.
-  - **Smaller changes:** `fetchAPI` errors now carry the response body, so forms can show field issues. The engage home links to the new screens.
+  - **Smaller changes:** `fetchAPI` errors now carry the response body, so forms can show field issues. The engage hub links to its sections.
 - **Verified:**
   - **Acceptance, in a browser (Playwright, engage stack):** a tenant admin creates a template (and previews it), creates and counts a segment, builds an event-triggered journey in the form (wait 30 minutes, then the email), checks it, saves it as a draft, approves and activates it, and the list shows it active. A second test shows a refused save with the server's reason. All four engage browser tests pass.
   - **Client:** 612 tests passed (11 builder component tests, 8 form-model tests, surface rules); `tsc` clean. Server full suite 1729 passed, 9 skipped (no server change).
@@ -94,7 +113,7 @@ Append one entry per session: date · session · WP · done · remaining · next
   - **Server** (`engage/profileTrail.ts`, read only, tenant context):
     - `GET /api/engage/profiles`: newest first; keyset cursor; `q` is an email (any address the customer ever had) or the start of a customer ID, with `%` and `_` taken literally.
     - `GET /api/engage/profiles/:id/trail`: messages with delivery events and every send-gate decision, each decision with the consent record in force when it was taken (the newest ledger row for that channel at or before the decision); journeys step by step, with cohort and how they ended; consent history; suppressions of every address the customer ever had; addresses with history; recent events.
-  - **Client** (`client/src/engage/`): a **Customers** item in the engage sidebar; a list (search, consent/suppressed/erased badges, load more) and a detail page (messages with decisions in words and the consent in force, journeys, consent history, suppressions, addresses, events). The engage home links to it. On the Company-OS workspace the item and its paths stay hidden, because the engage API is not mounted there.
+  - **Client** (`client/src/engage/`): a **Customers** section of the engage hub on the Lucy page; a list (search, consent/suppressed/erased badges, load more) and a detail panel (messages with decisions in words and the consent in force, journeys, consent history, suppressions, addresses, events). On the Company-OS workspace the hub is not shown, because the engage API is not mounted there.
 - **Verified:**
   - Server full suite: 1695 passed, 9 skipped, three runs in a row on fresh databases (121–135 s, down from 150–250 s).
   - Client: 591 tests passed; `tsc` clean on both.

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import {
   activateVersion, approveVersion, getJourney, listJourneys, listSegmentRuns, stopJourney, type JourneyVersion,
@@ -8,26 +7,29 @@ import {
 import { JourneyEditor } from './JourneyEditor';
 import { JourneyResults } from './JourneyResults';
 import { definitionToForm, describeStep } from './journeyForm';
-import { Button, Card, Empty, ErrorLine, LinkButton, Page, StatusBadge, formatTime } from './ui';
+import { Button, Card, Empty, ErrorLine, StatusBadge, formatTime } from './ui';
 
 /**
- * Journeys (WP-20): list, a journey's versions with approve / activate / stop, and the editor for a new journey or a
- * new version. Routes by path: /journeys, /journeys/new, /journeys/:id, /journeys/:id/edit?from=<version>.
+ * Journeys inside the Lucy hub (WP-20): the list is a section of the page, and a journey, its results, its versions and
+ * the editor open in panels over it. Nothing here is a page of its own.
  */
 
-/** A change to a journey changes its page and the list (running or not). */
-const refreshJourney = (qc: ReturnType<typeof useQueryClient>, id: string) => Promise.all([
-  qc.invalidateQueries({ queryKey: ['engage', 'journey', id] }), qc.invalidateQueries({ queryKey: ['engage', 'journeys'] }),
+const refresh = (qc: ReturnType<typeof useQueryClient>, id?: string) => Promise.all([
+  qc.invalidateQueries({ queryKey: ['engage', 'journeys'] }),
+  ...(id ? [qc.invalidateQueries({ queryKey: ['engage', 'journey', id] })] : []),
 ]);
 
-function JourneyList(): JSX.Element {
+export function JourneysSection({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }): JSX.Element {
   const q = useQuery({ queryKey: ['engage', 'journeys'], queryFn: listJourneys });
   return (
-    <Page title="Journeys" testId="engage-journeys" actions={<LinkButton to="/journeys/new" kind="primary">New journey</LinkButton>}>
-      <p className="text-sm text-app-muted">Automated sequences: a trigger, waits, conditions and emails. Each change is a new version that an admin approves.</p>
+    <div data-testid="hub-journeys">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-app-muted">Automated sequences: a trigger, waits, conditions and emails. Each change is a new version that an admin approves.</p>
+        <Button kind="primary" onClick={onNew} testId="new-journey">New journey</Button>
+      </div>
       {q.isPending && <p className="mt-4 text-sm text-app-muted">Loading…</p>}
       <ErrorLine error={q.error} />
-      {q.data && q.data.length === 0 && <Empty>No journeys yet. Start with <Link to="/journeys/new" className="underline">a new journey</Link>.</Empty>}
+      {q.data && q.data.length === 0 && <Empty>No journeys yet.</Empty>}
       {q.data && q.data.length > 0 && (
         <div className="mt-4 overflow-x-auto rounded-md border border-app">
           <table className="w-full text-left text-sm">
@@ -37,9 +39,15 @@ function JourneyList(): JSX.Element {
             <tbody>
               {q.data.map((j) => (
                 <tr key={j.id} className="border-t border-app hover:bg-app-muted/10">
-                  <td className="px-3 py-2"><Link to={`/journeys/${j.id}`} className="font-medium text-app hover:underline">{j.name}</Link></td>
+                  <td className="px-3 py-2">
+                    <button type="button" onClick={() => onOpen(j.id)} className="font-medium text-app hover:underline">{j.name}</button>
+                  </td>
                   <td className="px-3 py-2 font-mono text-xs text-app-muted">{j.key}</td>
-                  <td className="px-3 py-2">{j.activeVersion ? <StatusBadge status="active" /> : <span className="text-xs text-app-muted">not running (latest v{j.latestVersion})</span>}{j.activeVersion ? <span className="ml-2 text-xs text-app-muted">v{j.activeVersion}</span> : null}</td>
+                  <td className="px-3 py-2">
+                    {j.activeVersion
+                      ? <><StatusBadge status="active" /> <span className="ml-2 text-xs text-app-muted">v{j.activeVersion}</span></>
+                      : <span className="text-xs text-app-muted">not running (latest v{j.latestVersion})</span>}
+                  </td>
                   <td className="hidden px-3 py-2 text-app-muted sm:table-cell">{formatTime(j.createdAt)}</td>
                 </tr>
               ))}
@@ -47,16 +55,16 @@ function JourneyList(): JSX.Element {
           </table>
         </div>
       )}
-    </Page>
+    </div>
   );
 }
 
-function VersionCard({ journeyId, v, isAdmin }: { journeyId: string; v: JourneyVersion; isAdmin: boolean }): JSX.Element {
+function VersionCard({ journeyId, v, isAdmin, onNewVersion }: { journeyId: string; v: JourneyVersion; isAdmin: boolean; onNewVersion: (from: number) => void }): JSX.Element {
   const qc = useQueryClient();
   const [open, setOpen] = useState(v.status !== 'retired');
   const act = useMutation({
     mutationFn: (what: 'approve' | 'activate') => (what === 'approve' ? approveVersion(journeyId, v.version) : activateVersion(journeyId, v.version)),
-    onSuccess: () => refreshJourney(qc, journeyId),
+    onSuccess: () => refresh(qc, journeyId),
   });
   const form = definitionToForm(v.definition);
   const t = (v.definition.trigger ?? {}) as Record<string, unknown>;
@@ -70,7 +78,7 @@ function VersionCard({ journeyId, v, isAdmin }: { journeyId: string; v: JourneyV
         <div className="flex flex-wrap gap-2">
           {isAdmin && v.status === 'draft' && <Button kind="primary" onClick={() => act.mutate('approve')} disabled={act.isPending} testId={`approve-${v.version}`}>Approve</Button>}
           {isAdmin && v.status === 'approved' && <Button kind="primary" onClick={() => act.mutate('activate')} disabled={act.isPending} testId={`activate-${v.version}`}>Activate</Button>}
-          <LinkButton to={`/journeys/${journeyId}/edit?from=${v.version}`}>New version from this</LinkButton>
+          <Button onClick={() => onNewVersion(v.version)}>New version from this</Button>
           <Button onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'}</Button>
         </div>
       </div>
@@ -122,62 +130,54 @@ function SegmentRuns({ journeyId }: { journeyId: string }): JSX.Element {
   );
 }
 
-function JourneyDetail({ id }: { id: string }): JSX.Element {
+/** A journey: its status, versions with approve / activate / stop, results and scheduled runs. Shown in a panel. */
+export function JourneyPanel({ id, onNewVersion }: { id: string; onNewVersion: (from: number) => void }): JSX.Element {
   const qc = useQueryClient();
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const q = useQuery({ queryKey: ['engage', 'journey', id], queryFn: () => getJourney(id) });
-  const stop = useMutation({ mutationFn: () => stopJourney(id), onSuccess: () => refreshJourney(qc, id) });
+  const stop = useMutation({ mutationFn: () => stopJourney(id), onSuccess: () => refresh(qc, id) });
   const [confirming, setConfirming] = useState(false);
-  if (q.isPending) return <Page title="Journey" back={{ to: '/journeys', label: 'Journeys' }}><p className="text-sm text-app-muted">Loading…</p></Page>;
-  if (q.error || !q.data) return <Page title="Journey" back={{ to: '/journeys', label: 'Journeys' }}><ErrorLine error={q.error ?? new Error('Not found')} /></Page>;
+  if (q.isPending) return <p className="text-sm text-app-muted">Loading…</p>;
+  if (q.error || !q.data) return <ErrorLine error={q.error ?? new Error('Not found')} />;
   const { journey, versions } = q.data;
   const active = versions.find((v) => v.status === 'active');
   const isSegment = versions.some((v) => (v.definition.trigger as { type?: string } | undefined)?.type === 'segment');
   return (
-    <Page title={journey.name} back={{ to: '/journeys', label: 'Journeys' }} testId="engage-journey"
-      actions={<>
-        <LinkButton to={`/journeys/${id}/edit?from=${versions[0]?.version ?? 1}`}>New version</LinkButton>
-        {isAdmin && active && (confirming
-          ? <><Button kind="danger" onClick={() => { stop.mutate(); setConfirming(false); }} testId="confirm-stop">Yes, stop it</Button><Button onClick={() => setConfirming(false)}>Cancel</Button></>
-          : <Button kind="danger" onClick={() => setConfirming(true)} testId="stop-journey">Stop journey</Button>)}
-      </>}>
-      <p className="text-sm text-app-muted">
-        Key <code className="font-mono">{journey.key}</code> · {active ? `running version ${active.version}` : 'not running'}
-      </p>
-      {!isAdmin && <p className="mt-1 text-xs text-app-muted">Only a tenant admin can approve, activate or stop a journey.</p>}
+    <div className="space-y-4" data-testid="engage-journey">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-app-muted">
+          Key <code className="font-mono">{journey.key}</code> · {active ? `running version ${active.version}` : 'not running'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => onNewVersion(versions[0]?.version ?? 1)}>New version</Button>
+          {isAdmin && active && (confirming
+            ? <><Button kind="danger" onClick={() => { stop.mutate(); setConfirming(false); }} testId="confirm-stop">Yes, stop it</Button><Button onClick={() => setConfirming(false)}>Cancel</Button></>
+            : <Button kind="danger" onClick={() => setConfirming(true)} testId="stop-journey">Stop journey</Button>)}
+        </div>
+      </div>
+      {!isAdmin && <p className="text-xs text-app-muted">Only a tenant admin can approve, activate or stop a journey.</p>}
       <ErrorLine error={stop.error} />
-      {confirming && <p className="mt-2 text-sm text-amber-700">Stopping ends the journey for everyone in it now. To run it again, publish and approve a new version.</p>}
-      <Card title="Versions">
-        <ul className="space-y-3">{versions.map((v) => <VersionCard key={v.id} journeyId={id} v={v} isAdmin={isAdmin} />)}</ul>
-      </Card>
+      {confirming && <p className="text-sm text-amber-700">Stopping ends the journey for everyone in it now. To run it again, publish and approve a new version.</p>}
       <JourneyResults journeyId={id} />
+      <Card title="Versions">
+        <ul className="space-y-3">{versions.map((v) => <VersionCard key={v.id} journeyId={id} v={v} isAdmin={isAdmin} onNewVersion={onNewVersion} />)}</ul>
+      </Card>
       {isSegment && <SegmentRuns journeyId={id} />}
-    </Page>
+    </div>
   );
 }
 
-function JourneyNewVersion({ id }: { id: string }): JSX.Element {
-  const { search } = useLocation();
-  const from = Number(new URLSearchParams(search).get('from') ?? '');
-  const q = useQuery({ queryKey: ['engage', 'journey', id], queryFn: () => getJourney(id) });
-  if (!q.data) return <Page title="New version" back={{ to: `/journeys/${id}`, label: 'Journey' }}>{q.error ? <ErrorLine error={q.error} /> : <p className="text-sm text-app-muted">Loading…</p>}</Page>;
+/** The editor for a new journey, or a new version of an existing one (starting from `from`). */
+export function JourneyEditPanel({ journeyId, from, onSaved }: { journeyId?: string; from?: number; onSaved: (id: string) => void }): JSX.Element {
+  const q = useQuery({ queryKey: ['engage', 'journey', journeyId], queryFn: () => getJourney(journeyId!), enabled: Boolean(journeyId) });
+  if (!journeyId) return <JourneyEditor target={{ kind: 'create' }} onSaved={onSaved} />;
+  if (!q.data) return q.error ? <ErrorLine error={q.error} /> : <p className="text-sm text-app-muted">Loading…</p>;
   const base = q.data.versions.find((v) => v.version === from) ?? q.data.versions[0];
   return (
-    <Page title={`New version of ${q.data.journey.name}`} back={{ to: `/journeys/${id}`, label: q.data.journey.name }}>
-      <p className="mb-3 text-sm text-app-muted">Starting from version {base?.version}. The running version keeps running until a new one is activated.</p>
-      <JourneyEditor key={`${id}-${base?.version}`} target={{ kind: 'version', journeyId: id, journeyName: q.data.journey.name }} initialDefinition={base?.definition} />
-    </Page>
+    <div className="space-y-3">
+      <p className="text-sm text-app-muted">Starting from version {base?.version}. The running version keeps running until a new one is activated.</p>
+      <JourneyEditor key={`${journeyId}-${base?.version}`} target={{ kind: 'version', journeyId, journeyName: q.data.journey.name }}
+        initialDefinition={base?.definition} onSaved={onSaved} />
+    </div>
   );
-}
-
-export function JourneysView(): JSX.Element {
-  const { pathname } = useLocation();
-  if (pathname === '/journeys/new') {
-    return <Page title="New journey" back={{ to: '/journeys', label: 'Journeys' }}><JourneyEditor target={{ kind: 'create' }} /></Page>;
-  }
-  const edit = /^\/journeys\/([^/]+)\/edit\/?$/.exec(pathname);
-  if (edit) return <JourneyNewVersion id={decodeURIComponent(edit[1]!)} />;
-  const detail = /^\/journeys\/([^/]+)\/?$/.exec(pathname);
-  if (detail) return <JourneyDetail key={detail[1]} id={decodeURIComponent(detail[1]!)} />;
-  return <JourneyList />;
 }
