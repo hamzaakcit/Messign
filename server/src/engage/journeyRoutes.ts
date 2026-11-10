@@ -6,6 +6,7 @@ import {
   activateJourneyVersion, addJourneyVersion, approveJourneyVersion, checkJourneyDefinition, createJourney, deactivateJourney,
   getJourney, listJourneys,
 } from './journeys/journeys.js';
+import { listSegmentRuns } from './segments/runs.js';
 import './types.js';
 
 /**
@@ -31,6 +32,14 @@ journeyRouter.get('/', requireEngageUser, async (req, res) => {
 
 journeyRouter.post('/validate', requireEngageUser, async (req, res) => {
   try { res.json(await checkJourneyDefinition(req.engageUser!.organizationId, body(req.body).definition)); } catch (err) { fail(res, err); }
+});
+
+/** Scheduled segment runs of a journey (WP-36), newest first. */
+journeyRouter.get('/:id/segment-runs', requireEngageUser, async (req, res) => {
+  try {
+    await getJourney(req.engageUser!.organizationId, req.params.id!); // 404 for another tenant's or a made-up id
+    res.json({ runs: await listSegmentRuns(req.engageUser!.organizationId, req.params.id!) });
+  } catch (err) { fail(res, err); }
 });
 
 journeyRouter.get('/:id', requireEngageUser, async (req, res) => {

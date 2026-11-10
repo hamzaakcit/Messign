@@ -2,6 +2,41 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · WP-36 (rule-based segments and the scheduled segment trigger)
+- **Done:**
+  - **Migration `124_engage_segments.sql`:** segments with immutable versions, and a run table with one row per (journey, slot). The migration also adds the segment enrollment kind and a fourth id-only definer list for the scheduler.
+  - **Segment definition** (`engage/segments/`): one condition tree over `attributes.*`, order history (`orders.count`, 30/90/365-day counts, spend, days since the last and first order) and `consent.email`. Customers are never in a segment once erased.
+  - **Compiler:** a pure compiler turns a definition into SQL. Every value and attribute name is a bound parameter.
+  - **Journey trigger `segment`:** `{segment, segment_version, every_days, at_local_time}`. The journey pins a segment version, so changing the audience means a new, approved journey version.
+  - **Schedule:** runs every N days at the tenant's local time, counted from activation. The first run is never at once, and only the latest due slot runs.
+  - **Claim and resume:** a run is claimed once per slot and resumes from its cursor after a crash, with exact counts.
+  - **Enrollment key:** `segment:<slot>:<customer>`, so each customer is enrolled once per run.
+  - **Cap:** at most 100,000 customers per run.
+  - **API:** `/api/engage/segments` (list, read, create, versions, preview, count) and `GET /api/engage/journeys/:id/segment-runs`.
+  - **Refactor:** enrolling moved to `journeys/enroll.ts` and is shared by events, the API and runs.
+  - ADR-013.
+- **Verified:**
+  - **Parity:** the SQL gives the same answers as the journey condition evaluator on 259 conditions over 32 customers with awkward values (wrong types, nulls, arrays, empty strings, `%`, quotes), with guards against a vacuous comparison.
+  - **Acceptance, counts:** counts match independently written SQL for 22 definitions: order counts and windows, spend, recency, consent, attributes, erased customers, orders after the evaluation time.
+  - **Acceptance, runs:**
+    - A run enrolls exactly the members once.
+    - The same run again, and 6 concurrent runs, change nothing.
+    - An interrupted run resumes with exact counts.
+    - The second slot enrolls again only under re-entry `after_exit`, and never while a customer is still in the journey.
+    - The cap reports `truncated` only when more matched.
+    - The schedule is exact, including a New York daylight-saving day.
+    - A segment journey sends to the members only.
+  - **Suite:** server full suite 1729 passed, 9 skipped, two runs in a row on fresh databases; `tsc` clean. Client unchanged.
+  - **Mutation check:** 31 mutants. 24 were caught at once; 7 survived, 5 of them led to sharper tests (fractional days, window edges, spend, schedule edges, a journey stopped mid-run) and are caught. 2 remain, neither a behaviour difference: a chunk-level row lock that only matters once a claim outlives its ten-minute lease, and a cap check the next loop turn repeats.
+- **Honest caveats:**
+  - No UI (WP-20): segments and journeys are created through the API.
+  - Evaluation scans the tenant's order events once per run and per count (fine for tens of thousands of customers; a per-customer order summary is the next step).
+  - `product_ids` are stored but not queryable yet (no "bought a book by this author" segments).
+  - Nothing was run on production data, and no mail was sent: the gate, consent and sandbox allow-list apply as for any journey.
+  - **Found by the repeated suite runs (migration `125_engage_fk_indexes.sql`):** deleting the 100,000-customer test tenant took minutes once other tenants had enrollments, because the foreign keys to customers, messages and journey versions had no full index (only partial ones, which a foreign-key check cannot use), so each deleted row scanned the child table. The migration adds the indexes (`enrollments` by customer and by version, `enrollment_steps` by message, `segment_runs` by versions). The customer trail (WP-19) and the segment runs look enrollments up by customer, so they gain too. A schema guard test now fails if a foreign key to those parents lacks one. The 100k teardown also has a 240 s allowance.
+- **For you:** after merging, run `npm run db:migrate` on production (migrations 124 and 125; the indexes build in moments on today's data).
+- **Next:** WP-20 (journey builder UI, form-based; segments get a screen with it), then WP-21 (analytics vs holdout).
+
 ## 2026-11-09 · WP-19 (engage customers: list and audit trail)
 - **Done:**
   - **Server** (`engage/profileTrail.ts`, read only, tenant context):

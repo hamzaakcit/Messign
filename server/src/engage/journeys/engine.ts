@@ -1,11 +1,15 @@
-import { createHash, randomInt } from 'crypto';
+import { createHash } from 'crypto';
 import { withEngageScheduler, withEngageTenant } from '../db.js';
 import { errorFields, logError } from '../log.js';
 import { canonical } from '../messaging/messages.js';
 import { upsertProfileOn } from '../profiles.js';
 import { createTemplatedMessageOn } from '../templates/templates.js';
 import { matches, type ConditionContext } from './conditions.js';
-import { DEFAULT_HOLDOUT_PERCENT, defaultNext, type JourneyDefinition, type JourneyStep } from './definition.js';
+import { defaultNext, type JourneyDefinition, type JourneyStep } from './definition.js';
+import { enroll } from './enroll.js';
+import { runSegmentSchedule } from '../segments/runs.js';
+
+export { drawCohort } from './enroll.js';
 
 /**
  * The journey executor (WP-16, ADR-012). The database is the truth; pg-boss only wakes the executor up.
@@ -41,39 +45,6 @@ const MAX_EVENTS_SCANNED = 500;
 
 export class JourneyTriggerError extends Error {
   constructor(message: string, public readonly code: 'not_found' | 'profile_not_found' | 'not_api_triggered' | 'key_reused') { super(message); }
-}
-
-interface EnrollInput {
-  journeyId: string; versionId: string; profileId: string; kind: 'event' | 'api'; key: string;
-  requestHash: string | null; payload: Record<string, unknown>; enteredAt: Date; definition: JourneyDefinition; now: Date;
-}
-type EnrollOutcome = { id: string } | { refused: 'already_in_journey' | 're_entry_not_allowed' };
-
-/** treatment or holdout, drawn once per enrollment. */
-export function drawCohort(holdoutPercent: number, draw: (max: number) => number = (max) => randomInt(max)): 'treatment' | 'holdout' {
-  return draw(10_000) < Math.round(holdoutPercent * 100) ? 'holdout' : 'treatment';
-}
-
-/**
- * Inserts an enrollment unless one exists for this trigger key, the profile is already in the journey, or the
- * journey's re-entry rule refuses it. The lock per (journey, profile) makes the re-entry check and the insert one step.
- */
-async function enroll(c: Tx, orgId: string, e: EnrollInput): Promise<EnrollOutcome> {
-  await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`engage-enroll:${orgId}:${e.journeyId}:${e.profileId}`]);
-  const prior = (await c.query<{ active: boolean }>(
-    `SELECT bool_or(status = 'active') AS active FROM engage.enrollments WHERE organization_id = $1 AND journey_id = $2 AND profile_id = $3`,
-    [orgId, e.journeyId, e.profileId])).rows[0]?.active;
-  if (prior === true) return { refused: 'already_in_journey' };
-  if (prior === false && (e.definition.re_entry ?? 'never') === 'never') return { refused: 're_entry_not_allowed' };
-  const cohort = drawCohort(e.definition.holdout_percent ?? DEFAULT_HOLDOUT_PERCENT);
-  const r = await c.query<{ id: string }>(
-    `INSERT INTO engage.enrollments (organization_id, journey_id, journey_version_id, profile_id, trigger_kind, trigger_key,
-       request_hash, payload, entered_at, current_step, next_run_at, cohort)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12)
-     ON CONFLICT DO NOTHING RETURNING id`,
-    [orgId, e.journeyId, e.versionId, e.profileId, e.kind, e.key, e.requestHash, JSON.stringify(e.payload), e.enteredAt,
-      e.definition.steps[0]!.id, e.now, cohort]);
-  return r.rows[0] ? { id: r.rows[0].id } : { refused: 'already_in_journey' };
 }
 
 const ACTIVE_VERSION = `v.activated_at IS NOT NULL AND v.deactivated_at IS NULL`;
@@ -365,7 +336,7 @@ async function createStepMessage(c: Tx, orgId: string, e: EnrollmentRow, step: M
 // The tick: find work across tenants (ids only), do each piece in its tenant
 // ---------------------------------------------------------------------------------------------------------------
 
-export interface TickSummary { triggers: number; enrolled: number; runs: number; errors: number }
+export interface TickSummary { triggers: number; enrolled: number; runs: number; segmentRuns: number; errors: number }
 export interface TickOptions {
   now?: () => Date; batch?: number; budgetMs?: number;
   /** Only these tenants (tests and tools on their own tenants). The scheduled tick passes nothing: every tenant. */
@@ -382,7 +353,7 @@ export async function runJourneyTick(opts: TickOptions = {}): Promise<TickSummar
   const clock = opts.now ?? (() => new Date());
   const batch = opts.batch ?? 200;
   const stopAt = Date.now() + (opts.budgetMs ?? 45_000);
-  const summary: TickSummary = { triggers: 0, enrolled: 0, runs: 0, errors: 0 };
+  const summary: TickSummary = { triggers: 0, enrolled: 0, runs: 0, segmentRuns: 0, errors: 0 };
 
   for (;;) {
     const work = (await withEngageScheduler((c) => c.query<{ organization_id: string; outbox_id: string }>(
@@ -398,6 +369,19 @@ export async function runJourneyTick(opts: TickOptions = {}): Promise<TickSummar
       }
     }
     if (work.length < batch || progressed === 0 || Date.now() > stopAt) break;
+  }
+
+  // Scheduled segment runs enroll before the due enrollments are run, so a new enrollment can start in this tick.
+  const segmentWork = (await withEngageScheduler((c) => c.query<{ organization_id: string; journey_id: string }>(
+    'SELECT organization_id, journey_id FROM engage.due_segment_work($1::uuid[])', [opts.onlyOrganizations ?? null]))).rows;
+  for (const w of segmentWork) {
+    try {
+      const r = await runSegmentSchedule(w.organization_id, w.journey_id, clock());
+      if (r.status === 'done' || r.status === 'failed') { summary.segmentRuns++; summary.enrolled += r.enrolled; }
+    } catch (err) {
+      summary.errors++;
+      logError('segment run failed', { organizationId: w.organization_id, journeyId: w.journey_id, ...errorFields(err) });
+    }
   }
 
   for (;;) {
@@ -427,7 +411,7 @@ async function inParallel<T>(items: readonly T[], concurrency: number, fn: (item
   await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, worker));
 }
 
-export interface TenantTickSummary { triggers: number; enrolled: number; runs: number }
+export interface TenantTickSummary { triggers: number; enrolled: number; runs: number; segmentRuns: number }
 
 /**
  * One tick for ONE tenant, inside its own tenant context (no work lists across tenants), for tools that drive a
@@ -436,7 +420,7 @@ export interface TenantTickSummary { triggers: number; enrolled: number; runs: n
  */
 export async function runTenantTick(orgId: string, now: Date, opts: { concurrency?: number } = {}): Promise<TenantTickSummary> {
   const concurrency = opts.concurrency ?? 4;
-  const summary: TenantTickSummary = { triggers: 0, enrolled: 0, runs: 0 };
+  const summary: TenantTickSummary = { triggers: 0, enrolled: 0, runs: 0, segmentRuns: 0 };
   for (let round = 0; round < 1000; round++) {
     const ids = (await withEngageTenant(orgId, (c) => c.query<{ id: string }>(
       `SELECT id FROM engage.trigger_outbox WHERE organization_id = $1 AND status = 'pending' ORDER BY id LIMIT 500`, [orgId]))).rows.map((r) => String(r.id));
@@ -447,6 +431,13 @@ export async function runTenantTick(orgId: string, now: Date, opts: { concurrenc
       if (r.status !== 'skipped') { progressed++; summary.triggers++; summary.enrolled += r.enrolled; }
     });
     if (!progressed) break;
+  }
+  const journeys = (await withEngageTenant(orgId, (c) => c.query<{ journey_id: string }>(
+    `SELECT journey_id FROM engage.journey_versions WHERE organization_id = $1 AND activated_at IS NOT NULL AND deactivated_at IS NULL
+        AND definition->'trigger'->>'type' = 'segment'`, [orgId]))).rows;
+  for (const j of journeys) {
+    const r = await runSegmentSchedule(orgId, j.journey_id, now);
+    if (r.status === 'done' || r.status === 'failed') { summary.segmentRuns++; summary.enrolled += r.enrolled; }
   }
   for (let round = 0; round < 1000; round++) {
     const ids = (await withEngageTenant(orgId, (c) => c.query<{ id: string }>(
