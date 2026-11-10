@@ -4,7 +4,8 @@ import { z } from 'zod';
  * Journey definition, schema version 1 (WP-15, target-state D). Pure: no database. The service checks what needs the
  * database (that referenced templates exist); everything else is checked here, before a version is stored.
  *
- *   trigger    event {event, filter?} | api | date_attribute {attribute, offset_days, at_local_time}
+ *   trigger    event {event, filter?} | api | date_attribute {attribute, offset_days, at_local_time} |
+ *              segment {segment, segment_version, every_days, at_local_time} (scheduled, WP-36)
  *   exit_when  events that end an enrollment early (for example order_completed for cart abandonment)
  *   re_entry   never (a profile enters once) | after_exit (again once its previous enrollment has ended)
  *   holdout_percent  share of enrollments that run every step but get no message (default 10, D-11)
@@ -51,6 +52,14 @@ const condition: z.ZodType<Condition> = z.lazy(() => z.union([
 const trigger = z.discriminatedUnion('type', [
   z.object({ type: z.literal('event'), event: eventName, filter: condition.optional() }).strict(),
   z.object({ type: z.literal('api') }).strict(),
+  // A scheduled run over a segment (WP-36): every N days at a local time of the tenant, the customers in the pinned
+  // segment version are enrolled once per run. The version is pinned so the audience changes only with a new, approved
+  // journey version.
+  z.object({
+    type: z.literal('segment'), segment: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/, 'must be a segment key'),
+    segment_version: z.number().int().min(1).max(100000),
+    every_days: z.number().int().min(1).max(365), at_local_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'must be HH:MM'),
+  }).strict(),
   z.object({
     type: z.literal('date_attribute'), attribute: attributeName,
     offset_days: z.number().int().min(-365).max(365),
@@ -88,8 +97,9 @@ export type JourneyDefinition = z.infer<typeof definitionSchema>;
 export type JourneyStep = JourneyDefinition['steps'][number];
 export interface DefinitionIssue { path: string; message: string }
 export interface TemplateRef { key: string; version: number | null; stepId: string }
+export interface SegmentRef { key: string; version: number }
 export type DefinitionResult =
-  | { ok: true; definition: JourneyDefinition; templates: TemplateRef[] }
+  | { ok: true; definition: JourneyDefinition; templates: TemplateRef[]; segments: SegmentRef[] }
   | { ok: false; errors: DefinitionIssue[] };
 
 const pathOf = (p: Array<string | number>) => p.map((x) => (typeof x === 'number' ? `[${x}]` : `.${x}`)).join('').replace(/^\./, '') || '(root)';
@@ -166,5 +176,6 @@ export function validateDefinition(input: unknown): DefinitionResult {
   if (errors.length) return { ok: false, errors };
 
   const templates = d.steps.flatMap((s) => (s.type === 'message' ? [{ key: s.template, version: s.template_version ?? null, stepId: s.id }] : []));
-  return { ok: true, definition: d, templates };
+  const segments = d.trigger.type === 'segment' ? [{ key: d.trigger.segment, version: d.trigger.segment_version }] : [];
+  return { ok: true, definition: d, templates, segments };
 }

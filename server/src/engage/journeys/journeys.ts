@@ -1,5 +1,5 @@
 import { withEngageTenant } from '../db.js';
-import { validateDefinition, type DefinitionIssue, type JourneyDefinition, type TemplateRef } from './definition.js';
+import { validateDefinition, type DefinitionIssue, type JourneyDefinition, type SegmentRef, type TemplateRef } from './definition.js';
 
 /**
  * Journeys (WP-15): definitions, immutable versions, approval and activation. A version moves
@@ -48,7 +48,20 @@ async function checkDefinition(c: Tx, orgId: string, input: unknown): Promise<Jo
   if (!v.ok) throw new JourneyInputError('The journey definition is not valid', v.errors);
   const missing = await missingTemplates(c, orgId, v.templates);
   if (missing.length) throw new JourneyInputError('The journey uses templates that do not exist', missing);
+  const noSegments = await missingSegments(c, orgId, v.segments);
+  if (noSegments.length) throw new JourneyInputError('The journey uses a segment that does not exist', noSegments);
   return v.definition;
+}
+
+async function missingSegments(c: Tx, orgId: string, refs: SegmentRef[]): Promise<DefinitionIssue[]> {
+  const issues: DefinitionIssue[] = [];
+  for (const ref of refs) {
+    const r = await c.query(
+      `SELECT 1 FROM engage.segments s JOIN engage.segment_versions v ON v.organization_id = s.organization_id AND v.segment_id = s.id
+        WHERE s.organization_id = $1 AND s.key = $2 AND v.version = $3`, [orgId, ref.key, ref.version]);
+    if (!r.rowCount) issues.push({ path: 'trigger.segment', message: `no segment "${ref.key}" version ${ref.version}` });
+  }
+  return issues;
 }
 
 async function missingTemplates(c: Tx, orgId: string, refs: TemplateRef[]): Promise<DefinitionIssue[]> {

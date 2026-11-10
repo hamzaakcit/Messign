@@ -10,6 +10,7 @@ import {
 } from './bootstrap/provisionOrganization.js';
 import { credentialRouter } from './credentialRoutes.js';
 import { profileRouter } from './profileRoutes.js';
+import { segmentRouter } from './segmentRoutes.js';
 import { v1Router } from './v1Routes.js';
 import { importRouter } from './import/importRoutes.js';
 import { webhookRouter } from './webhookRoutes.js';
@@ -30,6 +31,7 @@ engageRouter.use('/webhooks', webhookRouter);
 engageRouter.use('/unsubscribe', unsubscribeRouter);
 engageRouter.use('/templates', templateRouter);
 engageRouter.use('/journeys', journeyRouter);
+engageRouter.use('/segments', segmentRouter);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;

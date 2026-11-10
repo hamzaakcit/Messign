@@ -84,6 +84,7 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
         { proname: 'claim_message', result: 'boolean' }, // claims one message of the given tenant
         { proname: 'due_enrollment_work', result: 'TABLE(organization_id uuid, enrollment_id uuid)' }, // migration 121: ids only
         { proname: 'due_message_work', result: 'TABLE(organization_id uuid, message_id uuid)' }, // migration 122: ids only
+        { proname: 'due_segment_work', result: 'TABLE(organization_id uuid, journey_id uuid)' }, // migration 124: ids only
         { proname: 'ensure_event_partition', result: 'void' }, // migration 114: creates event partitions only
         { proname: 'lookup_user', result: 'TABLE(user_id uuid, role text, organization_id uuid, org_slug text, org_product text)' }, // migration 111: sign-in lookup
         { proname: 'pending_trigger_work', result: 'TABLE(organization_id uuid, outbox_id bigint)' }, // migration 121: ids only
