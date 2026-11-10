@@ -2,6 +2,20 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-10 · Add one customer by hand (Customers page)
+- **Done:**
+  - **Add customer** on the Customers section, admins only (`NewCustomerPanel`): customer ID (required), email, phone, and a "This customer agreed to receive marketing email" checkbox. Ticking it requires the email address and a note of where the customer agreed; the note is kept as the consent's evidence.
+  - **Server:** `POST /api/engage/profiles` (admins; `requireEngageAdmin`), in `customerEntry.ts`. It reuses the ingestion API's profile and consent writes, so a hand-added customer behaves like one sent by a store. 201 on create; 400 with the reason or field issues; 409 when the customer ID or the email already belongs to another customer, with nothing written.
+- **Verified:**
+  - Server integration tests (real Postgres, HTTP): 8 tests (consent stored with the note as evidence; no consent stored without one; member refused with nothing written; consent without email or without a note refused; repeated ID and shared email refused; missing ID a field error). A mutation that removes the admin guard is caught.
+  - Client: `NewCustomer.test.tsx` (6 tests: admin-only button, save rules, the posted body, opening the customer after save, server refusal shown). A mutation that removes the admin check on the button is caught.
+  - Full suites: server 174 files, 1782 passed, 9 skipped (live services); client 116 files, 669 passed; `tsc` clean on both.
+- **Honest caveats:**
+  - The consent source is recorded as `import` with `evidence.method = manual_entry`; the admin attests the agreement by entering the note. The app does not verify the agreement.
+  - The check for an existing customer ID and the write are two steps, not one transaction, so two admins adding the same ID at the same moment could both get through (the second write merges into the first). Rare; not fixed here.
+  - Editing an existing customer's details is not in this change.
+- **Next:** WP-22 (settings: channel accounts, readiness, quiet hours, caps, send enabled).
+
 ## 2026-11-10 · WP-38 (send one email to a segment now) and ADR-017 (tenants reach engage routes only)
 - **Done:**
   - **Campaigns** (ADR-018, migration `127_engage_campaigns.sql`, `engage/campaigns/campaigns.ts`, `engage/campaignRoutes.ts`): a one-off send is a one-step `api` journey plus an `engage.campaigns` record, so every message still goes through the send gate, the holdout, the results and the customer trail. `POST /api/engage/campaigns` approves and activates the journey as the admin who pressed Send and enrols the audience in chunks (500; at most 100,000). `POST /campaigns/:id/resume` finishes an interrupted send with exact counts.
