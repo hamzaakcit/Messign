@@ -35,7 +35,7 @@ engageRouter.use('/segments', segmentRouter);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;
-  res.json({ organizationId: u.organizationId, userId: u.userId, role: u.role });
+  res.json({ organizationId: u.organizationId, userId: u.userId, role: u.role, product: u.product });
 });
 
 engageRouter.get('/key/me', requireApiKey, (req, res) => {

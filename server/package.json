@@ -32,6 +32,7 @@
     "engage:import": "tsx src/scripts/engageImport.ts",
     "engage:add-account": "tsx src/scripts/engageAddAccount.ts",
     "engage:provision": "tsx src/scripts/engageProvision.ts",
+    "engage:platform": "tsx src/scripts/engagePlatform.ts",
     "engage:send-test": "tsx src/scripts/engageSendTest.ts",
     "engage:synthetic": "tsx src/scripts/engageSynthetic.ts",
     "engage:simulate-carts": "tsx src/scripts/engageSimulateCarts.ts",
