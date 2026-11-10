@@ -7,6 +7,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { redactPII, restorePII, type RedactionMap } from './safety/piiRedactor.js';
+import { meterAiCall, meterAiStream, recordServed } from './metering.js';
 
 export type ModelTier = 'fast' | 'balanced' | 'complex' | 'frontier' | 'vision';
 
@@ -160,6 +161,12 @@ async function callAnthropicDirect(
   };
 
   const response = await client.messages.create(request);
+  recordServed({
+    provider: 'anthropic',
+    model: response.model ?? model,
+    tokensIn: response.usage?.input_tokens,
+    tokensOut: response.usage?.output_tokens,
+  });
 
   // Convert Anthropic response to OpenAI ChatCompletion shape
   // Reverse-map sanitized tool names back to originals (e.g. marketing_product_truth_lookup → marketing:product_truth_lookup)
@@ -333,7 +340,7 @@ export type GatewayResponseWithCache = OpenAI.Chat.Completions.ChatCompletion & 
   _estimatedCostSavingsUsd?: number;
 };
 
-export async function callModelSafe(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
+async function callModelSafeCore(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
   const redactions: RedactionMap[] = [...(options.initialRedactions ?? [])];
   const sanitizedMessages = options.messages.map((msg) => {
     if (msg.role === 'system' && typeof msg.content === 'string') {
@@ -450,6 +457,12 @@ async function callDirectProviders(
           stream: false,
         });
         console.log(`[LLM] ✅ ${tier} → ${provider}/${model} (${Date.now() - startMs}ms)`);
+        recordServed({
+          provider,
+          model,
+          tokensIn: completion.usage?.prompt_tokens,
+          tokensOut: completion.usage?.completion_tokens,
+        });
         if (attemptIndex > 0) {
           _cascadeStats.cascaded++;
           _cascadeStats.failedTiers += attemptIndex;
@@ -500,6 +513,12 @@ async function callDirectProviders(
           stream: false,
         });
         console.log('[Gateway] Text-only fallback succeeded');
+        recordServed({
+          provider: 'groq',
+          model: fallbackModel,
+          tokensIn: completion.usage?.prompt_tokens,
+          tokensOut: completion.usage?.completion_tokens,
+        });
         return {
           ...completion,
           _cacheHit: false,
@@ -518,7 +537,7 @@ async function callDirectProviders(
   throw new Error(`All direct LLM providers failed: ${errorSummary}`);
 }
 
-export async function callModel(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
+async function callModelCore(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
   if (litellmClient) {
     const cacheParams = buildCacheParams(options);
     const body = {
@@ -538,6 +557,12 @@ export async function callModel(options: GatewayCallOptions): Promise<GatewayRes
 
     try {
       const { data: completion, response } = await litellmClient.chat.completions.create(body).withResponse();
+      recordServed({
+        provider: 'litellm',
+        model: completion.model ?? options.tier,
+        tokensIn: completion.usage?.prompt_tokens,
+        tokensOut: completion.usage?.completion_tokens,
+      });
 
       const cacheKeyHeader = response.headers?.get?.('x-litellm-cache-key');
       const cacheHit = !!cacheKeyHeader;
@@ -558,7 +583,7 @@ export async function callModel(options: GatewayCallOptions): Promise<GatewayRes
   return callDirectProviders(options);
 }
 
-export async function* streamModelSafe(options: GatewayCallOptions) {
+async function* streamModelSafeCore(options: GatewayCallOptions) {
   const redactions: RedactionMap[] = [...(options.initialRedactions ?? [])];
   const sanitizedMessages = options.messages.map((msg) => {
     if (msg.role === 'system' && typeof msg.content === 'string') {
@@ -655,6 +680,7 @@ async function* streamDirectProviders(
         for await (const chunk of stream) {
           yield chunk;
         }
+        recordServed({ provider, model });
         return;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -675,7 +701,7 @@ async function* streamDirectProviders(
 }
 
 // Streaming variant for SSE responses
-export async function* streamModel(options: GatewayCallOptions) {
+async function* streamModelCore(options: GatewayCallOptions) {
   if (litellmClient) {
     const cacheParams = buildCacheParams(options);
     try {
@@ -693,6 +719,7 @@ export async function* streamModel(options: GatewayCallOptions) {
       for await (const chunk of stream) {
         yield chunk;
       }
+      recordServed({ provider: 'litellm', model: options.tier });
       return;
     } catch (err) {
       console.warn('[Gateway] LiteLLM stream failed, using direct providers', {
@@ -768,7 +795,7 @@ export async function generateVision(options: {
 }
 
 /** Embeddings — LiteLLM when configured; otherwise OpenAI text-embedding-3-small directly. */
-export async function embedViaGateway(
+async function embedViaGatewayCore(
   texts: string[],
   tenantId: string,
 ): Promise<number[][]> {
@@ -781,6 +808,7 @@ export async function embedViaGateway(
         input: texts,
         dimensions: 1536,
       });
+      recordServed({ provider: 'litellm', model: 'embeddings', tokensIn: response.usage?.prompt_tokens });
       const sorted = (response.data ?? []).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
       return sorted.map((d) => d.embedding);
     } catch (err) {
@@ -803,8 +831,34 @@ export async function embedViaGateway(
     input: texts,
     dimensions: 1536,
   });
+  recordServed({ provider: 'openai', model: 'text-embedding-3-small', tokensIn: response.usage?.prompt_tokens });
   const sorted = (response.data ?? []).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
   return sorted.map((d) => d.embedding);
+}
+
+/* ---------------------------------------------------------------------------------------------------------------
+ * Metered entry points (WP-23). Every call writes one ai_call_telemetry row (see services/ai/metering.ts).
+ * Nested calls (callModelSafe -> callModel, generateText -> callModelSafe) are passthroughs inside the outer row.
+ * --------------------------------------------------------------------------------------------------------------- */
+
+export function callModel(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
+  return meterAiCall({ kind: 'chat', tier: options.tier, tenantId: options.tenantId }, () => callModelCore(options));
+}
+
+export function callModelSafe(options: GatewayCallOptions): Promise<GatewayResponseWithCache> {
+  return meterAiCall({ kind: 'chat', tier: options.tier, tenantId: options.tenantId }, () => callModelSafeCore(options));
+}
+
+export function streamModel(options: GatewayCallOptions): AsyncIterable<OpenAI.ChatCompletionChunk> {
+  return meterAiStream({ kind: 'stream', tier: options.tier, tenantId: options.tenantId }, () => streamModelCore(options));
+}
+
+export function streamModelSafe(options: GatewayCallOptions): AsyncIterable<OpenAI.ChatCompletionChunk> {
+  return meterAiStream({ kind: 'stream', tier: options.tier, tenantId: options.tenantId }, () => streamModelSafeCore(options));
+}
+
+export function embedViaGateway(texts: string[], tenantId: string): Promise<number[][]> {
+  return meterAiCall({ kind: 'embedding', tenantId, fallbackCostUsd: 0.0001 }, () => embedViaGatewayCore(texts, tenantId));
 }
 
 // Complexity classifier: determines which tier to use
