@@ -28,6 +28,13 @@ describe('corsOrigins', () => {
     expect(isOriginAllowed('https://evil.vercel.app')).toBe(false);
   });
 
+  it('development allows the local engage and merged previews (3200, 3300), not other ports', () => {
+    process.env.NODE_ENV = 'development';
+    expect(isOriginAllowed('http://localhost:3300')).toBe(true);
+    expect(isOriginAllowed('http://localhost:3200')).toBe(true);
+    expect(isOriginAllowed('http://localhost:3400')).toBe(false);
+  });
+
   it('getAllowedCorsOrigins includes CLIENT_URL in production', () => {
     process.env.CLIENT_URL = 'https://app.example.com';
     const list = getAllowedCorsOrigins();
