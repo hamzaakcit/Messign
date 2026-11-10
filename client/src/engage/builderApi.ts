@@ -57,3 +57,19 @@ export const createSegment = (input: { key: string; name: string; definition: un
 export const addSegmentVersion = (id: string, definition: unknown) => post<{ version: SegmentVersion }>(`/engage/segments/${encodeURIComponent(id)}/versions`, { definition });
 export const previewSegment = (definition: unknown) => post<SegmentCount>('/engage/segments/preview', { definition });
 export const countSegmentVersion = (id: string, v: number) => call<SegmentCount>(`/engage/segments/${encodeURIComponent(id)}/versions/${v}/count`);
+
+export interface GroupCounts { entered: number; mature: number; active: number; completed: number; exited: number; failed: number }
+export interface GroupConversion { n: number; converted: number; conversionRate: number | null; revenue: number; revenuePerCustomer: number | null }
+export interface JourneyResults {
+  windowHours: number; asOf: string;
+  enrollments: { treatment: GroupCounts; holdout: GroupCounts };
+  conversion: {
+    treatment: GroupConversion; holdout: GroupConversion;
+    uplift: { treatmentRate: number | null; holdoutRate: number | null; difference: number | null; low: number | null; high: number | null; relative: number | null; significant: boolean };
+    revenueDifferencePerCustomer: number | null;
+  };
+  messages: { created: number; byStatus: Record<string, number>; heldOut: number };
+  note: string;
+}
+export const getJourneyResults = (id: string, windowHours: number) =>
+  call<JourneyResults>(`/engage/journeys/${encodeURIComponent(id)}/analytics?windowHours=${windowHours}`);
