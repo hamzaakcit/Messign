@@ -25,6 +25,13 @@ describe('personal-data detector', () => {
     ['a Turkish IBAN', 'IBAN TR33 0006 1005 1978 6457 8413 26', ['iban']],
     ['an 11-digit national id', 'TC 12345678901', ['national_id']],
     ['a Luhn-valid card number', 'kart 4111 1111 1111 1111', ['card_number']],
+    ['an email spelled out with [at] and [dot]', 'ayse [at] example [dot] com', ['email']],
+    ['an email spelled out in words', 'ayse yilmaz at gmail dot com', ['email']],
+    ['an email with a Turkish domain', 'ayse@örnek.com.tr', ['email']],
+    ['a phone with dots between groups', '0 532 . 123 . 45 . 67', ['phone']],
+    ['a phone in full-width digits', '０５３２１２３４５６７', ['phone']],
+    ['an email with a zero-width space inside', 'ayse\u200b@example.com', ['email']],
+    ['a national id typed in groups', '123 456 789 01', ['national_id']],
   ])('flags %s', (_label, text, kinds) => {
     expect(personalDataKinds(text)).toEqual(kinds);
     expect(containsPersonalData(text)).toBe(true);
@@ -41,6 +48,9 @@ describe('personal-data detector', () => {
     'Yeni sezon 2026 kataloğu https://www.example.com/kampanya',
     'Lilyana çiçekleri: 10000 adet stok',
     'Sipariş 1234 hazır',
+    'Kitaplar raflarda; yeni gelenler at the front, dot the i',
+    'Ankara dot com fiyatı 120 TL, 3 kitap at 40 TL',
+    'Kargo 100 000 TL üzeri ücretsiz, 2 gün içinde teslim',
   ])('does not flag ordinary copy: %s', (text) => {
     expect(personalDataKinds(text)).toEqual([]);
   });

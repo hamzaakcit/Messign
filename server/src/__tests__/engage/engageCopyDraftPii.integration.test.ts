@@ -165,10 +165,17 @@ describe.skipIf(!adminUrl)('AI copy drafting: PII-in-prompt test, gatekeepers, a
     expect(notJson.status).toBe(422);
     expect(notJson.json.reasons).toEqual(['output_not_valid']);
 
-    generate.mockRejectedValueOnce(new Error('upstream 500 with secret-looking detail'));
+    const errorLog = vi.spyOn(console, 'error');
+    generate.mockRejectedValueOnce(new Error(`upstream 400 echoing the request: ${BRIEF}`));
     const down = await ask(t, { journeyId: t.journeyId, stepId: 'remind', brief: BRIEF, language: 'tr' });
     expect(down.status).toBe(502);
-    expect(down.text).not.toContain('secret-looking');
+    expect(down.text).not.toContain('upstream');
+    // A provider's error text can echo the request, so the log keeps the error's name and status only.
+    const logged = JSON.stringify(errorLog.mock.calls);
+    expect(logged).toContain('copy draft model call failed');
+    expect(logged).not.toContain('upstream 400');
+    expect(logged).not.toContain('Sepetinde');
+    errorLog.mockRestore();
     expect(await draftCount(t)).toBe(0);
   });
 

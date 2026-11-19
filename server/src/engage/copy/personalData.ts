@@ -14,11 +14,15 @@ import { normalizePhone } from '../profiles.js';
 
 export type PersonalDataKind = 'email' | 'phone' | 'iban' | 'national_id' | 'card_number';
 
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
-const PHONE_CANDIDATE = /(?<![\w+])\+?\d(?:[\s().-]?\d){7,17}(?![\w])/g;
-const IBAN_TR = /\bTR\d{2}(?:\s?\d{4}){5}\s?\d{2}\b/gi;
-const NATIONAL_ID = /(?<!\d)[1-9]\d{10}(?!\d)/g;
+const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}/giu;
+/** "ayse [at] example [dot] com", "ayse at gmail dot com": the spelled-out form people type to avoid a filter. */
+const EMAIL_SPELLED = /[\p{L}\p{N}._%+-]+\s*(?:\[at\]|\(at\)|\sat\s|@)\s*[\p{L}\p{N}-]+(?:\s*(?:\[dot\]|\(dot\)|\sdot\s|\.)\s*[\p{L}\p{N}-]+)*\s*(?:\[dot\]|\(dot\)|\sdot\s)\s*\p{L}{2,}/iu;
+const PHONE_CANDIDATE = /(?<![\w+])\+?\d(?:[\s().-]{0,3}\d){7,20}(?![\w])/g;
+const IBAN_TR = /\bTR\d{2}(?:\s?\d{4}){5}\s?\d{2}\b/i;
+const NATIONAL_ID = /(?<!\d)[1-9]\d{10}(?!\d)/;
 const CARD_CANDIDATE = /(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)/g;
+/** Invisible characters people insert to break a match: zero-width spaces and joiners, byte-order mark, word joiner. */
+const INVISIBLE = /[\u00ad\u200b-\u200d\u2060\ufeff]/g;
 
 function luhnValid(digits: string): boolean {
   let sum = 0;
@@ -33,14 +37,17 @@ function luhnValid(digits: string): boolean {
 }
 
 /** The kinds of personal data present in the text, sorted. An empty list means none of the shapes were found. */
-export function personalDataKinds(text: string): PersonalDataKind[] {
+export function personalDataKinds(raw: string): PersonalDataKind[] {
+  // Full-width digits and letters become ASCII (NFKC); invisible characters are removed before any pattern runs.
+  const text = raw.normalize('NFKC').replace(INVISIBLE, '');
   const kinds = new Set<PersonalDataKind>();
-  if (text.search(EMAIL) >= 0) kinds.add('email');
+  if (text.search(EMAIL) >= 0 || text.search(EMAIL_SPELLED) >= 0) kinds.add('email');
   for (const m of text.matchAll(PHONE_CANDIDATE)) {
     if (normalizePhone(m[0]) !== null) { kinds.add('phone'); break; }
   }
   if (text.search(IBAN_TR) >= 0) kinds.add('iban');
-  if (text.search(NATIONAL_ID) >= 0) kinds.add('national_id');
+  // An 11-digit id may be typed in groups ("123 456 789 01"): look at the digits with separators between them removed.
+  if (text.search(NATIONAL_ID) >= 0 || NATIONAL_ID.test(text.replace(/(?<=\d)[\s.-]+(?=\d)/g, ''))) kinds.add('national_id');
   for (const m of text.matchAll(CARD_CANDIDATE)) {
     const digits = m[0].replace(/[ -]/g, '');
     if (digits.length >= 13 && digits.length <= 19 && luhnValid(digits)) { kinds.add('card_number'); break; }

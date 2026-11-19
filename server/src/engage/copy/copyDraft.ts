@@ -221,7 +221,8 @@ export async function createCopyDraft(orgId: string, userId: string, input: Crea
     });
   } catch (err) {
     if (err instanceof AiBudgetExceededError) throw new CopyDraftBudgetError('The AI budget for this month is used up');
-    logError('copy draft model call failed', errorFields(err));
+    // Name and status only: a provider's error text can echo the request, and the request is what must stay private.
+    logError('copy draft model call failed', { error: err instanceof Error ? err.name : 'non-error thrown', status: (err as { status?: unknown })?.status });
     throw new CopyDraftUnavailableError('Drafting is unavailable right now. Nothing was saved.');
   }
 

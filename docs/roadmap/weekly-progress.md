@@ -10,6 +10,7 @@ Append one entry per session: date · session · WP · done · remaining · next
   - `GET /api/engage/copy-drafts[/:id]` (any engage user, optional `status`), `POST .../:id/approve` (creates the next template version in the same transaction as the decision, through `addTemplateVersionOn`), `POST .../:id/reject`. Approval and rejection happen once (409 after that).
   - `gateway.ts` re-exports `AiBudgetExceededError`, so engage imports the error through the gateway, which the import lint allows.
   - ADR-019 records the decisions.
+  - Deeper pass (same session): the detector now reads text after NFKC normalisation and with invisible characters removed (full-width digits, zero-width spaces); it catches spelled-out emails ("ayse [at] example [dot] com", "ayse at gmail dot com"), Turkish-domain emails, dotted phone groups and national ids typed in groups. A model-call failure logs the error's name and status only, because a provider's error text can echo the request.
 - **Verified:**
   - **PII-in-prompt test** (`engageCopyDraftPii.integration.test.ts`, real Postgres 17 with pgvector, HTTP, model stubbed to record prompts): two customers with names, emails, phones and an address exist; no name, email, phone, address or profile id reaches the system or user prompt, and the brief and event name do. Plus: personal data in the brief refused before any model call; personal data in the reply refused by kind and nothing stored; marketing without the unsubscribe link and transactional with it refused; a non-JSON reply, a model error (502, the error text not echoed) and a budget refusal (402) store nothing; non-admins get 403; approval adds version 2 and the template's latest version carries the drafted subject; a second decision gets 409; a rejected draft never becomes a version; tenant B cannot read, approve or reject tenant A's draft; no message row is created.
   - **Mutations** on the real path, both caught: a profile's attributes added to the prompt (the PII test fails); the brief screen disabled (the brief test fails).
@@ -17,6 +18,7 @@ Append one entry per session: date · session · WP · done · remaining · next
   - Isolation suite and schema-index suite cover `copy_drafts` (seeder registered).
   - Full server suite on a scratch Postgres 17 (port 5499, not the local messign database): 181 files passed, 2 skipped, 1875 tests passed, 9 skipped. Server `tsc` clean. Full client suite: 117 files, 675 passed. Client `tsc` clean.
 - **Not done:**
+  - Number words ("beş üç iki") and other spelled-out digits are not detected.
   - No UI. The API is the queue; a panel on the Lucy page would be a separate package.
   - Names and street addresses typed into the brief are not detected (no reliable shape). The design keeps profile data out of prompts, but the admin must not type customer names into a brief. The PR says so too.
   - Quality of drafted Turkish copy has not been judged; no real model call was made in tests (the model is stubbed).
