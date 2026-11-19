@@ -2,6 +2,27 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-11 · WP-23 (AI gateway metering and per-tenant monthly cap)
+- **Done:**
+  - Migration `128_ai_call_telemetry.sql`: `ai_call_telemetry` (one row per AI call: caller, tenant, kind, tier, provider, model, upstream calls, tokens in and out, latency, outcome, error class, cost estimate and whether it was estimated) and `ai_tenant_budgets` (monthly cap per tenant). No prompt, completion or error text is stored.
+  - `services/ai/metering.ts`: `meterAiCall` and `meterAiStream` wrap every entry point. Nested entry points are passthroughs, so one call writes one row with the sum of its successful upstream responses. Budget check before any provider call; a refused call writes a `budget_exceeded` row and throws `AiBudgetExceededError`. Caller is the first source frame outside the gateway files (from the stack), so no call site had to change.
+  - Entry points metered: `callModel`, `callModelSafe`, `streamModel`, `streamModelSafe`, `embedViaGateway` (gateway.ts), `generateResponse` (llmGateway.ts, JSON and tool path), the eight direct-fetch functions in `groqToolCalling.ts`, and the four image entry points (`generateImage`, Fal marketing generation, Fal Kontext edit, Fal Flux edit). `generateText` and `generateVision` go through `callModelSafe`.
+  - `setAiTenantBudget(tenantId, usd)` sets a cap. No HTTP route or UI yet.
+- **Verified:**
+  - `aiMetering.unit.test.ts` (16): price estimates, caller naming, nesting, error and abort outcomes, telemetry write failure does not fail the call.
+  - `aiMetering.integration.test.ts` (14, real Postgres 17 + pgvector, fake providers): a row on success, failover, every provider failing, stream, aborted stream, embedding, JSON path with a 400, direct-fetch tool path success and failure, budget refusal on the chat, JSON and stream paths, per-tenant isolation, cap raised again, DB down during write.
+  - Mutation: disabling the budget comparison fails 3 of the budget tests; restored.
+  - Migration runner fingerprint test updated: migration 128 adds two public tables and four indexes, which is the only public change after the baseline.
+  - Full server suite on the scratch database: 179 files, 1822 passed, 9 skipped, and one failure (the migration fingerprint test above), which now passes on re-run. Server `tsc` clean. Full client suite: 117 files, 675 passed. Client `tsc` clean.
+- **Not done:**
+  - Budget check and telemetry insert each cost one DB round trip per AI call. Acceptable now; measure before scaling.
+  - The cap can overshoot by the cost of calls in flight at the same moment. If the database cannot be read, the check fails open (logged). Refuse-on-error would stop calls when the database is down; a decision for the founder.
+  - Prices are estimates in code (`PRICE_USD_PER_MTOK`), not read from the providers. Image costs are a flat per-image estimate. Streams and images have no token counts and are charged the per-tier estimate (marked estimated).
+  - `services/ai/agents/*`, `v2/*` and other modules that reach the gateway are covered through the gateway, not tested one by one.
+  - `ai_request_telemetry` (request-level, existing) is unchanged. It is not the same grain as this table.
+- **For you:** run `npm run db:migrate` against production to apply 128 (additive: two new tables, no data touched). Then set a budget per tenant, for example with `setAiTenantBudget` from a script; no budget row means no cap, only metering.
+- **Next:** review the PR stacked on #40 (`engage/settings-wp22`); then WP-24 (AI copy drafting, PII-in-prompt test).
+
 ## 2026-11-11 · WP-22 (settings: channel accounts, readiness, quiet hours, caps, send_enabled)
 - **Done:**
   - **Settings tab** for tenant admins on the engage page (`SettingsView.tsx`, `settingsApi.ts`): sending switch with its reasons, readiness items (value and https evidence link), quiet hours, time zone and frequency cap, monthly budget caps, rate cards, and channel accounts (view and disable only; secrets stay in `npm run engage:add-account`).
