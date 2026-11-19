@@ -7,11 +7,11 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../../services/ai/gateway.js', () => ({ generateText: vi.fn(), AiBudgetExceededError: class extends Error {} }));
 
 const { personalDataKinds, containsPersonalData } = await import('../../engage/copy/personalData.js');
-const { buildCopyPrompt, gateDraftCopy, parseModelOutput, COPY_SYSTEM_PROMPT } = await import('../../engage/copy/copyDraft.js');
+const { buildCopyPrompt, gateDraftCopy, hasLinkOtherThanUnsubscribe, parseModelOutput, COPY_SYSTEM_PROMPT } = await import('../../engage/copy/copyDraft.js');
 
 const GOOD_MARKETING = {
   subject: '{{first_name | default: "Merhaba"}}, sepetiniz sizi bekliyor',
-  html: '<p>Merhaba {{first_name | default: "okurumuz"}}, sepetinizdeki kitaplar hâlâ burada.</p><p><a href="{{unsubscribe_url}}">Abonelikten çık</a></p>',
+  html: '<p>{{first_name | default: "okurumuz"}}, sepetinizdeki kitaplar hâlâ burada.</p><p><a href="{{unsubscribe_url}}">Abonelikten çık</a></p>',
   text: 'Sepetinizdeki kitaplar hâlâ burada.',
 };
 
@@ -124,7 +124,7 @@ describe('gatekeepers for drafted copy', () => {
   });
 
   it('refuses the first name without a fallback, because a missing value would block the send', () => {
-    const r = gateDraftCopy({ subject: 'Merhaba {{first_name}}', html: '<p>x</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    const r = gateDraftCopy({ subject: 'Konu {{first_name}}', html: '<p>x</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
     expect(r).toEqual({ ok: false, reasons: ['variable_needs_default'] });
   });
 
@@ -135,12 +135,41 @@ describe('gatekeepers for drafted copy', () => {
 
   it('refuses a javascript: link', () => {
     const r = gateDraftCopy({ subject: 'Konu', html: '<a href="javascript:void(0)">x</a><a href="{{unsubscribe_url}}">u</a>', text: null }, 'marketing');
-    expect(r).toEqual({ ok: false, reasons: ['template_invalid'] });
+    expect(r).toEqual({ ok: false, reasons: ['link_not_allowed', 'template_invalid'] });
   });
 
   it('refuses a variable the template language does not know', () => {
     const r = gateDraftCopy({ subject: 'Konu', html: '<p>{{ order.total }}</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
     expect(r).toEqual({ ok: false, reasons: ['template_invalid'] });
+  });
+
+  // Found in the real-model check (WP-24 follow-up): drafts carried a placeholder shop address and a bare path, and
+  // repeated the greeting before the first-name placeholder.
+  it('refuses a link or web address the model made up, in the text or the HTML', () => {
+    const english = { subject: 'Your books', html: '<p>Hi</p><a href="{{unsubscribe_url}}">x</a>', text: 'Return to my basket: https://www.example.com/cart' };
+    expect(gateDraftCopy(english, 'marketing')).toEqual({ ok: false, reasons: ['link_not_allowed'] });
+    const bare = { subject: 'Konu', html: null, text: 'Sepetime dön: /sepet\nAbonelikten çık: {{unsubscribe_url}}' };
+    expect(gateDraftCopy(bare, 'marketing')).toEqual({ ok: false, reasons: ['link_not_allowed'] });
+    const image = { subject: 'Konu', html: '<img src="https://cdn.example.org/a.png"><a href="{{unsubscribe_url}}">x</a>', text: null };
+    expect(gateDraftCopy(image, 'marketing')).toEqual({ ok: false, reasons: ['link_not_allowed'] });
+  });
+
+  it('allows the unsubscribe placeholder as the only link, and a slash inside a word', () => {
+    expect(hasLinkOtherThanUnsubscribe({ subject: 'Konu', html: '<a href="{{unsubscribe_url}}">x</a>', text: '1/2 fiyat, Sepet/Kargo' })).toBe(false);
+  });
+
+  it('refuses a greeting word right before the first-name placeholder, in any language', () => {
+    for (const greeting of ['Merhaba', 'Sayın', 'Hi', 'Dear']) {
+      const r = gateDraftCopy({ subject: 'Konu', html: `<p>${greeting} {{first_name | default: "Merhaba"}},</p><a href="{{unsubscribe_url}}">x</a>`, text: null }, 'marketing');
+      expect(r).toEqual({ ok: false, reasons: ['greeting_repeated'] });
+    }
+    const plain = gateDraftCopy({ subject: 'Konu', html: '<p>{{first_name | default: "Merhaba"}}, sepetiniz bekliyor.</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(plain.ok).toBe(true);
+  });
+
+  it('tells the model where the greeting and the links go, and that no URL is written', () => {
+    expect(COPY_SYSTEM_PROMPT).toMatch(/Greeting\. The first-name placeholder carries the greeting/);
+    expect(COPY_SYSTEM_PROMPT).toMatch(/Do not write any URL/);
   });
 
   it('refuses personal data in the copy, and names only the kind', () => {
