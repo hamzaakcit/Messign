@@ -4,6 +4,7 @@ import {
   ApiIssues, addTemplateVersion, createTemplate, getTemplate, listTemplates, previewTemplate, type Issue, type TemplatePreview,
 } from './builderApi';
 import { Button, Card, Empty, ErrorLine, Field, Issues, TextInput, formatTime, inputClass } from './ui';
+import { CopyDraftsEntry } from './CopyDraftsView';
 
 /**
  * Email templates (WP-20 screens over the WP-14 API): list, create, versions and a rendered preview. Variables:
@@ -38,8 +39,8 @@ function ContentForm({ initial, onSave, saveLabel }: { initial: { subject: strin
   );
 }
 
-/** The templates section of the Lucy hub: the list, and creating a template. */
-export function TemplatesSection({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }): JSX.Element {
+/** The templates section of the Lucy hub: the list, creating a template, and the AI copy drafts queue (WP-24). */
+export function TemplatesSection({ onOpen, onNew, onDrafts }: { onOpen: (id: string) => void; onNew: () => void; onDrafts?: () => void }): JSX.Element {
   const q = useQuery({ queryKey: ['engage', 'templates'], queryFn: listTemplates });
   return (
     <div data-testid="hub-templates">
@@ -49,6 +50,7 @@ export function TemplatesSection({ onOpen, onNew }: { onOpen: (id: string) => vo
       </div>
       {q.isPending && <p className="mt-4 text-sm text-app-muted">Loading…</p>}
       <ErrorLine error={q.error} />
+      {onDrafts && <CopyDraftsEntry onOpen={onDrafts} />}
       {q.data && q.data.length === 0 && <Empty>No templates yet.</Empty>}
       {q.data && q.data.length > 0 && (
         <ul className="mt-4 divide-y divide-app rounded-md border border-app">

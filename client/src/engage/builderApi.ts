@@ -103,3 +103,20 @@ export const startCampaign = (input: { name: string; templateId: string; segment
   post<{ campaign: Campaign; replayed: boolean }>('/engage/campaigns', input);
 export const resumeCampaign = (id: string) => post<{ campaign: Campaign }>(`/engage/campaigns/${encodeURIComponent(id)}/resume`, {});
 
+
+// AI copy drafts (WP-24, ADR-019): a draft proposes the next version of a message step's template. Nothing sends from it;
+// an admin approves it, which adds the template version, or rejects it.
+export type CopyStatus = 'pending' | 'approved' | 'rejected';
+export interface CopyDraft {
+  id: string; journeyId: string; stepId: string; templateId: string; purpose: 'marketing' | 'transactional'; language: 'tr' | 'en';
+  brief: string; subject: string; html: string | null; text: string | null;
+  variables: Array<{ name: string; source: string; defaultValue: string | null }>;
+  status: CopyStatus; templateVersion: number | null;
+  createdBy: string | null; createdAt: string; decidedBy: string | null; decidedAt: string | null;
+}
+export const listCopyDrafts = (status?: CopyStatus) =>
+  call<{ drafts: CopyDraft[] }>(`/engage/copy-drafts${status ? `?status=${status}` : ''}`).then((r) => r.drafts);
+export const requestCopyDraft = (input: { journeyId: string; stepId: string; brief: string; language: 'tr' | 'en' }) =>
+  post<{ draft: CopyDraft; pinnedVersion: number | null }>('/engage/copy-drafts', input);
+export const approveCopyDraft = (id: string) => post<{ draft: CopyDraft; templateVersion: number }>(`/engage/copy-drafts/${encodeURIComponent(id)}/approve`, {});
+export const rejectCopyDraft = (id: string) => post<{ draft: CopyDraft }>(`/engage/copy-drafts/${encodeURIComponent(id)}/reject`, {});

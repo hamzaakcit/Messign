@@ -13,6 +13,7 @@ import { CustomersSection } from './CustomersPage';
 import { JourneyEditPanel, JourneyPanel, JourneysSection } from './JourneysView';
 import { NewSegmentPanel, SegmentPanel, SegmentsSection } from './SegmentsView';
 import { NewTemplatePanel, TemplatePanel, TemplatesSection } from './TemplatesView';
+import { CopyDraftsPanel } from './CopyDraftsView';
 import { SettingsSection } from './SettingsView';
 
 /**
@@ -37,6 +38,7 @@ export type Panel =
   | { kind: 'segment-new' }
   | { kind: 'template'; id: string }
   | { kind: 'template-new' }
+  | { kind: 'copy-drafts' }
   | null;
 
 export const SECTIONS: Array<{ id: Section; label: string; icon: typeof Users; tint: string }> = [
@@ -66,9 +68,10 @@ const TITLES: Record<Exclude<Panel, null>['kind'], string> = {
   'segment-new': 'New segment',
   template: 'Email template',
   'template-new': 'New email template',
+  'copy-drafts': 'AI copy drafts',
 };
 const PANEL_WIDTH: Record<Exclude<Panel, null>['kind'], number> = {
-  customer: 900, 'customer-new': 760, journey: 900, 'journey-new': 960, 'journey-version': 960, campaign: 900, 'campaign-new': 860, segment: 900, 'segment-new': 900, template: 900, 'template-new': 800,
+  customer: 900, 'customer-new': 760, journey: 900, 'journey-new': 960, 'journey-version': 960, campaign: 900, 'campaign-new': 860, segment: 900, 'segment-new': 900, template: 900, 'template-new': 800, 'copy-drafts': 860,
 };
 
 export const TILE_BTN =
@@ -158,7 +161,7 @@ export function EngageSectionBody({ workspace }: { workspace: EngageWorkspace })
   if (tab === 'journeys') return <JourneysSection onOpen={(id) => open({ kind: 'journey', id })} onNew={() => open({ kind: 'journey-new' })} />;
   if (tab === 'campaigns') return <CampaignsSection onOpen={(id) => open({ kind: 'campaign', id })} onNew={() => open({ kind: 'campaign-new' })} />;
   if (tab === 'segments') return <SegmentsSection onOpen={(id) => open({ kind: 'segment', id })} onNew={() => open({ kind: 'segment-new' })} />;
-  if (tab === 'templates') return <TemplatesSection onOpen={(id) => open({ kind: 'template', id })} onNew={() => open({ kind: 'template-new' })} />;
+  if (tab === 'templates') return <TemplatesSection onOpen={(id) => open({ kind: 'template', id })} onNew={() => open({ kind: 'template-new' })} onDrafts={() => open({ kind: 'copy-drafts' })} />;
   if (tab === 'settings' && workspace.isAdmin) return <SettingsSection />;
   return null;
 }
@@ -225,6 +228,7 @@ export function EngagePanels({ workspace }: { workspace: EngageWorkspace }): JSX
       case 'segment-new': return <NewSegmentPanel onSaved={(id) => { void refreshAll(); show('segments', { kind: 'segment', id }); }} />;
       case 'template': return <TemplatePanel id={p.id} />;
       case 'template-new': return <NewTemplatePanel onSaved={(id) => { void refreshAll(); show('templates', { kind: 'template', id }); }} />;
+      case 'copy-drafts': return <CopyDraftsPanel isAdmin={workspace.isAdmin} />;
     }
   };
 
