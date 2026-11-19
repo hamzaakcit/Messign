@@ -66,11 +66,14 @@ export class AiBudgetExceededError extends Error {
 
 /** USD per million tokens, [input, output]. Estimates: check against the provider's current price list. */
 const PRICE_USD_PER_MTOK: Array<{ prefix: string; input: number; output: number }> = [
+  { prefix: 'openai/gpt-oss-120b', input: 0.15, output: 0.6 },
+  { prefix: 'openai/gpt-oss-20b', input: 0.075, output: 0.3 },
   { prefix: 'llama-3.3-70b', input: 0.59, output: 0.79 },
   { prefix: 'gemini-2.5-flash-lite', input: 0.1, output: 0.4 },
   { prefix: 'gemini-2.5-flash', input: 0.3, output: 2.5 },
   { prefix: 'gemini-2.0-flash-lite', input: 0.075, output: 0.3 },
   { prefix: 'gemini-1.5-flash', input: 0.075, output: 0.3 },
+  { prefix: 'claude-sonnet-5', input: 3, output: 15 },
   { prefix: 'claude-sonnet-4', input: 3, output: 15 },
   { prefix: 'text-embedding-3-small', input: 0.02, output: 0 },
 ];

@@ -500,9 +500,9 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
          truth_validation, truth_validated_at, brand_voice_check, brand_voice_checked_at,
          user_brief, revision_history,
          image_prompt, image_url, reference_image_url, visual_description, image_generation_metadata, instagram_media_id,
-         parent_content_id
+         parent_content_id, tenant_id
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
        RETURNING *`,
       [
         tenantId,
@@ -532,6 +532,7 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
         data.image_generation_metadata ?? null,
         data.instagram_media_id ?? null,
         data.parent_content_id ?? null,
+        tenantId,
       ],
     );
     return (await getContentById(ctx, String(result.rows[0].id))) ?? mapContent(result.rows[0] as Record<string, unknown>);

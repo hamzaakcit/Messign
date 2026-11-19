@@ -23,14 +23,14 @@ export const LLM_TIER_CONFIG = {
   [LLM_TIER.COMPLEX]: {
     provider: 'anthropic' as const,
     /** Claude Sonnet 4 — override with `LLM_COMPLEX_MODEL` */
-    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-20250514',
+    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-5-5',
     timeoutMs: Number(process.env.LLM_COMPLEX_TIMEOUT_MS) || 45_000,
     maxRetries: 3,
   },
   [LLM_TIER.FAST]: {
     provider: 'groq' as const,
-    /** Groq Llama 3.x — override with `LLM_FAST_MODEL` (e.g. llama-3.3-70b-versatile) */
-    model: process.env.LLM_FAST_MODEL?.trim() || 'llama-3.3-70b-versatile',
+    /** Groq (developer plan) — override with `LLM_FAST_MODEL`. Llama 3.3 70B is Enterprise-only on Groq. */
+    model: process.env.LLM_FAST_MODEL?.trim() || 'openai/gpt-oss-120b',
     timeoutMs: Number(process.env.LLM_FAST_TIMEOUT_MS) || 15_000,
     maxRetries: 3,
   },
@@ -283,7 +283,8 @@ async function callAnthropic(
   const request: Anthropic.MessageCreateParams = {
     model: cfg.model,
     max_tokens: config.maxTokens ?? 4096,
-    temperature: config.temperature ?? 0.2,
+    // Claude 5 models reject `temperature` (400 invalid_request_error); omit it for them.
+    ...(/^claude-(sonnet|opus|haiku|fable)-5/.test(cfg.model) ? {} : { temperature: config.temperature ?? 0.2 }),
     system,
     messages: [{ role: 'user', content: config.userMessage }],
     ...(anthropicTools?.length ? { tools: anthropicTools } : {}),
