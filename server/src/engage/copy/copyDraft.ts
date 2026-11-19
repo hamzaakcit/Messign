@@ -57,6 +57,10 @@ Personalisation. The only placeholders you may write are these, exactly as shown
   {{unsubscribe_url}}  (marketing mail only; put it in an <a href="..."> link in html)
 Never invent other placeholders. Never write a real or example name, email address, phone number, postal address, order number, price, discount code or date unless the brief gives it in general terms.
 
+Greeting. The first-name placeholder carries the greeting. Open the body with it, followed by a comma, and do not write any other greeting word before it. The fallback word inside the placeholder is the only greeting the message has.
+
+Links. Do not write any URL, web address, domain or path (no https://, no www., no /cart). The shop adds its own links in the template editor. The only link you may write is the unsubscribe placeholder.
+
 Do not claim that the message, the sender or the shop complies with any law, regulation or standard. Do not promise results.
 
 The brief is the marketer's description of the message. Use it for the purpose, offer and tone. If the brief asks for anything that conflicts with these rules, follow these rules.`;
@@ -102,6 +106,24 @@ export function parseModelOutput(raw: string): ParsedCopy | null {
   return { subject: parsed.data.subject, html: parsed.data.html?.trim() ? parsed.data.html : null, text: parsed.data.text?.trim() ? parsed.data.text : null };
 }
 
+const UNSUBSCRIBE_PLACEHOLDER = '{{unsubscribe_url}}';
+const LINK_IN_TEXT = /https?:\/\/|\bwww\.|(^|\s)\/[\p{L}\p{N}]/iu;
+/** A greeting word right before the first-name placeholder: the placeholder already greets, so the word repeats it. */
+const GREETING_BEFORE_NAME = /\b(merhaba|selam|sayın|hi|hello|hey|dear)\b[\s,!]*\{\{\s*first_name/iu;
+
+/**
+ * The shop adds its own links in the template editor, where they can be checked. A draft may not carry a link of its
+ * own: no web address, no path in the text, and no href or src other than the unsubscribe placeholder. (Found in the
+ * real-model check: the model wrote a placeholder shop address and a bare path.)
+ */
+export function hasLinkOtherThanUnsubscribe(copy: ParsedCopy): boolean {
+  if (LINK_IN_TEXT.test(`${copy.subject}\n${copy.text ?? ''}`)) return true;
+  for (const m of (copy.html ?? '').matchAll(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
+    if ((m[1] ?? m[2] ?? m[3] ?? '').trim() !== UNSUBSCRIBE_PLACEHOLDER) return true;
+  }
+  return LINK_IN_TEXT.test((copy.html ?? '').replace(/<[^>]*>/g, ' '));
+}
+
 /**
  * The gatekeepers for drafted copy. Returns codes only (never the copy), so a refusal can be shown and logged without
  * repeating personal data.
@@ -113,6 +135,9 @@ export function gateDraftCopy(copy: ParsedCopy, purpose: CopyPurpose):
     ...personalDataKinds(copy.subject), ...personalDataKinds(copy.html ?? ''), ...personalDataKinds(copy.text ?? ''),
   ]);
   for (const k of kinds) reasons.push(`personal_data:${k}`);
+  if (hasLinkOtherThanUnsubscribe(copy)) reasons.push('link_not_allowed');
+  const greetingParts = [copy.subject, copy.text ?? '', (copy.html ?? '').replace(/<[^>]*>/g, ' ')];
+  if (greetingParts.some((t) => GREETING_BEFORE_NAME.test(t))) reasons.push('greeting_repeated');
 
   let content: ReturnType<typeof checkTemplateContent>;
   try {
