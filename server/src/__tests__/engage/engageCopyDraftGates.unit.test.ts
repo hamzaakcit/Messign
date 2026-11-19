@@ -1,0 +1,141 @@
+/**
+ * AI copy drafting (WP-24), without a database: the personal-data detector, the prompt builder, the model-output parser
+ * and the gatekeepers that decide whether drafted copy may be queued. The model is replaced by a stub; nothing is sent.
+ */
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../services/ai/gateway.js', () => ({ generateText: vi.fn(), AiBudgetExceededError: class extends Error {} }));
+
+const { personalDataKinds, containsPersonalData } = await import('../../engage/copy/personalData.js');
+const { buildCopyPrompt, gateDraftCopy, parseModelOutput, COPY_SYSTEM_PROMPT } = await import('../../engage/copy/copyDraft.js');
+
+const GOOD_MARKETING = {
+  subject: '{{first_name | default: "Merhaba"}}, sepetiniz sizi bekliyor',
+  html: '<p>Merhaba {{first_name | default: "okurumuz"}}, sepetinizdeki kitaplar hâlâ burada.</p><p><a href="{{unsubscribe_url}}">Abonelikten çık</a></p>',
+  text: 'Sepetinizdeki kitaplar hâlâ burada.',
+};
+
+describe('personal-data detector', () => {
+  it.each([
+    ['an email address', 'yaz: ayse.yilmaz@example.com', ['email']],
+    ['a Turkish mobile with spaces', 'ara: 0532 123 45 67', ['phone']],
+    ['a +90 international form', 'tel +90 532 123 45 67', ['phone']],
+    ['a 00-prefixed form', '00905321234567', ['phone']],
+    ['a bare 10-digit mobile', 'numara 5321234567', ['phone']],
+    ['a Turkish IBAN', 'IBAN TR33 0006 1005 1978 6457 8413 26', ['iban']],
+    ['an 11-digit national id', 'TC 12345678901', ['national_id']],
+    ['a Luhn-valid card number', 'kart 4111 1111 1111 1111', ['card_number']],
+  ])('flags %s', (_label, text, kinds) => {
+    expect(personalDataKinds(text)).toEqual(kinds);
+    expect(containsPersonalData(text)).toBe(true);
+  });
+
+  it('reports each kind once, sorted, and never the value', () => {
+    const text = 'a@example.com ve b@example.org, 0532 111 22 33 ve 0533 111 22 44';
+    expect(personalDataKinds(text)).toEqual(['email', 'phone']);
+  });
+
+  it.each([
+    'Ücretsiz kargo 150 TL ve 2 kitap al, 1 bedava',
+    '%10 indirim, 3 gün içinde bitiyor',
+    'Yeni sezon 2026 kataloğu https://www.example.com/kampanya',
+    'Lilyana çiçekleri: 10000 adet stok',
+    'Sipariş 1234 hazır',
+  ])('does not flag ordinary copy: %s', (text) => {
+    expect(personalDataKinds(text)).toEqual([]);
+  });
+
+  it('does not flag a 16-digit number that fails the Luhn check', () => {
+    expect(personalDataKinds('kod 4111 1111 1111 1112')).toEqual([]);
+  });
+});
+
+describe('prompt builder', () => {
+  it('carries the language, purpose, trigger name and brief, and no personal data', () => {
+    const p = buildCopyPrompt({ language: 'tr', purpose: 'marketing', triggerEvent: 'cart_updated', brief: 'Sepet hatırlatması, kısa ve samimi.' });
+    expect(p.user).toContain('Turkish');
+    expect(p.user).toContain('marketing');
+    expect(p.user).toContain('"cart_updated"');
+    expect(p.user).toContain('Sepet hatırlatması, kısa ve samimi.');
+    expect(p.system).toBe(COPY_SYSTEM_PROMPT);
+    expect(containsPersonalData(p.system)).toBe(false);
+    expect(containsPersonalData(p.user)).toBe(false);
+  });
+});
+
+describe('model output parser', () => {
+  it('accepts one JSON object, with or without a code fence', () => {
+    const json = JSON.stringify(GOOD_MARKETING);
+    expect(parseModelOutput(json)).toEqual({ subject: GOOD_MARKETING.subject, html: GOOD_MARKETING.html, text: GOOD_MARKETING.text });
+    expect(parseModelOutput('```json\n' + json + '\n```')?.subject).toBe(GOOD_MARKETING.subject);
+  });
+
+  it.each([
+    ['prose instead of JSON', 'Tabii, işte metin: ...'],
+    ['an extra key', JSON.stringify({ ...GOOD_MARKETING, bcc: 'x' })],
+    ['no subject', JSON.stringify({ html: '<p>x</p>' })],
+    ['neither html nor text', JSON.stringify({ subject: 'Konu', html: '  ', text: '' })],
+    ['an empty answer', ''],
+  ])('refuses %s', (_label, raw) => {
+    expect(parseModelOutput(raw)).toBeNull();
+  });
+});
+
+describe('gatekeepers for drafted copy', () => {
+  it('passes a marketing draft with the first name and the unsubscribe link', () => {
+    const r = gateDraftCopy(GOOD_MARKETING, 'marketing');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.content.variables.map((v) => `${v.source}:${v.name}`).sort()).toEqual(['attribute:first_name', 'system:unsubscribe_url']);
+  });
+
+  it('passes a transactional draft without an unsubscribe link', () => {
+    const r = gateDraftCopy({ subject: 'Siparişiniz kargoda', html: '<p>{{first_name | default: "Merhaba"}}, siparişiniz yola çıktı.</p>', text: null }, 'transactional');
+    expect(r.ok).toBe(true);
+  });
+
+  it('refuses marketing mail without the unsubscribe link', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<p>Merhaba</p>', text: null }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['unsubscribe_missing'] });
+  });
+
+  it('refuses an unsubscribe link in transactional mail', () => {
+    const r = gateDraftCopy({ ...GOOD_MARKETING }, 'transactional');
+    expect(r).toEqual({ ok: false, reasons: ['unsubscribe_not_allowed'] });
+  });
+
+  it('refuses personalisation other than the first name', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<p>{{last_name | default: "Değerli müşterimiz"}}</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['variable_not_allowed'] });
+  });
+
+  it('refuses payload variables', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<p>{{payload.book | default: "kitap"}}</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['variable_not_allowed'] });
+  });
+
+  it('refuses the first name without a fallback, because a missing value would block the send', () => {
+    const r = gateDraftCopy({ subject: 'Merhaba {{first_name}}', html: '<p>x</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['variable_needs_default'] });
+  });
+
+  it('refuses markup the template renderer forbids', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<script>alert(1)</script><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['template_invalid'] });
+  });
+
+  it('refuses a javascript: link', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<a href="javascript:void(0)">x</a><a href="{{unsubscribe_url}}">u</a>', text: null }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['template_invalid'] });
+  });
+
+  it('refuses a variable the template language does not know', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<p>{{ order.total }}</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['template_invalid'] });
+  });
+
+  it('refuses personal data in the copy, and names only the kind', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<p>Yazın: ayse@example.com</p><a href="{{unsubscribe_url}}">x</a>', text: '0532 111 22 33' }, 'marketing');
+    expect(r).toEqual({ ok: false, reasons: ['personal_data:email', 'personal_data:phone'] });
+    expect(JSON.stringify(r)).not.toContain('ayse');
+  });
+});

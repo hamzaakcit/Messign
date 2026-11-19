@@ -30,7 +30,8 @@ export interface TemplateView {
   id: string; key: string; name: string; channel: 'email'; createdAt: string; latestVersion: number;
 }
 
-function validateContent(input: TemplateContentInput): { subject: string; html: string | null; text: string | null; variables: VariableRef[] } {
+/** The template gatekeeper: size limits and the safe-variable and HTML rules of render.ts. Throws TemplateInputError. */
+export function checkTemplateContent(input: TemplateContentInput): { subject: string; html: string | null; text: string | null; variables: VariableRef[] } {
   if (!input || typeof input !== 'object') throw new TemplateInputError('content is required');
   if (typeof input.html === 'string' && Buffer.byteLength(input.html) > MAX_HTML_BYTES) throw new TemplateInputError('html is too large (max 512 KB)');
   if (typeof input.text === 'string' && Buffer.byteLength(input.text) > MAX_TEXT_BYTES) throw new TemplateInputError('text is too large (max 128 KB)');
@@ -46,7 +47,7 @@ function validateContent(input: TemplateContentInput): { subject: string; html: 
 
 type Tx = Parameters<Parameters<typeof withEngageTenant>[1]>[0];
 
-async function insertVersion(c: Tx, orgId: string, templateId: string, userId: string | null, v: ReturnType<typeof validateContent>): Promise<TemplateVersionView> {
+async function insertVersion(c: Tx, orgId: string, templateId: string, userId: string | null, v: ReturnType<typeof checkTemplateContent>): Promise<TemplateVersionView> {
   // One writer at a time per template, so two saves cannot both take the same next number.
   await c.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [`engage-template:${orgId}:${templateId}`]);
   const next = (await c.query<{ n: number }>(
@@ -68,7 +69,7 @@ function toVersion(r: Record<string, unknown>): TemplateVersionView {
 export async function createTemplate(orgId: string, userId: string | null, input: CreateTemplateInput): Promise<{ template: TemplateView; version: TemplateVersionView }> {
   if (typeof input?.key !== 'string' || !KEY_RE.test(input.key)) throw new TemplateInputError('key must be 1-64 of a-z, 0-9, _ or -, starting with a letter or digit');
   if (typeof input.name !== 'string' || input.name.trim().length < 1 || input.name.length > 200) throw new TemplateInputError('name must be 1-200 characters');
-  const content = validateContent(input);
+  const content = checkTemplateContent(input);
   return withEngageTenant(orgId, async (c) => {
     const ins = await c.query(
       `INSERT INTO engage.templates (organization_id, key, name, channel, created_by) VALUES ($1, $2, $3, 'email', $4)
@@ -82,13 +83,16 @@ export async function createTemplate(orgId: string, userId: string | null, input
 }
 
 export async function addTemplateVersion(orgId: string, userId: string | null, templateId: string, input: TemplateContentInput): Promise<TemplateVersionView> {
+  return withEngageTenant(orgId, (c) => addTemplateVersionOn(c, orgId, userId, templateId, input));
+}
+
+/** addTemplateVersion inside the caller's transaction (WP-24: approving a copy draft). */
+export async function addTemplateVersionOn(c: Tx, orgId: string, userId: string | null, templateId: string, input: TemplateContentInput): Promise<TemplateVersionView> {
   if (!UUID_RE.test(templateId)) throw new TemplateNotFoundError('Template not found');
-  const content = validateContent(input);
-  return withEngageTenant(orgId, async (c) => {
-    const t = await c.query(`SELECT 1 FROM engage.templates WHERE organization_id = $1 AND id = $2`, [orgId, templateId]);
-    if (!t.rowCount) throw new TemplateNotFoundError('Template not found');
-    return insertVersion(c, orgId, templateId, userId, content);
-  });
+  const content = checkTemplateContent(input);
+  const t = await c.query(`SELECT 1 FROM engage.templates WHERE organization_id = $1 AND id = $2`, [orgId, templateId]);
+  if (!t.rowCount) throw new TemplateNotFoundError('Template not found');
+  return insertVersion(c, orgId, templateId, userId, content);
 }
 
 export async function listTemplates(orgId: string): Promise<TemplateView[]> {
