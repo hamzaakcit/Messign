@@ -57,6 +57,8 @@ describe('copy draft helpers', () => {
     expect(reasonText('personal_data:email')).toMatch(/email address/);
     expect(reasonText('personal_data:phone')).toMatch(/phone number/);
     expect(reasonText('unsubscribe_missing')).toMatch(/unsubscribe link/);
+    expect(reasonText('link_not_allowed')).toMatch(/Leave links out/);
+    expect(reasonText('greeting_repeated')).toMatch(/greets the reader twice/);
     expect(reasonText('something_new')).toMatch(/did not pass/);
   });
 

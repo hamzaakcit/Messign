@@ -27,6 +27,8 @@ export function reasonText(code: string): string {
     case 'variable_needs_default': return 'The first name needs a fallback, for example "there".';
     case 'unsubscribe_missing': return 'Marketing mail needs the unsubscribe link.';
     case 'unsubscribe_not_allowed': return 'Transactional mail must not carry the unsubscribe link.';
+    case 'link_not_allowed': return 'The copy contains a link or web address. Leave links out; the shop adds its own links in the template editor.';
+    case 'greeting_repeated': return 'The copy greets the reader twice. The first-name placeholder already greets, so remove the greeting word before it.';
     case 'output_not_valid': return 'The answer could not be used. Try again, with a clearer brief.';
     default: return 'The draft did not pass the checks.';
   }
