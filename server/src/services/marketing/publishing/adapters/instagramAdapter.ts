@@ -53,7 +53,7 @@ interface MetaPublishResponse {
 export async function publishInstagramPost(
   input: InstagramAdapterInput,
 ): Promise<AdapterPublishSuccess> {
-  const caption = stripHtml(input.content.body ?? input.content.body_html ?? '');
+  const caption = instagramCaptionFromBody(stripHtml(input.content.body ?? input.content.body_html ?? ''));
   const imageUrl = input.content.image_url ?? null;
 
   if (!imageUrl?.trim()) {
@@ -207,6 +207,24 @@ function publishMock(args: {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * The draft body holds the whole strategist output: a "[DRAFT — Pending Review]" line, the caption, and internal
+ * sections (A/B hook notes, review notes, checks). Only the caption (with its hashtags) may go public.
+ * Throws if internal markers are still present after cutting, so an internal note can never be posted.
+ */
+export function instagramCaptionFromBody(raw: string): string {
+  let text = raw.replace(/\[DRAFT\s*[—-]\s*Pending Review\]\s*This has not been published\.?/gi, '');
+  text = text.replace(/\*\*Caption\*\*/i, '');
+  const internal = text.search(/\*\*\s*(A\/B|Notes for review|Checks|Scheduling|Product truth)/i);
+  if (internal >= 0) text = text.slice(0, internal);
+  text = text.replace(/\*\*/g, '').trim();
+  if (/\[DRAFT|Notes for review|Pending Review|A\/B hook/i.test(text)) {
+    throw new Error('Caption still contains internal draft notes; not publishing.');
+  }
+  if (!text) throw new Error('Caption is empty; not publishing.');
+  return text;
+}
 
 function stripHtml(text: string): string {
   return text.replace(/<[^>]+>/g, '').trim();
