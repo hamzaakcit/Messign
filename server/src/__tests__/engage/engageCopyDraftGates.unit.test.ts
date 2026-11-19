@@ -172,6 +172,45 @@ describe('gatekeepers for drafted copy', () => {
     expect(COPY_SYSTEM_PROMPT).toMatch(/Do not write any URL/);
   });
 
+  // Found in the second real-model run: the copy referred to a button below and to links in the email, which the
+  // message does not have, and was signed by a team the brief never named.
+  it('refuses copy that refers to a link or button', () => {
+    for (const text of [
+      'Sepetinize dönmek için bağlantıya tıklayın.',
+      'Siparişinizi butondan tamamlayabilirsiniz.',
+      'Kargo takip bilgilerini bu e-postadaki bağlantılardan inceleyebilirsiniz.',
+      'Use the button below to return to your basket.',
+      'Click here to finish your order.',
+      'Follow the link in this email.',
+    ]) {
+      const r = gateDraftCopy({ subject: 'Konu', html: '<a href="{{unsubscribe_url}}">x</a>', text }, 'marketing');
+      expect(r.ok, text).toBe(false);
+      if (!r.ok) expect(r.reasons, text).toContain('link_reference');
+    }
+  });
+
+  it('refuses the word link even in ordinary copy (a known false positive, kept on purpose), and passes clean copy', () => {
+    const r = gateDraftCopy({ subject: 'Konu', html: '<p>{{first_name | default: "okurumuz"}}, sepetiniz bekliyor. Kitap linkleri yok, sadece kitaplar.</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reasons).toEqual(['link_reference']);
+    const clean = gateDraftCopy({ subject: 'Konu', html: '<p>{{first_name | default: "okurumuz"}}, sepetiniz bekliyor.</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(clean.ok).toBe(true);
+  });
+
+  it('refuses a sign-off that ends with a team or brand name, and not a sentence that mentions one', () => {
+    const signed = gateDraftCopy({ subject: 'Konu', html: '<p>{{first_name | default: "okurumuz"}}, iyi okumalar.</p><p>Sevgiyle,</p><p>Çiçek Mağazası Ekibi</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(signed.ok).toBe(false);
+    if (!signed.ok) expect(signed.reasons).toEqual(['sender_name']);
+    const mention = gateDraftCopy({ subject: 'Konu', html: '<p>{{first_name | default: "okurumuz"}}, ekibimiz size yardımcı olmaktan mutluluk duyar.</p><a href="{{unsubscribe_url}}">x</a>', text: null }, 'marketing');
+    expect(mention.ok).toBe(true);
+  });
+
+  it('tells the model not to name a sender, not to refer to links, and not to claim more than the brief', () => {
+    expect(COPY_SYSTEM_PROMPT).toMatch(/Sender\. Never write the name of the shop/);
+    expect(COPY_SYSTEM_PROMPT).toMatch(/Do not refer to a link, a button or an address/);
+    expect(COPY_SYSTEM_PROMPT).toMatch(/Claims\. Say only what the brief says/);
+  });
+
   it('refuses personal data in the copy, and names only the kind', () => {
     const r = gateDraftCopy({ subject: 'Konu', html: '<p>Yazın: ayse@example.com</p><a href="{{unsubscribe_url}}">x</a>', text: '0532 111 22 33' }, 'marketing');
     expect(r).toEqual({ ok: false, reasons: ['personal_data:email', 'personal_data:phone'] });

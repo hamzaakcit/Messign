@@ -59,7 +59,11 @@ Never invent other placeholders. Never write a real or example name, email addre
 
 Greeting. The first-name placeholder carries the greeting. Open the body with it, followed by a comma, and do not write any other greeting word before it. The fallback word inside the placeholder is the only greeting the message has.
 
-Links. Do not write any URL, web address, domain or path (no https://, no www., no /cart). The shop adds its own links in the template editor. The only link you may write is the unsubscribe placeholder.
+Links. Do not write any URL, web address, domain or path (no https://, no www., no /cart). The shop adds its own links in the template editor. The only link you may write is the unsubscribe placeholder. Do not refer to a link, a button or an address either ("the button below", "the links in this email", "bağlantıya tıklayın", "butona dokunun"): the message has none.
+
+Sender. Never write the name of the shop, a team, a brand or a signature. Do not sign off with a name; the shop adds its own sign-off.
+
+Claims. Say only what the brief says about the offer, stock, delivery, prices or dates. Do not describe the customer's past behaviour (what they looked at, how long they waited) and do not describe demand or stock levels unless the brief says so.
 
 Do not claim that the message, the sender or the shop complies with any law, regulation or standard. Do not promise results.
 
@@ -108,6 +112,14 @@ export function parseModelOutput(raw: string): ParsedCopy | null {
 
 const UNSUBSCRIBE_PLACEHOLDER = '{{unsubscribe_url}}';
 const LINK_IN_TEXT = /https?:\/\/|\bwww\.|(^|\s)\/[\p{L}\p{N}]/iu;
+/**
+ * A reference to a link or button: the message has none, the shop adds them. Prefix match, so "bağlantılardan" and
+ * "tıklayın" are caught too. Case-insensitive, Unicode letters.
+ */
+const LINK_REFERENCE = /(?<!\p{L})(bağlantı|link|buton|button|tıkla|click)\p{L}*/iu;
+/** A line that ends with a team or brand name, as in a sign-off: "Sevgiyle,\nÇiçek Mağazası Ekibi". */
+const SENDER_LINE = /(?<!\p{L})(ekibi|ekip|team)\s*$/imu;
+
 /** A greeting word right before the first-name placeholder: the placeholder already greets, so the word repeats it. */
 const GREETING_BEFORE_NAME = /\b(merhaba|selam|sayın|hi|hello|hey|dear)\b[\s,!]*\{\{\s*first_name/iu;
 
@@ -116,6 +128,11 @@ const GREETING_BEFORE_NAME = /\b(merhaba|selam|sayın|hi|hello|hey|dear)\b[\s,!]
  * own: no web address, no path in the text, and no href or src other than the unsubscribe placeholder. (Found in the
  * real-model check: the model wrote a placeholder shop address and a bare path.)
  */
+/** The HTML as lines of text, so a sign-off on its own line can be seen. */
+function htmlToLines(html: string): string {
+  return html.replace(/<br\s*\/?>|<\/p>|<\/div>|<\/li>/gi, '\n').replace(/<[^>]*>/g, ' ');
+}
+
 export function hasLinkOtherThanUnsubscribe(copy: ParsedCopy): boolean {
   if (LINK_IN_TEXT.test(`${copy.subject}\n${copy.text ?? ''}`)) return true;
   for (const m of (copy.html ?? '').matchAll(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
@@ -138,6 +155,9 @@ export function gateDraftCopy(copy: ParsedCopy, purpose: CopyPurpose):
   if (hasLinkOtherThanUnsubscribe(copy)) reasons.push('link_not_allowed');
   const greetingParts = [copy.subject, copy.text ?? '', (copy.html ?? '').replace(/<[^>]*>/g, ' ')];
   if (greetingParts.some((t) => GREETING_BEFORE_NAME.test(t))) reasons.push('greeting_repeated');
+  const plainParts = [copy.subject, copy.text ?? '', htmlToLines(copy.html ?? '')];
+  if (plainParts.some((t) => LINK_REFERENCE.test(t))) reasons.push('link_reference');
+  if (plainParts.some((t) => SENDER_LINE.test(t))) reasons.push('sender_name');
 
   let content: ReturnType<typeof checkTemplateContent>;
   try {
