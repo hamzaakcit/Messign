@@ -47,7 +47,7 @@ const iso = (v: unknown): string | null => (v ? new Date(v as string).toISOStrin
 export interface SendReadiness { sendMode: SendMode; ready: boolean; problems: ReadinessProblem[] }
 
 /** What the send gate would hold or refuse for every message, checked once up front. */
-async function readinessOn(c: Tx, orgId: string, mode: SendMode): Promise<SendReadiness> {
+export async function readinessOn(c: Tx, orgId: string, mode: SendMode): Promise<SendReadiness> {
   const problems: ReadinessProblem[] = [];
   if (mode === 'off') problems.push({ code: 'send_mode_off', message: 'Sending is switched off on this server (SEND_MODE).' });
   const settings = (await c.query<{ send_enabled: boolean }>(`SELECT send_enabled FROM engage.tenant_settings WHERE organization_id = $1`, [orgId])).rows[0];

@@ -54,6 +54,7 @@ import {
   getVertexLocation,
   getVertexProjectId,
 } from './vertexGeminiAuth.js';
+import { meterAiCall, IMAGE_FALLBACK_COST_USD } from '../../../ai/metering.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -1190,7 +1191,7 @@ async function callGeminiNativeImageSingleModel(
 // Core: generateImage
 // ---------------------------------------------------------------------------
 
-export async function generateImage(input: ImageGenerationInput): Promise<ImageGenerationResult> {
+async function generateImageCore(input: ImageGenerationInput): Promise<ImageGenerationResult> {
   const startMs = Date.now();
 
   console.log('[imageService] generate_start', {
@@ -1878,4 +1879,10 @@ export async function generateImage(input: ImageGenerationInput): Promise<ImageG
     metadata,
     error: lastError,
   };
+}
+
+/* Metered entry point (WP-23): one ai_call_telemetry row per image request. */
+
+export function generateImage(...args: Parameters<typeof generateImageCore>): ReturnType<typeof generateImageCore> {
+  return meterAiCall({ kind: 'image', fallbackCostUsd: IMAGE_FALLBACK_COST_USD }, () => generateImageCore(...args));
 }

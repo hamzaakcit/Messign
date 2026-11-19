@@ -17,6 +17,7 @@ import sharp from 'sharp';
 // ---------------------------------------------------------------------------
 
 import { fal } from '@fal-ai/client';
+import { meterAiCall, IMAGE_FALLBACK_COST_USD } from '../../../ai/metering.js';
 
 const DEFAULT_FAL_MODEL = 'fal-ai/flux/dev';
 
@@ -358,7 +359,7 @@ export async function downloadFalImageBytes(urlOrData: string): Promise<Buffer> 
  * @param prompt — Full marketing prompt (truncated to 8000 chars for Fal).
  * @param resolution — e.g. `1024x1024`; mapped to `image_size` for flux-compatible models.
  */
-export async function callFalMarketingImageGeneration(
+async function callFalMarketingImageGenerationCore(
   prompt: string,
   resolution: string,
   options?: FalMarketingImageCallOptions,
@@ -474,4 +475,10 @@ export async function callFalMarketingImageGeneration(
     const { buffer, falRequestId } = await trySubscribe(input);
     return { buffer, modelLabel: `fal/${modelId}`, falRequestId };
   }
+}
+
+/* Metered entry point (WP-23): one ai_call_telemetry row per image request. */
+
+export function callFalMarketingImageGeneration(...args: Parameters<typeof callFalMarketingImageGenerationCore>): ReturnType<typeof callFalMarketingImageGenerationCore> {
+  return meterAiCall({ kind: 'image', fallbackCostUsd: IMAGE_FALLBACK_COST_USD }, () => callFalMarketingImageGenerationCore(...args));
 }

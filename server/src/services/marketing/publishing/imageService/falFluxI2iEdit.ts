@@ -7,6 +7,7 @@
 import { fal } from '@fal-ai/client';
 import { downloadFalImageBytes, extractFalResultImageUrl, getFalApiKey } from './falImageGeneration.js';
 import type { PreparedReferenceForFal } from './falReferenceImage.js';
+import { meterAiCall, IMAGE_FALLBACK_COST_USD } from '../../../ai/metering.js';
 
 const DEFAULT_FLUX_I2I_MODEL = 'fal-ai/flux/dev/image-to-image';
 
@@ -52,7 +53,7 @@ export interface CallFalFluxI2iEditResult {
  * Runs Fal Flux image-to-image: sends a prepared data URI (same pipeline as Kontext) and a text prompt.
  * Lower strength preserves more of the original photo; higher follows the prompt more.
  */
-export async function callFalFluxImageToImageEdit(
+async function callFalFluxImageToImageEditCore(
   prepared: PreparedReferenceForFal,
   prompt: string,
 ): Promise<CallFalFluxI2iEditResult> {
@@ -110,4 +111,10 @@ export async function callFalFluxImageToImageEdit(
     modelLabel: `fal/${mid}`,
     falRequestId,
   };
+}
+
+/* Metered entry point (WP-23): one ai_call_telemetry row per image request. */
+
+export function callFalFluxImageToImageEdit(...args: Parameters<typeof callFalFluxImageToImageEditCore>): ReturnType<typeof callFalFluxImageToImageEditCore> {
+  return meterAiCall({ kind: 'image', fallbackCostUsd: IMAGE_FALLBACK_COST_USD }, () => callFalFluxImageToImageEditCore(...args));
 }
