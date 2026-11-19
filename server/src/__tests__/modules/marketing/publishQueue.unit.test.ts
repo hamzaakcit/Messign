@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   row: {} as Record<string, unknown>,
-  calendar: vi.fn(async () => ({})),
+  calendar: vi.fn(async (..._args: unknown[]) => ({})),
   queries: [] as string[],
 }));
 
