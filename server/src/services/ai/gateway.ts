@@ -154,7 +154,8 @@ async function callAnthropicDirect(
   const request: Anthropic.MessageCreateParams = {
     model,
     max_tokens: options.maxTokens ?? 4096,
-    temperature: options.temperature ?? 0.3,
+    // Claude 5 models reject `temperature` (400 invalid_request_error); omit it for them.
+    ...(/^claude-(sonnet|opus|haiku|fable)-5/.test(model) ? {} : { temperature: options.temperature ?? 0.3 }),
     system: system || undefined,
     messages: anthropicMsgs,
     ...(toolConversion?.anthropicTools?.length ? { tools: toolConversion.anthropicTools } : {}),
