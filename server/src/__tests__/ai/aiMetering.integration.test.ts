@@ -214,9 +214,10 @@ describe.skipIf(!adminUrl)('AI metering and budget (real Postgres)', () => {
 
   it('a tenant over its monthly budget is refused before any provider is called, and the refusal is metered', async () => {
     const t = tenant();
-    await metering.setAiTenantBudget(t, 0.0005);
+    // Cap below one call's cost (gpt-oss-120b, 1000 in / 500 out is about $0.00045).
+    await metering.setAiTenantBudget(t, 0.0001);
 
-    // First call: spend this month is 0, under the cap, so it goes through and costs about $0.00098.
+    // First call: spend this month is 0, under the cap, so it goes through and costs about $0.00045.
     fake.openaiCreate.mockResolvedValueOnce(completion('first'));
     await gateway.callModelSafe({ tier: 'fast', messages: [{ role: 'user', content: 'a' }], tenantId: t });
     expect(fake.openaiCreate).toHaveBeenCalledTimes(1);
