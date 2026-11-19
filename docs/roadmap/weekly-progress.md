@@ -14,9 +14,9 @@ Append one entry per session: date · session · WP · done · remaining · next
 - **Verified:**
   - **PII-in-prompt test** (`engageCopyDraftPii.integration.test.ts`, real Postgres 17 with pgvector, HTTP, model stubbed to record prompts): two customers with names, emails, phones and an address exist; no name, email, phone, address or profile id reaches the system or user prompt, and the brief and event name do. Plus: personal data in the brief refused before any model call; personal data in the reply refused by kind and nothing stored; marketing without the unsubscribe link and transactional with it refused; a non-JSON reply, a model error (502, the error text not echoed) and a budget refusal (402) store nothing; non-admins get 403; approval adds version 2 and the template's latest version carries the drafted subject; a second decision gets 409; a rejected draft never becomes a version; tenant B cannot read, approve or reject tenant A's draft; no message row is created.
   - **Mutations** on the real path, both caught: a profile's attributes added to the prompt (the PII test fails); the brief screen disabled (the brief test fails).
-  - `engageCopyDraftGates.unit.test.ts` (33): detector shapes (email, TR phone forms, TR IBAN, 11-digit id, Luhn card), ordinary copy not flagged, the gatekeeper rules one by one, the output parser.
+  - `engageCopyDraftGates.unit.test.ts` (43): detector shapes (email, TR phone forms, TR IBAN, 11-digit id, Luhn card), ordinary copy not flagged, the gatekeeper rules one by one, the output parser.
   - Isolation suite and schema-index suite cover `copy_drafts` (seeder registered).
-  - Full server suite on a scratch Postgres 17 (port 5499, not the local messign database): 181 files passed, 2 skipped, 1875 tests passed, 9 skipped. Server `tsc` clean. Full client suite: 117 files, 675 passed. Client `tsc` clean.
+  - Full server suite on a scratch Postgres 17 (port 5499, not the local messign database): 181 files passed, 2 skipped, 1885 tests passed, 9 skipped. Server `tsc` clean. Full client suite: 117 files, 675 passed. Client `tsc` clean.
 - **Not done:**
   - Number words ("beş üç iki") and other spelled-out digits are not detected.
   - No UI. The API is the queue; a panel on the Lucy page would be a separate package.
