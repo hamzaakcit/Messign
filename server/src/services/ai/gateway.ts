@@ -245,10 +245,10 @@ function geminiChatModelCandidates(): string[] {
 
 /** Direct routing: Anthropic for complex/frontier; Groq for fast; Gemini for balanced/vision. */
 const TIER_DIRECT: Record<ModelTier, { provider: DirectProvider; model: string }> = {
-  fast: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  fast: { provider: 'groq', model: process.env.LLM_FAST_MODEL?.trim() || 'openai/gpt-oss-120b' },
   balanced: { provider: 'gemini', model: GEMINI_CHAT_MODEL },
-  complex: { provider: 'anthropic', model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-20250514' },
-  frontier: { provider: 'anthropic', model: process.env.LLM_FRONTIER_MODEL?.trim() || 'claude-sonnet-4-20250514' },
+  complex: { provider: 'anthropic', model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-5-5' },
+  frontier: { provider: 'anthropic', model: process.env.LLM_FRONTIER_MODEL?.trim() || 'claude-sonnet-5-5' },
   vision: { provider: 'gemini', model: GEMINI_CHAT_MODEL },
 };
 

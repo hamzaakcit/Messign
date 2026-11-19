@@ -11,8 +11,8 @@ import type { StepTokenUsage } from './orchestrator/types.js';
 import { callModelSafe } from './gateway.js';
 import { meterAiCall, meterAiStream, recordServed } from './metering.js';
 
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
-const GROQ_SYNTHESIS_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODEL = 'openai/gpt-oss-120b';
+const GROQ_SYNTHESIS_MODEL = 'openai/gpt-oss-120b';
 
 const FALLBACK_WARNING = '[AI Gateway] LiteLLM unavailable, using direct fallback. Cost tracking disabled for this request.';
 
@@ -794,7 +794,7 @@ async function callClaudeWithToolsCore(
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-5-5',
       max_tokens: 1024,
       system: systemPrompt,
       messages,
@@ -817,7 +817,7 @@ async function callClaudeWithToolsCore(
     }>;
   };
 
-  recordServed({ provider: 'anthropic', model: 'claude-sonnet-4-20250514' });
+  recordServed({ provider: 'anthropic', model: 'claude-sonnet-5-5' });
   let toolCalls: ParsedToolCall[] | null = null;
   let textContent: string | null = null;
 

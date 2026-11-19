@@ -113,10 +113,10 @@ describe.skipIf(!adminUrl)('AI metering and budget (real Postgres)', () => {
     const rows = await rowsFor(t);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      kind: 'chat', tier: 'fast', provider: 'groq', model: 'llama-3.3-70b-versatile', upstream_calls: 1,
+      kind: 'chat', tier: 'fast', provider: 'groq', model: 'openai/gpt-oss-120b', upstream_calls: 1,
       tokens_in: 1000, tokens_out: 500, outcome: 'ok', error_code: null, cost_estimated: false,
     });
-    expect(rows[0].cost).toBeCloseTo((1000 * 0.59 + 500 * 0.79) / 1e6, 6);
+    expect(rows[0].cost).toBeCloseTo((1000 * 0.15 + 500 * 0.6) / 1e6, 6);
     expect(rows[0].caller).toContain('aiMetering.integration.test');
   });
 
