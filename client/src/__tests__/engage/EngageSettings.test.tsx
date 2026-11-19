@@ -34,6 +34,7 @@ function renderHub() {
 
 const SETTINGS_NOT_READY = {
   sendEnabled: false,
+  senderName: null,
   timezone: 'Europe/Istanbul',
   quietHours: null,
   frequencyCap: { max: 3, windowHours: 168 },
@@ -88,6 +89,34 @@ describe('engage settings (WP-22)', () => {
     const card = within(panel).getByTestId('settings-sending');
     expect(within(card).getByText('No email sending account is set up.')).toBeInTheDocument();
     expect(within(card).getByTestId('settings-send-on')).toBeDisabled();
+  });
+
+  it('saves the sender name; the server answers with the settings and the screen shows the new name', async () => {
+    mockApi((url, method, body) => {
+      if (url.endsWith('/engage/settings/sender') && method === 'PUT') return json({ ...SETTINGS_NOT_READY, senderName: (body as { senderName: string }).senderName });
+      return lists(url, method) ?? (url.endsWith('/engage/settings') ? json(SETTINGS_NOT_READY) : json({}, 404));
+    });
+    renderHub();
+    const panel = await openSettings();
+    const card = within(panel).getByTestId('settings-sender');
+    expect(within(card).getByTestId('sender-not-set')).toBeInTheDocument();
+    fireEvent.change(within(card).getByLabelText('Sender name'), { target: { value: '  Kitapyurdu  ' } });
+    fireEvent.click(within(card).getByTestId('sender-save'));
+    await waitFor(() => expect(sent('PUT', '/engage/settings/sender')).toHaveLength(1));
+    expect(sent('PUT', '/engage/settings/sender')[0]!.body).toEqual({ senderName: 'Kitapyurdu' });
+    expect(await within(card).findByText('Saved.')).toBeInTheDocument();
+  });
+
+  it('a refused sender name shows the reason under the field', async () => {
+    mockApi((url, method) => {
+      if (url.endsWith('/engage/settings/sender') && method === 'PUT') return json({ error: 'The sender name is not valid', issues: [{ path: 'senderName', message: 'must be 1 to 80 characters on one line, with no < > { or }' }] }, 400);
+      return lists(url, method) ?? (url.endsWith('/engage/settings') ? json(SETTINGS_NOT_READY) : json({}, 404));
+    });
+    renderHub();
+    const card = within(await openSettings()).getByTestId('settings-sender');
+    fireEvent.change(within(card).getByLabelText('Sender name'), { target: { value: '<b>Kitap</b>' } });
+    fireEvent.click(within(card).getByTestId('sender-save'));
+    expect(await within(card).findByText(/senderName: must be 1 to 80/)).toBeInTheDocument();
   });
 
   it('a member does not get the Settings tab', async () => {

@@ -127,6 +127,12 @@ async function loadVersion(c: Tx, orgId: string, templateId: string, version?: n
   return toVersion(r.rows[0]);
 }
 
+/** The tenant's sender name, or null when it has not been set. Read inside the caller's transaction. */
+export async function senderNameOn(c: Tx, orgId: string): Promise<string | null> {
+  const r = await c.query<{ sender_name: string | null }>(`SELECT sender_name FROM engage.tenant_settings WHERE organization_id = $1`, [orgId]);
+  return r.rows[0]?.sender_name ?? null;
+}
+
 function checkPayload(payload: unknown): Record<string, unknown> {
   if (payload === undefined || payload === null) return {};
   if (typeof payload !== 'object' || Array.isArray(payload)) throw new TemplateInputError('payload must be an object');
@@ -157,7 +163,10 @@ export async function previewTemplate(orgId: string, templateId: string, input: 
       if (!p.rows[0]) throw new TemplateNotFoundError('Profile not found');
       attributes = p.rows[0].attributes;
     }
-    const r = renderTemplate(parseTemplate({ subject: v.subject, html: v.html, text: v.text }), { attributes, payload, system: { unsubscribe_url: PREVIEW_UNSUBSCRIBE_URL } });
+    const sender = await senderNameOn(c, orgId);
+    const r = renderTemplate(parseTemplate({ subject: v.subject, html: v.html, text: v.text }), {
+      attributes, payload, system: { unsubscribe_url: PREVIEW_UNSUBSCRIBE_URL, ...(sender ? { sender_name: sender } : {}) },
+    });
     return r.ok
       ? { version: v.version, subject: r.subject, html: r.html, text: r.text, errors: [], variables: v.variables }
       : { version: v.version, subject: null, html: null, text: null, errors: r.errors, variables: v.variables };
@@ -198,8 +207,12 @@ export async function createTemplatedMessageOn(c: Tx, orgId: string, input: Temp
   const links = input.purpose === 'marketing'
     ? buildUnsubscribeLinks({ organizationId: orgId, profileId: input.profileId, channel: 'email' })
     : null;
+  // The sender's name is the tenant's setting (migration 130). Unset, a template that uses it fails to render, and the
+  // send gate denies the message instead of sending a made-up or blank name.
+  const sender = await senderNameOn(c, orgId);
   const rendered = renderTemplate(parseTemplate({ subject: loaded.v.subject, html: loaded.v.html, text: loaded.v.text }), {
-    attributes: loaded.attributes, payload, system: links ? { unsubscribe_url: links.pageUrl } : {},
+    attributes: loaded.attributes, payload,
+    system: { ...(links ? { unsubscribe_url: links.pageUrl } : {}), ...(sender ? { sender_name: sender } : {}) },
   });
   const trace = { template_id: input.templateId, template_version: loaded.v.version };
   const content: Record<string, unknown> = rendered.ok

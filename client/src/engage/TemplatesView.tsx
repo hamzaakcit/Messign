@@ -29,7 +29,7 @@ function ContentForm({ initial, onSave, saveLabel }: { initial: { subject: strin
   return (
     <div className="space-y-3">
       <Field label="Subject"><TextInput value={subject} onChange={setSubject} ariaLabel="Subject" /></Field>
-      <Field label="HTML" hint="paste the HTML exported from your editor">
+      <Field label="HTML" hint="paste the HTML exported from your editor; {{sender_name}} is the sender name from Settings">
         <textarea value={html} onChange={(e) => setHtml(e.target.value)} rows={14} spellCheck={false} aria-label="HTML" className={`${inputClass} font-mono text-xs`} />
       </Field>
       <Issues issues={issues} />

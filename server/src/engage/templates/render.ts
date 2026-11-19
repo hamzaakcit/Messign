@@ -6,6 +6,7 @@
  *   {{name}}                     a profile attribute (Unlayer's own merge-tag shape)
  *   {{payload.name}}             a value from the trigger payload (journeys, WP-16)
  *   {{unsubscribe_url}}          the recipient's unsubscribe page link (marketing mail)
+ *   {{sender_name}}              the tenant's sender name (settings); never written by an AI model
  *   {{name | default: "text"}}   a fallback chosen by the author; without one, a missing value fails the render
  * No logic, no loops, no filters, no expressions. Anything else between {{ and }} is rejected when a version is saved.
  *
@@ -19,7 +20,8 @@
 export type VariableSource = 'attribute' | 'payload' | 'system';
 export interface VariableRef { name: string; source: VariableSource; defaultValue: string | null }
 
-export const SYSTEM_VARIABLES = ['unsubscribe_url'] as const;
+/** Filled by the sender of the message, not by the customer: the unsubscribe link (marketing) and the tenant's sender name. */
+export const SYSTEM_VARIABLES = ['unsubscribe_url', 'sender_name'] as const;
 const NAME = '[A-Za-z_][A-Za-z0-9_]{0,63}';
 const TOKEN_BODY = new RegExp(`^(?:(payload)\\.)?(${NAME})(?:\\s*\\|\\s*default:\\s*"([^"\\\\{}<>\\r\\n]{0,200})")?$`);
 const MAX_VARIABLES_PER_PART = 200;

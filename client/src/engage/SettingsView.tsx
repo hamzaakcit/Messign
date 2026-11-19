@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addRateCard, disableChannelAccount, getSettings, issuesOf, problemsOf, recordReadinessItem, setBudgetCap, setSendEnabled,
-  updateGateSettings, type Channel, type TenantSettings,
+  setSenderName, updateGateSettings, type Channel, type TenantSettings,
 } from './settingsApi';
 import { Button, ErrorLine, Field, Select, StatusBadge, TextInput, formatTime } from './ui';
 
@@ -69,6 +69,7 @@ export function SettingsSection(): JSX.Element {
   return (
     <div data-testid="hub-settings" className="space-y-4">
       <SendingCard s={s} />
+      <SenderCard s={s} />
       <ReadinessCard s={s} />
       <GateCard s={s} />
       <CapsCard s={s} />
@@ -105,6 +106,38 @@ function SendingCard({ s }: { s: TenantSettings }): JSX.Element {
           Turning sending on checks readiness first. While anything is missing the request is refused and sending stays off.
           Every message still passes the send gate and the customer's consent.
         </p>
+      </div>
+      <SaveErrors error={save.error} />
+    </Card>
+  );
+}
+
+/**
+ * The sender name: the name customers know the shop by. A template or a copy draft refers to it as {{sender_name}}; the
+ * name is filled in when a message is made, and never written by the AI model. Until it is set, such a message is refused.
+ */
+function SenderCard({ s }: { s: TenantSettings }): JSX.Element {
+  const [name, setName] = useState(s.senderName ?? '');
+  const save = useSettingsSave(() => setSenderName(name.trim() === '' ? null : name.trim()));
+  return (
+    <Card title="Sender name" testId="settings-sender">
+      <p className="text-xs text-app-muted">
+        The name your customers know the shop by. Templates use <code className="font-mono">{'{{sender_name}}'}</code> for a sign-off; the name is filled in when a message is made.
+        One line, up to 80 characters, no angle brackets or braces.
+      </p>
+      {!s.senderName && (
+        <p role="alert" className="text-sm text-red-600" data-testid="sender-not-set">
+          Not set. A message that uses the sender name will not be sent until you set it.
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Sender name">
+          <TextInput value={name} onChange={setName} ariaLabel="Sender name" testId="sender-name" placeholder="Your shop name" />
+        </Field>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button kind="primary" onClick={() => save.mutate(undefined)} disabled={save.isPending} testId="sender-save">Save</Button>
+        {save.isSuccess && <span className="text-xs text-app-muted">Saved.</span>}
       </div>
       <SaveErrors error={save.error} />
     </Card>
