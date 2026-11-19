@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
 import { vi } from 'vitest';
+
+// findBy*/waitFor give up after 1s by default. With the whole suite running in parallel jsdom workers (beside a dev
+// server) a panel that loads through a mocked fetch can take longer than that, and a correct test then fails at random.
+// Same reason as testTimeout in vitest.config.ts. Passing tests are not slower; only a test that is really wrong waits longer.
+configure({ asyncUtilTimeout: 5000 });
 
 // ── Browser API stubs ──────────────────────────────────────────────────────
 // jsdom doesn't implement these; many UI libraries (recharts, framer-motion)

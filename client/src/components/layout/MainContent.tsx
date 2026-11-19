@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { PageSkeleton } from '@/components/ui';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Header } from './Header';
-import { mountsFrozenModules } from '@/lib/productSurface';
+import { MarketingEntry } from '@/engage/MarketingEntry';
 
 const EngageHub = React.lazy(() => import('@/engage/EngageHub').then((m) => ({ default: m.EngageHub })));
 
@@ -82,8 +82,9 @@ export function MainContent() {
       case 'crm':
         return wrap('crm', <CRMLayout />);
       case 'marketing':
-        // Engage lives inside this page: the hub replaces Lucy there (the Company-OS Lucy page is frozen, ADR-009).
-        return mountsFrozenModules() ? wrap('marketing', <MarketingLayout />) : wrap('marketing', <EngageHub />);
+        // One page for Lucy and engage (ADR-016): the organization decides whether it is the Lucy page, which then holds the
+        // engage sections too, or the engage page alone (tenants: the Company-OS Lucy page is frozen for them, ADR-009).
+        return wrap('marketing', <MarketingEntry lucy={<MarketingLayout />} hub={<EngageHub />} />);
       case 'recruitment':
         return wrap('recruitment', <RecruitmentLayout />);
       case 'support':

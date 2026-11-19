@@ -17,6 +17,8 @@ import { webhookRouter } from './webhookRoutes.js';
 import { unsubscribeRouter } from './unsubscribeRoutes.js';
 import { templateRouter } from './templateRoutes.js';
 import { journeyRouter } from './journeyRoutes.js';
+import { campaignRouter } from './campaignRoutes.js';
+import { settingsRouter } from './settingsRoutes.js';
 import { errorFields, logError, logInfo } from './log.js';
 import './types.js';
 
@@ -31,11 +33,13 @@ engageRouter.use('/webhooks', webhookRouter);
 engageRouter.use('/unsubscribe', unsubscribeRouter);
 engageRouter.use('/templates', templateRouter);
 engageRouter.use('/journeys', journeyRouter);
+engageRouter.use('/campaigns', campaignRouter);
 engageRouter.use('/segments', segmentRouter);
+engageRouter.use('/settings', settingsRouter);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;
-  res.json({ organizationId: u.organizationId, userId: u.userId, role: u.role });
+  res.json({ organizationId: u.organizationId, userId: u.userId, role: u.role, product: u.product });
 });
 
 engageRouter.get('/key/me', requireApiKey, (req, res) => {

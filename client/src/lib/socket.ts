@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { API_ORIGIN } from './apiCore';
 import { getAccessToken } from './authToken';
+import { mountsFrozenModules } from './productSurface';
 
 let socket: Socket | null = null;
 
@@ -32,6 +33,9 @@ export function getSocket(): Socket {
 
 export function connectSocket(_userId?: string) {
   const s = getSocket();
+  // The socket carries Company-OS broadcasts (presence, activity, chat); an engage session has none to receive, and the
+  // server refuses a tenant's handshake (ADR-017).
+  if (!mountsFrozenModules()) return s;
   if (!s.connected) {
     s.auth = { token: getAccessToken() };
     s.connect();

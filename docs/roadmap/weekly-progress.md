@@ -2,6 +2,113 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-11 · WP-23 (AI gateway metering and per-tenant monthly cap)
+- **Done:**
+  - Migration `128_ai_call_telemetry.sql`: `ai_call_telemetry` (one row per AI call: caller, tenant, kind, tier, provider, model, upstream calls, tokens in and out, latency, outcome, error class, cost estimate and whether it was estimated) and `ai_tenant_budgets` (monthly cap per tenant). No prompt, completion or error text is stored.
+  - `services/ai/metering.ts`: `meterAiCall` and `meterAiStream` wrap every entry point. Nested entry points are passthroughs, so one call writes one row with the sum of its successful upstream responses. Budget check before any provider call; a refused call writes a `budget_exceeded` row and throws `AiBudgetExceededError`. Caller is the first source frame outside the gateway files (from the stack), so no call site had to change.
+  - Entry points metered: `callModel`, `callModelSafe`, `streamModel`, `streamModelSafe`, `embedViaGateway` (gateway.ts), `generateResponse` (llmGateway.ts, JSON and tool path), the eight direct-fetch functions in `groqToolCalling.ts`, and the four image entry points (`generateImage`, Fal marketing generation, Fal Kontext edit, Fal Flux edit). `generateText` and `generateVision` go through `callModelSafe`.
+  - `setAiTenantBudget(tenantId, usd)` sets a cap. No HTTP route or UI yet.
+- **Verified:**
+  - `aiMetering.unit.test.ts` (16): price estimates, caller naming, nesting, error and abort outcomes, telemetry write failure does not fail the call.
+  - `aiMetering.integration.test.ts` (14, real Postgres 17 + pgvector, fake providers): a row on success, failover, every provider failing, stream, aborted stream, embedding, JSON path with a 400, direct-fetch tool path success and failure, budget refusal on the chat, JSON and stream paths, per-tenant isolation, cap raised again, DB down during write.
+  - Mutation: disabling the budget comparison fails 3 of the budget tests; restored.
+  - Migration runner fingerprint test updated: migration 128 adds two public tables and four indexes, which is the only public change after the baseline.
+  - Full server suite on the scratch database: 179 files, 1822 passed, 9 skipped, and one failure (the migration fingerprint test above), which now passes on re-run. Server `tsc` clean. Full client suite: 117 files, 675 passed. Client `tsc` clean.
+- **Not done:**
+  - Budget check and telemetry insert each cost one DB round trip per AI call. Acceptable now; measure before scaling.
+  - The cap can overshoot by the cost of calls in flight at the same moment. If the database cannot be read, the check fails open (logged). Refuse-on-error would stop calls when the database is down; a decision for the founder.
+  - Prices are estimates in code (`PRICE_USD_PER_MTOK`), not read from the providers. Image costs are a flat per-image estimate. Streams and images have no token counts and are charged the per-tier estimate (marked estimated).
+  - `services/ai/agents/*`, `v2/*` and other modules that reach the gateway are covered through the gateway, not tested one by one.
+  - `ai_request_telemetry` (request-level, existing) is unchanged. It is not the same grain as this table.
+- **For you:** run `npm run db:migrate` against production to apply 128 (additive: two new tables, no data touched). Then set a budget per tenant, for example with `setAiTenantBudget` from a script; no budget row means no cap, only metering.
+- **Next:** review the PR stacked on #40 (`engage/settings-wp22`); then WP-24 (AI copy drafting, PII-in-prompt test).
+
+## 2026-11-11 · WP-22 (settings: channel accounts, readiness, quiet hours, caps, send_enabled)
+- **Done:**
+  - **Settings tab** for tenant admins on the engage page (`SettingsView.tsx`, `settingsApi.ts`): sending switch with its reasons, readiness items (value and https evidence link), quiet hours, time zone and frequency cap, monthly budget caps, rate cards, and channel accounts (view and disable only; secrets stay in `npm run engage:add-account`).
+  - **Server:** `/api/engage/settings` (admins only, `settingsRoutes.ts`, `settings/settings.ts`). `send_enabled` is turned on only if `readinessOn` (the campaign readiness, now exported) has no problems other than the flag itself. The check runs under a row lock; a refusal is 409 with the reasons. Turning it off is always allowed. Other writes reuse the gate's setters (`updateGateSettings`, `setBudgetCap`, `addRateCard`).
+  - No migration: the tables already exist.
+- **Verified:**
+  - `engageSettings.integration.test.ts` (real Postgres 17 + pgvector, HTTP): 10 tests, including refused without readiness with the flag still off, live mode needing the legal items, admin-only, validation, and tenant isolation. A mutation that disables the readiness check makes 3 of them fail.
+  - `EngageSettings.test.tsx`: 5 client tests (admin-only tab, refusal reasons shown, quiet-hours validation).
+  - Full suites on the rebased branch: server 175 files, 1793 passed, 9 skipped (with `ENGAGE_TEST_ADMIN_URL`); client 117 files, 675 passed; `tsc` clean on both.
+- **Not done:** SMS and WhatsApp readiness is recorded but not checked by `send_enabled` (no adapter exists yet). No audit table for settings changes; changes are logged with ids and codes only. `SEND_MODE` must be `sandbox` or `live` before sending can be switched on.
+- **Next:** review PR (stacked on #39). Then the SMS/WhatsApp readiness rules once their adapters exist.
+
+## 2026-11-10 · Local fixes after WP-38 (dev server, CORS, remount loop, customer add path)
+- **Done:**
+  - **Development CORS:** the local engage (3200) and merged (3300) previews are in the development allow-list (`server/src/config/corsOrigins.ts`), with a test. Before, their requests were refused and the session dropped to the login page.
+  - **Remount loop (client):** on the shared (`all`) surface the engage answer gate hid the app on every refetch. A query that never succeeded goes back to `pending` on each fetch, so the app unmounted and remounted with every request it makes: hundreds per second, rate-limited (429), then logout. The answer now stands once it has arrived (`hasAnsweredEngageMe`, used by `SurfaceGate` and `useEngageAccess`). A test fails on the old condition.
+  - **Add customer path:** `createCustomer` posted to `/api/api/engage/profiles` (`fetchAPI` adds `/api` itself) and got "Not found". The test matched the URL by substring and missed it; it now matches the exact path.
+  - **Test setup:** `client/vitest.config.ts` pins the default surface to `workspace` for tests, so a developer's `client/.env.local` cannot change them (the login test failed on `all`).
+- **Verified:** client `tsc` clean; engage client tests 81 passed (10 files); `corsOrigins` server test 5 passed. Full client suite 675 passed with the remount fix and the test default. The full server suite was not re-run on this branch.
+- **Not verified:** the full server suite on this branch; the `all` surface on the dev server (blocked by the engage database configuration, see the next item).
+- **Local setup, not in git:** `server/.env` and `client/.env.local` point the dev server at the `all` surface, `ENGAGE_DATABASE_URL` at `messign_local`, `SEND_MODE=sandbox`, and `ENGAGE_PUBLIC_*` at `https://messign.com` and the Railway API. Originals are in `/private/tmp/claude-501/`.
+- **Open outside the repo:** the SES production access case (179435046400769) has our answer and a correction: bounce and complaint processing via SNS is not active yet and is due by the end of December. Until the SNS endpoint is set up, the code path is not live.
+- **Next:** WP-22 (settings: channel accounts, readiness checks, send enabled), which replaces the manual SQL used in this session.
+
+## 2026-11-10 · Add one customer by hand (Customers page)
+- **Done:**
+  - **Add customer** on the Customers section, admins only (`NewCustomerPanel`): customer ID (required), email, phone, and a "This customer agreed to receive marketing email" checkbox. Ticking it requires the email address and a note of where the customer agreed; the note is kept as the consent's evidence.
+  - **Server:** `POST /api/engage/profiles` (admins; `requireEngageAdmin`), in `customerEntry.ts`. It reuses the ingestion API's profile and consent writes, so a hand-added customer behaves like one sent by a store. 201 on create; 400 with the reason or field issues; 409 when the customer ID or the email already belongs to another customer, with nothing written.
+- **Verified:**
+  - Server integration tests (real Postgres, HTTP): 8 tests (consent stored with the note as evidence; no consent stored without one; member refused with nothing written; consent without email or without a note refused; repeated ID and shared email refused; missing ID a field error). A mutation that removes the admin guard is caught.
+  - Client: `NewCustomer.test.tsx` (6 tests: admin-only button, save rules, the posted body, opening the customer after save, server refusal shown). A mutation that removes the admin check on the button is caught.
+  - Full suites: server 174 files, 1782 passed, 9 skipped (live services); client 116 files, 669 passed; `tsc` clean on both.
+- **Honest caveats:**
+  - The consent source is recorded as `import` with `evidence.method = manual_entry`; the admin attests the agreement by entering the note. The app does not verify the agreement.
+  - The check for an existing customer ID and the write are two steps, not one transaction, so two admins adding the same ID at the same moment could both get through (the second write merges into the first). Rare; not fixed here.
+  - Editing an existing customer's details is not in this change.
+- **Next:** WP-22 (settings: channel accounts, readiness, quiet hours, caps, send enabled).
+
+## 2026-11-10 · WP-38 (send one email to a segment now) and ADR-017 (tenants reach engage routes only)
+- **Done:**
+  - **Campaigns** (ADR-018, migration `127_engage_campaigns.sql`, `engage/campaigns/campaigns.ts`, `engage/campaignRoutes.ts`): a one-off send is a one-step `api` journey plus an `engage.campaigns` record, so every message still goes through the send gate, the holdout, the results and the customer trail. `POST /api/engage/campaigns` approves and activates the journey as the admin who pressed Send and enrols the audience in chunks (500; at most 100,000). `POST /campaigns/:id/resume` finishes an interrupted send with exact counts.
+  - **Audience and safety:** only customers with email consent are enrolled. A refusal writes nothing and lists every reason (`GET /campaigns/readiness`, the preview and the 409 report the same facts): send mode off, tenant not enabled, no or two email accounts, account mode not matching the send mode, no rate card or budget cap, public https origins for the unsubscribe links missing, live readiness items missing. One idempotency key is one campaign (a double click or two simultaneous requests send nothing twice). The record's status and counts are the only columns the engage role can change.
+  - **On the Lucy page:** a Campaigns tab, **Send an email now** at the top of the quick actions, a wizard in a panel (template, segment, optional holdout 0 to 50%, "Check who would receive it", confirmation, "Send now to N customers"), and a campaign panel that shows progress and what happened (delivered, blocked and why, held back) from the send gate's own decisions. Campaign journeys are not listed under Journeys.
+  - **Tenants reach engage routes only** (ADR-017, `middleware/tenantGuard.ts`): an engage tenant's token is refused on every `/api` route except `/api/auth`, `/api/engage` and `/api/health`, on sockets, and on production `/uploads`. The client waits for `/api/engage/me` before showing anything and narrows the `all` surface to the engage surface for a tenant (menu, routes, socket). Any new route is closed to tenants by default.
+  - **Dev sign-in:** the password stored for `client/.env.local` now matches the dev account in `messign_local` (only that one hash changed; no env file was touched).
+- **Verified:**
+  - **Server:** `tsc` clean; full suite 173 files, 1774 tests passed, 9 skipped (live services). New real-Postgres tests: 16 for campaigns (readiness reasons, consent-only audience, idempotent and concurrent repeats, chunked resume with exact counts, a stopped journey, outcome counts, forced RLS and column grants, no cross-tenant access) and the tenant guard (including the real routes). Mutation checks over the guard and the campaign rules; survivors (the query-string case, the skipped counter, a repeated key) each got a test.
+  - **Client:** `tsc` clean; full Vitest 116 files, 668 passed, four runs in a row (16 new campaign tests; the hub, surface and gate tests cover the tenant path). Mutation checks over the wizard, the panel and the polling; the survivors (a tile not closing a panel, polling stopping too early or too late, a redundant Send condition) were turned into tests or simplified.
+  - **Playwright (engage stack, 5 tests):** the new test checks the audience, confirms, sends, and opens the campaign; the four earlier tests pass again.
+  - **Browser (a private copy of the dev database, merged surface, sandbox mode, mock account):** a campaign to a 30-customer segment (consent for 30, 25 allow-listed, 2 of those suppressed) ended with 23 sent and 7 blocked with their reasons, exactly the predicted counts. A tenant token on the same deployment got 403 on `/api/users` and the other Company-OS routes, and its engage page worked. Your dev database was not used for sending.
+- **Found and fixed:**
+  - **A tenant token could read Company-OS data** (`/api/users` and others) because only the pages, not the API, were closed to it. The deny-by-default guard (ADR-017) closes this, with its own tests; checked live.
+  - A campaign without public unsubscribe origins queued messages that could not be created (30 tick errors in the first try). Readiness now refuses before anything is written.
+  - The client suite failed at random under load: `findBy*` waits gave up after 1 s (one hub test, three runs in six). `asyncUtilTimeout` is now 5 s in the test setup, like `testTimeout`; four full runs passed afterwards.
+- **Honest caveats:**
+  - Nothing changes in production until an operator runs migration 126 and 127 (`npm run db:migrate`) and, for the platform organization, `npm run engage:platform`.
+  - A campaign cannot be scheduled or cancelled once sent; there is no test send to oneself and no A/B variant (ADR-018, "Not in v1").
+  - The readiness items are set by an operator (SQL and scripts, `docs/runbooks/send-a-campaign.md`) until the settings screen (WP-22).
+  - With `ENABLE_PG_BOSS=false` the messages are not created until the scheduled tick runs.
+  - The `all` surface still shows the other Company-OS pages to anyone of the platform organization; tenants can no longer reach them either way (ADR-017).
+  - The engage browser tests are still not in CI.
+- **Next:** WP-22 (settings: channel accounts, readiness checks, quiet hours, caps, send enabled).
+
+## 2026-11-10 · WP-37 (one Lucy page for Company-OS and engage)
+- **Done:**
+  - **The platform organization may use engage:** migration `126_engage_org_product_all.sql` widens the product check to `workspace`, `engage` and `all`. `requireEngageUser` accepts `engage` and `all` and refuses everything else. `GET /api/engage/me` also reports the product. `npm run engage:platform` (`-- --off` to undo) sets `all` for the organization named by `PLATFORM_ORG_SLUG` and creates its engage settings row with sending off; it refuses a tenant and an organization that does not exist. Applying the migration changes no organization, so production is unchanged until the command is run.
+  - **One `/marketing` page, chosen by organization** (`MarketingEntry`): the engage surface shows the engage page; the workspace surface shows the Lucy page as before and never asks the engage API; on the `all` surface the client asks `/api/engage/me` first. A tenant gets the engage page alone (never the Lucy chat or tools); the platform organization gets the Lucy page with engage on it; an organization the engage API refuses gets the Lucy page as before. Nothing is shown until the answer arrives, so a tenant never sees the Lucy page flash by.
+  - **On the Lucy page:** tabs Lucy, Customers, Journeys, Segments, Templates; the engage "Go to" tiles under Lucy's own; New journey, segment and email template next to Lucy's quick actions; records and editors in panels over the page. The chat is hidden, not unmounted, while an engage tab is open, so it keeps its conversation.
+  - **Shared parts** (`client/src/engage/engageWorkspace.tsx`): the engage hub for tenants and the Lucy page are thin hosts over the same tabs, tiles, quick actions and panels.
+  - **Docs:** ADR-016, decision D-15, an ADR-002 note, the ADR-015 status, the `CLAUDE.md` rule (the Lucy page is the one frozen module that hosts engage), runbook `docs/runbooks/one-lucy-page.md` (local setup and production), backlog row WP-37.
+- **Verified:**
+  - **Server:** `tsc` clean; full suite 169 files, 1744 tests passed, 9 skipped (they need live services). Five new real-Postgres tests (the product values, the switch on and off, a tenant and a missing organization refused, the platform user passing the engage auth only while the switch is on, and the platform organization's engage data invisible to tenants and the other way round) and one unit test. Mutation check: 11 mutants (the product rule, the settings row, the tenant refusal, the changed flag, the off value, the platform slug), all caught.
+  - **Client:** `tsc` clean; full Vitest 110 files, 629 tests passed. The real Lucy page is tested on each surface: workspace (exactly the Lucy page, the engage API never asked), `all` with the engage API refusing (unchanged), `all` with engage allowed (tabs, tiles, quick actions, panels, the chat kept mounted, a tile or tab closing the open panel, a member without the create actions). `MarketingEntry` is tested for each organization, including the wait for the answer. Mutation check: 22 mutants over the access rule, the tabs, the chat and the page choice; one survivor was a real gap (a tile did not close the open panel) and now has a test, one was a no-op mutation.
+  - **Playwright (engage stack, 4 tests):** passed again on the refactored hub.
+  - **Browser (a private copy of the dev database, `PRODUCT_SURFACE=all`):** migrations 120 to 126 applied cleanly; a Messign admin sees Lucy and the four engage tabs on one page, opens Customers (empty, from a real 200), creates an email template from the quick action (the row is in the `messign` tenant), and the Company-OS tiles and chat are all still there. A tenant signed in on the same deployment gets the engage page only: no Lucy chat, no Lucy greeting, no Company-OS tiles, and no Lucy API calls. Your dev database was not touched.
+- **Found and fixed:**
+  - A tenant on a shared deployment would have received the Company-OS Lucy chat and tools on the merged page. `/api/engage/me` now reports the product and `MarketingEntry` sends tenants to the engage page.
+  - A tile or a tab did not close an open panel (caught by the mutation check).
+- **Honest caveats:**
+  - The `all` surface still shows the other Company-OS pages to anyone who signs in there; a tenant should sign in on an `engage` deployment (ADR-016).
+  - `all` is meant for the platform organization only; the command is the only guard, the database cannot tell which organization is the platform one.
+  - Engage still has no one-off "send now" action: email goes out as a step of an activated journey.
+  - The password stored in `client/.env.local` for the dev auto sign-in does not match your dev database, so that sign-in fails (local only; not in this PR).
+  - The engage browser tests are still not in CI.
+- **Next:** run the runbook on your port 3000 (two lines in two env files, then `npm run db:migrate` and `npm run engage:platform`), then WP-22 (settings: channel accounts, readiness, quiet hours, caps, send enabled).
+
 ## 2026-11-10 · Engage inside the Lucy page (restructure of the WP-19 to WP-21 screens)
 - **Done:**
   - **One page for engage:** on the engage surface `/marketing` is the Lucy page, rendered as the engage hub (`client/src/engage/EngageHub.tsx`). Customers, Journeys, Segments and Templates are tabs in the main column; the right column has the "Go to" tiles and quick actions (new journey, segment, template; tenant admins only). Lucy's chat is not offered on engage (ADR-009).

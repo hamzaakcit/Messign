@@ -57,6 +57,7 @@ import { mountsEngage, mountsFrozenModules, mountsSeedRoutes } from './config/pr
 import { mountEngage } from './engage/index.js';
 import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
+import { isEngageTenantOrg, tenantGuard } from './middleware/tenantGuard.js';
 import { responseTimer } from './middleware/responseTimer.js';
 import { initializeAuthRecords } from './services/initAuth.js';
 import { initNewTables } from './db/initNewTables.js';
@@ -161,11 +162,17 @@ app.use(
 app.use(express.json({ limit: '1mb', type: 'application/json' }));
 if (process.env.NODE_ENV === 'production') {
   const resolvedUploadDir = resolve(UPLOAD_DIR);
-  app.use('/uploads', optionalJwt, (req, res, next) => {
+  app.use('/uploads', optionalJwt, async (req, res, next) => {
     if (!(req as express.Request & { userId?: string }).userId) {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
+    try {
+      if (await isEngageTenantOrg(req.jwtOrganizationId)) { // Company-OS files are not a tenant's (ADR-017)
+        res.status(403).json({ error: 'Not available for this organization' });
+        return;
+      }
+    } catch (err) { next(err); return; }
     const safePath = resolve(resolvedUploadDir, req.path.replace(/^\//, ''));
     if (!safePath.startsWith(resolvedUploadDir)) {
       res.status(403).end();
@@ -243,6 +250,8 @@ const aiLimiter = rateLimit({ windowMs: 60_000, max: 10, message: { error: 'AI r
 app.use('/api/dora', aiLimiter);
 
 app.use('/api', optionalJwt);
+// An engage tenant's token reaches sign-in and the engage API only; every Company-OS route is closed to it (ADR-017).
+app.use('/api', tenantGuard);
 
 // API Routes
 app.use('/api/auth', authRouter);

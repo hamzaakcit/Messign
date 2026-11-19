@@ -19,6 +19,10 @@ async function post<T>(endpoint: string, json: unknown): Promise<T> {
   }
 }
 
+/** Who the signed-in user is to engage. Answers 403 for an organization that may not use it (ADR-016). */
+export interface EngageMe { organizationId: string; userId: string; role: string; product: 'engage' | 'all' }
+export const getEngageMe = () => call<EngageMe>('/engage/me');
+
 export type VersionStatus = 'draft' | 'approved' | 'active' | 'retired';
 export interface JourneySummary { id: string; key: string; name: string; createdAt: string; activeVersion: number | null; latestVersion: number }
 export interface JourneyVersion {
@@ -73,3 +77,29 @@ export interface JourneyResults {
 }
 export const getJourneyResults = (id: string, windowHours: number) =>
   call<JourneyResults>(`/engage/journeys/${encodeURIComponent(id)}/analytics?windowHours=${windowHours}`);
+
+// One-off campaigns (WP-38, ADR-018): send a template to a segment now.
+export type CampaignStatus = 'sending' | 'sent' | 'failed';
+export interface Campaign {
+  id: string; journeyId: string; name: string; templateKey: string; templateVersion: number; segmentKey: string; segmentVersion: number;
+  holdoutPercent: number; status: CampaignStatus; matched: number; enrolled: number; skipped: number; truncated: boolean; error: string | null;
+  createdBy: string | null; createdAt: string; finishedAt: string | null;
+}
+export interface ReadinessProblem { code: string; message: string }
+export interface SendReadiness { sendMode: 'off' | 'sandbox' | 'live'; ready: boolean; problems: ReadinessProblem[] }
+export interface CampaignPreview {
+  template: { id: string; key: string; name: string; version: number; subject: string; hasUnsubscribeLink: boolean };
+  segment: { id: string; key: string; name: string; version: number };
+  audience: { inSegment: number; withConsent: number; sample: Array<{ id: string; externalId: string }>; cap: number; overCap: boolean };
+  readiness: SendReadiness;
+}
+export const listCampaigns = () => call<{ campaigns: Campaign[] }>('/engage/campaigns').then((r) => r.campaigns);
+export interface CampaignOutcome {
+  messages: number; byStatus: Record<string, number>; heldOut: number; blockedBecause: Record<string, number>; inFlight: boolean;
+}
+export const getCampaign = (id: string) => call<{ campaign: Campaign; outcome: CampaignOutcome }>(`/engage/campaigns/${encodeURIComponent(id)}`);
+export const previewCampaign = (input: { templateId: string; segmentId: string }) => post<CampaignPreview>('/engage/campaigns/preview', input);
+export const startCampaign = (input: { name: string; templateId: string; segmentId: string; holdoutPercent: number; idempotencyKey: string }) =>
+  post<{ campaign: Campaign; replayed: boolean }>('/engage/campaigns', input);
+export const resumeCampaign = (id: string) => post<{ campaign: Campaign }>(`/engage/campaigns/${encodeURIComponent(id)}/resume`, {});
+

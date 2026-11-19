@@ -15,6 +15,9 @@ import {
   TrendingUp,
   Workflow,
 } from 'lucide-react';
+import {
+  EngageGoToTiles, EngagePanels, EngageQuickActions, EngageSectionBody, EngageTabStrip, useEngageAccess, useEngageWorkspace,
+} from '@/engage/engageWorkspace';
 import { ROUTES } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { BentoCard } from '@/pages/marketing/components/bento/BentoCard';
@@ -42,12 +45,19 @@ const LUCY_BENTO_GRID_CLASS =
 /**
  * Lucy CMO bento (`/marketing`): viewport-locked grid with Lucy (Dora rail).
  * Reads all data from {@link useMarketingContext}.
+ *
+ * Where the signed-in organization may use engage (ADR-016), the same page also holds the engage sections: tabs next to
+ * the Lucy chat, tiles and quick actions in the CMO column, and panels for records and editors. Where it may not, none
+ * of that is shown and the page is exactly the Company-OS Lucy page.
  */
 export function LucyMarketingPage(): JSX.Element {
   const ctx = useMarketingContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [igModalSignal, setIgModalSignal] = useState(0);
+  const engage = useEngageAccess();
+  const workspace = useEngageWorkspace('lucy', engage.isAdmin);
+  const onLucyTab = !engage.available || workspace.tab === 'lucy';
 
   useEffect(() => {
     const st = location.state as { openInstagramAi?: boolean } | null;
@@ -70,12 +80,27 @@ export function LucyMarketingPage(): JSX.Element {
     >
       <div className={LUCY_BENTO_GRID_CLASS}>
         <div className="order-1 flex min-h-[min(48vh,420px)] flex-col min-w-0 lg:order-none lg:col-span-3 lg:row-start-1 lg:min-h-0 xl:min-h-0">
-          <DoraRail
-            layout="pageSplit"
-            selectedCard={null}
-            instagramModalSignal={igModalSignal}
-            executePrompt={ctx.doraExecutePrompt}
-          />
+          {engage.available && (
+            <div className="mb-2 shrink-0 rounded-xl border border-white/[0.08] bg-[#080a0e] px-3 py-2">
+              <EngageTabStrip workspace={workspace} withLucy />
+            </div>
+          )}
+          {/* Hidden, not unmounted, while an engage tab is open: the chat keeps its conversation. */}
+          <div className={cn('flex min-h-0 flex-1 flex-col', !onLucyTab && 'hidden')}>
+            <DoraRail
+              layout="pageSplit"
+              selectedCard={null}
+              instagramModalSignal={igModalSignal}
+              executePrompt={ctx.doraExecutePrompt}
+            />
+          </div>
+          {!onLucyTab && (
+            <BentoCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <EngageSectionBody workspace={workspace} />
+              </div>
+            </BentoCard>
+          )}
         </div>
 
         <BentoCard className="order-2 overflow-hidden lg:order-none lg:col-span-2 lg:row-start-1">
@@ -165,6 +190,12 @@ export function LucyMarketingPage(): JSX.Element {
                   <span className="truncate">Intel</span>
                 </button>
               </div>
+              {engage.available && (
+                <>
+                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-app-muted">Engage</p>
+                  <EngageGoToTiles workspace={workspace} />
+                </>
+              )}
             </div>
 
             <div className="border-t border-white/[0.06] pt-2">
@@ -212,11 +243,13 @@ export function LucyMarketingPage(): JSX.Element {
                   <TrendingUp className="h-3.5 w-3.5 shrink-0 text-app-muted" />
                   Open builder
                 </button>
+                {engage.available && <EngageQuickActions workspace={workspace} />}
               </div>
             </div>
           </div>
         </BentoCard>
       </div>
+      {engage.available && <EngagePanels workspace={workspace} />}
     </ViewportWrapper>
   );
 }

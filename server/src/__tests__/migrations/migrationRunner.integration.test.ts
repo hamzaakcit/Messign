@@ -130,7 +130,14 @@ describe.skipIf(!adminUrl)('migration runner (real Postgres)', () => {
     expect(res.adoptedBaseline).toBe(true);
     expect(res.applied).toEqual(listMigrationFiles(MIGRATIONS).filter((f) => f !== BASELINE));
     const after = await fingerprint(db);
-    expect({ ...after, columns: before.columns, checks: before.checks }).toEqual(before);
+    // Later migrations add no public table except migration 128 (WP-23: ai_call_telemetry and ai_tenant_budgets, with
+    // their primary keys and four indexes). Columns and checks are not compared here.
+    expect({ ...after, columns: before.columns, checks: before.checks }).toEqual({
+      ...before,
+      tables: before.tables + 2,
+      primary_keys: before.primary_keys + 2,
+      indexes: before.indexes + 4,
+    });
     const names = (await q<{ filename: string }>(db, 'SELECT filename FROM public.schema_migrations ORDER BY filename')).map((r) => r.filename);
     expect(names).toContain(BASELINE);
     expect(names).toContain('001_base_schema.sql');

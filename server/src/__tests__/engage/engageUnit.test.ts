@@ -115,6 +115,19 @@ describe('requireEngageUser (no fallback organization)', () => {
     expect(r2.status).toHaveBeenCalledWith(403);
     expect(n).not.toHaveBeenCalled();
   });
+  it('allows the platform organization once its product is all (ADR-016); any other product is refused', async () => {
+    const n = vi.fn() as NextFunction;
+    poolQuery.mockResolvedValueOnce({ rows: [userRow({ org_slug: 'messign', org_product: 'all' })] });
+    await requireEngageUser(req({ userId: 'au1', jwtOrganizationId: ORG_A }), res(), n);
+    expect(n).toHaveBeenCalledTimes(1);
+    for (const product of ['workspace', 'ALL', 'both', '']) {
+      poolQuery.mockResolvedValueOnce({ rows: [userRow({ org_product: product })] });
+      const r = res();
+      await requireEngageUser(req({ userId: 'au1', jwtOrganizationId: ORG_A }), r, n);
+      expect(r.status).toHaveBeenCalledWith(403);
+    }
+    expect(n).toHaveBeenCalledTimes(1);
+  });
   it('sets the context from the user row on success', async () => {
     poolQuery.mockResolvedValue({ rows: [userRow()] });
     const q = req({ userId: 'au1', jwtOrganizationId: ORG_A });

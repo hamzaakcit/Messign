@@ -38,6 +38,7 @@ async function resolveUser(req: Request): Promise<{ ok: true; user: EngageUserCo
       authUserId,
       role: row.role,
       orgSlug: row.org_slug,
+      product: row.org_product,
     },
   };
 }
@@ -46,11 +47,17 @@ function fail(res: Response, failure: Failure): void {
   res.status(failure.status).json({ error: failure.error });
 }
 
+/**
+ * The organization products that may use engage: a tenant (`engage`), and the platform organization once an operator
+ * enabled it (`all`, ADR-016). A `workspace` organization never can, and an unknown value is refused.
+ */
+const ENGAGE_PRODUCTS: ReadonlySet<string> = new Set(['engage', 'all']);
+
 export async function requireEngageUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const r = await resolveUser(req);
     if (!r.ok) return fail(res, r.failure);
-    if (r.product !== 'engage') return fail(res, { status: 403, error: 'Organization is not an engage tenant' });
+    if (!ENGAGE_PRODUCTS.has(r.product)) return fail(res, { status: 403, error: 'Organization is not an engage tenant' });
     req.engageUser = r.user;
     next();
   } catch (err) {
