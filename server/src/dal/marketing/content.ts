@@ -4,6 +4,7 @@ import { eventBus } from '../../events/index.js';
 import type { CallerContext, DateRange, PaginatedResult, SortOptions } from '../types.js';
 import { reimbursementUsersPk } from '../reimbursementUsersPk.js';
 import { paginationClause } from '../helpers.js';
+import { upsertContentCalendar } from './contentCalendar.js';
 import type { ImageGenerationFields, ImageGenerationMetadata, CarouselSlideImage, ImageVariant } from './instagramTypes.js';
 
 async function runInTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -640,19 +641,34 @@ export async function updateContent(
   });
 }
 
+/**
+ * Hands approved content to the publisher. The publisher (marketingPublisherService) only sends calendar rows with
+ * status `scheduled` whose `scheduled_at` has passed, so both publish and schedule write that row. The publisher
+ * marks the content `published` once the channel accepts it.
+ */
+async function queueForPublisher(ctx: CallerContext, content: Content, scheduledAtIso: string): Promise<Content> {
+  const tenantId = ctx.organizationId;
+  if (!tenantId) throw new Error('Tenant context required to queue content for publishing');
+  if (!content.channel) throw new Error('Content needs a channel before it can be published.');
+  await runInTenant(tenantId, (client) =>
+    upsertContentCalendar(
+      client,
+      tenantId,
+      content.id,
+      content.campaign_id ?? null,
+      scheduledAtIso,
+      content.channel as string,
+      'scheduled',
+    ),
+  );
+  return updateContent(ctx, content.id, { status: 'scheduled' });
+}
+
 export async function publishContent(ctx: CallerContext, contentId: string): Promise<Content> {
-  const content = await updateContent(ctx, contentId, {
-    status: 'published',
-    published_at: new Date().toISOString(),
-  });
-  eventBus.emit('marketing.content.published', {
-    contentId: content.id,
-    title: content.title,
-    type: content.content_type,
-    channel: content.channel ?? 'unknown',
-    publishedBy: reimbursementUsersPk(ctx),
-  });
-  return content;
+  const content = await getContentById(ctx, contentId);
+  if (!content) throw new Error('Content not found');
+  if (content.status !== 'approved') throw new Error('Content must be approved before it can be published.');
+  return queueForPublisher(ctx, content, new Date().toISOString());
 }
 
 export async function scheduleContent(
@@ -661,17 +677,18 @@ export async function scheduleContent(
   date: string,
   time?: string,
 ): Promise<Content> {
-  const content = await updateContent(ctx, contentId, {
-    status: 'scheduled',
-    scheduled_date: date,
-    scheduled_time: time,
-  });
+  const content = await getContentById(ctx, contentId);
+  if (!content) throw new Error('Content not found');
+  if (content.status !== 'approved') throw new Error('Content must be approved before it can be scheduled.');
+  const scheduledAtIso = new Date(`${date}T${time ?? '09:00'}:00Z`).toISOString();
+  const queued = await queueForPublisher(ctx, content, scheduledAtIso);
+  await updateContent(ctx, contentId, { scheduled_date: date, scheduled_time: time });
   eventBus.emit('marketing.content.scheduled', {
-    contentId: content.id,
-    title: content.title,
+    contentId: queued.id,
+    title: queued.title,
     scheduledFor: time ? `${date}T${time}` : date,
   });
-  return content;
+  return getContentById(ctx, contentId) as Promise<Content>;
 }
 
 export async function getCalendarView(
