@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { listCustomers, type CustomerListItem } from './customersApi';
+import { Button } from './ui';
 
 /** Engage customer list (WP-19): newest first, search by email or the start of an external id. */
 
@@ -15,7 +16,7 @@ function ConsentBadge({ c }: { c: CustomerListItem }): JSX.Element {
 }
 
 /** The customers section of the Lucy hub: search, the list, and opening one customer in a panel. */
-export function CustomersSection({ onOpen }: { onOpen: (id: string) => void }): JSX.Element {
+export function CustomersSection({ onOpen, onNew }: { onOpen: (id: string) => void; onNew?: () => void }): JSX.Element {
   const [input, setInput] = useState('');
   const [q, setQ] = useState('');
   useEffect(() => {
@@ -34,7 +35,10 @@ export function CustomersSection({ onOpen }: { onOpen: (id: string) => void }): 
   return (
     <div data-testid="hub-customers">
       <div>
-        <p className="text-sm text-app-muted">Every customer, with their consent, messages and journeys.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-app-muted">Every customer, with their consent, messages and journeys.</p>
+          {onNew && <Button kind="primary" onClick={onNew} testId="new-customer">Add customer</Button>}
+        </div>
         <input
           type="search"
           value={input}

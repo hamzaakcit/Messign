@@ -48,7 +48,7 @@ export function Select<T extends string>(props: { value: T; onChange: (v: T) => 
 const STATUS_STYLE: Record<string, string> = {
   active: 'bg-emerald-500/15 text-emerald-700', approved: 'bg-blue-500/15 text-blue-700', draft: 'bg-app-muted/20 text-app-muted',
   retired: 'bg-app-muted/10 text-app-muted line-through', done: 'bg-emerald-500/15 text-emerald-700', running: 'bg-blue-500/15 text-blue-700',
-  failed: 'bg-red-500/15 text-red-600',
+  failed: 'bg-red-500/15 text-red-600', sending: 'bg-blue-500/15 text-blue-700', sent: 'bg-emerald-500/15 text-emerald-700',
 };
 export function StatusBadge({ status }: { status: string }): JSX.Element {
   return <span data-testid={`status-${status}`} className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status] ?? 'bg-app-muted/20 text-app-muted'}`}>{status}</span>;

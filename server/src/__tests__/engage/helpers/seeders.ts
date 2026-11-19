@@ -135,6 +135,12 @@ export const SEEDERS: Record<string, Seeder> = {
       `INSERT INTO engage.segment_runs (organization_id, journey_id, journey_version_id, segment_version_id, slot_at) VALUES ($1, $2, $3, $4, '2100-01-01T00:00:00Z')`,
       [org, j, jv.rows[0]!.id, sv.rows[0]!.id]);
   },
+  campaigns: async (c, org) => {
+    const j = await seedJourney(c, org);
+    await c.query(
+      `INSERT INTO engage.campaigns (organization_id, journey_id, name, template_key, template_version, segment_key, segment_version, idempotency_key)
+       VALUES ($1, $2, 'seed', 'seed-template', 1, 'seed-segment', 1, $3)`, [org, j, `seed-${Math.random().toString(36).slice(2, 12)}`]);
+  },
   template_versions: async (c, org) => {
     const t = await seedTemplate(c, org);
     await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
