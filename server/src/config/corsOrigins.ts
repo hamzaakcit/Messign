@@ -27,6 +27,11 @@ export function getAllowedCorsOrigins(): string[] {
           'http://127.0.0.1:3000',
           'http://127.0.0.1:3001',
           'http://127.0.0.1:3002',
+          // Local engage previews (e2e-engage/.auth, .claude/launch.json): the engage preview and the merged preview.
+          'http://localhost:3200',
+          'http://localhost:3300',
+          'http://127.0.0.1:3200',
+          'http://127.0.0.1:3300',
         ];
   return [...new Set(base.filter(Boolean))];
 }
