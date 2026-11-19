@@ -29,6 +29,8 @@ export function reasonText(code: string): string {
     case 'unsubscribe_not_allowed': return 'Transactional mail must not carry the unsubscribe link.';
     case 'link_not_allowed': return 'The copy contains a link or web address. Leave links out; the shop adds its own links in the template editor.';
     case 'greeting_repeated': return 'The copy greets the reader twice. The first-name placeholder already greets, so remove the greeting word before it.';
+    case 'link_reference': return 'The copy refers to a link or a button. The message has none; the shop adds its own links in the template editor.';
+    case 'sender_name': return 'The copy ends with a team or shop name. Remove the sign-off; the sender name is set in the sender settings.';
     case 'output_not_valid': return 'The answer could not be used. Try again, with a clearer brief.';
     default: return 'The draft did not pass the checks.';
   }
