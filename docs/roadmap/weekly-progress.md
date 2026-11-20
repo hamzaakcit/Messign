@@ -2,6 +2,15 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-20 · Custom domain and email-auth follow-ups (docs only)
+- **Done:**
+  - `www.messign.com` now serves the app from Vercel. The `www` CNAME at GoDaddy points at Vercel's target. A first attempt left off the final `.com.` of the target, so Vercel stayed "Invalid Configuration" until the record was corrected. Vercel shows the domain valid with its certificate, and it loads over HTTPS.
+  - `docs/VERCEL_FRONTEND_DEPLOYMENT.md` has a Custom domain section (records, what not to touch, the apex still open). `docs/runbooks/ses-sandbox-setup.md` now gives `https://www.messign.com` as the example for `ENGAGE_PUBLIC_APP_URL`, and a duplicated step 7 there is removed.
+  - Backlog: WP-33's onboarding checklist now includes setting the sender name and matching the email account's From name. New WP-39 (email domain authentication check: SPF, DKIM, DMARC, set the readiness item from the DNS result).
+  - Earlier in this session, migrations 129 and 130 were applied to the development database (the one in `server/.env`), and the sender identity check found no mismatch: the one tenant there has no sender name set.
+- **Not done:** the apex `messign.com` still points at GoDaddy's site builder, so Vercel shows it invalid. Switching it takes the site builder page down, so it waits for a yes. `ENGAGE_PUBLIC_APP_URL` on Railway still needs changing to `https://www.messign.com` before any marketing email goes out. GoDaddy's DNS page 2 (SPF, DMARC, MX) was not read.
+- **Next:** WP-39 is not started. WP-25 is next in the backlog.
+
 ## 2026-11-20 · Sender name (follow-up to WP-24; not a backlog WP)
 - **Done:**
   - Migration `130_engage_sender_name.sql`: `engage.tenant_settings.sender_name` (1 to 80 characters, one line, no `< > { }`, trimmed; the database enforces it).

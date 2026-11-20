@@ -42,7 +42,8 @@
 | WP-31 | Security hardening (seed routes, rate limits, engage audit hash chain, deps, CSP, secrets scan) | P0 | W12 | todo | Checklist closed/accepted |
 | WP-32 | Performance baseline (1M events, 50k enrollments) | P1 | W12 | todo | Numbers recorded |
 | WP-35 | Erasure + export (data-subject requests) | P0 | W12 | todo | Erasure keeps pseudonymised ledger + suppression hash |
-| WP-33 | Onboarding kit (CSV templates, readiness checklist, DPA/DNS/başlık list, demo script) + runbook + kill-switch drill | P0 | W13 | todo | Checklist maps 1:1 to `tenant_readiness` |
+| WP-39 | Email domain authentication check: look up SPF, DKIM and DMARC for the domain of the email account's From address (DNS, read-only), show the result in Settings, and set the `email_domain_authenticated` readiness item from the result instead of by hand. Re-check on demand and before live mode | P1 | W11 | todo | A domain with SPF, DKIM and DMARC records marks the item satisfied; a domain missing any of them does not, and the live gate denies. The lookup never sends mail and never logs more than the domain name |
+| WP-33 | Onboarding kit (CSV templates, readiness checklist, DPA/DNS/başlık list, demo script) + runbook + kill-switch drill. The checklist includes: sender name set in Settings, and the email account's From name equal to it (the send gate denies a mismatch, `sender_identity_mismatch`) | P0 | W13 | todo | Checklist maps 1:1 to `tenant_readiness`; a tenant with matching sender and From names sends, one with differing names is denied |
 | WP-34 | Business-start dry run: onboard a fresh synthetic tenant from zero using only the kit | P0 | W13 | todo | ≤ 1 working day; gates 4–8 evidenced |
 
 ## Post-90-day backlog (speculative until a real customer asks — principle 1)
