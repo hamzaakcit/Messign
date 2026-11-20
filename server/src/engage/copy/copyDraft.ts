@@ -40,6 +40,8 @@ export type CopyPurpose = 'marketing' | 'transactional';
 
 /** The only personalisation a draft may use: the first name (with a fallback) and, for marketing mail, the unsubscribe link. */
 export const DRAFT_ATTRIBUTES = ['first_name'] as const;
+/** System values a draft may use: the unsubscribe link (marketing only, checked below) and the sender's name. */
+const DRAFT_SYSTEM_VARIABLES: readonly string[] = ['unsubscribe_url', 'sender_name'];
 const MAX_BRIEF = 1000;
 const MIN_BRIEF = 10;
 const MODEL_TIER = 'complex' as const;
@@ -55,13 +57,14 @@ Output shape: {"subject": string, "html": string, "text": string}
 Personalisation. The only placeholders you may write are these, exactly as shown:
   {{first_name | default: "<a greeting word in the target language>"}}
   {{unsubscribe_url}}  (marketing mail only; put it in an <a href="..."> link in html)
+  {{sender_name}}      (the shop's name; only in a sign-off, see Sender)
 Never invent other placeholders. Never write a real or example name, email address, phone number, postal address, order number, price, discount code or date unless the brief gives it in general terms.
 
 Greeting. The first-name placeholder carries the greeting. Open the body with it, followed by a comma, and do not write any other greeting word before it. The fallback word inside the placeholder is the only greeting the message has.
 
 Links. Do not write any URL, web address, domain or path (no https://, no www., no /cart). The shop adds its own links in the template editor. The only link you may write is the unsubscribe placeholder. Do not refer to a link, a button or an address either ("the button below", "the links in this email", "bağlantıya tıklayın", "butona dokunun"): the message has none.
 
-Sender. Never write the name of the shop, a team, a brand or a signature. Do not sign off with a name; the shop adds its own sign-off.
+Sender. Never write the name of the shop, a team, a brand or a sign-off name yourself. If the message needs a sign-off name, write exactly {{sender_name}} on its own line and nothing else; the shop's own name is filled in when the message is sent.
 
 Claims. Say only what the brief says about the offer, stock, delivery, prices or dates. Do not describe the customer's past behaviour (what they looked at, how long they waited) and do not describe demand or stock levels unless the brief says so.
 
@@ -171,7 +174,7 @@ export function gateDraftCopy(copy: ParsedCopy, purpose: CopyPurpose):
     if (v.source !== 'attribute' && v.source !== 'system') reasons.push('variable_not_allowed');
     else if (v.source === 'attribute' && !(DRAFT_ATTRIBUTES as readonly string[]).includes(v.name)) reasons.push('variable_not_allowed');
     else if (v.source === 'attribute' && v.defaultValue === null) reasons.push('variable_needs_default');
-    else if (v.source === 'system' && v.name !== 'unsubscribe_url') reasons.push('variable_not_allowed');
+    else if (v.source === 'system' && !DRAFT_SYSTEM_VARIABLES.includes(v.name)) reasons.push('variable_not_allowed');
   }
   const hasUnsubscribe = content.variables.some((v) => v.source === 'system' && v.name === 'unsubscribe_url');
   if (purpose === 'marketing' && !hasUnsubscribe) reasons.push('unsubscribe_missing');

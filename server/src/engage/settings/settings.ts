@@ -32,6 +32,8 @@ const KNOWN_ITEMS = new Set(Object.values(REQUIRED_READINESS).flat());
 export interface QuietHours { start: string; end: string }
 export interface TenantSettingsView {
   sendEnabled: boolean;
+  /** The name customers know the shop by; {{sender_name}} in a template is filled from it. Null until a tenant sets it. */
+  senderName: string | null;
   timezone: string;
   quietHours: QuietHours | null;
   frequencyCap: { max: number; windowHours: number };
@@ -62,9 +64,9 @@ function channelOrThrow(v: unknown): Channel {
 export async function getTenantSettings(orgId: string): Promise<TenantSettingsView> {
   const view = await withEngageTenant(orgId, async (c) => {
     const s = (await c.query<{
-      send_enabled: boolean; timezone: string; quiet_hours_start: string | null; quiet_hours_end: string | null;
+      send_enabled: boolean; sender_name: string | null; timezone: string; quiet_hours_start: string | null; quiet_hours_end: string | null;
       frequency_cap_max: number; frequency_cap_window_hours: number;
-    }>(`SELECT send_enabled, timezone, quiet_hours_start::text, quiet_hours_end::text, frequency_cap_max, frequency_cap_window_hours
+    }>(`SELECT send_enabled, sender_name, timezone, quiet_hours_start::text, quiet_hours_end::text, frequency_cap_max, frequency_cap_window_hours
           FROM engage.tenant_settings WHERE organization_id = $1`, [orgId])).rows[0];
     if (!s) throw new SettingsNotFoundError('Tenant settings not found');
     const readiness = await readinessOn(c, orgId, currentSendMode());
@@ -79,6 +81,7 @@ export async function getTenantSettings(orgId: string): Promise<TenantSettingsVi
         ORDER BY channel, category, route, effective_from DESC`, [orgId])).rows;
     return {
       sendEnabled: s.send_enabled,
+      senderName: s.sender_name,
       timezone: s.timezone,
       quietHours: s.quiet_hours_start && s.quiet_hours_end ? { start: hhmm(s.quiet_hours_start)!, end: hhmm(s.quiet_hours_end)! } : null,
       frequencyCap: { max: s.frequency_cap_max, windowHours: s.frequency_cap_window_hours },
@@ -113,6 +116,25 @@ export async function setSendEnabled(orgId: string, userId: string, enabled: boo
     await c.query(`UPDATE engage.tenant_settings SET send_enabled = $2, updated_at = now() WHERE organization_id = $1`, [orgId, enabled]);
   });
   logSetting(orgId, userId, 'send_enabled', enabled);
+}
+
+/**
+ * Sets the sender name (null clears it). One line, 1 to 80 characters, no angle brackets or braces: it is written into the
+ * HTML of every message that uses {{sender_name}}, so it must not carry markup or a placeholder of its own.
+ */
+export async function setSenderName(orgId: string, userId: string, raw: unknown): Promise<void> {
+  let name: string | null;
+  if (raw === null) name = null;
+  else if (typeof raw === 'string') name = raw.trim() === '' ? null : raw.trim();
+  else throw new SettingsInputError('The sender name is not valid', [{ path: 'senderName', message: 'must be text or null' }]);
+  if (name !== null && (name.length > 80 || /[\r\n<>{}]/.test(name))) {
+    throw new SettingsInputError('The sender name is not valid', [{ path: 'senderName', message: 'must be 1 to 80 characters on one line, with no < > { or }' }]);
+  }
+  await withEngageTenant(orgId, async (c) => {
+    const r = await c.query(`UPDATE engage.tenant_settings SET sender_name = $2, updated_at = now() WHERE organization_id = $1`, [orgId, name]);
+    if (!r.rowCount) throw new SettingsNotFoundError('Tenant settings not found');
+  });
+  logSetting(orgId, userId, 'sender_name', name !== null);
 }
 
 export async function updateGate(orgId: string, userId: string, patch: GateSettingsPatch): Promise<void> {

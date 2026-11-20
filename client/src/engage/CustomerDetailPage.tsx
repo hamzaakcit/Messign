@@ -21,6 +21,7 @@ const DECISION_TEXT: Record<string, string> = {
   readiness_missing: 'legal setup incomplete',
   account_mode_mismatch: 'account mode does not match the send mode',
   account_inactive: 'sending account disabled',
+  sender_identity_mismatch: 'From name differs from the sender name in Settings',
   no_rate_card: 'no price set for this channel',
   no_budget_cap: 'no monthly budget set',
   currency_mismatch: 'price and budget currencies differ',

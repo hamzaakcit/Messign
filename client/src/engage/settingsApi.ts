@@ -8,6 +8,8 @@ export interface ReadinessProblem { code: string; message: string }
 
 export interface TenantSettings {
   sendEnabled: boolean;
+  /** The name customers know the shop by. {{sender_name}} in a template or a draft is filled from it. */
+  senderName: string | null;
   timezone: string;
   quietHours: { start: string; end: string } | null;
   frequencyCap: { max: number; windowHours: number };
@@ -29,6 +31,9 @@ export interface GateSettingsInput {
 }
 
 export const getSettings = (): Promise<TenantSettings> => fetchAPI<TenantSettings>('/engage/settings');
+
+export const setSenderName = (senderName: string | null): Promise<TenantSettings> =>
+  fetchAPI<TenantSettings>('/engage/settings/sender', { method: 'PUT', body: JSON.stringify({ senderName }) });
 
 export const setSendEnabled = (enabled: boolean): Promise<TenantSettings> =>
   fetchAPI<TenantSettings>('/engage/settings/send-enabled', { method: 'PUT', body: JSON.stringify({ enabled }) });

@@ -2,7 +2,7 @@ import { Router, type Response } from 'express';
 import { requireEngageAdmin, requireEngageUser } from './middleware/auth.js';
 import { errorFields, logError } from './log.js';
 import {
-  addRate, getTenantSettings, recordReadiness, setSendEnabled, SettingsInputError, SettingsNotFoundError, SettingsNotReadyError,
+  addRate, getTenantSettings, recordReadiness, setSendEnabled, setSenderName, SettingsInputError, SettingsNotFoundError, SettingsNotReadyError,
   updateBudgetCap, updateGate, type GateSettingsPatch,
 } from './settings/settings.js';
 import './types.js';
@@ -38,6 +38,15 @@ settingsRouter.put('/send-enabled', requireEngageUser, requireEngageAdmin, async
   try {
     const u = req.engageUser!;
     await setSendEnabled(u.organizationId, u.userId, b.enabled);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await getTenantSettings(u.organizationId));
+  } catch (err) { fail(res, err); }
+});
+
+settingsRouter.put('/sender', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    const u = req.engageUser!;
+    await setSenderName(u.organizationId, u.userId, body(req.body).senderName);
     res.setHeader('Cache-Control', 'no-store');
     res.json(await getTenantSettings(u.organizationId));
   } catch (err) { fail(res, err); }
