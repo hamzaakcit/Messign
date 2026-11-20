@@ -183,7 +183,7 @@ function DomainItemRow({ recorded }: { recorded: TenantSettings['readinessItems'
           {recorded ? `Checked ${formatTime(recorded.recordedAt)}` : 'Not checked, or the last check failed'}
         </span>
       </div>
-      <p className="mt-1 text-xs text-app-muted">Set by the email domain check below. It cannot be typed in, and a check older than 30 days no longer counts for live sending.</p>
+      <p className="mt-1 text-xs text-app-muted">Set by the email domain check below. It cannot be typed in. Messign looks again about once a day and renews or removes it; a check older than 30 days no longer counts for live sending.</p>
     </div>
   );
 }
@@ -249,7 +249,7 @@ function DomainResult({ check }: { check: EmailDomainCheck }): JSX.Element {
   return (
     <div className="space-y-1 text-sm" data-testid="email-domain-result">
       <p className={check.passed ? 'font-medium text-emerald-700' : 'font-medium text-red-600'} data-testid="email-domain-verdict">
-        {check.passed ? 'Passed' : 'Did not pass'} for <code className="font-mono">{check.domain}</code>, checked {formatTime(check.checkedAt)}.
+        {check.passed ? 'Passed' : 'Did not pass'} for <code className="font-mono">{check.domain}</code>, checked {check.automatic ? 'automatically ' : ''}{formatTime(check.checkedAt)}.
       </p>
       <ul className="space-y-1">
         {row('SPF', check.spf.ok, spfText(check.spf.code), 'email-domain-spf')}

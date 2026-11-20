@@ -2,6 +2,15 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-21 · WP-39 follow-up: scheduled email domain re-check
+- **Done:**
+  - Migration `132_engage_email_domain_recheck_work.sql`: `engage.email_domain_recheck_work(limit, orgs)`, a `SECURITY DEFINER` list of organization ids whose item is set and whose latest check is over 23 hours old (over 1 hour if it could not reach DNS). Added to the reviewed list in the isolation test.
+  - `recheckEmailDomain` and `recheckDueEmailDomains` in `engage/settings/emailDomain.ts`, and an hourly pg-boss job (`engage/email-domain-recheck`, `emailDomainJob.ts`, registered in `index.ts`). A pass renews the item, a real failure removes it, and a check whose only failure is `lookup_failed` keeps it and is tried again within the hour. An account that is gone or doubled removes the item; an account moved to another domain is checked on that domain.
+  - Evidence rows of the scheduled check have `checked_by` empty; the Settings card says "checked automatically". ADR-020 point 8, runbook and backlog updated.
+  - 11 new integration tests; one existing test (isolation allow-list) updated. Server 1974 pass / 9 skipped (188 files), client 696 pass (118 files), both `tsc` clean.
+- **Remaining:** an alert to the tenant when the item is removed (no email or in-app notice yet); trying the Email domain card in a browser (needs a tenant admin account). Migration 132 still needs `npm run db:migrate` on the development database.
+- **Next:** WP-25.
+
 ## 2026-11-20 · WP-39 Email domain authentication check
 - **Done:**
   - ADR-020. Migration `131_engage_email_domain_checks.sql`: `engage.email_domain_checks`, forced RLS, append-only (the engage role can read and insert, not update or delete).

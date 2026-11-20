@@ -56,6 +56,8 @@ export interface EmailDomainCheck {
   id: string; domain: string; dkimSelectors: string[];
   spf: DomainMechanism; dkim: Array<DomainMechanism & { selector: string }>; dmarc: DomainMechanism & { policy?: string };
   passed: boolean; checkedAt: string;
+  /** True when the scheduled re-check made it, not an admin. */
+  automatic: boolean;
 }
 export interface EmailDomainView {
   account: { id: string; label: string; domain: string | null } | null;

@@ -1,6 +1,6 @@
 import { promises as dnsPromises } from 'dns';
-import { withEngageTenant } from '../db.js';
-import { logInfo } from '../log.js';
+import { withEngageScheduler, withEngageTenant } from '../db.js';
+import { logError, logInfo, logWarn } from '../log.js';
 import { EMAIL_DOMAIN_ITEM } from '../messaging/gate.js';
 
 /**
@@ -32,6 +32,10 @@ function systemResolver(): DnsResolver {
 export const emailDomainDeps: { resolver: DnsResolver } = { resolver: systemResolver() };
 
 const MIN_SECONDS_BETWEEN_CHECKS = 10;
+/** After a pass the scheduler looks again after 23 hours (migration 132 uses the same numbers); after an inconclusive check, after 1. */
+const RECHECK_AFTER_PASS_HOURS = 23;
+const RECHECK_AFTER_INCONCLUSIVE_HOURS = 1;
+const RECHECK_BATCH = 50;
 const MAX_SELECTORS = 5;
 
 const DOMAIN_RE = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
@@ -142,6 +146,8 @@ export function parseSelectors(raw: unknown): string[] {
 export interface EmailDomainCheckView {
   id: string; domain: string; dkimSelectors: string[]; spf: Mechanism; dkim: DomainCheckResult['dkim']; dmarc: DomainCheckResult['dmarc'];
   passed: boolean; checkedAt: string;
+  /** True when the scheduled re-check made it, not an admin. */
+  automatic: boolean;
 }
 export interface EmailDomainView {
   /** The one active email account. The domain is the part after the @ of its From address; null when that is not usable. */
@@ -154,9 +160,9 @@ export interface EmailDomainView {
 type Tx = Parameters<Parameters<typeof withEngageTenant>[1]>[0];
 const iso = (v: unknown): string => new Date(v as string).toISOString();
 
-interface CheckRow { id: string; domain: string; dkim_selectors: string[]; spf: Mechanism; dkim: DomainCheckResult['dkim']; dmarc: DomainCheckResult['dmarc']; passed: boolean; checked_at: Date }
+interface CheckRow { id: string; domain: string; dkim_selectors: string[]; spf: Mechanism; dkim: DomainCheckResult['dkim']; dmarc: DomainCheckResult['dmarc']; passed: boolean; checked_at: Date; checked_by: string | null }
 const toView = (r: CheckRow): EmailDomainCheckView => ({
-  id: r.id, domain: r.domain, dkimSelectors: r.dkim_selectors, spf: r.spf, dkim: r.dkim, dmarc: r.dmarc, passed: r.passed, checkedAt: iso(r.checked_at),
+  id: r.id, domain: r.domain, dkimSelectors: r.dkim_selectors, spf: r.spf, dkim: r.dkim, dmarc: r.dmarc, passed: r.passed, checkedAt: iso(r.checked_at), automatic: r.checked_by === null,
 });
 
 async function activeAccounts(c: Tx, orgId: string): Promise<Array<{ id: string; label: string; config: Record<string, unknown> }>> {
@@ -166,7 +172,7 @@ async function activeAccounts(c: Tx, orgId: string): Promise<Array<{ id: string;
 
 async function lastCheckOn(c: Tx, orgId: string): Promise<CheckRow | undefined> {
   return (await c.query<CheckRow>(
-    `SELECT id, domain, dkim_selectors, spf, dkim, dmarc, passed, checked_at FROM engage.email_domain_checks
+    `SELECT id, domain, dkim_selectors, spf, dkim, dmarc, passed, checked_at, checked_by FROM engage.email_domain_checks
       WHERE organization_id = $1 ORDER BY checked_at DESC, id DESC LIMIT 1`, [orgId])).rows[0];
 }
 
@@ -181,6 +187,33 @@ function viewOf(accounts: Awaited<ReturnType<typeof activeAccounts>>, last: Chec
 
 export async function getEmailDomain(orgId: string): Promise<EmailDomainView> {
   return withEngageTenant(orgId, async (c) => viewOf(await activeAccounts(c, orgId), await lastCheckOn(c, orgId)));
+}
+
+const ONLY_LOOKUP_FAILED = (reasons: string[]): boolean => reasons.length > 0 && reasons.every((r) => r === 'lookup_failed');
+
+/**
+ * Appends the evidence row and sets or clears the readiness item, inside the caller's tenant transaction. A pass sets
+ * the item. A failure clears it, except for the scheduled re-check when nothing but `lookup_failed` went wrong: a
+ * resolver that timed out says nothing about the records, so it must not switch a tenant's sending off.
+ * Returns what happened to the item.
+ */
+async function recordCheck(c: Tx, orgId: string, accountId: string, result: DomainCheckResult, userId: string | null, inconclusiveKeepsItem: boolean): Promise<'passed' | 'failed' | 'inconclusive'> {
+  await c.query(
+    `INSERT INTO engage.email_domain_checks (organization_id, channel_account_id, domain, dkim_selectors, spf, dkim, dmarc, passed, checked_by)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9)`,
+    [orgId, accountId, result.domain, result.selectors, JSON.stringify(result.spf), JSON.stringify(result.dkim), JSON.stringify(result.dmarc), result.passed, userId]);
+  if (result.passed) {
+    await c.query(
+      `INSERT INTO engage.tenant_readiness (organization_id, channel, item, value, evidence_url, recorded_by)
+       VALUES ($1, 'email', $2, $3, NULL, $4)
+       ON CONFLICT (organization_id, channel, item) DO UPDATE SET value = EXCLUDED.value, evidence_url = NULL,
+         recorded_by = EXCLUDED.recorded_by, recorded_at = now()`,
+      [orgId, EMAIL_DOMAIN_ITEM, `checked by DNS: SPF, DKIM and DMARC found for ${result.domain}`, userId]);
+    return 'passed';
+  }
+  if (inconclusiveKeepsItem && ONLY_LOOKUP_FAILED(result.reasons)) return 'inconclusive';
+  await c.query(`DELETE FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = 'email' AND item = $2`, [orgId, EMAIL_DOMAIN_ITEM]);
+  return 'failed';
 }
 
 /**
@@ -211,22 +244,68 @@ export async function runEmailDomainCheck(orgId: string, userId: string, input: 
     // The account may have been replaced while the lookups ran; a result for a different account is not recorded.
     const accounts = await activeAccounts(c, orgId);
     if (accounts.length !== 1 || accounts[0]!.id !== before.accountId) throw new EmailDomainError(409, 'The email account changed during the check; run it again.', 'account_changed');
-    await c.query(
-      `INSERT INTO engage.email_domain_checks (organization_id, channel_account_id, domain, dkim_selectors, spf, dkim, dmarc, passed, checked_by)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9)`,
-      [orgId, before.accountId, result.domain, result.selectors, JSON.stringify(result.spf), JSON.stringify(result.dkim), JSON.stringify(result.dmarc), result.passed, userId]);
-    if (result.passed) {
-      await c.query(
-        `INSERT INTO engage.tenant_readiness (organization_id, channel, item, value, evidence_url, recorded_by)
-         VALUES ($1, 'email', $2, $3, NULL, $4)
-         ON CONFLICT (organization_id, channel, item) DO UPDATE SET value = EXCLUDED.value, evidence_url = NULL,
-           recorded_by = EXCLUDED.recorded_by, recorded_at = now()`,
-        [orgId, EMAIL_DOMAIN_ITEM, `checked by DNS: SPF, DKIM and DMARC found for ${result.domain}`, userId]);
-    } else {
-      await c.query(`DELETE FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = 'email' AND item = $2`, [orgId, EMAIL_DOMAIN_ITEM]);
-    }
+    await recordCheck(c, orgId, before.accountId, result, userId, false);
   });
 
   logInfo('engage email domain checked', { organizationId: orgId, userId, domain: result.domain, passed: result.passed, reasons: result.reasons.join(',') });
   return getEmailDomain(orgId);
+}
+
+export type RecheckOutcome = 'passed' | 'failed' | 'inconclusive' | 'no_account' | 'skipped';
+
+/**
+ * The scheduled re-check (ADR-020): looks again at a tenant whose readiness item is set, using the selectors and the
+ * account's current From domain, and renews or clears the item like an admin's check would, with `checked_by` empty.
+ * Differences from the admin's check: no throttle (the work list only offers a tenant that is due, and this re-verifies
+ * that); a DNS lookup that failed keeps the item and is tried again within the hour; and an account that is gone, doubled
+ * or without a usable domain clears the item, because the item described an account that no longer sends.
+ */
+export async function recheckEmailDomain(orgId: string): Promise<RecheckOutcome> {
+  const before = await withEngageTenant(orgId, async (c) => {
+    const held = (await c.query(`SELECT 1 FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = 'email' AND item = $2`, [orgId, EMAIL_DOMAIN_ITEM])).rows.length > 0;
+    const last = await lastCheckOn(c, orgId);
+    // Nothing to protect, nothing to repeat, or another run already did this tenant.
+    if (!held || !last || Date.now() - new Date(last.checked_at).getTime() < (last.passed ? RECHECK_AFTER_PASS_HOURS : RECHECK_AFTER_INCONCLUSIVE_HOURS) * 3_600_000) return { kind: 'skipped' as const };
+    const accounts = await activeAccounts(c, orgId);
+    const one = accounts.length === 1 ? accounts[0]! : null;
+    const domain = one ? domainOfAddress(one.config.from_address) : null;
+    if (!one || !domain) {
+      await c.query(`DELETE FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = 'email' AND item = $2`, [orgId, EMAIL_DOMAIN_ITEM]);
+      return { kind: 'no_account' as const };
+    }
+    return { kind: 'check' as const, accountId: one.id, domain, selectors: last.dkim_selectors };
+  });
+  if (before.kind === 'skipped') return 'skipped';
+  if (before.kind === 'no_account') {
+    logWarn('engage email domain re-check: no usable email account, readiness item cleared', { organizationId: orgId });
+    return 'no_account';
+  }
+
+  const result = await checkDomain(before.domain, before.selectors, emailDomainDeps.resolver);
+
+  const outcome = await withEngageTenant(orgId, async (c) => {
+    const accounts = await activeAccounts(c, orgId);
+    if (accounts.length !== 1 || accounts[0]!.id !== before.accountId) return 'skipped' as const; // replaced meanwhile: the next run looks at the new one
+    return recordCheck(c, orgId, before.accountId, result, null, true);
+  });
+  const fields = { organizationId: orgId, domain: result.domain, outcome, reasons: result.reasons.join(',') };
+  if (outcome === 'failed' || outcome === 'inconclusive') logWarn('engage email domain re-check did not pass', fields);
+  else logInfo('engage email domain re-checked', fields);
+  return outcome;
+}
+
+export interface RecheckSummary { due: number; passed: number; failed: number; inconclusive: number; no_account: number; skipped: number; error: number }
+
+/** One scheduled run: re-checks up to `limit` due tenants, one after another, each in its own transactions. */
+export async function recheckDueEmailDomains(opts: { limit?: number; onlyOrganizations?: string[] } = {}): Promise<RecheckSummary> {
+  const orgs = (await withEngageScheduler((c) => c.query<{ organization_id: string }>(
+    'SELECT organization_id FROM engage.email_domain_recheck_work($1, $2::uuid[])', [opts.limit ?? RECHECK_BATCH, opts.onlyOrganizations ?? null]))).rows;
+  const tally: RecheckSummary = { due: orgs.length, passed: 0, failed: 0, inconclusive: 0, no_account: 0, skipped: 0, error: 0 };
+  for (const o of orgs) {
+    try { tally[await recheckEmailDomain(o.organization_id)]++; } catch (err) {
+      tally.error++;
+      logError('engage email domain re-check error', { organizationId: o.organization_id, name: err instanceof Error ? err.name : 'error' });
+    }
+  }
+  return tally;
 }
