@@ -10,7 +10,7 @@ import { DEFAULT_HOLDOUT_PERCENT, type JourneyDefinition } from './definition.js
 type Tx = Parameters<Parameters<typeof withEngageTenant>[1]>[0];
 
 export interface EnrollInput {
-  journeyId: string; versionId: string; profileId: string; kind: 'event' | 'api' | 'segment'; key: string;
+  journeyId: string; versionId: string; profileId: string; kind: 'event' | 'api' | 'segment' | 'date'; key: string;
   requestHash: string | null; payload: Record<string, unknown>; enteredAt: Date; definition: JourneyDefinition; now: Date;
 }
 export type EnrollOutcome = { id: string } | { refused: 'already_in_journey' | 're_entry_not_allowed' };

@@ -7,6 +7,7 @@ import {
   getJourney, listJourneys,
 } from './journeys/journeys.js';
 import { listSegmentRuns } from './segments/runs.js';
+import { listDateRuns } from './journeys/dateTrigger.js';
 import { journeyResults } from './analytics/journeyAnalytics.js';
 import './types.js';
 
@@ -50,6 +51,14 @@ journeyRouter.get('/:id/segment-runs', requireEngageUser, async (req, res) => {
   try {
     await getJourney(req.engageUser!.organizationId, req.params.id!); // 404 for another tenant's or a made-up id
     res.json({ runs: await listSegmentRuns(req.engageUser!.organizationId, req.params.id!) });
+  } catch (err) { fail(res, err); }
+});
+
+/** Scheduled date-attribute runs of a journey (WP-25), newest first. */
+journeyRouter.get('/:id/date-runs', requireEngageUser, async (req, res) => {
+  try {
+    await getJourney(req.engageUser!.organizationId, req.params.id!); // 404 for another tenant's or a made-up id
+    res.json({ runs: await listDateRuns(req.engageUser!.organizationId, req.params.id!) });
   } catch (err) { fail(res, err); }
 });
 

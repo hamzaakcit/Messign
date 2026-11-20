@@ -8,6 +8,7 @@ import { matches, type ConditionContext } from './conditions.js';
 import { defaultNext, type JourneyDefinition, type JourneyStep } from './definition.js';
 import { enroll } from './enroll.js';
 import { runSegmentSchedule } from '../segments/runs.js';
+import { runDateSchedule } from './dateTrigger.js';
 
 export { drawCohort } from './enroll.js';
 
@@ -177,7 +178,7 @@ export type RunResult =
   | { status: 'completed' | 'exited' | 'failed'; reason: string };
 
 interface EnrollmentRow {
-  id: string; journey_id: string; profile_id: string; trigger_kind: 'event' | 'api'; trigger_key: string;
+  id: string; journey_id: string; profile_id: string; trigger_kind: 'event' | 'api' | 'segment' | 'date'; trigger_key: string;
   payload: Record<string, unknown>; entered_at: Date; current_step: string; cohort: 'treatment' | 'holdout';
   definition: JourneyDefinition; attributes: Record<string, unknown>; erased_at: Date | null; journey_running: boolean;
 }
@@ -336,7 +337,7 @@ async function createStepMessage(c: Tx, orgId: string, e: EnrollmentRow, step: M
 // The tick: find work across tenants (ids only), do each piece in its tenant
 // ---------------------------------------------------------------------------------------------------------------
 
-export interface TickSummary { triggers: number; enrolled: number; runs: number; segmentRuns: number; errors: number }
+export interface TickSummary { triggers: number; enrolled: number; runs: number; segmentRuns: number; dateRuns: number; errors: number }
 export interface TickOptions {
   now?: () => Date; batch?: number; budgetMs?: number;
   /** Only these tenants (tests and tools on their own tenants). The scheduled tick passes nothing: every tenant. */
@@ -353,7 +354,7 @@ export async function runJourneyTick(opts: TickOptions = {}): Promise<TickSummar
   const clock = opts.now ?? (() => new Date());
   const batch = opts.batch ?? 200;
   const stopAt = Date.now() + (opts.budgetMs ?? 45_000);
-  const summary: TickSummary = { triggers: 0, enrolled: 0, runs: 0, segmentRuns: 0, errors: 0 };
+  const summary: TickSummary = { triggers: 0, enrolled: 0, runs: 0, segmentRuns: 0, dateRuns: 0, errors: 0 };
 
   for (;;) {
     const work = (await withEngageScheduler((c) => c.query<{ organization_id: string; outbox_id: string }>(
@@ -384,6 +385,19 @@ export async function runJourneyTick(opts: TickOptions = {}): Promise<TickSummar
     }
   }
 
+  // Date-attribute runs (WP-25) the same way: once per local day, before the due enrollments.
+  const dateWork = (await withEngageScheduler((c) => c.query<{ organization_id: string; journey_id: string }>(
+    'SELECT organization_id, journey_id FROM engage.due_date_work($1::uuid[])', [opts.onlyOrganizations ?? null]))).rows;
+  for (const w of dateWork) {
+    try {
+      const r = await runDateSchedule(w.organization_id, w.journey_id, clock());
+      if (r.status === 'done' || r.status === 'failed') { summary.dateRuns++; summary.enrolled += r.enrolled; }
+    } catch (err) {
+      summary.errors++;
+      logError('date run failed', { organizationId: w.organization_id, journeyId: w.journey_id, ...errorFields(err) });
+    }
+  }
+
   for (;;) {
     const now = clock();
     const work = (await withEngageScheduler((c) => c.query<{ organization_id: string; enrollment_id: string }>(
@@ -411,7 +425,7 @@ async function inParallel<T>(items: readonly T[], concurrency: number, fn: (item
   await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, worker));
 }
 
-export interface TenantTickSummary { triggers: number; enrolled: number; runs: number; segmentRuns: number }
+export interface TenantTickSummary { triggers: number; enrolled: number; runs: number; segmentRuns: number; dateRuns: number }
 
 /**
  * One tick for ONE tenant, inside its own tenant context (no work lists across tenants), for tools that drive a
@@ -420,7 +434,7 @@ export interface TenantTickSummary { triggers: number; enrolled: number; runs: n
  */
 export async function runTenantTick(orgId: string, now: Date, opts: { concurrency?: number } = {}): Promise<TenantTickSummary> {
   const concurrency = opts.concurrency ?? 4;
-  const summary: TenantTickSummary = { triggers: 0, enrolled: 0, runs: 0, segmentRuns: 0 };
+  const summary: TenantTickSummary = { triggers: 0, enrolled: 0, runs: 0, segmentRuns: 0, dateRuns: 0 };
   for (let round = 0; round < 1000; round++) {
     const ids = (await withEngageTenant(orgId, (c) => c.query<{ id: string }>(
       `SELECT id FROM engage.trigger_outbox WHERE organization_id = $1 AND status = 'pending' ORDER BY id LIMIT 500`, [orgId]))).rows.map((r) => String(r.id));
@@ -438,6 +452,13 @@ export async function runTenantTick(orgId: string, now: Date, opts: { concurrenc
   for (const j of journeys) {
     const r = await runSegmentSchedule(orgId, j.journey_id, now);
     if (r.status === 'done' || r.status === 'failed') { summary.segmentRuns++; summary.enrolled += r.enrolled; }
+  }
+  const dateJourneys = (await withEngageTenant(orgId, (c) => c.query<{ journey_id: string }>(
+    `SELECT journey_id FROM engage.journey_versions WHERE organization_id = $1 AND activated_at IS NOT NULL AND deactivated_at IS NULL
+        AND definition->'trigger'->>'type' = 'date_attribute'`, [orgId]))).rows;
+  for (const j of dateJourneys) {
+    const r = await runDateSchedule(orgId, j.journey_id, now);
+    if (r.status === 'done' || r.status === 'failed') { summary.dateRuns++; summary.enrolled += r.enrolled; }
   }
   for (let round = 0; round < 1000; round++) {
     const ids = (await withEngageTenant(orgId, (c) => c.query<{ id: string }>(

@@ -33,7 +33,7 @@
 | WP-22 | Settings UI: channel accounts, readiness, quiet hours, caps, send_enabled | P0 | W8 | done (Settings tab for tenant admins; send_enabled refused without readiness, server-enforced; PR stacked on #39) | send_enabled blocked without readiness |
 | WP-23 | AI gateway metering for all callers + per-tenant cap | P0 | W9 | done | Telemetry row per call (chat, stream, embedding, image, direct-fetch tool path, failures); per-tenant monthly cap refuses before any provider call (real-Postgres test) |
 | WP-24 | AI copy drafting for message steps → gatekeepers → approval queue (no PII) | P1 | W9 | done (ADR-019; API only, no UI yet) | PII-in-prompt test green |
-| WP-25 | Date-attribute trigger + florist occasion template (synthetic data) | P1 | W9 | todo | Fires once per occurrence |
+| WP-25 | Date-attribute trigger + florist occasion template (synthetic data) | P1 | W9 | done (ADR-021; API and operator script, no journey form yet) | Fires once per occurrence |
 | WP-26 | İYS client from public docs + mock İYS server (pull consents, push opt-outs, SLA monitor); live at business start | P1 | W10 | todo | Revocation honoured before next send (against mock) |
 | WP-27 | WhatsApp Cloud API adapter (own Meta dev app + test number) | P1 | W10 | todo | Marketing template blocked without WhatsApp consent |
 | WP-28 | Alaris-based SMS adapter from real docs; domestic-route capability (confirmed available) | cond. | W11 | blocked(E4 docs) | Every mapping cites the docs |
