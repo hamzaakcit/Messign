@@ -2,6 +2,12 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-20 · WP-24 follow-up (approval panel for AI copy drafts)
+- **Done:** a copy drafts panel in the Lucy page's Templates section (`CopyDraftsView.tsx`): a count of drafts waiting, the queue by status (waiting, approved, rejected), each draft's subject and copy in a sandboxed frame with its brief, and approve or reject for tenant admins. Admins also ask for a draft: journey, one of its message steps (only the steps, from the latest version), language and brief, with the brief's length checked before sending. A refusal shows each reason in words (`copyDraftText.ts`), and nothing is saved. Approval reports the new template version; a step that pins a version is told so.
+- **Verified:** `CopyDrafts.test.tsx` (11 tests): the reason texts, the message-step list, the brief rule, the queue for admins and for members (no decision buttons, no ask form), approve and reject calls, the request body, the refusal list, the count on the Templates entry. `tsc` clean.
+- **Not done:** a real-model quality check. This environment has no model key (`server/.env` is absent), so no draft was produced by a real model. A message step in the journey editor does not link to drafting yet; drafting starts from the panel.
+- **Next:** WP-25 (date-attribute trigger and florist occasion template).
+
 ## 2026-11-20 · WP-24 (AI copy drafting for message steps, gatekeepers, approval queue, no PII)
 - **Done:**
   - Migration `129_engage_copy_drafts.sql`: `engage.copy_drafts` (one proposed template version per message step; forced RLS). Content is fixed at insert; the engage role can update only the decision columns, and cannot delete.

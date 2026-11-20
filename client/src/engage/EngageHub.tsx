@@ -61,7 +61,7 @@ export function EngageHub(): JSX.Element {
             </div>
 
             <p className="border-t border-white/[0.06] pt-2 text-[10px] leading-snug text-app-muted">
-              AI drafting for engage comes with the engage AI features. Every send still passes the send gate and the customer's consent.
+              AI copy drafts wait under Templates for a tenant admin's approval. Nothing sends from a draft; every send still passes the send gate and the customer's consent.
             </p>
           </div>
         </BentoCard>
