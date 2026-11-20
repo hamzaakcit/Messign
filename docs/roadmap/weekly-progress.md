@@ -2,6 +2,17 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-20 · WP-39 Email domain authentication check
+- **Done:**
+  - ADR-020. Migration `131_engage_email_domain_checks.sql`: `engage.email_domain_checks`, forced RLS, append-only (the engage role can read and insert, not update or delete).
+  - `engage/settings/emailDomain.ts`: for the domain of the one active email account's From address, a read-only DNS lookup of SPF (exactly one `v=spf1` TXT), DKIM (a CNAME or a TXT with a key at each selector the admin names, 1 to 5) and DMARC (exactly one `v=DMARC1` TXT with a valid `p=`). A failed lookup (timeout, server error) is `lookup_failed`, never a pass. No named selector is a failure. The lookups run outside any transaction; a result for an account that was replaced meanwhile is discarded.
+  - `GET /api/engage/settings/email-domain` and `POST /api/engage/settings/email-domain/check` (admin, one check per ten seconds per tenant). A pass sets the readiness item `email_domain_authenticated`; a failure removes it. `PUT .../readiness/email/email_domain_authenticated` is now refused (400): the item is no longer a statement.
+  - A pass older than 30 days no longer counts in live mode (gate and campaign readiness); the other readiness items do not expire.
+  - Settings: an Email domain card (sending domain, DKIM selectors, Check now, what was found and what is missing) and a read-only row for the item. `send-a-campaign.md` says how to get the item.
+- **Verified:** `engageEmailDomainUnit.test.ts` (37): SPF, DMARC and DKIM rules, failed lookups, inputs, what is looked up. `engageEmailDomain.integration.test.ts` (13, real Postgres, HTTP, fake DNS): pass sets item and evidence with no record text logged; failure clears it; selectors reused; invalid input stores nothing; throttle; manual record refused; account problems; account replaced mid-check; timeout is a failure; tenant isolation; append-only; 30-day expiry. `engageGate.integration.test.ts` gained the live-mode expiry test; `engageSettings.integration.test.ts` now gets the item from a check. Client `EngageSettings.test.tsx` gained 7 tests. Mutations caught: allowing a manual record, and dropping the expiry in the campaign readiness and in the gate. Server suite 185 files, 1963 tests; client 118 files, 695 tests; both `tsc` clean.
+- **Not done:** no scheduled re-check or alert (a dropped record is caught when the pass expires or on a re-check); SPF includes are not followed; a From domain whose DMARC lives only on the parent domain fails; no proof that the provider may send for the domain; SMS and WhatsApp have no equivalent. Not run against a real domain's DNS (tests use a fake resolver).
+- **For you:** run `npm run db:migrate` to apply 131 (additive: one new table). Nothing else changes for a tenant that is not live.
+
 ## 2026-11-20 · Custom domain and email-auth follow-ups (docs only)
 - **Done:**
   - `www.messign.com` now serves the app from Vercel. The `www` CNAME at GoDaddy points at Vercel's target. A first attempt left off the final `.com.` of the target, so Vercel stayed "Invalid Configuration" until the record was corrected. Vercel shows the domain valid with its certificate, and it loads over HTTPS.

@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { withEngageTenant } from '../db.js';
-import { currentSendMode, REQUIRED_READINESS, type SendMode } from '../messaging/gate.js';
+import { currentSendMode, EMAIL_DOMAIN_CHECK_MAX_AGE_DAYS, EMAIL_DOMAIN_ITEM, REQUIRED_READINESS, type SendMode } from '../messaging/gate.js';
 import { enroll } from '../journeys/enroll.js';
 import { unsubscribeConfigProblems } from '../unsubscribe.js';
 import type { JourneyDefinition } from '../journeys/definition.js';
@@ -68,7 +68,10 @@ export async function readinessOn(c: Tx, orgId: string, mode: SendMode): Promise
   const links = unsubscribeConfigProblems();
   if (links.length) problems.push({ code: 'public_links_missing', message: `Unsubscribe links cannot be built: ${links.join('; ')}.` });
   if (mode === 'live') {
-    const have = new Set((await c.query<{ item: string }>(`SELECT item FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = 'email'`, [orgId])).rows.map((r) => r.item));
+    const have = new Set((await c.query<{ item: string }>(
+      `SELECT item FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = 'email'
+          AND (item <> $2 OR recorded_at > now() - make_interval(days => $3))`,
+      [orgId, EMAIL_DOMAIN_ITEM, EMAIL_DOMAIN_CHECK_MAX_AGE_DAYS])).rows.map((r) => r.item));
     const missing = REQUIRED_READINESS.email.filter((i) => !have.has(i));
     if (missing.length) problems.push({ code: 'readiness_missing', message: `Readiness items not recorded yet: ${missing.join(', ')}.` });
   }

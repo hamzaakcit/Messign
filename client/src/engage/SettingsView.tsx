@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  addRateCard, disableChannelAccount, getSettings, issuesOf, problemsOf, recordReadinessItem, setBudgetCap, setSendEnabled,
-  setSenderName, updateGateSettings, type Channel, type TenantSettings,
+  addRateCard, checkEmailDomain, disableChannelAccount, getEmailDomain, getSettings, issuesOf, problemsOf, recordReadinessItem,
+  setBudgetCap, setSendEnabled, setSenderName, updateGateSettings, type Channel, type EmailDomainCheck, type TenantSettings,
 } from './settingsApi';
+import { dkimText, dmarcText, spfText } from './emailDomainText';
 import { Button, ErrorLine, Field, Select, StatusBadge, TextInput, formatTime } from './ui';
 
 /**
@@ -71,6 +72,7 @@ export function SettingsSection(): JSX.Element {
       <SendingCard s={s} />
       <SenderCard s={s} />
       <ReadinessCard s={s} />
+      <EmailDomainCard />
       <GateCard s={s} />
       <CapsCard s={s} />
       <AccountsCard s={s} />
@@ -148,20 +150,115 @@ function ReadinessCard({ s }: { s: TenantSettings }): JSX.Element {
   return (
     <Card title="Readiness" testId="settings-readiness">
       <p className="text-xs text-app-muted">
-        What you record here is what your team states, with an optional link to the evidence. Messign does not verify it.
-        Live email sending needs the items marked for email.
+        What you record here is what your team states, with an optional link to the evidence. Messign does not verify it,
+        except the email domain item, which is set by the DNS check below. Live email sending needs the items marked for email.
       </p>
       <div className="space-y-3">
         {CHANNELS.flatMap((channel) => s.requiredItems[channel].map((item) => (
+          channel === 'email' && item === EMAIL_DOMAIN_ITEM ? (
+            <DomainItemRow key={`${channel}.${item}`} recorded={s.readinessItems.find((r) => r.channel === channel && r.item === item) ?? null} />
+          ) : (
           <ReadinessRow
             key={`${channel}.${item}`}
             channel={channel}
             item={item}
             recorded={s.readinessItems.find((r) => r.channel === channel && r.item === item) ?? null}
           />
+          )
         )))}
       </div>
     </Card>
+  );
+}
+
+const EMAIL_DOMAIN_ITEM = 'email_domain_authenticated';
+
+/** The domain item is not typed in: it follows the last DNS check (see the card below). */
+function DomainItemRow({ recorded }: { recorded: TenantSettings['readinessItems'][number] | null }): JSX.Element {
+  return (
+    <div className="rounded-md border border-app/60 p-2" data-testid={`readiness-email-${EMAIL_DOMAIN_ITEM}`}>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-medium text-app">email · {EMAIL_DOMAIN_ITEM}</span>
+        <span className={recorded ? 'text-xs text-emerald-700' : 'text-xs text-app-muted'}>
+          {recorded ? `Checked ${formatTime(recorded.recordedAt)}` : 'Not checked, or the last check failed'}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-app-muted">Set by the email domain check below. It cannot be typed in, and a check older than 30 days no longer counts for live sending.</p>
+    </div>
+  );
+}
+
+/**
+ * The email domain check (WP-39): looks up SPF, DKIM and DMARC for the domain of the active email account's From address.
+ * It reads DNS only. A pass sets the readiness item above; a failure removes it. DKIM selectors are the names your email
+ * provider shows when it asks you to publish its DKIM records.
+ */
+function EmailDomainCard(): JSX.Element {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: DOMAIN_KEY, queryFn: getEmailDomain });
+  const [selectors, setSelectors] = useState<string | null>(null);
+  const run = useMutation({
+    mutationFn: (list: string[] | null) => checkEmailDomain(list),
+    onSuccess: (view) => { qc.setQueryData(DOMAIN_KEY, view); void qc.invalidateQueries({ queryKey: KEY }); },
+  });
+  if (q.isLoading) return <Card title="Email domain" testId="settings-email-domain"><p className="text-sm text-app-muted">Loading…</p></Card>;
+  if (q.error || !q.data) return <Card title="Email domain" testId="settings-email-domain"><ErrorLine error={q.error ?? new Error('The email domain could not be loaded.')} /></Card>;
+  const v = q.data;
+  const last = v.lastCheck;
+  const shown = selectors ?? (last?.dkimSelectors ?? []).join(', ');
+  const parsed = shown.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
+  const problem = v.accountProblem === 'no_email_account' ? 'No email sending account is set up yet.'
+    : v.accountProblem === 'email_account_ambiguous' ? 'More than one email account is active. Keep exactly one.'
+      : v.account && !v.account.domain ? 'The email account\'s From address has no usable domain.' : null;
+  return (
+    <Card title="Email domain" testId="settings-email-domain">
+      <p className="text-xs text-app-muted">
+        Checks, in DNS, that the domain you send email from has an SPF record, the DKIM records you name, and a DMARC record. It sends nothing.
+        Live email sending needs a passing check.
+      </p>
+      {problem ? (
+        <p role="alert" className="text-sm text-red-600" data-testid="email-domain-problem">{problem}</p>
+      ) : (
+        <p className="text-sm text-app" data-testid="email-domain-account">Sending domain: <code className="font-mono">{v.account?.domain}</code> (account {v.account?.label})</p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="DKIM selectors" hint="up to 5, separated by commas, as your email provider shows them (for example s1, s2)">
+          <TextInput value={shown} onChange={setSelectors} ariaLabel="DKIM selectors" testId="email-domain-selectors" placeholder="s1, s2, s3" />
+        </Field>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button kind="primary" onClick={() => run.mutate(selectors === null ? null : parsed)} disabled={!!problem || run.isPending} testId="email-domain-check">
+          {run.isPending ? 'Checking…' : 'Check now'}
+        </Button>
+      </div>
+      <SaveErrors error={run.error} />
+      {last && <DomainResult check={last} />}
+    </Card>
+  );
+}
+
+const DOMAIN_KEY = ['engage', 'email-domain'] as const;
+
+function DomainResult({ check }: { check: EmailDomainCheck }): JSX.Element {
+  const row = (label: string, ok: boolean, text: string, testId: string) => (
+    <li key={testId} data-testid={testId} className="flex gap-2">
+      <span className={ok ? 'text-emerald-700' : 'text-red-600'} aria-label={ok ? 'found' : 'not found'}>{ok ? '✓' : '✗'}</span>
+      <span><span className="font-medium text-app">{label}</span> <span className="text-app-muted">{text}</span></span>
+    </li>
+  );
+  return (
+    <div className="space-y-1 text-sm" data-testid="email-domain-result">
+      <p className={check.passed ? 'font-medium text-emerald-700' : 'font-medium text-red-600'} data-testid="email-domain-verdict">
+        {check.passed ? 'Passed' : 'Did not pass'} for <code className="font-mono">{check.domain}</code>, checked {formatTime(check.checkedAt)}.
+      </p>
+      <ul className="space-y-1">
+        {row('SPF', check.spf.ok, spfText(check.spf.code), 'email-domain-spf')}
+        {check.dkim.length === 0
+          ? row('DKIM', false, dkimText('dkim_selectors_not_set', ''), 'email-domain-dkim-none')
+          : check.dkim.map((d) => row(`DKIM ${d.selector}`, d.ok, dkimText(d.code, d.selector), `email-domain-dkim-${d.selector}`))}
+        {row('DMARC', check.dmarc.ok, dmarcText(check.dmarc.code, check.dmarc.policy), 'email-domain-dmarc')}
+      </ul>
+    </div>
   );
 }
 

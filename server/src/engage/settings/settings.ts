@@ -1,6 +1,6 @@
 import { withEngageTenant } from '../db.js';
 import { readinessOn, type ReadinessProblem, type SendReadiness } from '../campaigns/campaigns.js';
-import { currentSendMode, REQUIRED_READINESS } from '../messaging/gate.js';
+import { currentSendMode, EMAIL_DOMAIN_ITEM, REQUIRED_READINESS } from '../messaging/gate.js';
 import {
   addRateCard, GateConfigError, setBudgetCap, updateGateSettings, type RateCardInput,
 } from '../messaging/gateConfig.js';
@@ -218,6 +218,8 @@ export async function recordReadiness(orgId: string, userId: string, channelRaw:
   if (!REQUIRED_READINESS[channel].includes(item)) {
     issues.push({ path: 'item', message: KNOWN_ITEMS.has(item) ? `${item} is not a readiness item for ${channel}` : 'not a readiness item the gate checks' });
   }
+  // Set by the email domain check from DNS, never by hand (WP-39): an attestation here would be the thing it replaces.
+  if (channel === 'email' && item === EMAIL_DOMAIN_ITEM) issues.push({ path: 'item', message: 'is set by the email domain check, not by hand' });
   const value = typeof input.value === 'string' ? input.value.trim() : '';
   if (value.length < 1 || value.length > READINESS_VALUE_MAX) issues.push({ path: 'value', message: `must be 1 to ${READINESS_VALUE_MAX} characters` });
   const evidence = input.evidenceUrl === undefined || input.evidenceUrl === null || input.evidenceUrl === '' ? null : input.evidenceUrl;
