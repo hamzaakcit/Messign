@@ -550,6 +550,20 @@ describe.skipIf(!adminUrl)('send gate (real Postgres, non-bypass role)', () => {
   });
 
   describe('content checks', () => {
+    it('denies an email whose From name differs from the tenant sender name; a match, or no name on the account, is allowed', async () => {
+      setMode('sandbox');
+      const t = await tenant();
+      await sql(t.org, `UPDATE engage.tenant_settings SET sender_name = 'Kitapyurdu' WHERE organization_id = $1`, [t.org]);
+      const p = await profile(t);
+      const mismatched = await account(t, { config: { from_name: 'Başka Mağaza' } });
+      const r = await M.evaluateGate(t.org, (await msg(t, mismatched, p.id, { purpose: 'transactional' })).id);
+      expect(r.kind === 'deny' ? codes(r.reasons) : []).toEqual(['sender_identity_mismatch']);
+      const same = await account(t, { config: { from_name: 'Kitapyurdu' } });
+      expect((await M.evaluateGate(t.org, (await msg(t, same, p.id, { purpose: 'transactional' })).id)).kind).toBe('allow');
+      const bare = await account(t);
+      expect((await M.evaluateGate(t.org, (await msg(t, bare, p.id, { purpose: 'transactional' })).id)).kind).toBe('allow');
+    });
+
     it('denies marketing email without a visible unsubscribe link, and SMS without a valid sender or opt-out text', async () => {
       setMode('sandbox');
       const t = await tenant();

@@ -10,6 +10,7 @@ const { parseTemplate, renderTemplate } = await import('../../engage/templates/r
 const { setSenderName } = await import('../../engage/settings/settings.js');
 const { SettingsInputError } = await import('../../engage/settings/settings.js');
 const { gateDraftCopy } = await import('../../engage/copy/copyDraft.js');
+const { senderIdentityMismatch } = await import('../../engage/messaging/gate.js');
 
 const ORG = '00000000-0000-4000-8000-000000000000';
 
@@ -56,5 +57,26 @@ describe('setting the sender name: input rules (before anything is stored)', () 
     ['not text', 42],
   ])('refuses %s', async (_label, value) => {
     await expect(setSenderName(ORG, 'user', value)).rejects.toBeInstanceOf(SettingsInputError);
+  });
+});
+
+describe('one sender identity: the From name must match the name the text is signed with (ADR-019)', () => {
+  it('a mismatch is refused only when both names are set and differ', () => {
+    expect(senderIdentityMismatch('Başka Mağaza', 'Kitapyurdu')).toBe(true);
+    expect(senderIdentityMismatch('Kitapyurdu', 'Kitapyurdu')).toBe(false);
+    expect(senderIdentityMismatch('Kitapyurdu', 'kitapyurdu')).toBe(true);
+    expect(senderIdentityMismatch('  Kitap   Yurdu ', 'Kitap Yurdu')).toBe(false);
+  });
+
+  it('quotes are not a difference: the From name strips them, and so does the comparison', () => {
+    expect(senderIdentityMismatch('"Kitap" Yurdu', 'Kitap Yurdu')).toBe(false);
+    expect(senderIdentityMismatch('Kitap Yurdu', 'Kitap "Yurdu"')).toBe(false);
+  });
+
+  it('is not a mismatch when either name is missing (no name is never a made-up one)', () => {
+    expect(senderIdentityMismatch('Kitapyurdu', null)).toBe(false);
+    expect(senderIdentityMismatch(undefined, 'Kitapyurdu')).toBe(false);
+    expect(senderIdentityMismatch('   ', 'Kitapyurdu')).toBe(false);
+    expect(senderIdentityMismatch(42, 'Kitapyurdu')).toBe(false);
   });
 });

@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { withEngageTenant } from '../db.js';
 import type { Channel } from '../credentials.js';
 import { describeError, logError } from '../log.js';
+import { sanitizeDisplayName } from './sesAdapter.js';
 
 /**
  * The send gate (WP-11, ADR-004). `evaluateGate` is the only writer of engage.send_decisions (a test enforces it),
@@ -30,6 +31,21 @@ export const REQUIRED_READINESS: Record<Channel, readonly string[]> = {
 };
 
 const CHANNEL_IDENTIFIER: Record<Channel, 'email' | 'phone'> = { email: 'email', sms: 'phone', whatsapp: 'phone' };
+
+/** Case-sensitive, whitespace-collapsed, so only the characters a reader would see decide a match. */
+const comparable = (s: string): string => s.replace(/\s+/g, ' ').trim();
+
+/**
+ * One sender identity (ADR-019): the From display name an email goes out with must be the name its text is signed with.
+ * True only when both names are set and differ. No sender name in Settings, or no display name on the account, is not a
+ * mismatch: the message then carries no name at all, and a placeholder cannot be filled without the Settings name.
+ */
+export function senderIdentityMismatch(fromName: unknown, senderName: string | null): boolean {
+  if (senderName === null) return false;
+  const shown = sanitizeDisplayName(fromName);
+  if (!shown) return false;
+  return comparable(shown) !== comparable(sanitizeDisplayName(senderName));
+}
 
 export interface GateReason {
   rule: string;
@@ -121,8 +137,8 @@ export async function evaluateGate(orgId: string, messageId: string, opts: GateO
 
 async function evaluateIn(c: PoolClient, orgId: string, messageId: string, mode: 'sandbox' | 'live', opts: GateOptions): Promise<GateResult> {
   const now = (opts.now ?? (await c.query<{ now: Date }>('SELECT now() AS now')).rows[0]!.now).toISOString();
-  const settings = (await c.query<{ send_enabled: boolean; timezone: string; quiet_hours_start: string | null; quiet_hours_end: string | null; frequency_cap_max: number; frequency_cap_window_hours: number }>(
-    `SELECT send_enabled, timezone, quiet_hours_start::text, quiet_hours_end::text, frequency_cap_max, frequency_cap_window_hours
+  const settings = (await c.query<{ send_enabled: boolean; sender_name: string | null; timezone: string; quiet_hours_start: string | null; quiet_hours_end: string | null; frequency_cap_max: number; frequency_cap_window_hours: number }>(
+    `SELECT send_enabled, sender_name, timezone, quiet_hours_start::text, quiet_hours_end::text, frequency_cap_max, frequency_cap_window_hours
        FROM engage.tenant_settings WHERE organization_id = $1`, [orgId])).rows[0];
   if (!settings?.send_enabled) return { kind: 'hold', code: 'tenant_send_disabled' };
 
@@ -221,6 +237,9 @@ async function evaluateIn(c: PoolClient, orgId: string, messageId: string, mode:
   }
 
   for (const code of checkContent(m.channel, m.purpose, m.content, acct?.config ?? {})) reasons.push({ rule: 'content', code });
+  if (m.channel === 'email' && senderIdentityMismatch(acct?.config?.from_name, settings.sender_name)) {
+    reasons.push({ rule: 'sender', code: 'sender_identity_mismatch' });
+  }
 
   if (reasons.length === 0) {
     const decisionId = await recordDecision(c, orgId, m.id, { decision: 'allow', code: 'allowed', reasons, mode, cost: card!.unit_cost_minor, currency: card!.currency, rateCardId: card!.id });

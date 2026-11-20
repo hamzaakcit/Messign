@@ -36,12 +36,17 @@ const EMAIL_RE = /^[^@\s"<>]+@[^@\s"<>]+\.[^@\s"<>]+$/;
 
 interface SesConfig { region: string; from: string; configurationSet?: string; topicArn?: string }
 
+/** The From display name as it is sent: quotes, angle brackets, backslashes and line breaks removed (WP-12). */
+export function sanitizeDisplayName(raw: unknown): string {
+  return typeof raw === 'string' ? raw.replace(/["\r\n<>\\]/g, '').trim().slice(0, 100) : '';
+}
+
 function readConfig(account: AdapterAccount): SesConfig {
   const c = account.config;
   const region = typeof c.region === 'string' ? c.region : '';
   const fromAddress = typeof c.from_address === 'string' ? c.from_address.trim() : '';
   if (!REGION_RE.test(region) || !EMAIL_RE.test(fromAddress)) throw new AdapterError('permanent', 'ses_config_invalid');
-  const name = typeof c.from_name === 'string' ? c.from_name.replace(/["\r\n<>\\]/g, '').trim().slice(0, 100) : '';
+  const name = sanitizeDisplayName(c.from_name);
   const set = typeof c.configuration_set === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(c.configuration_set) ? c.configuration_set : undefined;
   const topic = typeof c.sns_topic_arn === 'string' && TOPIC_RE.test(c.sns_topic_arn) ? c.sns_topic_arn : undefined;
   return { region, from: name ? `"${name}" <${fromAddress}>` : fromAddress, configurationSet: set, topicArn: topic };
