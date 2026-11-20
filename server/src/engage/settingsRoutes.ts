@@ -5,6 +5,7 @@ import {
   addRate, getTenantSettings, recordReadiness, setSendEnabled, setSenderName, SettingsInputError, SettingsNotFoundError, SettingsNotReadyError,
   updateBudgetCap, updateGate, type GateSettingsPatch,
 } from './settings/settings.js';
+import { EmailDomainError, getEmailDomain, runEmailDomainCheck } from './settings/emailDomain.js';
 import './types.js';
 
 /**
@@ -16,6 +17,7 @@ import './types.js';
 export const settingsRouter = Router();
 
 function fail(res: Response, err: unknown): void {
+  if (err instanceof EmailDomainError) return void res.status(err.status).json({ error: err.message, code: err.code, issues: err.issues });
   if (err instanceof SettingsInputError) return void res.status(400).json({ error: err.message, issues: err.issues });
   if (err instanceof SettingsNotReadyError) return void res.status(409).json({ error: err.message, problems: err.problems });
   if (err instanceof SettingsNotFoundError) return void res.status(404).json({ error: err.message });
@@ -101,5 +103,22 @@ settingsRouter.put('/readiness/:channel/:item', requireEngageUser, requireEngage
     await recordReadiness(u.organizationId, u.userId, req.params.channel, req.params.item, { value: b.value, evidenceUrl: b.evidenceUrl });
     res.setHeader('Cache-Control', 'no-store');
     res.json(await getTenantSettings(u.organizationId));
+  } catch (err) { fail(res, err); }
+});
+
+/** The domain of the active email account and the last DNS check of it (WP-39). */
+settingsRouter.get('/email-domain', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await getEmailDomain(req.engageUser!.organizationId));
+  } catch (err) { fail(res, err); }
+});
+
+/** Runs the SPF, DKIM and DMARC lookups for that domain and records the result; a pass sets the readiness item. */
+settingsRouter.post('/email-domain/check', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    const u = req.engageUser!;
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await runEmailDomainCheck(u.organizationId, u.userId, { dkimSelectors: body(req.body).dkimSelectors }));
   } catch (err) { fail(res, err); }
 });

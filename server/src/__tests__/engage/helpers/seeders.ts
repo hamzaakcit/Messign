@@ -145,6 +145,15 @@ export const SEEDERS: Record<string, Seeder> = {
     const t = await seedTemplate(c, org);
     await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
   },
+  email_domain_checks: async (c, org) => {
+    const acct = await c.query<{ id: string }>(
+      `INSERT INTO engage.channel_accounts (organization_id, channel, provider, mode, label, secret_ciphertext, wrapped_data_key, key_id, secret_fingerprint)
+       VALUES ($1, 'email', 'mock', 'test', $2, $3, $3, 'k1', 'seed') RETURNING id`, [org, `domain-seed-${org}-${Math.random()}`, DUMMY]);
+    await c.query(
+      `INSERT INTO engage.email_domain_checks (organization_id, channel_account_id, domain, dkim_selectors, spf, dkim, dmarc, passed)
+       VALUES ($1, $2, 'example.com', ARRAY['s1'], '{"ok":true,"code":"found"}'::jsonb, '[]'::jsonb, '{"ok":true,"code":"found"}'::jsonb, true)`,
+      [org, acct.rows[0]!.id]);
+  },
   copy_drafts: async (c, org) => {
     const t = await seedTemplate(c, org);
     const j = await seedJourney(c, org);

@@ -345,6 +345,24 @@ describe.skipIf(!adminUrl)('send gate (real Postgres, non-bypass role)', () => {
       const r4 = await M.evaluateGate(t.org, (await msg(t, smsLive, p.id, { channel: 'sms' })).id);
       expect(r4.kind === 'deny' && r4.reasons[0]).toEqual({ rule: 'readiness', code: 'readiness_missing', missing: ['btk_sender_id', 'iys_brand_code'] });
     });
+
+    it('a domain check older than 30 days no longer counts in live mode, while the other items never expire (WP-39)', async () => {
+      setMode('live');
+      const t = await tenant();
+      const live = await account(t, { mode: 'live' });
+      const p = await profile(t, { list: false });
+      for (const item of ['dpa_signed', 'email_domain_authenticated']) {
+        await sql(t.org, `INSERT INTO engage.tenant_readiness (organization_id, channel, item, value) VALUES ($1, 'email', $2, 'yes')`, [t.org, item]);
+      }
+      expect((await M.evaluateGate(t.org, (await msg(t, live, p.id)).id)).kind).toBe('allow');
+      // Both items are 31 days old: only the one that reflects DNS has expired.
+      await f.admin.query(`UPDATE engage.tenant_readiness SET recorded_at = now() - interval '31 days' WHERE organization_id = $1`, [t.org]);
+      const stale = await M.evaluateGate(t.org, (await msg(t, live, p.id)).id);
+      expect(stale.kind === 'deny' && stale.reasons[0]).toEqual({ rule: 'readiness', code: 'readiness_missing', missing: ['email_domain_authenticated'] });
+      // A fresh check (a new recorded_at) renews it.
+      await f.admin.query(`UPDATE engage.tenant_readiness SET recorded_at = now() WHERE organization_id = $1 AND item = 'email_domain_authenticated'`, [t.org]);
+      expect((await M.evaluateGate(t.org, (await msg(t, live, p.id)).id)).kind).toBe('allow');
+    });
   });
 
   describe('budget and rate cards', () => {

@@ -30,6 +30,13 @@ export const REQUIRED_READINESS: Record<Channel, readonly string[]> = {
   whatsapp: ['dpa_signed', 'waba_verified'],
 };
 
+/**
+ * The readiness item the email domain check (WP-39) sets, and how old a passing check may be in live mode. Other items
+ * are what the tenant states and do not expire; this one reflects DNS, so a pass that nobody has renewed is not enough.
+ */
+export const EMAIL_DOMAIN_ITEM = 'email_domain_authenticated';
+export const EMAIL_DOMAIN_CHECK_MAX_AGE_DAYS = 30;
+
 const CHANNEL_IDENTIFIER: Record<Channel, 'email' | 'phone'> = { email: 'email', sms: 'phone', whatsapp: 'phone' };
 
 /** Case-sensitive, whitespace-collapsed, so only the characters a reader would see decide a match. */
@@ -162,7 +169,9 @@ async function evaluateIn(c: PoolClient, orgId: string, messageId: string, mode:
 
   if (mode === 'live') {
     const have = new Set((await c.query<{ item: string }>(
-      `SELECT item FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = $2`, [orgId, m.channel])).rows.map((r) => r.item));
+      `SELECT item FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = $2
+          AND (item <> $3 OR recorded_at > $5::timestamptz - make_interval(days => $4))`,
+      [orgId, m.channel, EMAIL_DOMAIN_ITEM, EMAIL_DOMAIN_CHECK_MAX_AGE_DAYS, now])).rows.map((r) => r.item));
     const missing = REQUIRED_READINESS[m.channel].filter((i) => !have.has(i));
     if (missing.length) reasons.push({ rule: 'readiness', code: 'readiness_missing', missing });
   }

@@ -50,6 +50,25 @@ export const addRateCard = (input: { channel: Channel; category: 'marketing' | '
 export const recordReadinessItem = (channel: Channel, item: string, value: string, evidenceUrl: string | null): Promise<TenantSettings> =>
   fetchAPI<TenantSettings>(`/engage/settings/readiness/${channel}/${item}`, { method: 'PUT', body: JSON.stringify({ value, evidenceUrl }) });
 
+/** The email domain check (WP-39). Mirrors server/src/engage/settings/emailDomain.ts. */
+export interface DomainMechanism { ok: boolean; code: string }
+export interface EmailDomainCheck {
+  id: string; domain: string; dkimSelectors: string[];
+  spf: DomainMechanism; dkim: Array<DomainMechanism & { selector: string }>; dmarc: DomainMechanism & { policy?: string };
+  passed: boolean; checkedAt: string;
+}
+export interface EmailDomainView {
+  account: { id: string; label: string; domain: string | null } | null;
+  accountProblem: 'no_email_account' | 'email_account_ambiguous' | null;
+  lastCheck: EmailDomainCheck | null;
+}
+
+export const getEmailDomain = (): Promise<EmailDomainView> => fetchAPI<EmailDomainView>('/engage/settings/email-domain');
+
+/** Without selectors the server reuses the last check's. */
+export const checkEmailDomain = (dkimSelectors: string[] | null): Promise<EmailDomainView> =>
+  fetchAPI<EmailDomainView>('/engage/settings/email-domain/check', { method: 'POST', body: JSON.stringify(dkimSelectors === null ? {} : { dkimSelectors }) });
+
 export const disableChannelAccount = (id: string): Promise<unknown> =>
   fetchAPI(`/engage/channel-accounts/${encodeURIComponent(id)}/disable`, { method: 'POST' });
 

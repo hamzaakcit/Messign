@@ -176,3 +176,102 @@ describe('engage settings (WP-22)', () => {
     expect(sent('PUT', '/engage/settings/gate')).toHaveLength(0);
   });
 });
+
+const ACCOUNT = { id: 'a1', label: 'SES sender', domain: 'shop.example' };
+const PASSED = {
+  id: 'c1', domain: 'shop.example', dkimSelectors: ['s1'], passed: true, checkedAt: '2026-11-20T10:00:00Z',
+  spf: { ok: true, code: 'found' }, dkim: [{ selector: 's1', ok: true, code: 'found' }], dmarc: { ok: true, code: 'found', policy: 'none' },
+};
+const FAILED = {
+  id: 'c2', domain: 'shop.example', dkimSelectors: ['s1', 's2'], passed: false, checkedAt: '2026-11-20T10:05:00Z',
+  spf: { ok: true, code: 'found' },
+  dkim: [{ selector: 's1', ok: true, code: 'found' }, { selector: 's2', ok: false, code: 'dkim_missing' }],
+  dmarc: { ok: false, code: 'dmarc_missing' },
+};
+
+/** Settings plus the email domain endpoints; `domain` answers GET email-domain and `check` answers the POST. */
+function domainApi(domain: unknown, check?: (body: unknown) => Response) {
+  mockApi((url, method, body) => {
+    if (url.endsWith('/engage/settings/email-domain/check') && method === 'POST') return check ? check(body) : json(domain);
+    if (url.endsWith('/engage/settings/email-domain') && method === 'GET') return json(domain);
+    return lists(url, method) ?? (url.endsWith('/engage/settings') ? json(READY) : json({}, 404));
+  });
+}
+
+describe('email domain check (WP-39)', () => {
+  it('shows the sending domain, takes no typed value for the domain item, and shows no result before a check', async () => {
+    domainApi({ account: ACCOUNT, accountProblem: null, lastCheck: null });
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-email-domain');
+    expect(await within(card).findByTestId('email-domain-account')).toHaveTextContent('shop.example');
+    expect(within(card).queryByTestId('email-domain-result')).toBeNull();
+    // The readiness row for the domain item has no input: it is set by the check.
+    const row = within(panel).getByTestId('readiness-email-email_domain_authenticated');
+    expect(within(row).getByText(/Set by the email domain check/)).toBeInTheDocument();
+    expect(within(row).queryByRole('textbox')).toBeNull();
+    expect(within(panel).queryByTestId('readiness-save-email-email_domain_authenticated')).toBeNull();
+    // Other items still have their inputs.
+    expect(within(panel).getByTestId('readiness-save-email-dpa_signed')).toBeInTheDocument();
+  });
+
+  it('runs the check with the named selectors, shows what was and was not found, and refreshes the settings', async () => {
+    domainApi({ account: ACCOUNT, accountProblem: null, lastCheck: null }, () => json({ account: ACCOUNT, accountProblem: null, lastCheck: FAILED }));
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-email-domain');
+    await within(card).findByTestId('email-domain-account');
+    const settingsLoads = () => calls.filter((c) => c.method === 'GET' && c.url.endsWith('/engage/settings')).length;
+    const before = settingsLoads();
+    fireEvent.change(within(card).getByLabelText('DKIM selectors'), { target: { value: ' S1 , s2 ' } });
+    fireEvent.click(within(card).getByTestId('email-domain-check'));
+    expect(await within(card).findByTestId('email-domain-result')).toBeInTheDocument();
+    expect(sent('POST', '/engage/settings/email-domain/check')[0]!.body).toEqual({ dkimSelectors: ['S1', 's2'] });
+    expect(within(card).getByTestId('email-domain-verdict')).toHaveTextContent('Did not pass for shop.example');
+    expect(within(card).getByTestId('email-domain-spf')).toHaveTextContent('SPF record found');
+    expect(within(card).getByTestId('email-domain-dkim-s1')).toHaveTextContent('DKIM record found');
+    expect(within(card).getByTestId('email-domain-dkim-s2')).toHaveTextContent('No DKIM record for the selector s2');
+    expect(within(card).getByTestId('email-domain-dmarc')).toHaveTextContent('No DMARC record');
+    await waitFor(() => expect(settingsLoads()).toBeGreaterThan(before));
+  });
+
+  it('a pass says so, with the DMARC policy; checking again without editing the selectors reuses the last ones', async () => {
+    domainApi({ account: ACCOUNT, accountProblem: null, lastCheck: PASSED }, () => json({ account: ACCOUNT, accountProblem: null, lastCheck: PASSED }));
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-email-domain');
+    expect(await within(card).findByTestId('email-domain-verdict')).toHaveTextContent('Passed for shop.example');
+    expect(within(card).getByTestId('email-domain-dmarc')).toHaveTextContent('policy: none');
+    expect(within(card).getByLabelText('DKIM selectors')).toHaveValue('s1');
+    fireEvent.click(within(card).getByTestId('email-domain-check'));
+    await waitFor(() => expect(sent('POST', '/engage/settings/email-domain/check')).toHaveLength(1));
+    expect(sent('POST', '/engage/settings/email-domain/check')[0]!.body).toEqual({});
+  });
+
+  it('a check without any selector says a selector is needed', async () => {
+    const none = { ...FAILED, dkimSelectors: [], dkim: [], passed: false };
+    domainApi({ account: ACCOUNT, accountProblem: null, lastCheck: none });
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-email-domain');
+    expect(await within(card).findByTestId('email-domain-dkim-none')).toHaveTextContent('Name at least one DKIM selector');
+  });
+
+  it('shows the server\'s refusal under the button', async () => {
+    domainApi({ account: ACCOUNT, accountProblem: null, lastCheck: null }, () => json({ error: 'Wait 10 seconds between checks.', code: 'too_soon', issues: [] }, 429));
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-email-domain');
+    await within(card).findByTestId('email-domain-account');
+    fireEvent.click(within(card).getByTestId('email-domain-check'));
+    expect(await within(card).findByText(/Wait 10 seconds/)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['no_email_account', /No email sending account is set up/],
+    ['email_account_ambiguous', /More than one email account is active/],
+  ])('with %s it explains why and cannot run a check', async (accountProblem, text) => {
+    domainApi({ account: null, accountProblem, lastCheck: null });
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-email-domain');
+    expect(await within(card).findByTestId('email-domain-problem')).toHaveTextContent(text);
+    expect(within(card).getByTestId('email-domain-check')).toBeDisabled();
+  });
+});

@@ -101,7 +101,7 @@ describe.skipIf(!adminUrl)('tenant settings and send_enabled readiness (real Pos
     const t = await tenant();
     await makeSandboxReady(t);
     // A live account and the live check: the sandbox account is in test mode, so live needs its own.
-    await creds.createAccount(t.org, t.userId, { channel: 'email', provider: 'mock', mode: 'live', label: `live-${u()}`, config: {}, secrets: { webhook_secret: `whsec_${u()}` } });
+    await creds.createAccount(t.org, t.userId, { channel: 'email', provider: 'mock', mode: 'live', label: `live-${u()}`, config: { from_address: 'news@shop.example' }, secrets: { webhook_secret: `whsec_${u()}` } });
     await f.admin.query(`UPDATE engage.channel_accounts SET status = 'disabled', disabled_at = now() WHERE organization_id = $1 AND mode = 'test'`, [t.org]);
     await withMode('live', async () => {
       const refused = await app.http('/settings/send-enabled', { method: 'PUT', token: t.admin, body: { enabled: true } });
@@ -112,7 +112,22 @@ describe.skipIf(!adminUrl)('tenant settings and send_enabled readiness (real Pos
       const dpa = await app.http('/settings/readiness/email/dpa_signed', { method: 'PUT', token: t.admin, body: { value: 'signed 2026-11-01', evidenceUrl: 'https://evidence.example.com/dpa.pdf' } });
       expect(dpa.status).toBe(200);
       expect(dpa.json.readinessItems).toEqual(expect.arrayContaining([expect.objectContaining({ channel: 'email', item: 'dpa_signed', value: 'signed 2026-11-01' })]));
-      await app.http('/settings/readiness/email/email_domain_authenticated', { method: 'PUT', token: t.admin, body: { value: 'spf and dkim pass' } });
+      // The domain item is not recorded by hand (WP-39); a passing DNS check sets it.
+      const byHand = await app.http('/settings/readiness/email/email_domain_authenticated', { method: 'PUT', token: t.admin, body: { value: 'spf and dkim pass' } });
+      expect(byHand.status).toBe(400);
+      expect((await app.http('/settings/send-enabled', { method: 'PUT', token: t.admin, body: { enabled: true } })).status).toBe(409);
+      const D = await import('../../engage/settings/emailDomain.js');
+      const records: Record<string, string[][]> = { 'shop.example': [['v=spf1 -all']], '_dmarc.shop.example': [['v=DMARC1; p=none']] };
+      const prior = D.emailDomainDeps.resolver;
+      D.emailDomainDeps.resolver = {
+        resolveTxt: async (n) => { const v = records[n]; if (!v) throw Object.assign(new Error('ENODATA'), { code: 'ENODATA' }); return v; },
+        resolveCname: async () => ['s1.dkim.provider.example'],
+      };
+      try {
+        const checked = await app.http('/settings/email-domain/check', { method: 'POST', token: t.admin, body: { dkimSelectors: ['s1'] } });
+        expect(checked.status).toBe(200);
+        expect((checked.json.lastCheck as { passed: boolean }).passed).toBe(true);
+      } finally { D.emailDomainDeps.resolver = prior; }
       const ok = await app.http('/settings/send-enabled', { method: 'PUT', token: t.admin, body: { enabled: true } });
       expect(ok.status).toBe(200);
       expect(await enabledInDb(t.org)).toBe(true);
