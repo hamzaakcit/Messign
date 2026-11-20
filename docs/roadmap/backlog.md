@@ -32,7 +32,7 @@
 | WP-38 | One-off campaign: send a template to a segment now (a one-step journey plus a record; consent-only audience, readiness check, idempotent, resumable) and the tenant guard that closes Company-OS routes to tenants | P0 | W8 | done (ADR-017, ADR-018; runbook send-a-campaign.md) | A tenant admin sends one email to a segment from the Lucy page; a tenant token reaches no Company-OS route |
 | WP-22 | Settings UI: channel accounts, readiness, quiet hours, caps, send_enabled | P0 | W8 | done (Settings tab for tenant admins; send_enabled refused without readiness, server-enforced; PR stacked on #39) | send_enabled blocked without readiness |
 | WP-23 | AI gateway metering for all callers + per-tenant cap | P0 | W9 | done | Telemetry row per call (chat, stream, embedding, image, direct-fetch tool path, failures); per-tenant monthly cap refuses before any provider call (real-Postgres test) |
-| WP-24 | AI copy drafting for message steps → gatekeepers → approval queue (no PII) | P1 | W9 | todo | PII-in-prompt test green |
+| WP-24 | AI copy drafting for message steps → gatekeepers → approval queue (no PII) | P1 | W9 | done (ADR-019; API only, no UI yet) | PII-in-prompt test green |
 | WP-25 | Date-attribute trigger + florist occasion template (synthetic data) | P1 | W9 | todo | Fires once per occurrence |
 | WP-26 | İYS client from public docs + mock İYS server (pull consents, push opt-outs, SLA monitor); live at business start | P1 | W10 | todo | Revocation honoured before next send (against mock) |
 | WP-27 | WhatsApp Cloud API adapter (own Meta dev app + test number) | P1 | W10 | todo | Marketing template blocked without WhatsApp consent |

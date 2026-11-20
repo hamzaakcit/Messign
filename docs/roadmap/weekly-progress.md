@@ -2,6 +2,34 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-20 · WP-24 (AI copy drafting for message steps, gatekeepers, approval queue, no PII)
+- **Done:**
+  - Migration `129_engage_copy_drafts.sql`: `engage.copy_drafts` (one proposed template version per message step; forced RLS). Content is fixed at insert; the engage role can update only the decision columns, and cannot delete.
+  - `engage/copy/copyDraft.ts`: `POST /api/engage/copy-drafts` (admin) takes a journey id, a message step id, a brief and a language (`tr` or `en`). It reads the step's template, purpose and pin and the trigger's event name, and no customer data. The brief is screened for personal data. The prompt is built from fixed text, the purpose, the event name and the brief, and is screened once more before the call. The call goes through the existing gateway (`generateText`, tier `complex`, metered by WP-23, budget checked first). The answer must be one JSON object and must pass the gatekeepers. What passes is queued as a pending draft.
+  - Gatekeepers, all returning codes and never the copy: personal data in the output (by kind); the template renderer's rules (`checkTemplateContent`, now exported); a variable allowlist (`first_name` with a fallback, and `unsubscribe_url` for marketing only); the unsubscribe rule (marketing must have it, transactional must not).
+  - `GET /api/engage/copy-drafts[/:id]` (any engage user, optional `status`), `POST .../:id/approve` (creates the next template version in the same transaction as the decision, through `addTemplateVersionOn`), `POST .../:id/reject`. Approval and rejection happen once (409 after that).
+  - `gateway.ts` re-exports `AiBudgetExceededError`, so engage imports the error through the gateway, which the import lint allows.
+  - ADR-019 records the decisions.
+  - Second real-model run: no invented links and no repeated greeting, but the copy referred to a button and to links that do not exist, signed off with an invented team name, and made claims about demand and stock the brief did not give. Added the gatekeeper codes `link_reference` and `sender_name`, and prompt rules on sender names, links and claims. Still open: the sender's name is to be set by the tenant (a sender setting and template sign-off), which is a follow-up work package, not done here.
+  - Real-model check (2026-11-20, five briefs, Claude through the gateway): all five passed the gatekeepers, but reading the copy showed two defects, now fixed with tests. The model wrote an invented shop address (`https://www.example.com/cart`) and a bare path (`/sepet`), and it repeated the greeting before the first-name placeholder ("Merhaba Merhaba"). Two new gatekeeper codes: `link_not_allowed` and `greeting_repeated`; the prompt now says where the greeting and links go. Re-run the check to see the effect; the gate now refuses these cases regardless of the model.
+  - Deeper pass (same session): the detector now reads text after NFKC normalisation and with invisible characters removed (full-width digits, zero-width spaces); it catches spelled-out emails ("ayse [at] example [dot] com", "ayse at gmail dot com"), Turkish-domain emails, dotted phone groups and national ids typed in groups. A model-call failure logs the error's name and status only, because a provider's error text can echo the request.
+- **Verified:**
+  - **PII-in-prompt test** (`engageCopyDraftPii.integration.test.ts`, real Postgres 17 with pgvector, HTTP, model stubbed to record prompts): two customers with names, emails, phones and an address exist; no name, email, phone, address or profile id reaches the system or user prompt, and the brief and event name do. Plus: personal data in the brief refused before any model call; personal data in the reply refused by kind and nothing stored; marketing without the unsubscribe link and transactional with it refused; a non-JSON reply, a model error (502, the error text not echoed) and a budget refusal (402) store nothing; non-admins get 403; approval adds version 2 and the template's latest version carries the drafted subject; a second decision gets 409; a rejected draft never becomes a version; tenant B cannot read, approve or reject tenant A's draft; no message row is created.
+  - **Mutations** on the real path, both caught: a profile's attributes added to the prompt (the PII test fails); the brief screen disabled (the brief test fails).
+  - `engageCopyDraftGates.unit.test.ts` (43): detector shapes (email, TR phone forms, TR IBAN, 11-digit id, Luhn card), ordinary copy not flagged, the gatekeeper rules one by one, the output parser.
+  - Isolation suite and schema-index suite cover `copy_drafts` (seeder registered).
+  - Full server suite on a scratch Postgres 17 (port 5499, not the local messign database): 181 files passed, 2 skipped, 1885 tests passed, 9 skipped. Server `tsc` clean. Full client suite: 117 files, 675 passed. Client `tsc` clean.
+- **Not done:**
+  - Number words ("beş üç iki") and other spelled-out digits are not detected.
+  - No UI. The API is the queue; a panel on the Lucy page would be a separate package.
+  - Names and street addresses typed into the brief are not detected (no reliable shape). The design keeps profile data out of prompts, but the admin must not type customer names into a brief. The PR says so too.
+  - Quality of drafted Turkish copy has not been judged; no real model call was made in tests (the model is stubbed).
+  - A step that pins a template version keeps that version, so an approved draft reaches it only after the journey points at the new version. The draft response reports the pin.
+  - Self-approval is allowed (D-13 open), as for journeys.
+  - Copy is not checked for compliance claims beyond the system prompt's instruction; brand words and tone rules are not enforced.
+- **For you:** run `npm run db:migrate` against production to apply 129 (additive: one table, its policy and grants; no data touched). No environment variable is needed; the AI budget applies as it does elsewhere.
+- **Next:** WP-25 (date-attribute trigger and the florist occasion template). If you want drafting in the Lucy page, that is a new work package.
+
 ## 2026-11-11 · WP-23 (AI gateway metering and per-tenant monthly cap)
 - **Done:**
   - Migration `128_ai_call_telemetry.sql`: `ai_call_telemetry` (one row per AI call: caller, tenant, kind, tier, provider, model, upstream calls, tokens in and out, latency, outcome, error class, cost estimate and whether it was estimated) and `ai_tenant_budgets` (monthly cap per tenant). No prompt, completion or error text is stored.

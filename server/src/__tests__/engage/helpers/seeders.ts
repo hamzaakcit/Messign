@@ -145,6 +145,13 @@ export const SEEDERS: Record<string, Seeder> = {
     const t = await seedTemplate(c, org);
     await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
   },
+  copy_drafts: async (c, org) => {
+    const t = await seedTemplate(c, org);
+    const j = await seedJourney(c, org);
+    await c.query(
+      `INSERT INTO engage.copy_drafts (organization_id, journey_id, step_id, template_id, purpose, language, brief, subject, text_body)
+       VALUES ($1, $2, 's1', $3, 'marketing', 'tr', 'seed brief text', 's', 't')`, [org, j, t]);
+  },
 };
 
 async function seedTemplate(c: pg.PoolClient, org: string): Promise<string> {

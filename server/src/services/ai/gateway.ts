@@ -858,6 +858,9 @@ export function streamModelSafe(options: GatewayCallOptions): AsyncIterable<Open
   return meterAiStream({ kind: 'stream', tier: options.tier, tenantId: options.tenantId }, () => streamModelSafeCore(options));
 }
 
+/** The error a metered call throws when the tenant's monthly AI budget is used up (WP-23). Re-exported for callers. */
+export { AiBudgetExceededError } from './metering.js';
+
 export function embedViaGateway(texts: string[], tenantId: string): Promise<number[][]> {
   return meterAiCall({ kind: 'embedding', tenantId, fallbackCostUsd: 0.0001 }, () => embedViaGatewayCore(texts, tenantId));
 }
