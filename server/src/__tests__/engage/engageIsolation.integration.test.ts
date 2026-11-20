@@ -82,6 +82,7 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
           ORDER BY 1`);
       expect(r.rows).toEqual([
         { proname: 'claim_message', result: 'boolean' }, // claims one message of the given tenant
+        { proname: 'due_date_work', result: 'TABLE(organization_id uuid, journey_id uuid)' }, // migration 133: ids only
         { proname: 'due_enrollment_work', result: 'TABLE(organization_id uuid, enrollment_id uuid)' }, // migration 121: ids only
         { proname: 'due_message_work', result: 'TABLE(organization_id uuid, message_id uuid)' }, // migration 122: ids only
         { proname: 'due_segment_work', result: 'TABLE(organization_id uuid, journey_id uuid)' }, // migration 124: ids only

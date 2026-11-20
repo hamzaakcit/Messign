@@ -7,7 +7,8 @@ import { z } from 'zod';
  *   trigger    event {event, filter?} | api | date_attribute {attribute, offset_days, at_local_time} |
  *              segment {segment, segment_version, every_days, at_local_time} (scheduled, WP-36)
  *   exit_when  events that end an enrollment early (for example order_completed for cart abandonment)
- *   re_entry   never (a profile enters once) | after_exit (again once its previous enrollment has ended)
+ *   re_entry   never (a profile enters once) | after_exit (again once its previous enrollment has ended); a date_attribute
+ *              journey must use after_exit, because the same customer's occasion comes back every year (WP-25)
  *   holdout_percent  share of enrollments that run every step but get no message (default 10, D-11)
  *   steps      delay · wait_until {event, filter?, timeout, on_timeout} · branch {branches[], otherwise} ·
  *              message {channel email, template key, version?, purpose} · exit
@@ -134,6 +135,12 @@ export function validateDefinition(input: unknown): DefinitionResult {
   }
   const d = parsed.data;
   const errors: DefinitionIssue[] = [];
+
+  // A date-attribute journey starts again every year for the same customer (WP-25); with re_entry "never" the second
+  // year's occasion would be refused without a word, so it is refused here instead.
+  if (d.trigger.type === 'date_attribute' && d.re_entry !== 'after_exit') {
+    errors.push({ path: 're_entry', message: 'a date-attribute journey repeats every year, so re_entry must be "after_exit"' });
+  }
 
   // Conditions: depth, and event.* only where an event is being evaluated.
   if (d.trigger.type === 'event' && d.trigger.filter) conditionProblems(d.trigger.filter, 'trigger.filter', 1, true, errors);

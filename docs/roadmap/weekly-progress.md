@@ -2,6 +2,16 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-21 · WP-25 Date-attribute trigger and florist occasion reminder
+- **Done:**
+  - ADR-021. Migration `133_engage_date_attribute_runs.sql`: `engage.date_runs` (one claim row per journey and local day, counts, keyset cursor, guard against changing a finished run, forced RLS, no delete), enrollment trigger kind `date`, and `engage.due_date_work` (ids only, added to the isolation allow-list).
+  - `engage/journeys/dateTrigger.ts`: a run once per local day at `at_local_time` of the tenant's zone; enrolls customers whose date attribute (month and day, any year) is `offset_days` away, with the key `date:<occasion day>:<customer>`, so once per occurrence and again next year. Latest due day only (missed days are not made up), first run after activation, 29 February celebrated on 28 February in a year without one, values matched as text (garbage never matches or errors), erased customers excluded. The tick and the tenant tick run it; summaries gain `dateRuns`.
+  - A date-attribute definition must use `re_entry: after_exit` (otherwise next year's occasion would be refused silently).
+  - `engage/journeys/occasionReminder.ts`: the florist reminder (template `occasion-reminder`, one marketing email, holdout 10%) installed as a draft journey `occasion-<attribute>`; `npm run engage:install-occasion`. `GET /api/engage/journeys/:id/date-runs`.
+  - Tests: 17 integration (a whole year of 365 daily runs on 60 customers plus leap days, garbage values, an erased customer and a second year; repeats and two workers; lease takeover; offsets; local time and time zone; missed days; cap; tick filters; isolation; the installer; the template message; API; guards) and 10 unit. A deliberate break of the leap-day rule fails the year test. Seeder and foreign-key index added for the new table. Server 2000 pass / 9 skipped (190 files), client 696 pass (118 files), both `tsc` clean.
+- **Remaining:** the journey form on the Lucy page cannot create a date-attribute journey (an admin needs the operator script or the API); nothing is shown for date runs in the UI; one journey per attribute. Migration 133 still needs `npm run db:migrate` on the development database.
+- **Next:** WP-26 (İYS client and mock server), or WP-33 (onboarding kit).
+
 ## 2026-11-21 · WP-39 follow-up: scheduled email domain re-check
 - **Done:**
   - Migration `132_engage_email_domain_recheck_work.sql`: `engage.email_domain_recheck_work(limit, orgs)`, a `SECURITY DEFINER` list of organization ids whose item is set and whose latest check is over 23 hours old (over 1 hour if it could not reach DNS). Added to the reviewed list in the isolation test.

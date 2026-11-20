@@ -37,7 +37,7 @@ describe('journey definition v1', () => {
   it('accepts the other two triggers', () => {
     expect(validateDefinition({ trigger: { type: 'api' }, steps: [{ id: 'm', type: 'message', channel: 'email', template: 't', purpose: 'transactional' }] }).ok).toBe(true);
     expect(validateDefinition({
-      trigger: { type: 'date_attribute', attribute: 'anniversary', offset_days: -3, at_local_time: '10:00' },
+      trigger: { type: 'date_attribute', attribute: 'anniversary', offset_days: -3, at_local_time: '10:00' }, re_entry: 'after_exit',
       steps: [{ id: 'm', type: 'message', channel: 'email', template: 'occasion', purpose: 'marketing' }],
     }).ok).toBe(true);
   });

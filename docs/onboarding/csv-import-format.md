@@ -21,7 +21,7 @@ value, and a bad row never stops the file.
 | `consent_recorded_at` | for grants | `YYYY-MM-DD` or ISO timestamp, not in the future. When the customer gave consent. |
 | `consent_evidence_ref` | for grants | Where the proof lives (form name and version, ticket, export file). Free text up to 300 characters. |
 | `consent_ip` | no | Stored with the evidence. |
-| any other column | no | Becomes a profile attribute (`lower_snake_case` name, up to 40 characters; value up to 500). Up to 60 columns. |
+| any other column | no | Becomes a profile attribute (`lower_snake_case` name, up to 40 characters; value up to 500). Up to 60 columns. A date column (for example `anniversary_date`, `birth_date`) must be `YYYY-MM-DD` to start a date-attribute journey (the occasion is the month and day; the year does not matter). |
 
 A grant without a date and an evidence reference is **skipped and reported**; the profile is still imported. Revocations need
 no evidence. Imported revocations remove marketing consent but do not by themselves suppress the address.

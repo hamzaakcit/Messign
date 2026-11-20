@@ -135,6 +135,14 @@ export const SEEDERS: Record<string, Seeder> = {
       `INSERT INTO engage.segment_runs (organization_id, journey_id, journey_version_id, segment_version_id, slot_at) VALUES ($1, $2, $3, $4, '2100-01-01T00:00:00Z')`,
       [org, j, jv.rows[0]!.id, sv.rows[0]!.id]);
   },
+  date_runs: async (c, org) => {
+    const j = await seedJourney(c, org);
+    const jv = await c.query<{ id: string }>(
+      `INSERT INTO engage.journey_versions (organization_id, journey_id, version, definition) VALUES ($1, $2, 1, '{"steps":[]}'::jsonb) RETURNING id`, [org, j]);
+    await c.query(
+      `INSERT INTO engage.date_runs (organization_id, journey_id, journey_version_id, slot_date, slot_at, occurrence_date)
+       VALUES ($1, $2, $3, '2100-01-01', '2100-01-01T09:00:00Z', '2100-01-08')`, [org, j, jv.rows[0]!.id]);
+  },
   campaigns: async (c, org) => {
     const j = await seedJourney(c, org);
     await c.query(
