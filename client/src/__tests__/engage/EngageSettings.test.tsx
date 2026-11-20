@@ -179,11 +179,11 @@ describe('engage settings (WP-22)', () => {
 
 const ACCOUNT = { id: 'a1', label: 'SES sender', domain: 'shop.example' };
 const PASSED = {
-  id: 'c1', domain: 'shop.example', dkimSelectors: ['s1'], passed: true, checkedAt: '2026-11-20T10:00:00Z',
+  id: 'c1', domain: 'shop.example', dkimSelectors: ['s1'], passed: true, checkedAt: '2026-11-20T10:00:00Z', automatic: false,
   spf: { ok: true, code: 'found' }, dkim: [{ selector: 's1', ok: true, code: 'found' }], dmarc: { ok: true, code: 'found', policy: 'none' },
 };
 const FAILED = {
-  id: 'c2', domain: 'shop.example', dkimSelectors: ['s1', 's2'], passed: false, checkedAt: '2026-11-20T10:05:00Z',
+  id: 'c2', domain: 'shop.example', dkimSelectors: ['s1', 's2'], passed: false, checkedAt: '2026-11-20T10:05:00Z', automatic: false,
   spf: { ok: true, code: 'found' },
   dkim: [{ selector: 's1', ok: true, code: 'found' }, { selector: 's2', ok: false, code: 'dkim_missing' }],
   dmarc: { ok: false, code: 'dmarc_missing' },
@@ -213,6 +213,14 @@ describe('email domain check (WP-39)', () => {
     expect(within(panel).queryByTestId('readiness-save-email-email_domain_authenticated')).toBeNull();
     // Other items still have their inputs.
     expect(within(panel).getByTestId('readiness-save-email-dpa_signed')).toBeInTheDocument();
+  });
+
+  it('says so when the last check was the scheduled one', async () => {
+    domainApi({ account: ACCOUNT, accountProblem: null, lastCheck: { ...FAILED, automatic: true } });
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-email-domain');
+    expect(await within(card).findByTestId('email-domain-verdict')).toHaveTextContent('checked automatically');
   });
 
   it('runs the check with the named selectors, shows what was and was not found, and refreshes the settings', async () => {

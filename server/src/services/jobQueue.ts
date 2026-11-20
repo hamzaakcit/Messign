@@ -22,6 +22,8 @@ export const JOB_NAMES = {
   ENGAGE_JOURNEY_TICK: 'engage/journey-tick',
   /** Engage: create the coming days' event partitions ahead of time (hourly). */
   ENGAGE_PARTITIONS: 'engage/partition-maintenance',
+  /** Engage: look again at the SPF, DKIM and DMARC records of tenants whose email domain item is set (hourly). */
+  ENGAGE_EMAIL_DOMAIN_RECHECK: 'engage/email-domain-recheck',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
