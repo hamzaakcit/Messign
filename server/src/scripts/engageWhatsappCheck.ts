@@ -10,6 +10,9 @@
  *   npm run engage:whatsapp-check -- --org ... --account ... --to +90... --ask-master-key
  *       sends one template message (default Meta's sample template jaspers_market_order_confirmation_v1, en_US, with its three values; --template, --language, --param (repeat per variable) and --purpose to change) and follows
  *       its delivery reports for two minutes (they arrive through the webhook on the server).
+ *   npm run engage:whatsapp-check -- --org ... --account ... --webhooks --waba <WhatsApp Business Account id> [--subscribe] --ask-master-key
+ *       asks Meta which apps are subscribed to the WhatsApp Business Account (delivery reports reach the webhook only when this
+ *       app is), and with --subscribe subscribes it. Sends nothing; the stored access token is used and never printed.
  *   npm run engage:whatsapp-check -- --org ... --account ... --to +90... --report --ask-master-key
  *       prints, without sending, what is recorded: consent, messages and what the webhook did with your replies.
  *
@@ -34,6 +37,28 @@ async function main(): Promise<void> {
     `SELECT provider, mode, channel FROM engage.channel_accounts WHERE id = $1 AND status = 'active'`, [a.account]))).rows[0];
   if (!acct || acct.channel !== 'whatsapp' || acct.provider !== 'whatsapp_cloud') { console.error('[engage] that is not an active whatsapp_cloud account of this tenant'); process.exit(2); }
   if (acct.mode !== 'test') { console.error('[engage] this check runs on a test-mode account (a Meta test number); the account is in live mode'); process.exit(2); }
+
+  if (a.webhooks) {
+    const { loadAccountSecrets } = await import('../engage/credentials.js');
+    const { account, secrets } = await loadAccountSecrets(a.org, a.account);
+    const version = String(account.config.api_version ?? 'v25.0');
+    const url = `https://graph.facebook.com/${version}/${a.waba}/subscribed_apps`;
+    const call = async (method: 'GET' | 'POST') => {
+      const res = await fetch(url, { method, headers: { authorization: `Bearer ${secrets.access_token}`, 'content-type': 'application/json' }, ...(method === 'POST' ? { body: '{}' } : {}), signal: AbortSignal.timeout(15_000) });
+      const body = await res.json().catch(() => null) as { data?: Array<{ whatsapp_business_api_data?: { id?: string; name?: string } }>; success?: boolean; error?: { code?: number } } | null;
+      return { status: res.status, body };
+    };
+    const show = (label: string, r: Awaited<ReturnType<typeof call>>) => {
+      if (r.status >= 400 || r.body?.error) { console.log(`[engage] ${label}: Meta answered ${r.status}, error code ${r.body?.error?.code ?? 'unknown'}`); return; }
+      const apps = (r.body?.data ?? []).map((d) => `${d.whatsapp_business_api_data?.name ?? '?'} (${d.whatsapp_business_api_data?.id ?? '?'})`);
+      console.log(`[engage] ${label}: ${r.body?.success !== undefined ? `success=${r.body.success}` : `${apps.length} app(s) subscribed to this account${apps.length ? `: ${apps.join(', ')}` : ''}`}`);
+    };
+    show('before', await call('GET'));
+    if (a.subscribe) { show('subscribe', await call('POST')); show('after', await call('GET')); }
+    else console.log('  Add --subscribe to subscribe this app to the account if it is not listed.');
+    await closeEngagePool();
+    return;
+  }
 
   const profile = await P.upsertProfile(a.org, { externalId: 'whatsapp-live-check', phone: a.to });
 

@@ -40,4 +40,19 @@ describe('engage:whatsapp-check arguments', () => {
     ['an option without a value', [...base, '--template']],
     ['a stray word', [...base, 'now']],
   ])('refuses %s', (_what, argv) => { expect(() => parseWhatsappCheckArgs(argv)).toThrow(ArgError); });
+
+  describe('webhook diagnosis', () => {
+    const noTo = ['--org', ORG, '--account', ACC];
+    it('needs the account id, and sends nothing so it needs no number', () => {
+      expect(parseWhatsappCheckArgs([...noTo, '--webhooks', '--waba', '1886292205754470'])).toMatchObject({ webhooks: true, subscribe: false, waba: '1886292205754470', to: '' });
+      expect(parseWhatsappCheckArgs([...noTo, '--webhooks', '--waba', '1886292205754470', '--subscribe']).subscribe).toBe(true);
+    });
+    it.each([
+      ['no account id', [...noTo, '--webhooks']],
+      ['an account id that is not digits', [...noTo, '--webhooks', '--waba', 'abc']],
+      ['--subscribe on its own', [...noTo, '--to', '+905301234567', '--subscribe']],
+      ['--waba without --webhooks', [...noTo, '--to', '+905301234567', '--waba', '1886292205754470']],
+    ])('refuses %s', (_w, argv) => { expect(() => parseWhatsappCheckArgs(argv)).toThrow(ArgError); });
+    it('still needs a number for a send', () => { expect(() => parseWhatsappCheckArgs(noTo)).toThrow(ArgError); });
+  });
 });

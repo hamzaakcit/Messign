@@ -11,6 +11,12 @@ export interface WhatsappCheckArgs {
   params: string[];
   purpose: 'marketing' | 'transactional';
   prepare: boolean; report: boolean; askMasterKey: boolean;
+  /** Diagnose webhook delivery: is the app subscribed to this WhatsApp Business Account (Meta's subscribed_apps)? */
+  webhooks: boolean;
+  /** With --webhooks: subscribe the app to the account if it is not. */
+  subscribe: boolean;
+  /** The WhatsApp Business Account id (not secret), for --webhooks. */
+  waba: string | null;
 }
 
 export class ArgError extends Error {}
@@ -20,7 +26,7 @@ export const DEFAULT_TEMPLATE = 'jaspers_market_order_confirmation_v1';
 export const defaultParams = (now: Date = new Date()): string[] => ['John Doe', '123456', now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })];
 
 export function parseWhatsappCheckArgs(argv: string[]): WhatsappCheckArgs {
-  const flags = new Set(['--prepare', '--report', '--ask-master-key']);
+  const flags = new Set(['--prepare', '--report', '--ask-master-key', '--webhooks', '--subscribe']);
   const values = new Map<string, string>();
   const params: string[] = [];
   const on = new Set<string>();
@@ -30,7 +36,7 @@ export function parseWhatsappCheckArgs(argv: string[]): WhatsappCheckArgs {
     if (!a.startsWith('--')) throw new ArgError(`Unexpected argument "${a}"`);
     const v = argv[i + 1];
     if (v === undefined || v.startsWith('--')) throw new ArgError(`Missing value for ${a}`);
-    if (!['--org', '--account', '--to', '--template', '--language', '--purpose', '--param'].includes(a)) throw new ArgError(`Unknown option ${a}`);
+    if (!['--org', '--account', '--to', '--template', '--language', '--purpose', '--param', '--waba'].includes(a)) throw new ArgError(`Unknown option ${a}`);
     if (a === '--param') params.push(v); else values.set(a, v);
     i++;
   }
@@ -38,8 +44,14 @@ export function parseWhatsappCheckArgs(argv: string[]): WhatsappCheckArgs {
   const org = need('--org');
   const account = need('--account');
   if (!UUID_RE.test(org) || !UUID_RE.test(account)) throw new ArgError('--org and --account must be UUIDs');
-  const to = need('--to').replace(/[\s()-]/g, '');
-  if (!/^\+[1-9][0-9]{7,14}$/.test(to)) throw new ArgError('--to must be an international number with the plus sign, for example +905301234567');
+  const webhooks = on.has('--webhooks');
+  if (on.has('--subscribe') && !webhooks) throw new ArgError('--subscribe goes with --webhooks');
+  const waba = values.get('--waba') ?? null;
+  if (webhooks && (!waba || !/^\d{5,30}$/.test(waba))) throw new ArgError('--webhooks needs --waba <WhatsApp Business Account id, digits>');
+  if (!webhooks && waba) throw new ArgError('--waba goes with --webhooks');
+  // Only the webhook diagnosis can do without a number: it sends nothing.
+  const to = webhooks && !values.get('--to') ? '' : need('--to').replace(/[\s()-]/g, '');
+  if (to !== '' && !/^\+[1-9][0-9]{7,14}$/.test(to)) throw new ArgError('--to must be an international number with the plus sign, for example +905301234567');
   const template = values.get('--template') ?? DEFAULT_TEMPLATE;
   if (!/^[a-z0-9_]{1,512}$/.test(template)) throw new ArgError('--template must be lower-case letters, digits and underscores');
   const language = values.get('--language') ?? 'en_US';
@@ -49,5 +61,5 @@ export function parseWhatsappCheckArgs(argv: string[]): WhatsappCheckArgs {
   if (params.length > 20 || params.some((p) => p === '' || p.length > 1024)) throw new ArgError('--param values must be 1 to 1024 characters, at most 20');
   // The sample template has three variables; any other template takes the values given, or none.
   const finalParams = params.length > 0 ? params : template === DEFAULT_TEMPLATE ? defaultParams() : [];
-  return { org, account, to, template, language, params: finalParams, purpose, prepare: on.has('--prepare'), report: on.has('--report'), askMasterKey: on.has('--ask-master-key') };
+  return { org, account, to, template, language, params: finalParams, purpose, prepare: on.has('--prepare'), report: on.has('--report'), askMasterKey: on.has('--ask-master-key'), webhooks, subscribe: on.has('--subscribe'), waba };
 }
