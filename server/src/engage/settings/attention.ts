@@ -17,7 +17,10 @@ import { EMAIL_DOMAIN_ITEM } from '../messaging/gate.js';
 
 export type AttentionCode = 'email_domain_lost' | 'iys_sync';
 export interface AttentionItem {
-  code: AttentionCode;
+  /** The two derived items above, and (from the ops alerts, WP-29) the rule of an open alert. */
+  code: string;
+  /** What an ops alert is about: a channel account id or a gate denial code. */
+  subject?: string;
   severity: 'warning' | 'critical';
   /** When it started, where known. */
   since: string | null;

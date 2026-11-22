@@ -1,5 +1,6 @@
 import { JOB_NAMES, enqueueJob, getQueue, registerJobHandler, scheduleJob } from '../../services/jobQueue.js';
 import { logInfo } from '../log.js';
+import { tracked } from '../ops/errors.js';
 import { dispatchDueAcrossTenants } from '../messaging/dispatch.js';
 import { runJourneyTick } from './engine.js';
 
@@ -10,12 +11,12 @@ import { runJourneyTick } from './engine.js';
  * which sends due messages through the send gate; with SEND_MODE off it does nothing.
  */
 export async function registerEngageJourneyHandler(): Promise<void> {
-  await registerJobHandler(JOB_NAMES.ENGAGE_JOURNEY_TICK, async () => {
+  await registerJobHandler(JOB_NAMES.ENGAGE_JOURNEY_TICK, tracked('journey_tick', async () => {
     const s = await runJourneyTick();
     if (s.triggers || s.runs || s.errors) logInfo('journey tick', { ...s });
     const sent = await dispatchDueAcrossTenants();
     if (Object.keys(sent).length) logInfo('dispatch tick', sent);
-  }, { batchSize: 1 });
+  }), { batchSize: 1 });
   await scheduleJob(JOB_NAMES.ENGAGE_JOURNEY_TICK, '* * * * *');
   logInfo('journey tick handler registered');
 }

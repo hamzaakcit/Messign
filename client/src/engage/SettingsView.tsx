@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  addRateCard, checkEmailDomain, checkIys, disableChannelAccount, getEmailDomain, getIys, getSettings, issuesOf, problemsOf, recordReadinessItem,
+  addRateCard, checkEmailDomain, checkIys, disableChannelAccount, getDeliveryHealth, getEmailDomain, getIys, getSettings, issuesOf, problemsOf, recordReadinessItem,
   setBudgetCap, setSendEnabled, setSenderName, updateGateSettings, type Channel, type EmailDomainCheck, type IysView, type TenantSettings,
 } from './settingsApi';
 import { attentionText } from './attentionText';
@@ -80,6 +80,7 @@ export function SettingsSection(): JSX.Element {
       <GateCard s={s} />
       <CapsCard s={s} />
       <AccountsCard s={s} />
+      <DeliveryHealthCard />
     </div>
   );
 }
@@ -467,7 +468,7 @@ function AttentionCard(): JSX.Element | null {
         {items.map((item) => {
           const t = attentionText(item);
           return (
-            <li key={item.code} data-testid={`attention-${item.code}`} className="text-sm">
+            <li key={`${item.code}:${item.subject ?? ''}`} data-testid={`attention-${item.code}`} className="text-sm">
               <p className={item.severity === 'critical' ? 'font-medium text-red-600' : 'font-medium text-amber-700'}>{t.title}</p>
               <p className="text-app-muted">{t.detail}</p>
               {item.since && <p className="text-xs text-app-muted">Since {formatTime(item.since)}</p>}
@@ -476,6 +477,46 @@ function AttentionCard(): JSX.Element | null {
         })}
       </ul>
     </section>
+  );
+}
+
+const HEALTH_KEY = ['engage', 'delivery-health'] as const;
+const ACCOUNT_STATUS: Record<string, { text: string; style: string }> = {
+  ok: { text: 'Delivering normally', style: 'bg-emerald-500/15 text-emerald-700' },
+  degraded: { text: 'Needs a look', style: 'bg-amber-500/15 text-amber-700' },
+  failing: { text: 'Needs action', style: 'bg-red-500/15 text-red-600' },
+};
+
+/** How each channel account is delivering now: the provider calls of the last 15 minutes, and bounces and delivery reports of the last day (WP-29). */
+function DeliveryHealthCard(): JSX.Element | null {
+  const q = useQuery({ queryKey: HEALTH_KEY, queryFn: getDeliveryHealth, staleTime: 60_000, retry: false });
+  const title = 'Delivery health';
+  if (q.isLoading) return <Card title={title} testId="settings-delivery"><p className="text-sm text-app-muted">Loading…</p></Card>;
+  if (q.error || !q.data) return <Card title={title} testId="settings-delivery"><ErrorLine error={q.error ?? new Error('Delivery health could not be loaded.')} /></Card>;
+  const h = q.data;
+  return (
+    <Card title={title} testId="settings-delivery">
+      <p className="text-xs text-app-muted">
+        What the channel accounts did recently: messages handed to the provider, bounces, and delivery reports coming back. Problems found here are also listed under "Needs attention" and sent to your Messign contact.
+      </p>
+      {h.accounts.length === 0 && <p className="text-sm text-app-muted" data-testid="delivery-none">There is no active channel account yet.</p>}
+      <ul className="space-y-2">
+        {h.accounts.map((a) => (
+          <li key={a.accountId} data-testid={`delivery-${a.accountId}`} className="text-sm text-app">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{a.label}</span>
+              <span className="text-xs text-app-muted">{a.channel} · {a.provider} · {a.mode}</span>
+              <span data-testid={`delivery-status-${a.accountId}`} className={`rounded px-1.5 py-0.5 text-xs font-medium ${ACCOUNT_STATUS[a.status]!.style}`}>{ACCOUNT_STATUS[a.status]!.text}</span>
+            </div>
+            <p className="text-xs text-app-muted">
+              Last 15 minutes: {a.last15m.sent} handed over, {a.last15m.failed + a.last15m.retried} failed or retried.
+              {' '}Last 24 hours: {a.last24h.sent} sent, {a.last24h.reports} reports back, {a.last24h.bounced} bounced{a.channel === 'email' ? `, ${a.last24h.complained} complaints` : ''}.
+              {a.waitingForReport > 0 ? ` ${a.waitingForReport} accepted messages are still waiting for a delivery report.` : ''}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

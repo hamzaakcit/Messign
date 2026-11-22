@@ -90,6 +90,7 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
         { proname: 'ensure_event_partition', result: 'void' }, // migration 114: creates event partitions only
         { proname: 'iys_sync_work', result: 'TABLE(organization_id uuid)' }, // migration 134: ids only
         { proname: 'lookup_user', result: 'TABLE(user_id uuid, role text, organization_id uuid, org_slug text, org_product text)' }, // migration 111: sign-in lookup
+        { proname: 'ops_work', result: 'TABLE(organization_id uuid)' }, // migration 136: ids only
         { proname: 'pending_trigger_work', result: 'TABLE(organization_id uuid, outbox_id bigint)' }, // migration 121: ids only
         { proname: 'set_app_tenant', result: 'void' }, // legacy baseline: sets a setting, reads nothing
       ]);

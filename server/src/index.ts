@@ -467,6 +467,8 @@ if (pgBossEnabled) {
           await registerEngageEmailDomainJob();
           const { registerEngageIysSyncJob } = await import('./engage/iys/job.js');
           await registerEngageIysSyncJob();
+          const { registerEngageOpsJob } = await import('./engage/ops/job.js');
+          await registerEngageOpsJob();
         } catch (importErr) {
           console.warn('[Server] Engage import handler failed (non-fatal):', importErr instanceof Error ? importErr.message : importErr);
         }

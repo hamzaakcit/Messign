@@ -1,5 +1,6 @@
 import { JOB_NAMES, registerJobHandler, scheduleJob } from '../../services/jobQueue.js';
 import { logInfo } from '../log.js';
+import { tracked } from '../ops/errors.js';
 import { runIysSync } from './sync.js';
 
 /**
@@ -9,10 +10,10 @@ import { runIysSync } from './sync.js';
  * of 100 history listings per IP, shared by every tenant that uses this server's address.
  */
 export async function registerEngageIysSyncJob(): Promise<void> {
-  await registerJobHandler(JOB_NAMES.ENGAGE_IYS_SYNC, async () => {
+  await registerJobHandler(JOB_NAMES.ENGAGE_IYS_SYNC, tracked('iys_sync_job', async () => {
     const s = await runIysSync();
     if (s.tenants) logInfo('iys sync run', { ...s });
-  }, { batchSize: 1 });
+  }), { batchSize: 1 });
   await scheduleJob(JOB_NAMES.ENGAGE_IYS_SYNC, '*/10 * * * *');
   logInfo('iys sync job registered');
 }

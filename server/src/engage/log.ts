@@ -3,10 +3,16 @@ import { redact, redactString } from './redact.js';
 /** The only logger engage code uses. Everything passes through redaction first. */
 type Fields = Record<string, unknown> | undefined;
 
+/** Where logged errors are also offered (the ops error tracker registers itself here; see engage/ops/errors.ts). */
+type ErrorSink = (message: string, fields: Fields) => void;
+let errorSink: ErrorSink | null = null;
+export function setErrorSink(sink: ErrorSink | null): void { errorSink = sink; }
+
 function emit(level: 'info' | 'warn' | 'error', message: string, fields: Fields): void {
   const args: unknown[] = [`[engage] ${redactString(message)}`];
   if (fields !== undefined) args.push(redact(fields));
   console[level](...args);
+  if (level === 'error' && errorSink) { try { errorSink(message, fields); } catch { /* tracking never breaks logging */ } }
 }
 
 export const logInfo = (message: string, fields?: Fields) => emit('info', message, fields);

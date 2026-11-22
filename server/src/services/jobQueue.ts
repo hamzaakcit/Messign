@@ -26,6 +26,8 @@ export const JOB_NAMES = {
   ENGAGE_EMAIL_DOMAIN_RECHECK: 'engage/email-domain-recheck',
   /** Engage: push the tenants' opt-outs to İYS and pull recipients' consent changes from İYS (every ten minutes). */
   ENGAGE_IYS_SYNC: 'engage/iys-sync',
+  /** Engage: the ops check (WP-29): measure every tenant that can be sending, keep alerts in line, tell the operators (every five minutes). */
+  ENGAGE_OPS_CHECK: 'engage/ops-check',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
