@@ -14,6 +14,32 @@ What it does: sends approved WhatsApp templates through the Cloud API of the **t
 7. **First live check, before relying on it:** with the test number, send a template, then (a) reply STOP from the phone and check the consent is revoked and the number suppressed, (b) stop marketing messages from the business with the WhatsApp app's own option and check the `user_preferences` webhook revoked it, (c) send again and see Meta answer 131050 and the message fail. The mock follows Meta's documentation, not Meta: compare, and fix `engage/whatsapp/mock` and the code together.
 8. **Go live:** mode `live`, readiness items `dpa_signed` and `waba_verified` recorded, `SEND_MODE=live`.
 
+## Live check with your own Meta test number
+
+Run it once before relying on the channel. It uses the real pipeline in `SEND_MODE=sandbox` (forced by the script, never live) and a test-mode account. The number you give is yours and is never printed. Run the commands from `server/` with `DOTENV_CONFIG_PATH=/path/to/server/.env` in front, as for the other operator scripts.
+
+**In Meta (you; the dashboard flow as of 2026-11-22):**
+1. In the Meta App Dashboard open your app, then the use case **Connect with customers through WhatsApp**, then **Step 1. Try it out**. The first time, Meta asks you to accept its WhatsApp terms and creates a **test number** and a test business account in your business portfolio. Note the test number's **Phone number ID** (shown on that page).
+2. On the same page, in the **To** list, add **your own WhatsApp number** as a recipient (a test number can message at most 5 numbers; Meta sends a code to verify the number).
+3. **Generate token** on the same page: a temporary access token, enough for the check (it lasts about a day; use a system user's permanent token later, see Meta's "Get started" page). Copy it somewhere only you can see.
+4. **App settings > Basic > App secret**: show and copy it.
+5. Invent a **verify token** (any long random string).
+
+**In your terminal:**
+1. A tenant, if you have none yet: `npm run engage:provision -- --name "Demo Kitap" --slug demo-kitap --admin-email <you> --admin-name "Demo Admin"` (prints the organization id).
+2. The account (the secrets are typed at hidden prompts; so are the production master key and its id):
+   `npm run engage:add-account -- --org <org id> --channel whatsapp --provider whatsapp_cloud --mode test --label "WhatsApp test number" --config phone_number_id=<Phone number ID> --config api_version=v25.0 --config default_language=en_US --secret access_token --secret app_secret --secret verify_token --ask-master-key`
+   It prints the **account id**.
+3. In Meta: Use cases > Customize > Webhooks (the app-level Webhooks page, object **Whatsapp Business Account**): **Callback URL** `https://<api host>/api/engage/webhooks/<account id>` and the **verify token** from step 5 (you type it; it is a secret). Meta sends the handshake as you press **Verify and save**. Then subscribe the fields **messages** and **user_preferences**.
+3b. **Subscribe the app to the WhatsApp Business Account itself.** Found in the first live check: with the callback and fields set, messages went out and arrived but **no delivery report reached the server**, because only Meta's own test app was subscribed to the account. Run `npm run engage:whatsapp-check -- --org <org id> --account <account id> --webhooks --waba <WhatsApp Business Account id> --subscribe --ask-master-key` (the account id is on the API Setup page). It lists the subscribed apps, subscribes this one through Meta's `POST /<WABA id>/subscribed_apps` and lists them again. It sends nothing and never prints the token.
+4. Make the tenant ready and send one message:
+   `npm run engage:whatsapp-check -- --org <org id> --account <account id> --to +90<your number> --prepare --ask-master-key`
+   The message (the sample "Order Confirmation" template Meta gives a new test number, `jaspers_market_order_confirmation_v1`, with its three values) should arrive on your phone, and the script should print **DELIVERED** within a minute or two: that proves sending, the handshake, the signature and the status path against the real Meta.
+5. **Reply STOP** to the message from your phone, then run the same command with `--report` instead of `--prepare`: WhatsApp consent should read `revoked`, with a ledger line `via whatsapp_stop_message` and an inbound line `text -> opt_out_applied`. Send again (without `--prepare`): the gate must block it.
+6. **Stop marketing in the WhatsApp app** for the business (the app's own option), run `--report` again, and look for `preference_stop -> opt_out_applied` (or `unmatched` if Meta sent only its opaque user id instead of your number: then record that, it is the known gap in ADR-023). Optionally send a `marketing` message (`--purpose marketing`) to a number that stopped marketing and look for the Meta error `wa_131050` and the revocation.
+
+If something fails, note the code the script prints, and the table below says what it means. Then fix `engage/whatsapp` and `engage/whatsapp/mock` together.
+
 ## When something is wrong
 
 | What you see | Meaning |

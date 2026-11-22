@@ -2,6 +2,11 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-22 · WP-27 live check with a Meta test number
+- **Done:** the live check passed for sending, the webhook handshake and signature, delivery reports, a STOP reply (revoked, suppressed, recorded without text or number) and the gate blocking the next marketing send. Details in ADR-023. `npm run engage:whatsapp-check` (prepare, send, report, and `--webhooks --subscribe`); PR #56.
+- **Found:** delivery reports needed the app subscribed to the WhatsApp Business Account itself, not only a callback and fields; now a runbook step and a script mode.
+- **Remaining:** Meta's `user_preferences` stop and error 131050 need a marketing-category template; the sender name and logo (the test number's profile cannot be edited) need a real number registered to the account, with the display name approved by Meta (Dora logo prepared); the message wording needs a new template approved by Meta; a permanent system-user token before anything lasts longer than a day.
+
 ## 2026-11-22 · WP-27 WhatsApp Cloud API adapter
 - **Done:**
   - ADR-023 and `docs/runbooks/whatsapp.md`. Built from Meta's **official** documentation (developers.facebook.com, read 2026-11-22). Migration `135_engage_inbound_events.sql` (`engage.inbound_events`: one row per customer message or preference change, by Meta's id; no text, no number; append-only).
