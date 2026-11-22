@@ -2,6 +2,7 @@ import express from 'express';
 import type { AddressInfo } from 'net';
 import type { Server } from 'http';
 import { signAccess } from '../../../utils/jwt.js';
+import { appJsonParser } from '../../../engage/jsonBodyParser.js';
 
 export const token = (sub: string, org?: string) => signAccess({ sub, role: 'admin', ...(org ? { organizationId: org } : {}) });
 
@@ -19,7 +20,7 @@ export async function startEngageApp(): Promise<TestApp> {
   const { optionalJwt } = await import('../../../middleware/authMiddleware.js');
   const { engageRouter } = await import('../../../engage/routes.js');
   const app = express();
-  app.use(express.json());
+  app.use(appJsonParser()); // the server's own parser: webhooks keep their raw bytes
   app.use('/api', optionalJwt);
   app.use('/api/engage', engageRouter);
   let server!: Server;

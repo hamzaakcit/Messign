@@ -4,6 +4,7 @@ import type { Channel } from '../credentials.js';
 import { getAdapter, type RawWebhook, type ProviderEvent } from './adapter.js';
 import { loadAccountSecrets, messagingChannel } from '../credentials.js';
 import { normalizeEmail } from '../profiles.js';
+import { ingestInbound, revokeFromRecipient, type InboundSummary } from '../whatsapp/inbound.js';
 
 /**
  * The messages ledger (WP-10). Creating a message only records the intent; nothing is sent until dispatch (dispatch.ts),
@@ -174,6 +175,8 @@ export interface IngestResult {
   ignored: number;
   /** Addresses suppressed because of these reports (hard bounces, complaints). */
   suppressed: number;
+  /** What customers sent in the same delivery (WhatsApp replies and preference changes), and what it did. */
+  inbound?: InboundSummary;
 }
 
 /**
@@ -186,8 +189,8 @@ export async function ingestProviderEvents(orgId: string, provider: string, even
   if (events.length === 0) return out;
   await withEngageTenant(orgId, async (c) => {
     for (const [i, ev] of events.entries()) {
-      const m = await c.query<{ id: string; channel: string }>(
-        `SELECT id, channel FROM engage.messages WHERE organization_id = $1 AND provider = $2 AND provider_message_id = $3`,
+      const m = await c.query<{ id: string; channel: string; profile_id: string }>(
+        `SELECT id, channel, profile_id FROM engage.messages WHERE organization_id = $1 AND provider = $2 AND provider_message_id = $3`,
         [orgId, provider, ev.providerMessageId]);
       if (!m.rows[0]) { out.unmatched++; continue; }
       // A repeat of a known provider event id is skipped by the unique index. The apply trigger runs first but cannot
@@ -209,6 +212,10 @@ export async function ingestProviderEvents(orgId: string, provider: string, even
            ON CONFLICT (organization_id, channel, value_normalized) DO NOTHING`, [orgId, value, ev.suppress!.reason]);
         out.suppressed++;
       }
+      // The recipient stopped this channel for the business (WhatsApp 131050): an opt-out, once, for the message's customer.
+      if (ins.rows[0] && ev.optOut && m.rows[0].channel === 'whatsapp') {
+        await revokeFromRecipient(c, orgId, m.rows[0].profile_id, 'whatsapp', { via: ev.errorCode ?? 'provider_opt_out', provider_event_id: ev.providerEventId }, ev.occurredAt);
+      }
       await c.query(`RELEASE SAVEPOINT ${sp}`);
       if (!ins.rows[0]) out.duplicates++;
       else if (ins.rows[0].applied) out.applied++;
@@ -223,8 +230,23 @@ export async function ingestWebhook(orgId: string, accountId: string, raw: RawWe
   const { account, secrets } = await loadAccountSecrets(orgId, accountId);
   const adapter = getAdapter(account.provider);
   if (!adapter) throw new MessageInputError('No adapter registered for this account provider');
-  const events = await adapter.parseWebhook(raw, {
-    id: account.id, channel: messagingChannel(account), provider: account.provider, mode: account.mode, config: account.config, secrets,
-  });
-  return ingestProviderEvents(orgId, account.provider, events);
+  const adapterAccount = { id: account.id, channel: messagingChannel(account), provider: account.provider, mode: account.mode, config: account.config, secrets };
+  const events = await adapter.parseWebhook(raw, adapterAccount);
+  const result = await ingestProviderEvents(orgId, account.provider, events);
+  // What customers sent in the same (signed) delivery: opt-out words and preference changes. It never makes the delivery
+  // "unmatched": a reply from someone we cannot identify is not a report to retry for days.
+  const inbound = adapter.parseInbound?.(raw, adapterAccount) ?? [];
+  if (inbound.length > 0) result.inbound = await ingestInbound(orgId, account.provider, inbound);
+  return result;
+}
+
+/**
+ * The provider's handshake when its webhook is set up (WhatsApp: a GET with hub.verify_token). The text to answer with, or
+ * null when the request does not know the account's verify token. An account whose provider has no handshake answers null.
+ */
+export async function answerWebhookChallenge(orgId: string, accountId: string, query: Record<string, string | undefined>): Promise<string | null> {
+  const { account, secrets } = await loadAccountSecrets(orgId, accountId);
+  const adapter = getAdapter(account.provider);
+  if (!adapter?.verifyWebhookChallenge) return null;
+  return adapter.verifyWebhookChallenge(query, { id: account.id, channel: messagingChannel(account), provider: account.provider, mode: account.mode, config: account.config, secrets });
 }

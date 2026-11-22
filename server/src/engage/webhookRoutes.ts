@@ -2,7 +2,7 @@ import express, { Router } from 'express';
 import { withAccountLookup } from './db.js';
 import { CredentialNotFoundError } from './credentials.js';
 import { describeError, logError, logWarn } from './log.js';
-import { AdapterError, WebhookSignatureError, ingestWebhook } from './messaging/index.js';
+import { AdapterError, WebhookSignatureError, answerWebhookChallenge, ingestWebhook } from './messaging/index.js';
 import { createKeyRateLimiter } from './rateLimit.js';
 
 /**
@@ -35,6 +35,32 @@ export function requireWebhookAccount(req: express.Request, res: express.Respons
   if (UUID_RE.test(req.params.accountId ?? '')) return next();
   res.status(404).json({ error: 'Not found' });
 }
+
+/**
+ * The provider's handshake (WhatsApp: GET with hub.mode=subscribe, hub.verify_token and hub.challenge, sent whenever the
+ * callback URL or the verify token is set in Meta's dashboard). 200 with the challenge as plain text when the request knows the
+ * account's verify token; anything else is a plain 403 (and a 404 for an unknown account). Nothing is logged but the account.
+ */
+webhookRouter.get('/:accountId',
+  requireWebhookAccount,
+  perAccount,
+  async (req, res) => {
+    const accountId = req.params.accountId!;
+    try {
+      const orgId = await withAccountLookup(accountId, async (c) => (await c.query<{ organization_id: string }>(
+        `SELECT organization_id FROM engage.channel_accounts WHERE id = $1 AND status = 'active'`, [accountId])).rows[0]?.organization_id);
+      if (!orgId) return void res.status(404).json({ error: 'Not found' });
+      const query: Record<string, string | undefined> = {};
+      for (const [k, v] of Object.entries(req.query)) query[k] = typeof v === 'string' ? v : undefined;
+      const answer = await answerWebhookChallenge(orgId, accountId, query);
+      if (answer === null) { logWarn('webhook handshake refused', { accountId }); return void res.status(403).json({ error: 'Verification failed' }); }
+      res.status(200).type('text/plain').set('X-Content-Type-Options', 'nosniff').send(answer);
+    } catch (err) {
+      if (err instanceof CredentialNotFoundError) return void res.status(404).json({ error: 'Not found' });
+      logError('webhook handshake failed', { accountId, error: describeError(err) });
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
 
 webhookRouter.post('/:accountId',
   requireWebhookAccount,

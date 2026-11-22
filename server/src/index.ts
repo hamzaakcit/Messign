@@ -1,6 +1,7 @@
 import './env.js';
 import { join, resolve } from 'path';
 import express from 'express';
+import { appJsonParser } from './engage/jsonBodyParser.js';
 import compression from 'compression';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -159,7 +160,7 @@ app.use(
     },
   }),
 );
-app.use(express.json({ limit: '1mb', type: 'application/json' }));
+app.use(appJsonParser()); // JSON bodies, except provider webhooks, which are signed over their exact bytes
 if (process.env.NODE_ENV === 'production') {
   const resolvedUploadDir = resolve(UPLOAD_DIR);
   app.use('/uploads', optionalJwt, async (req, res, next) => {

@@ -73,7 +73,7 @@ export const mockAdapter: ChannelAdapter = {
   },
 
   normalizeError(err: unknown): NormalizedError {
-    if (err instanceof AdapterError) return { kind: err.kind, code: err.code };
+    if (err instanceof AdapterError) return { kind: err.kind, code: err.code, ...(err.optOut ? { optOut: true } : {}) };
     return { kind: 'transient', code: 'unknown_error' };
   },
 };
