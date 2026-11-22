@@ -15,6 +15,7 @@ import { NewSegmentPanel, SegmentPanel, SegmentsSection } from './SegmentsView';
 import { NewTemplatePanel, TemplatePanel, TemplatesSection } from './TemplatesView';
 import { CopyDraftsPanel } from './CopyDraftsView';
 import { SettingsSection } from './SettingsView';
+import { useAttention } from './useAttention';
 
 /**
  * The engage parts of the Lucy page (ADR-015, ADR-016): the four sections as tabs, the "Go to" tiles and quick actions,
@@ -132,6 +133,8 @@ export function useEngageWorkspace(initial: Tab, isAdmin: boolean): EngageWorksp
 /** The tab row. `withLucy` puts the Lucy chat first (the Lucy page); the engage hub has no chat. */
 export function EngageTabStrip({ workspace, withLucy = false }: { workspace: EngageWorkspace; withLucy?: boolean }): JSX.Element {
   const tabs: Array<{ id: Tab; label: string }> = [...(withLucy ? [{ id: 'lucy' as const, label: 'Lucy' }] : []), ...sectionsFor(workspace.isAdmin)];
+  const attention = useAttention(workspace.isAdmin).data ?? [];
+  const worst = attention.some((a) => a.severity === 'critical') ? 'critical' : attention.length ? 'warning' : null;
   return (
     <div role="tablist" aria-label="Page sections" className="flex flex-wrap gap-1.5">
       {tabs.map((t) => (
@@ -148,6 +151,9 @@ export function EngageTabStrip({ workspace, withLucy = false }: { workspace: Eng
           )}
         >
           {t.label}
+          {t.id === 'settings' && worst && (
+            <span data-testid="settings-attention-dot" role="img" aria-label="needs attention" className={cn('ml-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle', worst === 'critical' ? 'bg-red-500' : 'bg-amber-400')} />
+          )}
         </button>
       ))}
     </div>

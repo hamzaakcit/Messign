@@ -71,6 +71,32 @@ export const getEmailDomain = (): Promise<EmailDomainView> => fetchAPI<EmailDoma
 export const checkEmailDomain = (dkimSelectors: string[] | null): Promise<EmailDomainView> =>
   fetchAPI<EmailDomainView>('/engage/settings/email-domain/check', { method: 'POST', body: JSON.stringify(dkimSelectors === null ? {} : { dkimSelectors }) });
 
+/** What needs an admin's attention (the email domain lost by the scheduled re-check, the İYS sync late or stale). */
+export interface AttentionItem {
+  code: 'email_domain_lost' | 'iys_sync';
+  severity: 'warning' | 'critical';
+  since: string | null;
+  data: Record<string, unknown>;
+}
+export const getAttention = (): Promise<AttentionItem[]> => fetchAPI<{ items: AttentionItem[] }>('/engage/settings/attention').then((r) => r.items);
+
+/** The İYS connection and sync report (WP-26). Mirrors server/src/engage/iys/report.ts; never carries credentials. */
+export interface IysReport {
+  health: 'ok' | 'warning' | 'critical';
+  push: {
+    pending: number; sent: number; skipped: number; failed: number; deadlineMissed: number;
+    onTrack: number; late: number; atRisk: number; breached: number; oldestPendingAt: string | null; oldestPendingAgeHours: number | null;
+  };
+  pull: { status: 'ok' | 'stale' | 'critical' | 'never'; lastPullAt: string | null; lastAttemptAt: string | null; lastOutcome: string | null; lastErrorCode: string | null; lastApplied: number };
+}
+export interface IysView {
+  connection: { accountId: string; provider: string; mode: 'test' | 'live'; iysCode: number | null; brandCode: number | null } | null;
+  report: IysReport | null;
+}
+export interface IysCheck { ok: boolean; code: string | null; message: string | null; brandFound: boolean }
+export const getIys = (): Promise<IysView> => fetchAPI<IysView>('/engage/settings/iys');
+export const checkIys = (): Promise<IysCheck> => fetchAPI<IysCheck>('/engage/settings/iys/check', { method: 'POST' });
+
 export const disableChannelAccount = (id: string): Promise<unknown> =>
   fetchAPI(`/engage/channel-accounts/${encodeURIComponent(id)}/disable`, { method: 'POST' });
 

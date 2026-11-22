@@ -29,9 +29,11 @@ export interface StepForm {
 }
 export interface JourneyForm {
   trigger: {
-    type: 'event' | 'api' | 'segment';
+    type: 'event' | 'api' | 'segment' | 'date_attribute';
     event: string; filter: LeafForm | null;
     segment: string; segmentVersion: string; everyDays: string; atLocalTime: string;
+    /** date_attribute (WP-25): the customer attribute that holds a date, and the days from that date (negative = before). */
+    attribute: string; offsetDays: string;
   };
   exitEvents: string[];
   reEntry: 'never' | 'after_exit';
@@ -53,7 +55,7 @@ export function newStep(type: StepType, existing: readonly StepForm[]): StepForm
 
 export function emptyForm(): JourneyForm {
   return {
-    trigger: { type: 'event', event: 'cart_updated', filter: null, segment: '', segmentVersion: '1', everyDays: '7', atLocalTime: '10:00' },
+    trigger: { type: 'event', event: 'cart_updated', filter: null, segment: '', segmentVersion: '1', everyDays: '7', atLocalTime: '10:00', attribute: '', offsetDays: '-7' },
     exitEvents: [], reEntry: 'never', holdoutPercent: '10',
     steps: [{ ...newStep('delay', []), id: 'wait' }],
   };
@@ -92,7 +94,8 @@ export function formToDefinition(f: JourneyForm): Record<string, unknown> {
   const trigger =
     t.type === 'api' ? { type: 'api' }
       : t.type === 'segment' ? { type: 'segment', segment: t.segment.trim(), segment_version: int(t.segmentVersion), every_days: int(t.everyDays), at_local_time: t.atLocalTime.trim() }
-        : { type: 'event', event: t.event.trim(), ...(t.filter ? { filter: leafToCondition(t.filter) } : {}) };
+        : t.type === 'date_attribute' ? { type: 'date_attribute', attribute: t.attribute.trim(), offset_days: int(t.offsetDays), at_local_time: t.atLocalTime.trim() }
+          : { type: 'event', event: t.event.trim(), ...(t.filter ? { filter: leafToCondition(t.filter) } : {}) };
   const next = (s: StepForm) => (s.next ? { next: s.next } : {});
   const steps = f.steps.map((s) => {
     switch (s.type) {
@@ -112,7 +115,8 @@ export function formToDefinition(f: JourneyForm): Record<string, unknown> {
   return {
     trigger,
     exit_when: f.exitEvents.map((e) => e.trim()).filter(Boolean).map((event) => ({ event })),
-    re_entry: f.reEntry,
+    // A date-attribute journey comes round every year for the same customer, so the server requires re-entry (WP-25).
+    re_entry: t.type === 'date_attribute' ? 'after_exit' : f.reEntry,
     holdout_percent: int(f.holdoutPercent),
     steps,
   };
@@ -129,6 +133,8 @@ export function definitionToForm(def: unknown): FormConversion {
   if (t.type === 'api') f.trigger.type = 'api';
   else if (t.type === 'segment') {
     f.trigger = { ...f.trigger, type: 'segment', segment: String(t.segment ?? ''), segmentVersion: String(t.segment_version ?? ''), everyDays: String(t.every_days ?? ''), atLocalTime: String(t.at_local_time ?? '') };
+  } else if (t.type === 'date_attribute') {
+    f.trigger = { ...f.trigger, type: 'date_attribute', attribute: String(t.attribute ?? ''), offsetDays: String(t.offset_days ?? ''), atLocalTime: String(t.at_local_time ?? '') };
   } else if (t.type === 'event') {
     f.trigger = { ...f.trigger, type: 'event', event: String(t.event ?? ''), filter: null };
     if (t.filter !== undefined) {

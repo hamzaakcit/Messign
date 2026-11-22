@@ -37,9 +37,9 @@ export function TextInput(props: { value: string; onChange: (v: string) => void;
     data-testid={props.testId} className={`${inputClass} ${props.mono ? 'font-mono' : ''}`} />;
 }
 
-export function Select<T extends string>(props: { value: T; onChange: (v: T) => void; options: ReadonlyArray<{ value: T; label: string }>; ariaLabel?: string; testId?: string }): JSX.Element {
+export function Select<T extends string>(props: { value: T; onChange: (v: T) => void; options: ReadonlyArray<{ value: T; label: string }>; ariaLabel?: string; testId?: string; disabled?: boolean }): JSX.Element {
   return (
-    <select value={props.value} onChange={(e) => props.onChange(e.target.value as T)} aria-label={props.ariaLabel} data-testid={props.testId} className={selectClass}>
+    <select value={props.value} onChange={(e) => props.onChange(e.target.value as T)} aria-label={props.ariaLabel} data-testid={props.testId} disabled={props.disabled} className={selectClass}>
       {props.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );

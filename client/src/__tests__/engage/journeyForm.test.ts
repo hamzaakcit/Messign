@@ -45,7 +45,7 @@ describe('journey builder form model (WP-20)', () => {
     expect(definitionToForm({ ...cart, trigger: { type: 'event', event: 'x', filter: tree } })).toMatchObject({ ok: false, reason: expect.stringMatching(/trigger filter/) });
     expect(definitionToForm({ ...cart, exit_when: [{ event: 'order_completed', filter: { field: 'event.x', op: 'exists' } }] })).toMatchObject({ ok: false, reason: expect.stringMatching(/exit condition/) });
     expect(definitionToForm({ ...cart, steps: [{ id: 'b', type: 'branch', branches: [{ when: tree, next: 'x' }], otherwise: 'x' }] })).toMatchObject({ ok: false });
-    expect(definitionToForm({ trigger: { type: 'date_attribute', attribute: 'birthday', offset_days: 0, at_local_time: '09:00' }, steps: [] })).toMatchObject({ ok: false, reason: expect.stringMatching(/no form/) });
+    expect(definitionToForm({ trigger: { type: 'something_new', x: 1 }, steps: [] })).toMatchObject({ ok: false, reason: expect.stringMatching(/no form/) });
     expect(definitionToForm('nope')).toMatchObject({ ok: false });
   });
 
@@ -81,5 +81,34 @@ describe('journey builder form model (WP-20)', () => {
     expect(describeStep(newStep('delay', []))).toBe('Wait 60 minutes');
     expect(describeStep({ ...newStep('message', []), template: 'hello', templateVersion: '2' })).toBe('Send email "hello" v2 (marketing)');
     expect(describeStep(newStep('exit', []))).toBe('End the journey');
+  });
+});
+
+describe('the date-attribute trigger (WP-25)', () => {
+  const stored = {
+    trigger: { type: 'date_attribute', attribute: 'anniversary_date', offset_days: -7, at_local_time: '09:30' },
+    exit_when: [], re_entry: 'after_exit', holdout_percent: 10,
+    steps: [{ id: 'reminder', type: 'message', channel: 'email', template: 'occasion-reminder', purpose: 'marketing' }, { id: 'done', type: 'exit' }],
+  };
+  it('opens in the form and saves back to the same definition', () => {
+    const r = definitionToForm(stored);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.form.trigger).toMatchObject({ type: 'date_attribute', attribute: 'anniversary_date', offsetDays: '-7', atLocalTime: '09:30' });
+    expect(formToDefinition(r.form)).toEqual(stored);
+  });
+  it('always asks to re-enter, whatever the form says, because the date comes round every year', () => {
+    const r = definitionToForm(stored);
+    if (!r.ok) throw new Error('expected a form');
+    expect(formToDefinition({ ...r.form, reEntry: 'never' })).toMatchObject({ re_entry: 'after_exit' });
+    // The other triggers keep what was chosen.
+    expect(formToDefinition({ ...r.form, trigger: { ...r.form.trigger, type: 'api' }, reEntry: 'never' })).toMatchObject({ re_entry: 'never' });
+  });
+  it('sends whole numbers of days, trimmed names and the other fields as typed', () => {
+    const r = definitionToForm(stored);
+    if (!r.ok) throw new Error('expected a form');
+    const def = formToDefinition({ ...r.form, trigger: { ...r.form.trigger, attribute: ' birth_date ', offsetDays: ' 3 ', atLocalTime: ' 08:15 ' } });
+    expect(def.trigger).toEqual({ type: 'date_attribute', attribute: 'birth_date', offset_days: 3, at_local_time: '08:15' });
+    expect((formToDefinition({ ...r.form, trigger: { ...r.form.trigger, offsetDays: 'a week' } }).trigger as { offset_days: number }).offset_days).toBeNaN();
   });
 });

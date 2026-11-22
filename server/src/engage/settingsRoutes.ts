@@ -9,6 +9,7 @@ import { EmailDomainError, getEmailDomain, runEmailDomainCheck } from './setting
 import { listAccounts } from './credentials.js';
 import { checkConnection } from './iys/connection.js';
 import { iysSlaReport } from './iys/report.js';
+import { getAttention } from './settings/attention.js';
 import './types.js';
 
 /**
@@ -147,5 +148,13 @@ settingsRouter.post('/iys/check', requireEngageUser, requireEngageAdmin, async (
   try {
     res.setHeader('Cache-Control', 'no-store');
     res.json(await checkConnection(req.engageUser!.organizationId));
+  } catch (err) { fail(res, err); }
+});
+
+/** What needs the admin's attention now (the email domain lost by the scheduled re-check, the İYS sync late or stale). */
+settingsRouter.get('/attention', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ items: await getAttention(req.engageUser!.organizationId) });
   } catch (err) { fail(res, err); }
 });
