@@ -143,6 +143,22 @@ export const SEEDERS: Record<string, Seeder> = {
       `INSERT INTO engage.date_runs (organization_id, journey_id, journey_version_id, slot_date, slot_at, occurrence_date)
        VALUES ($1, $2, $3, '2100-01-01', '2100-01-01T09:00:00Z', '2100-01-08')`, [org, j, jv.rows[0]!.id]);
   },
+  iys_sync_state: async (c, org) => {
+    await c.query(`INSERT INTO engage.iys_sync_state (organization_id) VALUES ($1)`, [org]);
+  },
+  iys_outbox: async (c, org) => {
+    const profile = await seedProfile(c, org);
+    const consent = await c.query<{ id: string }>(
+      `INSERT INTO engage.consents (organization_id, profile_id, channel, status, source) VALUES ($1, $2, 'email', 'revoked', 'unsubscribe_link') RETURNING id`, [org, profile]);
+    await c.query(
+      `INSERT INTO engage.iys_outbox (organization_id, profile_id, consent_id, channel, consent_source, recipient, consent_at) VALUES ($1, $2, $3, 'email', 'unsubscribe_link', 'seed@example.com', now())`,
+      [org, profile, consent.rows[0]!.id]);
+  },
+  iys_changes: async (c, org) => {
+    await c.query(
+      `INSERT INTO engage.iys_changes (organization_id, transaction_id, iys_type, iys_status, iys_source, outcome) VALUES ($1, $2, 'EPOSTA', 'RET', 'IYS_WEB', 'unmatched')`,
+      [org, `seed-${Math.random().toString(16).slice(2, 14)}`]);
+  },
   campaigns: async (c, org) => {
     const j = await seedJourney(c, org);
     await c.query(

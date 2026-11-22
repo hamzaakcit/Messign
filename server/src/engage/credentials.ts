@@ -5,8 +5,11 @@ import { decryptSecrets, encryptSecrets, loadKeyring, rewrapDataKey, type Keyrin
 import { looksLikeSecretKey } from './redact.js';
 
 export const CHANNELS = ['email', 'sms', 'whatsapp'] as const;
+/** What an account can be for: a messaging channel, or İYS (the tenant's İYS API access, WP-26). Messages use CHANNELS only. */
+export const ACCOUNT_CHANNELS = [...CHANNELS, 'iys'] as const;
 export const MODES = ['test', 'live'] as const;
 export type Channel = (typeof CHANNELS)[number];
+export type AccountChannel = (typeof ACCOUNT_CHANNELS)[number];
 export type Mode = (typeof MODES)[number];
 
 export class CredentialInputError extends Error {}
@@ -16,7 +19,7 @@ export class CredentialConflictError extends Error {}
 /** What the API may show. Never contains secrets, ciphertext, or wrapped keys. */
 export interface AccountMeta {
   id: string;
-  channel: Channel;
+  channel: AccountChannel;
   provider: string;
   mode: Mode;
   label: string;
@@ -30,8 +33,14 @@ export interface AccountMeta {
   disabledAt: string | null;
 }
 
+/** The messaging channel of an account. An İYS account is not one: nothing can be sent through it or received for it. */
+export function messagingChannel(account: { channel: AccountChannel }): Channel {
+  if (account.channel === 'iys') throw new CredentialNotFoundError('Account is not a messaging account');
+  return account.channel;
+}
+
 export interface CreateInput {
-  channel: Channel;
+  channel: AccountChannel;
   provider: string;
   mode: Mode;
   label: string;
@@ -43,7 +52,7 @@ const META_COLS = `id, channel, provider, mode, label, config, secret_fingerprin
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface MetaRow {
-  id: string; channel: Channel; provider: string; mode: Mode; label: string; config: AccountMeta['config'];
+  id: string; channel: AccountChannel; provider: string; mode: Mode; label: string; config: AccountMeta['config'];
   secret_fingerprint: string; secret_hint: string | null; status: 'active' | 'disabled'; supersedes_id: string | null;
   created_at: Date; rotated_at: Date | null; disabled_at: Date | null;
 }
@@ -94,15 +103,31 @@ export function parseSecrets(raw: unknown, { required }: { required: boolean }):
 
 export function parseCreateInput(body: unknown): CreateInput {
   const b = plainObject(body, 'body');
-  const channel = b.channel as Channel;
+  const channel = b.channel as AccountChannel;
   const mode = b.mode as Mode;
   const provider = typeof b.provider === 'string' ? b.provider.trim() : '';
   const label = typeof b.label === 'string' ? b.label.trim() : '';
-  if (!(CHANNELS as readonly unknown[]).includes(channel)) throw new CredentialInputError(`channel must be one of ${CHANNELS.join(', ')}`);
+  if (!(ACCOUNT_CHANNELS as readonly unknown[]).includes(channel)) throw new CredentialInputError(`channel must be one of ${ACCOUNT_CHANNELS.join(', ')}`);
   if (!(MODES as readonly unknown[]).includes(mode)) throw new CredentialInputError(`mode must be one of ${MODES.join(', ')}`);
   if (!/^[a-z][a-z0-9_]{1,31}$/.test(provider)) throw new CredentialInputError('provider must be lowercase letters, digits and _ (2-32 chars)');
   if (label.length < 1 || label.length > 100) throw new CredentialInputError('label must be 1-100 characters');
-  return { channel, provider, mode, label, config: parseConfig(b.config), secrets: parseSecrets(b.secrets, { required: false }) };
+  const input = { channel, provider, mode, label, config: parseConfig(b.config), secrets: parseSecrets(b.secrets, { required: false }) };
+  if (channel === 'iys') validateIysAccount(input);
+  return input;
+}
+
+/**
+ * An İYS account (WP-26, ADR-022) is the tenant's own İYS API access: the provider is `iys` (İYS's sandbox for mode test,
+ * the live service for mode live) or `mock` (the development mock server), the config names the tenant's İYS number and
+ * brand number, the secrets are the API user name and password İYS gave the tenant.
+ */
+export function validateIysAccount(input: { provider: string; config: AccountMeta['config']; secrets: Record<string, string> }): void {
+  if (input.provider !== 'iys' && input.provider !== 'mock') throw new CredentialInputError('an İYS account has provider "iys" (or "mock" for development)');
+  for (const k of ['iys_code', 'brand_code']) {
+    const v = input.config[k];
+    if (typeof v !== 'number' || !Number.isSafeInteger(v) || v <= 0) throw new CredentialInputError(`config "${k}" must be a positive whole number (the number İYS gave the tenant)`);
+  }
+  for (const k of ['username', 'password']) if (!input.secrets[k]) throw new CredentialInputError(`secrets must include "${k}" (the tenant's İYS API ${k})`);
 }
 
 async function insertAccount(client: PoolClient, organizationId: string, createdBy: string | null, input: CreateInput, supersedesId: string | null, keyring: Keyring): Promise<AccountMeta> {

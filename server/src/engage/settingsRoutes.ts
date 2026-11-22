@@ -6,6 +6,9 @@ import {
   updateBudgetCap, updateGate, type GateSettingsPatch,
 } from './settings/settings.js';
 import { EmailDomainError, getEmailDomain, runEmailDomainCheck } from './settings/emailDomain.js';
+import { listAccounts } from './credentials.js';
+import { checkConnection } from './iys/connection.js';
+import { iysSlaReport } from './iys/report.js';
 import './types.js';
 
 /**
@@ -120,5 +123,29 @@ settingsRouter.post('/email-domain/check', requireEngageUser, requireEngageAdmin
     const u = req.engageUser!;
     res.setHeader('Cache-Control', 'no-store');
     res.json(await runEmailDomainCheck(u.organizationId, u.userId, { dkimSelectors: body(req.body).dkimSelectors }));
+  } catch (err) { fail(res, err); }
+});
+
+/**
+ * The tenant's İYS connection and how the sync is doing (WP-26): which İYS account is active (never its credentials), how late
+ * the opt-outs owed to İYS are, and how fresh the pull of recipients' changes is.
+ */
+settingsRouter.get('/iys', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    const orgId = req.engageUser!.organizationId;
+    const account = (await listAccounts(orgId)).find((a) => a.channel === 'iys' && a.status === 'active') ?? null;
+    res.json({
+      connection: account ? { accountId: account.id, provider: account.provider, mode: account.mode, iysCode: account.config.iys_code ?? null, brandCode: account.config.brand_code ?? null } : null,
+      report: account ? await iysSlaReport(orgId) : null,
+    });
+  } catch (err) { fail(res, err); }
+});
+
+/** "Does the connection work?": a token, the brand list and the configured brand number. It changes nothing in İYS. */
+settingsRouter.post('/iys/check', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await checkConnection(req.engageUser!.organizationId));
   } catch (err) { fail(res, err); }
 });

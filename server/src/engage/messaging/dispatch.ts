@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 import { withEngageScheduler, withEngageTenant } from '../db.js';
-import { loadAccountSecrets, type Channel } from '../credentials.js';
+import { loadAccountSecrets, messagingChannel, type Channel } from '../credentials.js';
 import { logError, logInfo } from '../log.js';
 import { getAdapter, type AdapterAccount } from './adapter.js';
 import { currentSendMode, evaluateGate } from './gate.js';
@@ -74,7 +74,7 @@ export async function dispatchMessage(orgId: string, messageId: string, opts: Di
 
   try {
     const { account, secrets } = await loadAccountSecrets(orgId, m.channel_account_id);
-    const adapterAccount: AdapterAccount = { id: account.id, channel: account.channel, provider: account.provider, mode: account.mode, config: account.config, secrets };
+    const adapterAccount: AdapterAccount = { id: account.id, channel: messagingChannel(account), provider: account.provider, mode: account.mode, config: account.config, secrets };
     const res = await adapter.send({ idempotencyKey: m.idempotency_key, channel: m.channel, to, content: m.content }, adapterAccount);
     await recordEvent(orgId, m.id, 'sent', null, { attempt }, async (c) => {
       await c.query(`UPDATE engage.messages SET provider_message_id = $3 WHERE organization_id = $1 AND id = $2`, [orgId, m.id, res.providerMessageId]);

@@ -24,6 +24,8 @@ export const JOB_NAMES = {
   ENGAGE_PARTITIONS: 'engage/partition-maintenance',
   /** Engage: look again at the SPF, DKIM and DMARC records of tenants whose email domain item is set (hourly). */
   ENGAGE_EMAIL_DOMAIN_RECHECK: 'engage/email-domain-recheck',
+  /** Engage: push the tenants' opt-outs to İYS and pull recipients' consent changes from İYS (every ten minutes). */
+  ENGAGE_IYS_SYNC: 'engage/iys-sync',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

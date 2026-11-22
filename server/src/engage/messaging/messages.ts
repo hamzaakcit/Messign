@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { withEngageTenant } from '../db.js';
 import type { Channel } from '../credentials.js';
 import { getAdapter, type RawWebhook, type ProviderEvent } from './adapter.js';
-import { loadAccountSecrets } from '../credentials.js';
+import { loadAccountSecrets, messagingChannel } from '../credentials.js';
 import { normalizeEmail } from '../profiles.js';
 
 /**
@@ -224,7 +224,7 @@ export async function ingestWebhook(orgId: string, accountId: string, raw: RawWe
   const adapter = getAdapter(account.provider);
   if (!adapter) throw new MessageInputError('No adapter registered for this account provider');
   const events = await adapter.parseWebhook(raw, {
-    id: account.id, channel: account.channel, provider: account.provider, mode: account.mode, config: account.config, secrets,
+    id: account.id, channel: messagingChannel(account), provider: account.provider, mode: account.mode, config: account.config, secrets,
   });
   return ingestProviderEvents(orgId, account.provider, events);
 }

@@ -2,6 +2,16 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-22 · WP-26 İYS client, mock İYS and sync
+- **Done:**
+  - ADR-022 and `docs/runbooks/iys-sync.md`. Built from İYS's **official** API documentation (apidocs.iys.org.tr, 3.2.4, read in the browser: the page is built client-side, so a plain fetch sees nothing). Migration `134_engage_iys_sync.sql`: channel `iys` for channel accounts (the tenant's own İYS number, brand number, API user and password, encrypted like every credential; one active per tenant; can carry no message), `engage.iys_outbox` (push queue, filled by a trigger on the consent ledger in the opt-out's own transaction), `engage.iys_changes` (each pulled movement once, no address), `engage.iys_sync_state`, `engage.iys_sync_work` (ids only, on the isolation allow-list).
+  - `engage/iys/`: client (token and refresh, brands, the idempotent v2 add-consent, the movement listing with `after`; İYS's error codes, `X-Trace-Id`, per-second and hourly limits), `sync.ts` (push: every documented answer ends a report as sent, skipped or failed, with backoff and the three-business-day limit; pull: applied as source `iys`, newest decision wins, the marker moves with its page), `report.ts` (SLA monitor), `job.ts` (every ten minutes), `mock/mockIysServer.ts` (the same specification, with its validation and error codes), `npm run engage:iys-mock`.
+  - `GET /api/engage/settings/iys` (connection and SLA report, never credentials) and `POST /api/engage/settings/iys/check`, admin only.
+  - Acceptance, against the mock: a recipient revokes in İYS, the pull applies it, and the real send gate blocks the queued message (`no_consent`) while a bystander's is sent; an opt-out recorded locally is queued with its record and reaches İYS. Breaking the revocation mapping on purpose fails the acceptance test.
+  - Tests: 45 integration, 19 client against the mock, 8 format and 5 report unit. Server 2085 tests, client 696, both `tsc` clean.
+- **Remaining:** **the mock follows the documentation, not a real İYS: the first live check with a tenant's sandbox credentials is the first onboarding step** (runbook). The opt-out source values we report (`HS_EPOSTA`, `HS_MESAJ`, `HS_WEB`, `HS_EORTAM`) are a reading of the documented definitions and need confirming with İYS. Not done: pushing grants, the reconciliation file and the first import of what İYS holds, a gate rule while the pull is stale, a Settings screen, an alert beyond the report, a readiness item for the tenant's IP registration with İYS. İYS's limits are per IP, shared by all tenants on this server. Migration 134 needs `npm run db:migrate` on the development database.
+- **Next:** WP-33 (onboarding kit), or WP-27 (WhatsApp).
+
 ## 2026-11-21 · WP-25 Date-attribute trigger and florist occasion reminder
 - **Done:**
   - ADR-021. Migration `133_engage_date_attribute_runs.sql`: `engage.date_runs` (one claim row per journey and local day, counts, keyset cursor, guard against changing a finished run, forced RLS, no delete), enrollment trigger kind `date`, and `engage.due_date_work` (ids only, added to the isolation allow-list).
