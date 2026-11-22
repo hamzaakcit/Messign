@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  addRateCard, checkEmailDomain, disableChannelAccount, getEmailDomain, getSettings, issuesOf, problemsOf, recordReadinessItem,
-  setBudgetCap, setSendEnabled, setSenderName, updateGateSettings, type Channel, type EmailDomainCheck, type TenantSettings,
+  addRateCard, checkEmailDomain, checkIys, disableChannelAccount, getEmailDomain, getIys, getSettings, issuesOf, problemsOf, recordReadinessItem,
+  setBudgetCap, setSendEnabled, setSenderName, updateGateSettings, type Channel, type EmailDomainCheck, type IysView, type TenantSettings,
 } from './settingsApi';
+import { attentionText } from './attentionText';
+import { ATTENTION_KEY, useAttention } from './useAttention';
 import { dkimText, dmarcText, spfText } from './emailDomainText';
 import { Button, ErrorLine, Field, Select, StatusBadge, TextInput, formatTime } from './ui';
 
@@ -69,10 +71,12 @@ export function SettingsSection(): JSX.Element {
   const s = q.data;
   return (
     <div data-testid="hub-settings" className="space-y-4">
+      <AttentionCard />
       <SendingCard s={s} />
       <SenderCard s={s} />
       <ReadinessCard s={s} />
       <EmailDomainCard />
+      <IysCard />
       <GateCard s={s} />
       <CapsCard s={s} />
       <AccountsCard s={s} />
@@ -448,6 +452,90 @@ function AccountsCard({ s }: { s: TenantSettings }): JSX.Element {
         ))}
       </div>
       <ErrorLine error={disable.error} />
+    </Card>
+  );
+}
+
+/** What needs the admin's attention, first on the screen. Shown only when there is something; an item goes when its cause does. */
+function AttentionCard(): JSX.Element | null {
+  const items = useAttention(true).data ?? [];
+  if (items.length === 0) return null;
+  return (
+    <section data-testid="settings-attention" role="alert" className="space-y-2 rounded-md border border-red-500/40 bg-red-500/5 p-3">
+      <h3 className="text-sm font-semibold text-app">Needs attention</h3>
+      <ul className="space-y-2">
+        {items.map((item) => {
+          const t = attentionText(item);
+          return (
+            <li key={item.code} data-testid={`attention-${item.code}`} className="text-sm">
+              <p className={item.severity === 'critical' ? 'font-medium text-red-600' : 'font-medium text-amber-700'}>{t.title}</p>
+              <p className="text-app-muted">{t.detail}</p>
+              {item.since && <p className="text-xs text-app-muted">Since {formatTime(item.since)}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+const IYS_KEY = ['engage', 'iys'] as const;
+const HEALTH_STYLE: Record<string, string> = { ok: 'bg-emerald-500/15 text-emerald-700', warning: 'bg-amber-500/15 text-amber-700', critical: 'bg-red-500/15 text-red-600' };
+const PULL_TEXT: Record<string, string> = { ok: 'Up to date', stale: 'Behind', critical: 'Not working for days', never: 'Has not run yet' };
+
+function IysCard(): JSX.Element {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: IYS_KEY, queryFn: getIys });
+  const check = useMutation({ mutationFn: checkIys, onSuccess: () => { void qc.invalidateQueries({ queryKey: IYS_KEY }); void qc.invalidateQueries({ queryKey: ATTENTION_KEY }); } });
+  const title = 'İYS (consent register)';
+  if (q.isLoading) return <Card title={title} testId="settings-iys"><p className="text-sm text-app-muted">Loading…</p></Card>;
+  if (q.error || !q.data) return <Card title={title} testId="settings-iys"><ErrorLine error={q.error ?? new Error('The İYS connection could not be loaded.')} /></Card>;
+  const v: IysView = q.data;
+  const intro = (
+    <p className="text-xs text-app-muted">
+      İYS is Turkey's register of consent for commercial messages. Messign reports your customers' opt-outs to İYS and applies what customers do in İYS
+      (a revocation stops marketing to them before the next send), using your own İYS account.
+    </p>
+  );
+  if (!v.connection || !v.report) {
+    return (
+      <Card title={title} testId="settings-iys">
+        {intro}
+        <p className="text-sm text-app" data-testid="iys-not-connected">
+          No İYS account is connected. Your İYS access (the API user name and password İYS gave you) is added by your Messign contact; it is never typed in this browser.
+        </p>
+      </Card>
+    );
+  }
+  const { connection: c, report: r } = v;
+  const result = check.data;
+  return (
+    <Card title={title} testId="settings-iys">
+      {intro}
+      <div className="flex flex-wrap items-center gap-2 text-sm text-app">
+        <span data-testid="iys-account">Account: {c.provider === 'mock' ? 'development mock' : c.mode === 'live' ? 'live' : 'İYS sandbox'}, İYS no. <code className="font-mono">{c.iysCode ?? '—'}</code>, brand no. <code className="font-mono">{c.brandCode ?? '—'}</code></span>
+        <span data-testid="iys-health" className={`rounded px-1.5 py-0.5 text-xs font-medium ${HEALTH_STYLE[r.health]}`}>{r.health === 'ok' ? 'All good' : r.health === 'warning' ? 'Needs a look' : 'Needs action'}</span>
+      </div>
+      <ul className="space-y-1 text-sm text-app">
+        <li data-testid="iys-push">
+          Opt-outs waiting to be reported to İYS: <strong>{r.push.pending}</strong>
+          {r.push.late + r.push.atRisk + r.push.breached > 0 && (
+            <span className="text-app-muted"> (over a day: {r.push.late}, near the three-business-day limit: {r.push.atRisk}, past it: {r.push.breached})</span>
+          )}
+          <span className="text-app-muted">. Reported: {r.push.sent}, nothing to report: {r.push.skipped}, refused: {r.push.failed}.</span>
+        </li>
+        <li data-testid="iys-pull">
+          Customers' changes in İYS: <strong>{PULL_TEXT[r.pull.status]}</strong>
+          <span className="text-app-muted">. Last successful pull: {formatTime(r.pull.lastPullAt)}{r.pull.lastErrorCode && r.pull.status !== 'ok' ? `. Last answer: ${r.pull.lastErrorCode}` : ''}.</span>
+        </li>
+      </ul>
+      <div className="flex items-center gap-2">
+        <Button onClick={() => check.mutate()} disabled={check.isPending} testId="iys-check">{check.isPending ? 'Checking…' : 'Check connection'}</Button>
+        {result && (result.ok
+          ? <span role="status" data-testid="iys-check-result" className="text-sm text-emerald-700">The connection works.</span>
+          : <span role="alert" data-testid="iys-check-result" className="text-sm text-red-600">{result.code ? `${result.code}: ` : ''}{result.message ?? 'The check did not pass.'}</span>)}
+      </div>
+      <SaveErrors error={check.error} />
     </Card>
   );
 }

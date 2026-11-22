@@ -283,3 +283,118 @@ describe('email domain check (WP-39)', () => {
     expect(within(card).getByTestId('email-domain-check')).toBeDisabled();
   });
 });
+
+const IYS_REPORT = {
+  health: 'ok' as const,
+  push: { pending: 0, sent: 4, skipped: 1, failed: 0, deadlineMissed: 0, onTrack: 0, late: 0, atRisk: 0, breached: 0, oldestPendingAt: null, oldestPendingAgeHours: null },
+  pull: { status: 'ok' as const, lastPullAt: '2026-11-22T10:00:00Z', lastAttemptAt: '2026-11-22T10:00:00Z', lastOutcome: 'ok', lastErrorCode: null, lastApplied: 2 },
+};
+const IYS_CONNECTION = { accountId: 'i1', provider: 'iys', mode: 'test' as const, iysCode: 100001, brandCode: 100002 };
+
+/** Settings plus the İYS and attention endpoints. */
+function iysApi(o: { iys?: unknown; attention?: unknown[]; check?: () => Response }) {
+  mockApi((url, method) => {
+    if (url.endsWith('/engage/settings/iys/check') && method === 'POST') return o.check ? o.check() : json({ ok: true, code: null, message: null, brandFound: true });
+    if (url.endsWith('/engage/settings/iys') && method === 'GET') return json(o.iys ?? { connection: null, report: null });
+    if (url.endsWith('/engage/settings/attention') && method === 'GET') return json({ items: o.attention ?? [] });
+    if (url.endsWith('/engage/settings/email-domain') && method === 'GET') return json({ account: null, accountProblem: 'no_email_account', lastCheck: null });
+    return lists(url, method) ?? (url.endsWith('/engage/settings') ? json(READY) : json({}, 404));
+  });
+}
+
+describe('İYS card', () => {
+  it('says plainly when no İYS account is connected, and that the credentials are not typed here', async () => {
+    iysApi({});
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-iys');
+    expect(await within(card).findByTestId('iys-not-connected')).toHaveTextContent(/never typed in this browser/);
+    expect(within(card).queryByTestId('iys-check')).toBeNull();
+  });
+
+  it('shows the connection, the opt-outs owed to İYS and the pull, and checks the connection on request', async () => {
+    iysApi({ iys: { connection: IYS_CONNECTION, report: IYS_REPORT } });
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-iys');
+    expect(await within(card).findByTestId('iys-account')).toHaveTextContent('İYS sandbox, İYS no. 100001, brand no. 100002');
+    expect(within(card).getByTestId('iys-health')).toHaveTextContent('All good');
+    expect(within(card).getByTestId('iys-push')).toHaveTextContent('waiting to be reported to İYS: 0');
+    expect(within(card).getByTestId('iys-push')).toHaveTextContent('Reported: 4, nothing to report: 1, refused: 0');
+    expect(within(card).getByTestId('iys-pull')).toHaveTextContent('Up to date');
+    fireEvent.click(within(card).getByTestId('iys-check'));
+    expect(await within(card).findByTestId('iys-check-result')).toHaveTextContent('The connection works.');
+    expect(sent('POST', '/engage/settings/iys/check')).toHaveLength(1);
+  });
+
+  it('shows what is late, and İYS\'s own answer when the connection check fails', async () => {
+    iysApi({
+      iys: { connection: { ...IYS_CONNECTION, mode: 'live' }, report: { ...IYS_REPORT, health: 'critical', push: { ...IYS_REPORT.push, pending: 3, late: 1, atRisk: 1, breached: 1 }, pull: { ...IYS_REPORT.pull, status: 'critical', lastErrorCode: 'H251' } } },
+      check: () => json({ ok: false, code: 'H251', message: 'Kullanıcı kimlik bilgileri geçersiz!', brandFound: false }),
+    });
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-iys');
+    expect(await within(card).findByTestId('iys-health')).toHaveTextContent('Needs action');
+    expect(within(card).getByTestId('iys-account')).toHaveTextContent('live');
+    expect(within(card).getByTestId('iys-push')).toHaveTextContent('over a day: 1, near the three-business-day limit: 1, past it: 1');
+    expect(within(card).getByTestId('iys-pull')).toHaveTextContent('Not working for days');
+    expect(within(card).getByTestId('iys-pull')).toHaveTextContent('Last answer: H251');
+    fireEvent.click(within(card).getByTestId('iys-check'));
+    expect(await within(card).findByTestId('iys-check-result')).toHaveTextContent('H251: Kullanıcı kimlik bilgileri geçersiz!');
+  });
+});
+
+describe('needs attention', () => {
+  const LOST = { code: 'email_domain_lost', severity: 'critical', since: '2026-11-22T08:00:00Z', data: { domain: 'shop.example', reasons: ['dmarc_missing', 'spf_missing'] } };
+  const IYS_LATE = { code: 'iys_sync', severity: 'warning', since: null, data: { pullStatus: 'ok', pullErrorCode: null, late: 2, atRisk: 0, breached: 0, failed: 0, deadlineMissed: 0 } };
+
+  it('is not shown when there is nothing, and the Settings tab has no dot', async () => {
+    iysApi({ attention: [] });
+    renderHub();
+    const panel = await openSettings();
+    await within(panel).findByTestId('settings-iys');
+    expect(within(panel).queryByTestId('settings-attention')).toBeNull();
+    expect(screen.queryByTestId('settings-attention-dot')).toBeNull();
+  });
+
+  it('puts the serious items first on the Settings screen, in words, and a red dot on the tab', async () => {
+    iysApi({ attention: [LOST, IYS_LATE] });
+    renderHub();
+    const dot = await screen.findByTestId('settings-attention-dot');
+    expect(dot).toHaveAttribute('aria-label', 'needs attention');
+    expect(dot.className).toContain('bg-red-500');
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-attention');
+    const lost = within(card).getByTestId('attention-email_domain_lost');
+    expect(lost).toHaveTextContent('Email domain no longer authenticated');
+    expect(lost).toHaveTextContent('shop.example');
+    expect(lost).toHaveTextContent('there is no DMARC record and there is no SPF record');
+    expect(lost).toHaveTextContent('Live email sending is blocked');
+    expect(within(card).getByTestId('attention-iys_sync')).toHaveTextContent('2 opt-outs have waited over a day to be reported to İYS');
+    expect(within(card).getAllByRole('listitem').map((li) => li.getAttribute('data-testid'))).toEqual(['attention-email_domain_lost', 'attention-iys_sync']);
+  });
+
+  it('a warning alone gives an amber dot', async () => {
+    iysApi({ attention: [IYS_LATE] });
+    renderHub();
+    expect((await screen.findByTestId('settings-attention-dot')).className).toContain('bg-amber-400');
+  });
+
+  it('a refused or failed request gives no dot and no error: a hint never breaks the page', async () => {
+    mockApi((url, method) => (url.endsWith('/engage/settings/attention') ? json({ error: 'Forbidden' }, 403) : lists(url, method) ?? (url.endsWith('/engage/settings') ? json(READY) : json({}, 404))));
+    renderHub();
+    await screen.findByTestId('hub-tab-settings');
+    await waitFor(() => expect(sent('GET', '/engage/settings/attention')).toHaveLength(1));
+    expect(screen.queryByTestId('settings-attention-dot')).toBeNull();
+  });
+
+  it('is not even asked for by someone who is not an admin', async () => {
+    useAuthStore.setState({ isAdmin: false });
+    iysApi({ attention: [LOST] });
+    renderHub();
+    await screen.findByTestId('hub-tab-customers');
+    expect(screen.queryByTestId('hub-tab-settings')).toBeNull();
+    expect(sent('GET', '/engage/settings/attention')).toHaveLength(0);
+  });
+});

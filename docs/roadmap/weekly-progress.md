@@ -2,6 +2,15 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-22 · Engage screens: date-attribute journeys, İYS card, "needs attention"
+- **Done:**
+  - **Journey form:** a trigger "Around a date in the customer's record" with the attribute, the days from the date (negative is before) and the local time. Re-entry is fixed at "enter again" with the reason shown, and the saved definition always says `after_exit` (the server requires it). Opens existing date-attribute journeys instead of sending them to JSON.
+  - **Settings > İYS:** the account (provider, mode, İYS and brand numbers; never credentials), health, opt-outs waiting for İYS (late, near the limit, past it), reported, skipped, refused, how fresh the pull is, and a Check connection button that shows İYS's own code. Without an account it says the credentials are added by the Messign contact and never typed in the browser.
+  - **Needs attention:** `GET /api/engage/settings/attention` (admin) derives items from existing state, nothing stored: the email domain lost by the scheduled re-check (the domain and what failed) and the İYS sync late, at risk, refused or stale. Shown first on Settings, in words, and as a red or amber dot on the Settings tab; gone when the cause is. ADR-020 point 9.
+  - Tests: 10 server integration (attention), 3 form, 1 editor flow, 8 Settings (İYS card, attention card, dot, not asked for non-admins, a refused request gives no dot). Server 2086 pass / 9 skipped, client 708 pass, both `tsc` clean. No migration.
+- **Remaining:** no email or other message to the tenant (needs a Messign sender identity: a separate decision); the date runs and İYS pushes are not listed in the UI (only counted); the scheduled check clearing the email item because the account is gone is not an alert (the admin did that).
+- **Next:** WP-27 (WhatsApp) then WP-33 (onboarding kit), so the checklist includes the WhatsApp items once.
+
 ## 2026-11-22 · WP-26 İYS client, mock İYS and sync
 - **Done:**
   - ADR-022 and `docs/runbooks/iys-sync.md`. Built from İYS's **official** API documentation (apidocs.iys.org.tr, 3.2.4, read in the browser: the page is built client-side, so a plain fetch sees nothing). Migration `134_engage_iys_sync.sql`: channel `iys` for channel accounts (the tenant's own İYS number, brand number, API user and password, encrypted like every credential; one active per tenant; can carry no message), `engage.iys_outbox` (push queue, filled by a trigger on the consent ledger in the opt-out's own transaction), `engage.iys_changes` (each pulled movement once, no address), `engage.iys_sync_state`, `engage.iys_sync_work` (ids only, on the isolation allow-list).

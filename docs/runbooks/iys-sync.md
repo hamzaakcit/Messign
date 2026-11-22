@@ -14,7 +14,7 @@ What it does: a tenant's opt-outs are reported to İYS (within three business da
 
 ## Watch it
 
-`GET /api/engage/settings/iys` (admin): the active account (never its credentials) and the report.
+In the app: **Settings > İYS** shows the account, the health, what is waiting and how fresh the pull is, with a **Check connection** button; a problem also appears under **Needs attention** at the top of Settings and as a dot on the Settings tab. The same through the API: `GET /api/engage/settings/iys` (admin): the active account (never its credentials) and the report.
 
 | Report field | Meaning |
 |---|---|

@@ -123,6 +123,37 @@ describe('journeys (WP-20)', () => {
     expect(screen.getByTestId('hub-panel')).toContainElement(screen.getByTestId('engage-journey'));
   });
 
+  it('creates a date-attribute journey: asks for the attribute, the days and the time, and always lets customers enter again', async () => {
+    const DATE_DEF = {
+      trigger: { type: 'date_attribute', attribute: 'anniversary_date', offset_days: -7, at_local_time: '09:30' },
+      exit_when: [], re_entry: 'after_exit', holdout_percent: 10, steps: [{ id: 'wait', type: 'delay', minutes: 60 }],
+    };
+    mockApi((url, method) => {
+      if (method === 'POST' && url.endsWith('/engage/journeys')) return json({ journey: { id: 'j8', key: 'occasion', name: 'Occasion' }, version: VERSION(1, 'draft', DATE_DEF) }, 201);
+      if (method === 'GET' && url.endsWith('/engage/journeys/j8')) return json({ journey: { id: 'j8', key: 'occasion', name: 'Occasion', createdAt: '', activeVersion: null, latestVersion: 1 }, versions: [VERSION(1, 'draft', DATE_DEF)] });
+      return lists(url, method) ?? json({}, 404);
+    });
+    renderHub();
+    fireEvent.click(screen.getByTestId('hub-tab-journeys'));
+    fireEvent.click(await screen.findByTestId('hub-new-journey'));
+    await screen.findByTestId('journey-editor');
+    fireEvent.change(screen.getByLabelText('Journey name'), { target: { value: 'Occasion' } });
+    fireEvent.change(screen.getByLabelText('Journey key'), { target: { value: 'occasion' } });
+    expect(screen.getByLabelText('Re-entry')).toBeEnabled();
+    fireEvent.change(screen.getByTestId('trigger-type'), { target: { value: 'date_attribute' } });
+    fireEvent.change(screen.getByLabelText('Date attribute'), { target: { value: 'anniversary_date' } });
+    fireEvent.change(screen.getByLabelText('Days from the date'), { target: { value: '-7' } });
+    fireEvent.change(screen.getByLabelText('At local time'), { target: { value: '09:30' } });
+    expect(screen.getByTestId('date-trigger-note')).toHaveTextContent(/once per year|Each customer is enrolled once per year/);
+    // A date comes round every year, so the choice is made for the marketer and says why.
+    expect(screen.getByLabelText('Re-entry')).toBeDisabled();
+    expect(screen.getByLabelText('Re-entry')).toHaveValue('after_exit');
+    expect(screen.getByTestId('reentry-note')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('save-journey'));
+    await waitFor(() => expect(posted('/engage/journeys')).toHaveLength(1));
+    expect(posted('/engage/journeys')[0]!.body).toEqual({ key: 'occasion', name: 'Occasion', definition: DATE_DEF });
+  });
+
   it('shows the server\'s field issues when saving is refused, and keeps what was typed', async () => {
     mockApi((url, method) => {
       if (method === 'POST' && url.endsWith('/engage/journeys')) return json({ error: 'The journey definition is not valid', issues: [{ path: 'steps[0].minutes', message: 'Expected number, received nan' }] }, 400);

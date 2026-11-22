@@ -209,7 +209,7 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Starts when">
                 <Select value={t.type} onChange={(type) => setTrigger({ type })} ariaLabel="Trigger" testId="trigger-type"
-                  options={[{ value: 'event', label: 'An event arrives' }, { value: 'api', label: 'Your system calls the trigger API' }, { value: 'segment', label: 'On a schedule, for a segment' }]} />
+                  options={[{ value: 'event', label: 'An event arrives' }, { value: 'api', label: 'Your system calls the trigger API' }, { value: 'segment', label: 'On a schedule, for a segment' }, { value: 'date_attribute', label: "Around a date in the customer's record" }]} />
               </Field>
               {t.type === 'event' && <Field label="Event"><TextInput value={t.event} onChange={(event) => setTrigger({ event })} placeholder="cart_updated" ariaLabel="Trigger event" mono /></Field>}
               {t.type === 'segment' && <>
@@ -224,7 +224,13 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
                 <Field label="Every (days)"><TextInput value={t.everyDays} onChange={(everyDays) => setTrigger({ everyDays })} ariaLabel="Every days" /></Field>
                 <Field label="At (local time)" hint="HH:MM, in your time zone"><TextInput value={t.atLocalTime} onChange={(atLocalTime) => setTrigger({ atLocalTime })} ariaLabel="At local time" /></Field>
               </>}
+              {t.type === 'date_attribute' && <>
+                <Field label="Date attribute" hint="the customer attribute that holds the date, as YYYY-MM-DD, for example anniversary_date"><TextInput value={t.attribute} onChange={(attribute) => setTrigger({ attribute })} placeholder="anniversary_date" ariaLabel="Date attribute" mono /></Field>
+                <Field label="Days from the date" hint="negative is before (-7: a week before), 0 on the day, positive after"><TextInput value={t.offsetDays} onChange={(offsetDays) => setTrigger({ offsetDays })} ariaLabel="Days from the date" /></Field>
+                <Field label="At (local time)" hint="HH:MM, in your time zone"><TextInput value={t.atLocalTime} onChange={(atLocalTime) => setTrigger({ atLocalTime })} ariaLabel="At local time" /></Field>
+              </>}
             </div>
+            {t.type === 'date_attribute' && <p className="mt-2 text-xs text-app-muted" data-testid="date-trigger-note">Runs once a day. Each customer is enrolled once per year, around the month and day of that date (the year does not matter). A date that was missed is not made up later.</p>}
             {t.type === 'event' && <div className="mt-3"><OptionalLeaf leaf={t.filter} onChange={(filter) => setTrigger({ filter })} scopes="event.total or attributes.tier" label="Trigger filter" toggle="Only when the event or customer matches" /></div>}
             {t.type === 'api' && <p className="mt-2 text-xs text-app-muted">POST /v1/journeys/&lt;key&gt;/trigger with an idempotency key starts it for one customer.</p>}
           </Card>
@@ -245,8 +251,9 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
           <Card title="Settings">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Can a customer enter again?">
-                <Select value={form.reEntry} onChange={(reEntry) => setForm({ ...form, reEntry })} ariaLabel="Re-entry"
+                <Select value={t.type === 'date_attribute' ? 'after_exit' : form.reEntry} onChange={(reEntry) => setForm({ ...form, reEntry })} ariaLabel="Re-entry" disabled={t.type === 'date_attribute'}
                   options={[{ value: 'never', label: 'No, once only' }, { value: 'after_exit', label: 'Yes, after the previous time ended' }]} />
+                {t.type === 'date_attribute' && <p className="mt-1 text-xs text-app-muted" data-testid="reentry-note">A date comes round every year, so customers can enter again.</p>}
               </Field>
               <Field label="Holdout (%)" hint="0–50; they get no messages, to measure the effect">
                 <TextInput value={form.holdoutPercent} onChange={(holdoutPercent) => setForm({ ...form, holdoutPercent })} ariaLabel="Holdout percent" />
