@@ -44,6 +44,9 @@ export type ProviderEventType = 'sent' | 'delivered' | 'failed' | 'bounced' | 'c
 
 export interface ProviderEvent {
   providerMessageId: string;
+  /** The recipient has chosen to stop this channel (WhatsApp error 131050: the user stopped marketing messages from the
+   *  business). Applied, once, to the profile the matched message was for, as an opt-out. */
+  optOut?: boolean;
   /** The provider's own id for this report. Reports repeating it are duplicates. */
   providerEventId: string;
   type: ProviderEventType;
@@ -65,13 +68,30 @@ export interface NormalizedError {
   kind: 'transient' | 'permanent';
   /** lower_snake or provider code, safe to store and log. */
   code: string;
+  /** The provider says the recipient has stopped this channel for the business: record an opt-out. */
+  optOut?: boolean;
 }
 
 export class AdapterError extends Error {
-  constructor(public readonly kind: 'transient' | 'permanent', public readonly code: string, message?: string) {
+  constructor(public readonly kind: 'transient' | 'permanent', public readonly code: string, message?: string, public readonly optOut = false) {
     super(message ?? code);
     this.name = 'AdapterError';
   }
+}
+
+/**
+ * Something a customer sent to the business through a channel that has a conversation (WhatsApp). Only what the opt-out
+ * rules need is kept: no text beyond the message itself, and nothing about media.
+ */
+export interface InboundMessage {
+  /** The provider's id for it (a WhatsApp message id, or an id derived from the preference change). Repeats are duplicates. */
+  providerEventId: string;
+  /** A message the customer wrote, or the customer's own change of their marketing preference in the app. */
+  kind: 'text' | 'preference_stop' | 'preference_resume';
+  /** E.164 with the plus sign, when the sender's phone number is known; null when the provider gave only an opaque user id. */
+  from: string | null;
+  text?: string;
+  occurredAt: Date;
 }
 
 export class WebhookSignatureError extends Error {
@@ -89,6 +109,11 @@ export interface ChannelAdapter {
    *  May be async (a provider may need to fetch its signing certificate). Throws AdapterError('transient') when the
    *  report cannot be verified right now, so the provider retries. */
   parseWebhook(raw: RawWebhook, account: AdapterAccount): ProviderEvent[] | Promise<ProviderEvent[]>;
+  /** What customers sent, from the same (signed) delivery. Only for channels with conversations. */
+  parseInbound?(raw: RawWebhook, account: AdapterAccount): InboundMessage[];
+  /** The provider's handshake when a webhook URL is set (WhatsApp: GET with hub.verify_token). The text to answer with, or
+   *  null when the request does not prove the caller knows the account's verify token. */
+  verifyWebhookChallenge?(query: Record<string, string | undefined>, account: AdapterAccount): string | null;
   normalizeError(err: unknown): NormalizedError;
 }
 

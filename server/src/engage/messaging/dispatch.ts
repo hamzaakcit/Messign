@@ -5,6 +5,7 @@ import { logError, logInfo } from '../log.js';
 import { getAdapter, type AdapterAccount } from './adapter.js';
 import { currentSendMode, evaluateGate } from './gate.js';
 import { listDueMessageIds } from './messages.js';
+import { revokeFromRecipient } from '../whatsapp/inbound.js';
 
 export { currentSendMode, type SendMode } from './gate.js';
 
@@ -91,6 +92,10 @@ export async function dispatchMessage(orgId: string, messageId: string, opts: Di
       return { outcome: 'retry_scheduled', attempt, code: n.code };
     }
     await recordEvent(orgId, m.id, 'failed', n.code, { attempt });
+    // The provider says the recipient has stopped this channel for the business (WhatsApp 131050): an opt-out to honour.
+    if (n.optOut && m.channel === 'whatsapp') {
+      await withEngageTenant(orgId, (c) => revokeFromRecipient(c, orgId, m.profile_id, 'whatsapp', { via: n.code, message_id: m.id }, new Date()));
+    }
     logInfo('message failed', { messageId: m.id, code: n.code, attempt });
     return { outcome: 'failed', code: n.code };
   }

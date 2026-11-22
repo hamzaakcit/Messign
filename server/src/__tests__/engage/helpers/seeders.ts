@@ -159,6 +159,11 @@ export const SEEDERS: Record<string, Seeder> = {
       `INSERT INTO engage.iys_changes (organization_id, transaction_id, iys_type, iys_status, iys_source, outcome) VALUES ($1, $2, 'EPOSTA', 'RET', 'IYS_WEB', 'unmatched')`,
       [org, `seed-${Math.random().toString(16).slice(2, 14)}`]);
   },
+  inbound_events: async (c, org) => {
+    await c.query(
+      `INSERT INTO engage.inbound_events (organization_id, provider, provider_event_id, channel, kind, outcome, occurred_at) VALUES ($1, 'whatsapp_cloud', $2, 'whatsapp', 'text', 'no_opt_out', now())`,
+      [org, `seed-${Math.random().toString(16).slice(2, 14)}`]);
+  },
   campaigns: async (c, org) => {
     const j = await seedJourney(c, org);
     await c.query(

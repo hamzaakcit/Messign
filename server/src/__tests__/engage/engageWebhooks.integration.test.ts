@@ -249,9 +249,12 @@ describe.skipIf(!adminUrl)('email channel: SES adapter and signed webhooks (real
     expect(confirmCalls).toContain(url);
   });
 
-  it('refuses a body that was parsed as JSON upstream (the signed bytes are gone)', async () => {
+  it('reads the exact bytes whatever the content type: an application/json delivery is not parsed upstream (WhatsApp posts JSON), so it is verified like text/plain', async () => {
     const acct = await sesAccount(A);
-    expect((await post(acct, sns(delivery('x')), 'application/json')).status).toBe(400);
+    const asText = await post(acct, sns(delivery('x')), 'text/plain; charset=UTF-8');
+    const asJson = await post(acct, sns(delivery('x')), 'application/json');
+    expect(asJson.status).not.toBe(400); // 400 would mean the body arrived parsed and its bytes were gone
+    expect(asJson.status).toBe(asText.status);
   });
 
   it('logs neither addresses nor message bodies', () => {

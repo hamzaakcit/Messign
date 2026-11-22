@@ -1,3 +1,4 @@
+import { isTemplateName } from '../whatsapp/format.js';
 import type { PoolClient } from 'pg';
 import { withEngageTenant } from '../db.js';
 import type { Channel } from '../credentials.js';
@@ -104,6 +105,8 @@ export function checkContent(channel: Channel, purpose: 'marketing' | 'transacti
   } else if (channel === 'whatsapp') {
     if (purpose === 'marketing' && !str(content.template)) codes.push('content_no_template');
     if (!str(content.template) && !str(content.text)) codes.push('content_missing_body');
+    // A template is named the way WhatsApp Manager names it (lower-case letters, digits, underscores); anything else cannot exist.
+    if (content.template !== undefined && str(content.template) && !isTemplateName(content.template)) codes.push('content_template_invalid');
   }
   return codes;
 }
