@@ -2,6 +2,11 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-22 · Webhook URLs follow rotated accounts
+- **Done:** a provider's callback URL contains the account id, and rotation creates a new id, so rotating credentials broke the URL Meta (and the SES SNS subscription) held. `engage/webhookAccount.ts` now resolves the URL's account to the active account of the same `supersedes_id` lineage; the handshake and signature use that account's secrets, so rotated-out secrets stop working. Tests: `engageWebhookRotation.integration.test.ts` (chain of rotations, changed number, revoked lineage, another provider, tenant isolation). ADR-023 addendum and both runbooks updated.
+- **Remaining:** Meta's callback is one URL per app (several numbers or tenants under one app need a design); a real WhatsApp number; wording for a new template.
+- **Next:** WP-33 (onboarding kit).
+
 ## 2026-11-22 · WP-27 live check with a Meta test number
 - **Done:** the live check passed for sending, the webhook handshake and signature, delivery reports, a STOP reply (revoked, suppressed, recorded without text or number) and the gate blocking the next marketing send. Details in ADR-023. `npm run engage:whatsapp-check` (prepare, send, report, and `--webhooks --subscribe`); PR #56.
 - **Found:** delivery reports needed the app subscribed to the WhatsApp Business Account itself, not only a callback and fields; now a runbook step and a script mode.

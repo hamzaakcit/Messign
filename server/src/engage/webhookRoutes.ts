@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { withAccountLookup } from './db.js';
+import { resolveWebhookAccount } from './webhookAccount.js';
 import { CredentialNotFoundError } from './credentials.js';
 import { describeError, logError, logWarn } from './log.js';
 import { AdapterError, WebhookSignatureError, answerWebhookChallenge, ingestWebhook } from './messaging/index.js';
@@ -47,12 +47,12 @@ webhookRouter.get('/:accountId',
   async (req, res) => {
     const accountId = req.params.accountId!;
     try {
-      const orgId = await withAccountLookup(accountId, async (c) => (await c.query<{ organization_id: string }>(
-        `SELECT organization_id FROM engage.channel_accounts WHERE id = $1 AND status = 'active'`, [accountId])).rows[0]?.organization_id);
-      if (!orgId) return void res.status(404).json({ error: 'Not found' });
+      // The URL follows a rotated account to the one that replaced it (webhookAccount.ts).
+      const resolved = await resolveWebhookAccount(accountId);
+      if (!resolved) return void res.status(404).json({ error: 'Not found' });
       const query: Record<string, string | undefined> = {};
       for (const [k, v] of Object.entries(req.query)) query[k] = typeof v === 'string' ? v : undefined;
-      const answer = await answerWebhookChallenge(orgId, accountId, query);
+      const answer = await answerWebhookChallenge(resolved.orgId, resolved.activeId, query);
       if (answer === null) { logWarn('webhook handshake refused', { accountId }); return void res.status(403).json({ error: 'Verification failed' }); }
       res.status(200).type('text/plain').set('X-Content-Type-Options', 'nosniff').send(answer);
     } catch (err) {
@@ -72,12 +72,11 @@ webhookRouter.post('/:accountId',
     const accountId = req.params.accountId!;
     if (!Buffer.isBuffer(req.body)) return void res.status(400).json({ error: 'Unreadable body' });
     try {
-      const orgId = await withAccountLookup(accountId, async (c) => (await c.query<{ organization_id: string }>(
-        `SELECT organization_id FROM engage.channel_accounts WHERE id = $1 AND status = 'active'`, [accountId])).rows[0]?.organization_id);
-      if (!orgId) return void res.status(404).json({ error: 'Not found' });
+      const resolved = await resolveWebhookAccount(accountId);
+      if (!resolved) return void res.status(404).json({ error: 'Not found' });
       const headers: Record<string, string | undefined> = {};
       for (const [k, v] of Object.entries(req.headers)) headers[k.toLowerCase()] = Array.isArray(v) ? v.join(',') : v;
-      const result = await ingestWebhook(orgId, accountId, { headers, body: req.body });
+      const result = await ingestWebhook(resolved.orgId, resolved.activeId, { headers, body: req.body });
       // A report for a message we cannot find yet is most likely a race: the provider's report can arrive before the
       // send call has returned and its provider message id has been stored (observed with SES: delivery report within a
       // second of acceptance). Answering 200 would make the provider stop retrying and the report would be lost for good.

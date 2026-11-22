@@ -44,9 +44,9 @@ If something fails, note the code the script prints, and the table below says wh
 
 | What you see | Meaning |
 |---|---|
-| Webhook handshake refused in Meta's dashboard | The verify token differs from the account's `verify_token`, or the account id in the URL is wrong or the account is disabled |
+| Webhook handshake refused in Meta's dashboard | The verify token differs from the account's `verify_token`, or the account id in the URL is wrong, or the account was disabled and has no active replacement |
 | 401 in the API logs for webhooks (`webhook rejected: signature`) | The app secret on the account is not the one of the app Meta is sending from |
-| Messages fail with `wa_190` | The access token expired or was revoked: rotate the account with a new token |
+| Messages fail with `wa_190` | The access token expired or was revoked: rotate the account with a new token. The webhook URL in Meta's dashboard stays valid: it follows the rotated account, so nothing changes there (a new `app_secret` or `verify_token` only has to be part of the rotation) |
 | `wa_132001` / `wa_132000` | The template is not approved in that language, or the number of variables differs from the template |
 | `wa_131047` | A text message outside the 24-hour window: use a template |
 | `wa_131050` | The customer stopped marketing messages from you: consent is revoked automatically; do not retry |
