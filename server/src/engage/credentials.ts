@@ -169,7 +169,7 @@ export async function getAccount(organizationId: string, accountId: string): Pro
 
 /** Rotation writes a new row with the new secrets and disables the old one, which stays for audit. */
 export async function rotateAccount(
-  organizationId: string, createdBy: string, accountId: string,
+  organizationId: string, createdBy: string | null, accountId: string,
   input: { secrets: Record<string, string>; config?: AccountMeta['config'] },
   keyring: Keyring = loadKeyring(),
 ): Promise<AccountMeta> {
