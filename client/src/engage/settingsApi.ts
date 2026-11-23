@@ -116,6 +116,29 @@ export interface IysCheck { ok: boolean; code: string | null; message: string | 
 export const getIys = (): Promise<IysView> => fetchAPI<IysView>('/engage/settings/iys');
 export const checkIys = (): Promise<IysCheck> => fetchAPI<IysCheck>('/engage/settings/iys/check', { method: 'POST' });
 
+/** The WhatsApp card (WP-40c). Mirrors server/src/engage/whatsapp/operate.ts; never carries a secret or a phone number. */
+export type WhatsappSetupStep = 'account' | 'waba_id' | 'webhook_url' | 'template_check' | 'templates_in_use' | 'sending_ready';
+export interface WhatsappTemplateInUse {
+  metaName: string; language: string; journeyKeys: string[]; recentMessages: number;
+  status: string | null; quality: string | null; rejectedReason: string | null;
+}
+export interface WhatsappSetup {
+  account: { id: string; label: string; provider: string; mode: string; phoneNumberId: string | null; wabaId: string | null } | null;
+  accountProblem: 'no_whatsapp_account' | 'whatsapp_account_ambiguous' | null;
+  webhook: {
+    url: string | null; urlProblem: 'public_api_url_not_set' | 'public_api_url_invalid' | null; fields: string[];
+    lastDeliveryReportAt: string | null; lastTemplateUpdateAt: string | null;
+  };
+  check: { lastAttemptAt: string | null; lastOkAt: string | null; lastError: string | null; consecutiveFailures: number; templatesSeen: number };
+  pacing: { limit: number; limitIsDefault: boolean; contacted24h: number; waiting: number; waitingOverADay: number } | null;
+  templatesInUse: WhatsappTemplateInUse[];
+  readiness: { sendMode: 'off' | 'sandbox' | 'live'; ready: boolean; problems: ReadinessProblem[] };
+  steps: Array<{ step: WhatsappSetupStep; done: boolean }>;
+}
+export const getWhatsappSetup = (): Promise<WhatsappSetup> => fetchAPI<WhatsappSetup>('/engage/whatsapp/setup');
+export const runWhatsappTemplateCheck = (): Promise<{ ok: boolean; seen: number; changed: number; error: string | null }> =>
+  fetchAPI('/engage/whatsapp/templates/check', { method: 'POST' });
+
 export const disableChannelAccount = (id: string): Promise<unknown> =>
   fetchAPI(`/engage/channel-accounts/${encodeURIComponent(id)}/disable`, { method: 'POST' });
 

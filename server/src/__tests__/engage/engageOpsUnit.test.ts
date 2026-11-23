@@ -81,6 +81,28 @@ describe('ops rules', () => {
   it('turns the tenant attention items into conditions', () => {
     const s = snap({ attention: [{ code: 'iys_sync', severity: 'warning', since: null, data: { late: 2 } }] });
     expect(rules(s)).toEqual(['iys_sync::warning']);
+    const wa = snap({ attention: [{ code: 'whatsapp_template_unhealthy', severity: 'critical', since: null, data: { count: 1 } }, { code: 'whatsapp_template_check_failing', subject: 'x', severity: 'warning', since: null, data: {} }] });
+    expect(rules(wa)).toEqual(['whatsapp_template_unhealthy::critical', 'whatsapp_template_check_failing:x:warning']);
+  });
+
+  const wa = (o: Partial<NonNullable<AccountStats['whatsapp']>> = {}, a: Partial<AccountStats> = {}) => acct({
+    channel: 'whatsapp', provider: 'whatsapp_cloud', ...a,
+    whatsapp: { frequencyLimited24h: 0, pacingWaiting: 0, pacingWaitingOverADay: 0, limit: 250, limitIsDefault: true, ...o },
+  });
+  it('WhatsApp 131049: only with volume, enough held back, and a share of what was sent; a warning, never critical', () => {
+    expect(rules(snap({ accounts: [wa({ frequencyLimited24h: 5 }, { sent24h: 19 })] }))).toEqual([]); // too few sent
+    expect(rules(snap({ accounts: [wa({ frequencyLimited24h: 4 }, { sent24h: 20 })] }))).toEqual([]); // too few held
+    expect(rules(snap({ accounts: [wa({ frequencyLimited24h: 9 }, { sent24h: 100 })] }))).toEqual([]); // 9%
+    expect(rules(snap({ accounts: [wa({ frequencyLimited24h: 10 }, { sent24h: 100 })] }))).toEqual(['whatsapp_frequency_limited:a1:warning']);
+    expect(rules(snap({ accounts: [wa({ frequencyLimited24h: 90 }, { sent24h: 100 })] }))).toEqual(['whatsapp_frequency_limited:a1:warning']);
+    const [c] = evaluateRules(snap({ accounts: [wa({ frequencyLimited24h: 10 }, { sent24h: 100 })] }), T);
+    expect(c!.data).toEqual({ provider: 'whatsapp_cloud', channel: 'whatsapp', sent: 100, limited: 10, rate: 0.1 });
+  });
+  it('WhatsApp pacing: messages waiting are normal; held over a day is a warning', () => {
+    expect(rules(snap({ accounts: [wa({ pacingWaiting: 400 })] }))).toEqual([]);
+    expect(rules(snap({ accounts: [wa({ pacingWaiting: 400, pacingWaitingOverADay: 3 })] }))).toEqual(['whatsapp_pacing_holding:a1:warning']);
+    // An email account never carries WhatsApp numbers; the rules ignore them if it did not.
+    expect(rules(snap({ accounts: [acct()] }))).toEqual([]);
   });
 });
 
@@ -120,6 +142,16 @@ describe('describing conditions', () => {
     expect(text).toBe('ses/email: 6 of 12 provider calls failed (50%); ses_throttled×4');
     expect(describeCondition({ rule: 'provider_failing', subject: '', data: { provider: 'not a code, has spaces@x.com', attempts: 1 } })).not.toContain('@');
     expect(describeCondition({ rule: 'something_new', subject: '', data: {} })).toBe('something_new');
+  });
+  it('words the WhatsApp conditions from codes and numbers only', () => {
+    expect(describeCondition({ rule: 'whatsapp_frequency_limited', subject: 'a1', data: { provider: 'whatsapp_cloud', channel: 'whatsapp', sent: 100, limited: 12, rate: 0.12 } }))
+      .toBe('whatsapp_cloud/whatsapp: Meta held back 12 of 100 WhatsApp messages in 24 hours (131049, 12%)');
+    expect(describeCondition({ rule: 'whatsapp_pacing_holding', subject: 'a1', data: { provider: 'whatsapp_cloud', channel: 'whatsapp', waiting: 40, overADay: 3, limit: 250 } }))
+      .toBe('whatsapp_cloud/whatsapp: 3 WhatsApp messages held over a day by the daily limit of 250 new customers (40 waiting)');
+    expect(describeCondition({ rule: 'whatsapp_template_unhealthy', subject: '', data: { count: 2, templates: [{ metaName: 'autumn_books', language: 'tr', status: 'PAUSED', quality: 'RED' }, { metaName: 'bad name!', language: 'tr', status: null }] } }))
+      .toBe('2 WhatsApp template(s) in use are paused, disabled, rejected or rated red at Meta: autumn_books/tr PAUSED RED, ?/tr unknown');
+    expect(describeCondition({ rule: 'whatsapp_template_check_failing', subject: '', data: { failures: 4, code: 'wa_190' } }))
+      .toBe('the WhatsApp template check failed 4 times in a row (wa_190); template statuses are getting old');
   });
   it('words dead-letter conditions', () => {
     expect(platformConditions({ 'engage/import': 1, 'engage/iys-sync': 12, other: 0 }).map((c) => `${c.key}:${c.severity}`)).toEqual(['job_failed:engage/import:warning', 'job_failed:engage/iys-sync:critical']);

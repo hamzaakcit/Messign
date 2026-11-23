@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAddAccountArgs } from '../../scripts/engageAddAccountArgs.js';
+import { configValue, parseAddAccountArgs } from '../../scripts/engageAddAccountArgs.js';
 
 const ORG = '11111111-2222-4333-8444-555555555555';
 const base = ['--org', ORG, '--channel', 'email', '--provider', 'ses', '--mode', 'test', '--label', 'SES sandbox'];
@@ -29,5 +29,26 @@ describe('engage:add-account arguments', () => {
     ['duplicate single option', [...base, '--label', 'again', '--secret', 'k'], /given twice/],
   ])('rejects %s', (_n, argv, message) => {
     expect(() => parseAddAccountArgs(argv)).toThrow(message);
+  });
+
+  it('keeps Meta ids as text: 16 or 17 digits would lose digits as a number', () => {
+    expect(configValue('waba_id', '1234567890123456789')).toBe('1234567890123456789');
+    expect(configValue('phone_number_id', '102290129340398')).toBe('102290129340398');
+    expect(configValue('daily_recipient_limit', '2000')).toBe(2000);
+    expect(configValue('big', '98765432109876543210')).toBe('98765432109876543210');
+    expect(configValue('ratio', '0.5')).toBe(0.5);
+  });
+
+  it('--whatsapp sets the channel, the provider and the three secrets, and warns about missing ids', () => {
+    const w = ['--org', ORG, '--whatsapp', '--mode', 'test', '--label', 'WA'];
+    const a = parseAddAccountArgs([...w, '--config', 'phone_number_id=102290129340398']);
+    expect(a).toMatchObject({ channel: 'whatsapp', provider: 'whatsapp_cloud', secretNames: ['access_token', 'app_secret', 'verify_token'] });
+    expect(a.config).toEqual({ phone_number_id: '102290129340398' });
+    expect(a.warnings).toEqual([expect.stringContaining('waba_id')]);
+    const full = parseAddAccountArgs([...w, '--config', 'phone_number_id=1', '--config', 'waba_id=2', '--secret', 'access_token']);
+    expect(full.warnings).toEqual([]);
+    expect(full.secretNames).toEqual(['access_token']);
+    expect(() => parseAddAccountArgs([...w, '--channel', 'email'])).toThrow(/--whatsapp sets --channel whatsapp/);
+    expect(parseAddAccountArgs(base.concat('--secret', 'k')).warnings).toEqual([]);
   });
 });

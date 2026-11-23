@@ -9,6 +9,10 @@ const s = (v: unknown): string => (typeof v === 'string' && /^[A-Za-z0-9_.:-]{1,
 const pct = (v: unknown): string => `${Math.round(n(v) * 100)}%`;
 const codes = (v: unknown): string => (Array.isArray(v) ? v.slice(0, 3).map((c) => `${s((c as { code?: unknown }).code)}×${n((c as { count?: unknown }).count)}`).join(', ') : '');
 
+const templates = (v: unknown): string => (Array.isArray(v)
+  ? v.slice(0, 3).map((t) => { const x = t as Record<string, unknown>; return `${s(x.metaName)}/${s(x.language)} ${x.status === null ? 'unknown' : s(x.status)}${x.quality === 'RED' ? ' RED' : ''}`; }).join(', ')
+  : '');
+
 export function describeCondition(c: Pick<Condition, 'rule' | 'subject' | 'data'>): string {
   const d = c.data;
   const via = `${s(d.provider)}/${s(d.channel)}`;
@@ -24,6 +28,10 @@ export function describeCondition(c: Pick<Condition, 'rule' | 'subject' | 'data'
     case 'trigger_outbox_stuck': return `${n(d.pending)} events waiting to start journeys (oldest ${n(d.oldestMinutes)} min), ${n(d.failed)} failed`;
     case 'email_domain_lost': return 'the sending domain no longer passes its authentication check; live email is blocked';
     case 'iys_sync': return `the İYS sync needs attention: ${n(d.breached)} past the limit, ${n(d.atRisk)} at risk, ${n(d.failed)} refused`;
+    case 'whatsapp_template_unhealthy': return `${n(d.count)} WhatsApp template(s) in use are paused, disabled, rejected or rated red at Meta: ${templates(d.templates)}`;
+    case 'whatsapp_template_check_failing': return `the WhatsApp template check failed ${n(d.failures)} times in a row (${s(d.code)}); template statuses are getting old`;
+    case 'whatsapp_frequency_limited': return `${via}: Meta held back ${n(d.limited)} of ${n(d.sent)} WhatsApp messages in 24 hours (131049, ${pct(d.rate)})`;
+    case 'whatsapp_pacing_holding': return `${via}: ${n(d.overADay)} WhatsApp messages held over a day by the daily limit of ${n(d.limit)} new customers (${n(d.waiting)} waiting)`;
     default: return c.rule;
   }
 }

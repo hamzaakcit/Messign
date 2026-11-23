@@ -39,6 +39,18 @@ function accountRules(a: AccountStats, t: Thresholds, out: Condition[]): void {
     out.push({ rule: 'delivery_reports_missing', subject: a.accountId, severity: 'critical', data: { ...who, waiting: a.waitingForReport } });
   }
 
+  if (a.whatsapp) {
+    const w = a.whatsapp;
+    // 131049: Meta held marketing messages back for those customers. Informational: slow down, or change the content.
+    if (a.sent24h >= t.waFrequencyMinSent && w.frequencyLimited24h >= t.waFrequencyMinCount && w.frequencyLimited24h / a.sent24h >= t.waFrequencyRate) {
+      out.push({ rule: 'whatsapp_frequency_limited', subject: a.accountId, severity: 'warning', data: { ...who, sent: a.sent24h, limited: w.frequencyLimited24h, rate: round(w.frequencyLimited24h / a.sent24h) } });
+    }
+    // Messages held by the account's daily limit for over a day: the limit is set too low, or the campaigns are larger than the tier.
+    if (w.pacingWaitingOverADay > 0) {
+      out.push({ rule: 'whatsapp_pacing_holding', subject: a.accountId, severity: 'warning', data: { ...who, waiting: w.pacingWaiting, overADay: w.pacingWaitingOverADay, limit: w.limit, limitIsDefault: w.limitIsDefault } });
+    }
+  }
+
   if (a.channel === 'email') {
     if (a.sent24h >= t.bounceMinSent) {
       const rate = a.bounced24h / a.sent24h;
@@ -81,7 +93,7 @@ export function evaluateRules(s: Snapshot, t: Thresholds): Condition[] {
   }
 
   for (const item of s.attention) {
-    out.push({ rule: item.code, subject: '', severity: item.severity, data: item.data });
+    out.push({ rule: item.code, subject: item.subject ?? '', severity: item.severity, data: item.data });
   }
   return out;
 }

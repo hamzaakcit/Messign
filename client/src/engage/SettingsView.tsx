@@ -7,6 +7,7 @@ import {
 import { attentionText } from './attentionText';
 import { ATTENTION_KEY, useAttention } from './useAttention';
 import { dkimText, dmarcText, spfText } from './emailDomainText';
+import { WhatsappCard } from './WhatsappSettingsCard';
 import { Button, ErrorLine, Field, Select, StatusBadge, TextInput, formatTime } from './ui';
 
 /**
@@ -77,6 +78,7 @@ export function SettingsSection(): JSX.Element {
       <ReadinessCard s={s} />
       <EmailDomainCard />
       <IysCard />
+      <WhatsappCard />
       <GateCard s={s} />
       <CapsCard s={s} />
       <AccountsCard s={s} />

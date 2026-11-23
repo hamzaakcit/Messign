@@ -26,6 +26,16 @@ export interface AccountStats {
   reports24h: number;
   /** Messages accepted by the provider more than the grace ago whose delivery nobody has reported. */
   waitingForReport: number;
+  /** WhatsApp accounts only (WP-40c). */
+  whatsapp?: {
+    /** Messages Meta held back with 131049 in the long window. */
+    frequencyLimited24h: number;
+    /** Messages waiting for the account's daily limit of new customers, and those held for over a day. */
+    pacingWaiting: number;
+    pacingWaitingOverADay: number;
+    limit: number;
+    limitIsDefault: boolean;
+  };
 }
 
 export interface DenialStats {

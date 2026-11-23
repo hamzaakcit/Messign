@@ -2,6 +2,7 @@ import { withEngageTenant } from '../db.js';
 import { expectsDeliveryReports } from '../messaging/index.js';
 import { currentSendMode } from '../messaging/gate.js';
 import { getAttention } from '../settings/attention.js';
+import { pacingStateOn, type PacingState } from '../whatsapp/operate.js';
 import type { Thresholds } from './thresholds.js';
 import type { AccountStats, DenialStats, QueueStats, Snapshot } from './types.js';
 
@@ -13,6 +14,11 @@ import type { AccountStats, DenialStats, QueueStats, Snapshot } from './types.js
 const HOUR = 3_600_000;
 const num = (v: unknown): number => Number(v ?? 0);
 
+const whatsappStats = (limited: number, p: PacingState | undefined): NonNullable<AccountStats['whatsapp']> => ({
+  frequencyLimited24h: limited,
+  pacingWaiting: p?.waiting ?? 0, pacingWaitingOverADay: p?.waitingOverADay ?? 0, limit: p?.limit ?? 0, limitIsDefault: p?.limitIsDefault ?? true,
+});
+
 export async function takeSnapshot(orgId: string, t: Thresholds, now: Date = new Date()): Promise<Snapshot> {
   const windowStart = new Date(now.getTime() - t.windowMinutes * 60_000);
   const dayStart = new Date(now.getTime() - 24 * HOUR);
@@ -23,8 +29,8 @@ export async function takeSnapshot(orgId: string, t: Thresholds, now: Date = new
   const windowsPerDay = (24 * 60) / t.windowMinutes;
 
   const m = await withEngageTenant(orgId, async (c) => {
-    const accounts = (await c.query<{ id: string; channel: AccountStats['channel']; provider: string; label: string; mode: string }>(
-      `SELECT id, channel, provider, label, mode FROM engage.channel_accounts
+    const accounts = (await c.query<{ id: string; channel: AccountStats['channel']; provider: string; label: string; mode: string; config: Record<string, unknown> }>(
+      `SELECT id, channel, provider, label, mode, config FROM engage.channel_accounts
         WHERE organization_id = $1 AND status = 'active' AND channel IN ('email', 'sms', 'whatsapp') ORDER BY created_at, id`, [orgId])).rows;
     const short = (await c.query<{ account_id: string; sent: string; failed: string; retried: string }>(
       `SELECT m.channel_account_id AS account_id,
@@ -39,12 +45,13 @@ export async function takeSnapshot(orgId: string, t: Thresholds, now: Date = new
          FROM engage.message_events e JOIN engage.messages m ON m.organization_id = e.organization_id AND m.id = e.message_id
         WHERE e.organization_id = $1 AND e.received_at >= $2 AND e.source = 'system' AND e.type IN ('failed', 'retry_scheduled') AND e.error_code IS NOT NULL
         GROUP BY 1, 2`, [orgId, windowStart])).rows;
-    const day = (await c.query<{ account_id: string; sent: string; bounced: string; complained: string; reports: string }>(
+    const day = (await c.query<{ account_id: string; sent: string; bounced: string; complained: string; reports: string; limited: string }>(
       `SELECT m.channel_account_id AS account_id,
               count(*) FILTER (WHERE e.type = 'sent' AND e.source = 'system') AS sent,
               count(*) FILTER (WHERE e.type = 'bounced') AS bounced,
               count(*) FILTER (WHERE e.type = 'complained') AS complained,
-              count(*) FILTER (WHERE e.source = 'provider') AS reports
+              count(*) FILTER (WHERE e.source = 'provider') AS reports,
+              count(*) FILTER (WHERE e.type = 'failed' AND e.error_code = 'wa_131049') AS limited
          FROM engage.message_events e JOIN engage.messages m ON m.organization_id = e.organization_id AND m.id = e.message_id
         WHERE e.organization_id = $1 AND e.received_at >= $2
         GROUP BY 1`, [orgId, dayStart])).rows;
@@ -65,7 +72,9 @@ export async function takeSnapshot(orgId: string, t: Thresholds, now: Date = new
               extract(epoch FROM ($3::timestamptz - min(created_at) FILTER (WHERE status = 'pending' AND created_at < $2))) AS oldest,
               count(*) FILTER (WHERE status = 'failed' AND processed_at >= $4) AS failed
          FROM engage.trigger_outbox WHERE organization_id = $1 AND status IN ('pending', 'failed')`, [orgId, overdueCutoff, now, dayStart])).rows[0]!;
-    return { accounts, short, codes, day, waiting, denials, settings, overdue, stale, outbox };
+    const pacing = new Map<string, PacingState>();
+    for (const a of accounts) if (a.channel === 'whatsapp') pacing.set(a.id, await pacingStateOn(c, orgId, a.id, a.config ?? {}, now));
+    return { accounts, short, codes, day, waiting, denials, settings, overdue, stale, outbox, pacing };
   });
 
   const by = <T extends { account_id: string }>(rows: T[]): Map<string, T> => new Map(rows.map((r) => [r.account_id, r]));
@@ -83,6 +92,7 @@ export async function takeSnapshot(orgId: string, t: Thresholds, now: Date = new
       sent: num(s?.sent), failed: num(s?.failed), retried: num(s?.retried), failureCodes,
       sent24h: num(d?.sent), bounced24h: num(d?.bounced), complained24h: num(d?.complained), reports24h: num(d?.reports),
       waitingForReport: num(waitingBy.get(a.id)?.n),
+      ...(a.channel === 'whatsapp' ? { whatsapp: whatsappStats(num(d?.limited), m.pacing.get(a.id)) } : {}),
     };
   });
 

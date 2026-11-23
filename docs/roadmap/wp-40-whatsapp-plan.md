@@ -144,3 +144,11 @@ Creating or submitting templates through Messign, media headers and carousels, i
 - **Adjacency and start/end checks on the body were dropped:** a registration describes a template Meta has already approved, so Meta's own review has applied them.
 - **Message lifetime:** the 24-hour default would have let every paced message expire as it became sendable. WhatsApp template messages live 3 days by default, and the gate refuses at once (`account_limit_reached`) a message that would expire before there is room.
 - **Client in 40a:** WhatsApp templates appear in the template list, so 40a already labels them, shows them read-only with their Meta status, and keeps them out of the email pickers of journeys and campaigns (they would otherwise have been offered for email steps).
+
+## Changes while building 40c (2026-11-23)
+
+- **Token check is the template check.** It reads the templates with the account's token, so `wa_190` shows on the card without a second call to Meta.
+- **Two alerts became tenant attention items** (`whatsapp_template_unhealthy`, `whatsapp_template_check_failing`): Settings shows them at once instead of after the next ops run, and the ops check still turns them into operator alerts. "In use" also counts a template that messages used in the last 7 days, so a finished campaign's template is covered.
+- **"Register in Messign" stays on the Templates tab** (40b's form picks from what Meta lists); the card points there instead of repeating it.
+- **Ids stay text in `engage:add-account`** (see ADR-025's 40c addendum).
+

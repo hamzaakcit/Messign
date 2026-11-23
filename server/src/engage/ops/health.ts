@@ -1,5 +1,5 @@
 import { withEngageTenant } from '../db.js';
-import { getAttention, type AttentionItem } from '../settings/attention.js';
+import { DERIVED_ATTENTION, getAttention, type AttentionItem } from '../settings/attention.js';
 import { listOpenAlerts } from './alerts.js';
 import { evaluateRules } from './rules.js';
 import { takeSnapshot } from './snapshot.js';
@@ -45,7 +45,7 @@ export async function getDeliveryHealth(orgId: string, now: Date = new Date(), t
   return {
     checkedAt: now.toISOString(),
     accounts: snap.accounts.map((a) => accountHealth(a, conditions)),
-    tenant: conditions.filter((c) => !accountIds.has(c.subject) && c.rule !== 'email_domain_lost' && c.rule !== 'iys_sync').map((c) => ({ rule: c.rule, subject: c.subject, severity: c.severity })),
+    tenant: conditions.filter((c) => !accountIds.has(c.subject) && !DERIVED_ATTENTION.has(c.rule)).map((c) => ({ rule: c.rule, subject: c.subject, severity: c.severity })),
   };
 }
 

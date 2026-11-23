@@ -36,6 +36,10 @@ Tenants appear in the operators' message by the first eight characters of their 
 | `messages_stuck` | Messages are past their send time, or stuck while sending, while sending is on | The journey tick (it dispatches) is not running: look for a dead `engage/journey-tick`, and for gate holds such as `gate_unavailable` in the log |
 | `trigger_outbox_stuck` | Events are not starting journeys | The same job; failed rows need a look |
 | `email_domain_lost`, `iys_sync` | The tenant's own attention items (ADR-020, ADR-022) | Their Settings cards say what to do |
+| `whatsapp_template_unhealthy` | A WhatsApp template an active journey sends, or messages used in 7 days, is paused, disabled, rejected or deleted at Meta (critical), or rated red (warning). A tenant attention item (ADR-025) | The tenant fixes or replaces it in WhatsApp Manager; Settings > WhatsApp lists it |
+| `whatsapp_template_check_failing` | The hourly template check failed 3 times in a row (the code is in the message: `wa_190` token, `wa_200` permission, `waba_missing`) | Rotate the account with a working token or the right `waba_id` (`docs/runbooks/whatsapp.md`) |
+| `whatsapp_frequency_limited` | Meta held back marketing messages with 131049: at least 5 and 10% of 20 or more sent in 24 hours (`ENGAGE_OPS_WA_FREQUENCY_*`) | Informational: the tenant sends less often or changes the content |
+| `whatsapp_pacing_holding` | WhatsApp messages have waited over a day for the account's daily limit of new customers | The tenant's real tier is higher than `daily_recipient_limit` (rotate with the new figure), or the campaigns are too large for it |
 | `job_failed:<queue>` (platform) | Jobs of an engage queue used up their retries in the last 24 hours | `SELECT * FROM pgboss.job WHERE name = '<queue>' AND state = 'failed' ORDER BY completed_on DESC` and read `output` |
 | `new error` / `error burst` (platform) | Engage code logged an error nobody has seen, or the same one many times | The line carries the source and a fingerprint; search the server log for `error captured` and the fingerprint |
 
