@@ -55,4 +55,22 @@ describe('engage:whatsapp-check arguments', () => {
     ])('refuses %s', (_w, argv) => { expect(() => parseWhatsappCheckArgs(argv)).toThrow(ArgError); });
     it('still needs a number for a send', () => { expect(() => parseWhatsappCheckArgs(noTo)).toThrow(ArgError); });
   });
+
+  it('WP-40: --templates and --rotate need no number; --rotate takes --config and keeps ids as text', () => {
+    const ids = ['--org', ORG, '--account', ACC];
+    expect(parseWhatsappCheckArgs([...ids, '--templates'])).toMatchObject({ templates: true, to: '', rotate: false });
+    const r = parseWhatsappCheckArgs([...ids, '--rotate', '--config', 'waba_id=1234567890123456789', '--config', 'daily_recipient_limit=2000']);
+    expect(r).toMatchObject({ rotate: true, config: { waba_id: '1234567890123456789', daily_recipient_limit: 2000 } });
+    expect(() => parseWhatsappCheckArgs([...ids, '--rotate', '--config', 'waba_id=abc'])).toThrow(/digits/);
+    expect(() => parseWhatsappCheckArgs([...ids, '--templates', '--config', 'waba_id=1'])).toThrow(/--config goes with --rotate/);
+    expect(() => parseWhatsappCheckArgs([...ids, '--templates', '--rotate'])).toThrow(/one of/);
+    expect(() => parseWhatsappCheckArgs([...ids, '--templates', '--prepare'])).toThrow(/one of/);
+    expect(parseWhatsappCheckArgs([...base, '--prepare']).prepare).toBe(true);
+  });
+  it('WP-40: takes a header value and a URL-button value for the send', () => {
+    const a = parseWhatsappCheckArgs([...base, '--template', 'autumn_offer', '--language', 'tr', '--param', 'Ayşe', '--header-param', 'Ekim', '--button-param', 'ab12', '--purpose', 'marketing']);
+    expect(a).toMatchObject({ headerParam: 'Ekim', buttonParam: 'ab12', params: ['Ayşe'] });
+    expect(parseWhatsappCheckArgs(base)).toMatchObject({ headerParam: null, buttonParam: null });
+  });
 });
+

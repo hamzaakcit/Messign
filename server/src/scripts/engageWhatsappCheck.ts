@@ -16,6 +16,17 @@
  *   npm run engage:whatsapp-check -- --org ... --account ... --to +90... --report --ask-master-key
  *       prints, without sending, what is recorded: consent, messages and what the webhook did with your replies.
  *
+ * For the WP-40 live check (docs/runbooks/whatsapp.md, "Live check of templates"):
+ *   --rotate [--config waba_id=<id>] [--config daily_recipient_limit=<n>]
+ *       rotates the account: asks for a new access token at a hidden prompt (Enter keeps the current one), keeps the app secret
+ *       and verify token, and merges the config changes. Prints the new account id; Meta's callback URL keeps working.
+ *   --templates
+ *       runs the template check against Meta (the same one as Settings > WhatsApp > Check now) and prints what Meta lists
+ *       (names, status, category, quality, the shape of variables and buttons), the template events received (by the check or
+ *       Meta's webhook) and the Settings checklist. Sends nothing.
+ *   --header-param <value> / --button-param <value>
+ *       with a send: the value of the template's text-header variable and of its URL button's variable.
+ *
  * Needs ENGAGE_DATABASE_URL and the production master key (typed at hidden prompts with --ask-master-key).
  */
 import 'dotenv/config';
@@ -60,7 +71,53 @@ async function main(): Promise<void> {
     return;
   }
 
-  const profile = await P.upsertProfile(a.org, { externalId: 'whatsapp-live-check', phone: a.to });
+  if (a.rotate) {
+    const { loadAccountSecrets, rotateAccount } = await import('../engage/credentials.js');
+    const { account, secrets } = await loadAccountSecrets(a.org, a.account);
+    const token = (await promptHidden('New access_token (hidden; press Enter to keep the current one): ')).trim();
+    if (!token && Object.keys(a.config).length === 0) { console.log('[engage] nothing to change: give a new token or --config'); await closeEngagePool(); return; }
+    const next = await rotateAccount(a.org, null, a.account, { secrets: { ...secrets, ...(token ? { access_token: token } : {}) }, config: { ...account.config, ...a.config } });
+    console.log(`[engage] rotated: ${token ? 'new access token, ' : ''}${Object.keys(a.config).length ? `config ${Object.keys(a.config).join(', ')} set` : 'same config'}`);
+    console.log(`  new account id: ${next.id}  (use it in the next commands)`);
+    console.log(`  config: ${Object.entries(next.config).map(([k, v]) => `${k}=${String(v)}`).join(' ')}`);
+    console.log('  Meta\'s callback URL with the old id keeps working: it follows the rotation.');
+    await closeEngagePool();
+    return;
+  }
+
+  if (a.templates) {
+    const { runTemplateCheck } = await import('../engage/whatsapp/templateCheck.js');
+    const { listTemplateStatuses } = await import('../engage/whatsapp/templateStatus.js');
+    const { getWhatsappSetup } = await import('../engage/whatsapp/operate.js');
+    const r = await runTemplateCheck(a.org);
+    console.log(r.ok
+      ? `[engage] template check: OK, ${r.seen} template(s) listed by Meta, ${r.changed} changed`
+      : `[engage] template check FAILED: ${r.error} (${r.state.consecutiveFailures} in a row). wa_190 token refused; wa_10/wa_200 the token may not read templates (whatsapp_business_management); wa_100 wrong waba_id; waba_missing: rotate with --config waba_id=<id>`);
+    for (const t of await listTemplateStatuses(a.org)) {
+      const sh = t.shape;
+      console.log(`  ${t.metaName} (${t.language}): ${t.status}, ${t.category ?? '?'}${t.correctCategory ? ` -> ${t.correctCategory}` : ''}, quality ${t.quality ?? '?'}`
+        + `; body variables ${sh.bodyVariables ?? '?'}, header ${sh.headerFormat ?? 'none'}${sh.headerVariables ? ` with ${sh.headerVariables} variable` : ''}`
+        + `, URL-button variables ${sh.urlButtonVariables ?? 0}, buttons [${(sh.buttons ?? []).join(', ')}], parameters ${sh.parameterFormat ?? '?'}`);
+    }
+    const events = (await withEngageTenant(a.org, (c) => c.query<{ meta_name: string; language: string; event: string; status: string | null; source: string; applied: boolean; occurred_at: Date }>(
+      `SELECT meta_name, language, event, status, source, applied, occurred_at FROM engage.whatsapp_template_events WHERE organization_id = $1 ORDER BY recorded_at DESC, id DESC LIMIT 15`, [a.org]))).rows;
+    for (const e of events) console.log(`  event: ${e.meta_name} (${e.language}) ${e.event}${e.status ? ` -> ${e.status}` : ''} via ${e.source}${e.applied ? '' : ' (recorded, not applied)'} at ${e.occurred_at.toISOString()}`);
+    if (!events.length) console.log('  event: none recorded yet');
+    const v = await getWhatsappSetup(a.org);
+    console.log(`[engage] Settings checklist: ${v.steps.map((s) => `${s.done ? 'done' : 'TODO'} ${s.step}`).join(', ')}`);
+    console.log(`  last template update from Meta's webhook: ${v.webhook.lastTemplateUpdateAt ?? 'none yet'}; last delivery report: ${v.webhook.lastDeliveryReportAt ?? 'none yet'}`);
+    if (v.pacing) console.log(`  daily limit: ${v.pacing.contacted24h} of ${v.pacing.limit} customers in 24 hours${v.pacing.limitIsDefault ? ' (default)' : ''}, ${v.pacing.waiting} waiting`);
+    await closeEngagePool();
+    return;
+  }
+
+  // The number may already belong to a customer of this organization (one added in the web app, for example): use that profile, not a
+  // second one, which the identifier rules refuse ("That phone already belongs to another profile").
+  const phone = P.normalizePhone(a.to);
+  const owner = phone === null ? null : (await withEngageTenant(a.org, (c) => c.query<{ external_id: string }>(
+    `SELECT p.external_id FROM engage.identifiers i JOIN engage.profiles p ON p.organization_id = i.organization_id AND p.id = i.profile_id
+      WHERE i.organization_id = $1 AND i.type = 'phone' AND i.value_normalized = $2 AND i.is_active`, [a.org, phone]))).rows[0];
+  const profile = await P.upsertProfile(a.org, { externalId: owner?.external_id ?? 'whatsapp-live-check', phone: a.to });
 
   if (a.prepare) {
     const have = await withEngageTenant(a.org, async (c) => ({
@@ -97,7 +154,10 @@ async function main(): Promise<void> {
 
   const { message } = await M.createMessage(a.org, {
     profileId: profile.id, channel: 'whatsapp', purpose: a.purpose, channelAccountId: a.account,
-    idempotencyKey: `whatsapp-check-${Date.now()}`, ttlSeconds: 3600, content: { template: a.template, language: a.language, ...(a.params.length ? { body_parameters: a.params } : {}) },
+    idempotencyKey: `whatsapp-check-${Date.now()}`, ttlSeconds: 3600, content: {
+      template: a.template, language: a.language, ...(a.params.length ? { body_parameters: a.params } : {}),
+      ...(a.headerParam !== null ? { header_parameter: a.headerParam } : {}), ...(a.buttonParam !== null ? { url_button_parameter: a.buttonParam } : {}),
+    },
   });
   console.log(`[engage] message ${message.id} created (${a.purpose}, template ${a.template}, ${a.language})`);
   const result = await M.dispatchMessage(a.org, message.id);

@@ -2,6 +2,12 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-23 · WP-40 live check with the Meta test number
+- **Done:** ran the live check on the production API and database (sandbox): the template listing, a send with its delivery report through the new account's webhook, and a campaign sent from the website (template, segment, campaign). Results are in ADR-025 ("Live check with the Meta test number"). Tools: `engage:whatsapp-check` gains `--rotate`, `--templates`, `--header-param`, `--button-param`, and reuses an existing customer that owns the number; the runbook has "Live check of templates (WP-40)".
+- **Found:** the website hid the engage sections because the Vercel build had no `VITE_PRODUCT_SURFACE` (now `all`, with the platform organization enabled); the test number needs sandbox mode and a script-only allow-list; the Meta callback is one URL per app; the daily-limit count restarts after a token rotation (not fixed).
+- **Remaining:** approve `messign_live_check` at Meta, then check the template webhook and the header and link-button values; fix the rotation gap and two small screen bugs; the operator steps from WP-29 (alert webhook, restore drill).
+- **Next:** WP-30 (sandbox E2E).
+
 ## 2026-11-23 · WP-40c Operating WhatsApp: Settings card and alerts
 - **Done:** ADR-025 addendum. Settings > WhatsApp (`GET /api/engage/whatsapp/setup`): checklist, webhook URL with Copy and the fields to subscribe, last delivery report and template update, the template check with Check now and failures in words, the daily limit against customers messaged and messages waiting, the templates in use with Meta's status, WhatsApp readiness. Alerts: `whatsapp_template_unhealthy` and `whatsapp_template_check_failing` (attention items, so Settings shows them at once), `whatsapp_frequency_limited` and `whatsapp_pacing_holding` (ops rules per account); operator text and plain-English Settings text for each. `engage:add-account --whatsapp` preset with warnings for missing ids. No migration.
 - **Found:** `engage:add-account` turned every number-looking config value into a JavaScript number; a 16- or 17-digit Meta id (`waba_id`, `phone_number_id`) would have lost digits. Keys ending in `_id` now stay text.

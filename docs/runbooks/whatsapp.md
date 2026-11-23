@@ -66,6 +66,20 @@ Run it once before relying on the channel. It uses the real pipeline in `SEND_MO
 
 If something fails, note the code the script prints, and the table below says what it means. Then fix `engage/whatsapp` and `engage/whatsapp/mock` together.
 
+## Live check of templates (WP-40)
+
+Confirms against the real Meta what WP-40 built from the documentation. Run from `server/` with `DOTENV_CONFIG_PATH=/path/to/server/.env` in front, on the test-mode account of the WP-27 check. Sends only to your own number, in sandbox.
+
+1. **Database:** migration 137 applied (`npm run db:migrate` with `DATABASE_MIGRATE_URL`).
+2. **In Meta:** on the API Setup page generate a new access token (a temporary one lasts about a day) and note the **WhatsApp Business Account ID**. Under the app's Webhooks (object *Whatsapp Business Account*) subscribe **`message_template_status_update`** next to `messages` and `user_preferences`. In WhatsApp Manager > Message templates, create a **Marketing** template in **Turkish** named `messign_live_check`: a **text header** with one variable (`Ekim {{1}}`), body `Merhaba {{1}}, bu Messign canlı kontrol mesajıdır.`, a **Quick reply** button `Durdur` and a **Visit website** button with a dynamic URL `https://example.com/{{1}}`. Submit it.
+3. **Rotate the account** with the new token and the WhatsApp Business Account id: `npm run engage:whatsapp-check -- --org <org> --account <account> --rotate --config waba_id=<WABA id> --ask-master-key`. Use the printed new account id from now on.
+4. **Template check:** `... --org <org> --account <new account> --templates --ask-master-key`. Verifies the listing permission and field names: it should print `OK` and every template with its status, category and shape (the new one `PENDING`, its header `TEXT with 1 variable`, `URL-button variables 1`, buttons `[QUICK_REPLY, URL]`).
+5. **Status webhook:** once Meta has reviewed the template (minutes), run `--templates` again: an `event: messign_live_check (tr) APPROVED via webhook` line proves Meta's template webhook reaches the server and is applied.
+6. **Header and URL-button send:** `... --to +90<your number> --prepare --template messign_live_check --language tr --purpose marketing --param Ayşe --header-param 2026 --button-param live-check --ask-master-key`. It should print DELIVERED; on the phone the header reads `Ekim 2026` and the button opens `https://example.com/live-check`.
+7. **Marketing stops (optional, now possible with a marketing template):** stop marketing messages from the business with the WhatsApp app's own option, then `--report` (look for `preference_stop -> opt_out_applied`, or `unmatched` if Meta sent only its own user id), and send step 6 again without `--prepare`: the gate must block it before Meta.
+
+Record each result in ADR-025 as verified or not verified.
+
 ## When something is wrong
 
 | What you see | Meaning |
