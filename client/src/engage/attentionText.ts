@@ -20,6 +20,9 @@ const DENIAL_TEXT: Record<string, string> = {
   budget_exceeded: 'the monthly budget cap is used up', no_budget_cap: 'no budget cap is set', no_rate_card: 'no price is set for the channel',
   currency_mismatch: 'the price and the budget cap use different currencies', content_template_invalid: 'the message template is not valid',
   sender_id_invalid: 'the SMS sender name is not valid',
+  template_not_approved: 'a WhatsApp template is not approved by Meta, or was paused', template_status_unknown: 'a WhatsApp template was never seen at Meta',
+  template_mapping_mismatch: 'the values do not fit a WhatsApp template Meta approved', template_category_mismatch: 'a marketing WhatsApp template was sent as transactional',
+  account_limit_reached: 'the WhatsApp account reached its daily limit of new customers',
 };
 const FAIL_CODE_TEXT = (code: unknown): string => (typeof code === 'string' ? code : 'an error');
 const topCodes = (v: unknown): string => (Array.isArray(v) ? v.slice(0, 2).map((c) => `${FAIL_CODE_TEXT((c as { code?: unknown }).code)} (${num((c as { count?: unknown }).count)})`).join(', ') : '');

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defaultNext, successors, validateDefinition, type JourneyStep } from '../../engage/journeys/definition.js';
+import { defaultNext, readsChannels, successors, validateDefinition, type JourneyStep } from '../../engage/journeys/definition.js';
+import { evaluateCondition } from '../../engage/journeys/conditions.js';
 
 /** The flagship journey (D-01): cart abandonment, exits when an order arrives. */
 const CART_ABANDONMENT = {
@@ -26,7 +27,7 @@ describe('journey definition v1', () => {
     if (!r.ok) return;
     expect(r.definition.re_entry).toBe('never');
     expect(r.definition.holdout_percent).toBe(10);
-    expect(r.templates).toEqual([{ key: 'cart-reminder', version: null, stepId: 'first' }, { key: 'cart-gold', version: 2, stepId: 'gold-offer' }]);
+    expect(r.templates).toEqual([{ key: 'cart-reminder', version: null, stepId: 'first', channel: 'email' }, { key: 'cart-gold', version: 2, stepId: 'gold-offer', channel: 'email' }]);
   });
 
   it('holdout_percent is a whole number from 0 to 50', () => {
@@ -114,5 +115,37 @@ describe('journey definition v1', () => {
     it('anything that is not an object, without throwing', () => {
       for (const junk of [null, undefined, 'x', 42, [], { steps: 'x' }]) expect(validateDefinition(junk).ok).toBe(false);
     });
+  });
+});
+
+describe('WhatsApp steps and channel conditions (WP-40b)', () => {
+  const api = { type: 'api' };
+  it('a message step sends email or WhatsApp, and lists its template with the channel', () => {
+    const r = validateDefinition({ trigger: api, steps: [{ id: 'wa', type: 'message', channel: 'whatsapp', template: 'cart-wa', purpose: 'marketing' }] });
+    expect(r.ok && r.templates).toEqual([{ key: 'cart-wa', version: null, stepId: 'wa', channel: 'whatsapp' }]);
+    expect(validateDefinition({ trigger: api, steps: [{ id: 's', type: 'message', channel: 'sms', template: 't', purpose: 'marketing' }] }).ok).toBe(false);
+  });
+  it('branches may ask about the customer\'s channels; filters on events may not', () => {
+    const branch = (when: unknown) => ({ trigger: api, steps: [{ id: 'b', type: 'branch', branches: [{ when, next: 'x' }], otherwise: 'x' }, { id: 'x', type: 'exit' }] });
+    expect(validateDefinition(branch({ field: 'reachable.whatsapp', op: 'eq', value: true })).ok).toBe(true);
+    expect(validateDefinition(branch({ field: 'consent.email', op: 'eq', value: 'granted' })).ok).toBe(true);
+    expect(validateDefinition(branch({ field: 'consent.email', op: 'eq', value: 'yes' }))).toMatchObject({ ok: false, errors: [{ message: 'consent.email is "granted" or "revoked"' }] });
+    expect(validateDefinition(branch({ field: 'reachable.whatsapp', op: 'gt', value: 1 }))).toMatchObject({ ok: false, errors: [{ message: 'reachable.whatsapp is true or false: use eq or neq' }] });
+    expect(validateDefinition(branch({ field: 'reachable.whatsapp', op: 'eq', value: 'true' }))).toMatchObject({ ok: false, errors: [{ message: 'reachable.whatsapp is true or false' }] });
+    expect(validateDefinition(branch({ field: 'reachable.fax', op: 'eq', value: true })).ok).toBe(false);
+    const filtered = validateDefinition({ trigger: { type: 'event', event: 'cart_updated', filter: { field: 'consent.email', op: 'eq', value: 'granted' } }, steps: [{ id: 'x', type: 'exit' }] });
+    expect(filtered).toMatchObject({ ok: false, errors: [{ path: 'trigger.filter.field', message: 'consent.* fields can only be used in branch conditions' }] });
+  });
+  it('reads the channels only when a condition asks', () => {
+    expect(readsChannels({ all: [{ field: 'attributes.tier', op: 'eq', value: 'gold' }, { not: { field: 'reachable.whatsapp', op: 'eq', value: true } }] })).toBe(true);
+    expect(readsChannels({ field: 'attributes.tier', op: 'eq', value: 'gold' })).toBe(false);
+  });
+  it('the evaluator reads consent and reachability like any field, missing as no match', () => {
+    const ctx = { attributes: {}, consent: { email: 'granted' }, reachable: { email: true, whatsapp: false } };
+    expect(evaluateCondition({ field: 'reachable.whatsapp', op: 'eq', value: true }, ctx)).toBe(false);
+    expect(evaluateCondition({ field: 'reachable.email', op: 'eq', value: true }, ctx)).toBe(true);
+    expect(evaluateCondition({ field: 'consent.whatsapp', op: 'exists' }, ctx)).toBe(false);
+    expect(evaluateCondition({ field: 'consent.email', op: 'eq', value: 'granted' }, ctx)).toBe(true);
+    expect(evaluateCondition({ field: 'reachable.whatsapp', op: 'eq', value: true }, { attributes: {} })).toBe(false);
   });
 });

@@ -8,12 +8,12 @@ import { Button, Card, Empty, ErrorLine, Field, Issues, Select, TextInput, forma
 
 /**
  * Segments (WP-20 screens over the WP-36 API): list, create, versions and counts. A segment is a list of conditions
- * that all (or any) must hold, over customer attributes, order history and email consent; anything richer is JSON.
+ * that all (or any) must hold, over customer attributes, order history, consent and contact details; anything richer is JSON.
  */
 
 export const SEGMENT_FIELDS = [
   'orders.count', 'orders.count_30d', 'orders.count_90d', 'orders.count_365d', 'orders.total_spent', 'orders.total_spent_365d',
-  'orders.days_since_last', 'orders.days_since_first', 'consent.email', 'attributes.',
+  'orders.days_since_last', 'orders.days_since_first', 'consent.email', 'consent.whatsapp', 'contact.email', 'contact.phone', 'attributes.',
 ] as const;
 const OP_LABEL: Record<Op, string> = {
   eq: 'is', neq: 'is not', gt: '>', gte: '≥', lt: '<', lte: '≤', contains: 'contains', in: 'is one of', exists: 'is set', not_exists: 'is not set',
@@ -102,7 +102,7 @@ function DefinitionEditor({ initial, onSave, saveLabel }: { initial?: unknown; o
             ))}
           </ul>
           <Button onClick={() => setRows({ ...rows, rows: [...rows.rows, { field: 'attributes.', op: 'eq', value: '' }] })}>Add condition</Button>
-          <p className="text-xs text-app-muted">Order history counts order_completed events up to now. days_since_last is empty for customers who never ordered. consent.email is granted or revoked.</p>
+          <p className="text-xs text-app-muted">Order history counts order_completed events up to now. days_since_last is empty for customers who never ordered. consent.email and consent.whatsapp are granted or revoked. contact.email and contact.phone are set when the customer has an active address or number.</p>
         </>
       )}
       <Issues issues={issues} />

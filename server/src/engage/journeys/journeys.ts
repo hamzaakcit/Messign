@@ -1,5 +1,8 @@
 import { withEngageTenant } from '../db.js';
 import { validateDefinition, type DefinitionIssue, type JourneyDefinition, type SegmentRef, type TemplateRef } from './definition.js';
+import { currentSendMode, type SendMode } from '../messaging/gate.js';
+import { healthOf, loadWhatsappVersionOn } from '../whatsapp/templates.js';
+import { getTemplateStatusOn } from '../whatsapp/templateStatus.js';
 
 /**
  * Journeys (WP-15): definitions, immutable versions, approval and activation. A version moves
@@ -67,12 +70,17 @@ async function missingSegments(c: Tx, orgId: string, refs: SegmentRef[]): Promis
 async function missingTemplates(c: Tx, orgId: string, refs: TemplateRef[]): Promise<DefinitionIssue[]> {
   const issues: DefinitionIssue[] = [];
   for (const ref of refs) {
-    const r = await c.query<{ latest: number | null }>(
-      `SELECT MAX(v.version) AS latest FROM engage.templates t
-         JOIN engage.template_versions v ON v.organization_id = t.organization_id AND v.template_id = t.id
-        WHERE t.organization_id = $1 AND t.key = $2`, [orgId, ref.key]);
-    const latest = r.rows[0]?.latest ?? null;
-    if (latest === null) issues.push({ path: `steps.${ref.stepId}.template`, message: `no template with key "${ref.key}"` });
+    // A step sends on its own channel, so its template must be a template of that channel (WP-40b).
+    const r = await c.query<{ channel: string; latest: number | null }>(
+      `SELECT t.channel, CASE t.channel
+                WHEN 'whatsapp' THEN (SELECT MAX(w.version) FROM engage.whatsapp_template_versions w WHERE w.organization_id = t.organization_id AND w.template_id = t.id)
+                ELSE (SELECT MAX(v.version) FROM engage.template_versions v WHERE v.organization_id = t.organization_id AND v.template_id = t.id)
+              END AS latest
+         FROM engage.templates t WHERE t.organization_id = $1 AND t.key = $2`, [orgId, ref.key]);
+    const row = r.rows[0];
+    const latest = row?.latest ?? null;
+    if (!row || latest === null) issues.push({ path: `steps.${ref.stepId}.template`, message: `no template with key "${ref.key}"` });
+    else if (row.channel !== ref.channel) issues.push({ path: `steps.${ref.stepId}.template`, message: `"${ref.key}" is ${row.channel === 'whatsapp' ? 'a WhatsApp' : 'an email'} template; this step sends ${ref.channel === 'whatsapp' ? 'WhatsApp' : 'email'}` });
     else if (ref.version !== null && ref.version > Number(latest)) issues.push({ path: `steps.${ref.stepId}.template_version`, message: `template "${ref.key}" has no version ${ref.version}` });
   }
   return issues;
@@ -165,6 +173,26 @@ export async function approveJourneyVersion(orgId: string, userId: string, journ
   return withEngageTenant(orgId, (c) => approveJourneyVersionOn(c, orgId, userId, journeyId, version));
 }
 
+/**
+ * WhatsApp steps at activation (WP-40b): the template each one sends must be one Meta would take. Known problems (not approved,
+ * values that do not fit) always block; a template Meta has never confirmed blocks in live mode only, as in the send gate (a Meta
+ * test number's sample template in sandbox). Saving a draft does not check this: a journey may be built while Meta reviews.
+ */
+async function whatsappStepProblems(c: Tx, orgId: string, d: JourneyDefinition, mode: SendMode): Promise<DefinitionIssue[]> {
+  const issues: DefinitionIssue[] = [];
+  for (const s of d.steps) {
+    if (s.type !== 'message' || s.channel !== 'whatsapp') continue;
+    const t = (await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2 AND channel = 'whatsapp'`, [orgId, s.template])).rows[0];
+    if (!t) continue; // reported by checkDefinition
+    const v = await loadWhatsappVersionOn(c, orgId, t.id, s.template_version);
+    const health = healthOf(v.content, await getTemplateStatusOn(c, orgId, v.content.metaName, v.content.language));
+    const blocking = health.problems.filter((p) => p !== 'status_unknown' || mode === 'live');
+    if (blocking.length) issues.push({ path: `steps.${s.id}.template`, message: `"${s.template}" cannot be sent: ${blocking.join(', ')}` });
+    if (s.purpose === 'transactional' && health.category === 'marketing') issues.push({ path: `steps.${s.id}.purpose`, message: `"${s.template}" is a marketing template; it cannot be sent as transactional` });
+  }
+  return issues;
+}
+
 /** Activates an approved version and retires the version that was active, in one transaction. */
 export async function activateJourneyVersionOn(c: Tx, orgId: string, userId: string, journeyId: string, version: number): Promise<JourneyVersionView> {
   if (!UUID_RE.test(userId)) throw new JourneyInputError('an activation needs a known user');
@@ -173,7 +201,9 @@ export async function activateJourneyVersionOn(c: Tx, orgId: string, userId: str
   if (v.status === 'active') return v;
   if (v.status === 'draft') throw new JourneyConflictError(`Version ${version} is not approved`);
   if (v.status === 'retired') throw new JourneyConflictError(`Version ${version} was retired; publish a new version to use it again`);
-  await checkDefinition(c, orgId, v.definition);
+  const definition = await checkDefinition(c, orgId, v.definition);
+  const notSendable = await whatsappStepProblems(c, orgId, definition, currentSendMode());
+  if (notSendable.length) throw new JourneyInputError('A WhatsApp template in this journey cannot be sent yet', notSendable);
   await c.query(
     `UPDATE engage.journey_versions SET deactivated_by = $3, deactivated_at = clock_timestamp()
       WHERE organization_id = $1 AND journey_id = $2 AND activated_at IS NOT NULL AND deactivated_at IS NULL`,

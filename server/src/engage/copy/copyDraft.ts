@@ -225,7 +225,9 @@ async function loadContext(orgId: string, journeyId: string, stepId: string): Pr
     const def = v.rows[0]?.definition;
     const step = def?.steps.find((s: JourneyStep) => s.id === stepId);
     if (!def || !step || step.type !== 'message') throw new CopyDraftInputError('stepId must name a message step of this journey');
-    const t = await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2`, [orgId, step.template]);
+    // WhatsApp text is approved by Meta, not drafted here (WP-40b): copy drafts are for email steps.
+    if (step.channel !== 'email') throw new CopyDraftInputError('Copy drafts are for email steps; WhatsApp text is the template Meta approved');
+    const t = await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2 AND channel = 'email'`, [orgId, step.template]);
     if (!t.rows[0]) throw new CopyDraftInputError('The template this step uses does not exist');
     return {
       journeyId, stepId, purpose: step.purpose, templateId: t.rows[0].id, templateKey: step.template,

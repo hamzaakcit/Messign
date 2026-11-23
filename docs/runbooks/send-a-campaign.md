@@ -1,12 +1,12 @@
-# Send one email to a segment now (campaigns, ADR-018)
+# Send one email or WhatsApp message to a segment now (campaigns, ADR-018, ADR-025)
 
 On the Lucy page: **Campaigns** tab, or the **Send an email now** button in the CMO column. An admin of the organization sends; any user of the organization reads.
 
 ## Send
 
-1. Have a template (**Templates**) with an unsubscribe link (the starter has one) and a segment (**Segments**).
+1. Have a template (**Templates**) and a segment (**Segments**). An email template needs an unsubscribe link (the starter has one). A WhatsApp template is registered from one Meta approved (see `whatsapp.md`); the campaign sends on the template's channel.
 2. **Send an email now**: name it, choose the template and the segment, optionally hold back a share of customers (0 to 50%).
-3. **Check who would receive it**. You see the template and its subject, how many customers are in the segment, and how many of them have email consent (only those receive it). You also see whether sending is ready, and if not, why.
+3. **Check who would receive it**. You see the template and its subject, how many customers are in the segment, and how many of them have consent for the channel (email consent; for WhatsApp, WhatsApp consent and a phone number). Only those receive it. You also see whether sending is ready, and if not, why.
 4. Tick the confirmation and press **Send now to N customers**. The campaign opens with its progress and, as messages go through the send gate, its results: delivered, blocked and why.
 
 Pressing Send twice, or retrying after an error, is the same campaign: it sends nothing twice. If the page was closed while a large audience was being added, the campaign shows **Finish sending**.
@@ -30,7 +30,8 @@ In **sandbox** mode only addresses on the sandbox allow-list receive the email; 
 
 ## What the results mean
 
-- **Customers with consent** is how many were added to the campaign. Customers without email consent are left out and are not listed as blocked.
+- **Customers with consent** is how many were added to the campaign. Customers without consent for the channel (and, for WhatsApp, without a number) are left out and are not listed as blocked.
+- **Waiting** (WhatsApp): a WhatsApp account may start conversations with a limited number of new customers a day (250 at first). Beyond it, messages wait for the window and are sent then (`account_pacing`). A message that would expire first is blocked with `account_limit_reached`.
 - Messages are **delivered**, or **blocked** by the send gate (suppressed address, not on the allow-list, quiet hours deferral, frequency cap, budget). The customer's page shows each decision and the consent in force at that moment.
 - A campaign that ended early says why (the journey was stopped, or the segment version could not be found).
 

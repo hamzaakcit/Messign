@@ -9,6 +9,10 @@ import { buildSegmentQuery } from '../segments/compile.js';
 import type { SegmentDefinition } from '../segments/definition.js';
 import { MAX_SEGMENT_RUN, SEGMENT_CHUNK } from '../segments/runs.js';
 import { countSegmentOn } from '../segments/segments.js';
+import { healthOf, loadWhatsappVersionOn } from '../whatsapp/templates.js';
+import { getTemplateStatusOn } from '../whatsapp/templateStatus.js';
+
+export type CampaignChannel = 'email' | 'whatsapp';
 
 /**
  * One-off campaigns (WP-38, ADR-018): send ONE template to ONE segment, once, now. A campaign is a one-step journey
@@ -19,7 +23,8 @@ import { countSegmentOn } from '../segments/segments.js';
  * record who did it.
  *
  * What is added is care around a bulk action: a readiness check first (nothing is queued for a tenant that cannot send,
- * or it would all go at once when sending is later switched on), the audience is only customers with email consent, one
+ * or it would all go at once when sending is later switched on), the audience is only customers with consent for the channel
+ * (and, for WhatsApp, a phone number; WP-40b: the channel is the template's), one
  * idempotency key means one campaign however often the request is repeated, and the audience is enrolled in chunks with
  * a cursor so an interrupted send resumes where it stopped.
  */
@@ -47,52 +52,64 @@ const iso = (v: unknown): string | null => (v ? new Date(v as string).toISOStrin
 export interface SendReadiness { sendMode: SendMode; ready: boolean; problems: ReadinessProblem[] }
 
 /** What the send gate would hold or refuse for every message, checked once up front. */
-export async function readinessOn(c: Tx, orgId: string, mode: SendMode): Promise<SendReadiness> {
+export async function readinessOn(c: Tx, orgId: string, mode: SendMode, channel: CampaignChannel = 'email'): Promise<SendReadiness> {
   const problems: ReadinessProblem[] = [];
+  const label = channel === 'whatsapp' ? 'WhatsApp' : 'email';
   if (mode === 'off') problems.push({ code: 'send_mode_off', message: 'Sending is switched off on this server (SEND_MODE).' });
   const settings = (await c.query<{ send_enabled: boolean }>(`SELECT send_enabled FROM engage.tenant_settings WHERE organization_id = $1`, [orgId])).rows[0];
   if (!settings?.send_enabled) problems.push({ code: 'tenant_send_disabled', message: 'Sending is not enabled for this organization yet.' });
   const accounts = (await c.query<{ mode: string }>(
-    `SELECT mode FROM engage.channel_accounts WHERE organization_id = $1 AND channel = 'email' AND status = 'active' ORDER BY created_at LIMIT 2`, [orgId])).rows;
-  if (accounts.length === 0) problems.push({ code: 'no_email_account', message: 'No email sending account is set up.' });
-  else if (accounts.length > 1) problems.push({ code: 'email_account_ambiguous', message: 'More than one email sending account is active; keep exactly one.' });
+    `SELECT mode FROM engage.channel_accounts WHERE organization_id = $1 AND channel = $2 AND status = 'active' ORDER BY created_at LIMIT 2`, [orgId, channel])).rows;
+  if (accounts.length === 0) problems.push({ code: `no_${channel}_account`, message: `No ${label} sending account is set up.` });
+  else if (accounts.length > 1) problems.push({ code: `${channel}_account_ambiguous`, message: `More than one ${label} sending account is active; keep exactly one.` });
   else if (mode !== 'off' && accounts[0]!.mode !== (mode === 'sandbox' ? 'test' : 'live')) {
-    problems.push({ code: 'account_mode_mismatch', message: `The email account is in ${accounts[0]!.mode} mode, but sending runs in ${mode} mode.` });
+    problems.push({ code: 'account_mode_mismatch', message: `The ${label} account is in ${accounts[0]!.mode} mode, but sending runs in ${mode} mode.` });
   }
   // The gate blocks every message without a rate card and a monthly budget cap, so a campaign without them would only record blocks.
-  const card = await c.query(`SELECT 1 FROM engage.rate_cards WHERE organization_id = $1 AND channel = 'email' AND category = 'marketing' AND effective_from <= now() LIMIT 1`, [orgId]);
-  if (!card.rowCount) problems.push({ code: 'no_rate_card', message: 'No email rate card is set up (the cost of a marketing email).' });
-  const cap = await c.query(`SELECT 1 FROM engage.budget_caps WHERE organization_id = $1 AND channel = 'email' LIMIT 1`, [orgId]);
-  if (!cap.rowCount) problems.push({ code: 'no_budget_cap', message: 'No monthly email budget cap is set up.' });
+  const card = await c.query(`SELECT 1 FROM engage.rate_cards WHERE organization_id = $1 AND channel = $2 AND category = 'marketing' AND effective_from <= now() LIMIT 1`, [orgId, channel]);
+  if (!card.rowCount) problems.push({ code: 'no_rate_card', message: `No ${label} rate card is set up (the cost of a marketing message).` });
+  const cap = await c.query(`SELECT 1 FROM engage.budget_caps WHERE organization_id = $1 AND channel = $2 LIMIT 1`, [orgId, channel]);
+  if (!cap.rowCount) problems.push({ code: 'no_budget_cap', message: `No monthly ${label} budget cap is set up.` });
   // A marketing email without a working unsubscribe link must not be created, so without the public origins no message can be.
-  const links = unsubscribeConfigProblems();
+  // A WhatsApp template carries no link: the customer stops with a reply or WhatsApp's own option.
+  const links = channel === 'email' ? unsubscribeConfigProblems() : [];
   if (links.length) problems.push({ code: 'public_links_missing', message: `Unsubscribe links cannot be built: ${links.join('; ')}.` });
   if (mode === 'live') {
     const have = new Set((await c.query<{ item: string }>(
-      `SELECT item FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = 'email'
+      `SELECT item FROM engage.tenant_readiness WHERE organization_id = $1 AND channel = $4
           AND (item <> $2 OR recorded_at > now() - make_interval(days => $3))`,
-      [orgId, EMAIL_DOMAIN_ITEM, EMAIL_DOMAIN_CHECK_MAX_AGE_DAYS])).rows.map((r) => r.item));
-    const missing = REQUIRED_READINESS.email.filter((i) => !have.has(i));
+      [orgId, EMAIL_DOMAIN_ITEM, EMAIL_DOMAIN_CHECK_MAX_AGE_DAYS, channel])).rows.map((r) => r.item));
+    const missing = REQUIRED_READINESS[channel].filter((i) => !have.has(i));
     if (missing.length) problems.push({ code: 'readiness_missing', message: `Readiness items not recorded yet: ${missing.join(', ')}.` });
   }
   return { sendMode: mode, ready: problems.length === 0, problems };
 }
 
-export async function getSendReadiness(orgId: string, mode: SendMode = currentSendMode()): Promise<SendReadiness> {
-  return withEngageTenant(orgId, (c) => readinessOn(c, orgId, mode));
+export async function getSendReadiness(orgId: string, mode: SendMode = currentSendMode(), channel: CampaignChannel = 'email'): Promise<SendReadiness> {
+  return withEngageTenant(orgId, (c) => readinessOn(c, orgId, mode, channel));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Audience
 // ---------------------------------------------------------------------------------------------------------------
 
-/** Who actually receives a campaign: the segment's customers that have email consent. The gate checks consent again. */
-export function audienceOf(def: SegmentDefinition): SegmentDefinition {
-  return { where: { all: [def.where, { field: 'consent.email', op: 'eq', value: 'granted' }] } };
+/**
+ * Who actually receives a campaign: the segment's customers with marketing consent for the channel, and for WhatsApp a phone
+ * number (a customer without one would only be recorded as blocked). The gate checks every message again.
+ */
+export function audienceOf(def: SegmentDefinition, channel: CampaignChannel = 'email'): SegmentDefinition {
+  const extra: SegmentDefinition['where'][] = channel === 'whatsapp'
+    ? [{ field: 'consent.whatsapp', op: 'eq', value: 'granted' }, { field: 'contact.phone', op: 'exists' }]
+    : [{ field: 'consent.email', op: 'eq', value: 'granted' }];
+  return { where: { all: [def.where, ...extra] } };
 }
 
+export interface WhatsappCampaignTemplate { metaName: string; language: string; category: string; sendable: boolean; problems: string[]; body: string }
 interface Loaded {
-  template: { id: string; key: string; name: string; version: number; subject: string; hasUnsubscribe: boolean };
+  template: {
+    id: string; key: string; name: string; version: number; channel: CampaignChannel; subject: string | null; hasUnsubscribe: boolean;
+    whatsapp: WhatsappCampaignTemplate | null;
+  };
   segment: { id: string; key: string; name: string; version: number; definition: SegmentDefinition };
 }
 
@@ -101,25 +118,58 @@ async function loadTemplateAndSegment(c: Tx, orgId: string, templateId: string, 
   if (!UUID_RE.test(templateId)) issues.push({ path: 'templateId', message: 'choose a template' });
   if (!UUID_RE.test(segmentId)) issues.push({ path: 'segmentId', message: 'choose a segment' });
   if (issues.length) throw new CampaignInputError('The campaign is not valid', issues);
-  const t = (await c.query<{ id: string; key: string; name: string; version: number; subject: string; has_unsubscribe: boolean }>(
-    `SELECT t.id, t.key, t.name, v.version, v.subject,
-            EXISTS (SELECT 1 FROM jsonb_array_elements(v.variables) x WHERE x->>'name' = 'unsubscribe_url') AS has_unsubscribe
-       FROM engage.templates t JOIN engage.template_versions v ON v.organization_id = t.organization_id AND v.template_id = t.id
-      WHERE t.organization_id = $1 AND t.id = $2 ORDER BY v.version DESC LIMIT 1`, [orgId, templateId])).rows[0];
-  if (!t) throw new CampaignInputError('The campaign is not valid', [{ path: 'templateId', message: 'this template does not exist' }]);
+  const head = (await c.query<{ channel: CampaignChannel }>(`SELECT channel FROM engage.templates WHERE organization_id = $1 AND id = $2`, [orgId, templateId])).rows[0];
+  if (!head) throw new CampaignInputError('The campaign is not valid', [{ path: 'templateId', message: 'this template does not exist' }]);
+  let template: Loaded['template'];
+  if (head.channel === 'whatsapp') {
+    const wt = (await c.query<{ key: string; name: string }>(`SELECT key, name FROM engage.templates WHERE organization_id = $1 AND id = $2`, [orgId, templateId])).rows[0]!;
+    const v = await loadWhatsappVersionOn(c, orgId, templateId);
+    const health = healthOf(v.content, await getTemplateStatusOn(c, orgId, v.content.metaName, v.content.language));
+    template = {
+      id: templateId, key: wt.key, name: wt.name, version: v.version, channel: 'whatsapp', subject: null, hasUnsubscribe: false,
+      whatsapp: { metaName: v.content.metaName, language: v.content.language, category: health.category, sendable: health.sendable, problems: health.problems, body: v.content.bodyText },
+    };
+  } else {
+    const t = (await c.query<{ id: string; key: string; name: string; version: number; subject: string; has_unsubscribe: boolean }>(
+      `SELECT t.id, t.key, t.name, v.version, v.subject,
+              EXISTS (SELECT 1 FROM jsonb_array_elements(v.variables) x WHERE x->>'name' = 'unsubscribe_url') AS has_unsubscribe
+         FROM engage.templates t JOIN engage.template_versions v ON v.organization_id = t.organization_id AND v.template_id = t.id
+        WHERE t.organization_id = $1 AND t.id = $2 ORDER BY v.version DESC LIMIT 1`, [orgId, templateId])).rows[0];
+    if (!t) throw new CampaignInputError('The campaign is not valid', [{ path: 'templateId', message: 'this template does not exist' }]);
+    template = { id: t.id, key: t.key, name: t.name, version: Number(t.version), channel: 'email', subject: t.subject, hasUnsubscribe: t.has_unsubscribe, whatsapp: null };
+  }
   const s = (await c.query<{ id: string; key: string; name: string; version: number; definition: SegmentDefinition }>(
     `SELECT s.id, s.key, s.name, v.version, v.definition
        FROM engage.segments s JOIN engage.segment_versions v ON v.organization_id = s.organization_id AND v.segment_id = s.id
       WHERE s.organization_id = $1 AND s.id = $2 ORDER BY v.version DESC LIMIT 1`, [orgId, segmentId])).rows[0];
   if (!s) throw new CampaignInputError('The campaign is not valid', [{ path: 'segmentId', message: 'this segment does not exist' }]);
   return {
-    template: { id: t.id, key: t.key, name: t.name, version: Number(t.version), subject: t.subject, hasUnsubscribe: t.has_unsubscribe },
+    template,
     segment: { id: s.id, key: s.key, name: s.name, version: Number(s.version), definition: s.definition },
   };
 }
 
+/**
+ * A WhatsApp template that Meta would not take blocks the campaign before anything is written: problems it knows about always,
+ * a template Meta has never confirmed in live mode only (as the send gate does), and a marketing template is fine for a campaign
+ * (campaigns are marketing).
+ */
+function templateProblems(t: Loaded['template'], mode: SendMode): ReadinessProblem[] {
+  if (!t.whatsapp) return [];
+  const blocking = t.whatsapp.problems.filter((p) => p !== 'status_unknown' || mode === 'live');
+  return blocking.length ? [{ code: 'template_not_sendable', message: `Meta would not take this WhatsApp template now: ${blocking.join(', ')}.` }] : [];
+}
+
+function withTemplate(r: SendReadiness, t: Loaded['template']): SendReadiness {
+  const problems = [...r.problems, ...templateProblems(t, r.sendMode)];
+  return { ...r, problems, ready: problems.length === 0 };
+}
+
 export interface CampaignPreview {
-  template: { id: string; key: string; name: string; version: number; subject: string; hasUnsubscribeLink: boolean };
+  template: {
+    id: string; key: string; name: string; version: number; channel: CampaignChannel; subject: string | null; hasUnsubscribeLink: boolean;
+    whatsapp: WhatsappCampaignTemplate | null;
+  };
   segment: { id: string; key: string; name: string; version: number };
   audience: { inSegment: number; withConsent: number; sample: Array<{ id: string; externalId: string }>; cap: number; overCap: boolean };
   readiness: SendReadiness;
@@ -130,12 +180,15 @@ export async function previewCampaign(orgId: string, input: { templateId: string
   return withEngageTenant(orgId, async (c) => {
     const { template, segment } = await loadTemplateAndSegment(c, orgId, input.templateId, input.segmentId);
     const inSegment = await countSegmentOn(c, orgId, segment.definition, now, 1);
-    const receiving = await countSegmentOn(c, orgId, audienceOf(segment.definition), now, 5);
+    const receiving = await countSegmentOn(c, orgId, audienceOf(segment.definition, template.channel), now, 5);
     return {
-      template: { id: template.id, key: template.key, name: template.name, version: template.version, subject: template.subject, hasUnsubscribeLink: template.hasUnsubscribe },
+      template: {
+        id: template.id, key: template.key, name: template.name, version: template.version, channel: template.channel, subject: template.subject,
+        hasUnsubscribeLink: template.hasUnsubscribe, whatsapp: template.whatsapp,
+      },
       segment: { id: segment.id, key: segment.key, name: segment.name, version: segment.version },
       audience: { inSegment: inSegment.count, withConsent: receiving.count, sample: receiving.sample, cap: MAX_SEGMENT_RUN, overCap: receiving.count > MAX_SEGMENT_RUN },
-      readiness: await readinessOn(c, orgId, currentSendMode()),
+      readiness: withTemplate(await readinessOn(c, orgId, currentSendMode(), template.channel), template),
     };
   });
 }
@@ -146,15 +199,17 @@ export async function previewCampaign(orgId: string, input: { templateId: string
 
 export type CampaignStatus = 'sending' | 'sent' | 'failed';
 export interface CampaignView {
-  id: string; journeyId: string; name: string; templateKey: string; templateVersion: number; segmentKey: string; segmentVersion: number;
+  id: string; journeyId: string; name: string; channel: CampaignChannel; templateKey: string; templateVersion: number; segmentKey: string; segmentVersion: number;
   holdoutPercent: number; status: CampaignStatus; matched: number; enrolled: number; skipped: number; truncated: boolean; error: string | null;
   createdBy: string | null; createdAt: string; finishedAt: string | null;
 }
+// The channel is the template's (a template's channel never changes).
 const COLS = `id, journey_id, name, template_key, template_version, segment_key, segment_version, holdout_percent, status, matched, enrolled, skipped,
-              truncated, error_code, created_by, created_at, finished_at`;
+              truncated, error_code, created_by, created_at, finished_at,
+              COALESCE((SELECT t.channel FROM engage.templates t WHERE t.organization_id = campaigns.organization_id AND t.key = campaigns.template_key), 'email') AS channel`;
 function toView(r: Record<string, unknown>): CampaignView {
   return {
-    id: String(r.id), journeyId: String(r.journey_id), name: String(r.name), templateKey: String(r.template_key), templateVersion: Number(r.template_version),
+    id: String(r.id), journeyId: String(r.journey_id), name: String(r.name), channel: r.channel as CampaignChannel, templateKey: String(r.template_key), templateVersion: Number(r.template_version),
     segmentKey: String(r.segment_key), segmentVersion: Number(r.segment_version), holdoutPercent: Number(r.holdout_percent), status: r.status as CampaignStatus,
     matched: Number(r.matched), enrolled: Number(r.enrolled), skipped: Number(r.skipped), truncated: Boolean(r.truncated), error: (r.error_code as string | null) ?? null,
     createdBy: (r.created_by as string | null) ?? null, createdAt: iso(r.created_at)!, finishedAt: iso(r.finished_at),
@@ -203,14 +258,18 @@ export async function startCampaign(orgId: string, userId: string, input: StartC
   let created: CampaignView;
   try {
     created = await withEngageTenant(orgId, async (c) => {
-      const readiness = await readinessOn(c, orgId, currentSendMode());
-      if (!readiness.ready) throw new CampaignNotReadyError(readiness.problems);
       const { template, segment } = await loadTemplateAndSegment(c, orgId, v.templateId, v.segmentId);
-      const audience = await countSegmentOn(c, orgId, audienceOf(segment.definition), new Date(), 1);
-      if (audience.count === 0) throw new CampaignInputError('Nobody would receive this campaign', [{ path: 'segmentId', message: 'no customer in this segment has email consent' }]);
+      const readiness = withTemplate(await readinessOn(c, orgId, currentSendMode(), template.channel), template);
+      if (!readiness.ready) throw new CampaignNotReadyError(readiness.problems);
+      const audience = await countSegmentOn(c, orgId, audienceOf(segment.definition, template.channel), new Date(), 1);
+      if (audience.count === 0) {
+        throw new CampaignInputError('Nobody would receive this campaign', [{
+          path: 'segmentId', message: template.channel === 'whatsapp' ? 'no customer in this segment has WhatsApp consent and a phone number' : 'no customer in this segment has email consent',
+        }]);
+      }
       const definition: JourneyDefinition = {
         trigger: { type: 'api' }, exit_when: [], re_entry: 'never', holdout_percent: v.holdoutPercent,
-        steps: [{ id: CAMPAIGN_STEP_ID, type: 'message', channel: 'email', template: template.key, template_version: template.version, purpose: 'marketing' }],
+        steps: [{ id: CAMPAIGN_STEP_ID, type: 'message', channel: template.channel, template: template.key, template_version: template.version, purpose: 'marketing' }],
       };
       const { journey } = await createJourneyOn(c, orgId, userId, { key: campaignJourneyKey(v.idempotencyKey), name: `Campaign: ${v.name}`, definition });
       await approveJourneyVersionOn(c, orgId, userId, journey.id, 1);
@@ -242,7 +301,7 @@ export async function enrollCampaign(orgId: string, campaignId: string, opts: En
   const maxRun = opts.maxRun ?? MAX_SEGMENT_RUN;
   for (;;) {
     const done = await withEngageTenant(orgId, async (c) => {
-      const k = (await c.query<Record<string, unknown>>(`SELECT ${COLS}, last_profile_id FROM engage.campaigns WHERE organization_id = $1 AND id = $2 FOR UPDATE`, [orgId, campaignId])).rows[0];
+      const k = (await c.query<Record<string, unknown>>(`SELECT ${COLS}, last_profile_id FROM engage.campaigns WHERE organization_id = $1 AND id = $2 FOR UPDATE OF campaigns`, [orgId, campaignId])).rows[0];
       if (!k) throw new CampaignNotFoundError('Campaign not found');
       if (k.status !== 'sending') return true;
       const active = (await c.query<{ id: string; definition: JourneyDefinition }>(
@@ -263,7 +322,7 @@ export async function enrollCampaign(orgId: string, campaignId: string, opts: En
       const at = new Date(k.created_at as string); // the audience is the one asked for, whenever a resume happens
       const matched = Number(k.matched);
       const limit = Math.min(chunk, maxRun - matched);
-      const audience = audienceOf(segDef);
+      const audience = audienceOf(segDef, k.channel as CampaignChannel);
       const q = buildSegmentQuery(audience, orgId, at, { mode: 'ids', afterId: (k.last_profile_id as string | null) ?? null, limit: Math.max(limit, 1) });
       const ids = limit > 0 ? (await c.query<{ id: string }>(q.text, q.params)).rows.map((r) => r.id) : [];
       let enrolled = 0; let skipped = 0;
@@ -304,6 +363,8 @@ export interface CampaignOutcome {
   heldOut: number;
   /** The send gate's reason for each blocked message, as the gate recorded it. */
   blockedBecause: Record<string, number>;
+  /** Messages the gate told to wait (quiet hours, the WhatsApp account's daily limit), by reason; they are sent later. */
+  waitingBecause: Record<string, number>;
   /** Customers still to be processed, or messages still to be sent: the numbers can still change. */
   inFlight: boolean;
 }
@@ -330,8 +391,19 @@ async function outcomeOn(c: Tx, orgId: string, journeyId: string): Promise<Campa
          WHERE d.organization_id = $1 AND en.journey_id = $2
          ORDER BY d.message_id, d.created_at DESC, d.id DESC) d
       WHERE d.decision = 'deny' GROUP BY d.code`, [orgId, journeyId])).rows) blockedBecause[r.code] = r.n;
+  const waitingBecause: Record<string, number> = {};
+  for (const r of (await c.query<{ code: string; n: number }>(
+    `SELECT d.code, count(*)::int AS n FROM (
+        SELECT DISTINCT ON (d.message_id) d.message_id, d.decision, d.code
+          FROM engage.send_decisions d
+          JOIN engage.enrollment_steps s ON s.organization_id = d.organization_id AND s.message_id = d.message_id
+          JOIN engage.enrollments en ON en.organization_id = s.organization_id AND en.id = s.enrollment_id
+          JOIN engage.messages m ON m.organization_id = d.organization_id AND m.id = d.message_id
+         WHERE d.organization_id = $1 AND en.journey_id = $2 AND m.status = 'queued'
+         ORDER BY d.message_id, d.created_at DESC, d.id DESC) d
+      WHERE d.decision = 'defer' GROUP BY d.code`, [orgId, journeyId])).rows) waitingBecause[r.code] = r.n;
   const messages = Object.values(byStatus).reduce((a, b) => a + b, 0);
-  return { messages, byStatus, heldOut: e.held, blockedBecause, inFlight: e.active > 0 || (byStatus.queued ?? 0) + (byStatus.sending ?? 0) > 0 };
+  return { messages, byStatus, heldOut: e.held, blockedBecause, waitingBecause, inFlight: e.active > 0 || (byStatus.queued ?? 0) + (byStatus.sending ?? 0) > 0 };
 }
 
 export async function listCampaigns(orgId: string, limit = 100): Promise<CampaignView[]> {

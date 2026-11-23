@@ -5,11 +5,13 @@ import {
   type WhatsappTemplateDetail, type WhatsappVariable,
 } from './builderApi';
 import { WHATSAPP_PROBLEM_TEXT } from './whatsappText';
-import { Button, Card, Empty, ErrorLine, Field, Issues, TextInput, formatTime, inputClass } from './ui';
+import { WhatsappTemplateForm } from './WhatsappTemplateForm';
+import { addWhatsappTemplateVersion, createWhatsappTemplate } from './builderApi';
+import { Button, Card, Empty, ErrorLine, Field, Issues, Select, TextInput, formatTime, inputClass } from './ui';
 import { CopyDraftsEntry } from './CopyDraftsView';
 
 /**
- * Email templates (WP-20 screens over the WP-14 API): list, create, versions and a rendered preview. Variables:
+ * Templates: email (WP-20 screens over the WP-14 API) and WhatsApp (WP-40b, WhatsappTemplateForm). Email: list, create, versions and a rendered preview. Variables:
  * {{first_name}} (customer attribute), {{payload.cart_id}} (from the trigger), {{unsubscribe_url}} (required for
  * marketing), with an optional | default: "text".
  */
@@ -68,22 +70,32 @@ export function TemplatesSection({ onOpen, onNew, onDrafts }: { onOpen: (id: str
   );
 }
 
-/** The panel for a new template. */
+/** The panel for a new template: email (HTML) or WhatsApp (how a Meta-approved template is filled, WP-40b). */
 export function NewTemplatePanel({ onSaved }: { onSaved: (id: string) => void }): JSX.Element {
   const qc = useQueryClient();
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
+  const [channel, setChannel] = useState<'email' | 'whatsapp'>('email');
+  const saved = async (id: string) => { await qc.invalidateQueries({ queryKey: ['engage', 'templates'] }); onSaved(id); };
   return (
     <div>
-      <div className="mb-3 grid gap-3 sm:grid-cols-2">
+      <div className="mb-3 grid gap-3 sm:grid-cols-3">
+        <Field label="Channel">
+          <Select value={channel} onChange={setChannel} ariaLabel="Template channel" testId="template-channel"
+            options={[{ value: 'email', label: 'Email' }, { value: 'whatsapp', label: 'WhatsApp' }]} />
+        </Field>
         <Field label="Name"><TextInput value={name} onChange={setName} placeholder="Cart reminder" ariaLabel="Template name" /></Field>
         <Field label="Key" hint="what a journey step refers to"><TextInput value={key} onChange={setKey} placeholder="cart-reminder" ariaLabel="Template key" mono /></Field>
       </div>
-      <ContentForm initial={{ subject: '', html: STARTER }} saveLabel="Save template" onSave={async (v) => {
-        const r = await createTemplate({ key: key.trim(), name: name.trim(), ...v });
-        await qc.invalidateQueries({ queryKey: ['engage', 'templates'] });
-        onSaved(r.template.id);
-      }} />
+      {channel === 'whatsapp'
+        ? <WhatsappTemplateForm saveLabel="Save WhatsApp template" onSave={async (content) => {
+          const r = await createWhatsappTemplate({ key: key.trim(), name: name.trim(), content });
+          await saved(r.template.id);
+        }} />
+        : <ContentForm initial={{ subject: '', html: STARTER }} saveLabel="Save template" onSave={async (v) => {
+          const r = await createTemplate({ key: key.trim(), name: name.trim(), ...v });
+          await saved(r.template.id);
+        }} />}
     </div>
   );
 }
@@ -124,15 +136,27 @@ const sourceLabel = (v: WhatsappVariable): string =>
   v.source === 'attribute' ? `customer field ${v.name}` : v.source === 'payload' ? `trigger value ${v.name}` : 'sender name from Settings';
 
 /**
- * A WhatsApp template (WP-40a): which Meta template it fills, how Meta stands on it, and where each value comes from. Read-only
- * here; WhatsApp templates are registered through the API until the editor arrives.
+ * A WhatsApp template (WP-40a/b): which Meta template it fills, how Meta stands on it, where each value comes from, and a new
+ * version (a change of mapping never changes a message already created).
  */
 function WhatsappTemplatePanel({ data }: { data: WhatsappTemplateDetail }): JSX.Element {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const { template, whatsappVersions, health } = data;
   const latest = whatsappVersions[0]!.content;
   const meta = health.status;
   return (
     <div className="space-y-4" data-testid="engage-whatsapp-template">
+      {!editing && <div className="flex justify-end"><Button onClick={() => setEditing(true)} testId="whatsapp-new-version">New version</Button></div>}
+      {editing && (
+        <Card title={`New version (from v${whatsappVersions[0]!.version})`}>
+          <WhatsappTemplateForm initial={latest} saveLabel="Save new version" onSave={async (content) => {
+            await addWhatsappTemplateVersion(template.id, content);
+            setEditing(false);
+            await qc.invalidateQueries({ queryKey: ['engage', 'template', template.id] });
+          }} />
+        </Card>
+      )}
       <p className="text-sm text-app-muted">
         WhatsApp template <code className="font-mono">{template.key}</code>, version {whatsappVersions[0]!.version}. It fills the template
         <code className="mx-1 font-mono">{latest.metaName}</code>({latest.language}) approved in WhatsApp Manager.

@@ -7,7 +7,8 @@ import type { SegmentCondition, SegmentDefinition } from './definition.js';
  * behaviour of the journey condition evaluator (journeys/conditions.ts); a test runs both on the same data.
  *
  * The statement works over p (engage.profiles), o (per-customer order totals, one scan of the tenant's order_completed
- * events up to the evaluation time $2) and cs (the customer's email marketing consent state).
+ * events up to the evaluation time $2), and the customer's marketing consent state per channel and active contact details, each
+ * read by a subquery on its own primary-key or unique index.
  */
 
 type Scalar = string | number | boolean;
@@ -39,11 +40,20 @@ export function compileCondition(root: SegmentCondition, firstParam: number): Co
     return `COALESCE((${expr}) ${OPS[c.op as keyof typeof OPS]} ${bind(c.value)}::numeric, false)`;
   };
 
-  const consent = (c: { op: string; value?: Scalar | Scalar[] }): string => {
-    if (c.op === 'exists') return '(cs.status IS NOT NULL)';
-    if (c.op === 'not_exists') return '(cs.status IS NULL)';
-    if (c.op === 'in') return `COALESCE(cs.status = ANY(${bind(c.value)}::text[]), false)`;
-    return `COALESCE(cs.status ${OPS[c.op as keyof typeof OPS]} ${bind(c.value)}::text, false)`;
+  // The channel is one of a fixed list (definition.ts); it is still bound, never written into the statement.
+  const consent = (c: { field: string; op: string; value?: Scalar | Scalar[] }): string => {
+    const status = `(SELECT cs.status FROM engage.consent_state cs WHERE cs.organization_id = p.organization_id AND cs.profile_id = p.id
+                       AND cs.channel = ${bind(c.field.slice('consent.'.length))}::text AND cs.purpose = 'marketing')`;
+    if (c.op === 'exists') return `(${status} IS NOT NULL)`;
+    if (c.op === 'not_exists') return `(${status} IS NULL)`;
+    if (c.op === 'in') return `COALESCE(${status} = ANY(${bind(c.value)}::text[]), false)`;
+    return `COALESCE(${status} ${OPS[c.op as keyof typeof OPS]} ${bind(c.value)}::text, false)`;
+  };
+
+  const contact = (c: { field: string; op: string }): string => {
+    const has = `EXISTS (SELECT 1 FROM engage.identifiers i WHERE i.organization_id = p.organization_id AND i.profile_id = p.id
+                   AND i.type = ${bind(c.field.slice('contact.'.length))}::text AND i.is_active)`;
+    return c.op === 'not_exists' ? `(NOT ${has})` : `(${has})`;
   };
 
   const attribute = (c: { field: string; op: string; value?: Scalar | Scalar[] }): string => {
@@ -80,6 +90,7 @@ export function compileCondition(root: SegmentCondition, firstParam: number): Co
     const scope = c.field.slice(0, c.field.indexOf('.'));
     if (scope === 'orders') return metric(c);
     if (scope === 'consent') return consent(c);
+    if (scope === 'contact') return contact(c);
     return attribute(c);
   };
   return { where: walk(root), params };
@@ -104,7 +115,6 @@ WITH o AS (
 const FROM = `
   FROM engage.profiles p
   LEFT JOIN o ON o.profile_id = p.id
-  LEFT JOIN engage.consent_state cs ON cs.organization_id = p.organization_id AND cs.profile_id = p.id AND cs.channel = 'email' AND cs.purpose = 'marketing'
  WHERE p.organization_id = $1 AND p.erased_at IS NULL`;
 
 export type SegmentQueryMode = { mode: 'count' } | { mode: 'sample'; limit: number } | { mode: 'ids'; afterId: string | null; limit: number };
