@@ -469,6 +469,8 @@ if (pgBossEnabled) {
           await registerEngageIysSyncJob();
           const { registerEngageOpsJob } = await import('./engage/ops/job.js');
           await registerEngageOpsJob();
+          const { registerEngageWhatsappTemplateJob } = await import('./engage/whatsapp/templateJob.js');
+          await registerEngageWhatsappTemplateJob();
         } catch (importErr) {
           console.warn('[Server] Engage import handler failed (non-fatal):', importErr instanceof Error ? importErr.message : importErr);
         }

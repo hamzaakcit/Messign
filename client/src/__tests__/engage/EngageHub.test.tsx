@@ -322,3 +322,55 @@ describe('templates (WP-20)', () => {
     expect(within(document.body).getByText(/Hi Ayşe/)).toBeInTheDocument();
   });
 });
+
+describe('WhatsApp templates (WP-40a)', () => {
+  const WA = { id: 'w1', key: 'cart-wa', name: 'Cart on WhatsApp', channel: 'whatsapp', createdAt: '', latestVersion: 1 };
+  const EMAIL = { id: 't1', key: 'cart-reminder', name: 'Cart reminder', channel: 'email', createdAt: '', latestVersion: 1 };
+  const DETAIL = {
+    template: WA,
+    whatsappVersions: [{
+      id: 'v1', version: 1, createdAt: '',
+      content: {
+        metaName: 'cart_reminder', language: 'tr', declaredCategory: 'marketing', optOut: 'quick_reply', bodyText: 'Merhaba {{1}}, sepetinde {{2}} bekliyor.',
+        variables: [{ position: 1, source: 'attribute', name: 'first_name', defaultValue: 'merhaba' }, { position: 2, source: 'payload', name: 'book', defaultValue: null }],
+        header: null, urlButton: { index: 0, baseUrl: 'https://shop.example.com/cart/', variable: { source: 'payload', name: 'cart_id', defaultValue: null } },
+      },
+    }],
+    health: { status: { status: 'PAUSED', category: 'MARKETING', quality: 'RED', rejectedReason: null, seenAt: '2026-11-23T10:00:00Z' }, sendable: false, category: 'marketing', problems: ['not_approved'], warnings: [] },
+  };
+
+  it('labels a WhatsApp template in the list and shows how Meta stands on it and where each value comes from', async () => {
+    mockApi((url, method) => {
+      if (method === 'GET' && url.endsWith('/engage/templates')) return json({ templates: [WA, EMAIL] });
+      if (method === 'GET' && url.endsWith('/engage/templates/w1')) return json(DETAIL);
+      return lists(url, method) ?? json({}, 404);
+    });
+    renderHub();
+    fireEvent.click(screen.getByTestId('hub-tab-templates'));
+    expect(await screen.findByTestId('template-channel-w1')).toHaveTextContent('WhatsApp');
+    expect(screen.queryByTestId('template-channel-t1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cart on WhatsApp'));
+    const panel = await screen.findByTestId('engage-whatsapp-template');
+    expect(within(panel).getByTestId('whatsapp-meta-status')).toHaveTextContent('paused · marketing · quality red');
+    expect(within(panel).getByTestId('whatsapp-sendable')).toHaveTextContent('Not sendable yet.');
+    expect(within(panel).getByTestId('whatsapp-problems')).toHaveTextContent('Meta has not approved this template, or has paused or disabled it.');
+    expect(within(panel).getByTestId('whatsapp-variables')).toHaveTextContent('{{1}} customer field first_name, or "merhaba"');
+    expect(within(panel).getByTestId('whatsapp-variables')).toHaveTextContent('Button link: https://shop.example.com/cart/ followed by trigger value cart_id');
+    // Read-only here: no email editor and no "New version" button for a WhatsApp template.
+    expect(within(panel).queryByRole('button', { name: 'New version' })).not.toBeInTheDocument();
+  });
+
+  it('keeps WhatsApp templates out of the email step picker of a journey', async () => {
+    mockApi((url, method) => {
+      if (method === 'GET' && url.endsWith('/engage/templates')) return json({ templates: [WA, EMAIL] });
+      return lists(url, method) ?? json({}, 404);
+    });
+    renderHub();
+    fireEvent.click(screen.getByTestId('hub-tab-journeys'));
+    fireEvent.click(await screen.findByTestId('hub-new-journey'));
+    await screen.findByTestId('journey-editor');
+    fireEvent.click(screen.getByTestId('add-message'));
+    await waitFor(() => expect(screen.getByTestId('step-1-template')).toHaveTextContent('cart-reminder'));
+    expect(screen.getByTestId('step-1-template')).not.toHaveTextContent('cart-wa');
+  });
+});

@@ -174,6 +174,25 @@ export const SEEDERS: Record<string, Seeder> = {
     const t = await seedTemplate(c, org);
     await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
   },
+  whatsapp_template_versions: async (c, org) => {
+    const t = await seedTemplate(c, org);
+    await c.query(
+      `INSERT INTO engage.whatsapp_template_versions (organization_id, template_id, version, meta_name, language, declared_category, body_text, opt_out)
+       VALUES ($1, $2, 1, 'seed_template', 'tr', 'marketing', 'Hello', 'quick_reply')`, [org, t]);
+  },
+  whatsapp_template_status: async (c, org) => {
+    await c.query(
+      `INSERT INTO engage.whatsapp_template_status (organization_id, meta_name, language, status, source) VALUES ($1, $2, 'tr', 'APPROVED', 'sync')`,
+      [org, `seed_${Math.random().toString(36).slice(2, 12)}`]);
+  },
+  whatsapp_template_events: async (c, org) => {
+    await c.query(
+      `INSERT INTO engage.whatsapp_template_events (organization_id, event_key, meta_name, language, event, source, applied, occurred_at)
+       VALUES ($1, $2, 'seed_template', 'tr', 'APPROVED', 'webhook', true, now())`, [org, `seed-${Math.random()}`]);
+  },
+  whatsapp_template_checks: async (c, org) => {
+    await c.query(`INSERT INTO engage.whatsapp_template_checks (organization_id, last_attempt_at) VALUES ($1, now())`, [org]);
+  },
   ops_alerts: async (c, org) => {
     await c.query(`INSERT INTO engage.ops_alerts (organization_id, rule, subject, severity, data) VALUES ($1, 'provider_failing', $2, 'warning', '{}'::jsonb)`, [org, `seed-${Math.random()}`]);
   },

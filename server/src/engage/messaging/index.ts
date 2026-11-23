@@ -1,4 +1,4 @@
-import { getAdapter, registerAdapter } from './adapter.js';
+import { getAdapter, registerAdapter, type AdapterAccount, type RemoteTemplate } from './adapter.js';
 import { mockAdapter } from './mockAdapter.js';
 import { createSesAdapter } from './sesAdapter.js';
 import { createWhatsappAdapter, WHATSAPP_PROVIDER } from '../whatsapp/whatsappAdapter.js';
@@ -14,6 +14,15 @@ registerBuiltInAdapters();
 /** Does this provider send delivery reports back (a webhook)? Used by the ops check to tell silence from a missing webhook. */
 export function expectsDeliveryReports(provider: string): boolean {
   return getAdapter(provider)?.capabilities().deliveryReports === true;
+}
+
+/**
+ * The template listing of a provider (WhatsApp), for the template check (WP-40a). Only the listing is handed out, never the adapter
+ * itself: nothing outside this module can reach a send.
+ */
+export function templateLister(provider: string): ((account: AdapterAccount) => Promise<RemoteTemplate[]>) | undefined {
+  const adapter = getAdapter(provider);
+  return adapter?.listTemplates ? (account) => adapter.listTemplates!(account) : undefined;
 }
 
 export * from './adapter.js';

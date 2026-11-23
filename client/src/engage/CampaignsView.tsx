@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ApiIssues, getCampaign, listCampaigns, listSegments, listTemplates, previewCampaign, resumeCampaign, startCampaign,
+  ApiIssues, getCampaign, listCampaigns, listEmailTemplates, listSegments, previewCampaign, resumeCampaign, startCampaign,
   type Campaign, type CampaignPreview, type Issue, type ReadinessProblem,
 } from './builderApi';
 import { decisionText } from './CustomerDetailPage';
@@ -74,7 +74,7 @@ const newKey = (): string => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()
 /** Template, segment, a check of who would receive it, then send. Nothing is sent until the admin confirms. */
 export function NewCampaignPanel({ onSent }: { onSent: (id: string) => void }): JSX.Element {
   const qc = useQueryClient();
-  const templates = useQuery({ queryKey: ['engage', 'templates'], queryFn: listTemplates });
+  const templates = useQuery({ queryKey: ['engage', 'templates', 'email'], queryFn: listEmailTemplates });
   const segments = useQuery({ queryKey: ['engage', 'segments'], queryFn: listSegments });
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState('');

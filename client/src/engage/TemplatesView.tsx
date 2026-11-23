@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ApiIssues, addTemplateVersion, createTemplate, getTemplate, listTemplates, previewTemplate, type Issue, type TemplatePreview,
+  type WhatsappTemplateDetail, type WhatsappVariable,
 } from './builderApi';
+import { WHATSAPP_PROBLEM_TEXT } from './whatsappText';
 import { Button, Card, Empty, ErrorLine, Field, Issues, TextInput, formatTime, inputClass } from './ui';
 import { CopyDraftsEntry } from './CopyDraftsView';
 
@@ -57,7 +59,7 @@ export function TemplatesSection({ onOpen, onNew, onDrafts }: { onOpen: (id: str
           {q.data.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
               <button type="button" onClick={() => onOpen(t.id)} className="font-medium text-app hover:underline">{t.name}</button>
-              <span className="text-xs text-app-muted"><code className="font-mono">{t.key}</code> · v{t.latestVersion} · {formatTime(t.createdAt)}</span>
+              <span className="text-xs text-app-muted">{t.channel === 'whatsapp' && <span className="mr-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-700" data-testid={`template-channel-${t.id}`}>WhatsApp</span>}<code className="font-mono">{t.key}</code> · v{t.latestVersion} · {formatTime(t.createdAt)}</span>
             </li>
           ))}
         </ul>
@@ -110,8 +112,63 @@ function Preview({ id, version }: { id: string; version: number }): JSX.Element 
   );
 }
 
-/** One template: its versions, a rendered preview of each, and a new version. Shown in a panel. */
+/** One template, in a panel: the email editor, or the WhatsApp summary for a WhatsApp template. */
 export function TemplatePanel({ id }: { id: string }): JSX.Element {
+  // One request; the template says which channel it is for (a deep link has no list to ask).
+  const q = useQuery({ queryKey: ['engage', 'template', id], queryFn: () => getTemplate(id) });
+  if (!q.data) return q.error ? <ErrorLine error={q.error} /> : <p className="text-sm text-app-muted">Loading…</p>;
+  return q.data.template.channel === 'whatsapp' ? <WhatsappTemplatePanel data={q.data as unknown as WhatsappTemplateDetail} /> : <EmailTemplatePanel id={id} />;
+}
+
+const sourceLabel = (v: WhatsappVariable): string =>
+  v.source === 'attribute' ? `customer field ${v.name}` : v.source === 'payload' ? `trigger value ${v.name}` : 'sender name from Settings';
+
+/**
+ * A WhatsApp template (WP-40a): which Meta template it fills, how Meta stands on it, and where each value comes from. Read-only
+ * here; WhatsApp templates are registered through the API until the editor arrives.
+ */
+function WhatsappTemplatePanel({ data }: { data: WhatsappTemplateDetail }): JSX.Element {
+  const { template, whatsappVersions, health } = data;
+  const latest = whatsappVersions[0]!.content;
+  const meta = health.status;
+  return (
+    <div className="space-y-4" data-testid="engage-whatsapp-template">
+      <p className="text-sm text-app-muted">
+        WhatsApp template <code className="font-mono">{template.key}</code>, version {whatsappVersions[0]!.version}. It fills the template
+        <code className="mx-1 font-mono">{latest.metaName}</code>({latest.language}) approved in WhatsApp Manager.
+      </p>
+      <Card title="At Meta">
+        <p className="text-sm text-app" data-testid="whatsapp-meta-status">
+          {meta ? `${meta.status.toLowerCase().replace(/_/g, ' ')} · ${(meta.category ?? health.category).toLowerCase()}${meta.quality ? ` · quality ${meta.quality.toLowerCase()}` : ''} · checked ${formatTime(meta.seenAt)}` : 'Not seen at Meta yet. Run the template check in Settings.'}
+        </p>
+        <p className={`mt-1 text-sm ${health.sendable ? 'text-emerald-700' : 'text-amber-700'}`} data-testid="whatsapp-sendable">
+          {health.sendable ? 'Ready to send.' : 'Not sendable yet.'}
+        </p>
+        {[...health.problems, ...health.warnings].length > 0 && (
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-app" data-testid="whatsapp-problems">
+            {[...health.problems, ...health.warnings].map((p) => <li key={p}>{WHATSAPP_PROBLEM_TEXT[p] ?? p.replace(/_/g, ' ')}</li>)}
+          </ul>
+        )}
+      </Card>
+      <Card title="Content">
+        {latest.header && <p className="text-sm text-app"><span className="text-app-muted">Header: </span>{latest.header.text}</p>}
+        <p className="whitespace-pre-wrap text-sm text-app"><span className="text-app-muted">Body: </span>{latest.bodyText}</p>
+        <ul className="mt-2 space-y-1 text-sm text-app" data-testid="whatsapp-variables">
+          {latest.variables.map((v) => (
+            <li key={v.position}><code className="font-mono">{`{{${v.position}}}`}</code> {sourceLabel(v)}{v.defaultValue ? `, or "${v.defaultValue}"` : ''}</li>
+          ))}
+          {latest.header?.variable && <li>Header value: {sourceLabel(latest.header.variable)}</li>}
+          {latest.urlButton && <li>Button link: {latest.urlButton.baseUrl} followed by {sourceLabel(latest.urlButton.variable)}</li>}
+        </ul>
+        <p className="mt-2 text-xs text-app-muted">
+          {latest.declaredCategory === 'marketing' ? 'Marketing' : 'Utility'} template. How a customer stops: {latest.optOut === 'quick_reply' ? 'a quick-reply button' : latest.optOut === 'text_in_body' ? 'the text of the message' : 'not stated'}.
+        </p>
+      </Card>
+    </div>
+  );
+}
+
+function EmailTemplatePanel({ id }: { id: string }): JSX.Element {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['engage', 'template', id], queryFn: () => getTemplate(id) });
   const [editing, setEditing] = useState(false);

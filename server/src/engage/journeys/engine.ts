@@ -320,7 +320,7 @@ type MessageStep = Extract<JourneyStep, { type: 'message' }>;
  * email account; with none, or more than one, the enrollment fails rather than guess.
  */
 async function createStepMessage(c: Tx, orgId: string, e: EnrollmentRow, step: MessageStep): Promise<{ messageId: string } | { failed: string }> {
-  const t = (await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2`, [orgId, step.template])).rows[0];
+  const t = (await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2 AND channel = 'email'`, [orgId, step.template])).rows[0];
   if (!t) return { failed: 'template_missing' };
   const accounts = (await c.query<{ id: string }>(
     `SELECT id FROM engage.channel_accounts WHERE organization_id = $1 AND channel = 'email' AND status = 'active' ORDER BY created_at LIMIT 2`, [orgId])).rows;

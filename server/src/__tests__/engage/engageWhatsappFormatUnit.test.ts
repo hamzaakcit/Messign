@@ -14,7 +14,7 @@ const PN = '106540352242922';
 
 describe('account config', () => {
   it('needs a numeric phone number id, and defaults the version and language', () => {
-    expect(readConfig({ phone_number_id: '106540352242922' })).toEqual({ phoneNumberId: PN, apiVersion: 'v23.0', defaultLanguage: 'tr' });
+    expect(readConfig({ phone_number_id: '106540352242922' })).toEqual({ phoneNumberId: PN, apiVersion: 'v23.0', defaultLanguage: 'tr', wabaId: null });
     expect(readConfig({ phone_number_id: 106540352242922, api_version: 'v27.0', default_language: 'en_US' })).toMatchObject({ apiVersion: 'v27.0', defaultLanguage: 'en_US' });
   });
   it.each([{}, { phone_number_id: 'abc' }, { phone_number_id: '1' }, { phone_number_id: PN, api_version: '23' }, { phone_number_id: PN, default_language: 'Turkish' }])('refuses %j', (c) => {

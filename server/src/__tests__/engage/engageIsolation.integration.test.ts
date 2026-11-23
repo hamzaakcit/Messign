@@ -93,6 +93,7 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
         { proname: 'ops_work', result: 'TABLE(organization_id uuid)' }, // migration 136: ids only
         { proname: 'pending_trigger_work', result: 'TABLE(organization_id uuid, outbox_id bigint)' }, // migration 121: ids only
         { proname: 'set_app_tenant', result: 'void' }, // legacy baseline: sets a setting, reads nothing
+        { proname: 'whatsapp_sync_work', result: 'TABLE(organization_id uuid)' }, // migration 137: ids only
       ]);
     });
 

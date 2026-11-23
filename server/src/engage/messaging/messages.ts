@@ -5,6 +5,7 @@ import { getAdapter, type RawWebhook, type ProviderEvent } from './adapter.js';
 import { loadAccountSecrets, messagingChannel } from '../credentials.js';
 import { normalizeEmail } from '../profiles.js';
 import { ingestInbound, revokeFromRecipient, type InboundSummary } from '../whatsapp/inbound.js';
+import { applyTemplateUpdates } from '../whatsapp/templateStatus.js';
 
 /**
  * The messages ledger (WP-10). Creating a message only records the intent; nothing is sent until dispatch (dispatch.ts),
@@ -177,6 +178,8 @@ export interface IngestResult {
   suppressed: number;
   /** What customers sent in the same delivery (WhatsApp replies and preference changes), and what it did. */
   inbound?: InboundSummary;
+  /** Template approval changes in the same delivery (WhatsApp): applied, out of date or repeated. */
+  templates?: { applied: number; ignored: number; duplicates: number };
 }
 
 /**
@@ -237,6 +240,9 @@ export async function ingestWebhook(orgId: string, accountId: string, raw: RawWe
   // "unmatched": a reply from someone we cannot identify is not a report to retry for days.
   const inbound = adapter.parseInbound?.(raw, adapterAccount) ?? [];
   if (inbound.length > 0) result.inbound = await ingestInbound(orgId, account.provider, inbound);
+  // Template approval changes from the same delivery (WhatsApp message_template_status_update, WP-40a): the gate reads the mirror.
+  const templates = adapter.parseTemplateUpdates?.(raw, adapterAccount) ?? [];
+  if (templates.length > 0) result.templates = await withEngageTenant(orgId, (c) => applyTemplateUpdates(c, orgId, templates));
   return result;
 }
 
