@@ -1,6 +1,6 @@
 # ADR-025: WhatsApp templates are registered in Messign, mirrored from Meta, and judged by the send gate before anything is sent
 
-- **Status:** Accepted (2026-11-23, WP-40a), extended by WP-40b (journeys, campaigns, segments, consent capture) and WP-40c (Settings, ops alerts; addenda below). The live check with a Meta test number follows WP-40c's merge.
+- **Status:** Accepted (2026-11-23, WP-40a), extended by WP-40b (journeys, campaigns, segments, consent capture) and WP-40c (Settings, ops alerts; addenda below). The live check with a Meta test number ran on 2026-11-23 (section below); the template-approval webhook and header and link-button sends are still to verify.
 - **Context:** WP-27 (ADR-023) made sending a WhatsApp template possible, but nothing in the product could use it: there was no WhatsApp template in Messign, no way to know whether Meta had approved, paused or recategorized one, and nothing stopped a large campaign from running into Meta's limit on how many customers a business may contact in a day. Built from Meta's official documentation (developers.facebook.com, WhatsApp Business Platform, read 2026-11-23: message templates, template components, the template status webhook, messaging limits, throughput, permissions, error codes). The plan is `docs/roadmap/wp-40-whatsapp-plan.md`.
 - **Decision:**
   1. **Templates are written and approved at Meta; Messign registers how to fill them.** A WhatsApp template keeps its key and name in `engage.templates` (channel `whatsapp`, migration 137), so a journey refers to it like any template. Its versions (`engage.whatsapp_template_versions`, append-only) hold the Meta name and language, the approved body text, the declared category (marketing or utility), how a customer can stop (`quick_reply`, `text_in_body`, `none`), and where each numbered variable comes from: a customer attribute, a trigger value, or the tenant's sender name, with an optional default. Optionally one text-header variable and one URL-button variable (appended to the button's base URL). Named variables, media headers, authentication templates and other button kinds are refused or reported as unsupported. Messign does not create or submit templates at Meta (a later decision: it changes what Messign is responsible for).
@@ -34,3 +34,29 @@
 - **Alerts.** Two are tenant attention items, shown on Settings at once and turned into ops alerts by the ops check: `whatsapp_template_unhealthy` (a template in use is PAUSED, DISABLED, REJECTED, DELETED, PENDING_DELETION, ARCHIVED or LIMIT_EXCEEDED: critical, its messages are refused; quality RED alone: warning) and `whatsapp_template_check_failing` (3 failures in a row, with the code). Two are ops rules per WhatsApp account: `whatsapp_frequency_limited` (131049 failures at least 5 and 10% of at least 20 sent in 24 hours; warning, informational: not an opt-out) and `whatsapp_pacing_holding` (a message whose latest gate decision is `account_pacing` was first held over 24 hours ago). The thresholds are ours, not Meta's, and can be changed with `ENGAGE_OPS_WA_FREQUENCY_*`.
 - **Adding the account** from a terminal: `engage:add-account --whatsapp` sets channel, provider and the three secrets, and warns when `phone_number_id` or `waba_id` is missing. Config values whose key ends in `_id` stay text: Meta's ids can exceed JavaScript's safe integers (found while building; the parser used to turn every number-looking value into a number).
 - **No migration.** Not verified live yet (the live check): the listing permission, real template status webhooks, header and URL-button sends, the characters Meta refuses in a value, how the real messaging limit shows itself.
+
+## Live check with the Meta test number (2026-11-23)
+
+Run on the Meta test number, in the real pipeline (production API and database, `SEND_MODE=sandbox`, the test-mode account in the platform organization), with Meta's own sample templates and one test template. Results are verified or not verified; nothing here is assumed.
+
+**Verified live**
+- **Template listing.** `GET /<WABA id>/message_templates` works with the account's access token (the temporary token from API Setup): 6 templates, all pages, and every field the parser reads is named as expected. The shapes come out right: body variable count, text header with or without a variable, link-button variable count, button kinds (QUICK_REPLY, URL), numbered parameters. An image header shows as `IMAGE` (not fillable, so flagged). Quality is `UNKNOWN` for a template that has had no traffic. The same check from Settings > WhatsApp > Check now on the production site read the 6 templates.
+- **Sending and delivery reports on the account in the platform organization.** A template message sent from the check script was accepted by Meta and its report `delivered` arrived through the signed webhook and was applied (`sending, sent, sent, delivered`), so the callback URL, the verify token handshake, the signature and the status path work for the new account. Meta's callback is one URL per app: it was moved to this account, so the earlier tenant's account no longer receives Meta's webhooks.
+- **A campaign from the website.** A WhatsApp template (Meta's `hello_world`) registered in the Templates tab, a segment of customers with a phone number, and a campaign: the preview counted exactly the one customer with consent and a number, the send was accepted ("sent or delivered: 1, blocked by the gate: 0"), in sandbox with the number on the allow-list.
+- **Account rotation** with a new token and `waba_id` (`engage:whatsapp-check --rotate`).
+
+**Not verified live (still open)**
+- Meta's `message_template_status_update` webhook: the test template was still in review when the check ended. Run `engage:whatsapp-check --templates` after Meta approves it and look for an event `via webhook`.
+- A text header with a value and a link button with a value (`messign_live_check` has both); the approved sample templates have neither.
+- `user_preferences` stop and error 131050 (need a marketing template that has been sent), 131049, the real messaging-limit tier, a permanent system-user token, which characters Meta refuses in a parameter.
+
+**Found and fixed**
+- `engage:add-account` turned long ids into numbers (fixed in WP-40c).
+- `engage:whatsapp-check --prepare` failed with "That phone already belongs to another profile" when the number already belonged to a customer of the organization; it now reuses that customer.
+- The website showed none of this: the web build had no `VITE_PRODUCT_SURFACE`, so it defaulted to `workspace` and hid the engage sections whatever the organization was. It needs `VITE_PRODUCT_SURFACE=all` (and the platform organization enabled with `engage:platform`), plus a new build; see the runbook `one-lucy-page.md`.
+- A Meta test number only works with a test-mode account, which only works in sandbox mode; the sandbox allow-list has no screen (script only). Sending a first WhatsApp message from the website therefore needs the production server in sandbox mode and `engage:whatsapp-check --prepare` once.
+
+**Known gaps found, not fixed here**
+- The daily-limit count and "last delivery report" are per account id, and a rotation creates a new id: after a token renewal the count restarts from zero. They should follow the account's rotation chain, as the webhook URL does.
+- The template panel is titled "New email template" for the WhatsApp channel, and the WhatsApp card does not refresh by itself right after "Check now" (a reload shows it).
+
