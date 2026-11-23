@@ -4,6 +4,7 @@ import { errorFields, logError } from './log.js';
 import { withEngageTenant } from './db.js';
 import { runTemplateCheck } from './whatsapp/templateCheck.js';
 import { getTemplateCheckState, listTemplateStatuses } from './whatsapp/templateStatus.js';
+import { getWhatsappSetup } from './whatsapp/operate.js';
 import './types.js';
 
 /**
@@ -11,6 +12,8 @@ import './types.js';
  *   GET  /templates        every template Meta lists for the tenant's WhatsApp Business Account, with its status, category and
  *                          quality, and which Messign template (if any) is registered for it; plus when the check last ran
  *   POST /templates/check  admins: read the templates from Meta now (the same check that runs hourly)
+ *   GET  /setup            admins: the Settings card (WP-40c): the account, the webhook URL to give Meta, the check, the daily limit,
+ *                          the templates in use with Meta's status, readiness and the setup checklist. Never a secret.
  * Codes, names and counts only; no customer data.
  */
 export const whatsappRouter = Router();
@@ -47,6 +50,16 @@ whatsappRouter.post('/templates/check', requireEngageUser, requireEngageAdmin, a
     res.json(await runTemplateCheck(req.engageUser!.organizationId));
   } catch (err) {
     logError('whatsapp template check request failed', errorFields(err));
+    res.status(500).json({ error: 'Request failed' });
+  }
+});
+
+whatsappRouter.get('/setup', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await getWhatsappSetup(req.engageUser!.organizationId));
+  } catch (err) {
+    logError('whatsapp setup request failed', errorFields(err));
     res.status(500).json({ error: 'Request failed' });
   }
 });

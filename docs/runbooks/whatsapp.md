@@ -1,4 +1,4 @@
-# Runbook: WhatsApp (WP-27, ADR-023)
+# Runbook: WhatsApp (WP-27, ADR-023; WP-40, ADR-025)
 
 What it does: sends approved WhatsApp templates through the Cloud API of the **tenant's own** business number, applies Meta's delivery reports, and honours every way a customer says stop. Marketing needs the customer's WhatsApp consent (the send gate); Messign does not manage templates.
 
@@ -7,8 +7,10 @@ What it does: sends approved WhatsApp templates through the Cloud API of the **t
 1. **In Meta** (the tenant, or you for a test): a Meta developer app with the WhatsApp product, a WhatsApp Business account and a business phone number. For testing use the **test number** Meta provides (it can message only the recipients Meta allows; see Meta's documentation for the limit). For live: a verified business and an approved display name.
 2. **Collect three values** (never in chat, never in the repo): the **access token** (a system user's token, not a short-lived one), the **app secret** (App settings, Basic), and a **verify token** you invent (a random string). Also note the **phone number id** (WhatsApp, API setup).
 3. **Create the account** through the API, as a tenant admin (secrets never go through the browser):
-   `POST /api/engage/channel-accounts` with `{"channel":"whatsapp","provider":"whatsapp_cloud","mode":"test","label":"whatsapp","config":{"phone_number_id":"<id>","waba_id":"<WhatsApp Business Account id>","daily_recipient_limit":250,"default_language":"tr"},"secrets":{"access_token":"…","app_secret":"…","verify_token":"…"}}`. The response carries the account id. Use mode `live` only for a verified number.
-4. **Point Meta's webhook at it:** App Dashboard > WhatsApp > Configuration: Callback URL `https://<api host>/api/engage/webhooks/<account id>` and the verify token. Meta then sends the handshake (a GET); if it saves, subscribe to the fields **`messages`** (delivery statuses and what customers write), **`user_preferences`** (a customer stopping or resuming marketing messages) and **`message_template_status_update`** (Meta approving, pausing or disabling a template; WP-40a). Changing the callback URL or the token sends the handshake again.
+   From a terminal (WP-40c; the token, app secret and verify token are asked at hidden prompts):
+   `npm run engage:add-account -- --org <org id> --whatsapp --mode test --label "WhatsApp" --config phone_number_id=<id> --config waba_id=<WhatsApp Business Account id> --config daily_recipient_limit=250 --ask-master-key`. `--whatsapp` sets the channel, the provider and the three secrets; ids stay text (Meta's 16- and 17-digit ids would lose digits as numbers). It warns, without refusing, when `phone_number_id` or `waba_id` is missing.
+   Or through the API, as a tenant admin: `POST /api/engage/channel-accounts` with `{"channel":"whatsapp","provider":"whatsapp_cloud","mode":"test","label":"whatsapp","config":{"phone_number_id":"<id>","waba_id":"<WhatsApp Business Account id>","daily_recipient_limit":250,"default_language":"tr"},"secrets":{"access_token":"…","app_secret":"…","verify_token":"…"}}`. The response carries the account id. Use mode `live` only for a verified number.
+4. **Point Meta's webhook at it:** App Dashboard > WhatsApp > Configuration: Callback URL `https://<api host>/api/engage/webhooks/<account id>` (Settings > WhatsApp shows it in full, with a Copy button, once `ENGAGE_PUBLIC_API_URL` is set on the server) and the verify token. Meta then sends the handshake (a GET); if it saves, subscribe to the fields **`messages`** (delivery statuses and what customers write), **`user_preferences`** (a customer stopping or resuming marketing messages) and **`message_template_status_update`** (Meta approving, pausing or disabling a template; WP-40a). Changing the callback URL or the token sends the handshake again.
 5. **Templates (WP-40a, ADR-025):** create them in WhatsApp Manager (category Marketing or Utility, numbered variables `{{1}}`, `{{2}}`; for marketing, a quick-reply "Stop" button or a line saying how to stop), and wait for Meta to approve them. Then:
    - **Account config:** `waba_id` (the WhatsApp Business Account id) is required for the template check and the status webhook; `daily_recipient_limit` is the tier shown in WhatsApp Manager (250 at the start, then 2,000, 10,000, 100,000). Until it is set the gate assumes 250 and defers a new customer beyond it to the next window. Raise it when Meta raises the tier.
    - **Check:** `POST /api/engage/whatsapp/templates/check` (admin) reads every template from Meta now; it also runs hourly. `GET /api/engage/whatsapp/templates` shows each one's status, category and quality, which Messign template fills it, and registrations Meta does not know (a typo in the name or language).
@@ -19,6 +21,24 @@ What it does: sends approved WhatsApp templates through the Cloud API of the **t
 6. **Try it in the sandbox:** `SEND_MODE=sandbox`, the account in mode `test`, the recipient's number on the sandbox allow-list (`addAllowlistEntry`, as in `docs/runbooks/ses-sandbox-setup.md`), WhatsApp consent recorded with evidence, and the tenant ready (rate card and budget cap for WhatsApp). Send one message; watch its status move to delivered through the webhook.
 7. **First live check, before relying on it:** with the test number, send a template, then (a) reply STOP from the phone and check the consent is revoked and the number suppressed, (b) stop marketing messages from the business with the WhatsApp app's own option and check the `user_preferences` webhook revoked it, (c) send again and see Meta answer 131050 and the message fail. The mock follows Meta's documentation, not Meta: compare, and fix `engage/whatsapp/mock` and the code together.
 8. **Go live:** mode `live`, readiness items `dpa_signed` and `waba_verified` recorded, `SEND_MODE=live`.
+
+## Operate it (WP-40c)
+
+**Settings > WhatsApp** (tenant admins; `GET /api/engage/whatsapp/setup`) shows, from what the server already keeps and without calling Meta:
+- the checklist: account added, `waba_id` set, webhook URL available, template check working, templates in use approved, ready to send (each with what to do when it is not);
+- the webhook URL to paste into Meta, the three fields to subscribe, the last delivery report and the last template update Meta sent (none yet means the webhook or the app's subscription to the WhatsApp Business Account is missing, step 3b below);
+- the template check: the last success, the last failure in words (`wa_190` token, `wa_10`/`wa_200` permission, `wa_100` wrong `waba_id`, `waba_missing`) and **Check now**. The check is also the token check: it reads the templates with the account's token;
+- the daily limit: customers messaged in 24 hours against `daily_recipient_limit` (or Meta's starting 250 when the account does not say), and messages waiting for room;
+- the templates in use (an active journey sends it, or messages used it in the last 7 days) with Meta's status and quality.
+
+**Alerts** (on Settings under "Needs attention" and to the operators, `docs/runbooks/ops-monitoring.md`):
+
+| Alert | When | What to do |
+|---|---|---|
+| `whatsapp_template_unhealthy` | A template in use is paused, disabled, rejected or deleted at Meta (critical: its messages are refused), or rated red (warning) | Fix or replace it in WhatsApp Manager; the webhook or the next hourly check clears it |
+| `whatsapp_template_check_failing` | The template check failed 3 times in a row | The code says why (above); until it works, only the webhook keeps the statuses fresh |
+| `whatsapp_frequency_limited` | Meta held back at least 10% (and at least 5) of 20 or more WhatsApp messages in 24 hours with 131049 | Send marketing less often or make it more relevant; retrying does not help; the customers are not opted out |
+| `whatsapp_pacing_holding` | A message has waited over a day for the account's daily limit | If WhatsApp Manager shows a higher limit, rotate the account with the new `daily_recipient_limit`; otherwise send smaller campaigns |
 
 ## Live check with your own Meta test number
 

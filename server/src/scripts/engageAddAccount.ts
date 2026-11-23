@@ -6,6 +6,10 @@
  *     --config region=eu-central-1 --config from_address=hello@example.com --config sns_topic_arn=arn:aws:sns:... \
  *     --secret access_key_id --secret secret_access_key
  *
+ *   npm run engage:add-account -- --org <org uuid> --whatsapp --mode test --label "WhatsApp test number" \
+ *     --config phone_number_id=<id> --config waba_id=<WhatsApp Business Account id>
+ *   (asks for access_token, app_secret and verify_token; see docs/runbooks/whatsapp.md)
+ *
  * Needs ENGAGE_DATABASE_URL and the PRODUCTION ENGAGE_MASTER_KEY / ENGAGE_MASTER_KEY_ID (in the environment, or typed at
  * hidden prompts with --ask-master-key): a key encrypted with any other master key cannot be read by the server. Prints the account id and the non-secret fingerprint only.
  */
@@ -25,6 +29,7 @@ async function main(): Promise<void> {
     process.env.ENGAGE_MASTER_KEY = await promptHidden('ENGAGE_MASTER_KEY (hidden): ');
     process.env.ENGAGE_MASTER_KEY_ID = await promptHidden('ENGAGE_MASTER_KEY_ID (hidden): ');
   }
+  for (const w of a.warnings) console.warn(`[engage] warning: ${w}`);
   const secrets: Record<string, string> = {};
   for (const name of a.secretNames) secrets[name] = await promptHidden(`${name} (hidden): `);
   const input = parseCreateInput({ channel: a.channel, provider: a.provider, mode: a.mode, label: a.label, config: a.config, secrets });
@@ -33,6 +38,7 @@ async function main(): Promise<void> {
   console.log(`  account id:  ${meta.id}`);
   console.log(`  fingerprint: ${meta.fingerprint}`);
   console.log(`  webhook URL: /api/engage/webhooks/${meta.id}`);
+  if (meta.channel === 'whatsapp') console.log('  next: Settings > WhatsApp shows the full webhook URL, the fields to subscribe and the setup checklist');
   await closeEngagePool();
 }
 

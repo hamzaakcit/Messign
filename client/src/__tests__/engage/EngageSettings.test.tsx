@@ -442,3 +442,114 @@ describe('delivery health and ops alerts (WP-29)', () => {
     expect(within(card).getAllByRole('listitem')).toHaveLength(3);
   });
 });
+
+describe('WhatsApp card (WP-40c)', () => {
+  const SETUP = {
+    account: { id: 'w1', label: 'WhatsApp main', provider: 'whatsapp_cloud', mode: 'test', phoneNumberId: '102290129340398', wabaId: null },
+    accountProblem: null,
+    webhook: {
+      url: 'https://api.example.com/api/engage/webhooks/w1', urlProblem: null,
+      fields: ['messages', 'user_preferences', 'message_template_status_update'], lastDeliveryReportAt: null, lastTemplateUpdateAt: null,
+    },
+    check: { lastAttemptAt: '2026-11-23T10:00:00Z', lastOkAt: '2026-11-23T07:00:00Z', lastError: 'wa_190', consecutiveFailures: 3, templatesSeen: 2 },
+    pacing: { limit: 250, limitIsDefault: true, contacted24h: 240, waiting: 12, waitingOverADay: 2 },
+    templatesInUse: [
+      { metaName: 'autumn_books', language: 'tr', journeyKeys: ['autumn'], recentMessages: 40, status: 'PAUSED', quality: 'RED', rejectedReason: null },
+      { metaName: 'order_shipped', language: 'tr', journeyKeys: [], recentMessages: 3, status: 'APPROVED', quality: 'GREEN', rejectedReason: null },
+    ],
+    readiness: { sendMode: 'sandbox', ready: false, problems: [{ code: 'no_budget_cap', message: 'No monthly WhatsApp budget cap is set up.' }] },
+    steps: [
+      { step: 'account', done: true }, { step: 'waba_id', done: false }, { step: 'webhook_url', done: true },
+      { step: 'template_check', done: false }, { step: 'templates_in_use', done: false }, { step: 'sending_ready', done: false },
+    ],
+  };
+  function waApi(o: { setup?: unknown; check?: () => Response; attention?: unknown[] }) {
+    iysApi({ attention: o.attention });
+    const inner = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input); const method = init?.method ?? 'GET';
+      if (url.endsWith('/engage/whatsapp/setup') && method === 'GET') { calls.push({ url, method, body: undefined }); return json(o.setup ?? SETUP); }
+      if (url.endsWith('/engage/whatsapp/templates/check') && method === 'POST') { calls.push({ url, method, body: undefined }); return o.check ? o.check() : json({ ok: true, seen: 2, changed: 1, error: null }); }
+      return inner(input, init);
+    }) as typeof fetch;
+  }
+
+  it('shows the checklist, the webhook URL and fields to give Meta, the failing check in words, the daily limit and the templates in use', async () => {
+    waApi({});
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-whatsapp');
+    expect(await within(card).findByTestId('whatsapp-account')).toHaveTextContent('phone number id 102290129340398, WhatsApp Business Account not set');
+    expect(within(card).getByTestId('whatsapp-step-account')).toHaveTextContent('WhatsApp account added');
+    expect(within(card).getByTestId('whatsapp-step-account').querySelector('[aria-label="done"]')).not.toBeNull();
+    expect(within(card).getByTestId('whatsapp-step-waba_id')).toHaveTextContent('Rotate the account with --config waba_id=<id>');
+    expect(within(card).getByTestId('whatsapp-webhook-url')).toHaveTextContent('https://api.example.com/api/engage/webhooks/w1');
+    expect(within(card).getByTestId('whatsapp-webhook')).toHaveTextContent('messages, user_preferences, message_template_status_update');
+    expect(within(card).getByTestId('whatsapp-webhook-last')).toHaveTextContent('Last delivery report from Meta: none yet');
+    expect(within(card).getByTestId('whatsapp-check-error')).toHaveTextContent('The last 3 checks failed: Meta refused the access token');
+    expect(within(card).getByTestId('whatsapp-pacing-state')).toHaveTextContent('240 of 250 customers messaged in the last 24 hours (Meta\'s starting limit');
+    expect(within(card).getByTestId('whatsapp-pacing-state')).toHaveTextContent('12 messages are waiting for room, 2 for over a day.');
+    expect(within(card).getByTestId('whatsapp-template-autumn_books-tr')).toHaveTextContent('Paused by Meta, quality red');
+    expect(within(card).getByTestId('whatsapp-template-autumn_books-tr')).toHaveTextContent('used by autumn; 40 messages in 7 days');
+    expect(within(card).getByTestId('whatsapp-template-order_shipped-tr')).toHaveTextContent('Approved');
+    expect(within(card).getByTestId('whatsapp-readiness')).toHaveTextContent('No monthly WhatsApp budget cap is set up.');
+    expect(card).not.toHaveTextContent(/[ğüşıöçĞÜŞİÖÇ]/);
+  });
+
+  it('copies the webhook URL, and runs the template check on request', async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    waApi({});
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-whatsapp');
+    fireEvent.click(await within(card).findByTestId('whatsapp-webhook-copy'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://api.example.com/api/engage/webhooks/w1'));
+    expect(await within(card).findByText('Copied')).toBeInTheDocument();
+    fireEvent.click(within(card).getByTestId('whatsapp-check-now'));
+    expect(await within(card).findByTestId('whatsapp-check-result')).toHaveTextContent('Done: 2 templates read, 1 changed.');
+    expect(sent('POST', '/engage/whatsapp/templates/check')).toHaveLength(1);
+    await waitFor(() => expect(sent('GET', '/engage/whatsapp/setup').length).toBeGreaterThan(1));
+  });
+
+  it('a failed check says what to do; no account and no public address are said plainly', async () => {
+    waApi({ check: () => json({ ok: false, seen: 0, changed: 0, error: 'waba_missing' }) });
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-whatsapp');
+    fireEvent.click(await within(card).findByTestId('whatsapp-check-now'));
+    expect(await within(card).findByTestId('whatsapp-check-result')).toHaveTextContent('has no WhatsApp Business Account id (waba_id)');
+  });
+
+  it('without an account it shows the terminal command and no webhook or check', async () => {
+    waApi({ setup: { ...SETUP, account: null, accountProblem: 'no_whatsapp_account', pacing: null, templatesInUse: [], webhook: { ...SETUP.webhook, url: null }, steps: SETUP.steps.map((s) => ({ ...s, done: false })) } });
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-whatsapp');
+    expect(await within(card).findByTestId('whatsapp-account-none')).toBeInTheDocument();
+    expect(within(card).getByTestId('whatsapp-step-account')).toHaveTextContent('npm run engage:add-account -- --org <org id> --whatsapp');
+    expect(within(card).queryByTestId('whatsapp-webhook')).toBeNull();
+    expect(within(card).queryByTestId('whatsapp-check-now')).toBeNull();
+    expect(within(card).getByTestId('whatsapp-templates-none')).toBeInTheDocument();
+  });
+
+  it('says when the server has no public address to build the webhook URL from', async () => {
+    waApi({ setup: { ...SETUP, webhook: { ...SETUP.webhook, url: null, urlProblem: 'public_api_url_not_set' } } });
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-whatsapp');
+    expect(await within(card).findByTestId('whatsapp-webhook-missing')).toHaveTextContent('ENGAGE_PUBLIC_API_URL) is not set');
+  });
+
+  it('explains the WhatsApp alerts under needs attention', async () => {
+    waApi({ attention: [
+      { code: 'whatsapp_template_unhealthy', severity: 'critical', since: null, data: { count: 1, templates: [{ metaName: 'autumn_books', language: 'tr', status: 'PAUSED', quality: null, journeys: 1, recentMessages: 4 }] } },
+      { code: 'whatsapp_template_check_failing', severity: 'warning', since: null, data: { failures: 3, code: 'wa_190' } },
+      { code: 'whatsapp_frequency_limited', subject: 'w1', severity: 'warning', since: null, data: { sent: 100, limited: 12, rate: 0.12 } },
+      { code: 'whatsapp_pacing_holding', subject: 'w1', severity: 'warning', since: null, data: { waiting: 30, overADay: 2, limit: 250, limitIsDefault: true } },
+    ] });
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-attention');
+    expect(within(card).getByTestId('attention-whatsapp_template_unhealthy')).toHaveTextContent('A WhatsApp template in use is stopped at Meta');
+    expect(within(card).getByTestId('attention-whatsapp_template_unhealthy')).toHaveTextContent('autumn_books (paused by meta)');
+    expect(within(card).getByTestId('attention-whatsapp_template_check_failing')).toHaveTextContent('It failed 3 times in a row. Meta refused the access token');
+    expect(within(card).getByTestId('attention-whatsapp_frequency_limited')).toHaveTextContent('Meta did not deliver 12 of 100 WhatsApp messages in the last 24 hours (12%)');
+    expect(within(card).getByTestId('attention-whatsapp_frequency_limited')).toHaveTextContent('These customers were not opted out.');
+    expect(within(card).getByTestId('attention-whatsapp_pacing_holding')).toHaveTextContent('2 WhatsApp messages have waited over a day because the account may message 250 new customers in 24 hours');
+  });
+});

@@ -1,4 +1,5 @@
 import type { AttentionItem } from './settingsApi';
+import { CHECK_ERROR_TEXT, META_STATUS_TEXT } from './whatsappText';
 
 /** What an attention item means, in words for the admin (the codes and numbers are the server's). */
 
@@ -50,6 +51,20 @@ function opsAlertText(item: AttentionItem): { title: string; detail: string } | 
       return { title: 'Messages are waiting longer than expected', detail: `${num(d.overdue)} messages are past their send time (the oldest for ${num(d.oldestMinutes)} minutes) and ${num(d.staleSending)} are stuck while sending. If this does not clear by itself, contact your Messign contact.` };
     case 'trigger_outbox_stuck':
       return { title: 'Journey triggers are not being processed', detail: `${num(d.pending)} events are waiting to start journeys${num(d.failed) ? ` and ${num(d.failed)} failed` : ''}. If this does not clear by itself, contact your Messign contact.` };
+    case 'whatsapp_frequency_limited':
+      return { title: 'Meta is holding back WhatsApp marketing messages', detail: `Meta did not deliver ${num(d.limited)} of ${num(d.sent)} WhatsApp messages in the last 24 hours (${pct(d.rate)}), to keep customers from getting too many marketing messages from businesses. These customers were not opted out. Send less often, or make the content more relevant; trying again at once does not help.` };
+    case 'whatsapp_pacing_holding':
+      return { title: 'WhatsApp messages are waiting for the daily limit', detail: `${num(d.overADay)} WhatsApp message${num(d.overADay) === 1 ? ' has' : 's have'} waited over a day because the account may message ${num(d.limit)} new customers in 24 hours${d.limitIsDefault ? ' (Meta\'s starting limit, because the account does not say its own)' : ''}. If WhatsApp Manager shows a higher limit, have the account updated; otherwise send smaller campaigns. Messages that wait past their lifetime are not sent.` };
+    case 'whatsapp_template_unhealthy': {
+      const list = (Array.isArray(d.templates) ? d.templates : []).slice(0, 5).map((t) => {
+        const x = t as Record<string, unknown>;
+        const status = x.status === null || x.status === undefined ? 'not seen at Meta' : (META_STATUS_TEXT[String(x.status)] ?? String(x.status)).toLowerCase();
+        return `${String(x.metaName)} (${status}${x.quality === 'RED' ? ', quality red' : ''})`;
+      });
+      return { title: 'A WhatsApp template in use is stopped at Meta', detail: `${list.join(', ')}. Messages from a paused, disabled or rejected template are refused before they reach Meta, so journeys and campaigns that use it send nothing on WhatsApp. Fix or replace it in WhatsApp Manager; see the WhatsApp card below.` };
+    }
+    case 'whatsapp_template_check_failing':
+      return { title: 'The WhatsApp template check is failing', detail: `It failed ${num(d.failures)} times in a row. ${CHECK_ERROR_TEXT[String(d.code)] ?? `Meta answered ${String(d.code)}.`} Until it works, a template Meta pauses is only noticed through the webhook.` };
     default:
       return null;
   }

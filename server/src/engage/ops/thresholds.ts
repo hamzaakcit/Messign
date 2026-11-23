@@ -32,6 +32,10 @@ export interface Thresholds {
   staleSendingMinutes: number;
   queueCriticalCount: number;
   queueCriticalMinutes: number;
+  /** WhatsApp 131049 (Meta held marketing back per customer): at least this many sent in 24 hours, this many held, at this share. */
+  waFrequencyMinSent: number;
+  waFrequencyMinCount: number;
+  waFrequencyRate: number;
   /** An alert is resolved when its condition has been gone this long, and reminded this often while it lasts (hours). */
   resolveGraceMinutes: number;
   remindCriticalHours: number;
@@ -48,6 +52,7 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   denialSystemicWarning: 5, denialSystemicCritical: 50,
   denialSpikeMin: 50, denialSpikeFactor: 5,
   overdueMinutes: 10, staleSendingMinutes: 15, queueCriticalCount: 100, queueCriticalMinutes: 60,
+  waFrequencyMinSent: 20, waFrequencyMinCount: 5, waFrequencyRate: 0.1,
   resolveGraceMinutes: 10, remindCriticalHours: 6, remindWarningHours: 24,
 };
 
