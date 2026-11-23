@@ -40,6 +40,18 @@ Imported consent is recorded with source `import`; it is not İYS consent.
 
 Orders are stored as `order_completed` events with `source: import`. Back-filled history never starts a journey.
 
+## Templates (WP-33)
+
+`docs/onboarding/csv-templates/` has one file per thing the tenant exports, each with three example rows (a test run keeps them valid):
+
+| File | Import as | Holds |
+|---|---|---|
+| `customers.csv` | `profiles` | Customers: identifiers, locale, attributes (a date attribute such as `birth_date` for occasion journeys) |
+| `consents.csv` | `profiles` (after `customers.csv`; same `external_id`) | Consents with evidence: `consent_*` columns, `consent_recorded_at`, `consent_evidence_ref`, `consent_ip`. Merging by `external_id` means a consent export can be a file of its own |
+| `orders.csv` | `orders` (after the profiles) | Order history; rows older than 399 days are reported and skipped |
+
+Run the dry run first, then the real import. Replace the example rows, keep the header.
+
 ## Synthetic tenants
 
 `npm run engage:synthetic -- --kind bookstore|florist --profiles 100000 --seed 1 --out ./synthetic/bookstore` writes

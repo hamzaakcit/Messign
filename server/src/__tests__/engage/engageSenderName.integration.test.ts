@@ -114,4 +114,72 @@ describe.skipIf(!adminUrl)('sender name (real Postgres, HTTP)', () => {
     expect(set.errors).toEqual([]);
     expect(set.html).toContain('Kitapyurdu');
   });
+
+  describe('one sender identity through the whole path (WP-33): Settings API -> account -> send gate -> dispatch', () => {
+    let M: typeof import('../../engage/messaging/index.js');
+    const savedMode = process.env.SEND_MODE;
+    beforeAll(async () => { M = await import('../../engage/messaging/index.js'); process.env.SEND_MODE = 'sandbox'; });
+    afterAll(() => { if (savedMode === undefined) delete process.env.SEND_MODE; else process.env.SEND_MODE = savedMode; });
+
+    /** A tenant set up only through the API a tenant admin has: sender name, mock email account with a From name, rate card, cap, switch on. */
+    async function onboarded(senderName: string, fromName: string) {
+      const a = await tenant();
+      const set = (path: string, method: string, body: unknown) => app.http(path, { method, token: a.admin, body });
+      expect((await set('/settings/sender', 'PUT', { senderName })).status).toBe(200);
+      const acct = await set('/channel-accounts', 'POST', { channel: 'email', provider: 'mock', mode: 'test', label: `m-${u()}`, config: { from_name: fromName }, secrets: { webhook_secret: `whsec_${u()}` } });
+      expect(acct.status).toBe(201);
+      expect((await set('/settings/rate-cards', 'POST', { channel: 'email', category: 'transactional', unitCostMinor: 1, currency: 'TRY' })).status).toBe(201);
+      expect((await set('/settings/rate-cards', 'POST', { channel: 'email', category: 'marketing', unitCostMinor: 1, currency: 'TRY' })).status).toBe(201);
+      expect((await set('/settings/budget-caps/email', 'PUT', { monthlyCapMinor: 100000, currency: 'TRY' })).status).toBe(200);
+      const on = await set('/settings/send-enabled', 'PUT', { enabled: true });
+      expect(on.status, JSON.stringify(on.json)).toBe(200); // a name mismatch does not stop the switch: the readiness check does not look at it
+      return { ...a, account: acct.json.id as string };
+    }
+    async function send(a: Tn, account: string): Promise<{ outcome: string; code?: string; decision: string }> {
+      const email = `${u()}@example.com`;
+      const profile = await P.upsertProfile(a.org, { externalId: `i-${u()}`, email });
+      await M.addAllowlistEntry(a.org, 'email', email);
+      const { message } = await M.createMessage(a.org, {
+        profileId: profile.id, channel: 'email', purpose: 'transactional', channelAccountId: account, idempotencyKey: `id-${u()}`,
+        content: { subject: 'Hello', text: 'Hello', html: '<p>Hello</p>' },
+      });
+      const r = await M.dispatchMessage(a.org, message.id);
+      const decision = (await sql(a.org, `SELECT decision, code, reasons FROM engage.send_decisions WHERE message_id = $1 ORDER BY id DESC LIMIT 1`, [message.id])).rows[0];
+      return { outcome: r.outcome, code: 'code' in r ? r.code : undefined, decision: `${decision.decision}:${decision.code}:${JSON.stringify((decision.reasons as Array<{ code: string }>).map((x) => x.code))}` };
+    }
+
+    it('matching sender name and From name: the message is sent', async () => {
+      const a = await onboarded('Kitapyurdu', 'Kitapyurdu');
+      expect(await send(a, a.account)).toEqual({ outcome: 'sent', code: undefined, decision: 'allow:allowed:[]' });
+    });
+
+    it('a difference in spaces only is not a difference; a difference in letters or case is', async () => {
+      const spaced = await onboarded('Lilyana  Flowers', ' Lilyana Flowers ');
+      expect((await send(spaced, spaced.account)).outcome).toBe('sent');
+      const cased = await onboarded('Kitapyurdu', 'kitapyurdu');
+      expect((await send(cased, cased.account)).outcome).toBe('blocked');
+    });
+
+    it('differing names: the message is denied with sender_identity_mismatch, nothing is handed to the adapter, and rotating the account with the matching From name fixes it', async () => {
+      const a = await onboarded('Kitapyurdu', 'Başka Mağaza');
+      const adapterCalls = vi.spyOn(M.getAdapter('mock')!, 'send');
+      try {
+        const denied = await send(a, a.account);
+        expect(denied).toEqual({ outcome: 'blocked', code: 'sender_identity_mismatch', decision: 'deny:sender_identity_mismatch:["sender_identity_mismatch"]' });
+        expect(adapterCalls).not.toHaveBeenCalled();
+        // the fix the checklist names: rotate the account with the matching From name; the next message is sent
+        const rotated = await app.http(`/channel-accounts/${a.account}/rotate`, { method: 'POST', token: a.admin, body: { secrets: { webhook_secret: `whsec_${u()}` }, config: { from_name: 'Kitapyurdu' } } });
+        expect(rotated.status).toBe(201);
+        expect(await send(a, rotated.json.id as string)).toMatchObject({ outcome: 'sent' });
+        expect(adapterCalls).toHaveBeenCalledTimes(1);
+      } finally { adapterCalls.mockRestore(); }
+    });
+
+    it('a tenant that changes the sender name afterwards is denied until the From name follows', async () => {
+      const a = await onboarded('Kitapyurdu', 'Kitapyurdu');
+      expect((await send(a, a.account)).outcome).toBe('sent');
+      await app.http('/settings/sender', { method: 'PUT', token: a.admin, body: { senderName: 'Kitapyurdu Yayın' } });
+      expect(await send(a, a.account)).toMatchObject({ outcome: 'blocked', code: 'sender_identity_mismatch' });
+    });
+  });
 });
