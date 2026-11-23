@@ -189,6 +189,34 @@ describe.skipIf(!adminUrl)('operating WhatsApp: Settings card and alerts (real P
   });
 
   // ---------------------------------------------------------------------------------------------------------------
+  describe('a rotation does not reset what is counted per number', () => {
+    it('the daily limit, the count on the card and the last delivery report follow the account through a token rotation', async () => {
+      const t = await tenant({ limit: 1 });
+      const [a, b] = [await customer(t), await customer(t)];
+      expect((await send(t, a)).out.outcome).toBe('sent');
+      // A delivery report for that message, recorded against the first account.
+      await sql(t.org, `INSERT INTO engage.message_events (organization_id, message_id, type, source, received_at)
+                         SELECT organization_id, id, 'delivered', 'provider', now() FROM engage.messages WHERE organization_id = $1 AND channel_account_id = $2`, [t.org, t.account]);
+      // The token is renewed: a new account row (a new id) for the same number.
+      const next = await creds.rotateAccount(t.org, t.userId, t.account, { secrets: { access_token: graph.o.accessToken, app_secret: 'app-secret', verify_token: 'v' } });
+      expect(next.id).not.toBe(t.account);
+      const rotated: Tn = { ...t, account: next.id };
+      // Before the fix the new id counted from zero and let a second new customer through the limit of 1.
+      const second = await send(rotated, b);
+      expect(second.out).toMatchObject({ outcome: 'deferred', code: 'account_pacing' });
+      // Same customer as before: already in the window, not counted again.
+      expect((await send(rotated, a)).out.outcome).toBe('sent');
+      const v = await O.getWhatsappSetup(t.org);
+      expect(v.account!.id).toBe(next.id);
+      expect(v.pacing).toMatchObject({ limit: 1, limitIsDefault: false, contacted24h: 1, waiting: 1 });
+      expect(v.webhook.lastDeliveryReportAt).not.toBeNull();
+      // A number never mixes with another tenant's accounts.
+      const other = await tenant({ limit: 1 });
+      expect((await O.getWhatsappSetup(other.org)).pacing).toMatchObject({ contacted24h: 0, waiting: 0 });
+    });
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------
   describe('alerts', () => {
     it('a template an active journey uses that Meta paused needs attention at once, critical; red quality alone is a warning', async () => {
       const t = await tenant();

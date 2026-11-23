@@ -2,6 +2,11 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-23 · WP-40 follow-ups: rotation keeps the daily-limit count
+- **Done:** the daily limit of new customers, the count and waiting messages on the Settings card, and the last delivery report now follow the number's rotation chain, not one account id (a token renewal used to restart the count; the new test fails on the old code). The template panel is titled "New template". "Card does not refresh after Check now" could not be reproduced on the live site; a regression test covers it. ADR-025 updated.
+- **Remaining:** approve `messign_live_check` at Meta, then verify the template webhook and header and link-button values; operator steps from WP-29.
+- **Next:** WP-30 (sandbox E2E).
+
 ## 2026-11-23 · WP-40 live check with the Meta test number
 - **Done:** ran the live check on the production API and database (sandbox): the template listing, a send with its delivery report through the new account's webhook, and a campaign sent from the website (template, segment, campaign). Results are in ADR-025 ("Live check with the Meta test number"). Tools: `engage:whatsapp-check` gains `--rotate`, `--templates`, `--header-param`, `--button-param`, and reuses an existing customer that owns the number; the runbook has "Live check of templates (WP-40)".
 - **Found:** the website hid the engage sections because the Vercel build had no `VITE_PRODUCT_SURFACE` (now `all`, with the platform organization enabled); the test number needs sandbox mode and a script-only allow-list; the Meta callback is one URL per app; the daily-limit count restarts after a token rotation (not fixed).

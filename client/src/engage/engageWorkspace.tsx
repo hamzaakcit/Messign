@@ -68,7 +68,7 @@ const TITLES: Record<Exclude<Panel, null>['kind'], string> = {
   segment: 'Segment',
   'segment-new': 'New segment',
   template: 'Email template',
-  'template-new': 'New email template',
+  'template-new': 'New template',
   'copy-drafts': 'AI copy drafts',
 };
 const PANEL_WIDTH: Record<Exclude<Panel, null>['kind'], number> = {
@@ -203,7 +203,7 @@ export function EngageQuickActions({ workspace }: { workspace: EngageWorkspace }
         <Filter className="h-3.5 w-3.5 shrink-0 text-violet-400/90" /><span className="truncate">New segment</span>
       </button>
       <button type="button" onClick={() => workspace.show('templates', { kind: 'template-new' })} className={cn(TILE_BTN, 'col-span-2')} data-testid="hub-new-template">
-        <Mail className="h-3.5 w-3.5 shrink-0 text-emerald-400/90" /><span className="truncate">New email template</span>
+        <Mail className="h-3.5 w-3.5 shrink-0 text-emerald-400/90" /><span className="truncate">New template</span>
       </button>
     </>
   );
