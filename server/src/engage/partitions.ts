@@ -1,6 +1,7 @@
 import { withEngageScheduler } from './db.js';
 import { JOB_NAMES, registerJobHandler, scheduleJob } from '../services/jobQueue.js';
 import { logInfo } from './log.js';
+import { tracked } from './ops/errors.js';
 
 /**
  * Creates the event partitions of the next two days ahead of time (WP-19 follow-up). Creating a partition takes an
@@ -16,7 +17,7 @@ export async function ensureUpcomingEventPartitions(): Promise<void> {
 }
 
 export async function registerEngagePartitionJob(): Promise<void> {
-  await registerJobHandler(JOB_NAMES.ENGAGE_PARTITIONS, async () => { await ensureUpcomingEventPartitions(); }, { batchSize: 1 });
+  await registerJobHandler(JOB_NAMES.ENGAGE_PARTITIONS, tracked('partition_job', async () => { await ensureUpcomingEventPartitions(); }), { batchSize: 1 });
   await scheduleJob(JOB_NAMES.ENGAGE_PARTITIONS, '7 * * * *');
   await ensureUpcomingEventPartitions();
   logInfo('event partition job registered');

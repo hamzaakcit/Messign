@@ -2,6 +2,13 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-23 · WP-29 Ops: provider health, alerts, error tracking, restore check
+- **Done:** ADR-024 and `docs/runbooks/ops-monitoring.md`. Migration 136 (`engage.ops_alerts`, `engage.ops_work` ids only, indexes for the recent-history windows). `engage/ops/`: snapshot (measured per tenant under RLS), pure rules (failing provider, rejected credentials, delivery reports missing, bounce and complaint rates, gate-denial setup problems and spikes, stuck messages, stuck trigger outbox, the tenant attention items), alert lifecycle (open, escalate, remind, resolve), one digest per run to `ENGAGE_ALERT_WEBHOOK_URL`, optional heartbeat, dead-letter depth of the engage queues, in-process error tracking (engage job handlers and every engage `logError`), restore check. Job `engage/ops-check` every five minutes. Settings: open alerts under "Needs attention", a "Delivery health" card. Scripts `engage:ops-report`, `engage:ops-drill`, `engage:restore-check`.
+- **Tests:** 17 unit and 14 integration (the drill on real Postgres and HTTP: credentials rejected, failing calls, no price, missing reports, stuck messages, a real HTTP webhook, a webhook that is down, isolation, Settings routes, restore check including tampering), 3 client; the isolation suite lists `ops_work` and `ops_alerts`.
+- **Restore drill (local, 2026-11-23):** `pg_dump -Fc` of a 470 MB PostgreSQL 17 database took 30 s, `pg_restore` 1 min 50, all checks passed, counts identical to the live manifest.
+- **Remaining:** set `ENGAGE_ALERT_WEBHOOK_URL` and `ENGAGE_OPS_HEARTBEAT_URL` on Railway and run `engage:ops-drill`; run the restore drill against Railway's backups (D-17); thresholds are first guesses to tune with real traffic. SMS health follows when WP-28 has an adapter.
+- **Next:** WP-30 (sandbox E2E). WP-28 stays blocked on Alaris's API documentation.
+
 ## 2026-11-22 · Webhook URLs follow rotated accounts
 - **Done:** a provider's callback URL contains the account id, and rotation creates a new id, so rotating credentials broke the URL Meta (and the SES SNS subscription) held. `engage/webhookAccount.ts` now resolves the URL's account to the active account of the same `supersedes_id` lineage; the handshake and signature use that account's secrets, so rotated-out secrets stop working. Tests: `engageWebhookRotation.integration.test.ts` (chain of rotations, changed number, revoked lineage, another provider, tenant isolation). ADR-023 addendum and both runbooks updated.
 - **Remaining:** Meta's callback is one URL per app (several numbers or tenants under one app need a design); a real WhatsApp number; wording for a new template.

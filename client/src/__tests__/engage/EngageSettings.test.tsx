@@ -292,8 +292,9 @@ const IYS_REPORT = {
 const IYS_CONNECTION = { accountId: 'i1', provider: 'iys', mode: 'test' as const, iysCode: 100001, brandCode: 100002 };
 
 /** Settings plus the İYS and attention endpoints. */
-function iysApi(o: { iys?: unknown; attention?: unknown[]; check?: () => Response }) {
+function iysApi(o: { iys?: unknown; attention?: unknown[]; check?: () => Response; health?: unknown }) {
   mockApi((url, method) => {
+    if (url.endsWith('/engage/settings/delivery-health') && method === 'GET') return json(o.health ?? { checkedAt: '2026-11-23T10:00:00Z', accounts: [], tenant: [] });
     if (url.endsWith('/engage/settings/iys/check') && method === 'POST') return o.check ? o.check() : json({ ok: true, code: null, message: null, brandFound: true });
     if (url.endsWith('/engage/settings/iys') && method === 'GET') return json(o.iys ?? { connection: null, report: null });
     if (url.endsWith('/engage/settings/attention') && method === 'GET') return json({ items: o.attention ?? [] });
@@ -396,5 +397,48 @@ describe('needs attention', () => {
     await screen.findByTestId('hub-tab-customers');
     expect(screen.queryByTestId('hub-tab-settings')).toBeNull();
     expect(sent('GET', '/engage/settings/attention')).toHaveLength(0);
+  });
+});
+
+describe('delivery health and ops alerts (WP-29)', () => {
+  const ACCOUNT = {
+    accountId: 'w1', label: 'WhatsApp main', channel: 'whatsapp', provider: 'whatsapp_cloud', mode: 'test', status: 'failing' as const,
+    last15m: { sent: 0, failed: 3, retried: 0 }, last24h: { sent: 6, bounced: 0, complained: 0, reports: 0 }, waitingForReport: 5,
+    issues: [{ rule: 'credentials_rejected', severity: 'critical' as const }],
+  };
+
+  it('shows each account with its status in words and what it did recently', async () => {
+    iysApi({ health: { checkedAt: '2026-11-23T10:00:00Z', accounts: [ACCOUNT, { ...ACCOUNT, accountId: 'e1', label: 'Email', channel: 'email', provider: 'ses', status: 'ok', issues: [], waitingForReport: 0, last24h: { sent: 40, bounced: 1, complained: 0, reports: 38 } }], tenant: [] } });
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-delivery');
+    expect(await within(card).findByTestId('delivery-status-w1')).toHaveTextContent('Needs action');
+    expect(within(card).getByTestId('delivery-w1')).toHaveTextContent('Last 15 minutes: 0 handed over, 3 failed or retried.');
+    expect(within(card).getByTestId('delivery-w1')).toHaveTextContent('5 accepted messages are still waiting for a delivery report');
+    expect(within(card).getByTestId('delivery-status-e1')).toHaveTextContent('Delivering normally');
+    expect(within(card).getByTestId('delivery-e1')).toHaveTextContent('40 sent, 38 reports back, 1 bounced, 0 complaints');
+  });
+
+  it('says so when there is no active account', async () => {
+    iysApi({});
+    renderHub();
+    const panel = await openSettings();
+    expect(await within(panel).findByTestId('delivery-none')).toBeInTheDocument();
+  });
+
+  it('lists open ops alerts under needs attention in plain words, one per account', async () => {
+    iysApi({ attention: [
+      { code: 'credentials_rejected', subject: 'w1', severity: 'critical', since: '2026-11-23T09:00:00Z', data: { provider: 'whatsapp_cloud', channel: 'whatsapp', count: 3, codes: [{ code: 'wa_190', count: 3 }] } },
+      { code: 'gate_denials_systemic', subject: 'no_rate_card', severity: 'warning', since: '2026-11-23T09:05:00Z', data: { code: 'no_rate_card', count: 7, windowMinutes: 15 } },
+      { code: 'delivery_reports_missing', subject: 'w1', severity: 'critical', since: '2026-11-23T09:10:00Z', data: { provider: 'whatsapp_cloud', waiting: 6 } },
+    ] });
+    renderHub();
+    const panel = await openSettings();
+    const card = await within(panel).findByTestId('settings-attention');
+    expect(within(card).getByTestId('attention-credentials_rejected')).toHaveTextContent('whatsapp_cloud is refusing your credentials');
+    expect(within(card).getByTestId('attention-credentials_rejected')).toHaveTextContent('Rotate the channel account');
+    expect(within(card).getByTestId('attention-gate_denials_systemic')).toHaveTextContent('7 messages were refused in the last 15 minutes because no price is set for the channel');
+    expect(within(card).getByTestId('attention-delivery_reports_missing')).toHaveTextContent('6 messages were accepted by whatsapp_cloud but nothing has been reported back');
+    expect(within(card).getAllByRole('listitem')).toHaveLength(3);
   });
 });

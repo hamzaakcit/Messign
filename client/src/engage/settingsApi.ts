@@ -73,11 +73,30 @@ export const checkEmailDomain = (dkimSelectors: string[] | null): Promise<EmailD
 
 /** What needs an admin's attention (the email domain lost by the scheduled re-check, the İYS sync late or stale). */
 export interface AttentionItem {
-  code: 'email_domain_lost' | 'iys_sync';
+  /** `email_domain_lost` and `iys_sync` are derived; any other code is the rule of an open ops alert (WP-29). */
+  code: string;
+  /** What an ops alert is about: a channel account id or a gate denial code. */
+  subject?: string;
   severity: 'warning' | 'critical';
   since: string | null;
   data: Record<string, unknown>;
 }
+/** How each channel account is delivering now (WP-29). Mirrors server/src/engage/ops/health.ts. */
+export interface AccountHealth {
+  accountId: string; label: string; channel: string; provider: string; mode: string;
+  status: 'ok' | 'degraded' | 'failing';
+  last15m: { sent: number; failed: number; retried: number };
+  last24h: { sent: number; bounced: number; complained: number; reports: number };
+  waitingForReport: number;
+  issues: Array<{ rule: string; severity: 'warning' | 'critical' }>;
+}
+export interface DeliveryHealth {
+  checkedAt: string;
+  accounts: AccountHealth[];
+  tenant: Array<{ rule: string; subject: string; severity: 'warning' | 'critical' }>;
+}
+export const getDeliveryHealth = (): Promise<DeliveryHealth> => fetchAPI<DeliveryHealth>('/engage/settings/delivery-health');
+
 export const getAttention = (): Promise<AttentionItem[]> => fetchAPI<{ items: AttentionItem[] }>('/engage/settings/attention').then((r) => r.items);
 
 /** The İYS connection and sync report (WP-26). Mirrors server/src/engage/iys/report.ts; never carries credentials. */

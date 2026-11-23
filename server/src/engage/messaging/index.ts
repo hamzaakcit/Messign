@@ -11,6 +11,11 @@ export function registerBuiltInAdapters(): void {
 }
 registerBuiltInAdapters();
 
+/** Does this provider send delivery reports back (a webhook)? Used by the ops check to tell silence from a missing webhook. */
+export function expectsDeliveryReports(provider: string): boolean {
+  return getAdapter(provider)?.capabilities().deliveryReports === true;
+}
+
 export * from './adapter.js';
 export * from './messages.js';
 export * from './dispatch.js';

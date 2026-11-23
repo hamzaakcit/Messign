@@ -3,6 +3,7 @@ import { assertEngageRoleSafe } from './db.js';
 import { assertMasterKeyForMount } from './crypto.js';
 import { describeError, logError, logInfo } from './log.js';
 import { engageRouter } from './routes.js';
+import './ops/errors.js'; // registers the error tracker with the logger (WP-29)
 
 /** Mounts /api/engage only if the engage DB role is configured and cannot bypass RLS (ADR-002). Otherwise it stays off. */
 export async function mountEngage(app: Express): Promise<boolean> {

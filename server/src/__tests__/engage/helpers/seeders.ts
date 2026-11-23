@@ -174,6 +174,9 @@ export const SEEDERS: Record<string, Seeder> = {
     const t = await seedTemplate(c, org);
     await c.query(`INSERT INTO engage.template_versions (organization_id, template_id, version, subject, text_body) VALUES ($1, $2, 1, 's', 't')`, [org, t]);
   },
+  ops_alerts: async (c, org) => {
+    await c.query(`INSERT INTO engage.ops_alerts (organization_id, rule, subject, severity, data) VALUES ($1, 'provider_failing', $2, 'warning', '{}'::jsonb)`, [org, `seed-${Math.random()}`]);
+  },
   email_domain_checks: async (c, org) => {
     const acct = await c.query<{ id: string }>(
       `INSERT INTO engage.channel_accounts (organization_id, channel, provider, mode, label, secret_ciphertext, wrapped_data_key, key_id, secret_fingerprint)

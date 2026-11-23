@@ -37,7 +37,7 @@
 | WP-26 | İYS client from public docs + mock İYS server (pull consents, push opt-outs, SLA monitor); live at business start | P1 | W10 | done against the mock (ADR-022; API and job, no Settings screen; live verification is the first onboarding step) | Revocation honoured before next send (against mock) |
 | WP-27 | WhatsApp Cloud API adapter (own Meta dev app + test number) | P1 | W10 | done against the mock (ADR-023; no journey step or Settings screen; live verification with a Meta test number is the first onboarding step) | Marketing template blocked without WhatsApp consent |
 | WP-28 | Alaris-based SMS adapter from real docs; domestic-route capability (confirmed available) | cond. | W11 | blocked(E4 docs) | Every mapping cites the docs |
-| WP-29 | Ops: provider health, alerts, error tracking, restore test | P0 | W11 | todo | Drill fires alerts |
+| WP-29 | Ops: provider health, alerts, error tracking, restore test | P0 | W11 | done (ADR-024; runbook ops-monitoring.md; the restore drill ran on a local PostgreSQL, not yet on Railway's backups; the alert webhook and heartbeat URLs are set by the operator) | Drill fires alerts |
 | WP-30 | Sandbox E2E across test ladder (+ step 4 if eligible) | P0 | W11 | todo | E2E report |
 | WP-31 | Security hardening (seed routes, rate limits, engage audit hash chain, deps, CSP, secrets scan) | P0 | W12 | todo | Checklist closed/accepted |
 | WP-32 | Performance baseline (1M events, 50k enrollments) | P1 | W12 | todo | Numbers recorded |

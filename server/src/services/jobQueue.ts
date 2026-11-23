@@ -26,6 +26,8 @@ export const JOB_NAMES = {
   ENGAGE_EMAIL_DOMAIN_RECHECK: 'engage/email-domain-recheck',
   /** Engage: push the tenants' opt-outs to İYS and pull recipients' consent changes from İYS (every ten minutes). */
   ENGAGE_IYS_SYNC: 'engage/iys-sync',
+  /** Engage: the ops check (WP-29): measure every tenant that can be sending, keep alerts in line, tell the operators (every five minutes). */
+  ENGAGE_OPS_CHECK: 'engage/ops-check',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -77,6 +79,14 @@ async function ensureJobQueuesExist(pgBoss: PgBoss): Promise<void> {
       throw err;
     }
   }
+}
+
+/** Jobs of queues whose name starts with `prefix` that used up their retries (state `failed`) in the last `hours`, by queue name. */
+export async function failedJobCounts(prefix: string, hours: number): Promise<Record<string, number>> {
+  const r = await getQueue().getDb().executeSql(
+    `SELECT name, count(*)::int AS n FROM pgboss.job WHERE name LIKE $1 AND state = 'failed' AND completed_on > now() - make_interval(hours => $2) GROUP BY name ORDER BY name`,
+    [`${prefix.replace(/[%_\\]/g, '\\$&')}%`, hours]);
+  return Object.fromEntries((r.rows as Array<{ name: string; n: number }>).map((x) => [x.name, x.n]));
 }
 
 /** Get the running pg-boss instance. Throws if not initialized. */

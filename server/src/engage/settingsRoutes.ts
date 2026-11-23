@@ -9,7 +9,7 @@ import { EmailDomainError, getEmailDomain, runEmailDomainCheck } from './setting
 import { listAccounts } from './credentials.js';
 import { checkConnection } from './iys/connection.js';
 import { iysSlaReport } from './iys/report.js';
-import { getAttention } from './settings/attention.js';
+import { attentionWithAlerts, getDeliveryHealth } from './ops/health.js';
 import './types.js';
 
 /**
@@ -155,6 +155,14 @@ settingsRouter.post('/iys/check', requireEngageUser, requireEngageAdmin, async (
 settingsRouter.get('/attention', requireEngageUser, requireEngageAdmin, async (req, res) => {
   try {
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ items: await getAttention(req.engageUser!.organizationId) });
+    res.json({ items: await attentionWithAlerts(req.engageUser!.organizationId) });
+  } catch (err) { fail(res, err); }
+});
+
+/** How each channel account is delivering now (provider calls, bounces, delivery reports) and what is wrong, from the ops rules (WP-29, ADR-024). */
+settingsRouter.get('/delivery-health', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await getDeliveryHealth(req.engageUser!.organizationId));
   } catch (err) { fail(res, err); }
 });
