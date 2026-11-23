@@ -111,7 +111,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  const profile = await P.upsertProfile(a.org, { externalId: 'whatsapp-live-check', phone: a.to });
+  // The number may already belong to a customer of this organization (one added in the web app, for example): use that profile, not a
+  // second one, which the identifier rules refuse ("That phone already belongs to another profile").
+  const phone = P.normalizePhone(a.to);
+  const owner = phone === null ? null : (await withEngageTenant(a.org, (c) => c.query<{ external_id: string }>(
+    `SELECT p.external_id FROM engage.identifiers i JOIN engage.profiles p ON p.organization_id = i.organization_id AND p.id = i.profile_id
+      WHERE i.organization_id = $1 AND i.type = 'phone' AND i.value_normalized = $2 AND i.is_active`, [a.org, phone]))).rows[0];
+  const profile = await P.upsertProfile(a.org, { externalId: owner?.external_id ?? 'whatsapp-live-check', phone: a.to });
 
   if (a.prepare) {
     const have = await withEngageTenant(a.org, async (c) => ({
