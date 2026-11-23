@@ -9,12 +9,16 @@
  * means: rotate that credential first (a deleted commit is still in every clone and fork), then fix the repository.
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { closeSync, existsSync, fstatSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { isAllowed, scanText, type AllowEntry, type Finding } from './secretScan/rules.js';
 
-const SKIP_PATH = /(^|\/)(package-lock\.json|node_modules\/|dist\/|\.git\/)|\.(png|jpe?g|gif|webp|avif|ico|pdf|woff2?|ttf|otf|mp4|mov|zip|gz|dump|lock)$/i;
+/** Generated or binary paths: a lockfile, dependencies, build output, git internals, and binary file types. */
+const SKIP_DIR = /(?:^|\/)(?:node_modules|dist|\.git)\//;
+const SKIP_FILE = /(?:^|\/)package-lock\.json$/;
+const SKIP_EXT = /\.(?:png|jpe?g|gif|webp|avif|ico|pdf|woff2?|ttf|otf|mp4|mov|zip|gz|dump|lock)$/i;
+const SKIP_PATH = { test: (p: string): boolean => SKIP_DIR.test(p) || SKIP_FILE.test(p) || SKIP_EXT.test(p) };
 const MAX_BYTES = 1_500_000;
 
 const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
@@ -34,10 +38,15 @@ function scanTracked(): Array<Finding & { file: string }> {
   for (const file of files) {
     if (SKIP_PATH.test(file)) continue;
     const full = join(root, file);
-    let size = 0;
-    try { const st = statSync(full); if (!st.isFile()) continue; size = st.size; } catch { continue; } // deleted, or a directory (submodule)
-    if (size > MAX_BYTES) continue;
-    const buf = readFileSync(full);
+    // Open once and check the opened file itself, so what is checked is what is read.
+    let buf: Buffer;
+    let fd: number | null = null;
+    try {
+      fd = openSync(full, 'r');
+      const st = fstatSync(fd);
+      if (!st.isFile() || st.size > MAX_BYTES) continue; // a directory (submodule) or too large
+      buf = readFileSync(fd);
+    } catch { continue; } finally { if (fd !== null) closeSync(fd); } // deleted in the working tree
     if (buf.includes(0)) continue; // binary
     for (const f of scanText(buf.toString('utf8'))) out.push({ ...f, file });
   }
