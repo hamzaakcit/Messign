@@ -356,8 +356,70 @@ describe('WhatsApp templates (WP-40a)', () => {
     expect(within(panel).getByTestId('whatsapp-problems')).toHaveTextContent('Meta has not approved this template, or has paused or disabled it.');
     expect(within(panel).getByTestId('whatsapp-variables')).toHaveTextContent('{{1}} customer field first_name, or "merhaba"');
     expect(within(panel).getByTestId('whatsapp-variables')).toHaveTextContent('Button link: https://shop.example.com/cart/ followed by trigger value cart_id');
-    // Read-only here: no email editor and no "New version" button for a WhatsApp template.
-    expect(within(panel).queryByRole('button', { name: 'New version' })).not.toBeInTheDocument();
+    // A new version opens the WhatsApp form filled with the latest mapping, never the email editor.
+    fireEvent.click(within(panel).getByTestId('whatsapp-new-version'));
+    expect(await within(panel).findByTestId('whatsapp-template-form')).toBeInTheDocument();
+    expect((within(panel).getByLabelText('Name at Meta') as HTMLInputElement).value).toBe('cart_reminder');
+    expect(within(panel).queryByLabelText('HTML')).not.toBeInTheDocument();
+  });
+
+  it('creates a WhatsApp template from one Meta lists: the body fills in and each {{n}} gets a row (WP-40b)', async () => {
+    mockApi((url, method) => {
+      if (method === 'GET' && url.endsWith('/engage/whatsapp/templates')) return json({
+        check: { lastAttemptAt: '2026-11-23T10:00:00Z', lastOkAt: '2026-11-23T10:00:00Z', lastError: null, consecutiveFailures: 0, templatesSeen: 1 },
+        templates: [{ metaName: 'cart_reminder', language: 'tr', status: 'APPROVED', category: 'MARKETING', quality: 'GREEN', rejectedReason: null, seenAt: '', registeredAs: [],
+          shape: { bodyText: 'Merhaba {{1}}, sepetinde {{2}} bekliyor.', bodyVariables: 2, headerFormat: null, buttons: ['QUICK_REPLY'] } }],
+        unmatched: [],
+      });
+      if (method === 'POST' && url.endsWith('/engage/templates')) return json({ template: { id: 'w9' } }, 201);
+      if (method === 'GET' && url.endsWith('/engage/templates/w9')) return json(DETAIL);
+      return lists(url, method) ?? json({}, 404);
+    });
+    renderHub();
+    fireEvent.click(screen.getByTestId('hub-tab-templates'));
+    fireEvent.click(await screen.findByTestId('hub-new-template'));
+    fireEvent.change(await screen.findByTestId('template-channel'), { target: { value: 'whatsapp' } });
+    fireEvent.change(screen.getByLabelText('Template name'), { target: { value: 'Cart on WhatsApp' } });
+    fireEvent.change(screen.getByLabelText('Template key'), { target: { value: 'cart-wa' } });
+    await waitFor(() => expect((screen.getByTestId('whatsapp-from-meta') as HTMLSelectElement).options.length).toBe(2));
+    fireEvent.change(screen.getByTestId('whatsapp-from-meta'), { target: { value: 'cart_reminder|tr' } });
+    expect((screen.getByTestId('whatsapp-body') as HTMLTextAreaElement).value).toBe('Merhaba {{1}}, sepetinde {{2}} bekliyor.');
+    fireEvent.change(screen.getByLabelText('{{1}} field'), { target: { value: 'first_name' } });
+    fireEvent.change(screen.getByLabelText('{{1}} default'), { target: { value: 'merhaba' } });
+    fireEvent.change(screen.getByLabelText('{{2}} source'), { target: { value: 'payload' } });
+    fireEvent.change(screen.getByLabelText('{{2}} field'), { target: { value: 'book' } });
+    expect(screen.getByTestId('whatsapp-preview')).toHaveTextContent('Merhaba [first_name], sepetinde [book] bekliyor.');
+    fireEvent.click(screen.getByTestId('save-whatsapp-template'));
+    await waitFor(() => expect(posted('/engage/templates')).toHaveLength(1));
+    expect(posted('/engage/templates')[0]!.body).toEqual({
+      channel: 'whatsapp', key: 'cart-wa', name: 'Cart on WhatsApp',
+      content: {
+        metaName: 'cart_reminder', language: 'tr', declaredCategory: 'marketing', optOut: 'quick_reply', bodyText: 'Merhaba {{1}}, sepetinde {{2}} bekliyor.',
+        variables: [{ source: 'attribute', name: 'first_name', defaultValue: 'merhaba' }, { source: 'payload', name: 'book', defaultValue: null }],
+        header: null, urlButton: null,
+      },
+    });
+    expect(await screen.findByTestId('engage-whatsapp-template')).toBeInTheDocument();
+  });
+
+  it('a message step chooses its channel, and the WhatsApp-else-email preset builds the branch', async () => {
+    mockApi((url, method) => {
+      if (method === 'GET' && url.endsWith('/engage/templates')) return json({ templates: [WA, EMAIL] });
+      return lists(url, method) ?? json({}, 404);
+    });
+    renderHub();
+    fireEvent.click(screen.getByTestId('hub-tab-journeys'));
+    fireEvent.click(await screen.findByTestId('hub-new-journey'));
+    await screen.findByTestId('journey-editor');
+    fireEvent.click(screen.getByTestId('add-message'));
+    fireEvent.change(screen.getByTestId('step-1-channel'), { target: { value: 'whatsapp' } });
+    await waitFor(() => expect(screen.getByTestId('step-1-template')).toHaveTextContent('cart-wa'));
+    expect(screen.getByTestId('step-1-template')).not.toHaveTextContent('cart-reminder');
+    fireEvent.click(screen.getByTestId('add-whatsapp-or-email'));
+    // choose-1 (branch on reachable.whatsapp), whatsapp-1, email-1, done-1
+    expect(screen.getByLabelText('Step 3 rule 1 field')).toHaveValue('reachable.whatsapp');
+    expect(screen.getByTestId('step-3-channel')).toHaveValue('whatsapp');
+    expect(screen.getByTestId('step-4-channel')).toHaveValue('email');
   });
 
   it('keeps WhatsApp templates out of the email step picker of a journey', async () => {

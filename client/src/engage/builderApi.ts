@@ -49,6 +49,23 @@ export const listTemplates = () => call<{ templates: TemplateSummary[] }>('/enga
 /** Templates an email step or an email campaign can use. WhatsApp templates are kept out until journeys and campaigns send WhatsApp. */
 export const listEmailTemplates = () => listTemplates().then((t) => t.filter((x) => x.channel === 'email'));
 
+/** A template as Meta lists it (WP-40a mirror), with the Messign templates registered for it. */
+export interface MetaTemplate {
+  metaName: string; language: string; status: string; category: string | null; quality: string | null; rejectedReason: string | null;
+  shape: { bodyText?: string | null; bodyVariables?: number; headerFormat?: string | null; headerText?: string | null; headerVariables?: number; urlButtonVariables?: number; buttons?: string[] };
+  seenAt: string; registeredAs: Array<{ id: string; key: string }>;
+}
+export interface MetaTemplateList {
+  check: { lastAttemptAt: string | null; lastOkAt: string | null; lastError: string | null; consecutiveFailures: number; templatesSeen: number };
+  templates: MetaTemplate[]; unmatched: Array<{ id: string; key: string; metaName: string; language: string }>;
+}
+export const listMetaTemplates = () => call<MetaTemplateList>('/engage/whatsapp/templates');
+export const checkMetaTemplates = () => post<{ ok: boolean; seen: number; changed: number; error: string | null }>('/engage/whatsapp/templates/check', {});
+export const createWhatsappTemplate = (input: { key: string; name: string; content: WhatsappContentInput }) =>
+  post<{ template: TemplateSummary }>('/engage/templates', { channel: 'whatsapp', ...input });
+export const addWhatsappTemplateVersion = (id: string, content: WhatsappContentInput) => post<{ version: unknown }>(`/engage/templates/${encodeURIComponent(id)}/versions`, { content });
+export type WhatsappContentInput = Omit<WhatsappContent, 'variables'> & { variables: Array<Omit<WhatsappVariable, 'position'>> };
+
 /** A WhatsApp template (WP-40a): how a Meta-approved template is filled, and how it stands at Meta. */
 export interface WhatsappVariable { position?: number; source: 'attribute' | 'payload' | 'system'; name: string; defaultValue: string | null }
 export interface WhatsappContent {
@@ -99,21 +116,24 @@ export const getJourneyResults = (id: string, windowHours: number) =>
 // One-off campaigns (WP-38, ADR-018): send a template to a segment now.
 export type CampaignStatus = 'sending' | 'sent' | 'failed';
 export interface Campaign {
-  id: string; journeyId: string; name: string; templateKey: string; templateVersion: number; segmentKey: string; segmentVersion: number;
+  id: string; journeyId: string; name: string; channel: 'email' | 'whatsapp'; templateKey: string; templateVersion: number; segmentKey: string; segmentVersion: number;
   holdoutPercent: number; status: CampaignStatus; matched: number; enrolled: number; skipped: number; truncated: boolean; error: string | null;
   createdBy: string | null; createdAt: string; finishedAt: string | null;
 }
 export interface ReadinessProblem { code: string; message: string }
 export interface SendReadiness { sendMode: 'off' | 'sandbox' | 'live'; ready: boolean; problems: ReadinessProblem[] }
 export interface CampaignPreview {
-  template: { id: string; key: string; name: string; version: number; subject: string; hasUnsubscribeLink: boolean };
+  template: {
+    id: string; key: string; name: string; version: number; channel: 'email' | 'whatsapp'; subject: string | null; hasUnsubscribeLink: boolean;
+    whatsapp: { metaName: string; language: string; category: string; sendable: boolean; problems: string[]; body: string } | null;
+  };
   segment: { id: string; key: string; name: string; version: number };
   audience: { inSegment: number; withConsent: number; sample: Array<{ id: string; externalId: string }>; cap: number; overCap: boolean };
   readiness: SendReadiness;
 }
 export const listCampaigns = () => call<{ campaigns: Campaign[] }>('/engage/campaigns').then((r) => r.campaigns);
 export interface CampaignOutcome {
-  messages: number; byStatus: Record<string, number>; heldOut: number; blockedBecause: Record<string, number>; inFlight: boolean;
+  messages: number; byStatus: Record<string, number>; heldOut: number; blockedBecause: Record<string, number>; waitingBecause?: Record<string, number>; inFlight: boolean;
 }
 export const getCampaign = (id: string) => call<{ campaign: Campaign; outcome: CampaignOutcome }>(`/engage/campaigns/${encodeURIComponent(id)}`);
 export const previewCampaign = (input: { templateId: string; segmentId: string }) => post<CampaignPreview>('/engage/campaigns/preview', input);

@@ -11,7 +11,13 @@ import { z } from 'zod';
  *              journey must use after_exit, because the same customer's occasion comes back every year (WP-25)
  *   holdout_percent  share of enrollments that run every step but get no message (default 10, D-11)
  *   steps      delay · wait_until {event, filter?, timeout, on_timeout} · branch {branches[], otherwise} ·
- *              message {channel email, template key, version?, purpose} · exit
+ *              message {channel email|whatsapp, template key, version?, purpose} · exit
+ *
+ * Branch conditions may also read the customer's channels at that moment (WP-40b), so a journey can say "WhatsApp if the
+ * customer can get it, otherwise email":
+ *   consent.<channel>    'granted' | 'revoked' (empty without a record), the marketing consent for email, sms or whatsapp
+ *   reachable.<channel>  true when a marketing message on that channel could reach the customer: consent granted, an active
+ *                        address (email) or number (sms, whatsapp), and not suppressed. The send gate still decides each message.
  *
  * Steps run in order: a step goes to `next`, or to the following step, or exits after the last one. Branches name their
  * targets. The graph must be acyclic (no loops that could message someone forever), every target must exist, and every
@@ -20,6 +26,7 @@ import { z } from 'zod';
  */
 
 export const DEFINITION_SCHEMA_VERSION = 1;
+export const MESSAGE_CHANNELS = ['email', 'whatsapp'] as const;
 /** D-11: 10% of enrollments are a randomized holdout, so the uplift of a journey can be measured. */
 export const DEFAULT_HOLDOUT_PERCENT = 10;
 const MAX_STEPS = 50;
@@ -30,7 +37,9 @@ const eventName = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/, 'must be lower_snak
 const stepId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,31}$/, 'must be 1-32 of a-z, 0-9, _ or -');
 const templateKey = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/, 'must be a template key');
 const attributeName = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/, 'must be an attribute name');
-const field = z.string().regex(/^(attributes|event|payload)\.[A-Za-z_][A-Za-z0-9_]{0,63}$/, 'must be attributes.<name>, event.<name> or payload.<name>');
+const field = z.string().regex(
+  /^((attributes|event|payload)\.[A-Za-z_][A-Za-z0-9_]{0,63}|(consent|reachable)\.(email|sms|whatsapp))$/,
+  'must be attributes.<name>, event.<name>, payload.<name>, consent.<channel> or reachable.<channel>');
 const scalar = z.union([z.string().max(200), z.number().finite(), z.boolean()]);
 
 export type Condition =
@@ -80,7 +89,7 @@ const step = z.discriminatedUnion('type', [
     branches: z.array(z.object({ when: condition, next: stepId }).strict()).min(1).max(10), otherwise: stepId,
   }).strict(),
   z.object({
-    id: stepId, type: z.literal('message'), channel: z.literal('email'), template: templateKey,
+    id: stepId, type: z.literal('message'), channel: z.enum(MESSAGE_CHANNELS), template: templateKey,
     template_version: z.number().int().min(1).optional(), purpose: z.enum(['marketing', 'transactional']), next,
   }).strict(),
   z.object({ id: stepId, type: z.literal('exit') }).strict(),
@@ -97,7 +106,7 @@ const definitionSchema = z.object({
 export type JourneyDefinition = z.infer<typeof definitionSchema>;
 export type JourneyStep = JourneyDefinition['steps'][number];
 export interface DefinitionIssue { path: string; message: string }
-export interface TemplateRef { key: string; version: number | null; stepId: string }
+export interface TemplateRef { key: string; version: number | null; stepId: string; channel: (typeof MESSAGE_CHANNELS)[number] }
 export interface SegmentRef { key: string; version: number }
 export type DefinitionResult =
   | { ok: true; definition: JourneyDefinition; templates: TemplateRef[]; segments: SegmentRef[] }
@@ -111,6 +120,15 @@ function conditionProblems(c: Condition, at: string, depth: number, allowEvent: 
   else if ('any' in c) c.any.forEach((x, i) => conditionProblems(x, `${at}.any[${i}]`, depth + 1, allowEvent, out));
   else if ('not' in c) conditionProblems(c.not, `${at}.not`, depth + 1, allowEvent, out);
   else if (!allowEvent && c.field.startsWith('event.')) out.push({ path: `${at}.field`, message: 'event.* fields can only be used in event filters' });
+  else if (allowEvent && (c.field.startsWith('consent.') || c.field.startsWith('reachable.'))) {
+    out.push({ path: `${at}.field`, message: `${c.field.split('.')[0]}.* fields can only be used in branch conditions` });
+  } else if (c.field.startsWith('consent.')) {
+    if (!['eq', 'neq', 'in', 'exists', 'not_exists'].includes(c.op)) out.push({ path: `${at}.op`, message: `${c.field} supports eq, neq, in, exists and not_exists` });
+    else if ('value' in c && (Array.isArray(c.value) ? c.value : [c.value]).some((v) => v !== 'granted' && v !== 'revoked')) out.push({ path: `${at}.value`, message: `${c.field} is "granted" or "revoked"` });
+  } else if (c.field.startsWith('reachable.')) {
+    if (c.op !== 'eq' && c.op !== 'neq') out.push({ path: `${at}.op`, message: `${c.field} is true or false: use eq or neq` });
+    else if ('value' in c && typeof c.value !== 'boolean') out.push({ path: `${at}.value`, message: `${c.field} is true or false` });
+  }
 }
 
 /** The step a step continues to by default: its `next`, else the following step, else the end of the journey. */
@@ -182,7 +200,15 @@ export function validateDefinition(input: unknown): DefinitionResult {
   d.steps.forEach((s, i) => { if (!colour.has(s.id)) errors.push({ path: `steps[${i}]`, message: `step "${s.id}" can never be reached` }); });
   if (errors.length) return { ok: false, errors };
 
-  const templates = d.steps.flatMap((s) => (s.type === 'message' ? [{ key: s.template, version: s.template_version ?? null, stepId: s.id }] : []));
+  const templates = d.steps.flatMap((s) => (s.type === 'message' ? [{ key: s.template, version: s.template_version ?? null, stepId: s.id, channel: s.channel }] : []));
   const segments = d.trigger.type === 'segment' ? [{ key: d.trigger.segment, version: d.trigger.segment_version }] : [];
   return { ok: true, definition: d, templates, segments };
+}
+
+/** Does a condition read the customer's channels (consent.* or reachable.*)? Only then does the engine look them up. */
+export function readsChannels(c: Condition): boolean {
+  if ('all' in c) return c.all.some(readsChannels);
+  if ('any' in c) return c.any.some(readsChannels);
+  if ('not' in c) return readsChannels(c.not);
+  return c.field.startsWith('consent.') || c.field.startsWith('reachable.');
 }

@@ -123,7 +123,7 @@ describe.skipIf(!adminUrl)('one-off campaigns (real Postgres, HTTP, mock channel
       expect(new Set(enrolled)).toEqual(new Set([...c.ok, ...c.suppressed, ...c.unlisted]));
       const id = (r.json.campaign as { id: string }).id;
       // Before the executor has run, nothing is created yet and the numbers can still change.
-      expect((await app.http(`/campaigns/${id}`, { token: t.member })).json.outcome).toEqual({ messages: 0, byStatus: {}, heldOut: 0, blockedBecause: {}, inFlight: true });
+      expect((await app.http(`/campaigns/${id}`, { token: t.member })).json.outcome).toEqual({ messages: 0, byStatus: {}, heldOut: 0, blockedBecause: {}, waitingBecause: {}, inFlight: true });
       await run(t.org);
       const outcome = (await app.http(`/campaigns/${id}`, { token: t.member })).json.outcome as { messages: number; byStatus: Record<string, number>; blockedBecause: Record<string, number>; inFlight: boolean; heldOut: number };
       expect(outcome).toMatchObject({ messages: 17, heldOut: 0, inFlight: false, blockedBecause: { suppressed: 3, not_allowlisted: 4 } });

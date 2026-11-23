@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ApiIssues, addJourneyVersion, createJourney, listEmailTemplates, listSegments, validateJourney, type Issue,
+  ApiIssues, addJourneyVersion, createJourney, listSegments, listTemplates, validateJourney, type Issue,
 } from './builderApi';
 import {
-  OPS, STEP_TYPES, definitionToForm, emptyForm, emptyLeaf, formToDefinition, newStep,
+  OPS, STEP_TYPES, definitionToForm, emptyForm, emptyLeaf, formToDefinition, newStep, whatsappOrEmailSteps,
   type JourneyForm, type LeafForm, type Op, type StepForm, type StepType,
 } from './journeyForm';
 import { Button, Card, Field, Issues, Select, TextInput, inputClass } from './ui';
@@ -15,7 +15,9 @@ import { Button, Card, Field, Issues, Select, TextInput, inputClass } from './ui
  * way it is a draft that a tenant admin approves and activates on the journey page.
  */
 
-const STEP_LABEL: Record<StepType, string> = { delay: 'Wait', wait_until: 'Wait for an event', branch: 'Branch', message: 'Send email', exit: 'End' };
+const STEP_LABEL: Record<StepType, string> = { delay: 'Wait', wait_until: 'Wait for an event', branch: 'Branch', message: 'Send a message', exit: 'End' };
+const CHANNEL_LABEL = { email: 'Email', whatsapp: 'WhatsApp' } as const;
+interface TemplateOption { key: string; channel: 'email' | 'whatsapp' }
 const OP_LABEL: Record<Op, string> = {
   eq: 'is', neq: 'is not', gt: '>', gte: '≥', lt: '<', lte: '≤', contains: 'contains', in: 'is one of', exists: 'is set', not_exists: 'is not set',
 };
@@ -45,7 +47,7 @@ function OptionalLeaf({ leaf, onChange, scopes, label, toggle }: { leaf: LeafFor
 }
 
 function StepEditor({ step, index, steps, templates, onChange, onRemove, onMove }: {
-  step: StepForm; index: number; steps: StepForm[]; templates: string[];
+  step: StepForm; index: number; steps: StepForm[]; templates: TemplateOption[];
   onChange: (s: StepForm) => void; onRemove: () => void; onMove: (dir: -1 | 1) => void;
 }): JSX.Element {
   const others = steps.filter((s) => s.id !== step.id).map((s) => ({ value: s.id, label: s.id }));
@@ -54,7 +56,7 @@ function StepEditor({ step, index, steps, templates, onChange, onRemove, onMove 
   return (
     <li className="rounded-md border border-app p-3" data-testid={`step-${index}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-app">{index + 1}. {STEP_LABEL[step.type]}</span>
+        <span className="text-sm font-semibold text-app">{index + 1}. {step.type === 'message' ? `Send ${step.channel === 'whatsapp' ? 'WhatsApp' : 'email'}` : STEP_LABEL[step.type]}</span>
         <div className="flex gap-1">
           <Button onClick={() => onMove(-1)} disabled={index === 0}>↑</Button>
           <Button onClick={() => onMove(1)} disabled={index === steps.length - 1}>↓</Button>
@@ -72,9 +74,18 @@ function StepEditor({ step, index, steps, templates, onChange, onRemove, onMove 
           </Field>
         </>}
         {step.type === 'message' && <>
-          <Field label="Email template">
+          <Field label="Channel" hint="the template must be one of this channel">
+            <Select value={step.channel} onChange={(channel) => set({ channel, template: '' })} ariaLabel={`Step ${index + 1} channel`} testId={`step-${index}-channel`}
+              options={(['email', 'whatsapp'] as const).map((c) => ({ value: c, label: CHANNEL_LABEL[c] }))} />
+          </Field>
+          <Field label={`${CHANNEL_LABEL[step.channel]} template`}>
             <Select value={step.template} onChange={(template) => set({ template })} ariaLabel={`Step ${index + 1} template`} testId={`step-${index}-template`}
-              options={[{ value: '', label: templates.length ? 'Choose a template' : 'No templates yet' }, ...templates.map((t) => ({ value: t, label: t }))]} />
+              options={(() => {
+                const own = templates.filter((t) => t.channel === step.channel).map((t) => t.key);
+                // A template already chosen stays visible even if it is not in the list, so the server can say why.
+                const keys = step.template && !own.includes(step.template) ? [step.template, ...own] : own;
+                return [{ value: '', label: own.length ? 'Choose a template' : `No ${CHANNEL_LABEL[step.channel]} templates yet` }, ...keys.map((t) => ({ value: t, label: t }))];
+              })()} />
           </Field>
           <Field label="Template version" hint="empty = latest when sent"><TextInput value={step.templateVersion} onChange={(templateVersion) => set({ templateVersion })} ariaLabel={`Step ${index + 1} template version`} /></Field>
           <Field label="Purpose">
@@ -93,7 +104,7 @@ function StepEditor({ step, index, steps, templates, onChange, onRemove, onMove 
           {step.branches.map((b, k) => (
             <div key={k} className="rounded border border-app p-2">
               <p className="mb-2 text-xs text-app-muted">Rule {k + 1}: if</p>
-              <LeafEditor leaf={b.when} onChange={(when) => set({ branches: step.branches.map((x, j) => (j === k ? { ...x, when } : x)) })} scopes="attributes.tier" label={`Step ${index + 1} rule ${k + 1}`} />
+              <LeafEditor leaf={b.when} onChange={(when) => set({ branches: step.branches.map((x, j) => (j === k ? { ...x, when } : x)) })} scopes="attributes.tier or reachable.whatsapp" label={`Step ${index + 1} rule ${k + 1}`} />
               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
                 <Select value={b.next} onChange={(next) => set({ branches: step.branches.map((x, j) => (j === k ? { ...x, next } : x)) })}
                   options={[{ value: '', label: 'go to…' }, ...others]} ariaLabel={`Step ${index + 1} rule ${k + 1} next`} />
@@ -129,7 +140,7 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
   const [issues, setIssues] = useState<Issue[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const templates = useQuery({ queryKey: ['engage', 'templates', 'email'], queryFn: listEmailTemplates });
+  const templates = useQuery({ queryKey: ['engage', 'templates'], queryFn: listTemplates });
   const segments = useQuery({ queryKey: ['engage', 'segments'], queryFn: listSegments });
 
   const definition = (): unknown => {
@@ -262,9 +273,14 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
           </Card>
 
           <Card title="Steps">
+            <p className="mb-3 text-xs text-app-muted">
+              A branch can ask about the customer's channels: <code className="font-mono">reachable.whatsapp</code> is true when a WhatsApp
+              marketing message could reach them (consent, a number, not stopped); <code className="font-mono">consent.email</code> is granted or revoked.
+              Every message still goes through the send gate.
+            </p>
             <ol className="space-y-3">
               {form.steps.map((s, i) => (
-                <StepEditor key={i} step={s} index={i} steps={form.steps} templates={(templates.data ?? []).map((x) => x.key)}
+                <StepEditor key={i} step={s} index={i} steps={form.steps} templates={(templates.data ?? []).map((x) => ({ key: x.key, channel: x.channel }))}
                   onChange={(n) => setStep(i, n)} onRemove={() => setForm({ ...form, steps: form.steps.filter((_, j) => j !== i) })} onMove={(d) => move(i, d)} />
               ))}
             </ol>
@@ -272,6 +288,7 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
               {STEP_TYPES.map((type) => (
                 <Button key={type} onClick={() => setForm({ ...form, steps: [...form.steps, newStep(type, form.steps)] })} testId={`add-${type}`}>+ {STEP_LABEL[type]}</Button>
               ))}
+              <Button onClick={() => setForm({ ...form, steps: [...form.steps, ...whatsappOrEmailSteps(form.steps)] })} testId="add-whatsapp-or-email">+ WhatsApp, else email</Button>
             </div>
           </Card>
         </>

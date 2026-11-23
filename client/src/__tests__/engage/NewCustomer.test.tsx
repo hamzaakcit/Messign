@@ -86,7 +86,25 @@ describe('adding one customer by hand (Customers page)', () => {
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith('p1'));
     expect(posted()[0]!.body).toEqual({
-      external_id: 'kitap-1', email: 'ayse@example.com', phone: null, email_consent: true, consent_note: 'Paper form, 12 March',
+      external_id: 'kitap-1', email: 'ayse@example.com', phone: null, email_consent: true, whatsapp_consent: false, consent_note: 'Paper form, 12 March',
+    });
+  });
+
+  it('WhatsApp consent needs the phone number and the note, and is sent with them (WP-40b)', async () => {
+    mockApi((url, method) => (method === 'POST' ? json({ id: 'p3', externalId: 'kitap-3' }, 201) : lists(url) ?? json({}, 404)));
+    const onSaved = vi.fn();
+    renderPanel(onSaved);
+    fireEvent.change(screen.getByTestId('customer-external-id'), { target: { value: 'kitap-3' } });
+    fireEvent.click(screen.getByTestId('customer-whatsapp-consent'));
+    expect(screen.getByTestId('customer-needs-phone')).toBeInTheDocument();
+    expect(screen.getByTestId('save-customer')).toBeDisabled();
+    fireEvent.change(screen.getByTestId('customer-phone'), { target: { value: '+905001112233' } });
+    expect(screen.getByTestId('save-customer')).toBeDisabled(); // still needs where they agreed
+    fireEvent.change(screen.getByTestId('customer-consent-note'), { target: { value: 'Store checkout, 20 November' } });
+    fireEvent.click(screen.getByTestId('save-customer'));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('p3'));
+    expect(posted()[0]!.body).toEqual({
+      external_id: 'kitap-3', email: null, phone: '+905001112233', email_consent: false, whatsapp_consent: true, consent_note: 'Store checkout, 20 November',
     });
   });
 

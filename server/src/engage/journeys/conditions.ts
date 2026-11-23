@@ -8,11 +8,16 @@ import type { Condition } from './definition.js';
  *   attributes.<name>  the profile's attributes
  *   event.<name>       the evaluated event's properties (trigger filters, exit_when filters, wait_until filters)
  *   payload.<name>     the enrollment's payload (the API trigger payload, or the trigger event's properties)
+ *   consent.<channel>, reachable.<channel>   the customer's channels, read by the engine for branch conditions only
  */
 export interface ConditionContext {
   attributes: Record<string, unknown>;
   event?: Record<string, unknown>;
   payload?: Record<string, unknown>;
+  /** The customer's marketing consent per channel ('granted' | 'revoked'), for branch conditions (WP-40b). */
+  consent?: Record<string, unknown>;
+  /** Whether a marketing message on each channel could reach the customer now (consent, an active address, not suppressed). */
+  reachable?: Record<string, unknown>;
 }
 
 type Scalar = string | number | boolean;
@@ -21,7 +26,8 @@ function read(ctx: ConditionContext, field: string): unknown {
   const dot = field.indexOf('.');
   const scope = field.slice(0, dot);
   const name = field.slice(dot + 1);
-  const source = scope === 'attributes' ? ctx.attributes : scope === 'event' ? ctx.event : scope === 'payload' ? ctx.payload : undefined;
+  const source = scope === 'attributes' ? ctx.attributes : scope === 'event' ? ctx.event : scope === 'payload' ? ctx.payload
+    : scope === 'consent' ? ctx.consent : scope === 'reachable' ? ctx.reachable : undefined;
   if (!source || typeof source !== 'object' || !Object.prototype.hasOwnProperty.call(source, name)) return undefined;
   return (source as Record<string, unknown>)[name];
 }

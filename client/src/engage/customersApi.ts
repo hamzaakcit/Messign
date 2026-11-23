@@ -54,7 +54,7 @@ export function getCustomerTrail(id: string): Promise<CustomerTrail> {
 }
 
 export interface NewCustomerInput {
-  external_id: string; email?: string | null; phone?: string | null; email_consent: boolean; consent_note?: string | null;
+  external_id: string; email?: string | null; phone?: string | null; email_consent: boolean; whatsapp_consent?: boolean; consent_note?: string | null;
 }
 /** Add one customer by hand (admins). The server stores email consent only with a note of where the customer agreed. */
 export function createCustomer(input: NewCustomerInput): Promise<{ id: string; externalId: string }> {

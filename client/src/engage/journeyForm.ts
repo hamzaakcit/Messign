@@ -23,6 +23,8 @@ export interface StepForm {
   onTimeout: 'next' | 'exit';
   branches: Array<{ when: LeafForm; next: string }>;
   otherwise: string;
+  /** A message step's channel (WP-40b): its template must be a template of this channel. */
+  channel: 'email' | 'whatsapp';
   template: string;
   templateVersion: string;
   purpose: 'marketing' | 'transactional';
@@ -49,8 +51,23 @@ export function newStep(type: StepType, existing: readonly StepForm[]): StepForm
   while (ids.has(`${type.replace('_', '-')}-${n}`)) n++;
   return {
     id: `${type.replace('_', '-')}-${n}`, type, next: '', minutes: '60', event: '', filter: null, timeoutMinutes: '1440', onTimeout: 'next',
-    branches: type === 'branch' ? [{ when: emptyLeaf(), next: '' }] : [], otherwise: '', template: '', templateVersion: '', purpose: 'marketing',
+    branches: type === 'branch' ? [{ when: emptyLeaf(), next: '' }] : [], otherwise: '', channel: 'email', template: '', templateVersion: '', purpose: 'marketing',
   };
+}
+
+/**
+ * "WhatsApp if the customer can get it, otherwise email" (WP-40b): a branch on reachable.whatsapp, a WhatsApp step, an email
+ * step, and an end both reach. Appended after the existing steps; the templates are chosen afterwards.
+ */
+export function whatsappOrEmailSteps(existing: readonly StepForm[]): StepForm[] {
+  const ids = new Set(existing.map((s) => s.id));
+  let n = 1;
+  while (['choose', 'whatsapp', 'email', 'done'].some((p) => ids.has(`${p}-${n}`))) n++;
+  const done = { ...newStep('exit', []), id: `done-${n}` };
+  const wa = { ...newStep('message', []), id: `whatsapp-${n}`, channel: 'whatsapp' as const, next: done.id };
+  const email = { ...newStep('message', []), id: `email-${n}`, channel: 'email' as const, next: done.id };
+  const branch = { ...newStep('branch', []), id: `choose-${n}`, branches: [{ when: { field: 'reachable.whatsapp', op: 'eq' as Op, value: 'true' }, next: wa.id }], otherwise: email.id };
+  return [branch, wa, email, done];
 }
 
 export function emptyForm(): JourneyForm {
@@ -106,7 +123,7 @@ export function formToDefinition(f: JourneyForm): Record<string, unknown> {
       };
       case 'branch': return { id: s.id, type: 'branch', branches: s.branches.map((b) => ({ when: leafToCondition(b.when), next: b.next })), otherwise: s.otherwise };
       case 'message': return {
-        id: s.id, type: 'message', channel: 'email', template: s.template, ...(s.templateVersion.trim() ? { template_version: int(s.templateVersion) } : {}),
+        id: s.id, type: 'message', channel: s.channel, template: s.template, ...(s.templateVersion.trim() ? { template_version: int(s.templateVersion) } : {}),
         purpose: s.purpose, ...next(s),
       };
       case 'exit': return { id: s.id, type: 'exit' };
@@ -176,6 +193,7 @@ export function definitionToForm(def: unknown): FormConversion {
       base.otherwise = String(s.otherwise ?? '');
     }
     if (type === 'message') {
+      base.channel = s.channel === 'whatsapp' ? 'whatsapp' : 'email';
       base.template = String(s.template ?? ''); base.templateVersion = s.template_version === undefined ? '' : String(s.template_version);
       base.purpose = s.purpose === 'transactional' ? 'transactional' : 'marketing';
     }
@@ -191,7 +209,7 @@ export function describeStep(s: StepForm): string {
     case 'delay': return `Wait ${s.minutes} minutes`;
     case 'wait_until': return `Wait up to ${s.timeoutMinutes} minutes for ${s.event || '(event)'}, then ${s.onTimeout === 'exit' ? 'end' : 'continue'}`;
     case 'branch': return `Branch: ${s.branches.length} rule(s), otherwise ${s.otherwise || '(step)'}`;
-    case 'message': return `Send email "${s.template || '(template)'}"${s.templateVersion ? ` v${s.templateVersion}` : ''} (${s.purpose})`;
+    case 'message': return `Send ${s.channel === 'whatsapp' ? 'WhatsApp' : 'email'} "${s.template || '(template)'}"${s.templateVersion ? ` v${s.templateVersion}` : ''} (${s.purpose})`;
     case 'exit': return 'End the journey';
   }
 }

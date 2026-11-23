@@ -29,14 +29,14 @@ const client = () => new QueryClient({ defaultOptions: { queries: { retry: false
 const wrap = (ui: JSX.Element) => render(<QueryClientProvider client={client()}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>);
 
 const CAMPAIGN = (over: Partial<Campaign> = {}): Campaign => ({
-  id: 'c1', journeyId: 'j1', name: 'Autumn books', templateKey: 'autumn', templateVersion: 2, segmentKey: 'lapsed', segmentVersion: 1, holdoutPercent: 0,
+  id: 'c1', journeyId: 'j1', name: 'Autumn books', channel: 'email', templateKey: 'autumn', templateVersion: 2, segmentKey: 'lapsed', segmentVersion: 1, holdoutPercent: 0,
   status: 'sent', matched: 120, enrolled: 120, skipped: 0, truncated: false, error: null, createdBy: 'u1', createdAt: '2026-11-10T10:00:00Z', finishedAt: '2026-11-10T10:00:05Z', ...over,
 });
 const OUTCOME = (over: Partial<CampaignOutcome> = {}): CampaignOutcome => ({
   messages: 120, byStatus: { sent: 30, delivered: 70, blocked: 20 }, heldOut: 0, blockedBecause: { not_allowlisted: 12, suppressed: 8 }, inFlight: false, ...over,
 });
 const PREVIEW = (over: { audience?: Partial<CampaignPreview['audience']>; template?: Partial<CampaignPreview['template']>; readiness?: CampaignPreview['readiness'] } = {}): CampaignPreview => ({
-  template: { id: 't1', key: 'autumn', name: 'Autumn', version: 2, subject: 'New books', hasUnsubscribeLink: true, ...over.template },
+  template: { id: 't1', key: 'autumn', name: 'Autumn', version: 2, channel: 'email', subject: 'New books', hasUnsubscribeLink: true, whatsapp: null, ...over.template },
   segment: { id: 's1', key: 'lapsed', name: 'Lapsed', version: 1 },
   audience: { inSegment: 150, withConsent: 120, sample: [], cap: 100000, overCap: false, ...over.audience },
   readiness: over.readiness ?? { sendMode: 'sandbox', ready: true, problems: [] },
@@ -226,7 +226,7 @@ describe('campaign panel', () => {
     expect(screen.getByTestId('campaign-blocked')).toHaveTextContent('20');
     expect(screen.getByTestId('campaign-blocked-because')).toHaveTextContent('address suppressed: 8');
     expect(screen.getByTestId('campaign-blocked-because')).toHaveTextContent('not on the sandbox allow-list: 12');
-    expect(screen.getByTestId('campaign-outcome')).toHaveTextContent('Held back, no email by design: 12');
+    expect(screen.getByTestId('campaign-outcome')).toHaveTextContent('Held back, no message by design: 12');
     expect(screen.queryByTestId('finish-campaign')).toBeNull();
     await waitFor(() => expect(calls.some((c) => c.url.includes('/engage/journeys/j1/analytics'))).toBe(true));
   });
@@ -333,5 +333,53 @@ describe('campaigns in the hub', () => {
     useAuthStore.setState({ isAdmin: false });
     wrap(<EngageHub />);
     expect(screen.queryByTestId('hub-new-campaign')).toBeNull();
+  });
+});
+
+describe('WhatsApp campaigns (WP-40b)', () => {
+  const WA_PREVIEW = PREVIEW({
+    template: {
+      channel: 'whatsapp', subject: null, hasUnsubscribeLink: false,
+      whatsapp: { metaName: 'autumn_books', language: 'tr', category: 'marketing', sendable: true, problems: [], body: 'Merhaba {{1}}, yeni kitaplar geldi.' },
+    },
+    audience: { withConsent: 40 },
+  });
+  it('a WhatsApp template sends WhatsApp: no unsubscribe link needed, its own consent count, and the daily-limit note', async () => {
+    mockApi((url, method) => {
+      if (url.endsWith('/engage/campaigns/preview')) return json(WA_PREVIEW);
+      if (method === 'GET' && url.endsWith('/engage/templates')) return json({ templates: [{ id: 't1', key: 'autumn-wa', name: 'Autumn', channel: 'whatsapp', createdAt: '', latestVersion: 1 }] });
+      return LISTS(url, method) ?? json({}, 404);
+    });
+    wrap(<NewCampaignPanel onSent={() => undefined} />);
+    await fill();
+    expect(screen.getByTestId('campaign-template')).toHaveTextContent('WhatsApp: Autumn (autumn-wa)');
+    fireEvent.click(screen.getByTestId('check-campaign'));
+    expect(await screen.findByTestId('audience-count')).toHaveTextContent('40 customers have WhatsApp consent and a phone number');
+    expect(screen.getByTestId('campaign-whatsapp-body')).toHaveTextContent('Merhaba {{1}}, yeni kitaplar geldi.');
+    expect(screen.getByTestId('whatsapp-limit-note')).toHaveTextContent('250');
+    expect(screen.queryByTestId('no-unsubscribe')).toBeNull();
+    fireEvent.click(screen.getByTestId('confirm-campaign'));
+    expect(screen.getByText(/sends a WhatsApp message to 40 customers/)).toBeInTheDocument();
+    expect(screen.getByTestId('send-campaign')).toBeEnabled();
+  });
+  it('a WhatsApp template Meta would not take shows why, and nothing can be sent', async () => {
+    mockApi((url, method) => {
+      if (url.endsWith('/engage/campaigns/preview')) return json({ ...WA_PREVIEW, readiness: { sendMode: 'sandbox', ready: false, problems: [{ code: 'template_not_sendable', message: 'Meta would not take this WhatsApp template now: not_approved.' }] } });
+      return LISTS(url, method) ?? json({}, 404);
+    });
+    wrap(<NewCampaignPanel onSent={() => undefined} />);
+    await fill();
+    fireEvent.click(screen.getByTestId('check-campaign'));
+    expect(await screen.findByTestId('send-problems')).toHaveTextContent('Meta would not take this WhatsApp template now');
+    expect(screen.queryByTestId('send-campaign')).toBeNull();
+  });
+  it('the panel says it is a WhatsApp campaign and why messages are waiting', async () => {
+    mockApi((url) => {
+      if (url.endsWith('/engage/campaigns/c1')) return json({ campaign: CAMPAIGN({ channel: 'whatsapp', status: 'sent' }), outcome: OUTCOME({ byStatus: { sent: 250, queued: 50 }, blockedBecause: {}, waitingBecause: { account_pacing: 50 }, inFlight: true }) });
+      return json({}, 404);
+    });
+    wrap(<CampaignPanel id="c1" isAdmin pollMs={60_000} />);
+    expect(await screen.findByText('WhatsApp:')).toBeInTheDocument();
+    expect(screen.getByTestId('campaign-waiting-because')).toHaveTextContent('daily new-customer limit of the WhatsApp account (sent later): 50');
   });
 });

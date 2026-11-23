@@ -4,8 +4,10 @@ import { errorFields, logError } from '../log.js';
 import { canonical } from '../messaging/messages.js';
 import { upsertProfileOn } from '../profiles.js';
 import { createTemplatedMessageOn } from '../templates/templates.js';
+import { createWhatsappTemplatedMessageOn } from '../whatsapp/templates.js';
+import { customerChannelsOn } from './channels.js';
 import { matches, type ConditionContext } from './conditions.js';
-import { defaultNext, type JourneyDefinition, type JourneyStep } from './definition.js';
+import { defaultNext, readsChannels, type JourneyDefinition, type JourneyStep } from './definition.js';
 import { enroll } from './enroll.js';
 import { runSegmentSchedule } from '../segments/runs.js';
 import { runDateSchedule } from './dateTrigger.js';
@@ -274,7 +276,9 @@ export async function runEnrollment(orgId: string, enrollmentId: string, now: Da
         return end('completed', 'exit_step');
       }
       if (step.type === 'branch') {
-        // Branches are tried in order on the profile's attributes and the enrollment's payload; the first match wins.
+        // Branches are tried in order on the profile's attributes and the enrollment's payload, and, when a condition asks, the
+        // customer's channels as they are now (WP-40b); the first match wins.
+        if (step.branches.some((b) => readsChannels(b.when))) Object.assign(base, await customerChannelsOn(c, orgId, e.profile_id));
         const hit = step.branches.find((b) => matches(b.when, base));
         await done(hit ? 'matched' : 'otherwise', hit ? hit.next : step.otherwise);
         continue;
@@ -320,16 +324,18 @@ type MessageStep = Extract<JourneyStep, { type: 'message' }>;
  * email account; with none, or more than one, the enrollment fails rather than guess.
  */
 async function createStepMessage(c: Tx, orgId: string, e: EnrollmentRow, step: MessageStep): Promise<{ messageId: string } | { failed: string }> {
-  const t = (await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2 AND channel = 'email'`, [orgId, step.template])).rows[0];
+  const channel = step.channel;
+  const t = (await c.query<{ id: string }>(`SELECT id FROM engage.templates WHERE organization_id = $1 AND key = $2 AND channel = $3`, [orgId, step.template, channel])).rows[0];
   if (!t) return { failed: 'template_missing' };
   const accounts = (await c.query<{ id: string }>(
-    `SELECT id FROM engage.channel_accounts WHERE organization_id = $1 AND channel = 'email' AND status = 'active' ORDER BY created_at LIMIT 2`, [orgId])).rows;
-  if (accounts.length === 0) return { failed: 'no_email_account' };
-  if (accounts.length > 1) return { failed: 'email_account_ambiguous' };
-  const { message } = await createTemplatedMessageOn(c, orgId, {
+    `SELECT id FROM engage.channel_accounts WHERE organization_id = $1 AND channel = $2 AND status = 'active' ORDER BY created_at LIMIT 2`, [orgId, channel])).rows;
+  if (accounts.length === 0) return { failed: `no_${channel}_account` };
+  if (accounts.length > 1) return { failed: `${channel}_account_ambiguous` };
+  const input = {
     profileId: e.profile_id, templateId: t.id, version: step.template_version, purpose: step.purpose,
     channelAccountId: accounts[0]!.id, idempotencyKey: `journey:${e.id}:${step.id}`, payload: e.payload,
-  });
+  };
+  const { message } = channel === 'whatsapp' ? await createWhatsappTemplatedMessageOn(c, orgId, input) : await createTemplatedMessageOn(c, orgId, input);
   return { messageId: message.id };
 }
 

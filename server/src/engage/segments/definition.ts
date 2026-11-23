@@ -2,14 +2,15 @@ import { z } from 'zod';
 
 /**
  * Segment definition, schema version 1 (WP-36). Pure: no database. A segment is one condition tree over a customer's
- * attributes, order history and email consent; the compiler (compile.ts) turns it into SQL and nothing else evaluates it.
+ * attributes, order history, marketing consent and contact details; the compiler (compile.ts) turns it into SQL and nothing else evaluates it.
  *
  *   attributes.<name>   the customer's attributes (any operator; a missing value never matches a comparison)
  *   orders.<metric>     from the customer's order_completed events, counted up to the moment of evaluation:
  *                         count, count_30d, count_90d, count_365d          number of orders (all time / in the window)
  *                         total_spent, total_spent_365d                    sum of the orders' `total` (orders without one add 0)
  *                         days_since_last, days_since_first                whole days; empty (no match) for a customer who never ordered
- *   consent.email       'granted' | 'revoked' (empty for a customer without a record)
+ *   consent.email, consent.whatsapp   'granted' | 'revoked' (empty for a customer without a record)
+ *   contact.email, contact.phone      whether the customer has an active address / number (exists or not_exists; WP-40b)
  *
  * Operators: eq neq gt gte lt lte in contains exists not_exists, combined with all / any / not (nesting at most four
  * levels). Erased customers are never in a segment.
@@ -20,12 +21,14 @@ const MAX_DEPTH = 4;
 
 export const ORDER_METRICS = ['count', 'count_30d', 'count_90d', 'count_365d', 'total_spent', 'total_spent_365d', 'days_since_last', 'days_since_first'] as const;
 export type OrderMetric = (typeof ORDER_METRICS)[number];
-export const CONSENT_FIELDS = ['email'] as const;
+export const CONSENT_FIELDS = ['email', 'whatsapp'] as const;
+export const CONTACT_FIELDS = ['email', 'phone'] as const;
 
 const scalar = z.union([z.string().max(200), z.number().finite(), z.boolean()]);
 const attributeField = z.string().regex(/^attributes\.[A-Za-z_][A-Za-z0-9_]{0,63}$/);
 const orderField = z.string().regex(new RegExp(`^orders\\.(${ORDER_METRICS.join('|')})$`));
-const consentField = z.string().regex(/^consent\.email$/);
+const consentField = z.string().regex(new RegExp(`^consent\\.(${CONSENT_FIELDS.join('|')})$`));
+const contactField = z.string().regex(new RegExp(`^contact\\.(${CONTACT_FIELDS.join('|')})$`));
 
 export type SegmentCondition =
   | { field: string; op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains'; value: string | number | boolean }
@@ -35,7 +38,7 @@ export type SegmentCondition =
   | { any: SegmentCondition[] }
   | { not: SegmentCondition };
 
-const anyField = z.union([attributeField, orderField, consentField]);
+const anyField = z.union([attributeField, orderField, consentField, contactField]);
 const condition: z.ZodType<SegmentCondition> = z.lazy(() => z.union([
   z.object({ field: anyField, op: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains']), value: scalar }).strict(),
   z.object({ field: anyField, op: z.enum(['exists', 'not_exists']) }).strict(),
@@ -66,11 +69,13 @@ function problems(c: SegmentCondition, at: string, depth: number, out: SegmentIs
       if (values.some((v) => typeof v !== 'number')) out.push({ path: `${at}.value`, message: `${c.field} is compared with numbers` });
     }
   } else if (scope === 'consent') {
-    if (!['eq', 'neq', 'in', 'exists', 'not_exists'].includes(c.op)) out.push({ path: `${at}.op`, message: 'consent.email supports eq, neq, in, exists and not_exists' });
+    if (!['eq', 'neq', 'in', 'exists', 'not_exists'].includes(c.op)) out.push({ path: `${at}.op`, message: `${c.field} supports eq, neq, in, exists and not_exists` });
     else if ('value' in c) {
       const values = Array.isArray(c.value) ? c.value : [c.value];
-      if (values.some((v) => v !== 'granted' && v !== 'revoked')) out.push({ path: `${at}.value`, message: 'consent.email is "granted" or "revoked"' });
+      if (values.some((v) => v !== 'granted' && v !== 'revoked')) out.push({ path: `${at}.value`, message: `${c.field} is "granted" or "revoked"` });
     }
+  } else if (scope === 'contact') {
+    if (c.op !== 'exists' && c.op !== 'not_exists') out.push({ path: `${at}.op`, message: `${c.field} supports exists and not_exists` });
   }
 }
 

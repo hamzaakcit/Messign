@@ -1,4 +1,4 @@
-import { definitionToForm, describeStep, emptyForm, formToDefinition, newStep, parseValue } from '@/engage/journeyForm';
+import { definitionToForm, describeStep, emptyForm, formToDefinition, newStep, parseValue, whatsappOrEmailSteps } from '@/engage/journeyForm';
 
 const cart = {
   trigger: { type: 'event', event: 'cart_updated', filter: { field: 'event.total', op: 'gte', value: 100 } },
@@ -110,5 +110,25 @@ describe('the date-attribute trigger (WP-25)', () => {
     const def = formToDefinition({ ...r.form, trigger: { ...r.form.trigger, attribute: ' birth_date ', offsetDays: ' 3 ', atLocalTime: ' 08:15 ' } });
     expect(def.trigger).toEqual({ type: 'date_attribute', attribute: 'birth_date', offset_days: 3, at_local_time: '08:15' });
     expect((formToDefinition({ ...r.form, trigger: { ...r.form.trigger, offsetDays: 'a week' } }).trigger as { offset_days: number }).offset_days).toBeNaN();
+  });
+});
+
+describe('WhatsApp steps (WP-40b)', () => {
+  it('a WhatsApp message step round-trips with its channel, and is described as WhatsApp', () => {
+    const def = { trigger: { type: 'api' }, exit_when: [], re_entry: 'never', holdout_percent: 10, steps: [{ id: 'wa', type: 'message', channel: 'whatsapp', template: 'cart-wa', purpose: 'marketing' }] };
+    const r = definitionToForm(def);
+    expect(r.ok && r.form.steps[0]!.channel).toBe('whatsapp');
+    expect(r.ok && formToDefinition(r.form)).toEqual(def);
+    expect(r.ok && describeStep(r.form.steps[0]!)).toBe('Send WhatsApp "cart-wa" (marketing)');
+  });
+  it('the WhatsApp-else-email preset is a valid branch: WhatsApp when reachable, email otherwise, both then end', () => {
+    const steps = whatsappOrEmailSteps([{ ...newStep('delay', []), id: 'wait' }]);
+    const f = { ...emptyForm(), steps: [{ ...newStep('delay', []), id: 'wait' }, ...steps] };
+    expect((formToDefinition(f).steps as unknown[]).slice(1)).toEqual([
+      { id: 'choose-1', type: 'branch', branches: [{ when: { field: 'reachable.whatsapp', op: 'eq', value: true }, next: 'whatsapp-1' }], otherwise: 'email-1' },
+      { id: 'whatsapp-1', type: 'message', channel: 'whatsapp', template: '', purpose: 'marketing', next: 'done-1' },
+      { id: 'email-1', type: 'message', channel: 'email', template: '', purpose: 'marketing', next: 'done-1' },
+      { id: 'done-1', type: 'exit' },
+    ]);
   });
 });

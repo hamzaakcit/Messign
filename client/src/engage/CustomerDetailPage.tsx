@@ -26,6 +26,15 @@ const DECISION_TEXT: Record<string, string> = {
   no_budget_cap: 'no monthly budget set',
   currency_mismatch: 'price and budget currencies differ',
   gate_error: 'checks could not run (not sent)',
+  template_not_approved: 'WhatsApp template not approved by Meta (or paused)',
+  template_status_unknown: 'WhatsApp template never seen at Meta',
+  template_mapping_mismatch: 'values do not fit the template Meta approved',
+  template_category_mismatch: 'marketing template sent as transactional',
+  template_category_unsupported: 'template category not supported',
+  content_no_opt_out: 'no way for the customer to stop',
+  content_no_template: 'WhatsApp marketing needs an approved template',
+  account_pacing: 'daily new-customer limit of the WhatsApp account (sent later)',
+  account_limit_reached: 'daily new-customer limit of the WhatsApp account; would have expired before it had room',
 };
 export const decisionText = (code: string): string =>
   DECISION_TEXT[code] ?? (code.startsWith('render_') ? `template could not be filled (${code.slice(7)})` : code.replace(/_/g, ' '));
