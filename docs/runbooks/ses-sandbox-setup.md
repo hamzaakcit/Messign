@@ -57,10 +57,12 @@ Everything below happens in one AWS region. The examples use `eu-central-1` (Fra
 4. **Subscribe the webhook.** SNS console → the topic → *Create subscription* → protocol **HTTPS**, endpoint:
    `https://<your-railway-host>/api/engage/webhooks/<account id>`
    Messign verifies SNS's signed confirmation message and confirms the subscription by itself; the subscription shows *Confirmed* within seconds. If it stays *Pending*, check that the topic ARN in the account config matches exactly (anything from another topic is refused with 401).
-5. **Gate configuration for the tenant** (no UI until WP-22):
-   - `send_enabled`: `UPDATE engage.tenant_settings SET send_enabled = true WHERE organization_id = '<org>';` (admin SQL)
-   - an email rate card per purpose and a monthly cap, via `addRateCard` / `setBudgetCap` (or SQL into `engage.rate_cards` / `engage.budget_caps`);
-   - each recipient on the sandbox allow-list (`addAllowlistEntry`), matching the addresses verified in step 1.2.
+5. **Gate configuration for the tenant** (Settings screen since WP-22; the allow-list has its own script):
+   - Settings > Sender name: set it, and make the account's `from_name` (step 2.3) the same text. A difference denies every message with `sender_identity_mismatch`.
+   - Settings > Budget caps and rates: an email rate card per purpose and a monthly cap.
+   - Settings > Sending > **Turn sending on** once the card lists nothing missing (it refuses while anything is, and says what).
+   - Each recipient on the sandbox allow-list, matching the addresses verified in step 1.2 (operator terminal, no screen yet):
+     `npm run engage:allowlist -- add --org <org uuid> --channel email --value you@example.com --label "own inbox"` (repeat `--value`; `list` and `remove` also exist).
 6. **Set `SEND_MODE=sandbox`** on the server. Off is the default; live is not for this account.
 
 7. **Unsubscribe links (WP-13), for marketing email.** Set on the server: `ENGAGE_PUBLIC_APP_URL` (where the web app is served, `https`, for example `https://www.messign.com`; the earlier `https://messign.vercel.app` still works but is not the address to put in emails) and `ENGAGE_PUBLIC_API_URL` (this API from the internet, `https`, for example `https://server-production-7283.up.railway.app`). Without both, building the links fails on purpose. Callers build the two links per recipient with `buildUnsubscribeLinks` and put them in the message content: `unsubscribe_url` (the page link, also in the body) and `unsubscribe_one_click_url` (becomes the `List-Unsubscribe` header). A person who opens the page confirms with a button; a mail client's "unsubscribe" button posts straight to the API. Both write the same opt-out, effective for the very next send. To try it: send a marketing test message to your verified inbox, open the link, confirm, and check the next message to that address is blocked (`suppressed`).

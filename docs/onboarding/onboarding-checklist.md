@@ -63,7 +63,7 @@ date; the rest is the same day.
 | 7 | CSV exports: customers, consents with evidence, orders (`csv-templates/`); import with the dry run first | Dry run says 0 rejected rows you care about; the real import ends with the same counts |
 | 8 | İYS (if the tenant uses it): connect, check, first sandbox verification (`docs/runbooks/iys-sync.md`) | Settings > İYS says ok |
 | 9 | WhatsApp (if used): `whatsapp-waba.md` | Settings > WhatsApp checklist green; `waba_verified` recorded |
-| 10 | Rehearsal in `SEND_MODE=sandbox` to the staff allow-list (Phase A of the pilot design): one campaign, one unsubscribe, one STOP. The operator puts the staff addresses on the sandbox allow-list with `addAllowlistEntry` (no screen or script exists yet: a gap WP-34 should close) | Messages arrive only to allow-listed inboxes; the unsubscribe blocks the next send |
+| 10 | Rehearsal in `SEND_MODE=sandbox` to the staff allow-list (Phase A of the pilot design): one campaign, one unsubscribe, one STOP. The operator puts the staff addresses on the sandbox allow-list: `npm run engage:allowlist -- add --org <uuid> --channel email --value <address> --label staff` (a terminal script; there is no Settings screen for it) | Messages arrive only to allow-listed inboxes; the unsubscribe blocks the next send |
 | 11 | Pilot success criteria and holdout agreed (B7, D-08, D-11) | Written down and signed off by both sides |
 | 12 | Kill-switch drill on the pilot environment with a timer (`docs/runbooks/pilot-runbook.md`) | Both switches timed; result recorded |
 | 13 | Operator sets `SEND_MODE=live` in the pilot environment; the tenant presses **Turn sending on** | The Sending card says on; the first message is a staff member's |
