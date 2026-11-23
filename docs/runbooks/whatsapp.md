@@ -76,7 +76,7 @@ Confirms against the real Meta what WP-40 built from the documentation. Run from
 4. **Template check:** `... --org <org> --account <new account> --templates --ask-master-key`. Verifies the listing permission and field names: it should print `OK` and every template with its status, category and shape (the new one `PENDING`, its header `TEXT with 1 variable`, `URL-button variables 1`, buttons `[QUICK_REPLY, URL]`).
 5. **Status webhook:** once Meta has reviewed the template (minutes), run `--templates` again: an `event: messign_live_check (tr) APPROVED via webhook` line proves Meta's template webhook reaches the server and is applied.
 6. **Header and URL-button send:** `... --to +90<your number> --prepare --template messign_live_check --language tr --purpose marketing --param Ayşe --header-param 2026 --button-param live-check --ask-master-key`. It should print DELIVERED; on the phone the header reads `Ekim 2026` and the button opens `https://example.com/live-check`.
-7. **Marketing stops (optional, now possible with a marketing template):** stop marketing messages from the business with the WhatsApp app's own option, then `--report` (look for `preference_stop -> opt_out_applied`), and send step 6 again: the gate blocks it; with consent restored by hand, Meta answers `wa_131050`.
+7. **Marketing stops (optional, now possible with a marketing template):** stop marketing messages from the business with the WhatsApp app's own option, then `--report` (look for `preference_stop -> opt_out_applied`, or `unmatched` if Meta sent only its own user id), and send step 6 again without `--prepare`: the gate must block it before Meta.
 
 Record each result in ADR-025 as verified or not verified.
 
