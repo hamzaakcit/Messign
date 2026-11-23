@@ -3,8 +3,8 @@
  * root file Vercel uses, and client/vercel.json for a project rooted in client/). What this guards:
  *  - both files carry the same headers;
  *  - the enforced policy keeps the page unframeable and plugin-free, and the nosniff / referrer / transport headers are there;
- *  - the strict policy (report-only until a browser pass says it is clean, see docs/quality/security-checklist-wp31.md)
- *    allows no inline or eval script except the one inline theme script in index.html, which is allowed by its hash;
+ *  - the policy is enforced (not report-only) and allows no inline or eval script except the one inline theme script in
+ *    index.html, which is allowed by its hash (see docs/quality/security-checklist-wp31.md 5.3);
  *  - the API origin the production build talks to is in connect-src, so enforcing it later cannot cut the app off.
  */
 import { createHash } from 'node:crypto';
@@ -47,7 +47,11 @@ describe('client security headers', () => {
     expect(value(hs, 'Strict-Transport-Security')).not.toMatch(/includeSubDomains|preload/); // other subdomains (mail tracking, DNS records) are not ours to force
   });
 
-  const strict = value(hs, 'Content-Security-Policy-Report-Only');
+  const strict = value(hs, 'Content-Security-Policy');
+
+  it('is enforced, with no report-only copy left over', () => {
+    expect(value(hs, 'Content-Security-Policy-Report-Only')).toBe('');
+  });
 
   it('strict policy: scripts only from self, Unlayer and the one hashed inline script', () => {
     const script = directive(strict, 'script-src');

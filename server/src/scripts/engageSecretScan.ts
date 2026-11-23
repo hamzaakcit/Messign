@@ -1,7 +1,7 @@
 /**
  * Secret scan (WP-31): looks for credentials in the files git tracks, and with --history in every line ever committed.
  *
- *   npm run security:secrets                 files tracked right now (what CI runs on every push)
+ *   npm run security:secrets                 files tracked right now, and new files not ignored (what CI runs on every push)
  *   npm run security:secrets -- --history    every added line of every commit on every branch
  *
  * Prints rule, place and a fingerprint, never the value. A false positive is accepted by adding its fingerprint, rule and a
@@ -29,7 +29,7 @@ for (const a of allow) {
 }
 
 function scanTracked(): Array<Finding & { file: string }> {
-  const files = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0').filter(Boolean);
+  const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0').filter(Boolean);
   const out: Array<Finding & { file: string }> = [];
   for (const file of files) {
     if (SKIP_PATH.test(file)) continue;

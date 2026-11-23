@@ -86,6 +86,7 @@ Nobody has restored a backup yet, so treat backups as unproven.
 | Smoke check "Forged X-User-Id" fails | A header-auth bypass is back | Treat as a security incident: roll back first, then investigate |
 | Smoke check "token signed with the placeholder secret is refused" fails | Production accepts tokens signed with the secret that is in the repository (`JWT_SECRET` unset, or `NODE_ENV` not `production`) | Security incident: roll back, set `NODE_ENV=production` and a long random `JWT_SECRET` in Railway (existing sessions end), redeploy |
 | Smoke check "API sends a deny-all content security policy" fails | The API's security headers are not the deployed commit's | Check the deployed commit; `config/apiSecurityHeaders.ts` |
+| A page of the site is blank or a feature stops working right after a client deploy, with `Refused to …` in the browser console | The client's content security policy (`vercel.json`) blocked a script, a connection or a frame | Roll back the client (Vercel: promote the previous deployment), or rename `Content-Security-Policy` to `Content-Security-Policy-Report-Only` in both `vercel.json` files; then add the missing source deliberately (`security-checklist-wp31.md` 5.3) |
 | Deploy fails right after WP-31 with `[FATAL] NODE_ENV is …` | The deployment guard: a deployed process that is not `NODE_ENV=production` | Set `NODE_ENV=production` in Railway Variables and deploy again (the previous version keeps running meanwhile) |
 
 ## Security checks in CI

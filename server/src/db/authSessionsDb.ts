@@ -138,6 +138,28 @@ export async function updateRefreshTokenHash(sessionId: string, hash: string): P
   );
 }
 
+/** Rotation (WP-31): the new hash replaces the current one, which is kept as the previous one with the time. */
+export async function rotateRefreshTokenHash(sessionId: string, newHash: string, previousHash: string): Promise<boolean> {
+  const r = await query(
+    `UPDATE auth_sessions SET refresh_token_hash = $1, previous_refresh_token_hash = $3, refresh_rotated_at = now()
+      WHERE id = $2 AND refresh_token_hash = $3 AND is_active = TRUE`,
+    [newHash, sessionId, previousHash],
+  );
+  return (r.rowCount ?? 0) > 0;
+}
+
+/** What a refresh needs to decide whether a token it did not find is a race or a replay. */
+export async function getRotationState(sessionId: string): Promise<{ previousHash: string | null; rotatedSecondsAgo: number | null } | null> {
+  const r = await query<{ previous_refresh_token_hash: string | null; seconds: string | null }>(
+    `SELECT previous_refresh_token_hash, extract(epoch FROM (now() - refresh_rotated_at))::text AS seconds
+       FROM auth_sessions WHERE id = $1 AND is_active = TRUE AND expires_at > NOW() LIMIT 1`,
+    [sessionId],
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  return { previousHash: row.previous_refresh_token_hash, rotatedSecondsAgo: row.seconds === null ? null : Number(row.seconds) };
+}
+
 export function generateRefreshToken(): string {
   return randomBytes(32).toString('hex');
 }

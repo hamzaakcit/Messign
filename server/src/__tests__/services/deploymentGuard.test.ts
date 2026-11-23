@@ -21,6 +21,6 @@ describe('deployment guard (WP-31)', () => {
   it('refuses the token-secret placeholders from the repository, anywhere', () => {
     expect(deploymentProblem({ NODE_ENV: 'production', JWT_SECRET: 'messign-access-secret-change-in-production' })).toMatch(/JWT_SECRET/);
     expect(deploymentProblem({ JWT_REFRESH_SECRET: 'messign-refresh-secret-change-in-production' })).toMatch(/JWT_REFRESH_SECRET/);
-    expect(deploymentProblem({ NODE_ENV: 'production', JWT_SECRET: 'a-real-long-random-value-0123456789abcdef' })).toBeNull();
+    expect(deploymentProblem({ NODE_ENV: 'production', JWT_SECRET: 'x'.repeat(48) })).toBeNull();
   });
 });

@@ -11,11 +11,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-        },
-        {
-          "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' 'sha256-yIgonhxD0pTXmPr7KiuSpSyjeSJF3IKv1vfz6kk+gRQ=' https://editor.unlayer.com https://*.unlayer.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://editor.unlayer.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://server-production-7283.up.railway.app wss://server-production-7283.up.railway.app https://*.unlayer.com; frame-src https://editor.unlayer.com https://*.unlayer.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' 'sha256-yIgonhxD0pTXmPr7KiuSpSyjeSJF3IKv1vfz6kk+gRQ=' https://editor.unlayer.com https://*.unlayer.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://editor.unlayer.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://server-production-7283.up.railway.app wss://server-production-7283.up.railway.app https://*.unlayer.com https://fal.media https://*.fal.media; frame-src 'self' https://server-production-7283.up.railway.app https://editor.unlayer.com https://*.unlayer.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",
