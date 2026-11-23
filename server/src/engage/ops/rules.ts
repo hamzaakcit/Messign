@@ -92,6 +92,11 @@ export function evaluateRules(s: Snapshot, t: Thresholds): Condition[] {
       data: { pending: q.outboxPending, failed: q.outboxFailed, oldestMinutes: Math.floor(q.oldestOutboxSeconds / 60) } });
   }
 
+  // The audit log is evidence that ordinary changes were recorded; a chain that no longer verifies means an entry was edited or removed.
+  if (s.auditChain && !s.auditChain.ok) {
+    out.push({ rule: 'audit_chain_broken', subject: '', severity: 'critical', data: { entries: s.auditChain.entries, firstBadSeq: s.auditChain.firstBadSeq } });
+  }
+
   for (const item of s.attention) {
     out.push({ rule: item.code, subject: item.subject ?? '', severity: item.severity, data: item.data });
   }

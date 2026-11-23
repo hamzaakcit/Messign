@@ -10,6 +10,7 @@ import { listAccounts } from './credentials.js';
 import { checkConnection } from './iys/connection.js';
 import { iysSlaReport } from './iys/report.js';
 import { attentionWithAlerts, getDeliveryHealth } from './ops/health.js';
+import { listAudit, verifyAuditChain } from './audit.js';
 import './types.js';
 
 /**
@@ -35,6 +36,21 @@ settingsRouter.get('/', requireEngageUser, requireEngageAdmin, async (req, res) 
   try {
     res.setHeader('Cache-Control', 'no-store');
     res.json(await getTenantSettings(req.engageUser!.organizationId));
+  } catch (err) { fail(res, err); }
+});
+
+/** Who changed what (WP-31): the tenant's own audit log, newest first, and whether its hash chain still verifies. */
+settingsRouter.get('/audit', requireEngageUser, requireEngageAdmin, async (req, res) => {
+  try {
+    const orgId = req.engageUser!.organizationId;
+    const limit = req.query.limit === undefined ? undefined : Number(req.query.limit);
+    const beforeSeq = req.query.beforeSeq === undefined ? undefined : Number(req.query.beforeSeq);
+    if ((limit !== undefined && !Number.isFinite(limit)) || (beforeSeq !== undefined && !Number.isFinite(beforeSeq))) {
+      return void res.status(400).json({ error: 'limit and beforeSeq must be numbers' });
+    }
+    const [entries, chain] = await Promise.all([listAudit(orgId, { limit, beforeSeq }), verifyAuditChain(orgId)]);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ entries, chain });
   } catch (err) { fail(res, err); }
 });
 

@@ -52,6 +52,35 @@ jobs:
           # Scratch database for the migration and engage tests (they build the schema with the real runner).
           ENGAGE_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
 
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    # WP-31. Secrets in the files and in the whole history, and high or critical advisories in production dependencies that
+    # nobody has looked at (docs/quality/security-checklist-wp31.md). Needs the registry for the audit, and full history for the scan.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Secret scan, tracked files
+        run: npm run security:secrets --workspace=server
+
+      - name: Secret scan, full history
+        run: npm run security:secrets --workspace=server -- --history
+
+      - name: Dependency audit gate (production dependencies)
+        run: npm run security:audit --workspace=server
+
   production-build:
     name: Production build
     runs-on: ubuntu-latest

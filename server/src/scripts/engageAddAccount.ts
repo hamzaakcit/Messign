@@ -18,8 +18,10 @@ import { createAccount, parseCreateInput } from '../engage/credentials.js';
 import { closeEngagePool } from '../engage/db.js';
 import { parseAddAccountArgs } from './engageAddAccountArgs.js';
 import { promptHidden } from './hiddenPrompt.js';
+import { setOperatorActor } from '../engage/actor.js';
 
 async function main(): Promise<void> {
+  setOperatorActor('add-account'); // the audit log names this script as the actor
   // --ask-master-key: ask for the production master key at a hidden prompt instead of reading it from the environment
   // (useful when each command runs in a fresh shell, where an earlier `export` does not carry over).
   const argv = process.argv.slice(2);

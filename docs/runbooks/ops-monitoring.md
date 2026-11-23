@@ -35,6 +35,7 @@ Tenants appear in the operators' message by the first eight characters of their 
 | `gate_denials_spike` | Far more refusals than usual for an ordinary reason (consent, suppression) | Look at the latest campaign's audience |
 | `messages_stuck` | Messages are past their send time, or stuck while sending, while sending is on | The journey tick (it dispatches) is not running: look for a dead `engage/journey-tick`, and for gate holds such as `gate_unavailable` in the log |
 | `trigger_outbox_stuck` | Events are not starting journeys | The same job; failed rows need a look |
+| `audit_chain_broken` | The tenant's change history (hash chain, migration 138) no longer verifies: an entry was edited or removed | Critical. A security incident, not an ops glitch: `pilot-runbook.md` section 5 ("The audit log no longer verifies") |
 | `email_domain_lost`, `iys_sync` | The tenant's own attention items (ADR-020, ADR-022) | Their Settings cards say what to do |
 | `whatsapp_template_unhealthy` | A WhatsApp template an active journey sends, or messages used in 7 days, is paused, disabled, rejected or deleted at Meta (critical), or rated red (warning). A tenant attention item (ADR-025) | The tenant fixes or replaces it in WhatsApp Manager; Settings > WhatsApp lists it |
 | `whatsapp_template_check_failing` | The hourly template check failed 3 times in a row (the code is in the message: `wa_190` token, `wa_200` permission, `waba_missing`) | Rotate the account with a working token or the right `waba_id` (`docs/runbooks/whatsapp.md`) |

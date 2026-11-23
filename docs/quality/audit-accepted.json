@@ -1,0 +1,53 @@
+{
+  "_comment": "Advisories accepted for the dependency audit gate (npm run security:audit). Each needs a reason and a review date; after the date it counts as unaccepted again. See docs/quality/security-checklist-wp31.md.",
+  "accepted": [
+    {
+      "id": "GHSA-c475-qrg2-pj4r",
+      "package": "basic-ftp",
+      "reason": "Transitive of puppeteer (proxy-agent, get-uri). It is the FTP client for FTP proxy-auto-config URLs; the server launches Chromium for PDF export with no proxy configuration, so no FTP listing is ever parsed. Company-OS PDF export only.",
+      "reviewBy": "2027-02-28"
+    },
+    {
+      "id": "GHSA-7pqw-9j4j-h8q3",
+      "package": "extract-zip",
+      "reason": "Transitive of puppeteer: unzips the browser build when it is downloaded at install time, from Google's own host. Not run on any input at runtime.",
+      "reviewBy": "2027-02-28"
+    },
+    {
+      "id": "GHSA-jmr9-qjv8-65gv",
+      "package": "extract-zip",
+      "reason": "Transitive of puppeteer: unzips the browser build when it is downloaded at install time, from Google's own host. Not run on any input at runtime.",
+      "reviewBy": "2027-02-28"
+    },
+    {
+      "id": "GHSA-5p2g-fcmc-qvqq",
+      "package": "image-size",
+      "reason": "Transitive of pptxgenjs: reads the dimensions of images the server itself embeds in generated presentations (Company-OS presentation export, reachable only by the platform organization; engage tenants are refused by tenantGuard).",
+      "reviewBy": "2027-02-28"
+    },
+    {
+      "id": "GHSA-w3rx-r6r6-pgpr",
+      "package": "image-size",
+      "reason": "Transitive of pptxgenjs: reads the dimensions of images the server itself embeds in generated presentations (Company-OS presentation export, reachable only by the platform organization; engage tenants are refused by tenantGuard).",
+      "reviewBy": "2027-02-28"
+    },
+    {
+      "id": "GHSA-4r6h-8v6p-xvw6",
+      "package": "xlsx",
+      "reason": "No fixed version on npm (the fix ships from SheetJS's own site). Used only to read text from spreadsheets uploaded to Company-OS routes (HR candidates, contracts, knowledge hub), which need a platform-organization login; engage tenants are refused by tenantGuard (ADR-017) and engage imports are CSV. Replace the parser or move to the vendor build before any tenant can reach it.",
+      "reviewBy": "2027-02-28"
+    },
+    {
+      "id": "GHSA-5pgg-2g8v-p4x9",
+      "package": "xlsx",
+      "reason": "Same use as GHSA-4r6h-8v6p-xvw6: spreadsheet text extraction in Company-OS upload routes, platform organization only, no fixed version on npm.",
+      "reviewBy": "2027-02-28"
+    },
+    {
+      "id": "GHSA-mrhx-c7xc-m3w5",
+      "package": "zod",
+      "reason": "Fixed only in zod 4, a breaking migration of every schema (engage ingestion, journeys, segments, copy drafts). The exposure is memory use while validating very large arrays: every engage request body is capped at 1 MB (jsonBodyParser) and ingestion batches at MAX_BATCH, so the work per request is bounded. Plan: migrate to zod 4 as its own work package.",
+      "reviewBy": "2027-01-31"
+    }
+  ]
+}

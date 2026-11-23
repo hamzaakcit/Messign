@@ -32,6 +32,7 @@ export function describeCondition(c: Pick<Condition, 'rule' | 'subject' | 'data'
     case 'whatsapp_template_check_failing': return `the WhatsApp template check failed ${n(d.failures)} times in a row (${s(d.code)}); template statuses are getting old`;
     case 'whatsapp_frequency_limited': return `${via}: Meta held back ${n(d.limited)} of ${n(d.sent)} WhatsApp messages in 24 hours (131049, ${pct(d.rate)})`;
     case 'whatsapp_pacing_holding': return `${via}: ${n(d.overADay)} WhatsApp messages held over a day by the daily limit of ${n(d.limit)} new customers (${n(d.waiting)} waiting)`;
+    case 'audit_chain_broken': return `the audit log no longer verifies (first problem at entry ${n(d.firstBadSeq)} of ${n(d.entries)}); an entry was changed or removed, treat it as a security incident`;
     default: return c.rule;
   }
 }

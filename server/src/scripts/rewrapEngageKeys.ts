@@ -6,7 +6,9 @@
 import 'dotenv/config';
 import { rewrapAllTenants } from '../engage/bootstrap/rewrapAllTenants.js';
 import { closeEngagePool } from '../engage/db.js';
+import { setOperatorActor } from '../engage/actor.js';
 
+setOperatorActor('rewrap-keys'); // the audit log names this script as the actor
 rewrapAllTenants()
   .then(async (r) => {
     console.log(`[engage] re-wrapped ${r.rewrapped} credential(s) across ${r.tenants} tenant(s)`);

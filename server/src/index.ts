@@ -1,4 +1,5 @@
 import './env.js';
+import './config/deploymentGuard.js'; // right after env, before any secret is read: refuses a deployed process that is not NODE_ENV=production (WP-31)
 import { join, resolve } from 'path';
 import express from 'express';
 import { appJsonParser } from './engage/jsonBodyParser.js';
@@ -46,7 +47,6 @@ import doraAutomationsRouter from './routes/dora/automations.js';
 import doraFiltersRouter from './routes/dora/filters.js';
 import doraBriefingRouter from './routes/dora/briefing.js';
 import doraApprovalsRouter from './routes/dora/approvals.js';
-import { seedRouter } from './routes/seed.js';
 import reportsRouter from './routes/reports/index.js';
 import { initializeModules } from './modules/registry.js';
 import webhookRouter from './routes/webhooks/index.js';
@@ -54,8 +54,9 @@ import notificationsRouter from './routes/notifications/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { startMarketingPublisherCron } from './jobs/marketingPublisherCron.js';
 import { requireAuth } from './middleware/requireAuth.js';
-import { mountsEngage, mountsFrozenModules, mountsSeedRoutes } from './config/productSurface.js';
+import { mountsEngage, mountsFrozenModules } from './config/productSurface.js';
 import { mountEngage } from './engage/index.js';
+import { skipsGlobalApiLimit } from './engage/rateLimit.js';
 import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
 import { isEngageTenantOrg, tenantGuard } from './middleware/tenantGuard.js';
@@ -63,6 +64,7 @@ import { responseTimer } from './middleware/responseTimer.js';
 import { initializeAuthRecords } from './services/initAuth.js';
 import { initNewTables } from './db/initNewTables.js';
 import { isOriginAllowed } from './config/corsOrigins.js';
+import { apiHelmetOptions } from './config/apiSecurityHeaders.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -83,7 +85,7 @@ const corsOptions = {
     }
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 };
 
@@ -127,24 +129,8 @@ app.set('io', io);
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 
 // Security headers
-app.use(helmet({
-  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://editor.unlayer.com", "https://*.unlayer.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://editor.unlayer.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-      imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
-      connectSrc: ["'self'", "https:", "wss:", "ws:"],
-      frameSrc: ["'self'", "https://editor.unlayer.com"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
-    },
-  },
-  crossOriginEmbedderPolicy: false,
-}));
+app.use(helmet(apiHelmetOptions()));
+
 
 // Middleware
 app.use(cors(corsOptions));
@@ -239,6 +225,8 @@ const apiLimiter = rateLimit({
   windowMs: 60_000,
   max: isDev ? 1000 : 100,
   message: { error: 'Too many requests' },
+  // The engage API has its own limits, per address, per user and per key (engage/rateLimit.ts, WP-31).
+  skip: (req) => skipsGlobalApiLimit(req.originalUrl),
 });
 app.use('/api', apiLimiter);
 const authLimiter = rateLimit({
@@ -294,7 +282,6 @@ if (mountsFrozenModules()) {
   app.use('/api/dora', requireAuth, doraHistoryRouter);
   // Assets, Contracts: mounted via modules/registry at /api/assets, /api/contracts
   app.use('/api/reports', reportsRouter);
-  if (mountsSeedRoutes()) app.use('/api/seed', seedRouter);
 }
 
 // Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,okr,heart,executive}

@@ -37,17 +37,17 @@
 | Publisher cron defaults ON (`MARKETING_PUBLISHER_ENABLED !== '0'`) | `jobs/marketingPublisherCron.ts` | Accidental sends | **Fix-in-90d**: default OFF behind the global gate |
 | ESP webhook endpoint behind user JWT, no signature | `routes/marketing/performanceRoutes.ts` | Non-functional, spoofable if opened | **Remove** / replace with provider-specific verified endpoints |
 | `encrypt()`/`decrypt()` fail-open | `services/crypto` | Unsafe for credentials | **Fix-in-90d**: new credential service; leave IBAN usage as is |
-| Dev auth via `x-user-id` header; demo password handling in `authService` | `reimbursementAuth.ts:47`, `authService.ts:154,235` | Env-misconfig = open door | **Fix-in-90d** before pilot (delete header path) |
-| `platform_audit_log` not hash-chained; two audit systems (platform vs finance) | 067, `services/finance/auditService.ts` | Send/consent audit needs tamper evidence | **Fix-when-touched**: add chain to the engagement audit stream only |
-| Outbound webhooks list `IS NULL OR organization_id` | `routes/webhooks/index.ts` | Cross-org read | **Fix-when-touched** (one line) |
-| `/api/seed/*` behind shared secret | `routes/seed.ts` | Seed endpoints in a customer-facing API | **Remove** from production build before pilot |
+| Dev auth via `x-user-id` header; demo password handling in `authService` | `reimbursementAuth.ts:47`, `authService.ts:154,235` | Env-misconfig = open door | **Fix-in-90d** before pilot (delete header path) **Header path gone in WP-01; the deployment guard for the `NODE_ENV` dependency is WP-31.** |
+| `platform_audit_log` not hash-chained; two audit systems (platform vs finance) | 067, `services/finance/auditService.ts` | Send/consent audit needs tamper evidence | **Fix-when-touched**: add chain to the engagement audit stream only **Done in WP-31 (ADR-026): `engage.audit_log`, hash-chained per tenant, written by triggers. The legacy platform log is unchanged (frozen).** |
+| Outbound webhooks list `IS NULL OR organization_id` | `routes/webhooks/index.ts` | Cross-org read | **Fix-when-touched** (one line) **Done in WP-31.** |
+| `/api/seed/*` behind shared secret | `routes/seed.ts` | Seed endpoints in a customer-facing API | **Remove** from production build before pilot **Removed entirely in WP-31 (the route file is gone; seeding is `npm run db:seed*`).** |
 | `tenantId: 'system'` LLM calls in boot (`index.ts:429`) | competitor scraper | Cost attribution hole | Tolerate (frozen feature) |
 | Server `tsc --noEmit` red (`gateway.ts:83` `ContentBlockParam`) | type-check | CI red | **Fix-in-90d** (first session, 1 line or pin `@anthropic-ai/sdk`) |
 | Node 22.12 pinned; CI on Node 20; `engines >=20` | `.nvmrc`, `ci.yml` | Different runtime in CI vs dev/prod | **Fix-when-touched**: CI → 22 |
 | Heavy/unneeded API deps (`puppeteer`, `pptxgenjs`, `xlsx`, `sharp`, `adm-zip`, `mammoth`, `pdf-parse`) | `server/package.json` | Image size, attack surface, build time (native builds) | Tolerate; revisit when containerising |
-| `multer@1.x` deprecated with vulns | install warning | Upload surface | **Fix-when-touched** |
-| `express-rate-limit` in-memory (per replica) | `index.ts:228` | Limits don't hold across replicas | Tolerate for pilot (single replica); note in runbook |
-| Helmet CSP `'unsafe-inline'`/`'unsafe-eval'` | `index.ts:132` | Required by Unlayer | Tolerate |
+| `multer@1.x` deprecated with vulns | install warning | Upload surface | **Fix-when-touched** **Upgraded to 2.5 in WP-31.** |
+| `express-rate-limit` in-memory (per replica) | `index.ts:228` | Limits don't hold across replicas | Tolerate for pilot (single replica); note in runbook **Still per process, accepted (checklist A1); the engage API now has its own per-address, per-user and per-key limits (WP-31).** |
+| Helmet CSP `'unsafe-inline'`/`'unsafe-eval'` | `index.ts:132` | Required by Unlayer | Tolerate **Closed in WP-31: the API's policy is deny-all (it serves no page); the client's headers are in `vercel.json`, the strict script policy report-only until a browser pass (checklist 5.3).** |
 
 ## 3. Frontend
 

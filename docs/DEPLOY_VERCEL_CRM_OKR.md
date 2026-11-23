@@ -36,24 +36,12 @@ If that row is missing, you get **403** and the UI can show "Failed to list pipe
 
 After migrations (and org + reimbursement user) are in place, seed sample data so the pipeline and OKR pages show something:
 
-```bash
-curl -X POST "https://YOUR_BACKEND_URL/api/seed/crm-okr" \
-  -H "Authorization: Bearer YOUR_SEED_SECRET"
-```
-
-Or with a header:
-
-```bash
-curl -X POST "https://YOUR_BACKEND_URL/api/seed/crm-okr" \
-  -H "x-seed-secret: YOUR_SEED_SECRET"
-```
-
-Set `SEED_SECRET` or `CRON_SECRET` on the backend so the route accepts the request. The seed is idempotent: it creates the default pipeline + stages if missing, then adds sample companies, contacts, deals, and OKR goals only if none exist.
+There is no HTTP seed route any more (removed in WP-31: an API that customers can reach should not carry one). Seed from a terminal with the database URL of the environment, `npm run db:seed-crm-okr` from `server/`. The seed is idempotent: it creates the default pipeline + stages if missing, then adds sample companies, contacts, deals, and OKR goals only if none exist.
 
 ## Summary
 
 | Issue | What to do |
 |-------|------------|
 | "Failed to list pipelines" | Backend URL correct in Vercel (`VITE_API_URL`), migrations run, reimbursement user exists for logged-in user. |
-| Empty OKR page | Same as above; run `/api/seed/crm-okr` to add sample goals. |
-| No sample data | Call `POST /api/seed/crm-okr` with `SEED_SECRET` (or `CRON_SECRET`). |
+| Empty OKR page | Same as above; run `npm run db:seed-crm-okr` from `server/` to add sample goals. |
+| No sample data | Run `npm run db:seed-crm-okr` from `server/`. |

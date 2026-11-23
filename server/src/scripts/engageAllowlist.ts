@@ -12,8 +12,10 @@ import 'dotenv/config';
 import { closeEngagePool } from '../engage/db.js';
 import { addAllowlistEntry, GateConfigError, listAllowlist, removeAllowlistEntry } from '../engage/messaging/gateConfig.js';
 import { ALLOWLIST_USAGE, parseAllowlistArgs } from './engageAllowlistArgs.js';
+import { setOperatorActor } from '../engage/actor.js';
 
 async function main(): Promise<void> {
+  setOperatorActor('allowlist'); // the audit log names this script as the actor
   let cmd;
   try { cmd = parseAllowlistArgs(process.argv.slice(2)); } catch (err) { console.error(err instanceof Error ? err.message : err); process.exit(2); }
   if (cmd.action === 'list') {

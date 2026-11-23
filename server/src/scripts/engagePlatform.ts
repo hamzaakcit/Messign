@@ -9,8 +9,10 @@
  * database URL: DATABASE_ADMIN_URL (falls back to DATABASE_URL). It changes nothing else and prints what it did.
  */
 import 'dotenv/config';
+import { setOperatorActor } from '../engage/actor.js';
 
 async function main(): Promise<void> {
+  setOperatorActor('platform'); // the audit log names this script as the actor
   const on = !process.argv.includes('--off');
   const admin = process.env.DATABASE_ADMIN_URL?.trim();
   if (admin) { process.env.DATABASE_PUBLIC_URL = admin; delete process.env.PGBOUNCER_URL; }
