@@ -56,7 +56,8 @@ Run on the Meta test number, in the real pipeline (production API and database, 
 - The website showed none of this: the web build had no `VITE_PRODUCT_SURFACE`, so it defaulted to `workspace` and hid the engage sections whatever the organization was. It needs `VITE_PRODUCT_SURFACE=all` (and the platform organization enabled with `engage:platform`), plus a new build; see the runbook `one-lucy-page.md`.
 - A Meta test number only works with a test-mode account, which only works in sandbox mode; the sandbox allow-list has no screen (script only). Sending a first WhatsApp message from the website therefore needs the production server in sandbox mode and `engage:whatsapp-check --prepare` once.
 
-**Known gaps found, not fixed here**
-- The daily-limit count and "last delivery report" are per account id, and a rotation creates a new id: after a token renewal the count restarts from zero. They should follow the account's rotation chain, as the webhook URL does.
-- The template panel is titled "New email template" for the WhatsApp channel, and the WhatsApp card does not refresh by itself right after "Check now" (a reload shows it).
+**Known gaps found: fixed afterwards (2026-11-23)**
+- The daily-limit count and "last delivery report" were per account id, and a rotation creates a new id, so after a token renewal the count restarted from zero (the gate would have let a full new batch of customers through). They now follow the number's rotation chain (`supersedes_id`, `whatsapp/lineage.ts`): the gate's pacing, the count and the waiting messages on the card, and the last delivery report. Test: `engageWhatsappOperate.integration.test.ts` (fails on the old code).
+- The template panel was titled "New email template" for the WhatsApp channel; it is "New template" now.
+- "The WhatsApp card did not refresh right after Check now" could not be reproduced: on the production site it updated at once (8:26:49 PM, 6 templates), and a regression test now covers it. The one stale view seen came right after a redeploy.
 

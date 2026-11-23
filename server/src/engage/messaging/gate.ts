@@ -1,4 +1,5 @@
 import { dailyRecipientLimit, isTemplateName } from '../whatsapp/format.js';
+import { accountLineage } from '../whatsapp/lineage.js';
 import { effectiveCategory, getTemplateStatusOn, isSendableStatus, mappingProblems } from '../whatsapp/templateStatus.js';
 import type { PoolClient } from 'pg';
 import { withEngageTenant } from '../db.js';
@@ -342,14 +343,16 @@ async function whatsappTemplateReasons(c: PoolClient, orgId: string, m: MessageR
  */
 async function whatsappPacing(c: PoolClient, orgId: string, m: MessageRow, now: string, config: Record<string, unknown>): Promise<{ reason: GateReason; retryAt: Date } | null> {
   const limit = dailyRecipientLimit(config);
+  // The same number before a rotation counts too (a rotation creates a new account id for the same business number at Meta).
+  const accountIds = await accountLineage(c, orgId, m.channel_account_id);
   const r = (await c.query<{ n: number; already: boolean | null; oldest: Date | null }>(
     `WITH recent AS (
        SELECT profile_id, min(gate_allowed_at) AS first_at FROM engage.messages
-        WHERE organization_id = $1 AND channel_account_id = $2 AND gate_allowed_at > $3::timestamptz - interval '24 hours' AND id <> $4
+        WHERE organization_id = $1 AND channel_account_id = ANY($2::uuid[]) AND gate_allowed_at > $3::timestamptz - interval '24 hours' AND id <> $4
           AND NOT (status = 'blocked' OR (status = 'failed' AND provider_message_id IS NULL))
         GROUP BY profile_id)
      SELECT count(*)::int AS n, bool_or(profile_id = $5) AS already, min(first_at) AS oldest FROM recent`,
-    [orgId, m.channel_account_id, now, m.id, m.profile_id])).rows[0]!;
+    [orgId, accountIds, now, m.id, m.profile_id])).rows[0]!;
   if (r.already || r.n < limit) return null;
   const nowMs = new Date(now).getTime();
   const free = r.oldest ? new Date(r.oldest).getTime() + 24 * 3_600_000 : nowMs;

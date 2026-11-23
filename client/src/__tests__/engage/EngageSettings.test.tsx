@@ -536,6 +536,30 @@ describe('WhatsApp card (WP-40c)', () => {
     expect(await within(card).findByTestId('whatsapp-webhook-missing')).toHaveTextContent('ENGAGE_PUBLIC_API_URL) is not set');
   });
 
+  it('shows the new check state by itself after Check now (no reload)', async () => {
+    let checked = false;
+    iysApi({});
+    const inner = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input); const method = init?.method ?? 'GET';
+      if (url.endsWith('/engage/whatsapp/setup') && method === 'GET') {
+        calls.push({ url, method, body: undefined });
+        return json(checked
+          ? { ...SETUP, check: { lastAttemptAt: '2026-11-23T19:23:22Z', lastOkAt: '2026-11-23T19:23:22Z', lastError: null, consecutiveFailures: 0, templatesSeen: 6 }, steps: SETUP.steps.map((x) => ({ ...x, done: true })) }
+          : { ...SETUP, check: { lastAttemptAt: null, lastOkAt: null, lastError: null, consecutiveFailures: 0, templatesSeen: 0 }, steps: SETUP.steps.map((x) => (x.step === 'template_check' ? { ...x, done: false } : { ...x, done: true })) });
+      }
+      if (url.endsWith('/engage/whatsapp/templates/check') && method === 'POST') { checked = true; calls.push({ url, method, body: undefined }); return json({ ok: true, seen: 6, changed: 6, error: null }); }
+      return inner(input, init);
+    }) as typeof fetch;
+    renderHub();
+    const card = await within(await openSettings()).findByTestId('settings-whatsapp');
+    expect(await within(card).findByTestId('whatsapp-check-state')).toHaveTextContent('has not run yet');
+    fireEvent.click(within(card).getByTestId('whatsapp-check-now'));
+    await waitFor(() => expect(within(card).getByTestId('whatsapp-check-state')).toHaveTextContent('Last successful check'));
+    expect(within(card).getByTestId('whatsapp-check-state')).toHaveTextContent('6 templates at Meta');
+    expect(within(card).getByTestId('whatsapp-step-template_check').querySelector('[aria-label="done"]')).not.toBeNull();
+  });
+
   it('explains the WhatsApp alerts under needs attention', async () => {
     waApi({ attention: [
       { code: 'whatsapp_template_unhealthy', severity: 'critical', since: null, data: { count: 1, templates: [{ metaName: 'autumn_books', language: 'tr', status: 'PAUSED', quality: null, journeys: 1, recentMessages: 4 }] } },

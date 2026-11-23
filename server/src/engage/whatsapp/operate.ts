@@ -3,6 +3,7 @@ import { withEngageTenant } from '../db.js';
 import { readinessOn, type SendReadiness } from '../campaigns/campaigns.js';
 import { currentSendMode } from '../messaging/gate.js';
 import { dailyRecipientLimit } from './format.js';
+import { accountLineage } from './lineage.js';
 import { getTemplateCheckState, type TemplateCheckState } from './templateStatus.js';
 
 /**
@@ -95,10 +96,12 @@ export interface PacingState {
 
 export async function pacingStateOn(c: Tx, orgId: string, accountId: string, config: Record<string, unknown>, now: Date = new Date()): Promise<PacingState> {
   const limit = dailyRecipientLimit(config);
+  // The number's whole history (rotations included): Meta counts per number, not per account id.
+  const ids = await accountLineage(c, orgId, accountId);
   const contacted = (await c.query<{ n: number }>(
     `SELECT count(DISTINCT profile_id)::int AS n FROM engage.messages
-      WHERE organization_id = $1 AND channel_account_id = $2 AND gate_allowed_at > $3::timestamptz - interval '24 hours'
-        AND NOT (status = 'blocked' OR (status = 'failed' AND provider_message_id IS NULL))`, [orgId, accountId, now])).rows[0]!.n;
+      WHERE organization_id = $1 AND channel_account_id = ANY($2::uuid[]) AND gate_allowed_at > $3::timestamptz - interval '24 hours'
+        AND NOT (status = 'blocked' OR (status = 'failed' AND provider_message_id IS NULL))`, [orgId, ids, now])).rows[0]!.n;
   const held = (await c.query<{ waiting: number; over_day: number }>(
     `SELECT count(*)::int AS waiting, count(*) FILTER (WHERE x.first_held < $3::timestamptz - interval '24 hours')::int AS over_day
        FROM (
@@ -106,8 +109,8 @@ export async function pacingStateOn(c: Tx, orgId: string, accountId: string, con
                 (SELECT min(d.created_at) FROM engage.send_decisions d
                   WHERE d.organization_id = m.organization_id AND d.message_id = m.id AND d.decision = 'defer' AND d.code = 'account_pacing') AS first_held
            FROM engage.messages m
-          WHERE m.organization_id = $1 AND m.channel_account_id = $2 AND m.status = 'queued') x
-      WHERE x.last_code = 'account_pacing'`, [orgId, accountId, now])).rows[0]!;
+          WHERE m.organization_id = $1 AND m.channel_account_id = ANY($2::uuid[]) AND m.status = 'queued') x
+      WHERE x.last_code = 'account_pacing'`, [orgId, ids, now])).rows[0]!;
   // The config value is used only when it is a valid whole number (dailyRecipientLimit); anything else means the default applies.
   const raw = config.daily_recipient_limit;
   const set = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '')) && Number(raw) === limit;
@@ -169,7 +172,7 @@ export async function getWhatsappSetup(orgId: string, env: NodeJS.ProcessEnv = p
     const lastReport = a ? (await c.query<{ at: Date | null }>(
       `SELECT max(e.received_at) AS at FROM engage.message_events e
          JOIN engage.messages m ON m.organization_id = e.organization_id AND m.id = e.message_id
-        WHERE e.organization_id = $1 AND m.channel_account_id = $2 AND e.source = 'provider'`, [orgId, a.id])).rows[0]?.at : null;
+        WHERE e.organization_id = $1 AND m.channel_account_id = ANY($2::uuid[]) AND e.source = 'provider'`, [orgId, await accountLineage(c, orgId, a.id)])).rows[0]?.at : null;
     const lastTemplateUpdate = (await c.query<{ at: Date | null }>(
       `SELECT max(recorded_at) AS at FROM engage.whatsapp_template_events WHERE organization_id = $1 AND source = 'webhook'`, [orgId])).rows[0]?.at;
     const pacing = a ? await pacingStateOn(c, orgId, a.id, a.config, now) : null;
