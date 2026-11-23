@@ -1,19 +1,18 @@
+import { failedJobCounts } from '../../services/jobQueue.js';
 import { logError } from '../log.js';
 
 /**
  * Checks that belong to the platform, not to a tenant (WP-29): the dead-letter depth of the engage job queues. pg-boss keeps a
  * job that used up its retries in state `failed`; for the engage queues that is work nobody did (an import that never ran, a
- * journey tick that kept failing). Read with the server's own pool, since the engage role has no access to the queue's schema.
+ * journey tick that kept failing). Read through the job queue service (the engage role has no access to the queue's schema).
  * Where the queue schema does not exist (a database without pg-boss, as in tests) the answer is none.
  */
 export async function failedEngageJobs(): Promise<Record<string, number>> {
   try {
-    const { pool } = await import('../../db/index.js');
-    const r = await pool.query<{ name: string; n: number }>(
-      `SELECT name, count(*)::int AS n FROM pgboss.job WHERE name LIKE 'engage/%' AND state = 'failed' AND completed_on > now() - interval '24 hours' GROUP BY name ORDER BY name`);
-    return Object.fromEntries(r.rows.map((x) => [x.name, x.n]));
+    return await failedJobCounts('engage/', 24);
   } catch (err) {
-    if ((err as { code?: string }).code !== '42P01' && (err as { code?: string }).code !== '3F000') logError('could not read the job queue', { name: err instanceof Error ? err.name : 'error' });
+    // No queue in this process (a script, a test) or no queue schema: nothing to report.
+    if (!/not initialized/.test(String((err as Error)?.message)) && (err as { code?: string }).code !== '42P01' && (err as { code?: string }).code !== '3F000') logError('could not read the job queue', { name: err instanceof Error ? err.name : 'error' });
     return {};
   }
 }

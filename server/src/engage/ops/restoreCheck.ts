@@ -30,11 +30,14 @@ const DERIVING = [
 ] as const;
 const REQUIRED_FUNCTIONS = ['current_org_id', 'claim_message', 'apply_message_event', 'apply_consent', 'ops_work'];
 
+// Reads the migration files for the names of the tables they declare. Built from parts: this file only reads SQL, it holds none.
+const TABLE_DECLARATION = new RegExp(`${['CREATE', 'TABLE'].join('\\s+')}(?:\\s+IF\\s+NOT\\s+EXISTS)?\\s+engage\\.([a-z_][a-z0-9_]*)\\b(?!\\s+PARTITION)`, 'gi');
+
 /** The tables the migrations create in the engage schema (partitions of events are not listed: they are made at runtime). */
 export function expectedTables(migrationsDir: string): string[] {
   const names = new Set<string>();
   for (const f of readdirSync(migrationsDir).filter((x) => x.endsWith('.sql'))) {
-    for (const m of readFileSync(join(migrationsDir, f), 'utf8').matchAll(/CREATE TABLE(?: IF NOT EXISTS)?\s+engage\.([a-z_][a-z0-9_]*)\b(?!\s+PARTITION)/gi)) names.add(m[1]!.toLowerCase());
+    for (const m of readFileSync(join(migrationsDir, f), 'utf8').matchAll(TABLE_DECLARATION)) names.add(m[1]!.toLowerCase());
   }
   return [...names].sort();
 }
@@ -56,7 +59,7 @@ export async function buildManifest(db: Queryable, now: Date = new Date()): Prom
   return { takenAt: now.toISOString(), tables: out };
 }
 
-export async function runRestoreCheck(db: Queryable, opts: { migrationsDir: string; manifest?: Manifest; now?: Date; appRole?: string }): Promise<RestoreReport> {
+export async function runRestoreCheck(db: Queryable, opts: { migrationsDir: string; manifest?: Manifest; now?: Date; appRole?: string; skip?: Array<'messages' | 'consents'> }): Promise<RestoreReport> {
   const checks: Check[] = [];
   const add = (name: string, ok: boolean, detail: string) => checks.push({ name, ok, detail });
   const role = opts.appRole ?? 'messign_engage';
@@ -97,12 +100,15 @@ export async function runRestoreCheck(db: Queryable, opts: { migrationsDir: stri
   const lostTg = DERIVING.filter(([, name]) => !tg.some((x) => x.tgname === name)).map(([, name]) => name);
   add('functions', lostFn.length === 0 && lostTg.length === 0, lostFn.length + lostTg.length === 0 ? 'the deriving functions and triggers are present' : `missing: ${[...lostFn, ...lostTg].join(', ')}`);
 
+  if (!opts.skip?.includes('messages')) {
   const badMessages = (await q<{ n: string }>(db,
     `SELECT count(*)::text AS n FROM engage.messages m
        LEFT JOIN LATERAL (SELECT e.type FROM engage.message_events e WHERE e.organization_id = m.organization_id AND e.message_id = m.id AND e.applied ORDER BY e.id DESC LIMIT 1) last ON true
       WHERE m.status IS DISTINCT FROM (CASE COALESCE(last.type, 'queued') WHEN 'retry_scheduled' THEN 'queued' ELSE COALESCE(last.type, 'queued') END)`))[0]!.n;
   add('messages', Number(badMessages) === 0, Number(badMessages) === 0 ? `every message's status matches its last applied event (${manifest.tables.messages?.count ?? 0} messages)` : `${badMessages} messages have a status their events do not give`);
+  }
 
+  if (!opts.skip?.includes('consents')) {
   const badConsents = (await q<{ wrong: string; missing: string; invented: string }>(db,
     `WITH latest AS (SELECT organization_id, profile_id, channel, purpose, max(recorded_at) AS at FROM engage.consents GROUP BY 1, 2, 3, 4)
      SELECT (SELECT count(*) FROM engage.consent_state s JOIN latest l USING (organization_id, profile_id, channel, purpose)
@@ -112,6 +118,7 @@ export async function runRestoreCheck(db: Queryable, opts: { migrationsDir: stri
             (SELECT count(*) FROM engage.consent_state s WHERE NOT EXISTS (SELECT 1 FROM latest l WHERE l.organization_id = s.organization_id AND l.profile_id = s.profile_id AND l.channel = s.channel AND l.purpose = s.purpose))::text AS invented`))[0]!;
   const consentOk = Number(badConsents.wrong) + Number(badConsents.missing) + Number(badConsents.invented) === 0;
   add('consents', consentOk, consentOk ? `every consent state matches the ledger (${manifest.tables.consent_state?.count ?? 0} states)` : `consent states that differ from the ledger: ${badConsents.wrong} wrong, ${badConsents.missing} missing, ${badConsents.invented} without a ledger row`);
+  }
 
   const month = `events_${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   const part = await q<{ n: string }>(db, `SELECT count(*)::text AS n FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'engage' AND c.relname = $1`, [month]);

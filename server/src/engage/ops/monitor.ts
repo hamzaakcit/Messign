@@ -50,14 +50,8 @@ export interface OpsRunSummary {
 const platformSeen = new Map<string, { since: Date; toldAt: Date | null }>();
 export const resetPlatformState = (): void => { platformSeen.clear(); };
 
-async function defaultLabel(orgId: string): Promise<string> {
-  try {
-    const { pool } = await import('../../db/index.js');
-    const r = await pool.query<{ slug: string }>('SELECT slug FROM organizations WHERE id = $1', [orgId]);
-    if (r.rows[0]?.slug) return r.rows[0].slug;
-  } catch { /* the id is label enough */ }
-  return orgId.slice(0, 8);
-}
+/** The operators' name for a tenant: the first eight characters of its id (the engage role cannot read organization names). */
+const defaultLabel = async (orgId: string): Promise<string> => orgId.slice(0, 8);
 
 const ICON: Record<string, string> = { critical: 'CRITICAL', warning: 'warning' };
 const KIND: Record<string, string> = { opened: 'new', escalated: 'now critical', reminder: 'still open', resolved: 'resolved' };

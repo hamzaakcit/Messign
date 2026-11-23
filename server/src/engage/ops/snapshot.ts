@@ -1,5 +1,5 @@
 import { withEngageTenant } from '../db.js';
-import { getAdapter } from '../messaging/adapter.js';
+import { expectsDeliveryReports } from '../messaging/index.js';
 import { currentSendMode } from '../messaging/gate.js';
 import { getAttention } from '../settings/attention.js';
 import type { Thresholds } from './thresholds.js';
@@ -79,7 +79,7 @@ export async function takeSnapshot(orgId: string, t: Thresholds, now: Date = new
     for (const r of m.codes) if (r.account_id === a.id) failureCodes[r.code] = num(r.n);
     return {
       accountId: a.id, channel: a.channel, provider: a.provider, label: a.label, mode: a.mode,
-      expectsReports: getAdapter(a.provider)?.capabilities().deliveryReports === true,
+      expectsReports: expectsDeliveryReports(a.provider),
       sent: num(s?.sent), failed: num(s?.failed), retried: num(s?.retried), failureCodes,
       sent24h: num(d?.sent), bounced24h: num(d?.bounced), complained24h: num(d?.complained), reports24h: num(d?.reports),
       waitingForReport: num(waitingBy.get(a.id)?.n),

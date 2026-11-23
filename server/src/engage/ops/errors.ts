@@ -20,6 +20,8 @@ const BURST_WINDOW_MS = 10 * 60_000;
 const BURST_COUNT = 20;
 const BURST_REPEAT_MS = 60 * 60_000;
 const groups = new Map<string, ErrorGroup>();
+// True while this module logs or records, so the line it logs is not itself tracked.
+let inSink = false;
 
 const normalise = (text: string): string => redactString(text)
   .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<id>').replace(/\d+/g, '<n>').slice(0, 160);
@@ -41,13 +43,16 @@ function record(source: string, description: string, now: Date): string {
   g.lastSeen = now;
   g.recent.push(now.getTime());
   if (g.recent.length > BURST_COUNT * 2) g.recent.splice(0, g.recent.length - BURST_COUNT * 2);
-  if (g.count === 1 || [10, 100, 1000, 10000].includes(g.count)) logError('error captured', { source, fingerprint, count: g.count, description });
+  if (g.count === 1 || [10, 100, 1000, 10000].includes(g.count)) {
+    const was = inSink;
+    inSink = true;
+    try { logError('error captured', { source, fingerprint, count: g.count, description }); } finally { inSink = was; }
+  }
   return fingerprint;
 }
 
 // Everything engage code logs as an error is tracked too: a request that failed, a webhook that could not be processed. The
 // sink takes the message and, where the log line carries one, the error's redacted description.
-let inSink = false;
 setErrorSink((message, fields) => {
   if (inSink) return; // recording logs a line of its own at the milestones
   inSink = true;
