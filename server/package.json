@@ -41,6 +41,7 @@
     "engage:whatsapp-check": "tsx src/scripts/engageWhatsappCheck.ts",
     "engage:ops-report": "tsx src/scripts/engageOpsReport.ts",
     "engage:ops-drill": "tsx src/scripts/engageOpsDrill.ts",
+    "engage:kill-switch-drill": "tsx src/scripts/engageKillSwitchDrill.ts",
     "engage:restore-check": "tsx src/scripts/engageRestoreCheck.ts",
     "engage:e2e": "vitest run src/__tests__/engage/engageSandboxE2E.integration.test.ts",
     "litellm": "python3 -m litellm --config ../litellm/config.yaml",

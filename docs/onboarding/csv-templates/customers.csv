@@ -1,0 +1,4 @@
+external_id,email,phone,locale,timezone,first_name,city,birth_date
+C-0001,ayse.ornek@example.com,+90 500 0000001,tr,Europe/Istanbul,Ayşe,Izmir,1988-04-17
+C-0002,mehmet.ornek@example.org,0500 000 00 02,tr,Europe/Istanbul,Mehmet,Ankara,
+C-0003,,+90 500 0000003,tr,Europe/Istanbul,Elif,Istanbul,1992-11-02
