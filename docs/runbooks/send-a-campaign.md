@@ -13,16 +13,16 @@ Pressing Send twice, or retrying after an error, is the same campaign: it sends 
 
 ## When it says sending is not ready
 
-A campaign is refused before anything is written, with every reason. Each reason has one fix, for now done by an operator (the settings screen is WP-22):
+A campaign is refused before anything is written, with every reason. Each reason has one fix; most are on the Settings screen (WP-22), the rest are an operator's:
 
 | Reason | Fix |
 |---|---|
 | Sending is switched off on this server | Set `SEND_MODE=sandbox` (or `live`) on the server and restart. Off is the default. |
-| Sending is not enabled for this organization | `UPDATE engage.tenant_settings SET send_enabled = true WHERE organization_id = '<org>';` (admin SQL) |
+| Sending is not enabled for this organization | Settings > Sending > **Turn sending on** (it refuses while anything else on this list is missing) |
 | No email sending account is set up | `npm run engage:add-account` (see `ses-sandbox-setup.md`, step 2) |
 | More than one email sending account is active | Disable all but one (an enrollment with two accounts fails rather than guess). |
 | The email account is in test mode, but sending runs live (or the reverse) | Sandbox needs a `test` account, live needs a `live` account. |
-| No email rate card, or no monthly budget cap | Add them (`addRateCard`, `setBudgetCap`, see `ses-sandbox-setup.md`): the gate blocks every message without them. |
+| No email rate card, or no monthly budget cap | Settings > Budget caps and rates: the gate blocks every message without them. |
 | Unsubscribe links cannot be built | Set `ENGAGE_PUBLIC_APP_URL` (where the web app is served) and `ENGAGE_PUBLIC_API_URL` (where this API is reachable) to https URLs on the server. Without them no marketing message can be created. |
 | Readiness items not recorded yet (live only) | Record `dpa_signed` for the organization in Settings. `email_domain_authenticated` cannot be typed in: name the DKIM selectors in Settings > Email domain and run the check (it needs SPF, DKIM and DMARC in DNS, and a pass older than 30 days no longer counts). Messign also re-checks about once a day and renews the item, or removes it when a record is really gone; if the item disappears, open Settings > Email domain to see which record is missing). |
 

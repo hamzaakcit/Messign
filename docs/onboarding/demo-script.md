@@ -22,7 +22,7 @@ npm run engage:simulate-carts -- --org <org uuid> --install
 ```
 
 Then in the app (sign in as the demo admin, `/marketing`): Settings > Sender name = `Demo Kitap` (it **must equal the account's From name**, or every message is denied
-with `sender_identity_mismatch`; that is part of the story), and a rate card and a budget cap for email. There is no screen or script for the sandbox allow-list yet (only code: `addAllowlistEntry`); the cart
+with `sender_identity_mismatch`; that is part of the story), and a rate card and a budget cap for email. The sandbox allow-list is an operator script (`npm run engage:allowlist -- add --org <uuid> --channel email --value <address>`), not a screen; the cart
 simulator allow-lists its own synthetic customers, and the imported customers are not on it, so the demo shows them blocked as `not_allowlisted`, which is the point.
 Set `SEND_MODE=sandbox` on the server and `ENGAGE_PUBLIC_APP_URL` and `ENGAGE_PUBLIC_API_URL` (unsubscribe links).
 
