@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ApiIssues, addJourneyVersion, createJourney, listSegments, listTemplates, validateJourney, type Issue,
+  ApiIssues, addJourneyVersion, createJourney, listEmailTemplates, listSegments, validateJourney, type Issue,
 } from './builderApi';
 import {
   OPS, STEP_TYPES, definitionToForm, emptyForm, emptyLeaf, formToDefinition, newStep,
@@ -129,7 +129,7 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
   const [issues, setIssues] = useState<Issue[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const templates = useQuery({ queryKey: ['engage', 'templates'], queryFn: listTemplates });
+  const templates = useQuery({ queryKey: ['engage', 'templates', 'email'], queryFn: listEmailTemplates });
   const segments = useQuery({ queryKey: ['engage', 'segments'], queryFn: listSegments });
 
   const definition = (): unknown => {

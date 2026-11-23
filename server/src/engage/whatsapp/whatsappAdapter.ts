@@ -1,9 +1,12 @@
 import {
   AdapterError, WebhookSignatureError,
   type AdapterAccount, type AdapterCapabilities, type AdapterSendRequest, type AdapterSendResult, type ChannelAdapter,
-  type InboundMessage, type NormalizedError, type ProviderEvent, type RawWebhook,
+  type InboundMessage, type NormalizedError, type ProviderEvent, type RawWebhook, type RemoteTemplate, type TemplateStatusUpdate,
 } from '../messaging/adapter.js';
-import { answerChallenge, buildSendBody, classifyError, graphErrorCode, parseWebhookPayload, readConfig, signatureMatches, type ParsedWebhook } from './format.js';
+import {
+  TEMPLATE_LIST_FIELDS, answerChallenge, buildSendBody, classifyError, graphErrorCode, parseTemplateListPage, parseTemplateStatusUpdates, parseWebhookPayload, readConfig,
+  signatureMatches, type ParsedWebhook,
+} from './format.js';
 
 /**
  * The WhatsApp Cloud API adapter (WP-27, ADR-023): sends template and text messages through the Messages API of the tenant's
@@ -25,6 +28,9 @@ import { answerChallenge, buildSendBody, classifyError, graphErrorCode, parseWeb
 export const WHATSAPP_PROVIDER = 'whatsapp_cloud';
 export const GRAPH_URL = 'https://graph.facebook.com';
 const SEND_TIMEOUT_MS = 15_000;
+/** Template listing: 100 per page, at most 50 pages (5,000 templates, far above Meta's own limit of 6,000 per verified account only for the largest tenants). */
+const LIST_PAGE_SIZE = 100;
+const LIST_MAX_PAGES = 50;
 
 export function graphBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
   const override = env.ENGAGE_WHATSAPP_GRAPH_URL?.trim();
@@ -84,6 +90,51 @@ export function createWhatsappAdapter(o: WhatsappAdapterOptions = {}): ChannelAd
       // Accepted without an id: whether it will be delivered is unknowable, and sending it again could duplicate it.
       if (typeof id !== 'string' || id === '') throw new AdapterError('permanent', 'whatsapp_unexpected_response');
       return { providerMessageId: id };
+    },
+
+    /**
+     * GET /<version>/<WABA id>/message_templates, all pages. Throws like a send does (a final error for credentials or a missing
+     * WhatsApp Business Account id, a transient one for downtime), so the caller records a code and never provider text. More than
+     * LIST_MAX_PAGES pages is an error rather than a silently partial answer.
+     */
+    async listTemplates(account: AdapterAccount): Promise<RemoteTemplate[]> {
+      const cfg = readConfig(account.config);
+      if (!cfg.wabaId) throw new AdapterError('permanent', 'waba_missing');
+      const token = account.secrets.access_token;
+      if (!token) throw new AdapterError('permanent', 'whatsapp_config_invalid', 'access_token is missing');
+      const base = graphBaseUrl(env);
+      const out: RemoteTemplate[] = [];
+      let url: string | null = `${base}/${cfg.apiVersion}/${cfg.wabaId}/message_templates?fields=${encodeURIComponent(TEMPLATE_LIST_FIELDS)}&limit=${LIST_PAGE_SIZE}`;
+      for (let page = 0; url; page++) {
+        if (page >= LIST_MAX_PAGES) throw new AdapterError('permanent', 'whatsapp_too_many_templates');
+        // The next-page URL comes from the provider: it is followed only on the same host as the first request, with the same token.
+        if (page > 0 && new URL(url).origin !== new URL(base).origin) throw new AdapterError('permanent', 'whatsapp_unexpected_response');
+        let res: Response;
+        try {
+          res = await doFetch(url, { method: 'GET', headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(SEND_TIMEOUT_MS) });
+        } catch (err) {
+          if (err instanceof AdapterError) throw err;
+          throw new AdapterError('transient', err instanceof Error && err.name === 'TimeoutError' ? 'whatsapp_timeout' : 'whatsapp_unreachable');
+        }
+        const text = await res.text();
+        let json: unknown = null;
+        try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+        if (!res.ok) {
+          const c = classifyError(graphErrorCode(json), res.status);
+          throw new AdapterError(c.kind, c.code, undefined, false);
+        }
+        const p = parseTemplateListPage(json);
+        out.push(...p.templates);
+        url = p.next;
+      }
+      return out;
+    },
+
+    parseTemplateUpdates(raw: RawWebhook, account: AdapterAccount): TemplateStatusUpdate[] {
+      if (!signatureMatches(account.secrets.app_secret, raw.headers['x-hub-signature-256'], raw.body)) throw new WebhookSignatureError();
+      let body: unknown;
+      try { body = JSON.parse(raw.body.toString('utf8')); } catch { throw new AdapterError('permanent', 'malformed_webhook'); }
+      return parseTemplateStatusUpdates(body, readConfig(account.config).wabaId);
     },
 
     parseWebhook(raw: RawWebhook, account: AdapterAccount): ProviderEvent[] { return parsed(raw, account).events; },

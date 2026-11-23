@@ -94,6 +94,43 @@ export interface InboundMessage {
   occurredAt: Date;
 }
 
+/**
+ * A template as the provider's own account lists it (WhatsApp: the message templates of a WhatsApp Business Account). Only
+ * what the platform needs: identity, the provider's approval state, and the shape (how many variables, which buttons) so a
+ * mapping can be checked before anything is sent. No text beyond the approved body.
+ */
+export interface RemoteTemplate {
+  providerTemplateId: string | null;
+  name: string;
+  /** Underscore form, as the send API takes it (tr, en_US). */
+  language: string;
+  /** The provider's status, upper case (APPROVED, PENDING, REJECTED, PAUSED, DISABLED ...). Only APPROVED can be sent. */
+  status: string;
+  category: string | null;
+  correctCategory: string | null;
+  quality: string | null;
+  rejectedReason: string | null;
+  changedAt: Date | null;
+  shape: {
+    bodyText: string | null; bodyVariables: number; headerFormat: string | null; headerText: string | null; headerVariables: number;
+    urlButtonVariables: number; buttons: string[]; parameterFormat: 'POSITIONAL' | 'NAMED';
+  };
+}
+
+/** The provider says a template changed (WhatsApp: message_template_status_update). */
+export interface TemplateStatusUpdate {
+  /** Repeats of the same provider event share it. */
+  key: string;
+  name: string;
+  language: string;
+  providerTemplateId: string | null;
+  /** The provider's event name, upper case. */
+  event: string;
+  category: string | null;
+  reason: string | null;
+  occurredAt: Date;
+}
+
 export class WebhookSignatureError extends Error {
   constructor() {
     super('Webhook signature is missing or invalid');
@@ -114,6 +151,10 @@ export interface ChannelAdapter {
   /** The provider's handshake when a webhook URL is set (WhatsApp: GET with hub.verify_token). The text to answer with, or
    *  null when the request does not prove the caller knows the account's verify token. */
   verifyWebhookChallenge?(query: Record<string, string | undefined>, account: AdapterAccount): string | null;
+  /** Reads the account's message templates and their approval state (WhatsApp). Used by the template check, never by a send. */
+  listTemplates?(account: AdapterAccount): Promise<RemoteTemplate[]>;
+  /** Template changes from the same (signed) delivery. */
+  parseTemplateUpdates?(raw: RawWebhook, account: AdapterAccount): TemplateStatusUpdate[];
   normalizeError(err: unknown): NormalizedError;
 }
 

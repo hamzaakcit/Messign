@@ -42,10 +42,28 @@ export const activateVersion = (id: string, v: number) => post<{ version: Journe
 export const stopJourney = (id: string) => post<{ retiredVersion: number | null }>(`/engage/journeys/${encodeURIComponent(id)}/deactivate`, {});
 export const listSegmentRuns = (id: string) => call<{ runs: SegmentRun[] }>(`/engage/journeys/${encodeURIComponent(id)}/segment-runs`).then((r) => r.runs);
 
-export interface TemplateSummary { id: string; key: string; name: string; channel: 'email'; createdAt: string; latestVersion: number }
+export interface TemplateSummary { id: string; key: string; name: string; channel: 'email' | 'whatsapp'; createdAt: string; latestVersion: number }
 export interface TemplateVersion { id: string; version: number; subject: string; html: string | null; text: string | null; createdAt: string }
 export interface TemplatePreview { version: number; subject: string | null; html: string | null; text: string | null; errors: Array<{ code: string; message: string; variable?: string }> }
 export const listTemplates = () => call<{ templates: TemplateSummary[] }>('/engage/templates').then((r) => r.templates);
+/** Templates an email step or an email campaign can use. WhatsApp templates are kept out until journeys and campaigns send WhatsApp. */
+export const listEmailTemplates = () => listTemplates().then((t) => t.filter((x) => x.channel === 'email'));
+
+/** A WhatsApp template (WP-40a): how a Meta-approved template is filled, and how it stands at Meta. */
+export interface WhatsappVariable { position?: number; source: 'attribute' | 'payload' | 'system'; name: string; defaultValue: string | null }
+export interface WhatsappContent {
+  metaName: string; language: string; declaredCategory: 'marketing' | 'utility'; bodyText: string; variables: WhatsappVariable[];
+  header: { text: string; variable: WhatsappVariable | null } | null; urlButton: { index: 0 | 1; baseUrl: string; variable: WhatsappVariable } | null;
+  optOut: 'quick_reply' | 'text_in_body' | 'none';
+}
+export interface WhatsappHealth {
+  status: { status: string; category: string | null; quality: string | null; rejectedReason: string | null; seenAt: string } | null;
+  sendable: boolean; category: string; problems: string[]; warnings: string[];
+}
+export interface WhatsappTemplateDetail {
+  template: TemplateSummary; whatsappVersions: Array<{ id: string; version: number; content: WhatsappContent; createdAt: string }>; health: WhatsappHealth;
+}
+
 export const getTemplate = (id: string) => call<{ template: TemplateSummary; versions: TemplateVersion[] }>(`/engage/templates/${encodeURIComponent(id)}`);
 export const createTemplate = (input: { key: string; name: string; subject: string; html: string }) => post<{ template: TemplateSummary; version: TemplateVersion }>('/engage/templates', input);
 export const addTemplateVersion = (id: string, input: { subject: string; html: string }) => post<{ version: TemplateVersion }>(`/engage/templates/${encodeURIComponent(id)}/versions`, input);

@@ -20,6 +20,7 @@ import { journeyRouter } from './journeyRoutes.js';
 import { campaignRouter } from './campaignRoutes.js';
 import { copyDraftRouter } from './copyDraftRoutes.js';
 import { settingsRouter } from './settingsRoutes.js';
+import { whatsappRouter } from './whatsappRoutes.js';
 import { errorFields, logError, logInfo } from './log.js';
 import './types.js';
 
@@ -38,6 +39,7 @@ engageRouter.use('/campaigns', campaignRouter);
 engageRouter.use('/copy-drafts', copyDraftRouter);
 engageRouter.use('/segments', segmentRouter);
 engageRouter.use('/settings', settingsRouter);
+engageRouter.use('/whatsapp', whatsappRouter);
 
 engageRouter.get('/me', requireEngageUser, (req, res) => {
   const u = req.engageUser!;

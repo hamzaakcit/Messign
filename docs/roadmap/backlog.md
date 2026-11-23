@@ -38,6 +38,7 @@
 | WP-27 | WhatsApp Cloud API adapter (own Meta dev app + test number) | P1 | W10 | done against the mock (ADR-023; no journey step or Settings screen; live verification with a Meta test number is the first onboarding step) | Marketing template blocked without WhatsApp consent |
 | WP-28 | Alaris-based SMS adapter from real docs; domestic-route capability (confirmed available) | cond. | W11 | blocked(E4 docs) | Every mapping cites the docs |
 | WP-29 | Ops: provider health, alerts, error tracking, restore test | P0 | W11 | done (ADR-024; runbook ops-monitoring.md; the restore drill ran on a local PostgreSQL, not yet on Railway's backups; the alert webhook and heartbeat URLs are set by the operator) | Drill fires alerts |
+| WP-40 | WhatsApp in the platform (plan: `wp-40-whatsapp-plan.md`, ADR-025): 40a templates registered and mirrored from Meta, gate rules, account pacing · 40b journeys, campaigns, segments, consent capture · 40c Settings, ops alerts, live check | P0 | W11 | in-progress (40a in review) | A tenant runs a WhatsApp journey and a WhatsApp campaign from the Lucy page; a paused, mismatched or marketing-as-transactional template never reaches Meta |
 | WP-30 | Sandbox E2E across test ladder (+ step 4 if eligible) | P0 | W11 | todo | E2E report |
 | WP-31 | Security hardening (seed routes, rate limits, engage audit hash chain, deps, CSP, secrets scan) | P0 | W12 | todo | Checklist closed/accepted |
 | WP-32 | Performance baseline (1M events, 50k enrollments) | P1 | W12 | todo | Numbers recorded |

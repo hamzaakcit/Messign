@@ -3,7 +3,7 @@ import { withEngageScheduler, withEngageTenant } from '../db.js';
 import { loadAccountSecrets, messagingChannel, type Channel } from '../credentials.js';
 import { logError, logInfo } from '../log.js';
 import { getAdapter, type AdapterAccount } from './adapter.js';
-import { currentSendMode, evaluateGate } from './gate.js';
+import { currentSendMode, evaluateGate, type DeferCode } from './gate.js';
 import { listDueMessageIds } from './messages.js';
 import { revokeFromRecipient } from '../whatsapp/inbound.js';
 
@@ -21,7 +21,7 @@ export type DispatchOutcome =
   | { outcome: 'failed'; code: string }
   | { outcome: 'blocked'; code: string }
   | { outcome: 'held'; code: string }
-  | { outcome: 'deferred'; code: 'quiet_hours'; retryAt: Date }
+  | { outcome: 'deferred'; code: DeferCode; retryAt: Date }
   | { outcome: 'skipped'; code: 'not_due_or_claimed' };
 
 export interface DispatchOptions {

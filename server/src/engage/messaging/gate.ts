@@ -1,4 +1,5 @@
-import { isTemplateName } from '../whatsapp/format.js';
+import { dailyRecipientLimit, isTemplateName } from '../whatsapp/format.js';
+import { effectiveCategory, getTemplateStatusOn, isSendableStatus, mappingProblems } from '../whatsapp/templateStatus.js';
 import type { PoolClient } from 'pg';
 import { withEngageTenant } from '../db.js';
 import type { Channel } from '../credentials.js';
@@ -14,7 +15,8 @@ import { sanitizeDisplayName } from './sesAdapter.js';
  *   SEND_MODE off -> hold (no row)           tenant send_enabled false -> hold (no row)
  *   expiry -> account active and mode-compatible -> readiness (live only) -> recipient -> allow-list (sandbox only)
  *   -> suppression -> consent (marketing) -> quiet hours (marketing, defers) -> frequency cap (marketing)
- *   -> rate card + monthly budget -> content checks
+ *   -> rate card + monthly budget -> content checks -> WhatsApp template (approved at Meta, category, mapping; WP-40a)
+ *   -> WhatsApp account pacing (distinct recipients in 24 hours, defers; WP-40a)
  * Fails closed: an exception records a `gate_error` denial, and if even that cannot be written, the message is held.
  */
 
@@ -64,8 +66,12 @@ export interface GateReason {
 export type GateResult =
   | { kind: 'hold'; code: 'send_mode_off' | 'tenant_send_disabled' | 'gate_unavailable' }
   | { kind: 'allow'; decisionId: string; recipient: string }
-  | { kind: 'defer'; decisionId: string; code: 'quiet_hours'; retryAt: Date }
+  | { kind: 'defer'; decisionId: string; code: DeferCode; retryAt: Date }
   | { kind: 'deny'; decisionId: string; code: string; reasons: GateReason[] };
+
+/** Rules that only delay a message: when every failing rule is one of these, the message waits instead of being blocked. */
+export type DeferCode = 'quiet_hours' | 'account_pacing';
+const DEFERRING_RULES = new Set(['quiet_hours', 'pacing']);
 
 export interface GateOptions {
   /** Evaluate as of this instant (tests). Defaults to the database clock. */
@@ -113,7 +119,7 @@ export function checkContent(channel: Channel, purpose: 'marketing' | 'transacti
 
 interface MessageRow {
   id: string; profile_id: string; channel: Channel; purpose: 'marketing' | 'transactional'; channel_account_id: string;
-  content: Record<string, unknown>; status: string; expired: boolean; gate_allowed_at: Date | null;
+  content: Record<string, unknown>; status: string; expired: boolean; expires_at: Date; gate_allowed_at: Date | null;
   cost_estimate_minor: string | null; currency: string | null; rate_card_id: string | null;
 }
 
@@ -153,7 +159,7 @@ async function evaluateIn(c: PoolClient, orgId: string, messageId: string, mode:
   if (!settings?.send_enabled) return { kind: 'hold', code: 'tenant_send_disabled' };
 
   const m = (await c.query<MessageRow>(
-    `SELECT id, profile_id, channel, purpose, channel_account_id, content, status, expires_at <= $3::timestamptz AS expired,
+    `SELECT id, profile_id, channel, purpose, channel_account_id, content, status, expires_at <= $3::timestamptz AS expired, expires_at,
             gate_allowed_at, cost_estimate_minor::text, currency, rate_card_id
        FROM engage.messages WHERE organization_id = $1 AND id = $2`, [orgId, messageId, now])).rows[0];
   if (!m) throw new Error('message not found');
@@ -253,6 +259,16 @@ async function evaluateIn(c: PoolClient, orgId: string, messageId: string, mode:
     reasons.push({ rule: 'sender', code: 'sender_identity_mismatch' });
   }
 
+  let pacingRetry: Date | null = null;
+  if (m.channel === 'whatsapp' && typeof m.content.template === 'string' && !m.content.render_error) {
+    reasons.push(...await whatsappTemplateReasons(c, orgId, m, mode, acct?.config ?? {}));
+    const pacing = await whatsappPacing(c, orgId, m, now, acct?.config ?? {});
+    // Waiting only makes sense if the message is still alive when the account has room again; otherwise it is refused now, with
+    // the reason, rather than expiring silently later.
+    if (pacing && pacing.retryAt.getTime() >= new Date(m.expires_at).getTime()) reasons.push({ ...pacing.reason, rule: 'whatsapp_limit', code: 'account_limit_reached' });
+    else if (pacing) { reasons.push(pacing.reason); pacingRetry = pacing.retryAt; }
+  }
+
   if (reasons.length === 0) {
     const decisionId = await recordDecision(c, orgId, m.id, { decision: 'allow', code: 'allowed', reasons, mode, cost: card!.unit_cost_minor, currency: card!.currency, rateCardId: card!.id });
     await c.query(
@@ -260,12 +276,82 @@ async function evaluateIn(c: PoolClient, orgId: string, messageId: string, mode:
         WHERE organization_id = $1 AND id = $2 AND gate_allowed_at IS NULL`, [orgId, m.id, now, card!.unit_cost_minor, card!.currency, card!.id]);
     return { kind: 'allow', decisionId, recipient: to! };
   }
-  if (quietEnd && reasons.every((r) => r.rule === 'quiet_hours')) {
-    const decisionId = await recordDecision(c, orgId, m.id, { decision: 'defer', code: 'quiet_hours', reasons, mode, retryAt: quietEnd });
-    await c.query(`UPDATE engage.messages SET next_attempt_at = $3 WHERE organization_id = $1 AND id = $2`, [orgId, m.id, quietEnd]);
-    return { kind: 'defer', decisionId, code: 'quiet_hours', retryAt: quietEnd };
+  if (reasons.every((r) => DEFERRING_RULES.has(r.rule))) {
+    // Waiting, not refused: until the later of the end of quiet hours and the moment the account has room again.
+    const retryAt = [quietEnd, pacingRetry].filter((d): d is Date => d !== null).reduce((a, b) => (a.getTime() >= b.getTime() ? a : b));
+    const code = reasons[0]!.code as DeferCode;
+    const decisionId = await recordDecision(c, orgId, m.id, { decision: 'defer', code, reasons, mode, retryAt });
+    await c.query(`UPDATE engage.messages SET next_attempt_at = $3 WHERE organization_id = $1 AND id = $2`, [orgId, m.id, retryAt]);
+    return { kind: 'defer', decisionId, code, retryAt };
   }
   const code = reasons[0]!.code;
   const decisionId = await recordDecision(c, orgId, m.id, { decision: 'deny', code, reasons, mode });
   return { kind: 'deny', decisionId, code, reasons };
+}
+
+// --- WhatsApp templates (WP-40a, ADR-025) -----------------------------------------------------------------------------------------
+
+const WA_LANGUAGE_RE = /^[a-z]{2,3}(_[A-Z]{2})?$/;
+
+/**
+ * A WhatsApp template message is judged against the tenant's mirror of Meta's state (whatsapp/templateStatus.ts):
+ *   template_not_approved      Meta's status is not APPROVED (pending, rejected, paused, disabled, deleted ...)
+ *   template_status_unknown    the template was never seen at Meta: denied in live mode; allowed in sandbox, where a Meta test
+ *                              number's sample templates may not be registered
+ *   template_mapping_mismatch  the values the message carries do not fit the shape Meta reports (Meta would refuse it)
+ *   template_category_mismatch a MARKETING template sent as transactional: transactional skips consent, and Meta's category says
+ *                              what the message is
+ *   template_category_unsupported  an AUTHENTICATION template (one-time codes are not a Messign use)
+ *   content_no_opt_out         marketing from a template whose version declares no way to stop
+ * The values are those of the message itself, so a message built by hand is judged the same way as one built from a registration.
+ */
+async function whatsappTemplateReasons(c: PoolClient, orgId: string, m: MessageRow, mode: 'sandbox' | 'live', config: Record<string, unknown>): Promise<GateReason[]> {
+  const out: GateReason[] = [];
+  const content = m.content;
+  const language = typeof content.language === 'string' ? content.language : typeof config.default_language === 'string' ? config.default_language : 'tr';
+  if (!WA_LANGUAGE_RE.test(language)) return [{ rule: 'whatsapp_template', code: 'content_template_invalid' }];
+  const status = await getTemplateStatusOn(c, orgId, content.template as string, language);
+  if (!status) {
+    if (mode === 'live') out.push({ rule: 'whatsapp_template', code: 'template_status_unknown' });
+  } else if (!isSendableStatus(status.status)) {
+    out.push({ rule: 'whatsapp_template', code: 'template_not_approved', status: status.status });
+  }
+  if (status) {
+    const mapping = {
+      body: Array.isArray(content.body_parameters) ? content.body_parameters.length : 0,
+      header: content.header_parameter !== undefined ? 1 : 0,
+      urlButton: content.url_button_parameter !== undefined ? 1 : 0,
+    };
+    const problems = mappingProblems(mapping, status.shape);
+    if (problems.length) out.push({ rule: 'whatsapp_template', code: 'template_mapping_mismatch', problems });
+  }
+  const declared = content.declared_category === 'marketing' || content.declared_category === 'utility' ? content.declared_category : null;
+  const category = status || declared ? effectiveCategory(status, declared ?? 'utility') : null;
+  if (category === 'authentication') out.push({ rule: 'whatsapp_template', code: 'template_category_unsupported' });
+  else if (category === 'marketing' && m.purpose === 'transactional') out.push({ rule: 'whatsapp_template', code: 'template_category_mismatch' });
+  if (m.purpose === 'marketing' && content.opt_out === 'none') out.push({ rule: 'content', code: 'content_no_opt_out' });
+  return out;
+}
+
+/**
+ * Meta limits how many distinct customers a business can start conversations with in a moving 24 hours (250 at the start, then
+ * 2,000, 10,000, 100,000, unlimited). Over the account's limit (config daily_recipient_limit, else the starting tier) a message to a
+ * customer not already messaged in that window waits until the oldest one leaves the window: deferred, never denied, so a large
+ * campaign continues the next day instead of losing customers. Counted per account and per customer, over the messages the gate
+ * allowed (sent or about to be).
+ */
+async function whatsappPacing(c: PoolClient, orgId: string, m: MessageRow, now: string, config: Record<string, unknown>): Promise<{ reason: GateReason; retryAt: Date } | null> {
+  const limit = dailyRecipientLimit(config);
+  const r = (await c.query<{ n: number; already: boolean | null; oldest: Date | null }>(
+    `WITH recent AS (
+       SELECT profile_id, min(gate_allowed_at) AS first_at FROM engage.messages
+        WHERE organization_id = $1 AND channel_account_id = $2 AND gate_allowed_at > $3::timestamptz - interval '24 hours' AND id <> $4
+          AND NOT (status = 'blocked' OR (status = 'failed' AND provider_message_id IS NULL))
+        GROUP BY profile_id)
+     SELECT count(*)::int AS n, bool_or(profile_id = $5) AS already, min(first_at) AS oldest FROM recent`,
+    [orgId, m.channel_account_id, now, m.id, m.profile_id])).rows[0]!;
+  if (r.already || r.n < limit) return null;
+  const nowMs = new Date(now).getTime();
+  const free = r.oldest ? new Date(r.oldest).getTime() + 24 * 3_600_000 : nowMs;
+  return { reason: { rule: 'pacing', code: 'account_pacing', recent: r.n, limit }, retryAt: new Date(Math.max(free, nowMs + 60_000)) };
 }

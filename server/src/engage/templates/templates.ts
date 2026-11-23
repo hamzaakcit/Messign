@@ -27,7 +27,15 @@ export interface TemplateVersionView {
   id: string; version: number; subject: string; html: string | null; text: string | null; variables: VariableRef[]; createdAt: string;
 }
 export interface TemplateView {
-  id: string; key: string; name: string; channel: 'email'; createdAt: string; latestVersion: number;
+  id: string; key: string; name: string; channel: 'email' | 'whatsapp'; createdAt: string; latestVersion: number;
+}
+
+/** Which channel a template is for (its versions live in a table per channel), or null when this tenant has no such template. */
+export async function templateChannel(orgId: string, templateId: string): Promise<'email' | 'whatsapp' | null> {
+  if (!UUID_RE.test(templateId)) return null;
+  const r = await withEngageTenant(orgId, (c) => c.query<{ channel: 'email' | 'whatsapp' }>(
+    `SELECT channel FROM engage.templates WHERE organization_id = $1 AND id = $2`, [orgId, templateId]));
+  return r.rows[0]?.channel ?? null;
 }
 
 /** The template gatekeeper: size limits and the safe-variable and HTML rules of render.ts. Throws TemplateInputError. */
@@ -90,24 +98,30 @@ export async function addTemplateVersion(orgId: string, userId: string | null, t
 export async function addTemplateVersionOn(c: Tx, orgId: string, userId: string | null, templateId: string, input: TemplateContentInput): Promise<TemplateVersionView> {
   if (!UUID_RE.test(templateId)) throw new TemplateNotFoundError('Template not found');
   const content = checkTemplateContent(input);
-  const t = await c.query(`SELECT 1 FROM engage.templates WHERE organization_id = $1 AND id = $2`, [orgId, templateId]);
+  // Only an email template takes an email version; a WhatsApp template has versions of its own (whatsapp/templates.ts).
+  const t = await c.query(`SELECT 1 FROM engage.templates WHERE organization_id = $1 AND id = $2 AND channel = 'email'`, [orgId, templateId]);
   if (!t.rowCount) throw new TemplateNotFoundError('Template not found');
   return insertVersion(c, orgId, templateId, userId, content);
 }
 
 export async function listTemplates(orgId: string): Promise<TemplateView[]> {
   return withEngageTenant(orgId, async (c) => (await c.query(
-    `SELECT t.id, t.key, t.name, t.channel, t.created_at, MAX(v.version) AS latest
-       FROM engage.templates t JOIN engage.template_versions v ON v.organization_id = t.organization_id AND v.template_id = t.id
-      WHERE t.organization_id = $1 GROUP BY t.id ORDER BY t.created_at DESC`, [orgId])).rows.map((r) => ({
-    id: r.id, key: r.key, name: r.name, channel: 'email' as const, createdAt: new Date(r.created_at).toISOString(), latestVersion: Number(r.latest),
-  })));
+    `SELECT t.id, t.key, t.name, t.channel, t.created_at,
+            CASE t.channel
+              WHEN 'whatsapp' THEN (SELECT MAX(w.version) FROM engage.whatsapp_template_versions w WHERE w.organization_id = t.organization_id AND w.template_id = t.id)
+              ELSE (SELECT MAX(v.version) FROM engage.template_versions v WHERE v.organization_id = t.organization_id AND v.template_id = t.id)
+            END AS latest
+       FROM engage.templates t WHERE t.organization_id = $1 ORDER BY t.created_at DESC`, [orgId])).rows
+    .filter((r) => r.latest !== null)
+    .map((r) => ({
+      id: r.id, key: r.key, name: r.name, channel: r.channel as 'email' | 'whatsapp', createdAt: new Date(r.created_at).toISOString(), latestVersion: Number(r.latest),
+    })));
 }
 
 export async function getTemplate(orgId: string, templateId: string): Promise<{ template: TemplateView; versions: TemplateVersionView[] }> {
   if (!UUID_RE.test(templateId)) throw new TemplateNotFoundError('Template not found');
   return withEngageTenant(orgId, async (c) => {
-    const t = (await c.query(`SELECT id, key, name, channel, created_at FROM engage.templates WHERE organization_id = $1 AND id = $2`, [orgId, templateId])).rows[0];
+    const t = (await c.query(`SELECT id, key, name, channel, created_at FROM engage.templates WHERE organization_id = $1 AND id = $2 AND channel = 'email'`, [orgId, templateId])).rows[0];
     if (!t) throw new TemplateNotFoundError('Template not found');
     const versions = (await c.query(
       `SELECT id, version, subject, html, text_body, variables, created_at FROM engage.template_versions
