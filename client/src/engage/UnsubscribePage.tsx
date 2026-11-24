@@ -64,15 +64,15 @@ export function UnsubscribePage(): JSX.Element {
   const info = view.kind === 'ready' || view.kind === 'working' ? view.info : view.kind === 'error' ? view.info : undefined;
 
   return (
-    <main className="min-h-screen bg-app flex items-center justify-center px-4 py-10" data-testid="unsubscribe-page">
-      <div className="w-full max-w-md rounded-2xl border border-app bg-app-card p-6 shadow-lg">
-        <h1 className="text-lg font-semibold text-app">{t.title}</h1>
+    <main className="min-h-screen flex items-center justify-center px-4 py-10" data-testid="unsubscribe-page">
+      <div className="w-full max-w-md rounded-2xl border border-app-border bg-app-card p-6 shadow-lg">
+        <h1 className="text-lg font-semibold text-app-text">{t.title}</h1>
 
         {view.kind === 'loading' && <p className="mt-4 text-sm text-app-muted" role="status">{t.loading}</p>}
 
         {(view.kind === 'ready' || view.kind === 'working') && (
           <>
-            <p className="mt-4 text-sm text-app">{t.question(view.info.senderName)}</p>
+            <p className="mt-4 text-sm text-app-text">{t.question(view.info.senderName)}</p>
             {view.info.addressHint && <p className="mt-2 text-sm text-app-muted">{t.address(view.info.addressHint)}</p>}
             <button
               type="button"
@@ -85,7 +85,7 @@ export function UnsubscribePage(): JSX.Element {
           </>
         )}
 
-        {view.kind === 'done' && <p className="mt-4 text-sm text-app" role="status">{view.already ? t.already : t.done}</p>}
+        {view.kind === 'done' && <p className="mt-4 text-sm text-app-text" role="status">{view.already ? t.already : t.done}</p>}
         {view.kind === 'invalid' && <p className="mt-4 text-sm text-app-muted" role="alert">{t.invalid}</p>}
 
         {view.kind === 'error' && (
@@ -95,7 +95,7 @@ export function UnsubscribePage(): JSX.Element {
             <button
               type="button"
               onClick={() => (view.retry === 'confirm' && view.info ? void confirm(view.info) : void load())}
-              className="mt-4 w-full rounded-lg border border-app px-4 py-2.5 text-sm font-medium text-app hover:bg-app-hover"
+              className="mt-4 w-full rounded-lg border border-app-border px-4 py-2.5 text-sm font-medium text-app-text hover:bg-app-hover"
             >
               {t.retry}
             </button>

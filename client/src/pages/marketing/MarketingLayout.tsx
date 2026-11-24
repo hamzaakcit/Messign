@@ -338,7 +338,7 @@ function MarketingRouter(): JSX.Element {
 export function MarketingLayout(): JSX.Element {
   return (
     <MarketingProvider>
-      <ViewportContainer density="compact" className="min-h-0 flex-1 bg-app">
+      <ViewportContainer density="compact" className="min-h-0 flex-1">
         <MarketingRouter />
       </ViewportContainer>
       <MarketingPanels />

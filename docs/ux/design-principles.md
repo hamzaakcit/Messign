@@ -58,7 +58,7 @@ Advanced settings are collapsed by default. The five-step New offer is the model
 
 Kept marketing screens and engage screens use `client/src/components/ui` (ADR-026). Colour comes from **defined** tokens only.
 
-- **Don't:** `text-app` and `bg-app`. Tailwind's `app` colour group has no `DEFAULT`, so these classes generate no CSS. They appear 908 times in 160 files and silently fall back to inherited colour. That is why the selected engage tab label was unreadable (fixed in this PR) and why panels on the paper shop counter showed dark-theme text on paper. Use `text-app-text`, `bg-app-bg`, `bg-app-card`. UX-03 adds a test that bans the bare classes in marketing and engage.
+- **Don't:** `text-app` and `bg-app`. Tailwind's `app` colour group has no `DEFAULT`, so these classes generate no CSS. They appear 908 times in 160 files and silently fall back to inherited colour. That is why the selected engage tab label was unreadable (fixed in this PR) and why panels on the paper shop counter showed dark-theme text on paper. Use `text-app-text`, `bg-app-bg`, `bg-app-card`. Since UX-03 a test bans the bare classes in marketing and engage.
 - **Do:** one theme per page. `/marketing` is paper; engage parts on it are wrapped in `data-theme="light"` **and** given `text-app-text`, because elements that use the empty `text-app` inherit their colour from the wrapper (UX-D1).
 
 ## 8. Verify before claiming

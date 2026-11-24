@@ -53,7 +53,7 @@ export function NewCustomerPanel({ onSaved }: { onSaved: (id: string) => void })
         </Field>
       </div>
 
-      <label className="mb-3 flex items-start gap-2 text-sm text-app">
+      <label className="mb-3 flex items-start gap-2 text-sm text-app-text">
         <input
           type="checkbox"
           checked={consent}
@@ -63,7 +63,7 @@ export function NewCustomerPanel({ onSaved }: { onSaved: (id: string) => void })
         />
         <span>This customer agreed to receive marketing email.</span>
       </label>
-      <label className="mb-3 flex items-start gap-2 text-sm text-app">
+      <label className="mb-3 flex items-start gap-2 text-sm text-app-text">
         <input
           type="checkbox"
           checked={waConsent}

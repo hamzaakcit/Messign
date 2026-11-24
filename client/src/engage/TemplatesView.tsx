@@ -57,10 +57,10 @@ export function TemplatesSection({ onOpen, onNew, onDrafts }: { onOpen: (id: str
       {onDrafts && <CopyDraftsEntry onOpen={onDrafts} />}
       {q.data && q.data.length === 0 && <Empty>No templates yet.</Empty>}
       {q.data && q.data.length > 0 && (
-        <ul className="mt-4 divide-y divide-app rounded-md border border-app">
+        <ul className="mt-4 divide-y divide-app-border rounded-md border border-app-border">
           {q.data.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-              <button type="button" onClick={() => onOpen(t.id)} className="font-medium text-app hover:underline">{t.name}</button>
+              <button type="button" onClick={() => onOpen(t.id)} className="font-medium text-app-text hover:underline">{t.name}</button>
               <span className="text-xs text-app-muted">{t.channel === 'whatsapp' && <span className="mr-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-700" data-testid={`template-channel-${t.id}`}>WhatsApp</span>}<code className="font-mono">{t.key}</code> · v{t.latestVersion} · {formatTime(t.createdAt)}</span>
             </li>
           ))}
@@ -111,9 +111,9 @@ function Preview({ id, version }: { id: string; version: number }): JSX.Element 
       </div>
       <ErrorLine error={run.error} />
       {run.data && (
-        <div className="rounded-md border border-app">
+        <div className="rounded-md border border-app-border">
           {run.data.errors.length > 0 && <Issues title="This version cannot be filled with these values" issues={run.data.errors.map((e) => ({ path: e.variable ?? e.code, message: e.message }))} />}
-          {run.data.subject !== null && <p className="border-b border-app px-3 py-2 text-sm text-app"><span className="text-app-muted">Subject: </span>{run.data.subject}</p>}
+          {run.data.subject !== null && <p className="border-b border-app-border px-3 py-2 text-sm text-app-text"><span className="text-app-muted">Subject: </span>{run.data.subject}</p>}
           {run.data.html !== null && (
             // Sandboxed: no scripts, no same-origin access; the content is the tenant's own HTML rendered by the server.
             <iframe title={`Preview of version ${version}`} sandbox="" srcDoc={run.data.html} className="h-80 w-full bg-white" />
@@ -162,22 +162,22 @@ function WhatsappTemplatePanel({ data }: { data: WhatsappTemplateDetail }): JSX.
         <code className="mx-1 font-mono">{latest.metaName}</code>({latest.language}) approved in WhatsApp Manager.
       </p>
       <Card title="At Meta">
-        <p className="text-sm text-app" data-testid="whatsapp-meta-status">
+        <p className="text-sm text-app-text" data-testid="whatsapp-meta-status">
           {meta ? `${meta.status.toLowerCase().replace(/_/g, ' ')} · ${(meta.category ?? health.category).toLowerCase()}${meta.quality ? ` · quality ${meta.quality.toLowerCase()}` : ''} · checked ${formatTime(meta.seenAt)}` : 'Not seen at Meta yet. Run the template check in Settings.'}
         </p>
         <p className={`mt-1 text-sm ${health.sendable ? 'text-emerald-700' : 'text-amber-700'}`} data-testid="whatsapp-sendable">
           {health.sendable ? 'Ready to send.' : 'Not sendable yet.'}
         </p>
         {[...health.problems, ...health.warnings].length > 0 && (
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-app" data-testid="whatsapp-problems">
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-app-text" data-testid="whatsapp-problems">
             {[...health.problems, ...health.warnings].map((p) => <li key={p}>{WHATSAPP_PROBLEM_TEXT[p] ?? p.replace(/_/g, ' ')}</li>)}
           </ul>
         )}
       </Card>
       <Card title="Content">
-        {latest.header && <p className="text-sm text-app"><span className="text-app-muted">Header: </span>{latest.header.text}</p>}
-        <p className="whitespace-pre-wrap text-sm text-app"><span className="text-app-muted">Body: </span>{latest.bodyText}</p>
-        <ul className="mt-2 space-y-1 text-sm text-app" data-testid="whatsapp-variables">
+        {latest.header && <p className="text-sm text-app-text"><span className="text-app-muted">Header: </span>{latest.header.text}</p>}
+        <p className="whitespace-pre-wrap text-sm text-app-text"><span className="text-app-muted">Body: </span>{latest.bodyText}</p>
+        <ul className="mt-2 space-y-1 text-sm text-app-text" data-testid="whatsapp-variables">
           {latest.variables.map((v) => (
             <li key={v.position}><code className="font-mono">{`{{${v.position}}}`}</code> {sourceLabel(v)}{v.defaultValue ? `, or "${v.defaultValue}"` : ''}</li>
           ))}
@@ -216,7 +216,7 @@ function EmailTemplatePanel({ id }: { id: string }): JSX.Element {
       )}
       {versions.map((v) => (
         <Card key={v.id} title={`Version ${v.version} · ${formatTime(v.createdAt)}`}>
-          <p className="mb-2 text-sm text-app"><span className="text-app-muted">Subject: </span>{v.subject}</p>
+          <p className="mb-2 text-sm text-app-text"><span className="text-app-muted">Subject: </span>{v.subject}</p>
           <Preview id={id} version={v.version} />
         </Card>
       ))}

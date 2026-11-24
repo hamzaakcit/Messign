@@ -9,7 +9,7 @@ export function Button({ children, onClick, kind = 'secondary', disabled, type =
   children: ReactNode; onClick?: () => void; kind?: 'primary' | 'secondary' | 'danger'; disabled?: boolean; type?: 'button' | 'submit'; testId?: string;
 }): JSX.Element {
   const style = kind === 'primary' ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600'
-    : kind === 'danger' ? 'border-red-500/60 text-red-600 hover:bg-red-500/10' : 'border-app text-app hover:bg-app-muted/10';
+    : kind === 'danger' ? 'border-red-500/60 text-red-600 hover:bg-red-500/10' : 'border-app-border text-app-text hover:bg-app-muted/10';
   return (
     <button type={type} onClick={onClick} disabled={disabled} data-testid={testId}
       className={`rounded-md border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${style}`}>
@@ -21,7 +21,7 @@ export function Button({ children, onClick, kind = 'secondary', disabled, type =
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }): JSX.Element {
   return (
     <label className="block text-sm">
-      <span className="font-medium text-app">{label}</span>
+      <span className="font-medium text-app-text">{label}</span>
       {hint && <span className="ml-2 text-xs text-app-muted">{hint}</span>}
       <div className="mt-1">{children}</div>
     </label>
@@ -59,7 +59,7 @@ export function Issues({ issues, title = 'Fix these before saving' }: { issues: 
   return (
     <div role="alert" className="rounded-md border border-red-500/40 bg-red-500/5 p-3 text-sm" data-testid="issues">
       <p className="font-medium text-red-600">{title}</p>
-      <ul className="mt-1 list-disc pl-5 text-app">
+      <ul className="mt-1 list-disc pl-5 text-app-text">
         {issues.map((i, k) => <li key={k}><code className="text-xs text-app-muted">{i.path}</code> {i.message}</li>)}
       </ul>
     </div>
@@ -80,7 +80,7 @@ export function Empty({ children }: { children: ReactNode }): JSX.Element {
 /** Section within a page. */
 export function Card({ title, children, actions }: { title?: string; children: ReactNode; actions?: ReactNode }): JSX.Element {
   return (
-    <section className="mt-4 rounded-md border border-app p-4">
+    <section className="mt-4 rounded-md border border-app-border p-4">
       {(title || actions) && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           {title && <h2 className="text-sm font-semibold uppercase tracking-wide text-app-muted">{title}</h2>}

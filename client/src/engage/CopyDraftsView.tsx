@@ -30,8 +30,8 @@ export function CopyDraftsEntry({ onOpen }: { onOpen: () => void }): JSX.Element
   const n = pending.data?.length;
   return (
     <button type="button" onClick={onOpen} data-testid="open-copy-drafts"
-      className="mt-4 flex w-full flex-wrap items-center justify-between gap-2 rounded-md border border-app px-3 py-2 text-left text-sm hover:bg-app-muted/10">
-      <span className="font-medium text-app">AI copy drafts</span>
+      className="mt-4 flex w-full flex-wrap items-center justify-between gap-2 rounded-md border border-app-border px-3 py-2 text-left text-sm hover:bg-app-muted/10">
+      <span className="font-medium text-app-text">AI copy drafts</span>
       <span className="text-xs text-app-muted" data-testid="copy-drafts-pending">{n === undefined ? '' : n === 0 ? 'none waiting' : `${n} waiting for approval`}</span>
     </button>
   );
@@ -83,10 +83,10 @@ function AskForDraft({ onAsked }: { onAsked: () => void }): JSX.Element {
       {reasons && (
         <div role="alert" className="rounded-md border border-red-500/40 bg-red-500/5 p-3 text-sm" data-testid="copy-refused">
           <p className="font-medium text-red-600">The draft was not saved</p>
-          <ul className="mt-1 list-disc pl-5 text-app">{reasons.map((r) => <li key={r}>{reasonText(r)}</li>)}</ul>
+          <ul className="mt-1 list-disc pl-5 text-app-text">{reasons.map((r) => <li key={r}>{reasonText(r)}</li>)}</ul>
         </div>
       )}
-      {notice && <p role="status" className="text-sm text-app" data-testid="copy-notice">{notice}</p>}
+      {notice && <p role="status" className="text-sm text-app-text" data-testid="copy-notice">{notice}</p>}
       <ErrorLine error={reasons ? null : ask.error} />
       <Button kind="primary" onClick={() => ask.mutate()} disabled={!canAsk} testId="ask-copy-draft">{ask.isPending ? 'Drafting…' : 'Ask for a draft'}</Button>
     </div>
@@ -109,12 +109,12 @@ function DraftCard({ draft, journeyName, isAdmin }: { draft: CopyDraft; journeyN
   const pending = draft.status === 'pending';
   return (
     <Card title={`${journeyName} · ${draft.stepId} · ${draft.purpose} · ${draft.language.toUpperCase()}`} actions={<StatusBadge status={draft.status} />}>
-      <p className="mb-2 text-sm text-app"><span className="text-app-muted">Subject: </span>{draft.subject}</p>
+      <p className="mb-2 text-sm text-app-text"><span className="text-app-muted">Subject: </span>{draft.subject}</p>
       {draft.html !== null ? (
         // Sandboxed: no scripts, no same-origin access; the copy is the AI's text, shown the way a template preview is.
         <iframe title={`Draft ${draft.id}`} sandbox="" srcDoc={draft.html} className="h-64 w-full rounded-md bg-white" />
       ) : (
-        <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-app p-2 text-xs text-app">{draft.text}</pre>
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-app-border p-2 text-xs text-app-text">{draft.text}</pre>
       )}
       <p className="mt-2 text-xs text-app-muted">Brief: {draft.brief}</p>
       <p className="text-xs text-app-muted">Asked {formatTime(draft.createdAt)}{draft.decidedAt ? ` · decided ${formatTime(draft.decidedAt)}` : ''}</p>
@@ -125,7 +125,7 @@ function DraftCard({ draft, journeyName, isAdmin }: { draft: CopyDraft; journeyN
           <Button kind="danger" onClick={() => reject.mutate()} disabled={approve.isPending || reject.isPending} testId={`reject-${draft.id}`}>Reject</Button>
         </div>
       )}
-      {result && <p role="status" className="mt-2 text-sm text-app">{result}</p>}
+      {result && <p role="status" className="mt-2 text-sm text-app-text">{result}</p>}
       <ErrorLine error={approve.error ?? reject.error} />
     </Card>
   );
@@ -152,7 +152,7 @@ export function CopyDraftsPanel({ isAdmin }: { isAdmin: boolean }): JSX.Element 
         {STATUSES.map((s) => (
           <button key={s.value} type="button" role="tab" aria-selected={status === s.value} onClick={() => setStatus(s.value)}
             data-testid={`copy-status-${s.value}`}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${status === s.value ? 'border-violet-400/60 bg-violet-500/15 text-app' : 'border-app text-app-muted hover:text-app'}`}>
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${status === s.value ? 'border-violet-400/60 bg-violet-500/15 text-app-text' : 'border-app-border text-app-muted hover:text-app-text'}`}>
             {s.label}
           </button>
         ))}
