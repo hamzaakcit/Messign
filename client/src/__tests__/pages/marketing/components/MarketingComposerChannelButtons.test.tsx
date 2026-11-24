@@ -17,18 +17,18 @@ describe('MarketingComposerChannelButtons', () => {
     expect(screen.getByRole('button', { name: /^Instagram/i })).toBeTruthy();
   });
 
-  it('opens channel modal when LinkedIn is clicked', () => {
-    const onChannel = vi.fn();
+  it('offers no template for the frozen channels', () => {
     render(
       <MarketingComposerChannelButtons
         isLoading={false}
         onOpenInstagram={vi.fn()}
-        onOpenChannelModal={onChannel}
+        onOpenChannelModal={vi.fn()}
         variant="comfortable"
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /^LinkedIn/i }));
-    expect(onChannel).toHaveBeenCalledWith('linkedin');
+    for (const name of [/^LinkedIn/i, /^X\b/i, /^Blog/i, /^Ads/i, /^Metrics/i]) {
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
   });
 
   it('opens email modal for Email · Newsletter depth and other email_* templates', () => {

@@ -126,14 +126,14 @@ export function LucyMarketingPage(): JSX.Element {
               ))}
             </nav>
             {engage.available ? (
-              <div className="mt-2 grid max-w-md grid-cols-2 gap-1.5 rounded-xl bg-[#0a0c12] p-2 text-app-text" data-testid="engage-create">
+              <div data-theme="light" className="mt-2 grid max-w-md grid-cols-2 gap-1.5 text-app-text" data-testid="engage-create">
                 <EngageQuickActions workspace={workspace} />
               </div>
             ) : null}
           </div>
         ) : null}
         {engage.available ? (
-          <div className="border-b border-white/[0.08] bg-[#0a0c12] px-4 py-2">
+          <div data-theme="light" className="border-b border-[#e7e0d6] px-4 py-2 text-app-text">
             <EngageTabStrip workspace={workspace} withLucy lucyLabel="Offers" />
           </div>
         ) : null}
@@ -167,14 +167,14 @@ export function LucyMarketingPage(): JSX.Element {
               </ul>
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-5xl rounded-2xl border border-white/[0.08] bg-[#0a0c12] p-4 text-app-text">
+            <div data-theme="light" className="mx-auto w-full max-w-5xl rounded-2xl border border-[#e7e0d6] bg-white p-4 text-app-text">
               <EngageSectionBody workspace={workspace} />
             </div>
           )}
         </div>
       </div>
       {lucyOpen ? (
-        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-md flex-col border-l border-app-border bg-app" data-testid="lucy-drawer">
+        <div className="absolute inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-app-border bg-[#0a0c12] text-app-text" data-testid="lucy-drawer">
           <div className="flex justify-end px-3 py-2">
             <button type="button" className="text-sm text-app-muted" onClick={() => setLucyOpen(false)}>
               Close Lucy
@@ -186,7 +186,11 @@ export function LucyMarketingPage(): JSX.Element {
           />
         </div>
       ) : null}
-      {engage.available ? <EngagePanels workspace={workspace} /> : null}
+      {engage.available ? (
+        <div data-theme="light" className="text-app-text">
+          <EngagePanels workspace={workspace} />
+        </div>
+      ) : null}
     </ViewportWrapper>
   );
 }

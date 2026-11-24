@@ -89,7 +89,7 @@ Detail: `content-production-roadmap.md`. Draft 2026-11-13. CP-01 through CP-11 a
 
 ## Marketing counter (parallel evenings — shop window)
 
-Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 are done. The next package on this track is **MC-07**.
+Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 are done. MC-13 and MC-14 were done by UX-01 (2026-11-24). MC-07…11 and MC-15 moved to the UX track (`docs/ux/ux-roadmap.md`). Remaining here: MC-12, MC-16, MC-17, after UX-06.
 
 | WP | Title | Pri | Status | Acceptance (short) |
 |---|---|---|---|---|
@@ -99,17 +99,35 @@ Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 
 | MC-04 | Shop-window theme on the home and the offer | P0 | done | No glow, paper planes, or zeroed MQLs on the home |
 | MC-05 | Empty, error, and tenant-switch states | P0 | done | Kitapyurdu never shows Dora |
 | MC-06 | Picture step keeps look, frame, reference, regenerate | P0 | done | Scene line matches the Fal sentence |
-| MC-07 | Journey email readable on the offer | P0 | todo | Subject, price, and unsubscribe without Unlayer |
-| MC-08 | Looks good marks review and does not schedule or post | P0 | todo | Disabled until still and caption exist |
-| MC-09 | Pipeline becomes the offer list | P1 | todo | `/marketing/content` redirects there |
-| MC-10 | Calendar schedules a ready offer and warns about live send | P0 | todo | A draft cannot be dropped on a day |
-| MC-11 | Shop settings replace the Brands button | P1 | todo | Truth and brand in one place |
+| MC-07 | Journey email readable on the offer | P0 | moved → UX-06 | Subject, price, and unsubscribe without Unlayer |
+| MC-08 | Looks good marks review and does not schedule or post | P0 | moved → UX-06 | Disabled until still and caption exist |
+| MC-09 | Pipeline becomes the offer list | P1 | moved → UX-04 | `/marketing/content` redirects there |
+| MC-10 | Calendar schedules a ready offer and warns about live send | P0 | moved → UX-07 | A draft cannot be dropped on a day |
+| MC-11 | Shop settings replace the Brands button | P1 | moved → UX-05 | Truth and brand in one place |
 | MC-12 | A campaign is a name on a set of offers | P1 | todo | No campaign button on the home |
-| MC-13 | Intel, funnel, and leads leave the marketing nav | P1 | todo | More shows Intel only |
-| MC-14 | Sandbox, command center, creative hub, automation leave the nav | P1 | todo | Old links still redirect |
-| MC-15 | Shop-window theme on Offers, Calendar, and Shop settings | P1 | todo | Three rooms feel like one product |
+| MC-13 | Intel, funnel, and leads leave the marketing nav | P1 | done (UX-01: removed, not kept under More) | More shows Intel only |
+| MC-14 | Sandbox, command center, creative hub, automation leave the nav | P1 | done (UX-01) | Old links still redirect |
+| MC-15 | Shop-window theme on Offers, Calendar, and Shop settings | P1 | moved → UX-03 | Three rooms feel like one product |
 | MC-16 | Dogfood one bookstore offer and one florist offer | P0 | todo | Both finish as drafts, Lucy stays closed |
 | MC-17 | Cut list from the dogfood | P0 | todo | Unused tabs written down, not deleted |
+
+## Marketing UX track (parallel evenings — replaces MC-07…11, 15)
+
+Detail: `docs/ux/ux-roadmap.md` (principles `docs/ux/design-principles.md`, ADR-026, `docs/ux/target-ia.md`). Takes no Engage session.
+
+| WP | Title | Pri | Status | Acceptance (short) |
+|---|---|---|---|---|
+| UX-A | Reconnaissance: inventory, control audit, duplication map, copy audit | P0 | done | Four docs in `docs/ux/` |
+| UX-01 | Delete and hide: frozen screens, unreachable files, Mock/No-op controls | P0 | done (PR #68) | 0 Mock/No-op on kept screens |
+| UX-01b | Lucy composer email-only; engage tab contrast; Phase 2 docs | P1 | done | No frozen-channel templates |
+| UX-02 | Help pattern: InfoTip, HelpDrawer, `helpContent.ts` registry, copy moves | P0 | todo | No paragraph visible by default; tips ≤ 120 chars |
+| UX-03 | Tokens and theme: ban bare `text-app`/`bg-app` in marketing + engage | P0 | todo | Class-ban test green; AA on real backgrounds |
+| UX-06 | Offer detail: one primary, `⋯` menu, email readable without Unlayer | P0 | todo | One filled button; subject/price/unsubscribe shown |
+| UX-07 | Calendar takes ready offers; live-publish warning | P0 | todo | A draft can't be dropped on a day |
+| UX-04 | One offer list (Pipeline = status view) | P1 | todo | Old URLs redirect with filter |
+| UX-05 | Shop settings page replaces the Brands FAB | P1 | todo | No floating button |
+| UX-08 | Leftover duplicates (IG preset, journey-email button, editor wrapper, unused channel forms) | P1 | todo | Duplication groups 3, 7, 9 closed |
+| UX-09 | Playwright smoke: every primary action on kept screens | P0 | todo | Runs in CI |
 
 ## Post-90-day backlog (speculative until a real customer asks — principle 1)
 
