@@ -35,15 +35,12 @@ export const ROUTES = {
   CRM: '/crm',
   /** Lucy home: navigator + Dora rail. */
   MARKETING: '/marketing',
+  /** Five-step new offer. Replaces the Instagram create modal as the way in. */
+  MARKETING_OFFER_NEW: '/marketing/offer/new',
   /** Legacy combined hub — redirect to {@link ROUTES.MARKETING}. */
   MARKETING_WORKSPACE: '/marketing/workspace',
-  MARKETING_BRAND_SOCIAL: '/marketing/brand-social',
-  MARKETING_FUNNEL: '/marketing/funnel',
-  MARKETING_EXPERIMENTS: '/marketing/experiments',
-  MARKETING_SANDBOX: '/marketing/sandbox',
   MARKETING_PIPELINE: '/marketing/pipeline',
   MARKETING_CALENDAR: '/marketing/calendar',
-  MARKETING_INTELLIGENCE: '/marketing/intelligence',
   MARKETING_COMMAND_CENTER: '/marketing/command-center',
   MARKETING_CAMPAIGNS: '/marketing/campaigns',
   MARKETING_CONTENT: '/marketing/content',

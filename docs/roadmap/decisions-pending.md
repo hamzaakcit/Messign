@@ -15,7 +15,9 @@ Only decisions that are genuinely Hamza's (product, commercial, legal, irreversi
 | D-09 | Start external processes now: Meta verification (both tenants), Alaris account + API docs + domestic-route confirmation, başlık application, İYS API access | Start all in W1 | Long external lead times; none block code | W1 | ✅ approved 2026-11-07: start everything possible in W1 (Messign-side items; tenant-side items need a tenant) |
 | D-10 | Approve removals: `dal/time`, `knowledge-hub/`, `knowledge-hub.zip/`, `*.dump`, root ComfyUI/Python scripts, RLS-unblock SQL, seed routes in prod | **Approve** | Dead code, clutter, safety hazards; all recoverable from git history | W1 | ✅ approved 2026-11-07 |
 | D-11 | Holdout group (10% of eligible carts receive no message) acceptable to Kitapyurdu | **Approve 10%** | The only credible way to prove revenue uplift | W6 | ✅ approved 2026-11-07 (10%) |
-| D-12 | Lucy Content Studio track paused; spec not executed as written; surviving parts folded into engage (product-vision Q2) | **Approve** | Content layer, not a separate product | W1 | ✅ approved 2026-11-07 |
+| D-12 | Lucy Content Studio track paused; spec not executed as written; surviving parts folded into engage (product-vision Q2) | **Approve** | Content layer, not a separate product | W1 | ✅ approved 2026-11-07. Surviving slice specified 2026-11-12 in `content-studio-90-day.md` (does not lift the pause on the 14-part spec) |
+| CS-D2 | Content studio: approve Instagram and email children separately | **Approve partial approval** | A cart email must ship without a public post; an IG draft must not block the journey email | Before CS-08 | ✅ approved 2026-11-12 |
+| CS-D3 | Content studio: reel in this track is a cover still plus storyboard, no generated video | **Approve** | Video cost and a vendor choice wait until a tenant asks | Before CS-11 | ✅ approved 2026-11-12 |
 
 ## Questions that change strategy — answered 2026-11-07
 1. Does Kitapyurdu already use a CEP/ESP? → **No. Greenfield, no incumbent to displace.**

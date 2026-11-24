@@ -5,16 +5,16 @@ const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'test123';
 
 async function login(page: import('@playwright/test').Page) {
   await page.goto('/login');
-  await page.getByPlaceholder('you@messign.com').fill(TEST_EMAIL);
-  await page.getByPlaceholder('Enter your password').fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: /Sign in/i }).click();
+  await page.getByTestId('login-email').fill(TEST_EMAIL);
+  await page.getByTestId('login-password').fill(TEST_PASSWORD);
+  await page.getByTestId('login-submit').click();
 }
 
 test('login flow', async ({ page }) => {
   await page.goto('/login');
-  await page.getByPlaceholder('you@messign.com').fill(TEST_EMAIL);
-  await page.getByPlaceholder('Enter your password').fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: /Sign in/i }).click();
+  await page.getByTestId('login-email').fill(TEST_EMAIL);
+  await page.getByTestId('login-password').fill(TEST_PASSWORD);
+  await page.getByTestId('login-submit').click();
   await expect(page).toHaveURL(/\/(dashboard|executive)?$/, { timeout: 15000 });
   await expect(page.locator('text=Dashboard').or(page.locator('text=Executive')).first()).toBeVisible({ timeout: 10000 });
 });

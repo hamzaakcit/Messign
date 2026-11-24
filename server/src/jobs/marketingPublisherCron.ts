@@ -2,12 +2,22 @@ import cron from 'node-cron';
 import { runMarketingPublisherTick } from '../services/marketing/marketingPublisherService.js';
 
 /**
+ * The publisher cron stays off unless this is exactly `1`.
+ * Unset, `0`, and any other value do not schedule sends.
+ */
+export function marketingPublisherEnabled(
+  value: string | undefined = process.env.MARKETING_PUBLISHER_ENABLED,
+): boolean {
+  return value === '1';
+}
+
+/**
  * Runs every minute — claim due calendar rows and push to external adapters.
- * Disable with `MARKETING_PUBLISHER_ENABLED=0`.
+ * Stays off unless `MARKETING_PUBLISHER_ENABLED=1`.
  */
 export function startMarketingPublisherCron(): void {
-  if (process.env.MARKETING_PUBLISHER_ENABLED === '0') {
-    console.log('[MarketingPublisherCron] Disabled (MARKETING_PUBLISHER_ENABLED=0)');
+  if (!marketingPublisherEnabled()) {
+    console.log('[MarketingPublisherCron] Off (set MARKETING_PUBLISHER_ENABLED=1 to schedule)');
     return;
   }
 

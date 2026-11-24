@@ -4,6 +4,7 @@
 import type { AdapterPublishSuccess, CalendarRecordForPublish, ContentPayloadForPublish } from '../types.js';
 import { withTransientRetry } from '../adapterUtils.js';
 import { errorFromResponse } from '../adapterUtils.js';
+import { legacyNetworkSendAllowed } from '../instagramPublishMode.js';
 
 export interface BlogAdapterInput {
   calendar: CalendarRecordForPublish;
@@ -25,7 +26,7 @@ export async function publishBlogOrCms(input: BlogAdapterInput): Promise<Adapter
     };
 
     const target = webhook ?? khInternal;
-    if (target) {
+    if (target && legacyNetworkSendAllowed()) {
       const res = await fetch(target, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(process.env.MARKETING_BLOG_WEBHOOK_SECRET ? { 'X-Webhook-Secret': process.env.MARKETING_BLOG_WEBHOOK_SECRET } : {}) },

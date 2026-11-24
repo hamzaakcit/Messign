@@ -12,6 +12,9 @@ import {
   extractFalResultImageUrl,
   isFluxProFamilyModel,
   downloadFalImageBytes,
+  snapFalImageSize,
+  subscribeFalStillWithSceneCheck,
+  FLUX_PRO_ULTRA_MODEL,
 } from '../../../services/marketing/publishing/imageService/falImageGeneration.js';
 
 describe('falImageGeneration', () => {
@@ -72,7 +75,7 @@ describe('falImageGeneration', () => {
   });
 
   describe('buildFluxFalSubscribeInput', () => {
-    it('includes negative_prompt and guidance for flux model ids', () => {
+    it('keeps guidance and steps on Flux Dev and omits the negative prompt', () => {
       const input = buildFluxFalSubscribeInput(
         'fal-ai/flux/dev',
         'A hero banner',
@@ -80,9 +83,10 @@ describe('falImageGeneration', () => {
         { negativePrompt: 'text, ui', guidanceScale: 3.5, numInferenceSteps: 28, seed: 42 },
       );
       expect(input.prompt).toContain('hero banner');
-      expect(input.negative_prompt).toBe('text, ui');
+      expect(input.negative_prompt).toBeUndefined();
       expect(input.guidance_scale).toBe(3.5);
       expect(input.num_inference_steps).toBe(28);
+      expect(input.acceleration).toBe('none');
       expect(input.seed).toBe(42);
     });
 
@@ -101,12 +105,15 @@ describe('falImageGeneration', () => {
         'fal-ai/flux-pro/v1.1',
         'A feed still',
         { width: 1080, height: 1080 },
-        { negativePrompt: 'text' },
+        { negativePrompt: 'text', guidanceScale: 3.75, numInferenceSteps: 50 },
       );
       expect(input.output_format).toBe('jpeg');
       expect(input.safety_tolerance).toBe('2');
       expect(input.enable_safety_checker).toBeUndefined();
-      expect(input.negative_prompt).toBe('text');
+      expect(input.negative_prompt).toBeUndefined();
+      expect(input.guidance_scale).toBeUndefined();
+      expect(input.num_inference_steps).toBeUndefined();
+      expect(input.image_size).toEqual({ width: 1080, height: 1080 });
     });
 
     it('uses PNG for Instagram feed (less aggressive compression than Fal JPEG; flattened in generateImage)', () => {
@@ -184,6 +191,48 @@ describe('falImageGeneration', () => {
         if (expectEnableChecker) expect(input.enable_safety_checker).toBe(true);
       },
     );
+
+    it('builds an Ultra body with aspect_ratio and no image_size', () => {
+      const input = buildFluxFalSubscribeInput(
+        FLUX_PRO_ULTRA_MODEL,
+        'Photorealistic photograph of Kürk Mantolu Madonna at Karaköy kitapçı vitrini.',
+        { width: 1080, height: 1080 },
+        {
+          negativePrompt: 'text',
+          guidanceScale: 3.75,
+          numInferenceSteps: 50,
+          enhancePrompt: false,
+          aspectRatio: '9:16',
+          referenceImageUrl: 'https://cdn.example/ref.jpg',
+          shopStill: true,
+          seed: 9,
+        },
+      );
+      expect(input.aspect_ratio).toBe('9:16');
+      expect(input.image_size).toBeUndefined();
+      expect(input.raw).toBe(true);
+      expect(input.image_url).toBe('https://cdn.example/ref.jpg');
+      expect(input.image_prompt_strength).toBe(0.1);
+      expect(input.enhance_prompt).toBe(false);
+      expect(input.negative_prompt).toBeUndefined();
+      expect(input.guidance_scale).toBeUndefined();
+      expect(input.num_inference_steps).toBeUndefined();
+      expect(input.seed).toBe(9);
+    });
+
+    it('sends the requested Ultra reference strength', () => {
+      const input = buildFluxFalSubscribeInput(
+        FLUX_PRO_ULTRA_MODEL,
+        'Photorealistic photograph of Papatya buketi at Nişantaşı çiçekçi tezgahı.',
+        { width: 1080, height: 1080 },
+        {
+          referenceImageUrl: 'https://cdn.example/bouquet.jpg',
+          imagePromptStrength: 0.4,
+        },
+      );
+      expect(input.image_prompt_strength).toBe(0.4);
+      expect(input.image_size).toBeUndefined();
+    });
   });
 
   describe('isFluxProFamilyModel', () => {
@@ -343,6 +392,75 @@ describe('falImageGeneration', () => {
       else delete process.env.FAL_OVERLAY_IMAGE_MODEL;
       if (prevDef !== undefined) process.env.FAL_IMAGE_MODEL = prevDef;
       else delete process.env.FAL_IMAGE_MODEL;
+    });
+
+    it('selects Ultra when an Instagram still has a reference photo', () => {
+      expect(
+        resolveFalModelIdForRequest({
+          instagramFeed: true,
+          referenceImageUrl: 'https://cdn.example/counter.jpg',
+        }),
+      ).toBe(FLUX_PRO_ULTRA_MODEL);
+    });
+  });
+
+  describe('snapFalImageSize', () => {
+    it('snaps 1080 onto a multiple of 64', () => {
+      expect(snapFalImageSize({ width: 1080, height: 1080 })).toEqual({ width: 1088, height: 1088 });
+      expect(snapFalImageSize('square_hd')).toBe('square_hd');
+    });
+  });
+
+  describe('subscribeFalStillWithSceneCheck', () => {
+    it('retries once when the returned prompt drops the product, then fails', async () => {
+      const calls: Array<Record<string, unknown>> = [];
+      await expect(
+        subscribeFalStillWithSceneCheck({
+          modelId: 'fal-ai/flux-pro/v1.1',
+          product: 'Kürk Mantolu Madonna',
+          place: 'Karaköy kitapçı vitrini',
+          buildInput: (enhancePrompt) =>
+            buildFluxFalSubscribeInput(
+              'fal-ai/flux-pro/v1.1',
+              'scene',
+              { width: 1024, height: 1024 },
+              { enhancePrompt },
+            ),
+          subscribe: async (_modelId, input) => {
+            calls.push(input);
+            return {
+              data: {
+                images: [{ url: 'https://cdn.example/still.png', width: 1024, height: 1024 }],
+                prompt: 'a generic vase',
+                seed: 7,
+                has_nsfw_concepts: [false],
+              },
+            };
+          },
+        }),
+      ).rejects.toThrow(/dropped the product or the place/);
+      expect(calls).toHaveLength(2);
+      expect(calls[0]?.enhance_prompt).toBe(false);
+      expect(calls[1]?.enhance_prompt).toBe(false);
+      expect(calls[0]?.guidance_scale).toBeUndefined();
+      expect(calls[0]?.negative_prompt).toBeUndefined();
+    });
+
+    it('does not return an image when Fal marks it unsafe', async () => {
+      let calls = 0;
+      await expect(
+        subscribeFalStillWithSceneCheck({
+          modelId: 'fal-ai/flux-pro/v1.1',
+          product: '',
+          place: '',
+          buildInput: () => ({ prompt: 'scene' }),
+          subscribe: async () => {
+            calls += 1;
+            return { data: { images: [{ url: 'https://cdn.example/still.png' }], has_nsfw_concepts: [true] } };
+          },
+        }),
+      ).rejects.toThrow(/unsafe/);
+      expect(calls).toBe(1);
     });
   });
 });

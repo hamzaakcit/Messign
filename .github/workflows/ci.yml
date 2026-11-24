@@ -8,17 +8,17 @@ on:
 
 jobs:
   build:
-    name: Type-check
+    name: Type-check and unit tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -31,3 +31,11 @@ jobs:
       - name: Type-check server
         working-directory: server
         run: npx tsc --noEmit
+
+      - name: Test client
+        working-directory: client
+        run: npm test
+
+      - name: Test server
+        working-directory: server
+        run: npm run test:agents

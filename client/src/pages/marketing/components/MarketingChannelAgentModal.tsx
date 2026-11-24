@@ -28,7 +28,7 @@ export interface MarketingChannelAgentModalProps {
 }
 
 /**
- * Structured channel prompts (LinkedIn, X, Blog, Ads, Email VA2, Metrics) — same UX pattern as InstagramAgentPromptModal.
+ * Structured channel prompts (LinkedIn, X, Blog, Ads, Email VA2, Metrics).
  */
 export function MarketingChannelAgentModal({
   channel,

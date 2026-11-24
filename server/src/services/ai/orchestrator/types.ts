@@ -49,7 +49,7 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: OrchestratorConfig = {
   stepTimeoutMs: 10_000,
   enableDeduplication: true,
   logThoughts: true,
-  model: 'llama-3.3-70b-versatile',
+  model: 'openai/gpt-oss-20b',
   reasoningTemperature: 0.1,
   synthesisTemperature: 0.3,
 };

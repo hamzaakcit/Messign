@@ -472,31 +472,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
   const showLegacyPreview =
     !hasDesignContent(effectiveInitialDesign ?? null) && Boolean(initialHtml?.trim());
 
-  const intro =
-    displayMode === 'email' ? (
-      <>
-        Design in the visual builder, then apply to save HTML and design JSON. Set{' '}
-        <code className="text-[11px] text-app-text/90">VITE_UNLAYER_PROJECT_ID</code> locally and in Vercel; add your
-        production domain under Unlayer → Project → Deployment → Allowed Domains.
-      </>
-    ) : displayMode === 'web' ? (
-      <>
-        Build a landing page in the visual builder (Page Builder), then apply to save HTML and design JSON. Uses the same{' '}
-        <code className="text-[11px] text-app-text/90">VITE_UNLAYER_PROJECT_ID</code> as email; allow your app domain in
-        Unlayer → Deployment → Allowed Domains.
-      </>
-    ) : displayMode === 'document' ? (
-      <>
-        Create reports, proposals, or contracts in the Document builder (<code className="text-[11px] text-app-text/90">displayMode: document</code>
-        ). Apply to save HTML and design JSON. Same project ID and allowed domains as other builders.
-      </>
-    ) : (
-      <>
-        Design a popup (Popup Builder). Export uses a unique <code className="text-[11px] text-app-text/90">popupId</code>{' '}
-        after save to avoid CSS conflicts when embedding multiple popups. Same project ID and allowed domains as other
-        builders.
-      </>
-    );
+  const showMissingProjectId = !projectId && import.meta.env.DEV;
 
   const legacyCopy =
     displayMode === 'email'
@@ -592,7 +568,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
             </span>
           </div>
         ) : null}
-        {!projectId ? (
+        {showMissingProjectId ? (
           <p className="text-xs text-amber-400/90">
             Unlayer project ID is not set — the editor may show branding limits. Add{' '}
             <code className="text-[11px]">VITE_UNLAYER_PROJECT_ID</code> in your env.
@@ -617,8 +593,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
           </span>
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-app-muted max-w-[52rem]">{intro}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           {shouldOfferPicker && pickedStarterId != null && (
             <button
@@ -640,7 +615,7 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
           </button>
         </div>
       </div>
-      {!projectId ? (
+      {showMissingProjectId ? (
         <p className="text-xs text-amber-400/90">
           Unlayer project ID is not set — the editor may show branding limits. Add{' '}
           <code className="text-[11px]">VITE_UNLAYER_PROJECT_ID</code> in your env.

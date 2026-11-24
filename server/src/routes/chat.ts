@@ -79,8 +79,8 @@ function toClientMessage(row: MessageWithSender) {
   };
 }
 
-function getUserId(req: { userId?: string; headers: Record<string, unknown> }): string | null {
-  return (req as { userId?: string }).userId ?? (req.headers['x-user-id'] as string) ?? null;
+function getUserId(req: { userId?: string }): string | null {
+  return req.userId ?? null;
 }
 
 const VALID_CHANNEL_TYPES = ['public', 'private', 'dm'];

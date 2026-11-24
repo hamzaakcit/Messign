@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AppWindow, ArrowLeft, FileText, LayoutTemplate, Mail, Plus, Send } from 'lucide-react';
+import { ArrowLeft, FileText, LayoutTemplate, Mail, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { DoraInsightBar } from '@/components/dora/DoraInsightBar';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
@@ -11,16 +11,18 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   marketingAPI,
   type EmailCampaign,
-  type LandingPage,
   type MarketingDocument,
-  type MarketingPopup,
 } from '@/lib/marketingApi';
 import { UnlayerEditor, type UnlayerEditorHandle } from '../components/UnlayerEditor';
 import { UnlayerEmailEditor, type UnlayerEmailEditorHandle } from '../components/UnlayerEmailEditor';
 import { CampaignMetricsPanel } from '../components/CampaignMetricsPanel';
 import { getStarterTemplates } from '../unlayerTemplates/registry';
 
-type BuilderType = 'all' | 'email' | 'landing_page' | 'popup' | 'document';
+type BuilderType = 'all' | 'email' | 'document';
+
+function parseBuilderType(value: string | null): BuilderType {
+  return value === 'email' || value === 'document' ? value : 'all';
+}
 
 interface UnifiedItem {
   id: string;
@@ -42,8 +44,6 @@ interface UnifiedItem {
 const FILTER_CHIPS: { id: BuilderType; label: string; icon: React.ElementType }[] = [
   { id: 'all', label: 'All', icon: LayoutTemplate },
   { id: 'email', label: 'Email', icon: Mail },
-  { id: 'landing_page', label: 'Landing Pages', icon: LayoutTemplate },
-  { id: 'popup', label: 'Popups', icon: AppWindow },
   { id: 'document', label: 'Documents', icon: FileText },
 ];
 
@@ -52,16 +52,12 @@ const inputClass =
 
 function typeLabel(type: BuilderType): string {
   if (type === 'email') return 'Email';
-  if (type === 'landing_page') return 'Landing Page';
-  if (type === 'popup') return 'Popup';
   if (type === 'document') return 'Document';
   return 'Unknown';
 }
 
-function typeVariant(type: BuilderType): 'default' | 'blue' | 'purple' | 'green' | 'orange' {
+function typeVariant(type: BuilderType): 'default' | 'blue' | 'orange' {
   if (type === 'email') return 'blue';
-  if (type === 'landing_page') return 'green';
-  if (type === 'popup') return 'purple';
   if (type === 'document') return 'orange';
   return 'default';
 }
@@ -71,7 +67,7 @@ export function BuilderSection(): JSX.Element {
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
 
-  const initialType = (searchParams.get('type') as BuilderType) || 'all';
+  const initialType = parseBuilderType(searchParams.get('type'));
   const [filterType, setFilterType] = useState<BuilderType>(initialType);
   const [items, setItems] = useState<UnifiedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,10 +79,8 @@ export function BuilderSection(): JSX.Element {
     if (!userId) return;
     setLoading(true);
     try {
-      const [emails, pages, popups, docs] = await Promise.all([
+      const [emails, docs] = await Promise.all([
         marketingAPI.listEmailCampaigns(userId, { pageSize: '100' }),
-        marketingAPI.listLandingPages(userId, { pageSize: '100' }),
-        marketingAPI.listMarketingPopups(userId, { pageSize: '100' }),
         marketingAPI.listMarketingDocuments(userId, { pageSize: '100' }),
       ]);
 
@@ -97,14 +91,6 @@ export function BuilderSection(): JSX.Element {
           body_design: e.body_design, recipient_count: e.recipient_count,
           open_rate: e.open_rate, click_rate: e.click_rate,
           from_name: e.from_name, from_email: e.from_email,
-        })),
-        ...pages.data.map((p: LandingPage) => ({
-          id: p.id, name: p.name ?? p.title, type: 'landing_page' as const, status: p.status,
-          updated_at: p.updated_at, slug: p.slug, body_html: p.body_html, body_design: p.body_design,
-        })),
-        ...popups.data.map((p: MarketingPopup) => ({
-          id: p.id, name: p.name, type: 'popup' as const, status: p.status,
-          updated_at: p.updated_at, slug: p.slug, body_html: p.body_html, body_design: p.body_design,
         })),
         ...docs.data.map((d: MarketingDocument) => ({
           id: d.id, name: d.name ?? d.title, type: 'document' as const, status: d.status,
@@ -308,14 +294,6 @@ function BuilderDetailPanel({
           from_email: meta.from_email || null, recipient_count: Number(meta.recipient_count || 0),
           body_html: html, body_design: design,
         });
-      } else if (item.type === 'landing_page') {
-        await marketingAPI.updateLandingPage(userId, item.id, {
-          name: meta.name, slug: meta.slug.trim() || undefined, status: meta.status, body_html: html, body_design: design,
-        });
-      } else if (item.type === 'popup') {
-        await marketingAPI.updateMarketingPopup(userId, item.id, {
-          name: meta.name, slug: meta.slug.trim() || undefined, status: meta.status, body_html: html, body_design: design,
-        });
       } else {
         await marketingAPI.updateMarketingDocument(userId, item.id, {
           name: meta.name, slug: meta.slug.trim() || null, status: meta.status, body_html: html, body_design: design,
@@ -328,13 +306,6 @@ function BuilderDetailPanel({
     }
   };
 
-  const handleSend = async () => {
-    if (item.type !== 'email') return;
-    await marketingAPI.sendEmailCampaign(userId, item.id);
-    toast.success('Email campaign sent.');
-    onUpdated();
-  };
-
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-start justify-between gap-4">
@@ -344,11 +315,6 @@ function BuilderDetailPanel({
           <Badge variant={typeVariant(item.type)}>{typeLabel(item.type)}</Badge>
         </div>
         <div className="flex items-center gap-2">
-          {item.type === 'email' && (
-            <button type="button" onClick={() => void handleSend()} className="px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 flex items-center gap-1.5">
-              <Send className="w-4 h-4" />Send
-            </button>
-          )}
           <button type="button" disabled={saving} onClick={() => void handleSave()} className="px-3 py-2 rounded-lg text-sm font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-50">
             {saving ? 'Saving\u2026' : 'Save'}
           </button>
@@ -390,8 +356,7 @@ function BuilderDetailPanel({
           ) : (
             <UnlayerEditor
               ref={editorRef as React.Ref<UnlayerEditorHandle>}
-              displayMode={item.type === 'landing_page' ? 'web' : item.type === 'popup' ? 'popup' : 'document'}
-              exportPopupId={item.type === 'popup' ? item.id : undefined}
+              displayMode="document"
               editorKey={item.id}
               initialDesign={bodyDesign}
               initialHtml={bodyHtml}
@@ -430,9 +395,6 @@ function BuilderCreatePanel({
     recipient_count: '0',
   });
 
-  const displayMode = type === 'email' ? 'email' : type === 'landing_page' ? 'web' : type === 'popup' ? 'popup' : 'document';
-  const [createExportPopupId] = useState(() => type === 'popup' ? crypto.randomUUID() : undefined);
-
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.body_html?.trim()) {
@@ -444,14 +406,6 @@ function BuilderCreatePanel({
       await marketingAPI.createEmailCampaign(userId, {
         name: form.name, subject: form.subject, from_name: form.from_name, from_email: form.from_email,
         body_html: form.body_html, body_design: form.body_design, recipient_count: Number(form.recipient_count || 0),
-      });
-    } else if (type === 'landing_page') {
-      await marketingAPI.createLandingPage(userId, {
-        name: form.name, slug: form.slug.trim() || undefined, body_html: form.body_html, body_design: form.body_design, status: form.status,
-      });
-    } else if (type === 'popup') {
-      await marketingAPI.createMarketingPopup(userId, {
-        name: form.name, slug: form.slug.trim() || undefined, body_html: form.body_html, body_design: form.body_design, status: form.status,
       });
     } else {
       await marketingAPI.createMarketingDocument(userId, {
@@ -495,10 +449,9 @@ function BuilderCreatePanel({
         ) : (
           <UnlayerEditor
             editorKey={`create-${type}`}
-            displayMode={displayMode}
-            exportPopupId={createExportPopupId}
+            displayMode="document"
             initialDesign={null}
-            starterTemplates={getStarterTemplates(displayMode)}
+            starterTemplates={getStarterTemplates('document')}
             user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
             onApply={({ html, design }) => setForm((c) => ({ ...c, body_html: html, body_design: design }))}
           />

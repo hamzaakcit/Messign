@@ -25,7 +25,7 @@ export interface MarketingComposerQuickAction {
   hint: string;
 }
 
-/** Instagram uses {@link InstagramAgentPromptModal}; not included here. */
+/** Instagram goes through the New offer page; not included here. */
 export const MARKETING_COMPOSER_QUICK_ACTIONS: MarketingComposerQuickAction[] = [
   {
     id: 'linkedin',

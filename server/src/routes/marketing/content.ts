@@ -22,6 +22,24 @@ import {
 } from '../../services/marketing/publishing/imageService.js';
 import type { StylePreset, AspectRatio, ImageGenerationInput } from '../../dal/marketing/instagramTypes.js';
 import { triggerBrandComplianceScan } from '../../services/marketing/complianceScanner.js';
+import {
+  journeyDraftPiiError,
+  journeyEmailCreateInput,
+  reviewBlockedByMissingOptOut,
+} from '../../services/marketing/journeyEmailDraft.js';
+import {
+  instagramPublishMode,
+  instagramTestPublishBlock,
+} from '../../services/marketing/publishing/instagramPublishMode.js';
+import { publishInstagramPost } from '../../services/marketing/publishing/adapters/instagramAdapter.js';
+import {
+  deleteInstagramConnection,
+  getInstagramConnection,
+  getInstagramCredentials,
+  parseInstagramAccountId,
+  saveInstagramConnection,
+  verifyInstagramCredentials,
+} from '../../services/marketing/publishing/instagramConnection.js';
 import { inferMarketingImageErrorCode } from './marketingFalRouteErrors.js';
 import { query as dbQuery } from '../../db/index.js';
 import { validateEmailManifestInput } from '../../modules/marketing/emailManifestValidate.js';
@@ -202,6 +220,12 @@ router.post('/', async (req: ReimbursementRequest, res: Response) => {
       const channelForVoice =
         typeof req.body.channel === 'string' && req.body.channel.trim() ? req.body.channel : undefined;
 
+      const optOutError = reviewBlockedByMissingOptOut(channelForVoice, text);
+      if (optOutError) {
+        res.status(400).json({ error: optOutError });
+        return;
+      }
+
       const [v, bvc] = await Promise.all([
         validateTruthForReview(ctx, text, req.body.title),
         brandVoiceAfterTruthPass(ctx, text, channelForVoice),
@@ -227,6 +251,9 @@ router.post('/', async (req: ReimbursementRequest, res: Response) => {
       brand_voice_checked_at: _bca0,
       ...raw
     } = req.body as Record<string, unknown> & { title: string; content_type: string };
+    if (raw.content_type === 'offer') {
+      raw.channel = 'internal';
+    }
     const content = await contentDal.createContent(ctx, {
       ...(raw as CreateContentInput),
       status,
@@ -308,6 +335,65 @@ router.get('/', async (req: ReimbursementRequest, res: Response) => {
   } catch (err) {
     console.error('[marketing/content GET]', err);
     res.status(500).json({ error: 'Failed to list content' });
+  }
+});
+
+router.get('/instagram-publish-mode', (_req: ReimbursementRequest, res: Response) => {
+  res.json({ mode: instagramPublishMode() });
+});
+
+router.get('/instagram-connection', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const orgId = buildCtx(req).organizationId;
+    if (!orgId) {
+      res.json({ connected: false, accountId: null, username: null });
+      return;
+    }
+    res.json(await getInstagramConnection(orgId));
+  } catch (err) {
+    console.error('[marketing/instagram-connection GET]', err);
+    res.status(500).json({ error: 'Could not load the Instagram connection' });
+  }
+});
+
+router.put('/instagram-connection', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const orgId = buildCtx(req).organizationId;
+    if (!orgId) {
+      res.status(400).json({ error: 'No organization on this login.' });
+      return;
+    }
+    const accountId = parseInstagramAccountId(String(req.body?.accountId ?? ''));
+    const token = typeof req.body?.accessToken === 'string' ? req.body.accessToken.trim() : '';
+    if (!accountId) {
+      res.status(400).json({ error: 'The Instagram business account id is the number from the Meta app.' });
+      return;
+    }
+    if (token.length < 20) {
+      res.status(400).json({ error: 'Paste the Graph access token.' });
+      return;
+    }
+    const verified = await verifyInstagramCredentials(accountId, token);
+    await saveInstagramConnection(orgId, accountId, token, verified.username);
+    res.json({ connected: true, accountId, username: verified.username });
+  } catch (err) {
+    console.error('[marketing/instagram-connection PUT]', err instanceof Error ? err.message : err);
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Instagram connection failed' });
+  }
+});
+
+router.delete('/instagram-connection', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const orgId = buildCtx(req).organizationId;
+    if (!orgId) {
+      res.status(400).json({ error: 'No organization on this login.' });
+      return;
+    }
+    await deleteInstagramConnection(orgId);
+    res.json({ connected: false, accountId: null, username: null });
+  } catch (err) {
+    console.error('[marketing/instagram-connection DELETE]', err);
+    res.status(400).json({ error: 'Could not disconnect Instagram' });
   }
 });
 
@@ -400,11 +486,19 @@ router.post('/:id/regenerate-image', async (req: ReimbursementRequest, res: Resp
       (typeof req.body?.style === 'string' && req.body.style);
     const stylePreset = (stylePresetRaw || undefined) as StylePreset | undefined;
     const aspectRatio = (typeof req.body?.aspect_ratio === 'string' ? req.body.aspect_ratio : undefined) as AspectRatio | undefined;
+    const slideIndexRaw = req.body?.slide_index;
+    const slideIndex = slideIndexRaw == null || slideIndexRaw === '' ? undefined : Number(slideIndexRaw);
+    if (slideIndex != null && !Number.isInteger(slideIndex)) {
+      res.status(400).json({ success: false, error: 'Slide index must be a whole number.' });
+      return;
+    }
     const result = await regenerateImageForContent(ctx, {
       content_id: req.params.id,
       new_prompt: trimmed,
       style_preset: stylePreset,
       aspect_ratio: aspectRatio,
+      slide_index: slideIndex,
+      mock: typeof req.body?.mock === 'boolean' ? req.body.mock : undefined,
     });
     const errMsg = result.error ?? undefined;
     res.json({
@@ -696,6 +790,58 @@ router.get('/:id', async (req: ReimbursementRequest, res: Response) => {
   }
 });
 
+router.post('/:id/journey-email', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const ctx = buildCtx(req);
+    const row = await contentDal.getContentById(ctx, req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'Content not found' });
+      return;
+    }
+    const offerId = row.content_type === 'offer' ? row.id : row.parent_content_id;
+    if (!offerId) {
+      res.status(400).json({ error: 'This post is not part of an offer.' });
+      return;
+    }
+    const offer = offerId === row.id ? row : await contentDal.getContentById(ctx, offerId);
+    if (!offer || offer.content_type !== 'offer') {
+      res.status(400).json({ error: 'Offer not found for this post.' });
+      return;
+    }
+
+    const existing = await contentDal.listContent(
+      ctx,
+      { parentContentId: offer.id, channel: 'email' },
+      undefined,
+      1,
+      10,
+    );
+    const emailChild = existing.data.find((item) => (item.channel ?? '').toLowerCase() === 'email');
+    if (emailChild) {
+      res.json(emailChild);
+      return;
+    }
+
+    const piiError = journeyDraftPiiError(`${offer.title}\n${offer.user_brief ?? ''}`);
+    if (piiError) {
+      res.status(400).json({ error: piiError });
+      return;
+    }
+
+    const draft = journeyEmailCreateInput({
+      id: offer.id,
+      title: offer.title,
+      userBrief: offer.user_brief,
+      tags: offer.tags,
+    });
+    const created = await contentDal.createContent(ctx, draft);
+    res.status(201).json(created);
+  } catch (err) {
+    console.error('[marketing/content/:id/journey-email POST]', err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to draft journey email' });
+  }
+});
+
 router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
   try {
     const ctx = buildCtx(req);
@@ -718,6 +864,15 @@ router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
       const bodyText = req.body.body !== undefined ? String(req.body.body) : existing.body ?? '';
       const htmlText = req.body.body_html !== undefined ? String(req.body.body_html) : existing.body_html ?? '';
       const text = mergeContentText(bodyText, htmlText, existing.title);
+      const channelForReview =
+        req.body.channel !== undefined && req.body.channel !== null
+          ? String(req.body.channel)
+          : existing.channel;
+      const optOutError = reviewBlockedByMissingOptOut(channelForReview, text);
+      if (optOutError) {
+        res.status(400).json({ error: optOutError });
+        return;
+      }
       const v = await validateTruthForReview(ctx, text, existing.title);
       if (!v.ok) {
         res.status(v.status).json(v.json);
@@ -763,6 +918,51 @@ router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
   } catch (err) {
     console.error('[marketing/content/:id PUT]', err);
     res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to update content' });
+  }
+});
+
+router.post('/:id/test-publish', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const ctx = buildCtx(req);
+    const content = await contentDal.getContentById(ctx, req.params.id);
+    if (!content) {
+      res.status(404).json({ error: 'Content not found' });
+      return;
+    }
+    const block = instagramTestPublishBlock(content.channel);
+    if (block) {
+      res.status(400).json({ error: block });
+      return;
+    }
+    const orgId = ctx.organizationId;
+    const saved = orgId ? await getInstagramCredentials(orgId) : null;
+    const live = Boolean(saved) || instagramPublishMode() === 'live';
+    const mode = live ? 'live' : 'mock';
+    const result = await publishInstagramPost({
+      calendar: {
+        id: content.id,
+        workspace_id: content.organization_id ?? 'studio',
+        content_id: content.id,
+        campaign_id: content.campaign_id,
+        scheduled_at: new Date().toISOString(),
+        channel: 'instagram',
+        status: 'test',
+      },
+      content: {
+        title: content.title,
+        body: content.body,
+        body_html: content.body_html,
+        content_type: content.content_type,
+        channel: content.channel,
+        image_url: content.image_url,
+      },
+      credentials: saved ? { token: saved.token, accountId: saved.accountId } : undefined,
+      live: Boolean(saved),
+    });
+    res.json({ mode, ...result });
+  } catch (err) {
+    console.error('[marketing/content/:id/test-publish POST]', err);
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to test publish' });
   }
 });
 

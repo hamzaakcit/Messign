@@ -21,6 +21,7 @@ import { khAIFeedbackAPI } from '@/lib/knowledge-hub/api';
 import { resolveIntent } from '@/shared/intents/resolver';
 import type { UseAIChatOptions, SendMessageOptions, UseAIChatReturn } from '@/hooks/knowledge-hub/useAIChat';
 import { formatAiHttpError } from '@/utils/aiHttpError';
+import { readMarketingContentId } from '@/lib/marketingContentReady';
 
 const V2_ANSWER_URL = `${API_ORIGIN}/api/v2/ai/answer`;
 
@@ -80,12 +81,15 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     initialInteractionMode = 'ask',
     onIntentResolved,
     marketingAgentMode: defaultMarketingAgentMode,
+    onMarketingContentReady,
   } = options;
 
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
   const onIntentResolvedRef = useRef(onIntentResolved);
   onIntentResolvedRef.current = onIntentResolved;
+  const onMarketingContentReadyRef = useRef(onMarketingContentReady);
+  onMarketingContentReadyRef.current = onMarketingContentReady;
 
   const [messages, setMessages] = useState<AIMessage[]>(initialMessages ?? []);
   const [isLoading, setIsLoading] = useState(false);
@@ -200,6 +204,9 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
             searchMode: false,
             ...(defaultMarketingAgentMode === true || sendOpts?.marketingAgentMode === true
               ? { marketingAgentMode: true }
+              : {}),
+            ...(sendOpts?.marketingContentId
+              ? { marketingContentId: sendOpts.marketingContentId }
               : {}),
             ...(sendOpts?.confirmed === true && sendOpts?.confirmation
               ? {
@@ -347,6 +354,8 @@ export function useDoraChat(options: UseAIChatOptions = {}): UseAIChatReturn {
             case 'metadata': {
               const meta = (event.data ?? event.content) as AIResponseMetadata;
               accumulatedMetadata = meta;
+              const pinnedId = readMarketingContentId(meta);
+              if (pinnedId) onMarketingContentReadyRef.current?.(pinnedId);
               if (meta?.specialist && !accumulatedSpecialist) {
                 accumulatedSpecialist = {
                   module: meta.specialist,

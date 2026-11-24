@@ -14,6 +14,7 @@
 import { randomUUID } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { parseActiveViewState } from '../services/ai/agent/activeViewState.js';
+import { parseMarketingContentId } from '../services/ai/marketing/marketingContentPin.js';
 
 /**
  * Maximum query length in characters.
@@ -224,6 +225,14 @@ export function validateAIAnswerInput(req: Request, res: Response, next: NextFun
   }
   if (rawBody.marketingAgentMode === true || rawBody.marketingAgentMode === 'true') {
     extras.marketingAgentMode = true;
+  }
+  if (rawBody.marketingContentId != null && rawBody.marketingContentId !== '') {
+    const pinned = parseMarketingContentId(rawBody.marketingContentId);
+    if (!pinned) {
+      res.status(400).json({ error: 'Invalid marketingContentId.' });
+      return;
+    }
+    extras.marketingContentId = pinned;
   }
   if (typeof rawBody.provider === 'string') {
     const p = sanitizeString(rawBody.provider).slice(0, 24);

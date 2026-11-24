@@ -163,11 +163,18 @@ function parseCarouselImagesJson(raw: unknown): CarouselSlideImage[] | null {
     const url = o.image_url;
     if (typeof url !== 'string' || url.length === 0) continue;
     const idx = o.index;
+    const role = o.role;
+    const knownRole =
+      role === 'cover' || role === 'product' || role === 'detail' || role === 'proof' || role === 'close'
+        ? role
+        : undefined;
     out.push({
       index: typeof idx === 'number' && Number.isFinite(idx) ? idx : Number(idx) || 0,
       image_url: url,
       prompt: typeof o.prompt === 'string' ? o.prompt : '',
       storage_key: o.storage_key != null ? String(o.storage_key) : null,
+      ...(knownRole ? { role: knownRole } : {}),
+      ...(typeof o.claim === 'string' ? { claim: o.claim } : {}),
     });
   }
   return out.length > 0 ? out : null;
@@ -285,9 +292,9 @@ export async function listContent(
   if (!tenantId) throw new Error('Tenant context required for listContent');
 
   return runInTenant(tenantId, async (client) => {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-    let idx = 1;
+    const conditions: string[] = ['mc.organization_id = $1'];
+    const params: unknown[] = [tenantId];
+    let idx = 2;
 
       if (filters?.status) {
       conditions.push(`mc.status = $${idx++}`);
@@ -479,10 +486,13 @@ export async function getContentById(ctx: CallerContext, contentId: string): Pro
        LEFT JOIN marketing_campaigns c ON c.id = mc.campaign_id
        LEFT JOIN reimbursement_users au ON au.id = mc.author_id
        LEFT JOIN reimbursement_users rv ON rv.id = mc.reviewer_id
-       LEFT JOIN marketing_content parent_mc ON parent_mc.id = mc.parent_content_id
+       LEFT JOIN marketing_content parent_mc
+         ON parent_mc.id = mc.parent_content_id
+        AND parent_mc.organization_id = mc.organization_id
        WHERE mc.id = $1
+         AND mc.organization_id = $2
        LIMIT 1`,
-      [contentId],
+      [contentId, tenantId],
     );
     return result.rows[0] ? mapContent(result.rows[0] as Record<string, unknown>) : null;
   });
@@ -500,9 +510,9 @@ export async function createContent(ctx: CallerContext, data: CreateContentInput
          truth_validation, truth_validated_at, brand_voice_check, brand_voice_checked_at,
          user_brief, revision_history,
          image_prompt, image_url, reference_image_url, visual_description, image_generation_metadata, instagram_media_id,
-         parent_content_id
+         parent_content_id, tenant_id
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$1)
        RETURNING *`,
       [
         tenantId,
@@ -625,12 +635,16 @@ export async function updateContent(
 
   const tenantId = ctx.organizationId;
   if (!tenantId) throw new Error('Tenant context required for updateContent');
+  params.push(tenantId);
+  const idParam = idx;
+  const orgParam = idx + 1;
 
   return runInTenant(tenantId, async (client) => {
     const result = await client.query(
       `UPDATE marketing_content
        SET ${sets.join(', ')}
-       WHERE id = $${idx}
+       WHERE id = $${idParam}
+         AND organization_id = $${orgParam}
        RETURNING *`,
       params,
     );

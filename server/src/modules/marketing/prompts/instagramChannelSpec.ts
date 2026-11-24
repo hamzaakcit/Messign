@@ -12,6 +12,8 @@
 //   alongside the existing LinkedIn/X/Email/Blog specs.
 // ============================================================================
 
+import { buildEcommerceInstagramAddendum, type EcommerceChannelContext } from './ecommercePromptPack.js';
+
 export const INSTAGRAM_CHANNEL_SPEC = `
 ### Instagram
 
@@ -170,14 +172,16 @@ const AD_SPEC = `### Ad copy
  * Instagram-only requests skip email legacy/blog specs (~1,500 tokens saved).
  * Unknown/multi-channel gets everything (backward-compatible).
  */
-export function buildChannelSpecsBlock(channel?: string): string {
+export function buildChannelSpecsBlock(channel?: string, context?: EcommerceChannelContext): string {
   const ch = channel?.trim().toLowerCase();
 
   if (ch === 'email') {
     return `## CHANNEL_SPECS (email)\n\n${EMAIL_LEGACY_SPEC}`;
   }
   if (ch === 'instagram') {
-    return `## CHANNEL_SPECS (instagram)\n\n${INSTAGRAM_CHANNEL_SPEC}`;
+    const addendum = buildEcommerceInstagramAddendum(context);
+    const spec = addendum ? `${INSTAGRAM_CHANNEL_SPEC}\n\n${addendum}` : INSTAGRAM_CHANNEL_SPEC;
+    return `## CHANNEL_SPECS (instagram)\n\n${spec}`;
   }
   if (ch === 'linkedin') {
     return `## CHANNEL_SPECS (linkedin)\n\n${LINKEDIN_SPEC}`;
@@ -216,7 +220,8 @@ export const CHANNEL_SPECS_BLOCK = buildChannelSpecsBlock();
 
 /**
  * Removes a `[REFERENCE_IMAGE_URL]...[/REFERENCE_IMAGE_URL]` block from the user brief and
- * returns the HTTPS URL when valid. Used before Content Strategist so the URL is not echoed in captions.
+ * returns the HTTPS URL, or a same-origin `/uploads/` path, when valid.
+ * Used before Content Strategist so the URL is not echoed in captions.
  */
 export function stripReferenceImageUrlBlock(text: string): { cleaned: string; referenceUrl: string | null } {
   const REFERENCE_IMAGE_URL_BLOCK =
@@ -225,18 +230,21 @@ export function stripReferenceImageUrlBlock(text: string): { cleaned: string; re
   if (!match) return { cleaned: text, referenceUrl: null };
   const raw = match[1]?.trim() ?? '';
   const cleaned = text.replace(REFERENCE_IMAGE_URL_BLOCK, '').replace(/\n{3,}/g, '\n\n').trim();
-  if (!raw || raw.length > 2048) {
-    return { cleaned: text.trim(), referenceUrl: null };
-  }
-  try {
-    const u = new URL(raw);
-    if (u.protocol !== 'https:') {
-      return { cleaned: text.trim(), referenceUrl: null };
-    }
-  } catch {
+  if (!raw || raw.length > 2048 || !isAllowedReferenceImage(raw)) {
     return { cleaned: text.trim(), referenceUrl: null };
   }
   return { cleaned, referenceUrl: raw };
+}
+
+function isAllowedReferenceImage(raw: string): boolean {
+  if (raw.startsWith('/uploads/')) {
+    return !raw.includes('..') && !raw.includes('\\') && !raw.includes('://');
+  }
+  try {
+    return new URL(raw).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 // ============================================================================
@@ -313,20 +321,28 @@ export function extractImagePrompts(agentOutput: string): ParsedImagePrompt[] {
  * [ALT_TEXT] lines, and trimming whitespace.
  */
 export function extractCaption(agentOutput: string): string {
-  return agentOutput
+  let text = agentOutput
+    // Pre-process: strip markdown bold/italic markers and stray backticks wrapping the tags
     .replace(/\*{1,2}\[/g, '[')
     .replace(/\]\*{1,2}/g, ']')
     .replace(/`\[/g, '[')
-    .replace(/\]`/g, ']')
-    // Fenced block that wraps IMAGE_PROMPT (common in LLM output)
-    .replace(/```[\s\S]*?\[\s*IMAGE[\s_]PROMPT[\s\S]*?\[\s*\/\s*IMAGE[\s_]PROMPT\s*\][\s\S]*?```/gi, '')
-    // Inline IMAGE_PROMPT blocks (with or without carousel index)
-    .replace(/\[\s*IMAGE[\s_]PROMPT\s*(?::\s*\d+\s*)?\][\s\S]*?\[\s*\/\s*IMAGE[\s_]PROMPT\s*(?::\s*\d+\s*)?\]/gi, '')
-    // Unclosed IMAGE_PROMPT at end of output
-    .replace(/\[\s*IMAGE[\s_]PROMPT\s*(?::\s*\d+\s*)?\][\s\S]*$/gi, '')
-    .replace(/\[\s*ALT[\s_]TEXT\s*:.*?\]/gi, '')
-    .replace(/```[\s\S]*?```/g, '')
-    .trim();
+    .replace(/\]`/g, ']');
+
+  // 1. Strip IMAGE_PROMPT blocks first (inline or fenced — order matters!)
+  //    Paired blocks with or without carousel index:
+  text = text.replace(
+    /\[\s*IMAGE[\s_]PROMPT\s*(?::\s*\d+\s*)?\][\s\S]*?\[\s*\/\s*IMAGE[\s_]PROMPT\s*(?::\s*\d+\s*)?\]/gi,
+    '',
+  );
+  // 2. Unclosed IMAGE_PROMPT at end of output (LLM forgot closing tag)
+  text = text.replace(/\[\s*IMAGE[\s_]PROMPT\s*(?::\s*\d+\s*)?\][\s\S]*$/gi, '');
+  // 3. Strip [ALT_TEXT: ...] lines
+  text = text.replace(/\[\s*ALT[\s_]TEXT\s*:.*?\]/gi, '');
+  // 4. Unwrap fenced code blocks — keep content inside, strip only the ``` markers.
+  //    Previous bug: `/```[\s\S]*?```/g` nuked entire fenced blocks including caption text.
+  text = text.replace(/```[\w]*\n?/g, '');
+
+  return text.trim();
 }
 
 /**

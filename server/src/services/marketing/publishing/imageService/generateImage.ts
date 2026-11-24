@@ -38,6 +38,7 @@ import {
   ALLOWED_RESOLUTIONS,
   parseResolutionDimensions,
 } from './validation.js';
+import { imageGenerationIsMock } from '../../imageGenMode.js';
 import {
   estimateRgbMeanLuminance,
   flattenInstagramFeedToOpaqueJpeg,
@@ -1243,6 +1244,9 @@ export async function generateImage(input: ImageGenerationInput): Promise<ImageG
 
   const normalized = validated.normalized;
   const resolution = normalized.resolution ?? '1024x1024';
+  if (imageGenerationIsMock(normalized.mock)) {
+    return devPlaceholderResult(normalized, startMs, 'mock image');
+  }
   let lastError = '';
 
   const instagramFalOnlyMode =
@@ -1321,6 +1325,16 @@ export async function generateImage(input: ImageGenerationInput): Promise<ImageG
       let geminiFailed = false;
       let openaiFailed = false;
       let falRequestId: string | undefined;
+      let falStill: {
+        returnedPrompt?: string;
+        seed?: number;
+        width?: number;
+        height?: number;
+        nsfw: boolean;
+        enhancePrompt: boolean;
+        raw?: boolean;
+        aspectRatio?: string;
+      } | undefined;
       /** True when raw Fal PNG had ~0 luminance but we kept it (alpha/stats quirk). Used to skip slow post-JPEG dark fallback. */
       let falInstagramKeptDespiteUnreliableRawLum = false;
 
@@ -1334,13 +1348,48 @@ export async function generateImage(input: ImageGenerationInput): Promise<ImageG
             falNegativePrompt: normalized.fal_negative_prompt,
             instagramFeed: normalized.instagram_feed,
             overlayPaperPlane: normalized.overlay_paper_plane,
+            referenceImageUrl: normalized.reference_image_url,
+            sceneProduct: normalized.scene_product,
+            scenePlace: normalized.scene_place,
+            aspectRatio: normalized.aspect_ratio,
+            shopStill: normalized.shop_still,
+            imagePromptStrength: normalized.image_prompt_strength,
             ...(normalized.instagram_feed ? { falSeed: randomInt(1, 2147483646) } : {}),
           });
           imageBuffer = out.buffer;
           generationModel = out.modelLabel;
           backend = 'fal';
           falRequestId = out.falRequestId;
+          falStill = {
+            returnedPrompt: out.returnedPrompt,
+            seed: out.seed,
+            width: out.width,
+            height: out.height,
+            nsfw: out.nsfw,
+            enhancePrompt: out.enhancePrompt,
+            raw: out.raw,
+            aspectRatio: out.aspectRatio,
+          };
         } catch (falErr) {
+          const falMessage = falErr instanceof Error ? falErr.message : String(falErr);
+          if (/unsafe|dropped the product or the place/i.test(falMessage)) {
+            const metadata: ImageGenerationMetadata = {
+              model: 'fal',
+              resolution,
+              retries: attempt,
+              generated_at: new Date().toISOString(),
+              duration_ms: Date.now() - startMs,
+              image_backend: 'fal',
+              fal_nsfw: /unsafe/i.test(falMessage),
+            };
+            return {
+              success: false,
+              image_url: null,
+              storage_key: null,
+              metadata,
+              error: falMessage,
+            };
+          }
           console.warn(
             instagramFalOnlyMode
               ? '[imageService] Fal image generation failed (Instagram Fal-only; no Gemini/OpenAI fallback)'
@@ -1813,6 +1862,21 @@ export async function generateImage(input: ImageGenerationInput): Promise<ImageG
         storage_key: uploadFailed ? undefined : storageKey,
         image_backend: backend,
         ...(falRequestId ? { fal_request_id: falRequestId } : {}),
+        ...(falStill?.returnedPrompt ? { fal_returned_prompt: falStill.returnedPrompt } : {}),
+        ...(falStill?.seed != null ? { fal_seed: falStill.seed, seed: falStill.seed } : {}),
+        ...(falStill?.width != null ? { fal_width: falStill.width } : {}),
+        ...(falStill?.height != null ? { fal_height: falStill.height } : {}),
+        ...(falStill ? { fal_nsfw: falStill.nsfw, fal_enhance_prompt: falStill.enhancePrompt } : {}),
+        ...(falStill?.raw ? { fal_raw: true } : {}),
+        ...(falStill?.aspectRatio ? { fal_aspect_ratio: falStill.aspectRatio } : {}),
+        ...(normalized.reference_image_url
+          ? {
+              fal_image_prompt_strength:
+                typeof normalized.image_prompt_strength === 'number' && Number.isFinite(normalized.image_prompt_strength)
+                  ? normalized.image_prompt_strength
+                  : 0.1,
+            }
+          : {}),
       };
 
       console.log('[imageService] Generation succeeded', {

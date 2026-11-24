@@ -14,13 +14,9 @@ import {
   marketingAPI,
   type BrandProfileClient,
   type Campaign,
-  type CommandCenterPayload,
-  type CommandCenterStrategyPlay,
   type ContentItem,
   type DashboardMetrics,
   type EmailCampaign,
-  type Lead,
-  type LeadFunnelMetrics,
 } from '@/lib/marketingApi';
 import { ROUTES } from '@/lib/routes';
 import { useMarketingApprovalQueue } from '@/hooks/useMarketingApprovalQueue';
@@ -29,6 +25,7 @@ import type { LaneId } from './components/KanbanBoard';
 import type { BoardCardData } from './components/BoardCard';
 import type { ContentCreatePreset } from './components/ContentCreatePanel';
 import { useMarketingWorkspace } from './hooks/useMarketingWorkspace';
+import { boardMove, refusedMoveMessage } from './lib/boardMoves';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,28 +45,19 @@ interface MarketingContextValue {
   content: ContentItem[];
   filteredContent: ContentItem[];
   emailCampaigns: EmailCampaign[];
-  hotLeads: Lead[];
-  funnel: LeadFunnelMetrics | null;
   brandList: BrandProfileClient[];
   metricsLoading: boolean;
   bootstrapError: Error | null;
-  funnelError: Error | null;
   brandsError: Error | null;
-  ccData: CommandCenterPayload | null;
-  ccLoading: boolean;
-  ccError: Error | null;
   approvalItems: ApprovalQueueItem[];
-
-  // === Shared controls ===
-  brandFilter: string | null;
-  setBrandFilter: (id: string | null) => void;
-  ccDays: number;
-  setCcDays: (days: number) => void;
 
   // === Detail panel ===
   detail: DetailTarget;
+  /** Increments when Lucy finishes a pinned content write so the open panel refetches. */
+  detailRefreshKey: number;
   openDetail: (target: DetailTarget) => void;
   closeDetail: () => void;
+  bumpContentDetail: () => void;
 
   // === Create panels ===
   createCampaignOpen: boolean;
@@ -85,9 +73,7 @@ interface MarketingContextValue {
 
   // === Workspace actions ===
   invalidateWorkspace: () => Promise<void>;
-  refreshCommandCenter: (opts?: { fresh?: boolean }) => Promise<void>;
   refetchBootstrap: () => Promise<unknown>;
-  refetchFunnel: () => Promise<unknown>;
   refetchBrands: () => Promise<unknown>;
   approveItem: (id: string) => Promise<void>;
 
@@ -96,8 +82,6 @@ interface MarketingContextValue {
   handleCardMove: (cardId: string, fromLane: LaneId, toLane: LaneId, card: BoardCardData) => void;
 
   // === Dora / Lucy integration ===
-  doraExecutePrompt: { id: number; text: string } | null;
-  executeWithDora: (play: CommandCenterStrategyPlay) => void;
   handleInstagramDraftAi: () => void;
   handleCreateInstagramContent: () => void;
   handleDraftWithMarketingFromPanel: () => void;
@@ -128,29 +112,28 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
 
   // --- Local UI state ---
   const [detail, setDetail] = useState<DetailTarget>(null);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const [createContentOpen, setCreateContentOpen] = useState(false);
   const [contentCreatePreset, setContentCreatePreset] = useState<ContentCreatePreset>('default');
   const [brandManagerOpen, setBrandManagerOpen] = useState(false);
-  const [brandFilter, setBrandFilter] = useState<string | null>(null);
-  const [ccDays, setCcDays] = useState(7);
-  const [doraExecutePrompt, setDoraExecutePrompt] = useState<{ id: number; text: string } | null>(null);
 
   // --- Data hooks ---
-  const workspace = useMarketingWorkspace({ userId, accessToken, ccDays, brandFilter });
+  const workspace = useMarketingWorkspace({ userId, accessToken });
   const { items: approvalItems, approve: approveItem } = useMarketingApprovalQueue(
     userId && accessToken ? userId : undefined,
   );
 
   // --- Computed ---
-  const filteredContent = useMemo(() => {
-    if (!brandFilter) return workspace.content;
-    return workspace.content.filter((c) => c.brand_profile_id === brandFilter);
-  }, [workspace.content, brandFilter]);
+  const filteredContent = useMemo(
+    () => workspace.content.filter((c) => (c.content_type ?? '') !== 'offer'),
+    [workspace.content],
+  );
 
   // --- Detail panel ---
   const openDetail = useCallback((target: DetailTarget) => setDetail(target), []);
   const closeDetail = useCallback(() => setDetail(null), []);
+  const bumpContentDetail = useCallback(() => setDetailRefreshKey((n) => n + 1), []);
 
   // --- Create panels ---
   const openCreateCampaign = useCallback(() => setCreateCampaignOpen(true), []);
@@ -170,28 +153,20 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
   const closeBrandManager = useCallback(() => setBrandManagerOpen(false), []);
 
   // --- Dora / Lucy integration ---
-  const executeWithDora = useCallback(
-    (play: CommandCenterStrategyPlay) => {
-      const text = `[Marketing Command Center — ${play.title}]\nContext: ${JSON.stringify(play.contextJson)}\n\n${play.snippet}\n\nHelp me execute this strategy step by step.`;
-      setDoraExecutePrompt({ id: Date.now(), text });
-      navigate('/marketing');
-    },
-    [navigate],
-  );
-
   const handleInstagramDraftAi = useCallback(() => {
-    navigate('/marketing', { state: { openInstagramAi: true } });
+    navigate(ROUTES.MARKETING_OFFER_NEW);
   }, [navigate]);
 
   const handleCreateInstagramContent = useCallback(() => {
-    setContentCreatePreset('instagram');
-    setCreateContentOpen(true);
-  }, []);
+    setCreateContentOpen(false);
+    setContentCreatePreset('default');
+    navigate(ROUTES.MARKETING_OFFER_NEW);
+  }, [navigate]);
 
   const handleDraftWithMarketingFromPanel = useCallback(() => {
     setCreateContentOpen(false);
     setContentCreatePreset('default');
-    navigate('/marketing', { state: { openInstagramAi: true } });
+    navigate(ROUTES.MARKETING_OFFER_NEW);
   }, [navigate]);
 
   // --- Pipeline card handlers ---
@@ -218,25 +193,20 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
 
   const handleCardMove = useCallback(
     async (_cardId: string, fromLane: LaneId, toLane: LaneId, card: BoardCardData) => {
+      const move = boardMove(fromLane, toLane, card);
+      if (!move) {
+        toast.message(refusedMoveMessage(toLane));
+        return;
+      }
       try {
-        if (fromLane === 'draft' && toLane === 'review') {
-          if (card.type === 'content') {
-            const c = card.sourceData as ContentItem;
-            await marketingAPI.updateContent(userId, c.id, { submit_for_review: true });
-            toast.success('Sent to review');
-          }
-        } else if (fromLane === 'review' && toLane === 'ready') {
-          if (card.type === 'approval') {
-            const a = card.sourceData as ApprovalQueueItem;
-            await approveItem(a.id);
-            toast.success('Approved');
-          }
-        } else if (toLane === 'live') {
-          if (card.type === 'content') {
-            const c = card.sourceData as ContentItem;
-            await marketingAPI.publishContent(userId, c.id);
-            toast.success('Published');
-          }
+        if (move === 'submit_for_review') {
+          const c = card.sourceData as ContentItem;
+          await marketingAPI.updateContent(userId, c.id, { submit_for_review: true });
+          toast.success('Sent to review');
+        } else {
+          const a = card.sourceData as ApprovalQueueItem;
+          await approveItem(a.id);
+          toast.success('Approved');
         }
         await workspace.invalidateWorkspace();
       } catch (e) {
@@ -290,28 +260,18 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
       content: workspace.content,
       filteredContent,
       emailCampaigns: workspace.emailCampaigns,
-      hotLeads: workspace.hotLeads,
-      funnel: workspace.funnel,
       brandList: workspace.brandList,
       metricsLoading: workspace.metricsLoading,
       bootstrapError: workspace.bootstrapError,
-      funnelError: workspace.funnelError,
       brandsError: workspace.brandsError,
-      ccData: workspace.ccData,
-      ccLoading: workspace.ccLoading,
-      ccError: workspace.ccError,
       approvalItems,
-
-      // Controls
-      brandFilter,
-      setBrandFilter,
-      ccDays,
-      setCcDays,
 
       // Detail panel
       detail,
+      detailRefreshKey,
       openDetail,
       closeDetail,
+      bumpContentDetail,
 
       // Create panels
       createCampaignOpen,
@@ -327,9 +287,7 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
 
       // Actions
       invalidateWorkspace: workspace.invalidateWorkspace,
-      refreshCommandCenter: workspace.refreshCommandCenter,
       refetchBootstrap: workspace.refetchBootstrap,
-      refetchFunnel: workspace.refetchFunnel,
       refetchBrands: workspace.refetchBrands,
       approveItem,
 
@@ -338,27 +296,22 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
       handleCardMove,
 
       // Dora / Lucy
-      doraExecutePrompt,
-      executeWithDora,
       handleInstagramDraftAi,
       handleCreateInstagramContent,
       handleDraftWithMarketingFromPanel,
     }),
     [
       workspace.metrics, workspace.campaigns, workspace.content, workspace.emailCampaigns,
-      workspace.hotLeads, workspace.funnel, workspace.brandList, workspace.metricsLoading,
-      workspace.bootstrapError, workspace.funnelError, workspace.brandsError,
-      workspace.ccData, workspace.ccLoading, workspace.ccError,
-      workspace.invalidateWorkspace, workspace.refreshCommandCenter,
-      workspace.refetchBootstrap, workspace.refetchFunnel, workspace.refetchBrands,
+      workspace.brandList, workspace.metricsLoading,
+      workspace.bootstrapError, workspace.brandsError,
+      workspace.invalidateWorkspace,
+      workspace.refetchBootstrap, workspace.refetchBrands,
       filteredContent, approvalItems, approveItem,
-      brandFilter, ccDays,
-      detail, openDetail, closeDetail,
+      detail, detailRefreshKey, openDetail, closeDetail, bumpContentDetail,
       createCampaignOpen, openCreateCampaign, closeCreateCampaign,
       createContentOpen, contentCreatePreset, openCreateContent, closeCreateContent,
       brandManagerOpen, openBrandManager, closeBrandManager,
       handleCardClick, handleCardMove,
-      doraExecutePrompt, executeWithDora,
       handleInstagramDraftAi, handleCreateInstagramContent, handleDraftWithMarketingFromPanel,
     ],
   );

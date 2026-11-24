@@ -21,6 +21,17 @@ Draft about summer.`;
     expect(cleaned).not.toContain('[REFERENCE_IMAGE_URL]');
   });
 
+  it('keeps a same-origin upload path', () => {
+    const raw = `[REFERENCE_IMAGE_URL]
+/uploads/marketing/org/reference/lucy_1.webp
+[/REFERENCE_IMAGE_URL]
+
+Body`;
+    const { cleaned, referenceUrl } = stripReferenceImageUrlBlock(raw);
+    expect(referenceUrl).toBe('/uploads/marketing/org/reference/lucy_1.webp');
+    expect(cleaned).not.toContain('[REFERENCE_IMAGE_URL]');
+  });
+
   it('returns null when URL is not HTTPS', () => {
     const raw = `[REFERENCE_IMAGE_URL]
 http://insecure.example.com/a.jpg
@@ -120,6 +131,75 @@ describe('extractCaption (hardened)', () => {
     const input = `Caption text.\n\n[IMAGE_PROMPT]\nA long description that goes on and on without a closing tag`;
     const caption = extractCaption(input);
     expect(caption).toBe('Caption text.');
+  });
+
+  it('preserves caption when IMAGE_PROMPT is inside a fenced block', () => {
+    const input = [
+      'Amazing post about MWC Barcelona! 🚀',
+      '',
+      '```',
+      '[IMAGE_PROMPT]',
+      'A vibrant trade show floor at MWC Barcelona',
+      '[/IMAGE_PROMPT]',
+      '```',
+    ].join('\n');
+    const caption = extractCaption(input);
+    expect(caption).toContain('MWC Barcelona');
+    expect(caption).not.toContain('IMAGE_PROMPT');
+    expect(caption).not.toContain('trade show');
+  });
+
+  it('preserves caption when entire output is wrapped in a single fenced block', () => {
+    const input = [
+      '```',
+      'Check out the latest innovations at MWC Barcelona! 🔥',
+      '',
+      '#MWC #Barcelona #Tech',
+      '',
+      '[IMAGE_PROMPT]',
+      'A bustling trade show floor with colorful booths',
+      '[/IMAGE_PROMPT]',
+      '```',
+    ].join('\n');
+    const caption = extractCaption(input);
+    expect(caption).toContain('MWC Barcelona');
+    expect(caption).toContain('#MWC');
+    expect(caption).not.toContain('IMAGE_PROMPT');
+    expect(caption).not.toContain('trade show');
+  });
+
+  it('preserves caption in a separate fenced block from IMAGE_PROMPT', () => {
+    const input = [
+      '```',
+      'Great caption about summer vibes.',
+      '#SummerVibes',
+      '```',
+      '',
+      '```',
+      '[IMAGE_PROMPT]',
+      'Beach sunset with palm trees',
+      '[/IMAGE_PROMPT]',
+      '```',
+    ].join('\n');
+    const caption = extractCaption(input);
+    expect(caption).toContain('summer vibes');
+    expect(caption).not.toContain('IMAGE_PROMPT');
+    expect(caption).not.toContain('Beach sunset');
+  });
+
+  it('handles fenced block with language hint', () => {
+    const input = [
+      '```markdown',
+      'Discover the future of AI at MWC 🤖',
+      '',
+      '[IMAGE_PROMPT]',
+      'Futuristic AI visualization',
+      '[/IMAGE_PROMPT]',
+      '```',
+    ].join('\n');
+    const caption = extractCaption(input);
+    expect(caption).toContain('future of AI');
+    expect(caption).not.toContain('IMAGE_PROMPT');
   });
 });
 

@@ -10,6 +10,8 @@ import {
   getDefaultProductTruthFallback,
 } from '../../../dal/marketing/truthBrand.js';
 import { buildChannelSpecsBlock } from './instagramChannelSpec.js';
+import { parseOfferSheet, type OfferSheet } from '../../../services/marketing/offerSheet.js';
+import { inferEcommerceVertical, type EcommerceChannelContext } from './ecommercePromptPack.js';
 import { GOLDEN_EMAIL_EXAMPLES_MD, GOLDEN_EMAIL_EXAMPLES_COMPACT_MD } from './goldenEmailExamples.js';
 import { VA2_EMAIL_MANIFEST_SCHEMA_JSON_MIN } from '../va2EmailManifestSchemaShared.js';
 
@@ -31,6 +33,8 @@ export interface MarketingContentStrategistPromptInput {
    * for `parseManifestFromLLMOutput` → `assembleDesign`. Other channels keep the legacy Visual Layout Architect block.
    */
   channel?: string;
+  /** User brief. Bookstore and florist briefs select the e-commerce Instagram addendum. */
+  userBrief?: string;
   /**
    * Pre-resolved performance calibration text from `resolveCalibrationPrompt`.
    * Injected after brand profile and before channel-specific instructions.
@@ -44,9 +48,33 @@ export interface MarketingContentStrategistPromptInput {
    *  'minimal' = Phase 1 only (~3,500 tokens) — for fast/small models
    */
   qualityTier?: 'full' | 'standard' | 'minimal';
+  /** Prose from the truth row, without price or place. Used for the image scene. */
+  offerMaterials?: string;
 }
 
 const NONE_LOADED = '(None loaded for this session.)';
+
+/**
+ * Image facts for Lucy. Price, claim, audience, and dates stay out of this block.
+ */
+function buildOfferImageInstruction(sheet: OfferSheet, materials: string): string {
+  const languageLine =
+    sheet.language === 'tr'
+      ? 'Caption language: Turkish.'
+      : sheet.language === 'en'
+        ? 'Caption language: English.'
+        : '';
+  return [
+    '## Offer image',
+    sheet.product.trim() ? `Product: ${sheet.product.trim()}` : '',
+    sheet.place.trim() ? `Place: ${sheet.place.trim()}` : '',
+    materials ? `Materials: ${materials}` : '',
+    languageLine,
+    'The image prompt names the product and the place. It does not include the price, the claim, the audience, or the dates.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
 
 /**
  * Visual Layout Architect — LLM outputs a Design Manifest JSON consumed by the client
@@ -1315,12 +1343,13 @@ function normalizeChannelKey(channel?: string): string | undefined {
 function buildContentStrategistStaticSpec(
   channel?: string,
   qualityTier: 'full' | 'standard' | 'minimal' = 'full',
+  ecommerce?: EcommerceChannelContext,
 ): string {
   const ch = normalizeChannelKey(channel);
   const isEmail = ch === 'email';
   const manifestSpec = isEmail ? buildVa2EmailManifestInstructions(qualityTier) : VISUAL_ARCHITECT_DESIGN_MANIFEST_SPEC;
   const emailWorkflowLine9 = isEmail ? MANDATORY_WORKFLOW_EMAIL_LINE_VA2 : MANDATORY_WORKFLOW_EMAIL_LINE_LEGACY;
-  const channelSpecsText = buildChannelSpecsBlock(ch);
+  const channelSpecsText = buildChannelSpecsBlock(ch, ecommerce);
 
   const emailTopicFidelityBlock = isEmail
     ? `
@@ -1422,9 +1451,11 @@ export function buildMarketingContentStrategistPrompt(input: MarketingContentStr
     competitorContextMd,
     organizationName = 'Messign Workspace',
     channel,
+    userBrief,
     calibrationText,
     skipCalibration,
     qualityTier = 'full',
+    offerMaterials,
   } = input;
 
   const defaultGolden = qualityTier === 'full' ? GOLDEN_EMAIL_EXAMPLES_MD : GOLDEN_EMAIL_EXAMPLES_COMPACT_MD;
@@ -1471,7 +1502,27 @@ export function buildMarketingContentStrategistPrompt(input: MarketingContentStr
     parts.push(calibrationText!.trim(), '', '---', '');
   }
 
-  parts.push(buildContentStrategistStaticSpec(channel, qualityTier));
+  const parsedOffer = parseOfferSheet(userBrief);
+  const materials = offerMaterials?.trim() ?? '';
+  const sheetFacts = Boolean(parsedOffer.sheet.product.trim() || parsedOffer.sheet.place.trim());
+  if (sheetFacts) {
+    parts.push(buildOfferImageInstruction(parsedOffer.sheet, materials), '', '---', '');
+  }
+  const offerVertical = sheetFacts
+    ? inferEcommerceVertical([parsedOffer.sheet.product, parsedOffer.sheet.place, materials].filter(Boolean).join('\n'))
+    : undefined;
+  parts.push(
+    buildContentStrategistStaticSpec(channel, qualityTier, {
+      userBrief,
+      brandVoiceMd,
+      ...(sheetFacts
+        ? {
+            vertical: offerVertical,
+            ...(parsedOffer.sheet.language ? { captionLanguage: parsedOffer.sheet.language } : {}),
+          }
+        : {}),
+    }),
+  );
 
   return parts.join('\n');
 }

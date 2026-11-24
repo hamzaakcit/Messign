@@ -195,14 +195,6 @@ export function ContentEmailUnlayerControls({
     };
   }, [bodyDesign]);
 
-  const rawBody = content.body ?? '';
-  const manifestLikely = mightContainManifest(rawBody);
-  const hasPersistedDesign =
-    Boolean(content.body_design && Object.keys(content.body_design as object).length > 0) ||
-    Boolean((content.body_html ?? '').trim());
-  const showVa2BuildBanner =
-    Boolean(rawBody.trim()) && manifestLikely && !hasPersistedDesign && !va2Manifest && !applyAiBusy;
-
   const applyDraftRef = useRef(wizard.handleApplyAiDraft);
   applyDraftRef.current = wizard.handleApplyAiDraft;
 
@@ -358,22 +350,6 @@ export function ContentEmailUnlayerControls({
           </div>
         </div>
       </div>
-
-      {showVa2BuildBanner && (
-        <div className="rounded-xl border border-primary-500/30 bg-primary-500/10 px-3 py-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-app-text">
-            <span className="font-medium">Design manifest ready.</span> Build the Unlayer layout and images from this draft.
-          </p>
-          <button
-            type="button"
-            disabled={pipelineBusy}
-            onClick={() => void wizard.handleApplyAiDraft()}
-            className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-primary-500 text-app-text hover:bg-primary-600 disabled:opacity-40"
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Build email layout
-          </button>
-        </div>
-      )}
 
       {wizardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

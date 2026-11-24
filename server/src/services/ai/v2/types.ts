@@ -130,6 +130,8 @@ export interface PipelineRequest {
   mode: AIMode;
   /** When true, always run Marketing Sub-Orchestrator flow (v2). */
   marketingAgentMode?: boolean;
+  /** Existing marketing_content id to update (guided Instagram create). */
+  marketingContentId?: string;
   intent?: string;
   searchMode?: boolean;
   /** Sanitized from `confirmed` on the request body */

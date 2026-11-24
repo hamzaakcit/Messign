@@ -10,8 +10,8 @@ import type { ChatMessage, LLMRouterResponse, LLMToolDefinition, ParsedToolCall 
 import type { StepTokenUsage } from './orchestrator/types.js';
 import { callModelSafe } from './gateway.js';
 
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
-const GROQ_SYNTHESIS_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODEL = process.env.LLM_FAST_MODEL?.trim() || 'openai/gpt-oss-20b';
+const GROQ_SYNTHESIS_MODEL = process.env.LLM_FAST_MODEL?.trim() || 'openai/gpt-oss-20b';
 
 const FALLBACK_WARNING = '[AI Gateway] LiteLLM unavailable, using direct fallback. Cost tracking disabled for this request.';
 
@@ -786,7 +786,7 @@ export async function callClaudeWithTools(
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: systemPrompt,
       messages,

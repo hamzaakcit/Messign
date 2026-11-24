@@ -17,7 +17,15 @@ export interface CarouselSlideImage {
   image_url: string;
   prompt: string;
   storage_key?: string | null;
+  /** cover, product, detail, proof, close — in that order. */
+  role?: CarouselSlideRole;
+  /** Sheet claim for this slide. Empty when the sheet has no claim. */
+  claim?: string;
 }
+
+export const CAROUSEL_SLIDE_ROLES = ['cover', 'product', 'detail', 'proof', 'close'] as const;
+
+export type CarouselSlideRole = (typeof CAROUSEL_SLIDE_ROLES)[number];
 
 export interface ImageVariant {
   id: string;
@@ -62,6 +70,23 @@ export interface ImageGenerationMetadata {
   kontext_enhance_prompt?: boolean;
   /** Style preset layered into the Kontext prompt (e.g. photoreal). */
   kontext_style_preset?: string;
+  /** Prompt string Fal returned for this still. */
+  fal_returned_prompt?: string;
+  /** Seed Fal returned, when the payload includes one. */
+  fal_seed?: number;
+  /** Pixel size Fal returned. */
+  fal_width?: number;
+  fal_height?: number;
+  /** True when Fal flagged the still. The image is not attached. */
+  fal_nsfw?: boolean;
+  /** `enhance_prompt` sent on the request that produced this still. */
+  fal_enhance_prompt?: boolean;
+  /** Ultra `raw` sent for a shop still. */
+  fal_raw?: boolean;
+  /** Ultra `aspect_ratio` sent on the request. */
+  fal_aspect_ratio?: string;
+  /** Ultra `image_prompt_strength` sent with a reference photo. */
+  fal_image_prompt_strength?: number;
 }
 
 export type AspectRatio = '1:1' | '4:5' | '9:16' | '16:9';
@@ -136,4 +161,14 @@ export interface ImageGenerationInput {
    * instead of text-to-image (see FAL_IMAGE_EDIT_MODEL).
    */
   reference_image_url?: string | null;
+  /** Return a placeholder and do not call an image provider. */
+  mock?: boolean;
+  /** Product the returned Fal prompt must still name. */
+  scene_product?: string;
+  /** Place the returned Fal prompt must still name. */
+  scene_place?: string;
+  /** Bookstore or florist still. Ultra sends `raw: true`. */
+  shop_still?: boolean;
+  /** Ultra reference strength. Omitted keeps the 0.1 default. */
+  image_prompt_strength?: number;
 }

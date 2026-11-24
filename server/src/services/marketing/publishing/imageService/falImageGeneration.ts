@@ -17,6 +17,7 @@ import sharp from 'sharp';
 // ---------------------------------------------------------------------------
 
 import { fal } from '@fal-ai/client';
+import { ensurePublicInstagramImageUrl } from '../instagramPublicImage.js';
 
 const DEFAULT_FAL_MODEL = 'fal-ai/flux/dev';
 
@@ -62,6 +63,8 @@ export interface FalModelRequestOptions {
   emailCampaign?: boolean;
   /** Prefer FAL_INSTAGRAM_IMAGE_MODEL when set — for feed-quality Flux endpoints. */
   instagramFeed?: boolean;
+  /** A reference photo selects Flux Pro Ultra instead of the text-only Pro model. */
+  referenceImageUrl?: string | null;
   /** VA2 paper-plane overlays — prefer FAL_OVERLAY_IMAGE_MODEL; preserves PNG alpha in generateImage when set. */
   overlayPaperPlane?: boolean;
 }
@@ -81,6 +84,7 @@ export function resolveFalModelIdForRequest(opts?: FalModelRequestOptions): stri
     if (emailModel) return emailModel;
   }
   if (opts?.instagramFeed) {
+    if (opts.referenceImageUrl?.trim()) return FLUX_PRO_ULTRA_MODEL;
     const ig = process.env.FAL_INSTAGRAM_IMAGE_MODEL?.trim();
     if (ig) return ig;
     return DEFAULT_INSTAGRAM_FAL_MODEL;
@@ -116,6 +120,18 @@ export interface FalMarketingImageCallOptions {
   overlayPaperPlane?: boolean;
   /** Flux `seed` — use per-request values for Instagram to avoid stuck / near-identical outputs. */
   falSeed?: number;
+  /** Reference photo. Instagram stills use Flux Pro Ultra and send this as `image_url`. */
+  referenceImageUrl?: string | null;
+  /** Product named in the scene. When set, Pro and Ultra send `enhance_prompt: false`. */
+  sceneProduct?: string;
+  /** Place named in the scene. A returned prompt that drops it is retried once. */
+  scenePlace?: string;
+  /** Ultra `aspect_ratio`. Pixel `image_size` stays on Pro and Dev. */
+  aspectRatio?: FalAspectRatio;
+  /** Ultra `raw` for a bookstore or florist still. */
+  shopStill?: boolean;
+  /** Ultra `image_prompt_strength` when a reference photo is set. Omitted uses 0.1. */
+  imagePromptStrength?: number;
 }
 
 function resolveDefaultNegativeBase(options?: FalMarketingImageCallOptions): string {
@@ -175,11 +191,59 @@ function parseOptionalPositiveInt(name: string): number | undefined {
 }
 
 /**
+ * Flux Pro v1.1 Ultra. A reference photo on an Instagram still uses this model.
+ * @see https://fal.ai/models/fal-ai/flux-pro/v1.1-ultra/api
+ */
+export const FLUX_PRO_ULTRA_MODEL = 'fal-ai/flux-pro/v1.1-ultra';
+
+/**
  * Flux Pro and Flux 2–style slugs use `safety_tolerance` (not legacy `enable_safety_checker`) and typically JPEG output
  * when opaque output is desired. Flux Dev keeps `enable_safety_checker` + PNG unless Instagram/email forces JPEG.
  */
 export function isFluxProFamilyModel(modelId: string): boolean {
   return /flux-pro/i.test(modelId) || /flux[-/]2\b/i.test(modelId) || /flux2/i.test(modelId);
+}
+
+/** Ultra has its own body: `aspect_ratio`, no `image_size`. */
+export function isFluxProUltraModel(modelId: string): boolean {
+  return /flux-pro\/v1\.1-ultra/i.test(modelId);
+}
+
+/** Dev accepts guidance, steps, and `acceleration`. Pro and Ultra do not. */
+export function isFluxDevModel(modelId: string): boolean {
+  return /\/flux\/dev\b/i.test(modelId);
+}
+
+/**
+ * Snap a custom Fal size onto a multiple of 64 inside 512–2048.
+ * 1080 is divisible by 8 and not by 64, so a Pro size error retries this size.
+ */
+export function snapFalImageSize(
+  imageSize: string | { width: number; height: number },
+): string | { width: number; height: number } {
+  if (typeof imageSize !== 'object') return imageSize;
+  const snap = (value: number): number => {
+    const snapped = Math.round(value / 64) * 64;
+    return Math.min(2048, Math.max(512, snapped));
+  };
+  return { width: snap(imageSize.width), height: snap(imageSize.height) };
+}
+
+export type FalAspectRatio = '1:1' | '4:5' | '9:16' | '16:9';
+
+/**
+ * Ultra `aspect_ratio` for a pixel size. Unknown sizes stay square.
+ */
+export function aspectRatioForFalSize(resolution: string): FalAspectRatio {
+  const match = resolution.toLowerCase().match(/(\d+)\s*x\s*(\d+)/);
+  if (!match) return '1:1';
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (width === height) return '1:1';
+  if (width * 5 === height * 4) return '4:5';
+  if (width * 16 === height * 9) return '9:16';
+  if (width * 9 === height * 16) return '16:9';
+  return height > width ? '9:16' : '16:9';
 }
 
 /**
@@ -196,7 +260,7 @@ export interface FalFluxRequestContext {
 }
 
 /**
- * Flux-compatible subscribe input. Omits optional keys when unset.
+ * Flux-compatible subscribe input. Pro, Ultra, and Dev each get the fields their schema accepts.
  * Exported for unit tests (no network).
  */
 export function buildFluxFalSubscribeInput(
@@ -208,11 +272,18 @@ export function buildFluxFalSubscribeInput(
     guidanceScale?: number;
     numInferenceSteps?: number;
     seed?: number;
+    enhancePrompt?: boolean;
+    aspectRatio?: FalAspectRatio;
+    referenceImageUrl?: string;
+    shopStill?: boolean;
+    imagePromptStrength?: number;
   },
   requestContext?: FalFluxRequestContext,
 ): Record<string, unknown> {
   const isFluxFamily = /flux/i.test(modelId);
+  const isUltra = isFluxProUltraModel(modelId);
   const isFluxPro = isFluxProFamilyModel(modelId);
+  const isDev = isFluxDevModel(modelId);
   const isOverlay = requestContext?.overlayPaperPlane === true;
   const isInstagramFeed = requestContext?.instagramFeed === true;
   const emailCampaign = requestContext?.emailCampaign === true;
@@ -229,6 +300,30 @@ export function buildFluxFalSubscribeInput(
     outputFormat = 'png';
   }
 
+  const seed =
+    fluxOptions.seed != null && Number.isFinite(fluxOptions.seed) ? Math.round(fluxOptions.seed) : undefined;
+
+  if (isUltra) {
+    const input: Record<string, unknown> = {
+      prompt: prompt.slice(0, 8000),
+      aspect_ratio: fluxOptions.aspectRatio ?? '1:1',
+      num_images: 1,
+      output_format: outputFormat,
+      safety_tolerance: '2',
+      enhance_prompt: fluxOptions.enhancePrompt === true,
+    };
+    if (seed != null) input.seed = seed;
+    if (fluxOptions.shopStill === true) input.raw = true;
+    const reference = fluxOptions.referenceImageUrl?.trim();
+    if (reference) {
+      input.image_url = reference;
+      const strength = fluxOptions.imagePromptStrength;
+      input.image_prompt_strength =
+        strength != null && Number.isFinite(strength) ? Math.min(1, Math.max(0, strength)) : 0.1;
+    }
+    return input;
+  }
+
   const input: Record<string, unknown> = {
     prompt: prompt.slice(0, 8000),
     image_size: imageSize,
@@ -239,6 +334,7 @@ export function buildFluxFalSubscribeInput(
   if (isFluxFamily) {
     if (isFluxPro) {
       input.safety_tolerance = '2';
+      input.enhance_prompt = fluxOptions.enhancePrompt === true;
     } else {
       input.enable_safety_checker = true;
     }
@@ -249,19 +345,99 @@ export function buildFluxFalSubscribeInput(
   if (!isFluxFamily) {
     return input;
   }
-  if (fluxOptions.negativePrompt?.trim()) {
-    input.negative_prompt = fluxOptions.negativePrompt.trim().slice(0, 2000);
+  if (isDev) {
+    input.acceleration = 'none';
+    if (fluxOptions.guidanceScale != null && Number.isFinite(fluxOptions.guidanceScale)) {
+      input.guidance_scale = fluxOptions.guidanceScale;
+    }
+    if (fluxOptions.numInferenceSteps != null && Number.isFinite(fluxOptions.numInferenceSteps)) {
+      input.num_inference_steps = Math.round(fluxOptions.numInferenceSteps);
+    }
+  } else if (!isFluxPro) {
+    if (fluxOptions.negativePrompt?.trim()) {
+      input.negative_prompt = fluxOptions.negativePrompt.trim().slice(0, 2000);
+    }
+    if (fluxOptions.guidanceScale != null && Number.isFinite(fluxOptions.guidanceScale)) {
+      input.guidance_scale = fluxOptions.guidanceScale;
+    }
+    if (fluxOptions.numInferenceSteps != null && Number.isFinite(fluxOptions.numInferenceSteps)) {
+      input.num_inference_steps = Math.round(fluxOptions.numInferenceSteps);
+    }
   }
-  if (fluxOptions.guidanceScale != null && Number.isFinite(fluxOptions.guidanceScale)) {
-    input.guidance_scale = fluxOptions.guidanceScale;
-  }
-  if (fluxOptions.numInferenceSteps != null && Number.isFinite(fluxOptions.numInferenceSteps)) {
-    input.num_inference_steps = Math.round(fluxOptions.numInferenceSteps);
-  }
-  if (fluxOptions.seed != null && Number.isFinite(fluxOptions.seed)) {
-    input.seed = Math.round(fluxOptions.seed);
-  }
+  if (seed != null) input.seed = seed;
   return input;
+}
+
+export interface FalSubscribeResult {
+  data: unknown;
+  requestId?: string;
+}
+
+/**
+ * Prompt string Fal echoed back. Missing when the payload has no prompt field.
+ */
+export function extractFalReturnedPrompt(data: unknown): string | null {
+  if (data == null || typeof data !== 'object') return null;
+  const prompt = (data as { prompt?: unknown }).prompt;
+  return typeof prompt === 'string' ? prompt : null;
+}
+
+/**
+ * True when Fal flagged any image as unsafe.
+ */
+export function falResultHasNsfw(data: unknown): boolean {
+  if (data == null || typeof data !== 'object') return false;
+  const flags = (data as { has_nsfw_concepts?: unknown }).has_nsfw_concepts;
+  return Array.isArray(flags) && flags.some((flag) => flag === true);
+}
+
+/**
+ * True when a returned prompt string is present and omits the product or the place.
+ * A payload with no prompt field is left alone.
+ */
+export function returnedPromptDropsScene(data: unknown, product: string, place: string): boolean {
+  const prompt = extractFalReturnedPrompt(data);
+  if (prompt == null) return false;
+  const haystack = prompt.toLocaleLowerCase('tr');
+  const namedProduct = product.trim();
+  const namedPlace = place.trim();
+  if (namedProduct && !haystack.includes(namedProduct.toLocaleLowerCase('tr'))) return true;
+  if (namedPlace && !haystack.includes(namedPlace.toLocaleLowerCase('tr'))) return true;
+  return false;
+}
+
+/**
+ * One subscribe, then one retry with enhancement off when the returned prompt drops the scene.
+ * An unsafe result throws before a buffer is used.
+ */
+export async function subscribeFalStillWithSceneCheck(params: {
+  modelId: string;
+  product: string;
+  place: string;
+  buildInput: (enhancePrompt: boolean) => Record<string, unknown>;
+  subscribe: (modelId: string, input: Record<string, unknown>) => Promise<FalSubscribeResult>;
+}): Promise<{ data: unknown; requestId?: string; attempts: number; enhancePrompt: boolean }> {
+  const product = params.product.trim();
+  const place = params.place.trim();
+  const watchScene = Boolean(product || place);
+  let enhancePrompt = !product;
+  let lastData: unknown;
+  let lastRequestId: string | undefined;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const result = await params.subscribe(params.modelId, params.buildInput(enhancePrompt));
+    lastData = result.data;
+    lastRequestId = result.requestId;
+    if (falResultHasNsfw(result.data)) {
+      throw new Error('Fal marked the image unsafe');
+    }
+    if (!watchScene || !returnedPromptDropsScene(result.data, product, place)) {
+      return { data: result.data, requestId: result.requestId, attempts: attempt, enhancePrompt };
+    }
+    enhancePrompt = false;
+  }
+  void lastData;
+  void lastRequestId;
+  throw new Error('Fal prompt dropped the product or the place');
 }
 
 /**
@@ -352,17 +528,44 @@ export async function downloadFalImageBytes(urlOrData: string): Promise<Buffer> 
   return buf;
 }
 
+export interface FalStillCallResult {
+  buffer: Buffer;
+  modelLabel: string;
+  falRequestId?: string;
+  returnedPrompt?: string;
+  seed?: number;
+  width?: number;
+  height?: number;
+  nsfw: boolean;
+  enhancePrompt: boolean;
+  raw?: boolean;
+  aspectRatio?: string;
+}
+
+function readFalStillFacts(data: unknown): { seed?: number; width?: number; height?: number } {
+  if (data == null || typeof data !== 'object') return {};
+  const record = data as { seed?: unknown; images?: unknown };
+  const seed = typeof record.seed === 'number' && Number.isFinite(record.seed) ? Math.round(record.seed) : undefined;
+  const first = Array.isArray(record.images) ? record.images[0] : undefined;
+  const image = first && typeof first === 'object' ? (first as { width?: unknown; height?: unknown }) : undefined;
+  const width = typeof image?.width === 'number' ? image.width : undefined;
+  const height = typeof image?.height === 'number' ? image.height : undefined;
+  return { seed, width, height };
+}
+
 /**
  * Runs a Fal text-to-image model and returns a raster buffer from the hosted result URL.
+ * Pro and Ultra omit guidance, steps, and negative prompt. A size error snaps Pro dimensions.
+ * A returned prompt that drops the product or the place is retried once with enhancement off.
  *
  * @param prompt — Full marketing prompt (truncated to 8000 chars for Fal).
- * @param resolution — e.g. `1024x1024`; mapped to `image_size` for flux-compatible models.
+ * @param resolution — e.g. `1024x1024`; mapped to `image_size` for Pro and Dev. Ultra uses `aspect_ratio`.
  */
 export async function callFalMarketingImageGeneration(
   prompt: string,
   resolution: string,
   options?: FalMarketingImageCallOptions,
-): Promise<{ buffer: Buffer; modelLabel: string; falRequestId?: string }> {
+): Promise<FalStillCallResult> {
   const key = getFalApiKey();
   if (!key) {
     throw new Error('Set FAL_KEY, FAL_AI_API_KEY, or FALAI_API_KEY');
@@ -370,22 +573,28 @@ export async function callFalMarketingImageGeneration(
 
   fal.config({ credentials: key });
 
+  const referenceRequested = options?.referenceImageUrl?.trim() || '';
   const modelId = resolveFalModelIdForRequest({
     emailCampaign: options?.emailCampaign === true,
     instagramFeed: options?.instagramFeed === true,
     overlayPaperPlane: options?.overlayPaperPlane === true,
+    referenceImageUrl: referenceRequested || null,
   });
+  const referenceUrl = referenceRequested
+    ? await ensurePublicInstagramImageUrl(referenceRequested)
+    : undefined;
   const image_size = resolutionToFalImageSize(resolution);
   const negativeFull = mergeFalNegativePromptForRequest(options);
+  const devModel = isFluxDevModel(modelId);
 
   let guidanceScale = parseOptionalPositiveFloat('FAL_FLUX_GUIDANCE_SCALE');
-  if (guidanceScale == null && options?.instagramFeed === true) {
+  if (guidanceScale == null && devModel && options?.instagramFeed === true) {
     guidanceScale =
       parseOptionalPositiveFloat('FAL_INSTAGRAM_FLUX_GUIDANCE_SCALE') ?? DEFAULT_INSTAGRAM_FLUX_GUIDANCE;
   }
 
   let numInferenceSteps = parseOptionalPositiveInt('FAL_FLUX_NUM_INFERENCE_STEPS');
-  if (numInferenceSteps == null && options?.instagramFeed === true) {
+  if (numInferenceSteps == null && devModel && options?.instagramFeed === true) {
     numInferenceSteps =
       parseOptionalPositiveInt('FAL_INSTAGRAM_FLUX_NUM_INFERENCE_STEPS') ?? DEFAULT_INSTAGRAM_FLUX_STEPS;
   }
@@ -395,83 +604,100 @@ export async function callFalMarketingImageGeneration(
     emailCampaign: options?.emailCampaign === true,
     overlayPaperPlane: options?.overlayPaperPlane === true,
   };
+  const aspectRatio = options?.aspectRatio ?? aspectRatioForFalSize(resolution);
 
-  const trySubscribe = async (
-    input: Record<string, unknown>,
-  ): Promise<{ buffer: Buffer; falRequestId?: string }> => {
-    const subscribeStarted = Date.now();
-    const result = await fal.subscribe(modelId, {
-      input,
-      logs: false,
-    });
-    const falRequestId = extractFalSubscribeRequestId(result);
-    const url = extractFalResultImageUrl(result.data);
-    if (!url || typeof url !== 'string') {
-      throw new Error('Fal returned no image URL in response');
-    }
-    const buffer = await downloadFalImageBytes(url);
-    const durationMs = Date.now() - subscribeStarted;
-    let decodedWidth: number | undefined;
-    let decodedHeight: number | undefined;
-    try {
-      const m = await sharp(buffer).metadata();
-      decodedWidth = m.width ?? undefined;
-      decodedHeight = m.height ?? undefined;
-    } catch {
-      /* ignore */
-    }
-    console.log('[falImageGeneration] fal_subscribe_ok', {
-      modelId,
-      falRequestId,
-      durationMs,
-      bufferBytes: buffer.length,
-      decodedWidth,
-      decodedHeight,
-    });
-    return { buffer, falRequestId };
-  };
-
-  let input = buildFluxFalSubscribeInput(
-    modelId,
-    prompt,
-    image_size,
-    {
-      negativePrompt: negativeFull,
-      guidanceScale,
-      numInferenceSteps,
-      seed: options?.falSeed,
-    },
-    fluxRequestContext,
-  );
-
-  const isBaseOnlyKey = (k: string): boolean =>
-    k === 'prompt' ||
-    k === 'image_size' ||
-    k === 'num_images' ||
-    k === 'output_format' ||
-    k === 'enable_safety_checker' ||
-    k === 'safety_tolerance';
-
-  try {
-    const { buffer, falRequestId } = await trySubscribe(input);
-    return { buffer, modelLabel: `fal/${modelId}`, falRequestId };
-  } catch (firstErr) {
-    const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
-    const shouldRetryMinimal =
-      /422|400|validation|unknown|negative|guidance|inference|unexpected/i.test(msg) &&
-      Object.keys(input).some((k) => !isBaseOnlyKey(k));
-    if (!shouldRetryMinimal) {
-      throw firstErr;
-    }
-    console.warn('[falImageGeneration] Retrying Fal with minimal Flux input after error:', msg.slice(0, 200));
-    input = buildFluxFalSubscribeInput(
+  const buildInput = (enhancePrompt: boolean): Record<string, unknown> =>
+    buildFluxFalSubscribeInput(
       modelId,
       prompt,
       image_size,
-      options?.falSeed != null ? { seed: options.falSeed } : {},
+      {
+        negativePrompt: negativeFull,
+        guidanceScale: devModel ? guidanceScale : undefined,
+        numInferenceSteps: devModel ? numInferenceSteps : undefined,
+        seed: options?.falSeed,
+        enhancePrompt,
+        aspectRatio,
+        referenceImageUrl: referenceUrl,
+        shopStill: options?.shopStill === true,
+        imagePromptStrength: options?.imagePromptStrength,
+      },
       fluxRequestContext,
     );
-    const { buffer, falRequestId } = await trySubscribe(input);
-    return { buffer, modelLabel: `fal/${modelId}`, falRequestId };
+
+  const subscribeOnce = async (input: Record<string, unknown>): Promise<FalSubscribeResult> => {
+    const result = await fal.subscribe(modelId, { input, logs: false });
+    return { data: result.data, requestId: extractFalSubscribeRequestId(result) };
+  };
+
+  const subscribe = async (
+    _modelId: string,
+    input: Record<string, unknown>,
+  ): Promise<FalSubscribeResult> => {
+    try {
+      return await subscribeOnce(input);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const size = input.image_size;
+      const needsSnap =
+        size != null &&
+        typeof size === 'object' &&
+        (((size as { width?: number }).width ?? 0) % 64 !== 0 ||
+          ((size as { height?: number }).height ?? 0) % 64 !== 0);
+      if (needsSnap && /422|400|image_size|dimension|multiple|divisible/i.test(msg)) {
+        console.warn('[falImageGeneration] snapping Fal image_size after size error');
+        return await subscribeOnce({
+          ...input,
+          image_size: snapFalImageSize(size as { width: number; height: number }),
+        });
+      }
+      if (devModel && /422|400|validation|unknown|negative|guidance|inference|unexpected/i.test(msg)) {
+        console.warn('[falImageGeneration] Retrying Fal Dev with a smaller input after error:', msg.slice(0, 200));
+        const minimal = buildFluxFalSubscribeInput(
+          modelId,
+          prompt,
+          image_size,
+          options?.falSeed != null ? { seed: options.falSeed } : {},
+          fluxRequestContext,
+        );
+        return await subscribeOnce(minimal);
+      }
+      throw err;
+    }
+  };
+
+  const checked = await subscribeFalStillWithSceneCheck({
+    modelId,
+    product: options?.sceneProduct ?? '',
+    place: options?.scenePlace ?? '',
+    buildInput,
+    subscribe,
+  });
+  const url = extractFalResultImageUrl(checked.data);
+  if (!url) {
+    throw new Error('Fal returned no image URL in response');
   }
+  const buffer = await downloadFalImageBytes(url);
+  const facts = readFalStillFacts(checked.data);
+  const returnedPrompt = extractFalReturnedPrompt(checked.data) ?? undefined;
+  console.log('[falImageGeneration] fal_subscribe_ok', {
+    modelId,
+    falRequestId: checked.requestId,
+    bufferBytes: buffer.length,
+    attempts: checked.attempts,
+    enhancePrompt: checked.enhancePrompt,
+  });
+  return {
+    buffer,
+    modelLabel: `fal/${modelId}`,
+    falRequestId: checked.requestId,
+    returnedPrompt,
+    seed: facts.seed ?? options?.falSeed,
+    width: facts.width,
+    height: facts.height,
+    nsfw: false,
+    enhancePrompt: checked.enhancePrompt,
+    ...(isFluxProUltraModel(modelId) && options?.shopStill === true ? { raw: true } : {}),
+    ...(isFluxProUltraModel(modelId) ? { aspectRatio } : {}),
+  };
 }

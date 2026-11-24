@@ -7,7 +7,7 @@ model_list:
   # Tier 1: Fast + cheap (intent classification, simple extraction)
   - model_name: "fast"
     litellm_params:
-      model: "groq/llama-3.3-70b-versatile"
+      model: "groq/openai/gpt-oss-20b"
       api_key: "os.environ/GROQ_API_KEY"
     model_info:
       max_tokens: 8192
@@ -27,7 +27,7 @@ model_list:
   # Tier 3: Complex reasoning (multi-step, cross-module analysis)
   - model_name: "complex"
     litellm_params:
-      model: "anthropic/claude-sonnet-4-20250514"
+      model: "anthropic/claude-sonnet-4-6"
       api_key: "os.environ/ANTHROPIC_API_KEY"
     model_info:
       max_tokens: 8192
@@ -37,7 +37,7 @@ model_list:
   # Tier 4: Frontier (hardest multi-agent orchestration)
   - model_name: "frontier"
     litellm_params:
-      model: "anthropic/claude-opus-4-20250514"
+      model: "anthropic/claude-opus-4-6"
       api_key: "os.environ/ANTHROPIC_API_KEY"
     model_info:
       max_tokens: 8192
@@ -47,7 +47,7 @@ model_list:
   # Vision (receipt/invoice OCR)
   - model_name: "vision"
     litellm_params:
-      model: "anthropic/claude-sonnet-4-20250514"
+      model: "anthropic/claude-sonnet-4-6"
       api_key: "os.environ/ANTHROPIC_API_KEY"
     model_info:
       max_tokens: 8192

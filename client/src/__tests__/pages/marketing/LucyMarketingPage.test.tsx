@@ -24,10 +24,6 @@ vi.mock('@/pages/marketing/components/DoraRail', () => ({
   MARKETING_DORA_RAIL_OUTSET_RIGHT: 'right-6',
 }));
 
-vi.mock('@/pages/marketing/components/MarketingMetricChips', () => ({
-  MarketingMetricChips: () => <div data-testid="metric-chips" />,
-}));
-
 vi.mock('@/lib/marketingApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/marketingApi')>();
   const minimalCc: import('@/lib/marketingApi').CommandCenterPayload = {
@@ -54,7 +50,60 @@ vi.mock('@/lib/marketingApi', async (importOriginal) => {
       }),
       getLeadFunnel: vi.fn().mockResolvedValue({ stages: [] }),
       listBrandProfiles: vi.fn().mockResolvedValue({ profiles: [], total: 0 }),
-      getCommandCenter: vi.fn().mockResolvedValue(minimalCc),
+      listContent: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'offer-dora',
+            content_type: 'offer',
+            title: 'Dora is in Istanbul',
+            status: 'draft',
+            channel: 'internal',
+            user_brief: 'product: Dora',
+            created_at: '2026-11-14T00:00:00.000Z',
+            body: null,
+          },
+          {
+            id: 'ig-dora',
+            content_type: 'social',
+            channel: 'instagram',
+            parent_content_id: 'offer-dora',
+            body: 'Dora in the city',
+            image_url: 'https://cdn.example/dora.jpg',
+            status: 'draft',
+            created_at: '2026-11-14T00:00:00.000Z',
+          },
+          {
+            id: 'offer-book',
+            content_type: 'offer',
+            title: 'Window drop',
+            status: 'draft',
+            channel: 'internal',
+            user_brief: 'product: Kürk Mantolu Madonna\nprice: ₺189',
+            created_at: '2026-11-14T01:00:00.000Z',
+            body: null,
+          },
+        ],
+        total: 3,
+        page: 1,
+        pageSize: 50,
+      }),
+      getContent: vi.fn().mockResolvedValue({
+        id: 'offer-dora',
+        content_type: 'offer',
+        title: 'Dora',
+        body: null,
+        type: 'social',
+        channel: 'internal',
+        status: 'draft',
+        user_brief: 'product: Dora',
+        organization_id: null,
+        campaign_id: null,
+        created_by: null,
+        created_at: '2026-11-14T00:00:00.000Z',
+        updated_at: '2026-11-14T00:00:00.000Z',
+        published_at: null,
+        scheduled_for: null,
+      }),
     },
   };
 });
@@ -76,24 +125,60 @@ function renderLucy() {
   );
 }
 
-describe('LucyMarketingPage', () => {
-  it('renders Lucy rail and bento regions', async () => {
+describe('shop counter', () => {
+  it('lists this shop’s offers and keeps Lucy closed', async () => {
+    sessionStorage.setItem('messign.contentTenant', 'messign');
     renderLucy();
-    await waitFor(() => {
-      expect(screen.getByTestId('dora-rail')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Live stats')).toBeInTheDocument();
-    expect(screen.getByText('Go to')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Dora/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Kürk Mantolu Madonna/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dora-rail')).not.toBeInTheDocument();
+    expect(screen.queryByText('Live stats')).not.toBeInTheDocument();
   });
 
-  it('navigates to pipeline from Pipeline button', async () => {
+  it('opens Lucy only when asked', async () => {
+    sessionStorage.setItem('messign.contentTenant', 'messign');
     renderLucy();
-    await waitFor(() => {
-      expect(screen.getByTestId('dora-rail')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole('button', { name: /^Pipeline$/i }));
+    await screen.findByRole('button', { name: /Dora/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Lucy' }));
+    expect(await screen.findByTestId('dora-rail')).toBeInTheDocument();
+  });
+
+  it('navigates to pipeline from More', async () => {
+    sessionStorage.setItem('messign.contentTenant', 'messign');
+    renderLucy();
+    await screen.findByRole('button', { name: /Dora/ });
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pipeline' }));
     await waitFor(() => {
       expect(screen.getByRole('region', { name: /content pipeline/i })).toBeInTheDocument();
     });
+  });
+
+  it('names the shop when it has no offers and retries after an error', async () => {
+    const { marketingAPI } = await import('@/lib/marketingApi');
+    sessionStorage.setItem('messign.contentTenant', 'bookstore');
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({ data: [], total: 0, page: 1, pageSize: 50 });
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({ data: [], total: 0, page: 1, pageSize: 50 });
+    renderLucy();
+    expect(await screen.findByText('No offers for Kitapyurdu.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Dora/ })).not.toBeInTheDocument();
+
+    vi.mocked(marketingAPI.listContent).mockRejectedValueOnce(new Error('Could not load offers'));
+    vi.mocked(marketingAPI.listContent).mockRejectedValueOnce(new Error('Could not load offers'));
+    fireEvent.change(screen.getByLabelText(/Content tenant/), { target: { value: 'messign' } });
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('closes Dora when the shop changes to Kitapyurdu', async () => {
+    sessionStorage.setItem('messign.contentTenant', 'messign');
+    renderLucy();
+    fireEvent.click(await screen.findByRole('button', { name: /^Dora/ }));
+    expect(await screen.findByRole('heading', { name: 'Dora' }, { timeout: 5000 })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Content tenant/), { target: { value: 'bookstore' } });
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Content Detail' })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /^Dora/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Kürk Mantolu Madonna/ })).toBeInTheDocument();
   });
 });

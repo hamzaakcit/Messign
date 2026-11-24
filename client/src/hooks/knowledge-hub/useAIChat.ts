@@ -50,6 +50,8 @@ export interface SendMessageOptions {
   skipUserMessage?: boolean;
   /** v2: one-shot Marketing Sub-Orchestrator flag */
   marketingAgentMode?: boolean;
+  /** Update this marketing_content row instead of creating a new draft. */
+  marketingContentId?: string;
 }
 
 export type InteractionMode = 'ask' | 'analyze' | 'act';
@@ -69,6 +71,8 @@ export interface UseAIChatOptions {
   onIntentResolved?: (intentId: string) => void;
   /** v2: POST marketingAgentMode so pipeline runs Marketing Sub-Orchestrator */
   marketingAgentMode?: boolean;
+  /** Fired when SSE metadata includes the persisted marketing content id. */
+  onMarketingContentReady?: (contentId: string) => void;
 }
 
 export interface UseAIChatReturn {
@@ -112,6 +116,8 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   onMessagesChangeRef.current = onMessagesChange;
   const onIntentResolvedRef = useRef(onIntentResolved);
   onIntentResolvedRef.current = onIntentResolved;
+  const onMarketingContentReadyRef = useRef(options.onMarketingContentReady);
+  onMarketingContentReadyRef.current = options.onMarketingContentReady;
 
   const [messages, setMessages] = useState<AIMessage[]>(initialMessages ?? []);
   const [isLoading, setIsLoading] = useState(false);
@@ -205,6 +211,9 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           searchMode: false,
           ...(defaultMarketingAgentMode === true || options?.marketingAgentMode === true
             ? { marketingAgentMode: true }
+            : {}),
+          ...(options?.marketingContentId
+            ? { marketingContentId: options.marketingContentId }
             : {}),
           ...(options?.confirmed === true && options?.confirmation
             ? {
@@ -354,6 +363,12 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
 
           case 'metadata':
             accumulatedMetadata = sseData(event) as AIResponseMetadata;
+            {
+              const pinned = (accumulatedMetadata as { marketingContentId?: unknown } | undefined)?.marketingContentId;
+              if (typeof pinned === 'string' && pinned.trim()) {
+                onMarketingContentReadyRef.current?.(pinned.trim());
+              }
+            }
             if (accumulatedMetadata?.specialist && !accumulatedSpecialist) {
               accumulatedSpecialist = {
                 module: accumulatedMetadata.specialist,

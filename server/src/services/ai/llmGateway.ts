@@ -22,14 +22,14 @@ export const LLM_TIER_CONFIG = {
   [LLM_TIER.COMPLEX]: {
     provider: 'anthropic' as const,
     /** Claude Sonnet 4 — override with `LLM_COMPLEX_MODEL` */
-    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-20250514',
+    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-6',
     timeoutMs: Number(process.env.LLM_COMPLEX_TIMEOUT_MS) || 45_000,
     maxRetries: 3,
   },
   [LLM_TIER.FAST]: {
     provider: 'groq' as const,
-    /** Groq Llama 3.x — override with `LLM_FAST_MODEL` (e.g. llama-3.3-70b-versatile) */
-    model: process.env.LLM_FAST_MODEL?.trim() || 'llama-3.3-70b-versatile',
+    /** Groq chat model — override with `LLM_FAST_MODEL`. */
+    model: process.env.LLM_FAST_MODEL?.trim() || 'openai/gpt-oss-20b',
     timeoutMs: Number(process.env.LLM_FAST_TIMEOUT_MS) || 15_000,
     maxRetries: 3,
   },

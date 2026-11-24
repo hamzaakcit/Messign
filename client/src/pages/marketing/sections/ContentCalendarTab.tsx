@@ -13,7 +13,6 @@ import {
   Mail,
   Megaphone,
   Sparkles,
-  Zap,
 } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
@@ -27,6 +26,7 @@ import {
 } from '@/lib/marketingApi';
 import { ContentDetailPanel } from '../components/ContentDetailPanel';
 import { ContentCreatePanel } from '../components/ContentCreatePanel';
+import { calendarChip } from '../lib/calendarChip';
 
 type ViewMode = 'month' | 'week' | 'list';
 
@@ -87,7 +87,6 @@ export function ContentCalendarTab(): JSX.Element {
   const [createDate, setCreateDate] = useState<string | null>(null);
   const [draggedContentId, setDraggedContentId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [autoScheduling, setAutoScheduling] = useState(false);
 
   const month = anchorDate.getMonth() + 1;
   const year = anchorDate.getFullYear();
@@ -143,32 +142,6 @@ export function ContentCalendarTab(): JSX.Element {
     });
   }, [calendarMap, anchorDate, month]);
 
-  const handleAutoSchedule = async (contentId: string) => {
-    setAutoScheduling(true);
-    try {
-      const bestTimes = await marketingAPI.getBestTimesToPost(userId, { topN: 1 });
-      const slot = bestTimes.data.topSlots[0];
-      if (!slot) { toast.error('No optimal slot found'); return; }
-      const now = new Date();
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const targetDayIdx = dayNames.indexOf(slot.day);
-      const currentDay = now.getDay();
-      let daysAhead = targetDayIdx - currentDay;
-      if (daysAhead <= 0) daysAhead += 7;
-      const targetDate = new Date(now);
-      targetDate.setDate(now.getDate() + daysAhead);
-      const dateStr = targetDate.toISOString().slice(0, 10);
-      const timeStr = `${String(slot.hour).padStart(2, '0')}:00`;
-      await marketingAPI.scheduleContent(userId, contentId, dateStr, timeStr);
-      toast.success(`Scheduled for ${slot.day} at ${slot.timeSlot}`, { description: slot.reason });
-      await fetchData();
-    } catch (e) {
-      toast.error('Auto-schedule failed', { description: e instanceof Error ? e.message : 'Unknown' });
-    } finally {
-      setAutoScheduling(false);
-    }
-  };
-
   const handleDrop = async (dayDate: string) => {
     if (!draggedContentId) return;
     try {
@@ -184,16 +157,49 @@ export function ContentCalendarTab(): JSX.Element {
     { key: 'content_type', header: 'Type', render: (v) => <Badge variant={contentVariant(String(v))}>{String(v)}</Badge> },
     { key: 'channel', header: 'Channel', render: (v) => <span className={cn('inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium', channelBg(String(v)))}>{channelIcon(String(v))}{String(v)}</span> },
     { key: 'status', header: 'Status', render: (v) => <Badge variant="default">{String(v)}</Badge> },
-    { key: 'scheduled_date', header: 'Scheduled', render: (v, row) => v ? <span className="text-slate-300">{String(v)}{row.scheduled_time ? ` \u00B7 ${row.scheduled_time}` : ''}</span> : <button type="button" onClick={(e) => { e.stopPropagation(); void handleAutoSchedule(row.id); }} disabled={autoScheduling} className="inline-flex items-center gap-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-medium text-cyan-300 hover:bg-cyan-500/20 disabled:opacity-40"><Zap className="h-3 w-3" />Auto</button> },
+    { key: 'scheduled_date', header: 'Scheduled', render: (v, row) => v ? <span className="text-slate-300">{String(v)}{row.scheduled_time ? ` \u00B7 ${row.scheduled_time}` : ''}</span> : <span className="text-app-muted">Not scheduled</span> },
     { key: 'campaign_name', header: 'Campaign' },
-  ], [autoScheduling]);
+  ], []);
 
   function renderCalendarItem(item: ContentItem): JSX.Element {
+    const chip = calendarChip(item);
+    const time = item.scheduled_time ? (
+      <div className="mt-0.5 flex items-center gap-1 text-[8px] opacity-70"><Clock className="h-2.5 w-2.5" />{item.scheduled_time}</div>
+    ) : null;
+    if (chip.kind === 'instagram') {
+      return (
+        <button key={item.id} draggable onDragStart={() => setDraggedContentId(item.id)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
+          <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
+            <div className="flex items-center gap-1">
+              {chip.thumb ? (
+                <img src={chip.thumb} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+              ) : channelIcon(item.channel)}
+              <span className="truncate font-medium">{chip.title}</span>
+              {chip.format ? (
+                <span className="shrink-0 rounded bg-black/30 px-1 py-0.5 text-[8px] uppercase tracking-wide">{chip.format}</span>
+              ) : null}
+            </div>
+            {time}
+          </div>
+        </button>
+      );
+    }
+    if (chip.kind === 'email') {
+      return (
+        <button key={item.id} draggable onDragStart={() => setDraggedContentId(item.id)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
+          <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
+            <div className="text-[8px] uppercase tracking-wide opacity-70">Subject</div>
+            <div className="truncate font-medium">{chip.subject}</div>
+            {time}
+          </div>
+        </button>
+      );
+    }
     return (
       <button key={item.id} draggable onDragStart={() => setDraggedContentId(item.id)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
         <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
           <div className="flex items-center gap-1">{channelIcon(item.channel)}<span className="truncate font-medium">{item.title}</span></div>
-          {item.scheduled_time && <div className="mt-0.5 flex items-center gap-1 text-[8px] opacity-70"><Clock className="h-2.5 w-2.5" />{item.scheduled_time}</div>}
+          {time}
         </div>
       </button>
     );

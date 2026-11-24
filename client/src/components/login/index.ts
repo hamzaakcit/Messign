@@ -4,6 +4,7 @@ export { AnimatedLogo } from './AnimatedLogo';
 export { LoginLogo } from './LoginLogo';
 export { FloatingBadges } from './FloatingBadges';
 export { ParticleEffect } from './ParticleEffect';
+export { SnowEffect } from './SnowEffect';
 export { PulseRings } from './PulseRings';
 export { LoginFalPaperPlanePanel } from './LoginFalPaperPlanePanel';
 export { LoginCrewHero } from './LoginCrewHero';

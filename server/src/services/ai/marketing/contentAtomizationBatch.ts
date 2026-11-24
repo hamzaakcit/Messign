@@ -1,16 +1,18 @@
 /**
- * Content Atomization — Strategic Pivot (March 2026 roadmap)
- *
- * When a primary "hero" content asset clears approval, the product vision batches
- * derivative assets in parallel (email V2 manifest, X posts, IG carousel, LinkedIn).
- * This module is the orchestration hook; workers are stubbed until queue wiring lands.
+ * Content atomization after approval.
+ * Jobs follow the offer recipe. Cart does not queue an Instagram job.
+ * There is no X or LinkedIn fan-out.
  */
 
-export type AtomizationJobKind =
-  | 'unlayer_email_v2'
-  | 'x_post'
-  | 'instagram_carousel'
-  | 'linkedin_post';
+import {
+  planRecipeChildren,
+  recipeFromTags,
+  includeInstagramFromTags,
+  type OfferRecipe,
+  type RecipeChannel,
+} from '../../marketing/offerRecipes.js';
+
+export type AtomizationJobKind = 'unlayer_email_v2' | 'instagram_carousel' | 'x_post' | 'linkedin_post';
 
 export interface ContentAtomizationBatchInput {
   contentId: string;
@@ -19,6 +21,8 @@ export interface ContentAtomizationBatchInput {
   channel: string;
   /** Hero / key visual when available */
   heroImageUrl?: string | null;
+  /** Offer or child tags. `recipe:*` selects the jobs. */
+  tags?: readonly string[] | null;
 }
 
 export interface ContentAtomizationBatchResult {
@@ -26,30 +30,33 @@ export interface ContentAtomizationBatchResult {
   jobs: Array<{ kind: AtomizationJobKind; status: 'queued' | 'skipped'; note?: string }>;
 }
 
+function jobForChannel(channel: RecipeChannel): ContentAtomizationBatchResult['jobs'][number] {
+  if (channel === 'email') {
+    return { kind: 'unlayer_email_v2', status: 'queued', note: 'Journey email child' };
+  }
+  return { kind: 'instagram_carousel', status: 'queued', note: 'One Instagram child' };
+}
+
+/** Jobs for a known recipe. Unknown recipes queue nothing. */
+export function atomizationJobsForRecipe(
+  recipe: OfferRecipe | null,
+  options?: { includeInstagram?: boolean },
+): ContentAtomizationBatchResult['jobs'] {
+  if (!recipe) return [];
+  return planRecipeChildren(recipe, options).map(jobForChannel);
+}
+
 /**
- * Fire-and-forget batch placeholder: logs intent and returns queued job stubs.
- * Replace with BullMQ / internal queue when Automated Batching ships.
+ * Queue only the children the recipe allows.
  */
 export async function runContentAtomizationAfterApproval(
   input: ContentAtomizationBatchInput,
 ): Promise<ContentAtomizationBatchResult> {
   const batchId = `atom_${input.contentId.slice(0, 8)}_${Date.now().toString(36)}`;
-  console.log('[contentAtomization] batch scheduled', { batchId, ...input });
-
-  const jobs: ContentAtomizationBatchResult['jobs'] = [
-    { kind: 'unlayer_email_v2', status: 'queued', note: 'Design Manifest → Unlayer JSON' },
-    ...Array.from({ length: 5 }, (_, i) => ({
-      kind: 'x_post' as const,
-      status: 'queued' as const,
-      note: `Variant ${i + 1}/5`,
-    })),
-    {
-      kind: 'instagram_carousel',
-      status: 'queued',
-      note: 'Modern Noir visual stack (carousel)',
-    },
-    { kind: 'linkedin_post', status: 'queued' },
-  ];
-
+  const recipe = recipeFromTags(input.tags);
+  const jobs = atomizationJobsForRecipe(recipe, {
+    includeInstagram: includeInstagramFromTags(input.tags),
+  });
+  console.log('[contentAtomization] batch scheduled', { batchId, recipe, jobs: jobs.map((job) => job.kind) });
   return { batchId, jobs };
 }

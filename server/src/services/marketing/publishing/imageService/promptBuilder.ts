@@ -2,8 +2,10 @@
 // Image generation context & prompt construction
 // ---------------------------------------------------------------------------
 
-import type { ImageGenerationInput } from '../../../../dal/marketing/instagramTypes.js';
+import type { ImageGenerationInput, StylePreset } from '../../../../dal/marketing/instagramTypes.js';
 import { emailImagePromptExplicitlyRequestsPeople } from './emailImagePromptSubject.js';
+import { parseOfferSheet } from '../../offerSheet.js';
+import { inferEcommerceVertical } from '../../../../modules/marketing/prompts/ecommercePromptPack.js';
 
 export interface ImageGenContext {
   channel: 'email' | 'instagram' | 'general';
@@ -28,6 +30,8 @@ export interface ImageGenContext {
    * {@link ImageGenerationInput.technical_platform_topic} on the generation request).
    */
   technicalPlatformTopic?: boolean;
+  /** When set, the composition line matches this frame instead of the square default. */
+  aspectRatio?: ImageGenerationInput['aspect_ratio'];
 }
 
 const NEGATIVE_PROMPT_BLOCK = [
@@ -157,39 +161,177 @@ function stripInstagramDraftLinePrefixes(line: string): string {
   return t;
 }
 
+function instagramFrameLine(aspectRatio?: ImageGenerationInput['aspect_ratio']): string | null {
+  if (aspectRatio === '9:16') return 'Vertical 9:16 frame, full-bleed portrait composition.';
+  if (aspectRatio === '4:5') return 'Portrait 4:5 frame.';
+  if (aspectRatio === '16:9') return 'Landscape 16:9 frame.';
+  if (aspectRatio === '1:1') return 'Square 1:1 frame.';
+  return null;
+}
+
 /**
- * Minimal photoreal prompt for Instagram Fal: prefer the user's chat brief, else a cleaned
- * slice of the extracted draft (no full `enhanceImagePrompt` / NEGATIVE blocks).
+ * Photoreal Instagram prompt. A labeled sheet becomes a scene of the product,
+ * its materials, and the place. The raw brief is not the scene, so price, claim,
+ * audience, and dates never reach Fal. A brief with no product or place uses the
+ * cleaned image prompt.
+ * When `aspectRatio` is set, a single framing line matches that size.
  */
 export function buildDirectInstagramFalPrompt(params: {
   userBrief?: string | null;
   imagePrompt: string;
+  aspectRatio?: ImageGenerationInput['aspect_ratio'];
+  /** Look used when the sheet has no style. A style on the offer wins. */
+  look?: string | null;
+  /** Prose from the truth row. Price and place labels must already be removed. */
+  materials?: string | null;
 }): string {
-  const brief = params.userBrief?.trim() ?? '';
-  const raw = (params.imagePrompt ?? '').trim();
+  const parsed = parseOfferSheet(params.userBrief);
+  const sheet = parsed.sheet;
+  const useSheet = Boolean(sheet.product.trim() || sheet.place.trim());
+  const materials = cleanOfferMaterials(sheet.materials) || cleanOfferMaterials(params.materials);
 
-  let scene =
-    brief.length > 0
-      ? brief.slice(0, DIRECT_INSTAGRAM_SCENE_MAX_CHARS)
-      : stripBoilerplateImagePrompt(raw).slice(0, DIRECT_INSTAGRAM_SCENE_MAX_CHARS);
-  if (!scene) {
-    scene = raw.slice(0, DIRECT_INSTAGRAM_SCENE_MAX_CHARS);
+  const look = resolveStillLook(sheet.style || params.look);
+  let scene = useSheet
+    ? offerStillSceneSentence({
+        product: sheet.product,
+        place: sheet.place,
+        materials,
+        inFrame: sheet.inFrame,
+        keepOut: sheet.keepOut,
+        look,
+      })
+    : sceneFromImagePrompt(params.imagePrompt, params.userBrief);
+
+  const vertical = useSheet
+    ? inferEcommerceVertical([sheet.product, sheet.place, materials].filter(Boolean).join('\n'))
+    : null;
+  const shopLine =
+    vertical === 'bookstore'
+      ? 'Show the named book in the named shop. Do not replace it with a flower still-life.'
+      : vertical === 'florist'
+        ? 'Show the named flowers in the named shop. Do not replace them with a bookstore aisle.'
+        : null;
+
+  const realismLines = stillRealismLines(look);
+
+  const frame = instagramFrameLine(params.aspectRatio);
+  return [scene, shopLine, realismLines, frame].filter(Boolean).join('\n\n').trim();
+}
+
+/**
+ * Drop price and claim lines so they cannot be painted into the still.
+ */
+function cleanOfferMaterials(materials: string | null | undefined): string {
+  return (materials ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !/₺|price\s*:|claim\s*:/i.test(line))
+    .join(' ')
+    .trim();
+}
+
+/**
+ * Every look the still can open with. The id is the Fal style preset.
+ */
+export const STILL_LOOKS: ReadonlyArray<{ id: StylePreset; label: string; opener: string; line: string }> = [
+  { id: 'photoreal', label: 'Photoreal', opener: 'Photorealistic photograph', line: 'Photorealistic photograph, sharp subject, no text, watermarks, or logos.' },
+  { id: 'modern_noir', label: 'Modern noir', opener: 'Modern noir photograph', line: 'Modern noir photograph: deep charcoal tones, subtle purple accents, soft studio glow.' },
+  { id: 'vibrant_lifestyle', label: 'Vibrant lifestyle', opener: 'Vibrant lifestyle photograph', line: 'Vibrant lifestyle photograph: warm golden-hour light, saturated natural colors.' },
+  { id: 'minimal_flat', label: 'Minimal flat-lay', opener: 'Minimal flat-lay photograph', line: 'Minimal flat-lay photograph: top-down, clean surface, soft even light.' },
+  { id: 'editorial', label: 'Editorial', opener: 'Editorial photograph', line: 'Editorial photograph: dramatic directional light, fashion-magazine composition.' },
+  { id: 'product_spotlight', label: 'Product spotlight', opener: 'Product spotlight photograph', line: 'Product spotlight photograph: clean background, hero light, sharp product detail.' },
+  { id: 'team_culture', label: 'Team culture', opener: 'Team culture photograph', line: 'Team culture photograph: natural workplace light, candid people, shallow depth of field.' },
+  { id: 'data_viz', label: 'Data visualization', opener: 'Data visualization image', line: 'Data visualization image: abstract geometric forms, glowing accent lines, dark ground.' },
+  { id: 'seasonal', label: 'Seasonal', opener: 'Seasonal photograph', line: 'Seasonal photograph: the season is visible in the light, the color, and the props.' },
+  { id: 'ugc_style', label: 'Phone camera', opener: 'Phone-camera photograph', line: 'Phone-camera photograph: natural light, mild grain, slightly imperfect framing.' },
+];
+
+/**
+ * A known look id. Anything else is photoreal.
+ */
+export function resolveStillLook(value: string | null | undefined): StylePreset {
+  const key = (value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const found = STILL_LOOKS.find((look) => look.id === key);
+  return found?.id ?? 'photoreal';
+}
+
+function stillLook(id: StylePreset): { id: StylePreset; label: string; opener: string; line: string } {
+  return STILL_LOOKS.find((look) => look.id === id) ?? STILL_LOOKS[0];
+}
+
+/**
+ * Extra lines after the scene. Photoreal keeps the camera block. Other looks use their own line.
+ */
+function stillRealismLines(look: StylePreset): string {
+  if (look === 'photoreal') {
+    return [
+      'Photorealistic photograph, sharp subject, no text, watermarks, or logos.',
+      'Single coherent photograph (not a composite): unified lighting across all subjects and props.',
+      'All objects must be 3D and physically real — no flat 2D shapes, vector icons, or pasted-on composites.',
+      'Natural daylight or scene-appropriate ambient light with realistic shadows and depth of field.',
+    ].join(' ');
   }
+  return [stillLook(look).line, 'Single coherent image. No text, watermarks, or logos.'].join(' ');
+}
 
-  const realismLine =
-    'Photorealistic photograph, natural light, sharp subject, no text, watermarks, or logos.';
+/**
+ * Scene sentence sent to Fal. Materials lead, and the product name is only the title.
+ * The look opens the sentence. Shot lines that carry a price or a claim are omitted.
+ */
+export function offerStillSceneSentence(input: {
+  product: string;
+  place: string;
+  materials: string;
+  inFrame?: string;
+  keepOut?: string;
+  look?: string | null;
+}): string {
+  const product = input.product.trim();
+  const place = input.place.trim();
+  const lead = leadMaterials(cleanOfferMaterials(input.materials));
+  const subject = lead && product ? `${lead}, titled ${product}` : lead || product;
+  const located = place && subject
+    ? lead && product
+      ? `${subject}, at ${place}`
+      : `${subject} at ${place}`
+    : subject || place;
+  if (!located) return '';
+  const inFrame = scrubShotLine(input.inFrame);
+  const keepOut = scrubShotLine(input.keepOut);
+  const opener = stillLook(resolveStillLook(input.look)).opener;
+  const parts = [`${opener} of ${located}.`];
+  if (inFrame) parts.push(`In frame: ${inFrame}.`);
+  if (keepOut) parts.push(`Keep out: ${keepOut}.`);
+  parts.push('No letters, numbers, or logos.');
+  return parts.join(' ').slice(0, DIRECT_INSTAGRAM_SCENE_MAX_CHARS);
+}
 
-  /**
-   * Flux often renders handheld props as flat vector, puts them on a stick, or lights them
-   * differently from the face. Steer toward one coherent exposure and real folded paper.
-   */
-  const paperOrCraftProp =
-    /\b(paper|paperplane|paper[\s-]?plane|origami|folded|airplane|craft)\b/i.test(scene);
-  const materialHint = paperOrCraftProp
-    ? ' Single coherent photograph (not a composite). The child holds the paper plane only with fingers and thumb—no stick, skewer, wire, or rod attaching it. The plane must be lit by the same directional light as the face: matching highlights and cast shadows on the folds and edges. CRITICAL REALISM for paper plane: Real folded kraft paper with sharp, deep crease lines showing true 3D geometry and physical folds. Each crease must cast its own shadow. Matte paper texture with visible fibrous surface detail, subtle color variations in the paper. Visible thickness and dimension at all fold edges. Paper should have slightly imperfect hand-creased edges, not smooth or uniform. Colored paper coating if applicable, but showing real material. AVOID: flat shapes, vector graphics, uniform fills, plastic shine, CGI smoothness, 2D appearance, pasted-on look, shadows that don\'t match scene lighting, or glossy surfaces.'
-    : ' Handheld objects must match real-world materials and the same lighting as skin and clothing (not vector icons, plastic CGI, or mismatched light on props).';
+/**
+ * First letter down so the materials clause can open the sentence.
+ */
+function leadMaterials(materials: string): string {
+  const cleaned = materials.trim().replace(/\.+$/, '').trim();
+  if (!cleaned) return '';
+  const second = cleaned.charAt(1);
+  if (second && second === second.toUpperCase() && /[A-Z]/.test(second)) return cleaned;
+  return cleaned.charAt(0).toLowerCase() + cleaned.slice(1);
+}
 
-  return `${scene}\n\n${realismLine}${materialHint}`.trim();
+/**
+ * Drop a shot line that would paint a price or a claim into the still.
+ */
+function scrubShotLine(value: string | null | undefined): string {
+  const cleaned = (value ?? '').trim().replace(/\.+$/, '').trim();
+  if (!cleaned || /₺|price\s*:|claim\s*:/i.test(cleaned)) return '';
+  return cleaned;
+}
+
+function sceneFromImagePrompt(imagePrompt: string, userBrief?: string | null): string {
+  const raw = (imagePrompt ?? '').trim();
+  let scene = stripBoilerplateImagePrompt(raw).slice(0, DIRECT_INSTAGRAM_SCENE_MAX_CHARS);
+  if (!scene) scene = raw.slice(0, DIRECT_INSTAGRAM_SCENE_MAX_CHARS);
+  if (!scene) scene = (userBrief?.trim() ?? '').slice(0, DIRECT_INSTAGRAM_SCENE_MAX_CHARS);
+  return scene;
 }
 
 function stripBoilerplateImagePrompt(text: string): string {
@@ -347,7 +489,13 @@ export function enhanceImagePrompt(
   const compositionHint =
     context?.channel === 'email'
       ? '- Horizontal/landscape composition optimized for email banners (600px wide).'
-      : '- Square 1:1 aspect ratio composition.';
+      : context?.aspectRatio === '9:16'
+        ? '- Vertical 9:16 portrait composition.'
+        : context?.aspectRatio === '4:5'
+          ? '- Portrait 4:5 composition.'
+          : context?.aspectRatio === '16:9'
+            ? '- Landscape 16:9 composition.'
+            : '- Square 1:1 aspect ratio composition.';
 
   const sectionHint =
     context?.sectionType === 'hero'
