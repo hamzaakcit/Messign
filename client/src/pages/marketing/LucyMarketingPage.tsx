@@ -174,7 +174,7 @@ export function LucyMarketingPage(): JSX.Element {
         </div>
       </div>
       {lucyOpen ? (
-        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-md flex-col border-l border-app-border bg-app" data-testid="lucy-drawer">
+        <div className="absolute inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-app-border bg-[#0a0c12] text-app-text" data-testid="lucy-drawer">
           <div className="flex justify-end px-3 py-2">
             <button type="button" className="text-sm text-app-muted" onClick={() => setLucyOpen(false)}>
               Close Lucy

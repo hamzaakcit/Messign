@@ -11,14 +11,8 @@ const INSTAGRAM_TITLE =
 const CHANNEL_TILE_BASE =
   'border bg-gradient-to-b from-slate-900/85 to-slate-950/95 shadow-sm shadow-black/20 hover:brightness-110';
 
-/**
- * Maps composer quick-action ids to the structured channel modal.
- * All email templates (`email`, `email_newsletter_depth`, etc.) open the same VA2 email modal.
- */
+/** All email templates (`email`, `email_newsletter_depth`, etc.) open the same VA2 email modal. */
 function quickActionIdToModalChannel(id: string): MarketingChannelAgentModalId | null {
-  if (id === 'linkedin' || id === 'x' || id === 'blog' || id === 'ads' || id === 'metrics') {
-    return id;
-  }
   if (id === 'email' || id.startsWith('email_')) {
     return 'email';
   }
@@ -28,7 +22,7 @@ function quickActionIdToModalChannel(id: string): MarketingChannelAgentModalId |
 export interface MarketingComposerChannelButtonsProps {
   isLoading: boolean;
   onOpenInstagram: () => void;
-  /** Opens the structured Lucy brief modal for the given channel (LinkedIn, X, Blog, Ads, Email, Metrics). */
+  /** Opens the structured Lucy brief modal (email). */
   onOpenChannelModal: (channel: MarketingChannelAgentModalId) => void;
   /**
    * `comfortable`: wrapped grid with helper copy (Lucy rail / wide surfaces).
@@ -115,13 +109,7 @@ export function MarketingComposerChannelButtons({
 
   return (
     <div className="space-y-2">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-app-muted">Channel templates</p>
-        <p className="mt-0.5 text-[10px] text-app-muted leading-snug">
-          Tap a channel for a guided brief (like Instagram). Lucy sends the full prompt or inserts it into the composer
-          for edits.
-        </p>
-      </div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-app-muted">Templates</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
         {instagramButton}
         {templateButtons}

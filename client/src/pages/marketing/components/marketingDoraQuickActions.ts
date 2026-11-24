@@ -1,6 +1,6 @@
 /**
- * Shared composer templates for Lucy Marketing (rail + drawer).
- * Instagram stays on its own modal; structured modals use marketingChannelAgentBuilders.
+ * Lucy's composer templates: email only. Instagram goes through the New offer page; LinkedIn, X, blog, ads and
+ * metrics are frozen channels (ADR-001) and have no template.
  */
 
 export type MarketingComposerIconKey =
@@ -27,17 +27,6 @@ export interface MarketingComposerQuickAction {
 
 /** Instagram goes through the New offer page; not included here. */
 export const MARKETING_COMPOSER_QUICK_ACTIONS: MarketingComposerQuickAction[] = [
-  {
-    id: 'linkedin',
-    label: 'LinkedIn',
-    icon: 'linkedin',
-    upgraded: true,
-    accent:
-      'from-blue-500/30 to-indigo-600/20 border-blue-400/35 shadow-sm shadow-blue-500/10',
-    hint: 'Prefills a LinkedIn post template (hook, short paragraphs, CTA). Edit [topic] then send.',
-    text:
-      'Draft a short LinkedIn post (under 220 words) about [topic]: strong hook in line 1–2, 2–3 short paragraphs, 0–2 emoji max, one clear CTA. No fluff.',
-  },
   {
     id: 'email',
     label: 'Email',
@@ -73,45 +62,5 @@ export const MARKETING_COMPOSER_QUICK_ACTIONS: MarketingComposerQuickAction[] = 
     hint: 'Webinar or event with date/time, agenda value_prop, registration CTA.',
     text:
       'Channel: email. Output VA2 Design Manifest JSON in ```json``` fences. Goal: **event invitation** — subject/preheader with date, time, timezone; hero (split optional) → value_prop agenda or text_block → image_text (speaker/venue) → CTA registration URL → footer. Topic: [event name + audience]. engage category tone, metadata.target_image_slots 6.',
-  },
-  {
-    id: 'x',
-    label: 'X',
-    icon: 'x',
-    upgraded: true,
-    accent: 'from-slate-600/35 to-zinc-800/25 border-slate-400/30 shadow-sm shadow-slate-500/10',
-    hint: 'Prefills an X/Twitter-length post template (under 260 characters).',
-    text:
-      'Draft one X post about [topic] (under 260 characters), plain language, one hook + one CTA or question. Say it is for X/Twitter.',
-  },
-  {
-    id: 'blog',
-    label: 'Blog',
-    icon: 'blog',
-    upgraded: true,
-    accent: 'from-violet-500/28 to-purple-700/18 border-violet-400/30 shadow-sm shadow-violet-500/10',
-    hint: 'Outline + excerpt template for a blog post; expand in composer if needed.',
-    text:
-      'Outline a short blog post about [topic]: title, 5–7 bullet outline, and a 2–3 sentence excerpt only—keep the full article out unless I ask.',
-  },
-  {
-    id: 'ads',
-    label: 'Ads',
-    icon: 'ads',
-    upgraded: true,
-    accent: 'from-amber-500/25 to-orange-700/18 border-amber-400/28 shadow-sm shadow-amber-500/10',
-    hint: 'Headline + primary text + CTA variants for paid social or display-style copy.',
-    text:
-      'Draft tight ad copy variants (headline + primary text + CTA) for [product/topic], channel-agnostic, under 120 words total.',
-  },
-  {
-    id: 'metrics',
-    label: 'Metrics',
-    icon: 'metrics',
-    upgraded: true,
-    accent: 'from-cyan-500/22 to-sky-800/20 border-cyan-400/28 shadow-sm shadow-cyan-500/10',
-    hint: 'Asks Lucy to summarize campaign performance and ROI from your data in bullets.',
-    text:
-      'Summarize our latest campaign performance and ROI in bullets: headline insight, 3–5 bullets with numbers only from data, one next step.',
   },
 ];

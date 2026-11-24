@@ -147,7 +147,7 @@ export function EngageTabStrip({ workspace, withLucy = false, lucyLabel = 'Lucy'
           onClick={() => workspace.goTo(t.id)}
           className={cn(
             'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-            workspace.tab === t.id ? 'border-violet-400/60 bg-violet-500/15 text-app' : 'border-white/[0.12] text-app-muted hover:text-app',
+            workspace.tab === t.id ? 'border-violet-400/60 bg-violet-500/15 text-app-text' : 'border-white/[0.12] text-app-muted hover:text-app-text',
           )}
         >
           {t.label}
