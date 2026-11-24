@@ -23,13 +23,10 @@ describe('terminal 234 SQL regressions (schema drift guards)', () => {
     expect(src).toContain("COUNT(*) FILTER (WHERE o.status IN ('accepted', 'rejected'))");
   });
 
-  it('migration adds reimbursement_users.avatar for leaderboard queries', () => {
-    const sql = readFileSync(
-      join(serverSrc, 'migrations', '108_reimbursement_users_avatar.sql'),
-      'utf8',
-    );
-    expect(sql).toMatch(/reimbursement_users/i);
-    expect(sql).toMatch(/avatar/i);
+  it('baseline schema has reimbursement_users.avatar for leaderboard queries', () => {
+    const sql = readFileSync(join(serverSrc, 'migrations', '000_baseline.sql'), 'utf8');
+    const table = /CREATE TABLE public\.reimbursement_users \(([\s\S]*?)\n\);/.exec(sql)?.[1] ?? '';
+    expect(table).toMatch(/\bavatar\b/);
   });
 
   it('game leaderboard uses full_name (reimbursement_users has no name column)', () => {

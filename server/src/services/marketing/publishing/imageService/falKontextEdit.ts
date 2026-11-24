@@ -9,6 +9,7 @@ import { fal } from '@fal-ai/client';
 import { downloadFalImageBytes, extractFalResultImageUrl, getFalApiKey } from './falImageGeneration.js';
 import { prepareReferenceImageDataUriForFal, type PreparedReferenceForFal } from './falReferenceImage.js';
 import { mapDimensionsToFalKontextAspectRatio } from './falKontextAspectRatio.js';
+import { meterAiCall, IMAGE_FALLBACK_COST_USD } from '../../../ai/metering.js';
 
 const DEFAULT_KONTEXT_MODEL = 'fal-ai/flux-pro/kontext';
 
@@ -174,7 +175,7 @@ export interface CallFalKontextImageEditResult {
  * Runs Kontext: reference image is fetched on this server and sent as a data URI so Fal always receives the real pixels
  * (Supabase URLs are not always fetchable from Fal's infrastructure).
  */
-export async function callFalKontextImageEdit(
+async function callFalKontextImageEditCore(
   referenceImageHttpsUrl: string,
   prompt: string,
   options?: CallFalKontextImageEditOptions,
@@ -280,4 +281,10 @@ export async function callFalKontextImageEdit(
   }
 
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+/* Metered entry point (WP-23): one ai_call_telemetry row per image request. */
+
+export function callFalKontextImageEdit(...args: Parameters<typeof callFalKontextImageEditCore>): ReturnType<typeof callFalKontextImageEditCore> {
+  return meterAiCall({ kind: 'image', fallbackCostUsd: IMAGE_FALLBACK_COST_USD }, () => callFalKontextImageEditCore(...args));
 }

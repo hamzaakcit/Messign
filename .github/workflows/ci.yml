@@ -8,8 +8,22 @@ on:
 
 jobs:
   build:
-    name: Type-check and unit tests
+    name: Type-check & test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Matches production (Postgres 17) and ships pgvector, which the baseline schema needs.
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout code
@@ -32,10 +46,43 @@ jobs:
         working-directory: server
         run: npx tsc --noEmit
 
-      - name: Test client
-        working-directory: client
+      - name: Unit tests
         run: npm test
+        env:
+          # Scratch database for the migration and engage tests (they build the schema with the real runner).
+          ENGAGE_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
 
-      - name: Test server
-        working-directory: server
-        run: npm run test:agents
+  production-build:
+    name: Production build
+    runs-on: ubuntu-latest
+    # Reproduces how production builds. Railway installs with NODE_ENV=production, which makes npm skip
+    # dev dependencies, then runs the buildCommand from railway.json. A change that breaks that build
+    # fails here instead of failing silently on Railway after the merge.
+    env:
+      NODE_ENV: production
+      NPM_CONFIG_PRODUCTION: 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install (as Railway's install step)
+        run: npm ci
+
+      - name: Server build (the exact buildCommand from railway.json)
+        run: bash -c "$(jq -r '.build.buildCommand' railway.json)"
+
+      - name: Server output exists
+        run: test -s server/dist/index.js
+
+      - name: Client build (as Vercel)
+        run: npm run build:client
+
+      - name: Client output exists
+        run: test -s client/dist/index.html

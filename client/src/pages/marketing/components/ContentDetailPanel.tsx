@@ -526,7 +526,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
             </button>
             ) : isInstagram ? (
               <p className="text-xs text-app-muted" data-testid="publish-off">
-                Publish is off for {contentTenant.brandName}. Connect Instagram to share this post.
+                Publish is off for {contentTenant.brandName}.
               </p>
             ) : null}
           </div>

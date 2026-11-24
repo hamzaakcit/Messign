@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_FORCE_DIRECT_API?: string;
   /** Unlayer Developer Console → Project → Settings (integer project id). */
   readonly VITE_UNLAYER_PROJECT_ID?: string;
+  /** `workspace` (default), `engage` or `all`. Pair with the server's PRODUCT_SURFACE. */
+  readonly VITE_PRODUCT_SURFACE?: string;
 }
 
 interface ImportMeta {

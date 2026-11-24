@@ -9,6 +9,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { useGameStore } from '@/stores/gameStore';
 import { LeftSidebar } from './LeftSidebar';
+import { effectiveSidebarCollapsed } from './sidebarLayout';
 import { MainContent } from './MainContent';
 import { XPGainNotification, CelebrationOverlay } from '@/components/ui';
 import { CommandSurface, useRecentPages } from '@/components/CommandSurface';
@@ -17,6 +18,8 @@ import { OnboardingWalkthrough } from '@/components/onboarding/OnboardingWalkthr
 import { MorningBriefingToast } from '@/components/dora/MorningBriefingToast';
 import { getSocket, onEmployeeAdded, onEmployeeUpdated, onEmployeeDeleted, onEmployeeBulkImport } from '@/lib/socket';
 import { installChatSocketHandlers } from '@/lib/chatSocketBridge';
+import { isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
+import { useEffectiveSurface } from '@/lib/useEffectiveSurface';
 
 const PATH_TO_VIEW: Record<string, string> = {
   '/': 'dashboard',
@@ -109,6 +112,10 @@ export function AppShell() {
   const user = useAuthStore(s => s.user);
   const updateUser = useAuthStore(s => s.updateUser);
   const { recentPages, trackPage } = useRecentPages();
+  const surface = useEffectiveSurface();
+  const showCompanyOsWidgets = surface !== 'engage';
+  /** Chat, projects, tasks, badges, activities, leaderboard: Company-OS data an engage session has no access to (ADR-017). */
+  const loadsCompanyOsData = mountsFrozenModules(surface);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -149,7 +156,7 @@ export function AppShell() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !loadsCompanyOsData) return;
     if (user.id) fetchChannels(user.id);
     fetchProjects();
     fetchTasks();
@@ -210,10 +217,11 @@ export function AppShell() {
 
     socket.on('employee:updated', handleEmployeeUpdated);
 
-    const unsubAdded = onEmployeeAdded(() => fetchUsers());
-    const unsubUpdated = onEmployeeUpdated(() => fetchUsers());
-    const unsubDeleted = onEmployeeDeleted(() => fetchUsers());
-    const unsubBulkImport = onEmployeeBulkImport(() => fetchUsers());
+    const refetchUsers = () => { if (loadsCompanyOsData) void fetchUsers(); };
+    const unsubAdded = onEmployeeAdded(refetchUsers);
+    const unsubUpdated = onEmployeeUpdated(refetchUsers);
+    const unsubDeleted = onEmployeeDeleted(refetchUsers);
+    const unsubBulkImport = onEmployeeBulkImport(refetchUsers);
 
     return () => {
       unsubChat();
@@ -229,6 +237,7 @@ export function AppShell() {
   }, [updateUser]);
 
   const showSidebar = !focusMode && leftSidebarOpen;
+  const sidebarCollapsed = effectiveSidebarCollapsed(leftSidebarCollapsed, isMobile);
 
   return (
     <div className="h-screen flex bg-app overflow-hidden transition-colors duration-200">
@@ -248,17 +257,17 @@ export function AppShell() {
       <XPGainNotification amount={lastXPGain} show={showXPGain} />
 
       {user && <CelebrationOverlay />}
-      {user && <MorningBriefingToast />}
+      {user && showCompanyOsWidgets && <MorningBriefingToast />}
 
       {/* Left Sidebar */}
       <div
         className={`
-          ${!showSidebar ? 'w-0' : leftSidebarCollapsed ? 'w-16' : 'w-60'}
+          ${!showSidebar ? 'w-0' : sidebarCollapsed ? 'w-16' : 'w-60'}
           ${isMobile ? 'absolute z-40 h-full' : 'relative'}
           transition-all duration-200 ease-out overflow-visible
         `}
       >
-        {showSidebar && <LeftSidebar collapsed={leftSidebarCollapsed} />}
+        {showSidebar && <LeftSidebar collapsed={sidebarCollapsed} />}
       </div>
 
       {/* Main Content */}
@@ -286,8 +295,8 @@ export function AppShell() {
         </div>
       )}
 
-      {user && !isMobile && <FloatingWidget />}
-      {user && <OnboardingWalkthrough />}
+      {user && !isMobile && showCompanyOsWidgets && <FloatingWidget />}
+      {user && showCompanyOsWidgets && <OnboardingWalkthrough />}
 
       {/* Mobile bottom tab bar */}
       {isMobile && user && !focusMode && <MobileTabBar />}
@@ -327,7 +336,7 @@ function MobileTabBar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around h-14 bg-app-sidebar border-t border-app safe-area-bottom">
-      {MOBILE_TABS.map((tab) => {
+      {MOBILE_TABS.filter((tab) => !tab.path || isPathOnSurface(tab.path)).map((tab) => {
         const isActive = tab.id === currentView;
         const Icon = tab.icon;
         return (

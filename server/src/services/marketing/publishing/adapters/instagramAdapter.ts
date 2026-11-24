@@ -13,9 +13,9 @@ import type {
   CalendarRecordForPublish,
   ContentPayloadForPublish,
 } from '../types.js';
-import { instagramPublishMode } from '../instagramPublishMode.js';
 import { ensurePublicInstagramImageUrl } from '../instagramPublicImage.js';
 import { validateInstagramImageUrlStruct, verifyInstagramImageUrlReachable } from './instagramImageUrl.js';
+import { isSendModeLive } from '../adapterUtils.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -44,9 +44,7 @@ export interface InstagramAdapterInput {
   };
   /** Saved for this organization. Env credentials are the fallback. */
   credentials?: { token: string; accountId: string };
-  /**
-   * Studio share. The publisher cron leaves this unset, so SEND_MODE still gates scheduled posts.
-   */
+  /** Studio share: a bad image throws instead of skipping. SEND_MODE still decides whether Graph is called. */
   live?: boolean;
 }
 
@@ -65,7 +63,7 @@ interface MetaPublishResponse {
 export async function publishInstagramPost(
   input: InstagramAdapterInput,
 ): Promise<AdapterPublishSuccess> {
-  const caption = stripHtml(input.content.body ?? input.content.body_html ?? '');
+  const caption = instagramCaptionFromBody(stripHtml(input.content.body ?? input.content.body_html ?? ''));
   const imageUrl = input.content.image_url ?? null;
 
   if (!imageUrl?.trim()) {
@@ -73,9 +71,8 @@ export async function publishInstagramPost(
     return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
   }
 
-  // The cron stays on SEND_MODE. A studio share passes live after the org connected an account.
-  const live = input.live === true || instagramPublishMode() === 'live';
-  if (!live) {
+  // Every network send goes through SEND_MODE, including a studio share with saved credentials.
+  if (!isSendModeLive()) {
     return publishMock({ caption, imageUrl, calendarId: input.calendar.id });
   }
 
@@ -232,6 +229,24 @@ function publishMock(args: {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * The draft body holds the whole strategist output: a "[DRAFT — Pending Review]" line, the caption, and internal
+ * sections (A/B hook notes, review notes, checks). Only the caption (with its hashtags) may go public.
+ * Throws if internal markers are still present after cutting, so an internal note can never be posted.
+ */
+export function instagramCaptionFromBody(raw: string): string {
+  let text = raw.replace(/\[DRAFT\s*[—-]\s*Pending Review\]\s*This has not been published\.?/gi, '');
+  text = text.replace(/\*\*Caption\*\*/i, '');
+  const internal = text.search(/\*\*\s*(A\/B|Notes for review|Checks|Scheduling|Product truth)/i);
+  if (internal >= 0) text = text.slice(0, internal);
+  text = text.replace(/\*\*/g, '').trim();
+  if (/\[DRAFT|Notes for review|Pending Review|A\/B hook/i.test(text)) {
+    throw new Error('Caption still contains internal draft notes; not publishing.');
+  }
+  if (!text) throw new Error('Caption is empty; not publishing.');
+  return text;
+}
 
 function stripHtml(text: string): string {
   return text.replace(/<[^>]+>/g, '').trim();

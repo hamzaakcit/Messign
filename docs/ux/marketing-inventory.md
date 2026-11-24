@@ -1,5 +1,7 @@
 # Marketing Inventory
 
+> **Update 2026-11-24 (merge with `origin/main`):** this inventory was taken on a checkout 133 commits behind `origin/main`. After the merge, `/marketing` also carries the Engage sections (WP-37, ADR-016) for an organization that may use Engage. They appear as tabs after **Offers** (Customers, Journeys, Campaigns, Segments, Templates, Settings for admins), with their create actions under **More** and their record panels over the page. Upstream's "Go to" tiles were dropped because they duplicate the tabs. Engage screens themselves (`client/src/engage/**`) are not covered by this audit.
+>
 > **Update 2026-11-24 (later the same day):** rows 7–11 (Intel, Brand & social, Funnel, Campaigns & lab, Lucy sandbox), the CEO dashboard, Builder's landing-page and popup types, the calendar funnel strip, and Atomize were **removed from the client**. Their paths redirect to `/marketing` (pages and popups go to Builder). The backend is unchanged. The table below is the state before that removal.
 
 **As of:** 2026-11-24, `main`. Session UX-A, read-only. Scope: `client/src/pages/marketing/**` (≈190 files, **35,942 LOC** per `find … | wc -l`, excluding `*.test.*`).

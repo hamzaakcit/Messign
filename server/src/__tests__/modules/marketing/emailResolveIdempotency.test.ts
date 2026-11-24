@@ -1,10 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getCachedEmailResolve,
   setCachedEmailResolve,
   getCachedEmailResolveAsync,
   setCachedEmailResolveAsync,
 } from '../../../routes/marketing/emailResolveIdempotency.js';
+
+vi.mock('../../../queue/connection.js', () => ({
+  redisConnection: {
+    get: vi.fn().mockRejectedValue(new Error('Redis unavailable')),
+    setex: vi.fn().mockRejectedValue(new Error('Redis unavailable')),
+  },
+}));
 
 describe('emailResolveIdempotency', () => {
   const body = { images: {}, ok: true };

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  EngagePanels, EngageQuickActions, EngageSectionBody, EngageTabStrip, useEngageAccess, useEngageWorkspace,
+} from '@/engage/engageWorkspace';
 import { ROUTES } from '@/lib/routes';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
@@ -18,6 +21,9 @@ const MORE_LINKS: Array<{ label: string; path: string }> = [
 
 /**
  * Shop counter at `/marketing`. Offers for the selected shop. Lucy stays closed until asked.
+ *
+ * Where the organization may use engage (ADR-016), the same page carries the engage sections as tabs after Offers,
+ * their create actions under More, and their record panels.
  */
 export function LucyMarketingPage(): JSX.Element {
   const ctx = useMarketingContext();
@@ -30,6 +36,9 @@ export function LucyMarketingPage(): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [lucyOpen, setLucyOpen] = useState(false);
+  const engage = useEngageAccess();
+  const workspace = useEngageWorkspace('lucy', engage.isAdmin);
+  const onOffers = !engage.available || workspace.tab === 'lucy';
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -103,47 +112,65 @@ export function LucyMarketingPage(): JSX.Element {
           </button>
         </header>
         {moreOpen ? (
-          <nav aria-label="More" className="flex flex-wrap gap-3 border-b border-[#e7e0d6] px-4 py-2">
-            {MORE_LINKS.map((link) => (
-              <button
-                key={link.path}
-                type="button"
-                className="text-sm"
-                onClick={() => navigate(link.path)}
-              >
-                {link.label}
-              </button>
-            ))}
-          </nav>
+          <div className="border-b border-[#e7e0d6] px-4 py-2">
+            <nav aria-label="More" className="flex flex-wrap gap-3">
+              {MORE_LINKS.map((link) => (
+                <button
+                  key={link.path}
+                  type="button"
+                  className="text-sm"
+                  onClick={() => navigate(link.path)}
+                >
+                  {link.label}
+                </button>
+              ))}
+            </nav>
+            {engage.available ? (
+              <div className="mt-2 grid max-w-md grid-cols-2 gap-1.5 rounded-xl bg-[#0a0c12] p-2 text-app-text" data-testid="engage-create">
+                <EngageQuickActions workspace={workspace} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {engage.available ? (
+          <div className="border-b border-white/[0.08] bg-[#0a0c12] px-4 py-2">
+            <EngageTabStrip workspace={workspace} withLucy lucyLabel="Offers" />
+          </div>
         ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
-          <div className="mx-auto w-full max-w-xl">
-            <h1 className="text-lg font-medium">{setup.brandName}</h1>
-            {loading ? <p className="mt-4 text-sm text-[#78716c]">Loading offers</p> : null}
-            {loadError ? (
-              <div className="mt-4 rounded-2xl border border-[#e7e0d6] bg-white p-5">
-                <p className="text-sm text-red-700">{loadError}</p>
-                <button type="button" className="mt-3 text-sm" onClick={() => void load()}>
-                  Try again
-                </button>
-              </div>
-            ) : null}
-            {!loading && !loadError && rows.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-[#e7e0d6] bg-white p-5">
-                <p className="text-sm text-[#78716c]">No offers for {setup.brandName}.</p>
-                <button type="button" className="mt-3 text-sm" onClick={() => navigate(ROUTES.MARKETING_OFFER_NEW)}>
-                  New offer
-                </button>
-              </div>
-            ) : null}
-            <ul className="mt-4 space-y-4">
-              {rows.map((row) => (
-                <li key={row.offer.id}>
-                  <OfferLine row={row} onOpen={() => ctx.openDetail({ type: 'content', id: row.offer.id })} />
-                </li>
-              ))}
-            </ul>
-          </div>
+          {onOffers ? (
+            <div className="mx-auto w-full max-w-xl">
+              <h1 className="text-lg font-medium">{setup.brandName}</h1>
+              {loading ? <p className="mt-4 text-sm text-[#78716c]">Loading offers</p> : null}
+              {loadError ? (
+                <div className="mt-4 rounded-2xl border border-[#e7e0d6] bg-white p-5">
+                  <p className="text-sm text-red-700">{loadError}</p>
+                  <button type="button" className="mt-3 text-sm" onClick={() => void load()}>
+                    Try again
+                  </button>
+                </div>
+              ) : null}
+              {!loading && !loadError && rows.length === 0 ? (
+                <div className="mt-4 rounded-2xl border border-[#e7e0d6] bg-white p-5">
+                  <p className="text-sm text-[#78716c]">No offers for {setup.brandName}.</p>
+                  <button type="button" className="mt-3 text-sm" onClick={() => navigate(ROUTES.MARKETING_OFFER_NEW)}>
+                    New offer
+                  </button>
+                </div>
+              ) : null}
+              <ul className="mt-4 space-y-4">
+                {rows.map((row) => (
+                  <li key={row.offer.id}>
+                    <OfferLine row={row} onOpen={() => ctx.openDetail({ type: 'content', id: row.offer.id })} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="mx-auto w-full max-w-5xl rounded-2xl border border-white/[0.08] bg-[#0a0c12] p-4 text-app-text">
+              <EngageSectionBody workspace={workspace} />
+            </div>
+          )}
         </div>
       </div>
       {lucyOpen ? (
@@ -159,6 +186,7 @@ export function LucyMarketingPage(): JSX.Element {
           />
         </div>
       ) : null}
+      {engage.available ? <EngagePanels workspace={workspace} /> : null}
     </ViewportWrapper>
   );
 }

@@ -4,6 +4,15 @@
  */
 import { AdapterHttpError } from './types.js';
 
+/**
+ * Single send gate for legacy marketing adapters (ADR-004). `SEND_MODE` defaults to
+ * `off` — any value other than exactly `live` (including unset, `sandbox`, or a typo)
+ * keeps every adapter in mock mode regardless of configured credentials.
+ */
+export function isSendModeLive(): boolean {
+  return process.env.SEND_MODE === 'live';
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export interface RetryOptions {

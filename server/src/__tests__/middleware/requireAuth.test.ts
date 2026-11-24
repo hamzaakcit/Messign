@@ -36,15 +36,12 @@ function mockRes(): Response {
   return res as Response;
 }
 
-const originalEnv = process.env.NODE_ENV;
-
 afterEach(() => {
   vi.clearAllMocks();
-  process.env.NODE_ENV = originalEnv;
 });
 
 describe('requireAuth', () => {
-  it('returns 401 when no userId', async () => {
+  it('returns 401 when no userId is set on the request', async () => {
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -56,16 +53,16 @@ describe('requireAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('ignores X-User-Id and returns 401 without a session', async () => {
-    const req = mockReq({ headers: { 'x-user-id': 'dev-user-123' } });
+  it('never accepts an X-User-Id header — only req.userId set upstream by JWT auth', async () => {
+    const req = mockReq({ headers: { 'x-user-id': 'attacker-supplied-id' } });
     const res = mockRes();
     const next = vi.fn();
 
     await requireAuth(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(next).not.toHaveBeenCalled();
     expect(mockedQuery).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
   });
 
   it('returns 403 with USER_NOT_PROVISIONED when user not found in DB', async () => {

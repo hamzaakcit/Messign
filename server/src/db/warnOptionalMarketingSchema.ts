@@ -35,7 +35,7 @@ export async function warnOptionalMarketingSchemaIfMissing(): Promise<void> {
       console.warn(`[DB]   · missing ${m}`);
     }
     console.warn(
-      '[DB] Fix: from repo root run: npm run db:migrate && npm run db:migrate-runner',
+      '[DB] Fix: from repo root run: npm run db:migrate',
     );
   } catch (err) {
     console.warn('[DB] Could not verify optional marketing schema:', err);

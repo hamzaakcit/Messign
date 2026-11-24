@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { isNavItemOnSurface, mountsFrozenModules, type ProductSurface } from '@/lib/productSurface';
+import { useEffectiveSurface } from '@/lib/useEffectiveSurface';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -79,7 +81,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+const ALL_NAV_GROUPS: NavGroup[] = [
   {
     key: 'core',
     label: 'Core',
@@ -131,20 +133,23 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
-
-/** Only ids that exist in the current nav (drops removed modules e.g. legacy `time` from localStorage). */
-const VALID_PINNABLE_IDS = new Set(ALL_NAV_ITEMS.map((n) => n.id));
+/** The nav for a surface: engage shows only what it has (marketing, settings); the other surfaces show everything. */
+export function navGroupsFor(surface: ProductSurface): NavGroup[] {
+  return ALL_NAV_GROUPS
+    .map((group) => ({ ...group, items: group.items.filter((item) => isNavItemOnSurface(item.id, surface)) }))
+    .filter((group) => group.items.length > 0);
+}
 
 const PINNED_KEY = 'pinned-nav';
 const COLLAPSED_GROUPS_KEY = 'sidebar-collapsed-groups';
 
-function getPinnedItems(): string[] {
+/** Only ids that exist in the current nav (drops removed modules e.g. legacy `time` from localStorage). */
+function getPinnedItems(valid: ReadonlySet<string>): string[] {
   try {
     const raw = localStorage.getItem(PINNED_KEY);
     if (!raw) return [];
     const ids = JSON.parse(raw) as string[];
-    const filtered = ids.filter((id) => VALID_PINNABLE_IDS.has(id));
+    const filtered = ids.filter((id) => valid.has(id));
     if (filtered.length !== ids.length) savePinnedItems(filtered);
     return filtered;
   } catch {
@@ -200,7 +205,10 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   const reimbContext = useReimbursementContext();
   const [personalDetailOpen, setPersonalDetailOpen] = useState(false);
   const [insightCounts, setInsightCounts] = useState<Record<string, number>>({});
-  const [pinnedIds, setPinnedIds] = useState<string[]>(getPinnedItems);
+  const surface = useEffectiveSurface();
+  const navGroups = useMemo(() => navGroupsFor(surface), [surface]);
+  const allNavItems = useMemo(() => navGroups.flatMap((g) => g.items), [navGroups]);
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() => getPinnedItems(new Set(allNavItems.map((n) => n.id))));
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<string[]>(getCollapsedGroups);
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -242,7 +250,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !mountsFrozenModules()) return; // Dora insights are frozen on engage (ADR-009)
     const userId = user.authUserId || user.id;
     if (!userId) return;
 
@@ -270,7 +278,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   if (!user) return null;
 
   const pinnedItems = pinnedIds
-    .map((id) => ALL_NAV_ITEMS.find((n) => n.id === id))
+    .map((id) => allNavItems.find((n) => n.id === id))
     .filter((n): n is NavItem => !!n);
 
   const renderNavButton = (navItem: NavItem, showPinAction: boolean) => {
@@ -425,7 +433,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
         )}
         aria-label="Main navigation"
       >
-        {NAV_GROUPS.map((group) => {
+        {navGroups.map((group) => {
           const isGroupCollapsed = collapsedGroupKeys.includes(group.key);
           const hasActiveItem = group.items.some((i) => i.id === currentView);
 

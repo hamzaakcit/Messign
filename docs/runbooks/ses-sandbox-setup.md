@@ -1,0 +1,81 @@
+# Connecting an Amazon SES sandbox account (WP-12, D-05)
+
+The email channel is built and tested against a faked SES. To send for real you create the AWS side yourself (Messign never creates accounts) and store it as an engage channel account. In SES **sandbox** mode, AWS only delivers to addresses you have verified, which is what D-05 wants: real sends only to your own test inboxes.
+
+Everything below happens in one AWS region. The examples use `eu-central-1` (Frankfurt).
+
+## 1. AWS side
+
+1. **Verify a sender identity.** SES console → *Identities* → *Create identity*. Use your own test domain (preferred; add the DKIM records it shows, and an SPF and DMARC record) or a single address. This becomes `from_address`.
+2. **Verify each recipient.** In sandbox mode SES delivers only to verified identities. Add every test inbox you will send to (an *Email address* identity each) and click the link AWS sends.
+3. **Create an SNS topic** for delivery reports, e.g. `messign-ses-events` (Standard type). Note its ARN: `arn:aws:sns:eu-central-1:<account-id>:messign-ses-events`.
+4. **Point SES notifications at the topic.** On the sender identity → *Notifications* → set Bounce, Complaint and Delivery feedback to the topic. Leave "include original headers" off (Messign does not need them, and they contain addresses).
+   *Alternative:* a configuration set with an SNS event destination (Send, Reject, Delivery, Bounce, Complaint, Rendering failure). Then also set `configuration_set` in step 2.2.
+5. **Create an IAM user for sending only**, with this policy, and create an access key for it:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{ "Effect": "Allow", "Action": "ses:SendEmail", "Resource": "*" }]
+   }
+   ```
+   (`Resource` can be narrowed to the identity ARN and configuration set ARN.)
+
+## 2. Messign side
+
+1. **Production must have migrations 116, 117 and 118 applied** (`npm run db:migrate` with the admin URL, as before).
+2. **Create the tenant if none exists** (`SELECT id, name FROM organizations WHERE product='engage'` returns nothing). From `server/`, with `DATABASE_ADMIN_URL` in the environment:
+   ```bash
+   npm run engage:provision -- --name "Demo Kitap" --slug demo-kitap --admin-email you@example.com --admin-name "Demo Admin"
+   ```
+   It prints the organization id and a one-time temporary password for the admin (shown in your terminal only; change it at first login).
+3. **Store the account** as a tenant admin of the demo tenant, `POST /api/engage/channel-accounts`:
+   ```json
+   {
+     "channel": "email",
+     "provider": "ses",
+     "mode": "test",
+     "label": "SES sandbox",
+     "config": {
+       "region": "eu-central-1",
+       "from_address": "hello@your-test-domain.example",
+       "from_name": "Demo Kitap",
+       "sns_topic_arn": "arn:aws:sns:eu-central-1:<account-id>:messign-ses-events"
+     },
+     "secrets": { "access_key_id": "AKIA…", "secret_access_key": "…" }
+   }
+   ```
+   The response contains the account `id`. The secret is encrypted with `ENGAGE_MASTER_KEY` and never returned again.
+   `mode` must be `test` for `SEND_MODE=sandbox`; the gate refuses a `live` account in sandbox and a `test` account in live.
+   **No tenant-admin token handy? Use the operator script** (the secret is typed at a hidden prompt, so it never appears in shell history or chat). From `server/`, with the production `ENGAGE_DATABASE_URL`, `ENGAGE_MASTER_KEY` and `ENGAGE_MASTER_KEY_ID` in the environment (the master key MUST be the production one, or the server cannot decrypt what you store):
+   ```bash
+   npm run engage:add-account -- --org <org uuid> --channel email --provider ses --mode test --label "SES sandbox" \
+     --config region=eu-central-1 --config from_address=hello@messign.com --config from_name="Demo Kitap" \
+     --config sns_topic_arn=arn:aws:sns:eu-central-1:<account-id>:messign-ses-events \
+     --secret access_key_id --secret secret_access_key
+   ```
+   It prints the account id and the webhook path. To load variables from another `.env`: `DOTENV_CONFIG_PATH=/path/to/server/.env npm run engage:add-account -- ...`
+4. **Subscribe the webhook.** SNS console → the topic → *Create subscription* → protocol **HTTPS**, endpoint:
+   `https://<your-railway-host>/api/engage/webhooks/<account id>`
+   Messign verifies SNS's signed confirmation message and confirms the subscription by itself; the subscription shows *Confirmed* within seconds. If it stays *Pending*, check that the topic ARN in the account config matches exactly (anything from another topic is refused with 401).
+5. **Gate configuration for the tenant** (Settings screen since WP-22; the allow-list has its own script):
+   - Settings > Sender name: set it, and make the account's `from_name` (step 2.3) the same text. A difference denies every message with `sender_identity_mismatch`.
+   - Settings > Budget caps and rates: an email rate card per purpose and a monthly cap.
+   - Settings > Sending > **Turn sending on** once the card lists nothing missing (it refuses while anything is, and says what).
+   - Each recipient on the sandbox allow-list, matching the addresses verified in step 1.2 (operator terminal, no screen yet):
+     `npm run engage:allowlist -- add --org <org uuid> --channel email --value you@example.com --label "own inbox"` (repeat `--value`; `list` and `remove` also exist).
+6. **Set `SEND_MODE=sandbox`** on the server. Off is the default; live is not for this account.
+
+7. **Unsubscribe links (WP-13), for marketing email.** Set on the server: `ENGAGE_PUBLIC_APP_URL` (where the web app is served, `https`, for example `https://www.messign.com`; the earlier `https://messign.vercel.app` still works but is not the address to put in emails) and `ENGAGE_PUBLIC_API_URL` (this API from the internet, `https`, for example `https://server-production-7283.up.railway.app`). Without both, building the links fails on purpose. Callers build the two links per recipient with `buildUnsubscribeLinks` and put them in the message content: `unsubscribe_url` (the page link, also in the body) and `unsubscribe_one_click_url` (becomes the `List-Unsubscribe` header). A person who opens the page confirms with a button; a mail client's "unsubscribe" button posts straight to the API. Both write the same opt-out, effective for the very next send. To try it: send a marketing test message to your verified inbox, open the link, confirm, and check the next message to that address is blocked (`suppressed`).
+
+## 3. What happens then
+
+- A dispatched message goes through the send gate (consent, suppression, allow-list, budget, content), then to SES. The SES `MessageId` is stored on the message.
+- SES publishes Delivery, Bounce and Complaint to the topic; SNS posts them to the webhook. A hard bounce or a complaint suppresses the address for that tenant immediately, so the gate denies the next send to it.
+- Webhook responses: 200 verified, 401 bad signature or wrong topic, 404 unknown account, or one disabled without an active replacement (rotating credentials keeps the subscription's URL working: it follows the account to its replacement), 503 cannot fetch AWS's signing certificate right now, or the report names a message not recorded yet (SNS retries). The second case is real: SES reported delivery within a second of accepting the message, before Messign had stored the SES message id. Answering 200 there lost the report (first real send, 2026-11-08); 503 makes SNS retry (default: 3 retries, 20 s apart).
+
+## Limits and honest notes
+
+- SES has no idempotency key. If the server dies after SES accepted a message but before Messign recorded it, the retry can send the email twice.
+- A soft bounce is reported by SES only when it has given up; the message is marked failed and the address is **not** suppressed.
+- Marketing mail needs the unsubscribe links (section 2.7); transactional mail needs none.
+- Nothing here has been run against real AWS. The request format and the SNS signature scheme follow the AWS documentation (cited in `server/src/engage/messaging/sesAdapter.ts`), and request signing matches AWS's published SigV4 test vector, but the first real send is the first end-to-end proof.

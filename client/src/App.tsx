@@ -8,7 +8,11 @@ import { AdminGuard } from '@/admin/AdminGuard';
 import { ReimbursementProvider } from '@/contexts/ReimbursementContext';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignUpPage } from '@/pages/SignUpPage';
+import { UnsubscribePage } from '@/engage/UnsubscribePage';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
+import { ENGAGE_HOME_PATH, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
+import { useEffectiveSurface } from '@/lib/useEffectiveSurface';
+import { SurfaceGate } from '@/engage/SurfaceGate';
 
 const AdminLayout = lazy(() => import('@/admin/layouts/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const AdminDashboard = lazy(() => import('@/admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -59,12 +63,26 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 function MainApp() {
+  // Which surface this session runs on is decided before any page is drawn (ADR-017).
+  return <SurfaceGate><MainAppPages /></SurfaceGate>;
+}
+
+function MainAppPages() {
   const { user } = useAuthStore();
+  const { pathname } = useLocation();
+  useEffectiveSurface(); // re-render if the session is narrowed to the engage surface
 
   /** AuthGuard should guarantee `user`; if not, recover instead of an infinite "Restoring session…". */
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
+  if (!isPathOnSurface(pathname)) {
+    return <Navigate to={ENGAGE_HOME_PATH} replace />;
+  }
+
+  // Reimbursements are a frozen Company-OS module; on engage there is nothing to load (callers read the context with ?.).
+  if (!mountsFrozenModules()) return <AppShell />;
 
   return (
     <ReimbursementProvider>
@@ -141,6 +159,8 @@ function App() {
       <Routes>
         <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        {/* Public, no sign-in: the signed token in the link is the credential (engage unsubscribe, WP-13). */}
+        <Route path="/u/:token" element={<UnsubscribePage />} />
         <Route path="/force-password-change" element={<RequireAuth><ForcePasswordChangePage /></RequireAuth>} />
         <Route path="/approvals" element={<Navigate to="/admin/reimbursements" replace />} />
         <Route path="/notifications" element={<AuthGuard><Navigate to="/dashboard" replace /></AuthGuard>} />

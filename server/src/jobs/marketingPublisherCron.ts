@@ -1,24 +1,21 @@
 import cron from 'node-cron';
 import { runMarketingPublisherTick } from '../services/marketing/marketingPublisherService.js';
-
-/**
- * The publisher cron stays off unless this is exactly `1`.
- * Unset, `0`, and any other value do not schedule sends.
- */
-export function marketingPublisherEnabled(
-  value: string | undefined = process.env.MARKETING_PUBLISHER_ENABLED,
-): boolean {
-  return value === '1';
-}
+import { isSendModeLive } from '../services/marketing/publishing/adapterUtils.js';
 
 /**
  * Runs every minute — claim due calendar rows and push to external adapters.
- * Stays off unless `MARKETING_PUBLISHER_ENABLED=1`.
+ * Default OFF (ADR-004); enable with `MARKETING_PUBLISHER_ENABLED=1`.
  */
 export function startMarketingPublisherCron(): void {
-  if (!marketingPublisherEnabled()) {
-    console.log('[MarketingPublisherCron] Off (set MARKETING_PUBLISHER_ENABLED=1 to schedule)');
+  if (process.env.MARKETING_PUBLISHER_ENABLED !== '1') {
+    console.log('[MarketingPublisherCron] Disabled by default — set MARKETING_PUBLISHER_ENABLED=1 to enable');
     return;
+  }
+
+  if (!isSendModeLive()) {
+    console.warn(
+      '[MarketingPublisherCron] SEND_MODE is not "live": every adapter returns a mock result, so due posts are marked published without being sent. Set SEND_MODE=live to send for real, or unset MARKETING_PUBLISHER_ENABLED.',
+    );
   }
 
   cron.schedule(

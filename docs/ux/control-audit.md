@@ -1,6 +1,8 @@
 # Control Audit
 
-> **Update 2026-11-24 (UX-01 done):** all Frozen-feature controls (#6, #9, #10, command center, Intel, funnel strip) are removed. All Mock controls (#1–#5) are removed. No-op #7 (campaign Edit) is removed. #8 (review→ready on a content card) now shows "This card can't move there." The Builder image Generate was **not** a visible No-op; the editor never registers it without a callback, so this audit overcounted it. The "Build email layout" duplicate banner is removed. Still open: duplicates #1–#3 and #8–#10 in `duplication-map.md`, the Lucy composer channel tiles, and the Instagram test-publish safety finding.
+> **Update 2026-11-24 (UX-01 done):** all Frozen-feature controls (#6, #9, #10, command center, Intel, funnel strip) are removed. All Mock controls (#1–#5) are removed. No-op #7 (campaign Edit) is removed. #8 (review→ready on a content card) now shows "This card can't move there." The Builder image Generate was **not** a visible No-op; the editor never registers it without a callback, so this audit overcounted it. The "Build email layout" duplicate banner is removed. Still open: duplicates #1–#3 and #8–#10 in `duplication-map.md`, and the Lucy composer channel tiles.
+>
+> **Update 2026-11-24 (merge with `origin/main`):** the Instagram test-publish safety finding is closed. The adapter now calls Graph only when `SEND_MODE=live`; a saved organization token no longer bypasses that (upstream WP-01 gate kept, `instagramPublishMode.test.ts` updated). "Publish is off for …" no longer tells the user to connect Instagram, because no screen does that.
 
 **As of:** 2026-11-24, `main`. Session UX-A, read-only. **The trace was static:** every control was followed from its handler to `client/src/lib/marketingApi/*` to `server/src/routes/marketing/*.ts` and then to the DAL or service. Nothing was click-tested against a running backend. Disputed claims were re-read in source (marked ✔).
 

@@ -4,6 +4,9 @@ import { useLocation } from 'react-router-dom';
 import { PageSkeleton } from '@/components/ui';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Header } from './Header';
+import { MarketingEntry } from '@/engage/MarketingEntry';
+
+const EngageHub = React.lazy(() => import('@/engage/EngageHub').then((m) => ({ default: m.EngageHub })));
 
 const DashboardView = React.lazy(() => import('@/pages/DashboardView').then((m) => ({ default: m.DashboardView })));
 const ChatView = React.lazy(() => import('@/pages/ChatView').then((m) => ({ default: m.ChatView })));
@@ -79,7 +82,9 @@ export function MainContent() {
       case 'crm':
         return wrap('crm', <CRMLayout />);
       case 'marketing':
-        return wrap('marketing', <MarketingLayout />);
+        // One page for Lucy and engage (ADR-016): the organization decides whether it is the Lucy page, which then holds the
+        // engage sections too, or the engage page alone (tenants: the Company-OS Lucy page is frozen for them, ADR-009).
+        return wrap('marketing', <MarketingEntry lucy={<MarketingLayout />} hub={<EngageHub />} />);
       case 'recruitment':
         return wrap('recruitment', <RecruitmentLayout />);
       case 'support':

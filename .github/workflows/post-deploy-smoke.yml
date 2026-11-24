@@ -1,0 +1,63 @@
+name: Post-deploy smoke
+
+# Railway reports each deploy as a commit status ("<project> - server"). This workflow reacts to it:
+#  - deploy FAILED  -> this workflow fails, so GitHub notifies you (a broken deploy otherwise goes unnoticed
+#                      while the old version keeps running)
+#  - deploy SUCCEEDED -> smoke checks against production (scripts/smoke-production.sh)
+# The `status` trigger only works from the default branch, so this takes effect once merged to main.
+# Settings (optional repository variables): PRODUCTION_API_URL, EXPECT_ENGAGE ("false" if engage is off).
+on:
+  status:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Production API base URL (defaults to the PRODUCTION_API_URL variable)"
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  DEFAULT_API_URL: https://server-production-7283.up.railway.app
+
+jobs:
+  deploy-failed:
+    name: Railway deploy failed
+    if: >-
+      github.event_name == 'status' &&
+      contains(github.event.context, 'server') &&
+      (github.event.state == 'failure' || github.event.state == 'error') &&
+      contains(github.event.branches.*.name, 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the failed deploy
+        env:
+          CONTEXT: ${{ github.event.context }}
+          STATE: ${{ github.event.state }}
+          SHA: ${{ github.event.sha }}
+          TARGET_URL: ${{ github.event.target_url }}
+        run: |
+          echo "::error title=Railway deploy failed::$CONTEXT reported '$STATE' for $SHA. The previous version is still running. Details: $TARGET_URL"
+          exit 1
+
+  smoke:
+    name: Production smoke checks
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'status' &&
+       contains(github.event.context, 'server') &&
+       github.event.state == 'success' &&
+       contains(github.event.branches.*.name, 'main'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run smoke checks
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || vars.PRODUCTION_API_URL || env.DEFAULT_API_URL }}
+          EXPECT_ENGAGE: ${{ vars.EXPECT_ENGAGE }}
+        run: |
+          flag="--engage"
+          if [ "$EXPECT_ENGAGE" = "false" ]; then flag="--no-engage"; fi
+          scripts/smoke-production.sh "$BASE_URL" "$flag" --timeout 240

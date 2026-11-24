@@ -92,8 +92,25 @@ describe('instagram publish mode', () => {
     expect(graphCalls(fetchSpy).length).toBeGreaterThan(0);
   });
 
-  it('a studio share calls Graph when the organization saved credentials, even if SEND_MODE is unset', async () => {
+  it('a studio share with saved credentials stays on mock when SEND_MODE is unset', async () => {
     delete process.env.SEND_MODE;
+    delete process.env.META_GRAPH_ACCESS_TOKEN;
+    delete process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const result = await publishInstagramPost({
+      calendar: CALENDAR,
+      content: CONTENT,
+      live: true,
+      credentials: { token: 'org-token', accountId: '17840000000000000' },
+    });
+
+    expect(result.externalPostId).toMatch(/^ig_mock_/);
+    expect(graphCalls(fetchSpy)).toHaveLength(0);
+  });
+
+  it('a studio share uses the organization credentials when SEND_MODE is live', async () => {
+    process.env.SEND_MODE = 'live';
     delete process.env.META_GRAPH_ACCESS_TOKEN;
     delete process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {

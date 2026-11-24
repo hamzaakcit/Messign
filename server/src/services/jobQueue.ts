@@ -16,6 +16,19 @@ export const JOB_NAMES = {
   DASHBOARD_SNAPSHOT: 'marketing/dashboard-snapshot',
   /** Weekly email performance aggregation for Content Strategist calibration (Phase 7). */
   CALIBRATION_SNAPSHOT: 'marketing/calibration-snapshot',
+  /** Engage CSV import (ADR-003). */
+  ENGAGE_IMPORT: 'engage/import',
+  /** Engage journey executor tick (WP-16): drains the trigger outbox and runs due enrollments. */
+  ENGAGE_JOURNEY_TICK: 'engage/journey-tick',
+  /** Engage: create the coming days' event partitions ahead of time (hourly). */
+  ENGAGE_PARTITIONS: 'engage/partition-maintenance',
+  /** Engage: look again at the SPF, DKIM and DMARC records of tenants whose email domain item is set (hourly). */
+  ENGAGE_EMAIL_DOMAIN_RECHECK: 'engage/email-domain-recheck',
+  /** Engage: push the tenants' opt-outs to İYS and pull recipients' consent changes from İYS (every ten minutes). */
+  ENGAGE_IYS_SYNC: 'engage/iys-sync',
+  /** Engage: the ops check (WP-29): measure every tenant that can be sending, keep alerts in line, tell the operators (every five minutes). */
+  ENGAGE_OPS_CHECK: 'engage/ops-check',
+  ENGAGE_WHATSAPP_TEMPLATE_CHECK: 'engage/whatsapp-template-check',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -67,6 +80,14 @@ async function ensureJobQueuesExist(pgBoss: PgBoss): Promise<void> {
       throw err;
     }
   }
+}
+
+/** Jobs of queues whose name starts with `prefix` that used up their retries (state `failed`) in the last `hours`, by queue name. */
+export async function failedJobCounts(prefix: string, hours: number): Promise<Record<string, number>> {
+  const r = await getQueue().getDb().executeSql(
+    `SELECT name, count(*)::int AS n FROM pgboss.job WHERE name LIKE $1 AND state = 'failed' AND completed_on > now() - make_interval(hours => $2) GROUP BY name ORDER BY name`,
+    [`${prefix.replace(/[%_\\]/g, '\\$&')}%`, hours]);
+  return Object.fromEntries((r.rows as Array<{ name: string; n: number }>).map((x) => [x.name, x.n]));
 }
 
 /** Get the running pg-boss instance. Throws if not initialized. */
@@ -143,6 +164,12 @@ export async function enqueueJob(
     console.error(`[JobQueue] Enqueue failed for ${jobName}:`, message);
     return null;
   }
+}
+
+/** Run a job on a cron schedule (pg-boss keeps one schedule per name, so calling this on every boot is safe). */
+export async function scheduleJob(jobName: JobName, cron: string, data: Record<string, unknown> = {}): Promise<void> {
+  await getQueue().schedule(jobName, cron, data);
+  console.info(`[JobQueue] Scheduled ${jobName} (${cron})`);
 }
 
 /** Cancel a job by queue name and ID. */

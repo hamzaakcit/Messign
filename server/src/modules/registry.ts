@@ -7,6 +7,7 @@ import type { PlatformModule, ToolRegistration } from './types.js';
 import { registerTool, finalizeRegistry } from '../services/ai/toolRegistry.js';
 import type { Tool, ToolParameterProperty, ToolResult } from '../services/ai/types.js';
 import { eventBus } from '../platform/eventBus.js';
+import { isModuleOnSurface } from '../config/productSurface.js';
 
 // Import all modules
 import { crmModule } from './crm/index.js';
@@ -151,7 +152,7 @@ function registerToolFromModule(reg: ToolRegistration): void {
 }
 
 export async function initializeModules(app: Express): Promise<void> {
-  for (const mod of modules) {
+  for (const mod of modules.filter((m) => isModuleOnSurface(m.namespace))) {
     // 1. Register tools
     const tools = mod.registerTools();
     for (const tool of tools) {
@@ -185,6 +186,7 @@ export function getModulePrompt(namespace: string, userRole: string): string | n
 export function getAccessibleModules(userRoles: string[]): PlatformModule[] {
   return modules.filter(
     (mod) =>
-      mod.requiredRoles.length === 0 || mod.requiredRoles.some((r) => userRoles.includes(r)),
+      isModuleOnSurface(mod.namespace) &&
+      (mod.requiredRoles.length === 0 || mod.requiredRoles.some((r) => userRoles.includes(r))),
   );
 }

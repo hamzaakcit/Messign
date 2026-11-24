@@ -936,8 +936,7 @@ router.post('/:id/test-publish', async (req: ReimbursementRequest, res: Response
     }
     const orgId = ctx.organizationId;
     const saved = orgId ? await getInstagramCredentials(orgId) : null;
-    const live = Boolean(saved) || instagramPublishMode() === 'live';
-    const mode = live ? 'live' : 'mock';
+    const mode = instagramPublishMode();
     const result = await publishInstagramPost({
       calendar: {
         id: content.id,

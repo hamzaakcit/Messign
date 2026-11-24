@@ -4,8 +4,7 @@
  */
 import type { AdapterPublishSuccess, CalendarRecordForPublish, ContentPayloadForPublish } from '../types.js';
 import { AdapterHttpError } from '../types.js';
-import { withTransientRetry, errorFromResponse } from '../adapterUtils.js';
-import { legacyNetworkSendAllowed } from '../instagramPublishMode.js';
+import { withTransientRetry, errorFromResponse, isSendModeLive } from '../adapterUtils.js';
 
 export interface LinkedInAdapterInput {
   calendar: CalendarRecordForPublish;
@@ -31,7 +30,7 @@ export async function publishLinkedInOrganicShare(input: LinkedInAdapterInput): 
       throw new AdapterHttpError('401 Unauthorized', 401);
     }
 
-    if (token && !process.env.LINKEDIN_FORCE_MOCK && legacyNetworkSendAllowed()) {
+    if (token && isSendModeLive()) {
       const res = await fetch(`${mockUrl}/ugcPosts`, {
         method: 'POST',
         headers: {

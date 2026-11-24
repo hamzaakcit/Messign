@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { Search, ChevronRight, Menu } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { mountsFrozenModules } from '@/lib/productSurface';
 
 const viewTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -28,6 +29,13 @@ const viewTitles: Record<string, string> = {
   culture: 'Culture',
 };
 
+const ID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A path segment as a breadcrumb label: words for slugs, "Details" for record ids (a UUID is not a title). */
+export function breadcrumbLabel(segment: string): string {
+  if (ID_SEGMENT.test(segment)) return 'Details';
+  return segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function Breadcrumbs({ pathname, currentView }: { pathname: string; currentView: string }) {
   const segments = pathname.split('/').filter(Boolean);
   const root = viewTitles[currentView] ?? currentView;
@@ -38,7 +46,7 @@ function Breadcrumbs({ pathname, currentView }: { pathname: string; currentView:
 
   const sub = segments
     .slice(1)
-    .map((s) => s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+    .map(breadcrumbLabel);
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">
@@ -91,7 +99,7 @@ export function Header() {
           >
             <Search className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1 text-sm">
-              {location.pathname.startsWith('/marketing') ? 'Search or ask Lucy...' : 'Search or ask Dora...'}
+              {!mountsFrozenModules() ? 'Search...' : location.pathname.startsWith('/marketing') ? 'Search or ask Lucy...' : 'Search or ask Dora...'}
             </span>
             <kbd
               className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono"
@@ -118,7 +126,7 @@ export function Header() {
           </button>
         )}
 
-        <NotificationBell />
+        {mountsFrozenModules() && <NotificationBell />}
       </div>
     </header>
   );

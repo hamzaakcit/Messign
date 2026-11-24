@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { getEmployeeByEmail, getEmployeeByIdAsUser } from '../db/employeesDb.js';
+import { getEmployeeByEmail, getEmployeeByIdAsUser, getEmployeeInOrgAsUser } from '../db/employeesDb.js';
 import { getBadgesForUser } from '../db/badgesDb.js';
 import {
   clearLock,
@@ -91,10 +91,43 @@ export type LoginResult =
   | { success: true; data: { accessToken: string; refreshToken: string; expiresIn: number; user: User; mustChangePassword: boolean } }
   | { success: false; error: { code: 'INVALID_CREDENTIALS' | 'ACCOUNT_LOCKED' | 'ACCOUNT_INACTIVE'; message: string; remainingAttempts?: number; lockedUntil?: string } };
 
+interface AccountOrg { organizationId: string | null; isEngage: boolean }
+
+/** The organization this auth user belongs to, and whether it is an engage tenant. */
+async function accountOrg(authUserId: string): Promise<AccountOrg> {
+  const r = await query<{ organization_id: string; product: string | null }>(
+    `SELECT ru.organization_id::text AS organization_id, o.product
+       FROM reimbursement_users ru LEFT JOIN organizations o ON o.id = ru.organization_id
+      WHERE ru.auth_user_id = $1 LIMIT 1`,
+    [authUserId],
+  );
+  const row = r.rows[0];
+  return { organizationId: row?.organization_id ?? null, isEngage: row?.product === 'engage' };
+}
+
+/**
+ * The user record for a signed-in account. Company-OS users are looked up in the default organization as before;
+ * an engage tenant is an organization of its own, so its users are looked up there (they never exist in the default one).
+ */
+async function signedInUser(authUserId: string, org: AccountOrg): Promise<User | null> {
+  if (org.isEngage && org.organizationId) return getEmployeeInOrgAsUser(authUserId, org.organizationId);
+  return getEmployeeByIdAsUser(authUserId);
+}
+
+export interface LoginOptions {
+  /**
+   * Only an account of an engage tenant may sign in (used for addresses outside the Company-OS domain). Any other
+   * account is refused exactly like a wrong password, after the password check, so the answer does not reveal
+   * whether the address belongs to an account.
+   */
+  engageOnly?: boolean;
+}
+
 export async function login(
   email: string,
   password: string,
-  req?: { ip?: string; headers?: Record<string, string | string[] | undefined> }
+  req?: { ip?: string; headers?: Record<string, string | string[] | undefined> },
+  opts: LoginOptions = {},
 ): Promise<LoginResult> {
   const normalizedEmail = email.trim().toLowerCase();
   const ip = req ? getClientIp(req) : null;
@@ -215,11 +248,15 @@ export async function login(
     };
   }
 
+  const org = await accountOrg(authUserId);
+  /** Not allowed in through this door: treated as a wrong password below, and none of the dev self-heals apply. */
+  const refused = opts.engageOnly === true && !org.isEngage;
+
   /** bcrypt cost 12 — dominant CPU cost on login; lowering rounds trades security for latency. */
-  let valid = await bcrypt.compare(passwordTrimmed, auth.password_hash);
+  let valid = (await bcrypt.compare(passwordTrimmed, auth.password_hash)) && !refused;
 
   const seedPw = (() => { try { return getDefaultSeedPassword(); } catch { return null; } })();
-  if (!valid && seedPw != null && passwordMatchesSeed(seedPw)) {
+  if (!valid && !refused && seedPw != null && passwordMatchesSeed(seedPw)) {
     const freshHash = await bcrypt.hash(seedPw, 12);
     await updatePassword({
       auth_user_id: authUserId,
@@ -233,7 +270,7 @@ export async function login(
   }
 
   /** Non-production: typed password is the documented demo (`test123`) even when `SEED_DEFAULT_PASSWORD` in .env is different. */
-  if (!valid && isNonProd && passwordTrimmed === DEV_DEMO_PASSWORD) {
+  if (!valid && !refused && isNonProd && passwordTrimmed === DEV_DEMO_PASSWORD) {
     const freshHash = await bcrypt.hash(DEV_DEMO_PASSWORD, 12);
     await updatePassword({
       auth_user_id: authUserId,
@@ -254,7 +291,7 @@ export async function login(
     await insertAudit({
       auth_user_id: authUserId,
       action: 'login_failed',
-      details: { reason: 'invalid_password', attempts },
+      details: { reason: refused ? 'not_an_engage_account' : 'invalid_password', attempts },
       ip_address: ip,
       user_agent: userAgent,
       status: 'failure',
@@ -291,17 +328,11 @@ export async function login(
     last_login_device: userAgent ? `${parseUserAgent(userAgent)} on ${parseDeviceType(userAgent)}` : null,
   });
 
-  const [orgRow, user] = await Promise.all([
-    query<{ organization_id: string }>(
-      `SELECT organization_id::text FROM reimbursement_users WHERE auth_user_id = $1 LIMIT 1`,
-      [authUserId],
-    ),
-    getEmployeeByIdAsUser(authUserId),
-  ]);
+  const user = await signedInUser(authUserId, org);
   if (!user) {
     return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'User not found' } };
   }
-  const tenantId = orgRow.rows[0]?.organization_id ?? null;
+  const tenantId = org.organizationId;
 
   const placeholderToken = authSessionsDb.generateRefreshToken();
   const { sessionId } = await sessionService.createSession({
@@ -440,7 +471,7 @@ export async function logout(
 }
 
 export async function getMe(authUserId: string): Promise<{ user: User; mustChangePassword: boolean } | null> {
-  const user = await getEmployeeByIdAsUser(authUserId);
+  const user = await signedInUser(authUserId, await accountOrg(authUserId));
   if (!user) return null;
   const auth = await getByAuthUserId(authUserId);
   const badges = await getBadgesForUser(user.id);

@@ -1,0 +1,4 @@
+order_id,external_id,ordered_at,total,currency,product_ids
+O-100001,C-0001,2026-10-03,129.90,TRY,P-1|P-2
+O-100002,C-0002,2026-10-20T11:05:00+03:00,"249,00",TRY,P-3
+O-100003,C-0001,2026-11-10,59.50,TRY,P-4

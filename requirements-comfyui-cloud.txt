@@ -1,4 +1,0 @@
-# Kalıcı Docker imajı: ComfyUI ile birlikte kurun (ör. Dockerfile RUN pip install -r ...).
-# RunPod / Vast.ai / kendi sunucun: requirements.txt birleştirmesine bu satırları ekleyin.
-
-pillow-avif-plugin>=1.4.0

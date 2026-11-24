@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { mountsFrozenModules } from '@/lib/productSurface';
 
 const STORAGE_KEY = 'sidebar-layout';
 
@@ -72,7 +73,8 @@ interface UIState {
 const stored = getStoredSidebarState();
 
 export const useUIStore = create<UIState>((set) => ({
-  currentView: 'dashboard',
+  // On engage the dashboard is frozen; start on the engage home so its chunk and data are never loaded.
+  currentView: mountsFrozenModules() ? 'dashboard' : 'marketing',
   leftSidebarOpen: stored.leftOpen,
   leftSidebarCollapsed: stored.leftCollapsed,
   rightSidebarOpen: false,

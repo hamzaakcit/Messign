@@ -19,16 +19,12 @@ function toClientChannel(row: ChannelRow | null) {
   };
 }
 
-function sessionUserId(req: { userId?: string }): string | undefined {
-  return req.userId;
-}
-
-// Get all channels for current user (from the session)
+// Get all channels for current user (requireAuth sets req.userId from JWT)
 channelsRouter.get('/', async (req, res) => {
   try {
-    const userId = sessionUserId(req as { userId?: string });
+    const userId = (req as { userId?: string }).userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized', message: 'Authorization required' });
+      res.status(401).json({ error: 'Unauthorized', message: 'User ID required' });
       return;
     }
     const rows = await getChannelsForUser(userId);
@@ -84,9 +80,9 @@ channelsRouter.get('/:id', async (req, res) => {
 channelsRouter.post('/:id/messages', async (req, res) => {
   try {
     const channelId = req.params.id;
-    const userId = sessionUserId(req as { userId?: string });
+    const userId = (req as { userId?: string }).userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized', message: 'Authorization required' });
+      res.status(401).json({ error: 'Unauthorized', message: 'User ID required' });
       return;
     }
     const channel = await getChannelById(channelId);
@@ -127,7 +123,7 @@ channelsRouter.post('/:id/messages', async (req, res) => {
 // Create new channel (DB)
 channelsRouter.post('/', async (req, res) => {
   try {
-    const userId = sessionUserId(req as { userId?: string });
+    const userId = (req as { userId?: string }).userId;
     const { name, description, type, members } = req.body;
     const memberIds = Array.isArray(members) ? members : (userId ? [userId] : []);
     const channel = await createChannelDb({

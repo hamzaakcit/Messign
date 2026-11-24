@@ -8,8 +8,6 @@ node_modules/
 .git/
 
 # Knowledge & bulky secondary trees
-knowledge-hub/
-knowledge-hub.zip/
 
 # Data & DB dumps
 *.dump

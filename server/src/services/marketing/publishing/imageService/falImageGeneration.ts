@@ -18,6 +18,7 @@ import sharp from 'sharp';
 
 import { fal } from '@fal-ai/client';
 import { ensurePublicInstagramImageUrl } from '../instagramPublicImage.js';
+import { meterAiCall, IMAGE_FALLBACK_COST_USD } from '../../../ai/metering.js';
 
 const DEFAULT_FAL_MODEL = 'fal-ai/flux/dev';
 
@@ -561,7 +562,7 @@ function readFalStillFacts(data: unknown): { seed?: number; width?: number; heig
  * @param prompt — Full marketing prompt (truncated to 8000 chars for Fal).
  * @param resolution — e.g. `1024x1024`; mapped to `image_size` for Pro and Dev. Ultra uses `aspect_ratio`.
  */
-export async function callFalMarketingImageGeneration(
+async function callFalMarketingImageGenerationCore(
   prompt: string,
   resolution: string,
   options?: FalMarketingImageCallOptions,
@@ -700,4 +701,10 @@ export async function callFalMarketingImageGeneration(
     ...(isFluxProUltraModel(modelId) && options?.shopStill === true ? { raw: true } : {}),
     ...(isFluxProUltraModel(modelId) ? { aspectRatio } : {}),
   };
+}
+
+/* Metered entry point (WP-23): one ai_call_telemetry row per image request. */
+
+export function callFalMarketingImageGeneration(...args: Parameters<typeof callFalMarketingImageGenerationCore>): ReturnType<typeof callFalMarketingImageGenerationCore> {
+  return meterAiCall({ kind: 'image', fallbackCostUsd: IMAGE_FALLBACK_COST_USD }, () => callFalMarketingImageGenerationCore(...args));
 }

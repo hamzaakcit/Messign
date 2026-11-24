@@ -42,6 +42,8 @@ function createDevLoggerQuietProxy() {
     }; };
     return __assign(__assign({}, base), { warn: wrap(base.warn.bind(base)), warnOnce: wrap(base.warnOnce.bind(base)), error: wrap(base.error.bind(base)) });
 }
+/** The local API. DEV_API_PROXY_TARGET lets a second stack run beside the usual one (the engage browser tests use 3201). */
+var API_TARGET = process.env.DEV_API_PROXY_TARGET || 'http://127.0.0.1:3001';
 export default defineConfig({
     customLogger: createDevLoggerQuietProxy(),
     plugins: [react()],
@@ -79,7 +81,7 @@ export default defineConfig({
         strictPort: true,
         proxy: {
             '/api': {
-                target: 'http://127.0.0.1:3001',
+                target: API_TARGET,
                 changeOrigin: true,
                 // Avoid buffering SSE (Dora /api/.../ai/answer); default timeouts can stall streams.
                 timeout: 0,
@@ -87,12 +89,12 @@ export default defineConfig({
                 configure: quietTransientProxyErrors,
             },
             '/uploads': {
-                target: 'http://127.0.0.1:3001',
+                target: API_TARGET,
                 changeOrigin: true,
                 configure: quietTransientProxyErrors,
             },
             '/socket.io': {
-                target: 'http://127.0.0.1:3001',
+                target: API_TARGET,
                 ws: true,
                 changeOrigin: true,
                 timeout: 0,

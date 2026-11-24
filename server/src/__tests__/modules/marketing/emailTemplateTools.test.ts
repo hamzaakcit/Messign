@@ -1,10 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   extractStyleHintsFromBodyDesign,
   getSavedEmailDesign,
   listSavedEmailDesigns,
 } from '../../../modules/marketing/tools/emailTemplateTools.js';
 import type { ToolContext, ToolResult } from '../../../services/ai/types.js';
+
+vi.mock('../../../services/ai/tools/resolveOrgIdForTool.js', () => ({
+  resolveOrgIdForTool: vi.fn().mockResolvedValue('00000000-0000-0000-0000-000000000001'),
+}));
+
+vi.mock('../../../dal/marketing/content.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../dal/marketing/content.js')>()),
+  listRecentEmailContentWithVisuals: vi.fn().mockResolvedValue([]),
+}));
 
 describe('emailTemplateTools', () => {
   it('extractStyleHintsFromBodyDesign collects hex colors', () => {

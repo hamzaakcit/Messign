@@ -87,7 +87,7 @@ export function OfferDetailView({
           />
           {publishAllowed ? null : (
             <p className="text-xs text-[#78716c]" data-testid="publish-off">
-              Publish is off for {brandName}. Connect Instagram to share this post.
+              Publish is off for {brandName}.
             </p>
           )}
         </div>

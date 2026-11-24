@@ -1,6 +1,7 @@
 import './env.js';
 import { join, resolve } from 'path';
 import express from 'express';
+import { appJsonParser } from './engage/jsonBodyParser.js';
 import compression from 'compression';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -53,8 +54,11 @@ import notificationsRouter from './routes/notifications/index.js';
 import { startBudgetAlertJob } from './jobs/budgetAlertJob.js';
 import { startMarketingPublisherCron } from './jobs/marketingPublisherCron.js';
 import { requireAuth } from './middleware/requireAuth.js';
+import { mountsEngage, mountsFrozenModules, mountsSeedRoutes } from './config/productSurface.js';
+import { mountEngage } from './engage/index.js';
 import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
+import { isEngageTenantOrg, tenantGuard } from './middleware/tenantGuard.js';
 import { responseTimer } from './middleware/responseTimer.js';
 import { initializeAuthRecords } from './services/initAuth.js';
 import { initNewTables } from './db/initNewTables.js';
@@ -156,14 +160,20 @@ app.use(
     },
   }),
 );
-app.use(express.json({ limit: '1mb', type: 'application/json' }));
+app.use(appJsonParser()); // JSON bodies, except provider webhooks, which are signed over their exact bytes
 if (process.env.NODE_ENV === 'production') {
   const resolvedUploadDir = resolve(UPLOAD_DIR);
-  app.use('/uploads', optionalJwt, (req, res, next) => {
+  app.use('/uploads', optionalJwt, async (req, res, next) => {
     if (!(req as express.Request & { userId?: string }).userId) {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
+    try {
+      if (await isEngageTenantOrg(req.jwtOrganizationId)) { // Company-OS files are not a tenant's (ADR-017)
+        res.status(403).json({ error: 'Not available for this organization' });
+        return;
+      }
+    } catch (err) { next(err); return; }
     const safePath = resolve(resolvedUploadDir, req.path.replace(/^\//, ''));
     if (!safePath.startsWith(resolvedUploadDir)) {
       res.status(403).end();
@@ -241,49 +251,56 @@ const aiLimiter = rateLimit({ windowMs: 60_000, max: 10, message: { error: 'AI r
 app.use('/api/dora', aiLimiter);
 
 app.use('/api', optionalJwt);
+// An engage tenant's token reaches sign-in and the engage API only; every Company-OS route is closed to it (ADR-017).
+app.use('/api', tenantGuard);
 
 // API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/users', requireAuth, usersRouter);
-app.use('/api/channels', requireAuth, channelsRouter);
-app.use('/api/messages', requireAuth, messagesRouter);
-app.use('/api/chat', requireAuth, chatRouter);
-app.use('/api/projects', requireAuth, projectsRouter);
-app.use('/api/tasks', requireAuth, tasksRouter);
-app.use('/api/badges', requireAuth, badgesRouter);
-app.use('/api/documents', requireAuth, documentsRouter);
-app.use('/api/activities', requireAuth, activitiesRouter);
-app.use('/api/leaderboard', requireAuth, leaderboardRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/categories', requireAuth, categoriesRouter);
-app.use('/api/exchange-rates', requireAuth, exchangeRatesRouter);
-app.use('/api/mileage', requireAuth, mileageRouter);
-app.use('/api/settings/reimbursement', requireAuth, reimbursementSettingsRouter);
-app.use('/api/signatures', requireAuth, signaturesRouter);
-app.use('/api/performance', requireAuth, performanceRouter);
-app.use('/api/dashboard', requireAuth, dashboardRouter);
-app.use('/api/departments', requireAuth, departmentsRouter);
-app.use('/api/bounties', requireAuth, bountiesRouter);
-app.use('/api/sprints', requireAuth, sprintsRouter);
-app.use('/api/showcase', requireAuth, showcaseRouter);
-app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/ai/actions', requireAuth, actionRoutes);
-app.use('/api/v2/ai', requireAuth, aiV2Router);
-app.use('/api/game', requireAuth, gameRouter);
-app.use('/api/dora', doraInsightsRouter);
-app.use('/api/dora/automations', doraAutomationsRouter);
-app.use('/api/dora', doraFiltersRouter);
-app.use('/api/dora', doraBriefingRouter);
-app.use('/api/dora', doraApprovalsRouter);
-app.use('/api/dora', requireAuth, doraHistoryRouter);
-// Assets, Contracts: mounted via modules/registry at /api/assets, /api/contracts
-app.use('/api/seed', seedRouter);
-app.use('/api/reports', reportsRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/notifications', notificationsRouter);
 
+if (mountsFrozenModules()) {
+  app.use('/api/channels', requireAuth, channelsRouter);
+  app.use('/api/messages', requireAuth, messagesRouter);
+  app.use('/api/chat', requireAuth, chatRouter);
+  app.use('/api/projects', requireAuth, projectsRouter);
+  app.use('/api/tasks', requireAuth, tasksRouter);
+  app.use('/api/badges', requireAuth, badgesRouter);
+  app.use('/api/documents', requireAuth, documentsRouter);
+  app.use('/api/activities', requireAuth, activitiesRouter);
+  app.use('/api/leaderboard', requireAuth, leaderboardRouter);
+  app.use('/api/categories', requireAuth, categoriesRouter);
+  app.use('/api/exchange-rates', requireAuth, exchangeRatesRouter);
+  app.use('/api/mileage', requireAuth, mileageRouter);
+  app.use('/api/settings/reimbursement', requireAuth, reimbursementSettingsRouter);
+  app.use('/api/signatures', requireAuth, signaturesRouter);
+  app.use('/api/performance', requireAuth, performanceRouter);
+  app.use('/api/dashboard', requireAuth, dashboardRouter);
+  app.use('/api/departments', requireAuth, departmentsRouter);
+  app.use('/api/bounties', requireAuth, bountiesRouter);
+  app.use('/api/sprints', requireAuth, sprintsRouter);
+  app.use('/api/showcase', requireAuth, showcaseRouter);
+  app.use('/api/knowledge', knowledgeRouter);
+  app.use('/api/v2/ai', requireAuth, aiV2Router);
+  app.use('/api/game', requireAuth, gameRouter);
+  app.use('/api/dora', doraInsightsRouter);
+  app.use('/api/dora/automations', doraAutomationsRouter);
+  app.use('/api/dora', doraFiltersRouter);
+  app.use('/api/dora', doraBriefingRouter);
+  app.use('/api/dora', doraApprovalsRouter);
+  app.use('/api/dora', requireAuth, doraHistoryRouter);
+  // Assets, Contracts: mounted via modules/registry at /api/assets, /api/contracts
+  app.use('/api/reports', reportsRouter);
+  if (mountsSeedRoutes()) app.use('/api/seed', seedRouter);
+}
+
 // Module registry: mounts /api/{crm,support,finance,hr,marketing,knowledge-hub,okr,heart,executive}
 await initializeModules(app);
+
+const engageMounted = mountsEngage() ? await mountEngage(app) : false;
 
 app.get('/api/health', async (_req, res) => {
   if (healthCache && Date.now() < healthCache.expiresAt) {
@@ -438,6 +455,27 @@ if (pgBossEnabled) {
         console.warn('[Server] Competitor scrape handler failed (non-fatal):', scrapeErr instanceof Error ? scrapeErr.message : scrapeErr);
       }
 
+      if (engageMounted) {
+        try {
+          const { registerEngageImportHandler } = await import('./engage/import/importJob.js');
+          await registerEngageImportHandler();
+          const { registerEngageJourneyHandler } = await import('./engage/journeys/journeyJob.js');
+          await registerEngageJourneyHandler();
+          const { registerEngagePartitionJob } = await import('./engage/partitions.js');
+          await registerEngagePartitionJob();
+          const { registerEngageEmailDomainJob } = await import('./engage/settings/emailDomainJob.js');
+          await registerEngageEmailDomainJob();
+          const { registerEngageIysSyncJob } = await import('./engage/iys/job.js');
+          await registerEngageIysSyncJob();
+          const { registerEngageOpsJob } = await import('./engage/ops/job.js');
+          await registerEngageOpsJob();
+          const { registerEngageWhatsappTemplateJob } = await import('./engage/whatsapp/templateJob.js');
+          await registerEngageWhatsappTemplateJob();
+        } catch (importErr) {
+          console.warn('[Server] Engage import handler failed (non-fatal):', importErr instanceof Error ? importErr.message : importErr);
+        }
+      }
+
       console.log('[Server] pg-boss job queue + batch handler initialized');
     } else {
       console.warn('[Server] pg-boss skipped: no DATABASE_URL / DATABASE_PUBLIC_URL');
@@ -488,8 +526,10 @@ httpServer.listen(Number(port), '0.0.0.0', async () => {
   } catch (e) {
     console.warn('[initAuth]', e);
   }
-  startBudgetAlertJob();
-  startMarketingPublisherCron();
+  if (mountsFrozenModules()) {
+    startBudgetAlertJob();
+    startMarketingPublisherCron();
+  }
 });
 
 // Graceful shutdown (guard: Ctrl+C / concurrently can deliver SIGINT twice; avoid double-close races on Redis/pg)

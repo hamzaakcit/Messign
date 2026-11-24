@@ -7,7 +7,7 @@ let cachedOrgId: string | undefined;
 export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const userId = (req as Request & { userId?: string }).userId;
   if (!userId) {
-    res.status(401).json({ error: 'Authorization required' });
+    res.status(401).json({ error: 'Authorization required for admin' });
     return;
   }
   try {

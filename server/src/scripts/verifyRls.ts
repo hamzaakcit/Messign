@@ -1,105 +1,99 @@
 /**
- * RLS verification (ADR-002 amendment).
+ * RLS Verification Script
  *
- * The app often connects as a superuser, which ignores row security.
- * This script prints that connecting role's bypass status, then runs the
- * row checks after SET LOCAL ROLE to a non-bypass role (default messign_app,
- * override with RLS_VERIFY_ROLE). A missing role or a failed SET ROLE exits 1.
- * The application pool is not switched.
+ * Verifies that Row-Level Security is actually enforced at the database layer,
+ * not just declared. Must connect through a non-bypass, non-superuser role.
  *
- * Run: npm run db:verify-rls
+ * D-07 confirmed the app's default connection (DATABASE_URL on Railway) is the
+ * `postgres` SUPERUSER/BYPASSRLS role, which silently ignores every RLS policy
+ * (see docs/roadmap/decisions-pending.md, ADR-002 amendment). Running this
+ * script against that connection would report a false pass, so it refuses to
+ * reuse the app's pool and requires a dedicated non-bypass connection string.
+ *
+ * Setup: create a restricted role (psql -f db/scripts/create_app_role.sql),
+ * then set RLS_VERIFY_DATABASE_URL to that role's connection string.
+ *
+ * Run: npm run db:verify-rls (from server/)
  */
-import { pool } from '../db/index.js';
-import { rlsVerifyRoleName } from './rlsVerifyRole.js';
+import pg from 'pg';
 
-const TENANT_SLUG = 'messign';
+const RLS_TABLE = 'support_tickets';
 
-interface RoleStatus {
-  currentUser: string;
-  rolsuper: boolean;
-  rolbypassrls: boolean;
-}
-
-async function roleStatus(client: { query: typeof pool.query }): Promise<RoleStatus> {
-  const result = await client.query(
-    `SELECT current_user AS current_user,
-            r.rolsuper,
-            r.rolbypassrls
-       FROM pg_roles r
-      WHERE r.rolname = current_user`,
-  );
-  const row = result.rows[0] as {
-    current_user: string;
-    rolsuper: boolean;
-    rolbypassrls: boolean;
-  };
-  return {
-    currentUser: row.current_user,
-    rolsuper: row.rolsuper,
-    rolbypassrls: row.rolbypassrls,
-  };
-}
+class RlsVerificationError extends Error {}
 
 async function main(): Promise<void> {
-  const verifyRole = rlsVerifyRoleName(process.env.RLS_VERIFY_ROLE);
-  const client = await pool.connect();
+  const connectionString = process.env.RLS_VERIFY_DATABASE_URL;
+  if (!connectionString) {
+    throw new RlsVerificationError(
+      'RLS_VERIFY_DATABASE_URL is required. It must point at a non-bypass, non-superuser role ' +
+        '(see db/scripts/create_app_role.sql). Reusing DATABASE_URL would silently bypass RLS.',
+    );
+  }
+
+  const pool = new pg.Pool({ connectionString, max: 1 });
+
   try {
-    const connecting = await roleStatus(client);
-    console.log(
-      `Connecting role: ${connecting.currentUser} superuser=${connecting.rolsuper} bypassrls=${connecting.rolbypassrls}`,
+    console.log('\n=== RLS Verification ===\n');
+
+    const roleCheck = await pool.query<{ rolname: string; rolbypassrls: boolean; rolsuper: boolean }>(
+      `SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user`,
     );
-    console.log(`Row checks run as: ${verifyRole}`);
-
-    const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [verifyRole]);
-    if (exists.rows.length === 0) {
-      console.error(`FAIL: role ${verifyRole} does not exist. Create it before treating RLS as verified.`);
-      process.exit(1);
-    }
-
-    await client.query('BEGIN');
-    await client.query(`SET LOCAL ROLE ${verifyRole}`);
-    const acting = await roleStatus(client);
-    if (acting.rolsuper || acting.rolbypassrls) {
-      console.error(
-        `FAIL: ${acting.currentUser} still bypasses RLS (superuser=${acting.rolsuper} bypassrls=${acting.rolbypassrls}).`,
+    const role = roleCheck.rows[0];
+    if (!role || role.rolbypassrls || role.rolsuper) {
+      throw new RlsVerificationError(
+        `Connected role "${role?.rolname ?? 'unknown'}" has BYPASSRLS or SUPERUSER — RLS is not enforced for it. ` +
+          'Point RLS_VERIFY_DATABASE_URL at a role created via db/scripts/create_app_role.sql.',
       );
-      process.exit(1);
     }
+    console.log(`Connected as non-bypass role: ${role.rolname}\n`);
 
-    const orgResult = await client.query(
-      `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-      [TENANT_SLUG],
+    const orgResult = await pool.query<{ id: string }>(
+      `SELECT id FROM organizations WHERE slug = 'messign' LIMIT 1`,
     );
-    const tenantId = orgResult.rows[0]?.id as string | undefined;
+    const tenantId = orgResult.rows[0]?.id;
     if (!tenantId) {
-      console.error(`No organization with slug "${TENANT_SLUG}" found. Seed the DB first.`);
-      process.exit(1);
+      throw new RlsVerificationError('No organization found. Run migrations and seed first.');
     }
+    console.log(`Using tenant_id: ${tenantId}\n`);
 
-    const noTenant = await client.query('SELECT COUNT(*)::int AS n FROM support_tickets');
-    const leaked = Number(noTenant.rows[0]?.n ?? 0);
-    if (leaked > 0) {
-      console.error(
-        `FAIL: ${leaked} support_tickets rows visible to ${verifyRole} without app.current_tenant.`,
+    // 1. Query WITHOUT set_app_tenant — RLS should return 0 rows
+    const withoutTenant = await pool.query<{ count: string }>(`SELECT COUNT(*) as count FROM ${RLS_TABLE}`);
+    const countWithout = parseInt(withoutTenant.rows[0]?.count ?? '0', 10);
+    console.log(`1. Query WITHOUT set_app_tenant: ${countWithout} rows`);
+    if (countWithout > 0) {
+      throw new RlsVerificationError(
+        'Expected 0 rows when tenant not set. RLS is enabled but returned rows — run: npm run db:diagnose-rls',
       );
-      process.exit(1);
     }
-    console.log(`OK: ${verifyRole} sees 0 support_tickets without a tenant.`);
+    console.log('   OK: RLS blocks access when tenant not set.\n');
 
-    await client.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
-    const withTenant = await client.query('SELECT COUNT(*)::int AS n FROM support_tickets');
-    const visible = Number(withTenant.rows[0]?.n ?? 0);
-    console.log(`OK: with tenant ${TENANT_SLUG} (${tenantId}), visible support_tickets = ${visible}.`);
-    console.log('RLS verification passed.');
+    // 2. Query WITH set_app_tenant — should return data (if any exists)
+    const client = await pool.connect();
+    let countWith: number;
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT set_config('app.current_tenant', $1, true)", [tenantId]);
+      const r = await client.query<{ count: string }>(`SELECT COUNT(*) as count FROM ${RLS_TABLE}`);
+      countWith = parseInt(r.rows[0]?.count ?? '0', 10);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    console.log(`2. Query WITH set_app_tenant: ${countWith} rows`);
+    console.log('   OK: RLS allows access when tenant is set.\n');
+
+    console.log('=== RLS verification passed ===\n');
   } finally {
-    await client.query('ROLLBACK').catch(() => undefined);
-    client.release();
     await pool.end();
   }
 }
 
-main().catch((err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error('RLS verification error:', message);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error('RLS verification failed:', err instanceof Error ? err.message : err);
+    process.exit(1);
+  });

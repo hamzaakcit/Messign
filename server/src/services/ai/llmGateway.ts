@@ -7,6 +7,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import type { ChatCompletionCreateParamsNonStreaming, ChatCompletionTool } from 'openai/resources/chat/completions';
+import { meterAiCall, recordServed } from './metering.js';
 
 /** Public routing tiers for marketing agents & orchestration */
 export const LLM_TIER = {
@@ -22,14 +23,14 @@ export const LLM_TIER_CONFIG = {
   [LLM_TIER.COMPLEX]: {
     provider: 'anthropic' as const,
     /** Claude Sonnet 4 — override with `LLM_COMPLEX_MODEL` */
-    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-4-6',
+    model: process.env.LLM_COMPLEX_MODEL?.trim() || 'claude-sonnet-5-5',
     timeoutMs: Number(process.env.LLM_COMPLEX_TIMEOUT_MS) || 45_000,
     maxRetries: 3,
   },
   [LLM_TIER.FAST]: {
     provider: 'groq' as const,
-    /** Groq chat model — override with `LLM_FAST_MODEL`. */
-    model: process.env.LLM_FAST_MODEL?.trim() || 'openai/gpt-oss-20b',
+    /** Groq (developer plan) — override with `LLM_FAST_MODEL`. Llama 3.3 70B is Enterprise-only on Groq. */
+    model: process.env.LLM_FAST_MODEL?.trim() || 'openai/gpt-oss-120b',
     timeoutMs: Number(process.env.LLM_FAST_TIMEOUT_MS) || 15_000,
     maxRetries: 3,
   },
@@ -251,6 +252,7 @@ async function callGroq(
   const content = msg?.content?.trim() ?? '';
   const toolCalls = normalizeOpenAIToolCalls(msg);
   const u = completion.usage;
+  recordServed({ provider: 'groq', model: cfg.model, tokensIn: u?.prompt_tokens, tokensOut: u?.completion_tokens });
 
   return {
     content,
@@ -281,13 +283,20 @@ async function callAnthropic(
   const request: Anthropic.MessageCreateParams = {
     model: cfg.model,
     max_tokens: config.maxTokens ?? 4096,
-    temperature: config.temperature ?? 0.2,
+    // Claude 5 models reject `temperature` (400 invalid_request_error); omit it for them.
+    ...(/^claude-(sonnet|opus|haiku|fable)-5/.test(cfg.model) ? {} : { temperature: config.temperature ?? 0.2 }),
     system,
     messages: [{ role: 'user', content: config.userMessage }],
     ...(anthropicTools?.length ? { tools: anthropicTools } : {}),
   };
 
   const message = await client.messages.create(request, { signal });
+  recordServed({
+    provider: 'anthropic',
+    model: cfg.model,
+    tokensIn: message.usage?.input_tokens,
+    tokensOut: message.usage?.output_tokens,
+  });
 
   let text = '';
   const toolCalls: NormalizedToolCall[] = [];
@@ -381,8 +390,13 @@ function wrapSdkError(err: unknown): LLMGatewayError {
 
 /**
  * Single entry: route by tier (Claude vs Groq), apply timeout, retries on 429/5xx.
+ * Metered (WP-23): one ai_call_telemetry row per call, however many retries it made.
  */
-export async function generateResponse(config: PromptConfig): Promise<LLMGatewayResult> {
+export function generateResponse(config: PromptConfig): Promise<LLMGatewayResult> {
+  return meterAiCall({ kind: 'chat', tier: config.tier, tenantId: config.tenantId ?? null }, () => generateResponseCore(config));
+}
+
+async function generateResponseCore(config: PromptConfig): Promise<LLMGatewayResult> {
   const tierCfg = config.tier === LLM_TIER.FAST ? LLM_TIER_CONFIG.fast : LLM_TIER_CONFIG.complex;
   const maxRetries = tierCfg.maxRetries;
   const timeoutMs = tierCfg.timeoutMs;
