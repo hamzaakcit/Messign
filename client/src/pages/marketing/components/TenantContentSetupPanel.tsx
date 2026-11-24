@@ -1,3 +1,4 @@
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { TENANT_CONTENT_SETUPS } from '../lib/tenantContentSetup';
 import { useContentTenant } from '../lib/contentTenant';
 import { ContentTenantSwitch } from './ContentTenantSwitch';
@@ -10,12 +11,9 @@ export function TenantContentSetupPanel(): JSX.Element {
   const { setup: active } = useContentTenant();
   return (
     <section className="mb-6 space-y-3">
-      <div>
-        <h3 className="text-sm font-semibold text-app-text">Content setup</h3>
-        <p className="mt-1 text-xs text-app-muted">
-          Each org keeps its own brand, language, handle, and three product-truth rows. Publish stays off.
-        </p>
-      </div>
+      <h3 className="flex items-center gap-1 text-sm font-semibold text-app-text">
+        Content setup <InfoTooltip helpId="shopContentSetup" />
+      </h3>
       <ContentTenantSwitch />
       {TENANT_CONTENT_SETUPS.map((setup) => (
         <article

@@ -185,7 +185,7 @@ export function MarketingChannelAgentModal({
 
   const intro =
     channel === 'email'
-      ? 'Describe audience and offer. Lucy will request a VA2 email design manifest JSON for the builder.'
+      ? 'Describe the audience and the offer.'
       : channel === 'metrics'
         ? 'What should we prioritize in the performance summary?'
         : 'Fill in the basics. Lucy formats a full request for the agent — edit after insert if needed.';

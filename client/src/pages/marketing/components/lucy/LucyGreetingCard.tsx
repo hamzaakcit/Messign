@@ -85,17 +85,6 @@ export function LucyGreetingCard({
         <p
           className="dp-font"
           style={{
-            fontSize: 12,
-            color: lucyTokens.colors.textSecondary,
-            lineHeight: 1.45,
-            margin: '0 0 8px',
-          }}
-        >
-          {LUCY_UI_GREETING.subheadline}
-        </p>
-        <p
-          className="dp-font"
-          style={{
             fontSize: 14,
             fontWeight: 500,
             color: lucyTokens.colors.textPrimary,

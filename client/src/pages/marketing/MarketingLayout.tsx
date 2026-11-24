@@ -17,6 +17,7 @@ import { BrandProfileManager } from './components/BrandProfileManager';
 import { TenantContentSetupPanel } from './components/TenantContentSetupPanel';
 import { EmailCampaignDetailPanel } from './components/EmailCampaignDetailPanel';
 import { MarketingWorkspaceSecondaryAlerts } from './components/MarketingWorkspaceSecondaryAlerts';
+import { HelpDrawer } from '@/components/ui/HelpDrawer';
 
 // ---------------------------------------------------------------------------
 // Lazy sections
@@ -341,6 +342,9 @@ export function MarketingLayout(): JSX.Element {
         <MarketingRouter />
       </ViewportContainer>
       <MarketingPanels />
+      <div data-theme="light" className="text-app-text">
+        <HelpDrawer />
+      </div>
       <BrandsFab />
     </MarketingProvider>
   );

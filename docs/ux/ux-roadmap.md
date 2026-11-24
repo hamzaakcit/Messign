@@ -14,7 +14,7 @@
 
 | ID | Package | Files | Acceptance | Tests | Pri | Replaces |
 |---|---|---|---|---|---|---|
-| UX-02 | **Help pattern.** `InfoTooltip` tap/Escape/`helpId`; `HelpDrawer`; `lib/helpContent.ts`; apply the copy-audit **T**/**H** moves | `components/ui/InfoTooltip.tsx`, new `HelpDrawer.tsx`, `lib/helpContent.ts`, `EmailDesignWizard`, `Va2DiagnosticsPanel`, `TenantContentSetupPanel`, `MarketingChannelAgentModal` | No explanatory block > 1 sentence visible by default on kept screens; every tip ≤ 120 chars | Registry test (one sentence, ≤ 120, every used id exists); InfoTooltip keyboard + tap | P0 | — (new) |
+| UX-02 ✅ done 2026-11-24 | **Help pattern.** `InfoTooltip` tap/Escape/`helpId`; `HelpDrawer`; `lib/helpContent.ts`; apply the copy-audit **T**/**H** moves | `components/ui/InfoTooltip.tsx`, new `HelpDrawer.tsx`, `lib/helpContent.ts`, `EmailDesignWizard`, `Va2DiagnosticsPanel`, `TenantContentSetupPanel`, `MarketingChannelAgentModal` | No explanatory block > 1 sentence visible by default on kept screens; every tip ≤ 120 chars | Registry test (one sentence, ≤ 120, every used id exists); InfoTooltip keyboard + tap | P0 | — (new) |
 | UX-03 | **Tokens.** Ban bare `text-app`/`bg-app` in marketing + engage (104 uses). Theme is decided (UX-D1: paper; engage sections in the light theme, done in UX-01b) | `pages/marketing/**`, `engage/**` | Lint-style test green; selected/hover states pass AA on their real background | Class-ban test; contrast spot checks in the browser | P0 | MC-15 |
 | UX-04 | **One offer list.** Pipeline becomes the status view of Offers; `/marketing/content` and `/pipeline` redirect | `LucyMarketingPage`, `MarketingPipelinePage`, `KanbanBoard`, router | One list of content; old URLs land on it with the filter set | Router + list tests | P1 | MC-09 |
 | UX-05 | **Shop settings page.** Replaces the Brands FAB | `TenantContentSetupPanel`, `BrandProfileManager`, router | No floating button; truth rows edited in one place | Page test | P1 | MC-11 |
@@ -48,7 +48,7 @@ MC-12 (a campaign is a name on a set of offers), MC-16 (dogfood one bookstore an
 |---|---|
 | 0 visible No-op / Mock controls on kept screens | **met** (UX-01) |
 | 0 duplicate entry points | 4 groups left (UX-04, UX-05, UX-08) |
-| Explanatory copy −70% | ≈ −65% after UX-01; UX-02 closes it |
-| InfoTips ≤ 1 sentence, one registry | UX-02 |
+| Explanatory copy −70% | **met**: visible-by-default text ≈ 400 → 40 words (UX-02) |
+| InfoTips ≤ 1 sentence, one registry | **met** (`lib/helpContent.ts`, enforced by `helpContent.test.ts`) |
 | Kept screens and engage on one component set | UX-02, UX-03 |
 | Playwright smoke clicks every primary action | UX-09 |

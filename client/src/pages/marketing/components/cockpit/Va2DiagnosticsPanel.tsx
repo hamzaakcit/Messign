@@ -1,3 +1,4 @@
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useMemo } from 'react';
 import type { DesignManifest } from '../../lib/types/manifestTypes';
 import type { AssemblyResult } from '../../lib/types/unlayerTypes';
@@ -103,13 +104,12 @@ export function Va2DiagnosticsPanel({
 
       {motion.enabled ? (
         <div className="rounded border border-cyan-500/20 bg-cyan-950/20 px-2 py-1.5 text-[10px] text-slate-400">
-          <div className="font-medium text-slate-300">Motion overlay</div>
+          <div className="flex items-center gap-1 font-medium text-slate-300">
+            Motion overlay <InfoTooltip helpId="emailMotionFallback" />
+          </div>
           <p className="mt-0.5">
             Paper plane · <span className="text-slate-300">{motion.intensity}</span> ·{' '}
             <code className="text-cyan-500/90">motionOverlay</code> = paper_plane_sweep
-          </p>
-          <p className="mt-1 text-slate-500">
-            Static fallback when recipients use “reduce motion”; some clients clip CSS — see email pipeline docs.
           </p>
         </div>
       ) : null}
@@ -196,9 +196,8 @@ export function Va2DiagnosticsPanel({
         </div>
       ) : null}
 
-      <p className="text-[10px] text-slate-500 border-t border-white/5 pt-2">
-        Brand lock: edits in Unlayer stay in the exported design until you regenerate AI images below (that
-        re-assembles from the manifest) or use the theme switcher for a new baseline.
+      <p className="flex items-center gap-1 text-[10px] text-slate-500 border-t border-white/5 pt-2">
+        Builder edits <InfoTooltip helpId="emailBuilderEdits" />
       </p>
 
       {assemblyResult.metadata.accessibilityWarnings &&

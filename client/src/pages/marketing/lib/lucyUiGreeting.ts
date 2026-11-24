@@ -3,7 +3,6 @@
  */
 export const LUCY_UI_GREETING = {
   headline: "I'm Lucy, your CMO.",
-  subheadline: "Messign's marketing-native specialist — strategy, content, campaigns, and analytics.",
-  message: "Let's scale Messign. What growth lever are we pulling today — content, campaigns, or analytics?",
+  message: 'Ask me about an offer, a caption, or an email.',
   compact: 'Lucy — your CMO copilot',
 } as const;
