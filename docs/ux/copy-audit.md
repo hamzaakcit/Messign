@@ -1,5 +1,7 @@
 # Copy Audit
 
+> **Update 2026-11-24 (UX-02 done):** every **D**, **T** and **H** item below has been applied. The ones that still had text went to `client/src/lib/helpContent.ts`, shown through `InfoTooltip` (and `HelpDrawer` for "Learn more"). The Lucy greeting no longer pitches Messign to every shop. The content form's "Draft with Marketing agent" button said it opened Lucy, but it opens New offer; its label now says so. Explanatory text **visible by default** on reachable marketing screens went from about 400 words (535 minus about 90 behind `<details>` and 45 in error states) to about 40, roughly a 90% cut. Measured over every word including gated and error text, the cut is about 67%.
+
 **As of:** 2026-11-24, `main`. Session UX-A, read-only. Scope: every explanatory block (more than one sentence, or one sentence of process explanation) in `client/src/pages/marketing/**`. Labels, button text and one-line error messages are out of scope.
 
 ## Headline

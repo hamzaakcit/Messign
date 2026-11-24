@@ -1,3 +1,4 @@
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Layers, Mail, Sparkles, X } from 'lucide-react';
 import { getAllThemes } from '../lib/designTokens';
@@ -250,12 +251,6 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
               <p className="text-[11px] text-app-muted">Create a second version with a different theme for A/B testing</p>
             </div>
           </label>
-          {hasAiDraft && (
-            <p className="text-[11px] text-app-muted rounded-lg border border-app-border bg-app-surface-tertiary px-3 py-2 leading-relaxed">
-              <span className="font-medium text-app-text">Apply AI draft</span> builds the layout from your text (best when you want the copy to drive structure).{' '}
-              <span className="font-medium text-app-text">Use template</span> loads a professional starter and merges your subject/body into it (fixes mismatched themes like Mother’s Day vs generic “product launch”).
-            </p>
-          )}
           <div className="flex justify-between pt-3">
             <button
               type="button"
@@ -266,14 +261,18 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
             </button>
             <div className="flex flex-wrap gap-2 justify-end">
               {hasAiDraft && (
-                <button
-                  type="button"
-                  onClick={() => handleFinish('ai')}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text hover:bg-primary-600 transition-colors"
-                >
-                  <Sparkles className="w-3.5 h-3.5" /> Apply AI draft
-                </button>
+                <span className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleFinish('ai')}
+                    className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-app-text hover:bg-primary-600 transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" /> Apply AI draft
+                  </button>
+                  <InfoTooltip helpId="emailApplyAiDraft" />
+                </span>
               )}
+              <span className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => handleFinish('template')}
@@ -285,6 +284,8 @@ export function EmailDesignWizard({ onComplete, onCancel, hasAiDraft, suggestedG
               >
                 Use template
               </button>
+              <InfoTooltip helpId="emailUseTemplate" />
+              </span>
             </div>
           </div>
         </div>

@@ -120,7 +120,7 @@ Detail: `docs/ux/ux-roadmap.md` (principles `docs/ux/design-principles.md`, ADR-
 | UX-A | Reconnaissance: inventory, control audit, duplication map, copy audit | P0 | done | Four docs in `docs/ux/` |
 | UX-01 | Delete and hide: frozen screens, unreachable files, Mock/No-op controls | P0 | done (PR #68) | 0 Mock/No-op on kept screens |
 | UX-01b | Lucy composer email-only; engage tab contrast; Phase 2 docs | P1 | done | No frozen-channel templates |
-| UX-02 | Help pattern: InfoTip, HelpDrawer, `helpContent.ts` registry, copy moves | P0 | todo | No paragraph visible by default; tips ≤ 120 chars |
+| UX-02 | Help pattern: InfoTip, HelpDrawer, `helpContent.ts` registry, copy moves | P0 | done | No paragraph visible by default; tips ≤ 120 chars |
 | UX-03 | Tokens and theme: ban bare `text-app`/`bg-app` in marketing + engage | P0 | todo | Class-ban test green; AA on real backgrounds |
 | UX-06 | Offer detail: one primary, `⋯` menu, email readable without Unlayer | P0 | todo | One filled button; subject/price/unsubscribe shown |
 | UX-07 | Calendar takes ready offers; live-publish warning | P0 | todo | A draft can't be dropped on a day |

@@ -82,13 +82,6 @@ export function ContentCreatePanel({
 
   return (
     <form onSubmit={handleSubmit} className="p-6 space-y-4">
-      {preset === 'instagram' && (
-        <div className="rounded-lg border border-pink-500/25 bg-pink-500/10 px-3 py-2 text-xs text-app-text">
-          <span className="font-medium text-pink-200">Instagram draft</span>
-          {' — '}
-          Saved as workspace content. Schedule and publish from the board or calendar; live posting uses your connected accounts in the Marketing hub.
-        </div>
-      )}
       <div>
         <label className="block text-sm text-app-muted mb-1">Title</label>
         <input className={inputClass} value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} required />
@@ -153,9 +146,8 @@ export function ContentCreatePanel({
             onClick={() => onDraftWithMarketingAgent()}
             className="w-full rounded-lg border border-primary-500/40 bg-primary-500/10 px-3 py-2 text-sm font-medium text-primary-200 hover:bg-primary-500/20"
           >
-            Draft with Marketing agent (Lucy)
+            Use New offer instead
           </button>
-          <p className="mt-1.5 text-[11px] text-app-muted">Opens Lucy with the Instagram prompt helper. Paste the result into the body when ready.</p>
         </div>
       )}
       <div className="flex items-center justify-end gap-3 pt-2">

@@ -1,3 +1,4 @@
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import EmailEditor, { type EditorRef } from 'react-email-editor';
 import { toast } from 'sonner';
@@ -474,15 +475,6 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
 
   const showMissingProjectId = !projectId && import.meta.env.DEV;
 
-  const legacyCopy =
-    displayMode === 'email'
-      ? 'This campaign has HTML only (no saved Unlayer design). The builder opens blank; preview of the stored HTML is below. Rebuild in the editor and apply once to enable full round-trip editing.'
-      : displayMode === 'web'
-        ? 'This page has HTML only (no saved Unlayer design). The builder opens blank; preview below. Apply once from the editor to save design JSON for full round-trip editing.'
-        : displayMode === 'document'
-          ? 'This document has HTML only (no saved Unlayer design). The builder opens blank; preview below. Apply once to save design JSON for full round-trip editing.'
-          : 'This popup has HTML only (no saved Unlayer design). The builder opens blank; preview below. Apply once to save design JSON.';
-
   const previewTitle =
     displayMode === 'email'
       ? 'Email HTML preview'
@@ -623,7 +615,9 @@ export const UnlayerEditor = forwardRef<UnlayerEditorHandle, UnlayerEditorProps>
       ) : null}
       {showLegacyPreview ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-app-muted space-y-2">
-          <p>{legacyCopy}</p>
+          <p className="flex items-center gap-1">
+            No saved design <InfoTooltip helpId="emailNoSavedDesign" />
+          </p>
           <details>
             <summary className="cursor-pointer text-app-text/90">Preview saved HTML</summary>
             <iframe

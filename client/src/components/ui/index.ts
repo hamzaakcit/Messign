@@ -9,6 +9,7 @@ export * from './dialog';
 export * from './sheet';
 export * from './Tabs';
 export * from './XPGainNotification';
+export * from './HelpDrawer';
 export * from './InfoTooltip';
 export * from './MessignLogo';
 export * from './MessignLogoAnimated';
