@@ -3,6 +3,8 @@
 // ---------------------------------------------------------------------------
 
 import { randomUUID } from 'crypto';
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -83,9 +85,31 @@ export async function uploadToStorage(
   } catch (err: unknown) {
     if (err instanceof Error && err.message.startsWith('Storage upload failed')) throw err;
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[imageService] Storage upload fetch failed', { uploadUrl, message: msg });
+    const cause = err instanceof Error ? (err as Error & { cause?: { code?: string } }).cause : undefined;
+    console.error('[imageService] Storage upload fetch failed', { uploadUrl, message: msg, code: cause?.code });
+    const unreachable = cause?.code === 'ENOTFOUND' || cause?.code === 'EAI_AGAIN' || cause?.code === 'ECONNREFUSED' || cause?.code === 'ENETUNREACH';
+    if (unreachable && process.env.NODE_ENV !== 'production') {
+      console.warn('[imageService] Storage host unreachable; saving the photo on this machine');
+      return saveLocalMarketingUpload(buffer, key);
+    }
+    if (unreachable) {
+      throw new Error('Image storage could not be reached, so the photo was not saved.');
+    }
     throw err instanceof Error ? err : new Error(msg);
   }
 
   return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${key}`;
+}
+
+/** Dev fallback when the remote bucket cannot be reached. Served from /uploads in non-production. */
+export async function saveLocalMarketingUpload(buffer: Buffer, key: string): Promise<string> {
+  const parts = key.split('/').filter((part) => part && part !== '.' && part !== '..');
+  if (parts.length === 0) throw new Error('Invalid storage key');
+  const root = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), 'marketing');
+  const full = path.resolve(root, ...parts);
+  const relative = path.relative(root, full);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Invalid storage key');
+  await mkdir(path.dirname(full), { recursive: true });
+  await writeFile(full, buffer);
+  return `/uploads/marketing/${parts.map((part) => encodeURIComponent(part)).join('/')}`;
 }

@@ -34,6 +34,11 @@ import {
   looksLikeVa2EmailManifest,
   parseAndValidateEmailManifestDraft,
 } from '../../marketing/validateEmailManifestDraft.js';
+import { parseOfferSheet } from '../../marketing/offerSheet.js';
+import { offerProductionGate, offerSheetIsActive } from '../../marketing/offerProductionGate.js';
+import { recipeFromTags, type OfferRecipe } from '../../marketing/offerRecipes.js';
+import { fixtureTruthRow } from '../../marketing/tenantContentSetup.js';
+import type { OfferTruthRowRef } from '../../marketing/offerProductionGate.js';
 
 const LOG = '[marketingContentWorkflow]';
 
@@ -73,6 +78,10 @@ export interface MarketingContentWorkflowContext {
   brandVoiceContextMdOverride?: string;
   /** Retries after a failed Product Truth verdict (default 2 → 3 generation attempts total). */
   maxTruthRetries?: number;
+  /** When `product_drop`, a missing truth row stops generation before the model. */
+  recipe?: OfferRecipe | null;
+  /** Truth row already loaded for this organization. */
+  truthRow?: OfferTruthRowRef | null;
 }
 
 export type MarketingContentWorkflowResult =
@@ -135,6 +144,8 @@ async function generateDraft(
     productTruthMd,
     brandVoiceMd,
     channel: ctx.channel,
+    userBrief: brief,
+    offerMaterials: ctx.truthRow?.materials,
     calibrationText,
     qualityTier: 'standard', // 'standard' includes copywriting engine + brand voice; fits within rate limits
   });
@@ -229,6 +240,27 @@ export async function executeContentWorkflow(
   const normalizedChannel = (context.channel ?? contentRow.channel ?? '').toLowerCase().trim();
   const isInstagram = normalizedChannel === 'instagram';
   const isEmail = normalizedChannel === 'email';
+
+  const parsedSheet = parseOfferSheet(contentRow.user_brief ?? briefForGeneration);
+  const recipe = context.recipe ?? recipeFromTags(contentRow.tags);
+  const truthRow =
+    context.truthRow ?? fixtureTruthRow(parsedSheet.sheet.truthId, parsedSheet.sheet.product);
+  context = { ...context, recipe, truthRow };
+  if (offerSheetIsActive(parsedSheet.sheet) || recipe === 'product_drop') {
+    const gateErrors = [
+      ...parsedSheet.errors,
+      ...offerProductionGate({
+        sheet: parsedSheet.sheet,
+        recipe,
+        truthRow,
+      }),
+    ];
+    if (gateErrors.length > 0) {
+      const reason = gateErrors.map((error) => `${error.field}: ${error.message}`).join('; ');
+      console.warn(`${LOG} offer_sheet_blocked`, { contentId, reason });
+      return { status: 'failed', reason, attempts: 0 };
+    }
+  }
 
   let lastManifestErrors: string[] | undefined;
 
@@ -397,6 +429,7 @@ export async function executeContentWorkflow(
         intentContext: {
           title: context.title ?? contentRow.title,
           userBrief: contentRow.user_brief ?? null,
+          materials: context.truthRow?.materials ?? null,
         },
       });
       console.log(`${LOG} instagram_image_gen`, {

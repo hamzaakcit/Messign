@@ -41,9 +41,7 @@ export function MarketingWorkspaceLayout(): JSX.Element {
       {/* Error banners */}
       <WorkspaceBootstrapBanner error={ctx.bootstrapError} onRetry={() => void ctx.refetchBootstrap()} />
       <MarketingWorkspaceSecondaryAlerts
-        funnelError={ctx.funnelError}
         brandsError={ctx.brandsError}
-        onRetryFunnel={() => void ctx.refetchFunnel()}
         onRetryBrands={() => void ctx.refetchBrands()}
       />
 

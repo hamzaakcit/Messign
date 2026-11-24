@@ -130,9 +130,9 @@ export function useEngageWorkspace(initial: Tab, isAdmin: boolean): EngageWorksp
   return { tab, panel, isAdmin, goTo, show, open: setPanel, close };
 }
 
-/** The tab row. `withLucy` puts the Lucy chat first (the Lucy page); the engage hub has no chat. */
-export function EngageTabStrip({ workspace, withLucy = false }: { workspace: EngageWorkspace; withLucy?: boolean }): JSX.Element {
-  const tabs: Array<{ id: Tab; label: string }> = [...(withLucy ? [{ id: 'lucy' as const, label: 'Lucy' }] : []), ...sectionsFor(workspace.isAdmin)];
+/** The tab row. `withLucy` puts the marketing home first (the Lucy page); the engage hub has none. */
+export function EngageTabStrip({ workspace, withLucy = false, lucyLabel = 'Lucy' }: { workspace: EngageWorkspace; withLucy?: boolean; lucyLabel?: string }): JSX.Element {
+  const tabs: Array<{ id: Tab; label: string }> = [...(withLucy ? [{ id: 'lucy' as const, label: lucyLabel }] : []), ...sectionsFor(workspace.isAdmin)];
   const attention = useAttention(workspace.isAdmin).data ?? [];
   const worst = attention.some((a) => a.severity === 'critical') ? 'critical' : attention.length ? 'warning' : null;
   return (

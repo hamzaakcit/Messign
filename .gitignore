@@ -38,3 +38,6 @@ server/uploads/
 /playwright/.auth/
 e2e/.auth/
 e2e-engage/.auth/
+
+# Next.js build output
+.next/

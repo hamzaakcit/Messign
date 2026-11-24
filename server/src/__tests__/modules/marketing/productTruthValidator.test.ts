@@ -84,6 +84,19 @@ describe('runProductTruthValidation', () => {
     );
   });
 
+  it('fails a 50% off claim that is absent from product truth without calling the model', async () => {
+    const r = await runProductTruthValidation({
+      organizationId: '00000000-0000-0000-0000-000000000001',
+      contentText: 'This weekend: 50% off every novel in the window.',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      productTruthContextMdOverride: 'İnce Memed. Price: 120 TL. No discount listed.',
+    });
+    expect(r.verdict).toBe('FAIL');
+    expect(r.failed_reasons[0]).toContain('50% off');
+    expect(r.checks.fabricated_metrics.status).toBe('FAIL');
+    expect(callMock).not.toHaveBeenCalled();
+  });
+
   it('fails on empty content', async () => {
     const r = await runProductTruthValidation({
       organizationId: '00000000-0000-0000-0000-000000000001',

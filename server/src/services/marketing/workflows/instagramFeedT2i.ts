@@ -3,7 +3,7 @@
  * Used by `instagramImagePipeline` and `instagramContentWorkflow` (regenerate) so behavior cannot drift.
  */
 
-import type { StylePreset } from '../../../dal/marketing/instagramTypes.js';
+import type { AspectRatio, StylePreset } from '../../../dal/marketing/instagramTypes.js';
 import {
   buildDirectInstagramFalPrompt,
   enhanceImagePrompt,
@@ -13,6 +13,8 @@ import {
 export interface InstagramPromptIntentContext {
   title?: string | null;
   userBrief?: string | null;
+  /** Truth-row prose. The scene uses this and leaves price and place labels out. */
+  materials?: string | null;
 }
 
 /**
@@ -40,12 +42,16 @@ export function buildInstagramFeedT2iPrompt(
   imagePrompt: string,
   stylePreset: StylePreset,
   intentContext?: InstagramPromptIntentContext,
+  aspectRatio?: AspectRatio,
 ): { prompt: string; instagram_direct_prompt: boolean } {
   if (isInstagramFalDirectPromptFromEnv()) {
     return {
       prompt: buildDirectInstagramFalPrompt({
         userBrief: intentContext?.userBrief ?? null,
         imagePrompt,
+        aspectRatio,
+        materials: intentContext?.materials ?? null,
+        look: stylePreset,
       }),
       instagram_direct_prompt: true,
     };
@@ -54,6 +60,7 @@ export function buildInstagramFeedT2iPrompt(
     prompt: enhanceImagePrompt(imagePrompt, stylePreset, {
       channel: 'instagram',
       sectionType: 'standalone',
+      aspectRatio,
     }),
     instagram_direct_prompt: false,
   };

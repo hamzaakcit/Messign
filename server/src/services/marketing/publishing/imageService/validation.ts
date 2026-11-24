@@ -105,6 +105,17 @@ export function validateImageGenerationInput(
       ...(instagramDirectPrompt ? { instagram_direct_prompt: true as const } : {}),
       ...(overlayPaperPlane ? { overlay_paper_plane: true as const } : {}),
       ...(falNeg.length > 0 ? { fal_negative_prompt: falNeg } : {}),
+      ...(input.mock === true ? { mock: true as const } : {}),
+      ...(input.aspect_ratio ? { aspect_ratio: input.aspect_ratio } : {}),
+      ...(input.reference_image_url?.trim()
+        ? { reference_image_url: input.reference_image_url.trim() }
+        : {}),
+      ...(input.scene_product?.trim() ? { scene_product: input.scene_product.trim() } : {}),
+      ...(input.scene_place?.trim() ? { scene_place: input.scene_place.trim() } : {}),
+      ...(input.shop_still === true ? { shop_still: true as const } : {}),
+      ...(typeof input.image_prompt_strength === 'number' && Number.isFinite(input.image_prompt_strength)
+        ? { image_prompt_strength: input.image_prompt_strength }
+        : {}),
     },
   };
 }

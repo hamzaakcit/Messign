@@ -91,8 +91,13 @@ function MainAppPages() {
   );
 }
 
+/** Local dev only: skips the login screen by signing in with the seeded demo account automatically. */
+const DEV_AUTOLOGIN_EMAIL = 'alex.chen@messign.com';
+const DEV_AUTOLOGIN_PASSWORD = 'test123';
+
 function App() {
   const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   /**
    * Use auth store `_hasHydrated` (set in onRehydrateStorage for both success AND failure).
    * Relying only on `persist.hasHydrated()` breaks when rehydrate rejects — middleware never flips
@@ -100,6 +105,7 @@ function App() {
    */
   const authRehydrated = useAuthStore((s) => s._hasHydrated);
   const [hydrationFallback, setHydrationFallback] = useState(false);
+  const [devAutoLoginAttempted, setDevAutoLoginAttempted] = useState(!import.meta.env.DEV);
 
   useEffect(() => {
     if (authRehydrated) return;
@@ -115,10 +121,25 @@ function App() {
 
   const appReady = authRehydrated || hydrationFallback;
 
+  // Dev convenience: sign in as the seeded demo user. The login form stays up until that finishes.
+  useEffect(() => {
+    if (!appReady || !import.meta.env.DEV || devAutoLoginAttempted) return;
+    if (isAuthenticated) {
+      setDevAutoLoginAttempted(true);
+      return;
+    }
+    useAuthStore
+      .getState()
+      .login(DEV_AUTOLOGIN_EMAIL, DEV_AUTOLOGIN_PASSWORD, true, true)
+      .finally(() => setDevAutoLoginAttempted(true));
+  }, [appReady, isAuthenticated, devAutoLoginAttempted]);
+
   // Connect socket for any authenticated user (main app or admin) so presence (online/offline) works. Must be before any early return to satisfy Rules of Hooks.
   useEffect(() => {
     if (user?.id) connectSocket(user.id);
   }, [user?.id]);
+
+  const showLoginWhileDevSignsIn = import.meta.env.DEV && !devAutoLoginAttempted && !isAuthenticated;
 
   if (!appReady) {
     return (
@@ -128,11 +149,15 @@ function App() {
     );
   }
 
+  if (showLoginWhileDevSignsIn) {
+    return <LoginPage />;
+  }
+
   return (
     <>
       {user && <NotificationSocketSubscriber />}
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         {/* Public, no sign-in: the signed token in the link is the credential (engage unsubscribe, WP-13). */}
         <Route path="/u/:token" element={<UnsubscribePage />} />

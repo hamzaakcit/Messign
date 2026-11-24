@@ -103,9 +103,9 @@ export const CAMPAIGN_TOOL_NAMES = [
 const MAX_SUB_STEPS = 4;
 const CONTENT_STRATEGIST_MAX_STEPS = 4;
 const CAMPAIGN_MANAGER_MAX_STEPS = 6;
-const STEP_MS = 12_000;
-const CONTENT_STRATEGIST_STEP_MS = 15_000;
-const CAMPAIGN_MANAGER_STEP_MS = 15_000;
+const STEP_MS = 20_000;
+const CONTENT_STRATEGIST_STEP_MS = 30_000;
+const CAMPAIGN_MANAGER_STEP_MS = 25_000;
 
 /** Successful tool calls only to these → fast-tier synthesis for campaign manager. */
 const CAMPAIGN_METRICS_ONLY_TOOLS = new Set([
@@ -113,13 +113,15 @@ const CAMPAIGN_METRICS_ONLY_TOOLS = new Set([
   'marketing:get_marketing_roi',
 ]);
 /**
- * Instagram image gen (Fal → optional Gemini/OpenAI fallback) can exceed 90s; default 180s so Lucy chat
- * finishes before timing out. Override with MARKETING_FLOW_TIMEOUT_MS (min 30000).
+ * Instagram image gen (Fal → optional Gemini/OpenAI fallback) can take 15-30s;
+ * Add strategy planning (~30s), gatekeeper validation (~30s), approval assignment (~5s).
+ * Total: ~90-100s nominal, but allow 600s (10 min) headroom for slow LLM/API calls.
+ * Override with MARKETING_FLOW_TIMEOUT_MS (min 30000).
  */
 const TOTAL_MS = (() => {
   const raw = Number(process.env.MARKETING_FLOW_TIMEOUT_MS?.trim());
   if (Number.isFinite(raw) && raw >= 30_000) return Math.min(raw, 600_000);
-  return 300_000;
+  return 600_000; // 10 minutes — sufficient for complex workflows with image gen + validation
 })();
 
 const ROUTE_MARKETING_TOOL: OpenAI.ChatCompletionTool = {
@@ -355,7 +357,7 @@ export async function runMarketingMiniLoop(options: {
   const stepTimeoutMs = researchMode
     ? CONTENT_STRATEGIST_STEP_MS
     : contentStrategist
-      ? (isEmailCh ? 120_000 : CONTENT_STRATEGIST_STEP_MS)
+      ? (isEmailCh ? 60_000 : CONTENT_STRATEGIST_STEP_MS)
       : campaignManager
         ? CAMPAIGN_MANAGER_STEP_MS
         : STEP_MS;
@@ -600,7 +602,7 @@ Stay under ~200 words. **Do not** repeat tool names or restate the outcome list.
       temperature: 0.3,
       userQuery: query,
     }),
-    emailChannel && contentStrategist ? 120_000 : stepTimeoutMs,
+    emailChannel && contentStrategist ? 60_000 : stepTimeoutMs,
     'Marketing synthesis',
   );
 
@@ -629,6 +631,8 @@ export interface MarketingFlowOptions {
   forceMarketingContext?: boolean;
   /** Set by v2 pipeline when `body.marketingAgentMode` is true */
   marketingAgentMode?: boolean;
+  /** Existing content row to update instead of inserting a new draft. */
+  marketingContentId?: string;
   onStreamChunk?: (text: string) => void;
   onProgress?: (step: ProgressStep) => void;
 }
@@ -835,6 +839,7 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
           productTruthMd,
           brandVoiceMd,
           channel: channelInferred,
+          userBrief: userQuery,
           calibrationText,
           qualityTier,
         });
@@ -905,15 +910,8 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
           onStreamChunk,
           onProgress,
         };
-        const ch = mo.inferMarketingContentChannel(note + query);
-        const ct = mo.contentTypeForMarketingChannel(ch);
         const contentResult = await mo.executeContentWorkflow(
-          {
-            userQuery: note + query,
-            title: undefined,
-            channel: ch,
-            contentType: ct,
-          },
+          mo.buildPersistedContentBrief(note + query, opts.marketingContentId),
           orchCtx,
         );
         allObs.push(...contentResult.toolObservations);
@@ -976,15 +974,11 @@ export async function runMarketingSubOrchestratorFlow(opts: MarketingFlowOptions
         onStreamChunk,
         onProgress,
       };
-      const chBoth = moBoth.inferMarketingContentChannel(note + query);
-      const ctBoth = moBoth.contentTypeForMarketingChannel(chBoth);
       const contentResult = await moBoth.executeContentWorkflow(
-        {
-          userQuery: `${note + query}\n\nContext from campaign planning:\n${campaignContext}`,
-          title: undefined,
-          channel: chBoth,
-          contentType: ctBoth,
-        },
+        moBoth.buildPersistedContentBrief(
+          `${note + query}\n\nContext from campaign planning:\n${campaignContext}`,
+          opts.marketingContentId,
+        ),
         orchCtxBoth,
       );
       allObs.push(...contentResult.toolObservations);

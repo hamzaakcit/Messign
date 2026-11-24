@@ -52,7 +52,7 @@ SELECT to_regclass('public.finance_marketing_journal_stub');
 |----------|------|
 | `DATABASE_URL` | Required |
 | `JWT_SECRET` (or `JWT_ACCESS_SECRET`) | Required |
-| `MARKETING_PUBLISHER_ENABLED` | `0` to disable the publisher cron; omit or non-`0` to enable (default) |
+| `MARKETING_PUBLISHER_ENABLED` | Off unless exactly `1`. Unset does not schedule the publisher cron. |
 | `MARKETING_PUBLISHER_TZ` | Optional; default UTC |
 | LinkedIn / email real sends | `LINKEDIN_ACCESS_TOKEN`, `RESEND_API_KEY` / `SENDGRID_API_KEY`, etc. — only if not using adapter mocks |
 

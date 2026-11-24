@@ -4,6 +4,8 @@
 import OpenAI from 'openai';
 import { callModelSafe } from '../gateway.js';
 import { PRODUCT_TRUTH_VALIDATOR_SYSTEM_PROMPT } from '../../../modules/marketing/prompts/productTruthValidatorPrompt.js';
+import { unsupportedDiscountPhrase } from '../../../modules/marketing/prompts/ecommercePromptPack.js';
+import { foreignProductName } from '../../marketing/tenantContentSetup.js';
 import { loadProductTruthSheetMd } from '../../../dal/marketing/truthBrand.js';
 
 export type CheckStatus = 'PASS' | 'FAIL';
@@ -137,6 +139,42 @@ export async function runProductTruthValidation(
       topic,
       includeCompetitors: true,
     }));
+
+  const inventedDiscount = unsupportedDiscountPhrase(trimmed, productTruthMd);
+  if (inventedDiscount) {
+    const reason = `Discount "${inventedDiscount}" is not in product truth.`;
+    return {
+      verdict: 'FAIL',
+      checks: {
+        feature_references: EMPTY_CHECK(),
+        blocked_claims: EMPTY_CHECK(),
+        fabricated_metrics: { status: 'FAIL', details: reason },
+        superlatives: EMPTY_CHECK(),
+        glossary_compliance: EMPTY_CHECK(),
+      },
+      failed_reasons: [reason],
+      features_referenced: [],
+      metrics_found: [inventedDiscount],
+    };
+  }
+
+  const foreignName = foreignProductName(trimmed, productTruthMd);
+  if (foreignName) {
+    const reason = `"${foreignName}" is not in this org's product truth.`;
+    return {
+      verdict: 'FAIL',
+      checks: {
+        feature_references: { status: 'FAIL', details: reason },
+        blocked_claims: EMPTY_CHECK(),
+        fabricated_metrics: EMPTY_CHECK(),
+        superlatives: EMPTY_CHECK(),
+        glossary_compliance: EMPTY_CHECK(),
+      },
+      failed_reasons: [reason],
+      features_referenced: [foreignName],
+      metrics_found: [],
+    };
+  }
 
   const userBlock = `## CONTENT
 

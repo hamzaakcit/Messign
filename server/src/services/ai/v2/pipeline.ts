@@ -357,9 +357,16 @@ export async function runDoraPipeline(
         history: body.history,
         forceMarketingContext: marketingHubAgent,
         marketingAgentMode: body.marketingAgentMode === true,
+        marketingContentId: body.marketingContentId,
         onStreamChunk: (t) => controller.emit('text', t),
         onProgress: (step) => controller.emit('progress', step),
       });
+
+      // Emit result.content as text when the flow caught an error internally
+      // (e.g. timeout) and returned a fallback message that wasn't streamed.
+      if (result.content && result.marketingContentStatus === 'error') {
+        controller.emit('text', result.content);
+      }
 
       for (const pa of result.pendingActions) {
         controller.emit('pending_action', pa.content);

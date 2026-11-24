@@ -130,6 +130,10 @@ export interface ContentItem {
   truth_validation?: unknown;
   brand_voice_check?: unknown;
   visual_description?: string | null;
+  /** Fal facts for the still, including the prompt Fal returned. */
+  image_generation_metadata?: {
+    fal_returned_prompt?: string;
+  } | null;
   views?: number | null;
   leads_attributed?: number | null;
   tags?: string[];

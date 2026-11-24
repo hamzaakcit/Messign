@@ -208,4 +208,84 @@ describe('executeContentWorkflow', () => {
     expect(result.status).toBe('failed');
     expect(mockAssign).not.toHaveBeenCalled();
   });
+
+  it('does not generate a product drop that has no truth row', async () => {
+    const result = await executeContentWorkflow('Window drop', { ...baseCtx, recipe: 'product_drop' }, {
+      generateResponseFn: mockGen,
+      runProductTruthValidationFn: mockTruth,
+      runBrandVoiceCheckFn: mockBrand,
+      runComplianceScanFn: mockComp,
+      assignApprovalFn: mockAssign,
+      getContentByIdFn: mockGet,
+      updateContentFn: mockUpdate,
+      createContentFn: vi.fn(),
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.status === 'failed' ? result.reason : '').toContain('truth_id:');
+    expect(mockGen).not.toHaveBeenCalled();
+  });
+
+  it('does not generate a discount that has no approved claim', async () => {
+    const truthId = '11111111-2222-4333-8444-555555555555';
+    const brief = ['Sale', '', 'product: Kürk Mantolu Madonna', `truth_id: ${truthId}`, 'claim: 50% off'].join('\n');
+    const result = await executeContentWorkflow(
+      brief,
+      {
+        ...baseCtx,
+        recipe: 'product_drop',
+        truthRow: { id: truthId, name: 'Kürk Mantolu Madonna' },
+      },
+      {
+        generateResponseFn: mockGen,
+        runProductTruthValidationFn: mockTruth,
+        runBrandVoiceCheckFn: mockBrand,
+        runComplianceScanFn: mockComp,
+        assignApprovalFn: mockAssign,
+        getContentByIdFn: mockGet,
+        updateContentFn: mockUpdate,
+        createContentFn: vi.fn(),
+      },
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.status === 'failed' ? result.reason : '').toContain('claim_id:');
+    expect(mockGen).not.toHaveBeenCalled();
+  });
+
+  it('generates once when the sheet names a truth row and has no discount', async () => {
+    const truthId = '11111111-2222-4333-8444-555555555555';
+    const brief = [
+      'Window drop',
+      '',
+      'product: Kürk Mantolu Madonna',
+      `truth_id: ${truthId}`,
+      'place: Karaköy kitapçı vitrini',
+      'price: ₺189',
+      'claim: Bu hafta vitrinde',
+      'claim_id: 22222222-3333-4444-8555-666666666666',
+      'language: tr',
+    ].join('\n');
+    const result = await executeContentWorkflow(
+      brief,
+      {
+        ...baseCtx,
+        recipe: 'product_drop',
+        truthRow: { id: truthId, name: 'Kürk Mantolu Madonna' },
+      },
+      {
+        generateResponseFn: mockGen,
+        runProductTruthValidationFn: mockTruth,
+        runBrandVoiceCheckFn: mockBrand,
+        runComplianceScanFn: mockComp,
+        assignApprovalFn: mockAssign,
+        getContentByIdFn: mockGet,
+        updateContentFn: mockUpdate,
+        createContentFn: vi.fn(),
+      },
+    );
+
+    expect(mockGen).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe('completed');
+  });
 });

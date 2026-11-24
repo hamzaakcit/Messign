@@ -7,8 +7,9 @@ import { setSessionSurface } from '@/lib/productSurface';
 import { MarketingLayout } from '@/pages/marketing/MarketingLayout';
 
 /**
- * ADR-016: the Company-OS Lucy page and engage are one page. Where the signed-in organization may use engage (surface
- * `all`, and the engage API says so), the page also holds the engage sections; everywhere else it is exactly the Lucy page.
+ * ADR-016: the marketing page and engage are one page. Where the signed-in organization may use engage (surface
+ * `all`, and the engage API says so), the shop counter also holds the engage sections as tabs after Offers, their
+ * create actions under More, and their panels. Everywhere else it is exactly the shop counter.
  */
 
 vi.mock('@/stores/authStore', () => ({
@@ -24,9 +25,6 @@ vi.mock('@/pages/marketing/components/DoraRail', () => ({
   DoraRail: () => <div data-testid="dora-rail" />,
   MARKETING_DORA_RAIL_OUTSET_RIGHT: 'right-6',
 }));
-vi.mock('@/pages/marketing/components/MarketingMetricChips', () => ({
-  MarketingMetricChips: () => <div data-testid="metric-chips" />,
-}));
 vi.mock('@/lib/marketingApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/marketingApi')>();
   return {
@@ -39,6 +37,7 @@ vi.mock('@/lib/marketingApi', async (importOriginal) => {
       }),
       getLeadFunnel: vi.fn().mockResolvedValue({ stages: [] }),
       listBrandProfiles: vi.fn().mockResolvedValue({ profiles: [], total: 0 }),
+      listContent: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, pageSize: 50 }),
       getCommandCenter: vi.fn().mockResolvedValue({
         generatedAt: new Date().toISOString(), days: 7,
         funnel7d: { new: 0, contacted: 0, nurturing: 0, qualified: 0, converted: 0, disqualified: 0 }, funnelSeries7d: [],
@@ -83,80 +82,81 @@ function renderLucy(): void {
 
 afterEach(() => { globalThis.fetch = original; vi.unstubAllEnvs(); setSessionSurface(null); });
 
-describe('the Lucy page and engage as one page (ADR-016)', () => {
-  it('workspace surface: exactly the Lucy page, and the engage API is never asked', async () => {
+describe('the marketing page and engage as one page (ADR-016)', () => {
+  const allowed = () => json({ organizationId: 'o', userId: 'u', role: 'admin', product: 'all' });
+  const openMore = () => fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+  it('workspace surface: exactly the shop counter, and the engage API is never asked', async () => {
     vi.stubEnv('VITE_PRODUCT_SURFACE', 'workspace');
-    mockEngage(() => json({ organizationId: 'o', userId: 'u', role: 'admin', product: 'all' }));
+    mockEngage(allowed);
     renderLucy();
-    await screen.findByTestId('dora-rail');
-    expect(screen.getByText('Go to')).toBeInTheDocument();
+    await screen.findByText('No offers for Messign.');
     expect(screen.queryByRole('tablist')).toBeNull();
-    expect(screen.queryByTestId('hub-go-journeys')).toBeNull();
+    openMore();
+    expect(screen.queryByTestId('hub-new-journey')).toBeNull();
     expect(urls.filter((u) => u.includes('/engage/'))).toEqual([]);
   });
 
-  it('all surface, organization refused by the engage API: the page stays exactly the Lucy page', async () => {
+  it('all surface, organization refused by the engage API: the page stays exactly the shop counter', async () => {
     vi.stubEnv('VITE_PRODUCT_SURFACE', 'all');
     mockEngage(() => json({ error: 'Organization is not an engage tenant' }, 403));
     renderLucy();
-    await screen.findByTestId('dora-rail');
     await waitFor(() => expect(urls.some((u) => u.endsWith('/engage/me'))).toBe(true));
     expect(screen.queryByRole('tablist')).toBeNull();
-    expect(screen.queryByTestId('hub-go-journeys')).toBeNull();
-    expect(screen.queryByTestId('hub-new-journey')).toBeNull();
+    openMore();
     expect(screen.getByRole('button', { name: /^Pipeline$/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('hub-new-journey')).toBeNull();
   });
 
-  it('all surface, engage allowed: Lucy and the four engage sections are tabs of one page, with tiles and quick actions', async () => {
+  it('all surface, engage allowed: Offers and the engage sections are tabs of one page, create actions under More', async () => {
     vi.stubEnv('VITE_PRODUCT_SURFACE', 'all');
-    mockEngage(() => json({ organizationId: 'o', userId: 'u', role: 'admin', product: 'all' }));
+    mockEngage(allowed);
     renderLucy();
     expect(await screen.findByTestId('hub-tab-customers')).toBeInTheDocument();
     for (const id of ['lucy', 'customers', 'journeys', 'segments', 'templates']) expect(screen.getByTestId(`hub-tab-${id}`)).toBeInTheDocument();
+    expect(screen.getByTestId('hub-tab-lucy')).toHaveTextContent('Offers');
     expect(screen.getByTestId('hub-tab-lucy')).toHaveAttribute('aria-selected', 'true');
-    // The Lucy page's own tiles and quick actions are all still there, next to the engage ones.
+    expect(screen.getAllByRole('button', { name: 'New offer' }).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('hub-go-journeys')).toBeNull();
+    openMore();
     expect(screen.getByRole('button', { name: /^Pipeline$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Campaign$/i })).toBeInTheDocument();
-    expect(screen.getByTestId('hub-go-journeys')).toBeInTheDocument();
     expect(screen.getByTestId('hub-new-journey')).toBeInTheDocument();
-    expect(screen.getByTestId('dora-rail')).toBeInTheDocument();
     expect(screen.queryByTestId('hub-customers')).toBeNull();
   });
 
-  it('an engage tab shows the section in the main area; the chat is hidden, not unmounted, so it keeps its conversation', async () => {
+  it('an engage tab shows the section in the main area; Offers brings the shop counter back', async () => {
     vi.stubEnv('VITE_PRODUCT_SURFACE', 'all');
-    mockEngage(() => json({ organizationId: 'o', userId: 'u', role: 'admin', product: 'all' }));
+    mockEngage(allowed);
     renderLucy();
     fireEvent.click(await screen.findByTestId('hub-tab-customers'));
     expect(await screen.findByText('kitap-1')).toBeInTheDocument();
-    const rail = screen.getByTestId('dora-rail');
-    expect(rail).toBeInTheDocument();
-    expect(rail.parentElement?.className).toContain('hidden');
+    expect(screen.queryByText('No offers for Messign.')).toBeNull();
     fireEvent.click(screen.getByTestId('hub-tab-lucy'));
-    expect(screen.getByTestId('dora-rail').parentElement?.className).not.toContain('hidden');
+    expect(await screen.findByText('No offers for Messign.')).toBeInTheDocument();
     expect(screen.queryByTestId('hub-customers')).toBeNull();
   });
 
-  it('a tile or a quick action goes to the section and opens its panel over the Lucy page', async () => {
+  it('a create action goes to its section and opens its panel over the page', async () => {
     vi.stubEnv('VITE_PRODUCT_SURFACE', 'all');
-    mockEngage(() => json({ organizationId: 'o', userId: 'u', role: 'admin', product: 'all' }));
+    mockEngage(allowed);
     renderLucy();
-    fireEvent.click(await screen.findByTestId('hub-go-templates'));
-    expect(await screen.findByTestId('hub-templates')).toBeInTheDocument();
-    expect(screen.getByTestId('hub-tab-templates')).toHaveAttribute('aria-selected', 'true');
+    await screen.findByTestId('hub-tab-customers');
+    openMore();
     fireEvent.click(screen.getByTestId('hub-new-journey'));
     expect(await screen.findByTestId('journey-editor')).toBeInTheDocument();
     expect(screen.getByTestId('hub-panel')).toContainElement(screen.getByTestId('journey-editor'));
     expect(screen.getByTestId('hub-tab-journeys')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('choosing a tab or a tile closes the open panel and shows that section', async () => {
+  it('choosing a tab closes the open panel and shows that section', async () => {
     vi.stubEnv('VITE_PRODUCT_SURFACE', 'all');
-    mockEngage(() => json({ organizationId: 'o', userId: 'u', role: 'admin', product: 'all' }));
+    mockEngage(allowed);
     renderLucy();
-    fireEvent.click(await screen.findByTestId('hub-new-segment'));
+    await screen.findByTestId('hub-tab-customers');
+    openMore();
+    fireEvent.click(screen.getByTestId('hub-new-segment'));
     expect(await screen.findByTestId('hub-panel')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('hub-go-customers'));
+    fireEvent.click(screen.getByTestId('hub-tab-customers'));
     await waitFor(() => expect(screen.queryByTestId('hub-panel')).toBeNull());
     expect(screen.getByTestId('hub-tab-customers')).toHaveAttribute('aria-selected', 'true');
     fireEvent.click(screen.getByTestId('hub-new-template'));
@@ -171,6 +171,7 @@ describe('the Lucy page and engage as one page (ADR-016)', () => {
     mockEngage(() => json({ organizationId: 'o', userId: 'u', role: 'employee', product: 'all' }));
     renderLucy();
     await screen.findByTestId('hub-tab-customers');
+    openMore();
     expect(screen.queryByTestId('hub-new-journey')).toBeNull();
     expect(screen.getByText(/Only a tenant admin can create or change/)).toBeInTheDocument();
   });

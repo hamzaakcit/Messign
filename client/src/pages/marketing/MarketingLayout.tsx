@@ -7,17 +7,16 @@ import { ROUTES } from '@/lib/routes';
 import { MarketingProvider, useMarketingContext } from './MarketingContext';
 import { MarketingWorkspaceLayout } from './MarketingWorkspaceLayout';
 import { LucyMarketingPage } from './LucyMarketingPage';
+import { NewOfferPage } from './NewOfferPage';
 import { MarketingPipelinePage } from './components/MarketingPipelinePage';
-import { MarketingCommandCenter } from './MarketingCommandCenter';
-import { FunnelStrip } from './components/FunnelStrip';
 import { CampaignDetailPanel } from './components/CampaignDetailPanel';
 import { CampaignCreatePanel } from './components/CampaignCreatePanel';
 import { ContentCreatePanel } from './components/ContentCreatePanel';
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
+import { TenantContentSetupPanel } from './components/TenantContentSetupPanel';
 import { EmailCampaignDetailPanel } from './components/EmailCampaignDetailPanel';
 import { MarketingWorkspaceSecondaryAlerts } from './components/MarketingWorkspaceSecondaryAlerts';
-import { buildMarketingModeLocation } from './lib/marketingPathUtils';
 
 // ---------------------------------------------------------------------------
 // Lazy sections
@@ -31,9 +30,6 @@ const ContentCalendarTab = React.lazy(() =>
 );
 const BuilderSection = React.lazy(() =>
   import('./sections/BuilderSection').then((m) => ({ default: m.BuilderSection })),
-);
-const CompetitorDashboard = React.lazy(() =>
-  import('./components/CompetitorDashboard').then((m) => ({ default: m.CompetitorDashboard })),
 );
 
 // ---------------------------------------------------------------------------
@@ -59,9 +55,7 @@ function LucyHubRoute(): JSX.Element {
     <>
       <MarketingBootstrapBanner error={ctx.bootstrapError} onRetry={() => void ctx.refetchBootstrap()} />
       <MarketingWorkspaceSecondaryAlerts
-        funnelError={ctx.funnelError}
         brandsError={ctx.brandsError}
-        onRetryFunnel={() => void ctx.refetchFunnel()}
         onRetryBrands={() => void ctx.refetchBrands()}
       />
       <LucyMarketingPage />
@@ -74,43 +68,19 @@ function PipelineRoute(): JSX.Element {
   return <MarketingPipelinePage />;
 }
 
-/** Calendar with funnel strip */
 function CalendarRoute(): JSX.Element {
-  const ctx = useMarketingContext();
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-        <ErrorBoundary resetKey="calendar">
-          <Suspense fallback={<SectionFallback />}>
-            <ContentCalendarTab />
-          </Suspense>
-        </ErrorBoundary>
-      </div>
-      {ctx.funnelError ? (
-        <div
-          className="shrink-0 px-4 py-1 text-[10px] bg-amber-950/35 text-amber-100/95 border-t border-amber-500/20 flex items-center justify-between gap-2"
-          role="status"
-        >
-          <span className="truncate">Funnel: {ctx.funnelError.message}</span>
-          <button
-            type="button"
-            className="shrink-0 underline underline-offset-2"
-            onClick={() => void ctx.refetchFunnel()}
-          >
-            Retry
-          </button>
-        </div>
-      ) : null}
-      <FunnelStrip
-        funnel={ctx.funnel}
-        hotLeads={ctx.hotLeads}
-        onLeadClick={(id) => ctx.openDetail({ type: 'lead', id })}
-      />
+      <ErrorBoundary resetKey="calendar">
+        <Suspense fallback={<SectionFallback />}>
+          <ContentCalendarTab />
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }
 
-/** Builder (email / landing page / popup / document) */
+/** Builder (email / document) */
 function BuilderRoute(): JSX.Element {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -125,55 +95,6 @@ function BuilderRoute(): JSX.Element {
   );
 }
 
-/** Competitor Intelligence */
-function IntelligenceRoute(): JSX.Element {
-  return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <ErrorBoundary resetKey="intelligence">
-        <Suspense fallback={<SectionFallback />}>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <CompetitorDashboard />
-          </div>
-        </Suspense>
-      </ErrorBoundary>
-    </div>
-  );
-}
-
-/** Command Center (single-column view) */
-function CommandCenterRoute({
-  column,
-}: {
-  column: 'brand-social' | 'funnel' | 'experiments' | 'sandbox';
-}): JSX.Element {
-  const ctx = useMarketingContext();
-  const navigate = useNavigate();
-  const location = useLocation();
-  return (
-    <MarketingCommandCenter
-      visibleColumn={column}
-      variant="full"
-      data={ctx.ccData}
-      loading={ctx.ccLoading}
-      error={ctx.ccError}
-      brandsError={ctx.brandsError}
-      days={ctx.ccDays}
-      onDaysChange={ctx.setCcDays}
-      brandList={ctx.brandList}
-      brandFilter={ctx.brandFilter}
-      onBrandFilterChange={ctx.setBrandFilter}
-      onRefresh={() => void ctx.refreshCommandCenter({ fresh: true })}
-      onExecuteWithDora={ctx.executeWithDora}
-      onOpenCampaign={(id) => ctx.openDetail({ type: 'campaign', id })}
-      onOpenEmail={(id) => ctx.openDetail({ type: 'email', id })}
-      onOpenPipeline={() => void navigate(ROUTES.MARKETING_PIPELINE)}
-      onOpenBuilder={() => void navigate(buildMarketingModeLocation('builder', location.search))}
-      onOpenIntelligence={() => void navigate(buildMarketingModeLocation('intelligence', location.search))}
-      onReconnectSocial={() => void ctx.refreshCommandCenter({ fresh: true })}
-    />
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Legacy ?panel= redirect (hub-only)
 // ---------------------------------------------------------------------------
@@ -183,12 +104,10 @@ function LegacyPanelRedirect(): JSX.Element | null {
   const panelParams = new URLSearchParams(
     location.search.startsWith('?') ? location.search.slice(1) : location.search,
   );
-  const legacyPanel = panelParams.get('panel');
-  if (legacyPanel === 'builder' || legacyPanel === 'intelligence') {
+  if (panelParams.get('panel') === 'builder') {
     panelParams.delete('panel');
     const qs = panelParams.toString();
-    const path = legacyPanel === 'builder' ? '/marketing/builder' : '/marketing/intelligence';
-    return <Navigate to={{ pathname: path, search: qs ? `?${qs}` : '' }} replace />;
+    return <Navigate to={{ pathname: ROUTES.MARKETING_BUILDER, search: qs ? `?${qs}` : '' }} replace />;
   }
   // Not a legacy panel — render the hub
   return <LucyHubRoute />;
@@ -249,7 +168,11 @@ function MarketingPanels(): JSX.Element {
       >
         {ctx.detail?.type === 'content' && (
           <Suspense fallback={<SectionFallback />}>
-            <ContentDetailPanel contentId={ctx.detail.id} onUpdated={handleDetailUpdated} />
+            <ContentDetailPanel
+              contentId={ctx.detail.id}
+              refreshKey={ctx.detailRefreshKey}
+              onUpdated={handleDetailUpdated}
+            />
           </Suspense>
         )}
       </SlideOverPanel>
@@ -283,7 +206,7 @@ function MarketingPanels(): JSX.Element {
         width={960}
       >
         {ctx.detail?.type === 'email' && (
-          <EmailCampaignDetailPanel emailId={ctx.detail.id} onUpdated={handleDetailUpdated} />
+          <EmailCampaignDetailPanel emailId={ctx.detail.id} />
         )}
       </SlideOverPanel>
 
@@ -326,6 +249,7 @@ function MarketingPanels(): JSX.Element {
         title="Brand Profiles"
         width={560}
       >
+        <TenantContentSetupPanel />
         <BrandProfileManager />
       </SlideOverPanel>
     </>
@@ -360,6 +284,7 @@ function MarketingRouter(): JSX.Element {
       <Route path="/marketing">
         {/* Hub — exact /marketing (handles ?panel= legacy too) */}
         <Route index element={<LegacyPanelRedirect />} />
+        <Route path="offer/new" element={<NewOfferPage />} />
 
         {/* Workspace routes — wrapped in workspace layout with Outlet */}
         <Route element={<MarketingWorkspaceLayout />}>
@@ -374,21 +299,21 @@ function MarketingRouter(): JSX.Element {
             }
           />
           <Route path="builder" element={<BuilderRoute />} />
-          <Route path="intelligence" element={<IntelligenceRoute />} />
-          <Route path="brand-social" element={<CommandCenterRoute column="brand-social" />} />
-          <Route path="funnel" element={<CommandCenterRoute column="funnel" />} />
-          <Route path="experiments" element={<CommandCenterRoute column="experiments" />} />
-          <Route path="sandbox" element={<CommandCenterRoute column="sandbox" />} />
         </Route>
 
         {/* Named legacy redirects */}
         <Route path="lucy" element={<Navigate to="/marketing" replace />} />
         <Route path="workspace" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="executive" element={<Navigate to={ROUTES.MARKETING} replace />} />
-        <Route path="campaigns" element={<Navigate to={ROUTES.MARKETING_EXPERIMENTS} replace />} />
+        <Route path="intelligence" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="brand-social" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="funnel" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="experiments" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="sandbox" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="campaigns" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="email" element={<Navigate to="/marketing/builder?type=email" replace />} />
-        <Route path="pages" element={<Navigate to="/marketing/builder?type=landing_page" replace />} />
-        <Route path="popups" element={<Navigate to="/marketing/builder?type=popup" replace />} />
+        <Route path="pages" element={<Navigate to={ROUTES.MARKETING_BUILDER} replace />} />
+        <Route path="popups" element={<Navigate to={ROUTES.MARKETING_BUILDER} replace />} />
         <Route path="documents" element={<Navigate to="/marketing/builder?type=document" replace />} />
         <Route path="agent" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="command-center" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />

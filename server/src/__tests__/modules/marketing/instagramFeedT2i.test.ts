@@ -50,7 +50,8 @@ describe('instagramFeedT2i', () => {
         { userBrief: 'User wants a beach sunset' },
       );
       expect(out.instagram_direct_prompt).toBe(true);
-      expect(out.prompt).toContain('beach sunset');
+      expect(out.prompt).toContain('red kite');
+      expect(out.prompt).not.toContain('beach sunset');
       expect(out.prompt).not.toContain('Planner:');
     });
 

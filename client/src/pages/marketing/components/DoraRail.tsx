@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/lib/routes';
 import { Loader2, Send, StopCircle, Trash2 } from 'lucide-react';
 import { useDora } from '@/hooks/useDora';
 import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/ai';
@@ -8,7 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
 import type { BoardCardData } from './BoardCard';
 import type { MarketingChannelAgentModalId } from '@/pages/marketing/lib/marketingChannelAgentBuilders';
-import { InstagramAgentPromptModal } from './InstagramAgentPromptModal';
+import { useMarketingContext } from '@/pages/marketing/MarketingContext';
 import { MarketingChannelAgentModal } from './MarketingChannelAgentModal';
 import { MarketingComposerChannelButtons } from './MarketingComposerChannelButtons';
 
@@ -38,6 +39,8 @@ export function DoraRail({
   layout = 'rail',
 }: DoraRailProps): JSX.Element {
   const location = useLocation();
+  const navigate = useNavigate();
+  const marketing = useMarketingContext();
   const user = useAuthStore((s) => s.user);
   const userRole = user?.role ?? 'member';
   const {
@@ -55,6 +58,11 @@ export function DoraRail({
     marketingAgentMode: true,
     initialMessages: [],
     initialInteractionMode: 'analyze',
+    onMarketingContentReady: (contentId) => {
+      marketing.openDetail({ type: 'content', id: contentId });
+      marketing.bumpContentDetail();
+      void marketing.invalidateWorkspace();
+    },
   });
 
   const handleSendMessage = useCallback((msg: string): void => {
@@ -62,7 +70,6 @@ export function DoraRail({
   }, [sendMessage]);
 
   const [inputValue, setInputValue] = useState('');
-  const [igModalOpen, setIgModalOpen] = useState(false);
   const [channelModal, setChannelModal] = useState<MarketingChannelAgentModalId | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -76,8 +83,8 @@ export function DoraRail({
   }, [messages, isLoading]);
 
   useEffect(() => {
-    if (instagramModalSignal > 0) setIgModalOpen(true);
-  }, [instagramModalSignal]);
+    if (instagramModalSignal > 0) navigate(ROUTES.MARKETING_OFFER_NEW);
+  }, [instagramModalSignal, navigate]);
 
   useEffect(() => {
     if (!executePrompt?.text.trim()) return;
@@ -110,16 +117,6 @@ export function DoraRail({
 
   return (
     <div className={shellClass}>
-      <InstagramAgentPromptModal
-        isOpen={igModalOpen}
-        onClose={() => setIgModalOpen(false)}
-        onSend={(msg) => void sendMessage(msg)}
-        onApplyToComposer={(msg) => {
-          setInputValue(msg);
-          inputRef.current?.focus();
-        }}
-        defaultTopic={selectedCard?.title ?? null}
-      />
       <MarketingChannelAgentModal
         channel={channelModal}
         isOpen={channelModal !== null}
@@ -202,7 +199,7 @@ export function DoraRail({
         <div className="max-h-[min(36vh,340px)] min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2.5 sm:px-3">
           <MarketingComposerChannelButtons
             isLoading={isLoading}
-            onOpenInstagram={() => setIgModalOpen(true)}
+            onOpenInstagram={() => navigate(ROUTES.MARKETING_OFFER_NEW)}
             onOpenChannelModal={(ch) => setChannelModal(ch)}
             variant="comfortable"
           />

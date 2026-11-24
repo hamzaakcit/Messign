@@ -41,6 +41,7 @@ export function InstagramPreview({
   isGenerating,
   carouselImages,
   username = 'your_brand',
+  onSlideIndexChange,
 }: {
   caption: string;
   imageUrl: string | null | undefined;
@@ -48,8 +49,13 @@ export function InstagramPreview({
   isGenerating?: boolean;
   carouselImages?: CarouselSlide[] | null;
   username?: string;
+  onSlideIndexChange?: (index: number) => void;
 }) {
   const [slideIndex, setSlideIndex] = useState(0);
+  const selectSlide = (index: number): void => {
+    setSlideIndex(index);
+    onSlideIndexChange?.(index);
+  };
   const [imgLoadError, setImgLoadError] = useState(false);
   const [imgCacheBust, setImgCacheBust] = useState(0);
   const { main, hashtags } = splitCaptionAndHashtags(caption);
@@ -128,7 +134,7 @@ export function InstagramPreview({
                   <button
                     type="button"
                     title="Previous slide"
-                    onClick={() => setSlideIndex((i) => i - 1)}
+                    onClick={() => selectSlide(slideIndex - 1)}
                     className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-app-text/80 hover:bg-black/70"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -138,7 +144,7 @@ export function InstagramPreview({
                   <button
                     type="button"
                     title="Next slide"
-                    onClick={() => setSlideIndex((i) => i + 1)}
+                    onClick={() => selectSlide(slideIndex + 1)}
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-app-text/80 hover:bg-black/70"
                   >
                     <ChevronRight className="h-4 w-4" />

@@ -1,6 +1,6 @@
 # Backlog
 
-**Convention:** Work packages (WP) are session-sized and ordered. Status: `todo` · `in-progress` · `done` · `blocked(reason)` · `dropped`. Update this file at the end of every session. Week mapping: `90-day-roadmap.md`.
+**Convention:** Work packages (WP) are session-sized and ordered. Status: `todo` · `in-progress` · `done` · `blocked(reason)` · `dropped`. Update this file at the end of every session. Week mapping: `90-day-roadmap.md`. Content studio packages (CS) are a parallel track: `content-studio-90-day.md`. The marketing counter (MC) is a parallel evening track: `marketing-counter-120-day.md`. Default the next session to the Engage WP table unless the founder picks an MC row.
 
 ## Ready / committed (90 days)
 
@@ -47,6 +47,70 @@
 | WP-33 | Onboarding kit (CSV templates, readiness checklist, DPA/DNS/başlık list, demo script) + runbook + kill-switch drill. The checklist includes: sender name set in Settings, and the email account's From name equal to it (the send gate denies a mismatch, `sender_identity_mismatch`) | P0 | W13 | done (kit in `docs/onboarding/` (`onboarding-checklist.md` is compared with `REQUIRED_READINESS` by `engageOnboardingChecklist`; CSV templates run through the real parsers; the checklist walked through the Settings API to a sending tenant); `docs/runbooks/pilot-runbook.md`; `npm run engage:kill-switch-drill` with a scratch-database result in `docs/quality/kill-switch-drill-wp33.md`. **Open for Hamza:** the drill on the real environment (Railway timing, runbook 6) was not run here, so pilot gate 6 is evidenced for the mechanism only) | Checklist maps 1:1 to `tenant_readiness`; a tenant with matching sender and From names sends, one with differing names is denied |
 | WP-34 | Business-start dry run: onboard a fresh synthetic tenant from zero using only the kit | P0 | W13 | todo | ≤ 1 working day; gates 4–8 evidenced |
 
+## Content studio track (parallel — do not displace the Engage table)
+
+Detail: `content-studio-90-day.md`. Draft 2026-11-12. CS-D2 and CS-D3 approved 2026-11-12. CS-01 through CS-15 are done. Engage **WP-01** is done. Next Engage session defaults to **WP-02**.
+
+| WP | Title | Pri | Status | Acceptance (short) |
+|---|---|---|---|---|
+| CS-01 | Offer parent (`content_type=offer`) and child status via `parent_content_id` | P0 | done | Org A cannot read org B’s offer; children list empty |
+| CS-02 | One Instagram studio used by pipeline slide-over and command center | P0 | done | Regen + carousel slides on the shared component |
+| CS-03 | Lucy IG modal creates offer + IG child and opens the studio | P0 | done | Mocked agent yields a child whose parent is the offer |
+| CS-04 | Persist `instagram_format`; first image uses 1:1 or 9:16 | P0 | done | `story` → 9:16, `feed` → 1:1 |
+| CS-05 | E-commerce prompt pack (5 book, 5 flower) | P0 | done | Fake discount absent from product truth fails the gate |
+| CS-06 | Email child from the offer (Unlayer), opt-out required to approve | P0 | done | Product drop has two children; IG needs no unsubscribe line |
+| CS-07 | Recipes: product drop, occasion, cart (no IG). Replace atomization stub | P0 | done | Cart creates zero Instagram rows |
+| CS-08 | Approval queue deep-links per child (flip if CS-D2 rejected) | P0 | done | Approving email leaves Instagram in draft |
+| CS-09 | Carousel per-slide regen (max 5) and apply caption variant | P1 | done | Regen slide 2 does not replace slide 1 |
+| CS-10 | `journey_template_ref` on the email child; no send | P0 | done | PII in the draft prompt fails; no provider call |
+| CS-11 | Reel cover + storyboard (blocked if CS-D3 rejected) | P0 | done | Parser returns cover prompt plus 3 shots |
+| CS-12 | Schedule IG; test publish respects `SEND_MODE` | P0 | done | Unset send mode does not call Graph |
+| CS-13 | Second-tenant brand checklist (Messign + florist) | P1 | done | Florist fixture has no Messign product name |
+| CS-14 | Dogfood script + one mocked Playwright path | P1 | done | Top 5 annoyances written for CS-15 |
+| CS-15 | Buffer: only the CS-14 list | P0 | done | No new channel |
+
+## Content production track (parallel — offer sheet and Fal stills)
+
+Detail: `content-production-roadmap.md`. Draft 2026-11-13. CP-01 through CP-11 are done. The create form now aims the still: materials lead the scene, and the product name is the title. The next Engage session is **WP-02**.
+
+| WP | Title | Pri | Status | Acceptance (short) |
+|---|---|---|---|---|
+| CP-01 | Offer sheet parser in `user_brief` | P0 | done | Round-trip; sentence-only brief; phone in audience fails |
+| CP-02 | Merchant truth rows (price and place labels, org-scoped picker data) | P0 | done | Org isolation; florist has no Dora |
+| CP-03 | Gates before copy and Fal | P0 | done | Missing truth row and invented discount never call the model |
+| CP-04 | Scene prompt from the sheet, not the raw brief | P0 | done | Scene names product and place and has no price |
+| CP-11 | Fal Pro and Ultra request bodies; store returned prompt and seed | P0 | done | Pro body has no guidance, steps, or negative prompt |
+| CP-05 | Feed package checks the prompt Fal returned | P0 | done | Missing place fails the still |
+| CP-06 | Carousel roles and per-slide claims | P1 | done | Regen slide 2 leaves slide 1 |
+| CP-07 | Story frames and reel shot list; cover still only | P0 | done | Two shots do not save; no video |
+| CP-08 | Email from sheet fields | P0 | done | Price comes from the field; cart creates no Instagram row |
+| CP-09 | Studio sheet beside the draft | P0 | done | Empty product does not start the pipeline |
+| CP-10 | Bookstore feed and florist occasion, including Ultra strength tries | P0 | done | Stored Fal prompt has product and place, not the price |
+
+## Marketing counter (parallel evenings — shop window)
+
+Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 are done. The next package on this track is **MC-07**.
+
+| WP | Title | Pri | Status | Acceptance (short) |
+|---|---|---|---|---|
+| MC-01 | Home is the offer list; Lucy is a closed drawer | P0 | done | `/marketing` shows offers, not the chat |
+| MC-02 | New offer is five steps; the create modal is no longer the way in | P0 | done | A product drop with no product does not start |
+| MC-03 | Content detail is that offer; score and token leave it | P0 | done | Detail shows the still and the caption |
+| MC-04 | Shop-window theme on the home and the offer | P0 | done | No glow, paper planes, or zeroed MQLs on the home |
+| MC-05 | Empty, error, and tenant-switch states | P0 | done | Kitapyurdu never shows Dora |
+| MC-06 | Picture step keeps look, frame, reference, regenerate | P0 | done | Scene line matches the Fal sentence |
+| MC-07 | Journey email readable on the offer | P0 | todo | Subject, price, and unsubscribe without Unlayer |
+| MC-08 | Looks good marks review and does not schedule or post | P0 | todo | Disabled until still and caption exist |
+| MC-09 | Pipeline becomes the offer list | P1 | todo | `/marketing/content` redirects there |
+| MC-10 | Calendar schedules a ready offer and warns about live send | P0 | todo | A draft cannot be dropped on a day |
+| MC-11 | Shop settings replace the Brands button | P1 | todo | Truth and brand in one place |
+| MC-12 | A campaign is a name on a set of offers | P1 | todo | No campaign button on the home |
+| MC-13 | Intel, funnel, and leads leave the marketing nav | P1 | todo | More shows Intel only |
+| MC-14 | Sandbox, command center, creative hub, automation leave the nav | P1 | todo | Old links still redirect |
+| MC-15 | Shop-window theme on Offers, Calendar, and Shop settings | P1 | todo | Three rooms feel like one product |
+| MC-16 | Dogfood one bookstore offer and one florist offer | P0 | todo | Both finish as drafts, Lucy stays closed |
+| MC-17 | Cut list from the dogfood | P0 | todo | Unused tabs written down, not deleted |
+
 ## Post-90-day backlog (speculative until a real customer asks — principle 1)
 
 | Item | Trigger to promote |
@@ -59,6 +123,7 @@
 | JS snippet + anonymous profiles + merge | Measured share of anonymous carts justifies it |
 | Visual journey canvas | Tenant feedback that forms block adoption |
 | A/B tests on copy (multi-candidate generation, Content Studio A1) | Volume high enough for significance |
+| Reel video bytes (keyframes, then image-to-video, then Reels upload) | CS-11 used on real offers and a tenant asks |
 | Türkiye-hosted deployment | D-04 outcome / buyer requirement |
 | Managed messaging (resale), margin on cost ledger | Product-vision Q6 triggers met |
 | Billing (Paddle or local) | Messign entity exists + first paid contract |

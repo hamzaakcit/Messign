@@ -42,8 +42,12 @@ import {
   stripReferenceImageUrlBlock,
 } from '../../../modules/marketing/prompts/instagramChannelSpec.js';
 import { generateImage, enhanceImagePrompt } from '../../marketing/publishing/imageService.js';
-import { parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
+import { ensureInstagramPreview, parseInstagramDraft, runInstagramImageGeneration } from '../../marketing/workflows/instagramImagePipeline.js';
 import { runContentAtomizationAfterApproval } from './contentAtomizationBatch.js';
+import { parseOfferSheet } from '../../marketing/offerSheet.js';
+import { offerProductionGate, offerSheetIsActive, type OfferTruthRowRef } from '../../marketing/offerProductionGate.js';
+import { recipeFromTags, type OfferRecipe } from '../../marketing/offerRecipes.js';
+import { fixtureTruthRow } from '../../marketing/tenantContentSetup.js';
 import {
   checkCopyQualityForRetry,
   flattenEmailManifestForGatekeepers,
@@ -94,6 +98,33 @@ export function contentTypeForMarketingChannel(channel: string): string {
   if (c === 'email') return 'email';
   if (c === 'blog') return 'blog';
   return 'social';
+}
+
+export interface PersistedContentBrief {
+  userQuery: string;
+  channel: string;
+  contentType: string;
+  contentId?: string;
+}
+
+/**
+ * Brief for `executeContentWorkflow`. When `pinnedContentId` is set, the
+ * orchestrator updates that row instead of creating one.
+ */
+export function buildPersistedContentBrief(
+  userQuery: string,
+  pinnedContentId?: string,
+): PersistedContentBrief {
+  const channel = inferMarketingContentChannel(userQuery);
+  const brief: PersistedContentBrief = {
+    userQuery,
+    channel,
+    contentType: contentTypeForMarketingChannel(channel),
+  };
+  if (pinnedContentId) {
+    brief.contentId = pinnedContentId;
+  }
+  return brief;
 }
 
 function log(step: string, detail?: Record<string, unknown>): void {
@@ -184,6 +215,10 @@ export interface ContentWorkflowBrief {
   campaignId?: string;
   /** Max generation attempts when Product Truth fails (default 3) */
   maxTruthRetries?: number;
+  /** When `product_drop`, a missing truth row stops generation before the model. */
+  recipe?: OfferRecipe | null;
+  /** Truth row already loaded for this organization. */
+  truthRow?: OfferTruthRowRef | null;
 }
 
 export type ContentWorkflowResult =
@@ -265,6 +300,7 @@ async function buildContentStrategistLoopArgs(
   priorBlock?: string,
   channelOverride?: string,
   brandProfileId?: string,
+  offerMaterials?: string,
 ) {
   const mergedCtx: ToolContext = {
     ...ctx.legacyContext,
@@ -302,6 +338,8 @@ async function buildContentStrategistLoopArgs(
     productTruthMd,
     brandVoiceMd,
     channel,
+    userBrief: userQuery,
+    offerMaterials,
     calibrationText,
     qualityTier,
   });
@@ -466,6 +504,34 @@ export async function executeContentWorkflow(
     }
   }
 
+  const sheetSource = contentRow.user_brief?.trim() || effectiveUserQuery;
+  const parsedSheet = parseOfferSheet(sheetSource);
+  const recipe = brief.recipe ?? recipeFromTags(contentRow.tags);
+  const truthRow =
+    brief.truthRow ?? fixtureTruthRow(parsedSheet.sheet.truthId, parsedSheet.sheet.product);
+  if (offerSheetIsActive(parsedSheet.sheet) || recipe === 'product_drop') {
+    const gateErrors = [
+      ...parsedSheet.errors,
+      ...offerProductionGate({
+        sheet: parsedSheet.sheet,
+        recipe,
+        truthRow,
+      }),
+    ];
+    if (gateErrors.length > 0) {
+      const reason = gateErrors.map((error) => `${error.field}: ${error.message}`).join('; ');
+      log('offer_sheet_blocked', { contentId, reason });
+      return {
+        status: 'failed',
+        contentId,
+        reason,
+        attempts: 0,
+        toolObservations: [],
+        toolsUsed: [],
+      };
+    }
+  }
+
   let lastDraft = '';
   let lastTruth: ProductTruthValidationResult | null = null;
   let lastManifestErrors: string[] | undefined;
@@ -486,7 +552,7 @@ export async function executeContentWorkflow(
     log('content_generation_attempt', { attempt: attempt + 1, maxAttempts, contentId });
     ctx.onProgress?.({ phase: 'generating', label: 'Generating content draft…', step: 3, maxSteps: 5, status: 'active' });
 
-    const loopArgs = await buildContentStrategistLoopArgs(ctx, userQuery, emailPriorBlock, brief.channel ?? contentRow.channel ?? undefined, (contentRow as unknown as Record<string, unknown>).brand_profile_id as string | undefined);
+    const loopArgs = await buildContentStrategistLoopArgs(ctx, userQuery, emailPriorBlock, brief.channel ?? contentRow.channel ?? undefined, (contentRow as unknown as Record<string, unknown>).brand_profile_id as string | undefined, truthRow?.materials);
     const mini = await runMarketingMiniLoop(loopArgs);
     combinedToolObs.push(...mini.toolObservations);
     combinedTools.push(...mini.toolsUsed);
@@ -650,6 +716,13 @@ export async function executeContentWorkflow(
         attempt: attempt + 1,
         failed_reasons: truthRaw.failed_reasons,
       });
+      if (isInstagram) {
+        try {
+          await ensureInstagramPreview({ caller, contentId, imagePrompt });
+        } catch (previewErr) {
+          console.warn('[marketingOrchestrator] preview image was not saved', previewErr);
+        }
+      }
       if (attempt + 1 >= maxAttempts) {
         return {
           status: 'failed',
@@ -679,6 +752,7 @@ export async function executeContentWorkflow(
         intentContext: {
           title: brief.title ?? contentRow.title,
           userBrief: contentRow.user_brief ?? effectiveUserQuery ?? null,
+          materials: truthRow?.materials ?? null,
         },
       });
       log('instagram_image_gen', {
@@ -725,6 +799,7 @@ export async function executeContentWorkflow(
         organizationId: orgId,
         channel: targetChannel,
         heroImageUrl: latest?.image_url ?? null,
+        tags: latest?.tags,
       }).catch((err) => console.warn(`${LOG} content_atomization_batch`, err));
     } catch (e) {
       console.warn(`${LOG} atomization prefetch skipped`, e);

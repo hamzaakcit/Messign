@@ -26,6 +26,9 @@ export const contentMethods = {
     marketingRequest<{ profile: Record<string, unknown> | null }>('/brand-profile', {}, userId),
   createContent: (userId: string, data: Partial<ContentItem>) =>
     marketingRequest<ContentItem>('/content', { method: 'POST', body: JSON.stringify(data) }, userId),
+  /** Email child of the same offer. The draft uses the offer brief, not the Instagram caption. */
+  draftJourneyEmail: (userId: string, contentId: string) =>
+    marketingRequest<ContentItem>(`/content/${contentId}/journey-email`, { method: 'POST' }, userId),
   updateContent: (
     userId: string,
     contentId: string,
@@ -38,10 +41,39 @@ export const contentMethods = {
       method: 'POST',
       body: JSON.stringify({ date, time }),
     }, userId),
+  /** `live` only when the server `SEND_MODE` is live. Anything else is mock. */
+  instagramPublishMode: (userId: string) =>
+    marketingRequest<{ mode: 'mock' | 'live' }>('/content/instagram-publish-mode', {}, userId),
+  getInstagramConnection: (userId: string) =>
+    marketingRequest<{ connected: boolean; accountId: string | null; username: string | null }>(
+      '/content/instagram-connection',
+      {},
+      userId,
+    ),
+  saveInstagramConnection: (userId: string, body: { accountId: string; accessToken: string }) =>
+    marketingRequest<{ connected: boolean; accountId: string | null; username: string | null }>(
+      '/content/instagram-connection',
+      { method: 'PUT', body: JSON.stringify(body) },
+      userId,
+    ),
+  deleteInstagramConnection: (userId: string) =>
+    marketingRequest<{ connected: boolean; accountId: string | null; username: string | null }>(
+      '/content/instagram-connection',
+      { method: 'DELETE' },
+      userId,
+    ),
+  /** Calls the Instagram adapter directly. Does not enqueue the legacy publisher cron. */
+  testPublishInstagram: (userId: string, contentId: string) =>
+    marketingRequest<{
+      mode: 'mock' | 'live';
+      publishedUrl?: string;
+      externalPostId?: string;
+      skipped?: boolean;
+    }>(`/content/${contentId}/test-publish`, { method: 'POST' }, userId),
   regenerateContentImage: (
     userId: string,
     contentId: string,
-    payload: { image_prompt: string; style_preset?: string; aspect_ratio?: string },
+    payload: { image_prompt: string; style_preset?: string; aspect_ratio?: string; slide_index?: number; mock?: boolean },
   ) =>
     marketingRequest<{ success: boolean; image_url: string | null; error: string | null }>(
       `/content/${contentId}/regenerate-image`,

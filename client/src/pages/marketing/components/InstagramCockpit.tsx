@@ -34,7 +34,7 @@ export interface InstagramCockpitProps {
   /** Generation progress message */
   progressMessage?: string;
   /** Callback to regenerate image with edited prompt */
-  onRegenerateImage?: (newPrompt: string, stylePreset: string) => void;
+  onRegenerateImage?: (newPrompt: string, stylePreset: string, extras?: { mock?: boolean }) => void;
   /** Callback when caption is edited */
   onCaptionEdit?: (newCaption: string) => void;
   /** Callback to approve and queue */
@@ -50,6 +50,10 @@ export interface InstagramCockpitProps {
   /** Run FLUX Kontext on `referenceImageUrl` with the given instruction. */
   /** Second arg is style preset (same values as regenerate), sent to Kontext as `style_preset`. */
   onApplyAiPhotoEdit?: (editPrompt: string, stylePreset: string) => Promise<void>;
+  /** Look saved on the sheet. The regenerate menu opens on this value. */
+  initialLook?: string | null;
+  /** When false, only the edit controls render. The shared studio supplies the preview. */
+  showPreview?: boolean;
   className?: string;
 }
 
@@ -96,6 +100,11 @@ const STYLE_PRESETS = [
   { value: 'vibrant_lifestyle', label: 'Vibrant Lifestyle', desc: 'Warm golden-hour, saturated colors' },
   { value: 'minimal_flat', label: 'Minimal Flat-Lay', desc: 'Top-down, clean surface, editorial' },
   { value: 'editorial', label: 'Editorial', desc: 'Dramatic lighting, cinematic grading' },
+  { value: 'product_spotlight', label: 'Product Spotlight', desc: 'Clean background, hero light, sharp product' },
+  { value: 'team_culture', label: 'Team Culture', desc: 'Workplace light, candid people' },
+  { value: 'data_viz', label: 'Data Visualization', desc: 'Abstract geometry, glowing lines' },
+  { value: 'seasonal', label: 'Seasonal', desc: 'Season in the light, color, and props' },
+  { value: 'ugc_style', label: 'Phone Camera', desc: 'Natural light, mild grain, imperfect framing' },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -119,11 +128,16 @@ export function InstagramCockpit({
   referenceImageUrl,
   onUploadReferenceImage,
   onApplyAiPhotoEdit,
+  initialLook,
+  showPreview = true,
   className,
 }: InstagramCockpitProps) {
   const [isPromptEditorOpen, setPromptEditorOpen] = useState(false);
   const [editedPrompt, setEditedPrompt] = useState(() => imagePrompt ?? buildFallbackImagePrompt(caption, contentTitle));
-  const [selectedStyle, setSelectedStyle] = useState('photoreal');
+  const [selectedStyle, setSelectedStyle] = useState(() =>
+    STYLE_PRESETS.some((preset) => preset.value === initialLook) ? (initialLook as string) : 'photoreal',
+  );
+  const [mockImage, setMockImage] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [imgLoadError, setImgLoadError] = useState(false);
   const [postImgCacheBust, setPostImgCacheBust] = useState(0);
@@ -180,10 +194,10 @@ export function InstagramCockpit({
 
   const handleRegenerate = useCallback(() => {
     if (onRegenerateImage && editedPrompt.trim().length > 10) {
-      onRegenerateImage(editedPrompt.trim(), selectedStyle);
+      onRegenerateImage(editedPrompt.trim(), selectedStyle, { mock: mockImage });
       setPromptEditorOpen(false);
     }
-  }, [editedPrompt, selectedStyle, onRegenerateImage]);
+  }, [editedPrompt, selectedStyle, onRegenerateImage, mockImage]);
 
   const handleReferenceFile = useCallback(
     async (file: File | undefined) => {
@@ -277,7 +291,7 @@ export function InstagramCockpit({
         </div>
       </div>
 
-      {/* ── Phone Preview Frame ────────────────────────────────── */}
+      {showPreview ? (
       <div style={styles.previewFrame}>
         <div style={styles.phoneChrome}>
           {/* Profile bar */}
@@ -386,6 +400,7 @@ export function InstagramCockpit({
           </div>
         </div>
       </div>
+      ) : null}
 
       {/* ── Controls Panel ─────────────────────────────────────── */}
       <div style={styles.controls}>
@@ -612,6 +627,14 @@ export function InstagramCockpit({
               </div>
             </div>
 
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#94a3b8' }}>
+              <input
+                type="checkbox"
+                checked={mockImage}
+                onChange={(e) => setMockImage(e.target.checked)}
+              />
+              Mock image
+            </label>
             <button
               style={{
                 ...styles.controlBtn,
@@ -631,15 +654,6 @@ export function InstagramCockpit({
           </div>
         </div>
       )}
-
-      {/* ── Metadata footer ────────────────────────────────────── */}
-      <div style={styles.metaFooter}>
-        <span>{hashtags.length} hashtags</span>
-        <span style={styles.metaDot} />
-        <span>{imageUrl ? 'Image ready' : isGenerating ? 'Generating...' : 'No image'}</span>
-        <span style={styles.metaDot} />
-        <span>1:1 feed post</span>
-      </div>
     </div>
   );
 }

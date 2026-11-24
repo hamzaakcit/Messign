@@ -115,7 +115,7 @@ interface AuthState {
   error: string | null;
   loginError: LoginError | null;
   _hasHydrated: boolean;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean, background?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   updateUser: (updates: Partial<User>) => void;
@@ -137,9 +137,9 @@ export const useAuthStore = create<AuthState>()(
       loginError: null,
       _hasHydrated: false,
 
-      login: async (email: string, password: string, rememberMe = true) => {
+      login: async (email: string, password: string, rememberMe = true, background = false) => {
         try {
-          set({ isLoading: true, error: null, loginError: null });
+          if (!background) set({ isLoading: true, error: null, loginError: null });
           const res = await authAPI.login(email, password);
           const data = (res as { success?: boolean; data?: unknown; error?: LoginError }).data;
           const err = (res as { success?: boolean; error?: LoginError }).error;

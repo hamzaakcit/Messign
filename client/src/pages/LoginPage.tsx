@@ -8,7 +8,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, Sparkles } from 'lucide-react';
-import { LoginFalPaperPlanePanel } from '@/components/login';
+import { LoginFalPaperPlanePanel, SnowEffect } from '@/components/login';
 import { LoginCrewStrip } from '@/components/login/LoginCrewStrip';
 import { LoginWelcomeHeadline } from '@/components/login/LoginWelcomeHeadline';
 import { FloatingLoginField } from '@/components/login/FloatingLoginField';
@@ -52,6 +52,7 @@ export function LoginPage(): JSX.Element {
       className="login-page-autofill flex h-[100dvh] w-screen max-w-[100vw] flex-col overflow-hidden bg-[#121212] font-sans text-white/95 md:flex-row"
       style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
     >
+      <SnowEffect />
       <LoginFalPaperPlanePanel onHeroMotionReady={() => setWelcomeAnimate(true)} />
 
       <section className="relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-y-auto px-5 py-8 md:w-[40%] md:max-w-[40%] md:flex-[0_0_40%] md:overflow-hidden md:px-8 md:py-10">

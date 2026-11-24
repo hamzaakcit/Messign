@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pause, Play, CheckCircle2, PencilLine, Plus } from 'lucide-react';
+import { Pause, Play, CheckCircle2, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { marketingAPI, type Campaign, type ContentItem, type Lead, type SpendEntry } from '@/lib/marketingApi';
@@ -157,9 +157,6 @@ export function CampaignDetailPanel({ campaignId, onUpdated }: CampaignDetailPan
             className="px-3 py-1.5 rounded-lg text-sm bg-primary-500/20 text-primary-300 flex items-center gap-1.5"
           >
             <CheckCircle2 className="w-4 h-4" /> Complete
-          </button>
-          <button className="px-3 py-1.5 rounded-lg text-sm bg-app-surface-tertiary text-app-text flex items-center gap-1.5">
-            <PencilLine className="w-4 h-4" /> Edit
           </button>
         </div>
       </div>

@@ -101,6 +101,22 @@ describe('generateImage', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('returns a placeholder when IMAGE_GEN_MODE is mock and does not call a provider', async () => {
+    process.env.IMAGE_GEN_MODE = 'mock';
+    process.env.GOOGLE_GEMINI_API_KEY = 'should-not-be-used';
+
+    const { generateImage } = await import('../../../services/marketing/publishing/imageService.js');
+    const result = await generateImage({
+      org_id: '00000000-0000-0000-0000-000000000001',
+      content_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      prompt: 'A minimal SaaS hero image for Instagram',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.image_url).toMatch(/placehold\.co/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('uses OpenAI when GOOGLE_GEMINI_API_KEY is unset (Gemini-first has nothing to call)', async () => {
     const pngBody = Buffer.concat([
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),

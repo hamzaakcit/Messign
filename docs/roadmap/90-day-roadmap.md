@@ -45,6 +45,10 @@ WP-01 → WP-04 → WP-05 → WP-07 → WP-08 → WP-10 → WP-11 → WP-12 → 
 ## Runs in parallel (code vs paperwork)
 Code W1–W13 runs alongside: Alaris API docs request (now); entity formation path and DPA template (before business start); hosting decision (before business start). Tenant-side processes start at business start.
 
+**Content studio (optional evenings).** Instagram + offer track for Messign and e-commerce tenants: `content-studio-90-day.md`, backlog CS-01…CS-15. It does not replace this plan. The 14-part Content Studio spec stays paused (D-12). CS-D2 and CS-D3 are still pending.
+
+**Marketing counter (in progress).** Shop-counter rewrite of the marketing surface: `marketing-counter-120-day.md`, backlog MC-01…MC-17. MC-01 through MC-06 are done. The next package on this track is MC-07. It does not replace this plan.
+
 ## Must not start yet
 Any send to a non-allow-listed recipient. Any real customer data. The Alaris adapter before real docs exist. Connectors before D-06 is answered. Visual journey canvas. Any Company-OS feature. Wallet/spread. Anonymous identity.
 

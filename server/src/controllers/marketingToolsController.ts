@@ -12,6 +12,7 @@ import * as contentDal from '../dal/marketing/content.js';
 import * as approvalsDal from '../dal/marketing/approvalsQueue.js';
 import type { ApprovalQueueListRow } from '../dal/marketing/approvalsQueue.js';
 import { executeContentWorkflow } from '../services/ai/marketing/marketingContentWorkflow.js';
+import { approvedContentUpdate } from '../services/marketing/childApproval.js';
 import type {
   AssignApprovalInput,
   CampaignBudgetAllocateInput,
@@ -173,7 +174,8 @@ export async function submitReview(
     }
 
     if (payload.status === 'approved') {
-      const c = await contentDal.updateContent(ctx, row.content_id, { status: 'approved' });
+      const update = approvedContentUpdate(row.content_id);
+      const c = await contentDal.updateContent(ctx, update.contentId, { status: update.status });
       const orgId = ctx.organizationId;
       if (orgId) {
         try {

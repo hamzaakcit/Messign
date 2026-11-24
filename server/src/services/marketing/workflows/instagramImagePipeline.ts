@@ -30,13 +30,20 @@ import {
 import {
   generateImage,
   resolveStockImageUrl,
-  editMarketingPhotoWithKontext,
 } from '../publishing/imageService.js';
+import { parseOfferSheet } from '../offerSheet.js';
+import { resolveStillLook } from '../publishing/imageService/promptBuilder.js';
+import { inferEcommerceVertical } from '../../../modules/marketing/prompts/ecommercePromptPack.js';
 import {
   buildInstagramFeedT2iPrompt,
   isInstagramImageFalOnlyFromEnv,
   type InstagramPromptIntentContext,
 } from './instagramFeedT2i.js';
+import { carouselProRequest, carouselRole, MAX_CAROUSEL_SLIDES, promptWithProduct, returnedPromptOmitsProduct } from './carouselSlides.js';
+import { aspectRatioForInstagramFormat, instagramFormatFromTags } from './instagramFormat.js';
+import { checkFeedPackage, feedFrameAspect, formatFeedPackageErrors } from '../feedPackage.js';
+import { reelCoverRequest, reelPackageFromSheet } from './reelStoryboard.js';
+import { resolveMockPreviewUrl, shouldUseMockImage } from '../imageGenMode.js';
 
 export type { InstagramPromptIntentContext } from './instagramFeedT2i.js';
 
@@ -155,6 +162,10 @@ const INTENT_MERGE_STOPWORDS = new Set([
   'all',
 ]);
 
+function squareAspect(returned: string | undefined, requested: AspectRatio): AspectRatio {
+  return feedFrameAspect(returned, requested);
+}
+
 function mergeIntentWithExtractedPrompt(
   extracted: string,
   intentContext?: InstagramPromptIntentContext,
@@ -200,6 +211,8 @@ function synthesizeImagePromptFromCaption(caption: string, intent?: InstagramPro
   const hookLine = caption.split('\n').find((l) => l.trim().length > 10) ?? caption.slice(0, 220);
   const fromCaption = hookLine
     .replace(/#[\w\u00C0-\u024F]+/g, '')
+    // Strip emoji (supplementary plane + common emoji ranges)
+    .replace(/[\u{1F300}-\u{1FAF8}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
     .replace(/[^\w\s.,!?'-]/g, '')
     .trim()
     .slice(0, 220);
@@ -208,16 +221,17 @@ function synthesizeImagePromptFromCaption(caption: string, intent?: InstagramPro
     fromIntent.length >= 15 ? fromIntent : fromCaption || 'the subject described in the post caption';
 
   return [
-    `Create a photorealistic or polished marketing photograph that literally depicts: ${primaryTopic}.`,
-    'Show concrete subjects that match the topic: products, location, environment, props, or people **only if** the topic requires humans (e.g. fashion on models, founders).',
-    'Do not default to generic office meetings, conference rooms, coworking tables, or anonymous “team” stock unless the topic is explicitly about that.',
+    `Create a photorealistic marketing photograph that literally depicts: ${primaryTopic}.`,
+    'Show concrete, specific subjects that match the topic — products, locations, environments, or people only when the topic explicitly involves humans.',
+    'Do not default to generic office meetings, conference rooms, coworking tables, or anonymous “team” stock.',
     '',
     'Visual direction:',
-    '- Scene must communicate the topic at a glance.',
-    '- Composition: balanced, scroll-stopping, square 1:1 frame for Instagram feed unless the brief specifies another aspect ratio.',
-    '- Lighting and color: appropriate to the scene (do not force a purple/dark “tech” palette unless it fits the topic).',
-    '- No overlaid text, logos, or watermarks in the frame.',
-    '- Sharp focus on the main subject; professional marketing quality.',
+    '- One clear hero subject that communicates the topic at a glance.',
+    '- Composition: square 1:1 frame, scroll-stopping with bold contrast or vivid color.',
+    '- Lighting: natural daylight or scene-appropriate ambient — avoid forced purple/dark “tech” palette.',
+    '- No overlaid text, logos, watermarks, or readable signage.',
+    '- Sharp focus on the main subject with shallow depth-of-field bokeh on background.',
+    '- Color grading: vibrant but realistic — not over-saturated or flat.',
   ].join('\n');
 }
 
@@ -228,6 +242,30 @@ function resolveResolution(
   if (!aspectRatio) return '1080x1080';
   const r = ASPECT_RATIO_RESOLUTIONS[aspectRatio];
   return (r as ImageGenerationInput['resolution']) ?? '1080x1080';
+}
+
+/**
+ * Puts a picture on the post when generation does not run.
+ * A saved local photo is used as-is. A mock-tagged draft gets a local preview.
+ */
+export async function ensureInstagramPreview(opts: {
+  caller: CallerContext;
+  contentId: string;
+  imagePrompt: string | null;
+}): Promise<string | null> {
+  const row = await contentDal.getContentById(opts.caller, opts.contentId);
+  if (!row) return null;
+  if (row.image_url?.trim()) return row.image_url;
+  const hasLocalPhoto = Boolean(row.reference_image_url?.trim().startsWith('/uploads/'));
+  const mock = shouldUseMockImage({ tags: row.tags });
+  if (!hasLocalPhoto && !mock) return null;
+  const url = await resolveMockPreviewUrl(
+    opts.contentId,
+    opts.imagePrompt ?? row.image_prompt ?? '',
+    row.reference_image_url,
+  );
+  await contentDal.updateContent(opts.caller, opts.contentId, { image_url: url });
+  return url;
 }
 
 // ---------------------------------------------------------------------------
@@ -254,6 +292,8 @@ export async function runInstagramImageGeneration(opts: {
   aspectRatio?: AspectRatio;
   /** Optional: original user ask — improves prompt alignment when the draft is generic. */
   intentContext?: InstagramPromptIntentContext;
+  /** Ultra reference strength for this still. Omitted keeps 0.1. */
+  imagePromptStrength?: number;
 }): Promise<InstagramImageGenResult> {
   const { orgId, contentId, rawDraft, caller, stylePreset = 'photoreal', aspectRatio, intentContext } = opts;
 
@@ -271,54 +311,89 @@ export async function runInstagramImageGeneration(opts: {
   });
 
   const contentRow = await contentDal.getContentById(caller, contentId);
+  if (shouldUseMockImage({ tags: contentRow?.tags })) {
+    const url = await resolveMockPreviewUrl(contentId, parsed.imagePrompt, contentRow?.reference_image_url);
+    await contentDal.updateContent(caller, contentId, { image_url: url });
+    return {
+      success: true,
+      imageUrl: url,
+      metadata: null,
+      promptSource: parsed.autoSynthesized ? 'synthesized' : 'extracted',
+    };
+  }
   const refUrl = contentRow?.reference_image_url?.trim() ?? null;
   /** Carousel multi-gen does not use a single reference upload; force single-image path when ref is set. */
   const isCarousel = parsed.allImagePrompts.length > 1 && !refUrl;
 
-  const resolution = resolveResolution(aspectRatio);
+  const format = instagramFormatFromTags(contentRow?.tags);
+  const sheet = parseOfferSheet(intentContext?.userBrief);
+  const look = resolveStillLook(sheet.sheet.style || stylePreset);
+  const sceneProduct = sheet.sheet.product.trim();
+  const scenePlace = sheet.sheet.place.trim();
+  const reelPack = format === 'reel' && sceneProduct ? reelPackageFromSheet(sheet.sheet) : null;
+  const cover = reelPack && !aspectRatio ? reelCoverRequest(reelPack.coverPrompt) : null;
+  const resolvedAspect = aspectRatio ?? cover?.aspect_ratio ?? aspectRatioForInstagramFormat(format);
+  const resolution = cover?.resolution ?? resolveResolution(resolvedAspect);
+  const stillPrompt = reelPack?.coverPrompt ?? parsed.imagePrompt;
+  const shopStill = inferEcommerceVertical([sceneProduct, scenePlace].filter(Boolean).join('\n')) != null;
 
   console.log(`${LOG} gen_start`, {
     contentId,
     promptSource: parsed.autoSynthesized ? 'synthesized' : 'extracted',
-    stylePreset,
-    aspectRatio: aspectRatio ?? '1:1',
+    stylePreset: look,
+    aspectRatio: resolvedAspect,
     resolution,
     slides: parsed.allImagePrompts.length,
     referencePhoto: Boolean(refUrl),
     promptPreview: parsed.imagePrompt.slice(0, 120),
   });
 
-  // --- User reference photo: FLUX Kontext additive edit ---
+  // A reference photo is a new Ultra still. Kontext stays on the edit path.
   if (refUrl) {
-    /** Do not use `enhanceImagePrompt` here — it is for T2I; Kontext needs a short edit instruction + real image. */
-    const editResult = await editMarketingPhotoWithKontext({
+    const t2i = buildInstagramFeedT2iPrompt(stillPrompt, look, intentContext, resolvedAspect);
+    const genResult = await generateImage({
       org_id: orgId,
       content_id: contentId,
+      prompt: t2i.prompt,
+      resolution,
+      style_preset: look,
+      aspect_ratio: resolvedAspect,
+      instagram_feed: true,
+      instagram_fal_only: isInstagramImageFalOnlyFromEnv(),
+      instagram_direct_prompt: t2i.instagram_direct_prompt,
       reference_image_url: refUrl,
-      edit_instruction: parsed.imagePrompt,
-      style_preset: stylePreset,
+      scene_product: sceneProduct || undefined,
+      scene_place: scenePlace || undefined,
+      shop_still: shopStill,
+      image_prompt_strength: opts.imagePromptStrength,
     });
-
-    console.log(`${LOG} kontext_result`, {
-      contentId,
-      success: editResult.success,
-      imageUrl: editResult.image_url?.slice(0, 80),
-      error: editResult.error,
-      durationMs: editResult.metadata?.duration_ms,
-    });
-
-    if (editResult.success && editResult.image_url) {
+    if (genResult.success && genResult.image_url) {
+      const packageErrors = checkFeedPackage({
+        brief: intentContext?.userBrief,
+        returnedPrompt: genResult.metadata?.fal_returned_prompt,
+        aspectRatio: squareAspect(genResult.metadata?.fal_aspect_ratio, resolvedAspect),
+        caption: parsed.caption,
+        format: instagramFormatFromTags(contentRow?.tags),
+      });
+      if (packageErrors.length > 0) {
+        return {
+          success: false,
+          imageUrl: null,
+          metadata: genResult.metadata,
+          error: formatFeedPackageErrors(packageErrors),
+          promptSource: parsed.autoSynthesized ? 'synthesized' : 'extracted',
+        };
+      }
       await contentDal.updateContent(caller, contentId, {
-        image_url: editResult.image_url,
-        image_generation_metadata: editResult.metadata,
+        image_url: genResult.image_url,
+        image_generation_metadata: genResult.metadata,
       });
     }
-
     return {
-      success: editResult.success,
-      imageUrl: editResult.image_url ?? null,
-      metadata: editResult.metadata,
-      error: editResult.error,
+      success: genResult.success,
+      imageUrl: genResult.image_url ?? null,
+      metadata: genResult.metadata,
+      error: genResult.error,
       promptSource: parsed.autoSynthesized ? 'synthesized' : 'extracted',
     };
   }
@@ -330,9 +405,13 @@ export async function runInstagramImageGeneration(opts: {
       contentId,
       prompts: parsed.allImagePrompts,
       caller,
-      stylePreset,
+      stylePreset: look,
       resolution,
+      aspectRatio: resolvedAspect,
       autoSynthesized: parsed.autoSynthesized,
+      product: sceneProduct,
+      place: scenePlace,
+      claim: sheet.sheet.claim,
     });
   }
 
@@ -351,17 +430,20 @@ export async function runInstagramImageGeneration(opts: {
     };
   }
 
-  const t2i = buildInstagramFeedT2iPrompt(parsed.imagePrompt, stylePreset, intentContext);
+  const t2i = buildInstagramFeedT2iPrompt(stillPrompt, look, intentContext, resolvedAspect);
   const genResult = await generateImage({
     org_id: orgId,
     content_id: contentId,
     prompt: t2i.prompt,
     resolution,
-    style_preset: stylePreset,
-    aspect_ratio: aspectRatio,
+    style_preset: look,
+    aspect_ratio: resolvedAspect,
     instagram_feed: true,
     instagram_fal_only: isInstagramImageFalOnlyFromEnv(),
     instagram_direct_prompt: t2i.instagram_direct_prompt,
+    scene_product: sceneProduct || undefined,
+    scene_place: scenePlace || undefined,
+    shop_still: shopStill,
   });
 
   console.log(`${LOG} gen_result`, {
@@ -373,6 +455,22 @@ export async function runInstagramImageGeneration(opts: {
   });
 
   if (genResult.success && genResult.image_url) {
+    const packageErrors = checkFeedPackage({
+      brief: intentContext?.userBrief,
+      returnedPrompt: genResult.metadata?.fal_returned_prompt,
+      aspectRatio: squareAspect(genResult.metadata?.fal_aspect_ratio, resolvedAspect),
+      caption: parsed.caption,
+      format: instagramFormatFromTags(contentRow?.tags),
+    });
+    if (packageErrors.length > 0) {
+      return {
+        success: false,
+        imageUrl: null,
+        metadata: genResult.metadata,
+        error: formatFeedPackageErrors(packageErrors),
+        promptSource: parsed.autoSynthesized ? 'synthesized' : 'extracted',
+      };
+    }
     await contentDal.updateContent(caller, contentId, {
       image_url: genResult.image_url,
       image_generation_metadata: genResult.metadata,
@@ -399,19 +497,35 @@ async function runCarouselGeneration(opts: {
   caller: CallerContext;
   stylePreset: StylePreset;
   resolution: ImageGenerationInput['resolution'];
+  aspectRatio?: AspectRatio;
   autoSynthesized: boolean;
+  product: string;
+  place: string;
+  claim: string;
 }): Promise<InstagramImageGenResult> {
-  const { orgId, contentId, prompts, caller, stylePreset, resolution, autoSynthesized } = opts;
+  const { orgId, contentId, prompts, caller, stylePreset, resolution, aspectRatio, autoSynthesized, product, place, claim } = opts;
+
+  if (prompts.length > MAX_CAROUSEL_SLIDES) {
+    return {
+      success: false,
+      imageUrl: null,
+      metadata: null,
+      error: 'A carousel can have at most 5 slides.',
+      promptSource: autoSynthesized ? 'synthesized' : 'extracted',
+    };
+  }
 
   console.log(`${LOG} carousel_gen_start`, { contentId, slides: prompts.length });
+  const pro = carouselProRequest(product, place);
 
   const results = await Promise.allSettled(
     prompts.map(async (p) => {
-      const stockUrl = resolveStockImageUrl(p.prompt);
+      const prompt = promptWithProduct(p.prompt, product);
+      const stockUrl = resolveStockImageUrl(prompt);
       if (stockUrl) {
         return {
           index: p.index,
-          prompt: p.prompt,
+          prompt,
           result: {
             success: true as const,
             image_url: stockUrl,
@@ -421,18 +535,19 @@ async function runCarouselGeneration(opts: {
           },
         };
       }
-      const t2i = buildInstagramFeedT2iPrompt(p.prompt, stylePreset, undefined);
+      const t2i = buildInstagramFeedT2iPrompt(prompt, stylePreset, undefined, aspectRatio);
       const result = await generateImage({
         org_id: orgId,
         content_id: contentId,
         prompt: t2i.prompt,
         resolution,
         style_preset: stylePreset,
-        instagram_feed: true,
+        aspect_ratio: aspectRatio,
         instagram_fal_only: isInstagramImageFalOnlyFromEnv(),
         instagram_direct_prompt: t2i.instagram_direct_prompt,
+        ...pro,
       });
-      return { index: p.index, prompt: p.prompt, result };
+      return { index: p.index, prompt, result };
     }),
   );
 
@@ -445,11 +560,17 @@ async function runCarouselGeneration(opts: {
     if (settled.status === 'fulfilled') {
       const { index, prompt, result } = settled.value;
       if (result.success && result.image_url) {
+        if (returnedPromptOmitsProduct(result.metadata?.fal_returned_prompt, product)) {
+          errors.push(`Slide ${index}: Returned prompt must name the product.`);
+          continue;
+        }
         carouselImages.push({
           index,
           image_url: result.image_url,
           prompt,
           storage_key: result.storage_key,
+          role: carouselRole(index) ?? 'close',
+          claim,
         });
         if (index === 0 || !primaryUrl) {
           primaryUrl = result.image_url;
@@ -517,7 +638,7 @@ export async function generateImageVariations(opts: {
 
   const results = await Promise.allSettled(
     stylePresets.map(async (preset) => {
-      const t2i = buildInstagramFeedT2iPrompt(prompt, preset, undefined);
+      const t2i = buildInstagramFeedT2iPrompt(prompt, preset, undefined, aspectRatio);
       const result = await generateImage({
         org_id: orgId,
         content_id: contentId,

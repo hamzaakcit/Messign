@@ -13,6 +13,7 @@ import type {
   CalendarRecordForPublish,
   ContentPayloadForPublish,
 } from '../types.js';
+import { ensurePublicInstagramImageUrl } from '../instagramPublicImage.js';
 import { validateInstagramImageUrlStruct, verifyInstagramImageUrlReachable } from './instagramImageUrl.js';
 import { isSendModeLive } from '../adapterUtils.js';
 
@@ -20,10 +21,15 @@ import { isSendModeLive } from '../adapterUtils.js';
 // Config
 // ---------------------------------------------------------------------------
 
-const META_ACCESS_TOKEN = process.env.META_GRAPH_ACCESS_TOKEN ?? '';
-const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ?? '';
 const META_GRAPH_API_VERSION = 'v19.0';
 const META_GRAPH_BASE = `https://graph.facebook.com/${META_GRAPH_API_VERSION}`;
+
+function metaCredentials(): { token: string; accountId: string } {
+  return {
+    token: process.env.META_GRAPH_ACCESS_TOKEN ?? '',
+    accountId: process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ?? '',
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +42,10 @@ export interface InstagramAdapterInput {
     image_prompt?: string | null;
     visual_description?: string | null;
   };
+  /** Saved for this organization. Env credentials are the fallback. */
+  credentials?: { token: string; accountId: string };
+  /** Studio share: a bad image throws instead of skipping. SEND_MODE still decides whether Graph is called. */
+  live?: boolean;
 }
 
 interface MetaContainerResponse {
@@ -61,27 +71,37 @@ export async function publishInstagramPost(
     return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
   }
 
-  const struct = validateInstagramImageUrlStruct(imageUrl);
+  // Every network send goes through SEND_MODE, including a studio share with saved credentials.
+  if (!isSendModeLive()) {
+    return publishMock({ caption, imageUrl, calendarId: input.calendar.id });
+  }
+
+  const hosted = await ensurePublicInstagramImageUrl(imageUrl);
+  const struct = validateInstagramImageUrlStruct(hosted);
   if (!struct.ok) {
-    console.warn('[instagramAdapter] Skipping publish — bad image_url', { reason: struct.reason, preview: imageUrl.slice(0, 120) });
+    if (input.live) throw new Error(struct.reason);
+    console.warn('[instagramAdapter] Skipping publish — bad image_url', { reason: struct.reason, preview: hosted.slice(0, 120) });
     return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
   }
 
-  const reachable = await verifyInstagramImageUrlReachable(imageUrl);
+  const reachable = await verifyInstagramImageUrlReachable(hosted);
   if (!reachable.ok) {
+    if (input.live) throw new Error(reachable.reason);
     console.warn('[instagramAdapter] Skipping publish — image not fetchable (Meta needs public HTTPS image)', {
       reason: reachable.reason,
-      preview: imageUrl.slice(0, 120),
+      preview: hosted.slice(0, 120),
     });
     return { skipped: true, publishedUrl: undefined, externalPostId: undefined };
   }
 
-  // ── Production path: Meta Graph API ─────────────────────────────
-  if (META_ACCESS_TOKEN && INSTAGRAM_BUSINESS_ACCOUNT_ID && isSendModeLive()) {
-    return publishViaMeta({ caption, imageUrl, calendarId: input.calendar.id });
+  const saved = input.credentials;
+  const fromEnv = metaCredentials();
+  const token = saved?.token || fromEnv.token;
+  const accountId = saved?.accountId || fromEnv.accountId;
+  if (token && accountId) {
+    return publishViaMeta({ caption, imageUrl: hosted, calendarId: input.calendar.id, token, accountId });
   }
 
-  // ── Dev/staging path: structured mock ───────────────────────────
   return publishMock({ caption, imageUrl, calendarId: input.calendar.id });
 }
 
@@ -93,14 +113,16 @@ async function publishViaMeta(args: {
   caption: string;
   imageUrl: string;
   calendarId: string;
+  token: string;
+  accountId: string;
 }): Promise<AdapterPublishSuccess> {
   // Step 1: Create media container
   const containerUrl = new URL(
-    `${META_GRAPH_BASE}/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`,
+    `${META_GRAPH_BASE}/${args.accountId}/media`,
   );
   containerUrl.searchParams.set('image_url', args.imageUrl);
   containerUrl.searchParams.set('caption', args.caption);
-  containerUrl.searchParams.set('access_token', META_ACCESS_TOKEN);
+  containerUrl.searchParams.set('access_token', args.token);
 
   const containerRes = await fetch(containerUrl.toString(), { method: 'POST', signal: AbortSignal.timeout(30_000) });
   if (!containerRes.ok) {
@@ -110,14 +132,14 @@ async function publishViaMeta(args: {
   const container = (await containerRes.json()) as MetaContainerResponse;
 
   // Step 2: Wait for container processing (Meta needs time for image processing)
-  await waitForContainerReady(container.id);
+  await waitForContainerReady(container.id, args.token);
 
   // Step 3: Publish the container
   const publishUrl = new URL(
-    `${META_GRAPH_BASE}/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`,
+    `${META_GRAPH_BASE}/${args.accountId}/media_publish`,
   );
   publishUrl.searchParams.set('creation_id', container.id);
-  publishUrl.searchParams.set('access_token', META_ACCESS_TOKEN);
+  publishUrl.searchParams.set('access_token', args.token);
 
   const publishRes = await fetch(publishUrl.toString(), { method: 'POST', signal: AbortSignal.timeout(30_000) });
   if (!publishRes.ok) {
@@ -127,7 +149,7 @@ async function publishViaMeta(args: {
   const published = (await publishRes.json()) as MetaPublishResponse;
 
   // Step 4: Fetch permalink
-  const permalink = await fetchPermalink(published.id);
+  const permalink = await fetchPermalink(published.id, args.token);
 
   console.log('[instagramAdapter] Published via Meta Graph API', {
     calendarId: args.calendarId,
@@ -141,14 +163,14 @@ async function publishViaMeta(args: {
   };
 }
 
-async function waitForContainerReady(containerId: string, maxWaitMs = 30_000): Promise<void> {
+async function waitForContainerReady(containerId: string, token: string, maxWaitMs = 30_000): Promise<void> {
   const start = Date.now();
   const pollInterval = 2000;
 
   while (Date.now() - start < maxWaitMs) {
     const statusUrl = new URL(`${META_GRAPH_BASE}/${containerId}`);
     statusUrl.searchParams.set('fields', 'status_code');
-    statusUrl.searchParams.set('access_token', META_ACCESS_TOKEN);
+    statusUrl.searchParams.set('access_token', token);
 
     const res = await fetch(statusUrl.toString(), { signal: AbortSignal.timeout(10_000) });
     if (res.ok) {
@@ -165,10 +187,10 @@ async function waitForContainerReady(containerId: string, maxWaitMs = 30_000): P
   throw new Error('Container processing timed out');
 }
 
-async function fetchPermalink(mediaId: string): Promise<string> {
+async function fetchPermalink(mediaId: string, token: string): Promise<string> {
   const url = new URL(`${META_GRAPH_BASE}/${mediaId}`);
   url.searchParams.set('fields', 'permalink');
-  url.searchParams.set('access_token', META_ACCESS_TOKEN);
+  url.searchParams.set('access_token', token);
 
   const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) {

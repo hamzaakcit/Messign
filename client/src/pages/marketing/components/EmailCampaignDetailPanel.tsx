@@ -1,24 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { ExternalLink, Loader2, Mail, Send } from 'lucide-react';
+import { ExternalLink, Loader2, Mail } from 'lucide-react';
 import { marketingAPI, type EmailCampaign } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
 import { Badge } from '@/components/ui/Badge';
 
 interface EmailCampaignDetailPanelProps {
   emailId: string;
-  onUpdated: () => void;
 }
 
-export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDetailPanelProps) {
+export function EmailCampaignDetailPanel({ emailId }: EmailCampaignDetailPanelProps) {
   const { user } = useAuthStore();
   const userId = user?.authUserId || user?.id || '';
   const navigate = useNavigate();
   const [email, setEmail] = useState<EmailCampaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId || !emailId) return;
@@ -38,21 +35,6 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
   useEffect(() => {
     void load();
   }, [load]);
-
-  const handleSend = async () => {
-    if (!userId || !email) return;
-    setSending(true);
-    try {
-      await marketingAPI.sendEmailCampaign(userId, email.id);
-      toast.success('Send queued');
-      await load();
-      onUpdated();
-    } catch (e) {
-      toast.error('Send failed', { description: e instanceof Error ? e.message : 'Unknown' });
-    } finally {
-      setSending(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -83,7 +65,6 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
   }
 
   const html = email.body_html?.trim();
-  const canSend = email.status !== 'sent' && (email.status === 'draft' || email.status === 'scheduled');
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -115,17 +96,6 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
               <ExternalLink className="h-3.5 w-3.5" />
               Edit in builder
             </button>
-            {canSend && (
-              <button
-                type="button"
-                disabled={sending}
-                onClick={() => void handleSend()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-app-text hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                Send
-              </button>
-            )}
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
