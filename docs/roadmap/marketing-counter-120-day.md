@@ -2,6 +2,8 @@
 
 **As of:** 2026-11-14. **Status:** started. MC-01 through MC-06 are done. The next package on this track is **MC-07**. Engage stays on its own plan; this track is the one in progress.
 
+**Email design quality:** after MC-07, the track detours into the email design quality sub-track (EQ-00 … EQ-11) before resuming at MC-08. Plan: `email-quality-track.md`.
+
 **Window:** Monday 16 November 2026 through Sunday 15 March 2027. About twenty marketing sessions: one evening a week, plus four extra evenings in the first month. The other evenings stay on the Engage 90-day plan.
 
 **Job.** A shop counter. One shop, its offers, and the still, caption, and email on each offer. A scheduled Instagram row can still publish, so the calendar stays off the home until an offer is marked ready.
