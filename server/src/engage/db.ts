@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { currentActor } from './actor.js';
 import { errorFields, logError } from './log.js';
 
 /**
@@ -82,7 +83,12 @@ async function inTransaction<T>(setup: (client: pg.PoolClient) => Promise<void>,
 export function withEngageTenant<T>(organizationId: string, fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
   if (!UUID_RE.test(organizationId)) throw new Error('withEngageTenant requires a UUID organization id.');
   return inTransaction(
-    (client) => client.query("SELECT set_config('app.current_tenant', $1, true)", [organizationId]).then(() => undefined),
+    async (client) => {
+      await client.query("SELECT set_config('app.current_tenant', $1, true)", [organizationId]);
+      // Who is acting, for the audit triggers (WP-31). Transaction-local, like the tenant.
+      const actor = currentActor();
+      if (actor) await client.query("SELECT set_config('engage.actor', $1, true)", [actor]);
+    },
     fn,
   );
 }

@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { randomBytes, randomUUID } from 'crypto';
 import type { PoolClient } from 'pg';
+import { currentActor } from '../actor.js';
 
 /**
  * Allow-listed bootstrap (ADR-002): creating a tenant must write the legacy organizations, reimbursement_users and
@@ -76,6 +77,10 @@ export async function provisionOrganization(client: PoolClient, input: Provision
        VALUES ($1, $2, $3, true, 'active')`,
       [authUserId, input.adminEmail, passwordHash],
     );
+    // The audit trigger on tenant_settings (migration 138) records the creation and who did it, inside this transaction.
+    await client.query("SELECT set_config('app.current_tenant', $1, true)", [orgId]);
+    const actor = currentActor();
+    if (actor) await client.query("SELECT set_config('engage.actor', $1, true)", [actor]);
     await client.query('INSERT INTO engage.tenant_settings (organization_id) VALUES ($1)', [orgId]);
     await client.query('COMMIT');
 

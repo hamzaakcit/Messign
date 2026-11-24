@@ -11,6 +11,9 @@ import { signAccess } from '../../utils/jwt.js';
 import { adminUrl, deleteOrganizations, setupTenancyFixture, type TenancyFixture } from './helpers/tenancyFixture.js';
 import { SEEDERS } from './helpers/seeders.js';
 
+/** A write RLS refuses, or (audit_log: no direct writes at all, one definer function that checks the tenant itself) the function's own refusal. */
+const WRITE_REFUSED = /row-level security|outside the current tenant|without a tenant/;
+
 describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass role)', () => {
   let f: TenancyFixture;
   let tables: string[] = [];
@@ -81,6 +84,7 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
           WHERE p.prosecdef AND has_function_privilege('messign_engage', p.oid, 'EXECUTE') AND n.nspname NOT IN ('pg_catalog', 'information_schema')
           ORDER BY 1`);
       expect(r.rows).toEqual([
+        { proname: 'audit_append', result: 'bigint' }, // migration 138: appends one chained entry, for the current tenant only
         { proname: 'claim_message', result: 'boolean' }, // claims one message of the given tenant
         { proname: 'due_date_work', result: 'TABLE(organization_id uuid, journey_id uuid)' }, // migration 133: ids only
         { proname: 'due_enrollment_work', result: 'TABLE(organization_id uuid, enrollment_id uuid)' }, // migration 121: ids only
@@ -128,7 +132,7 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
         await expect(f.engage.withEngageTenant(A, (c) =>
           c.query(`UPDATE engage.${table} SET organization_id = $1 WHERE organization_id = $2`, [B, A]),
         ), `${table} move A row to B`).rejects.toThrow(/row-level security|permission denied/);
-        await expect(f.engage.withEngageTenant(A, async (c) => SEEDERS[table]!(c, C)), `${table} insert for another org`).rejects.toThrow(/row-level security/);
+        await expect(f.engage.withEngageTenant(A, async (c) => SEEDERS[table]!(c, C)), `${table} insert for another org`).rejects.toThrow(WRITE_REFUSED);
         const bRows = await f.admin.query(`SELECT count(*)::int AS n FROM engage.${table} WHERE organization_id = $1`, [B]);
         expect(bRows.rows[0].n, `${table} B rows intact`).toBeGreaterThan(0);
       }
@@ -142,7 +146,7 @@ describe.skipIf(!adminUrl)('engage tenant isolation (real Postgres, non-bypass r
         expect((await pool.query(`SELECT 1 FROM engage.${table}`)).rowCount, table).toBe(0);
         const client = await pool.connect();
         try {
-          await expect(SEEDERS[table]!(client, f.A.organization.id), `${table} write without tenant`).rejects.toThrow(/row-level security/);
+          await expect(SEEDERS[table]!(client, f.A.organization.id), `${table} write without tenant`).rejects.toThrow(WRITE_REFUSED);
         } finally { client.release(); }
       }
     });

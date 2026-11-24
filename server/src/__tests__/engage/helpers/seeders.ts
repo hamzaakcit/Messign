@@ -193,6 +193,10 @@ export const SEEDERS: Record<string, Seeder> = {
   whatsapp_template_checks: async (c, org) => {
     await c.query(`INSERT INTO engage.whatsapp_template_checks (organization_id, last_attempt_at) VALUES ($1, now())`, [org]);
   },
+  // audit_log has no direct writes for the engage role: its one writer is the definer function (migration 138), which checks the tenant.
+  audit_log: async (c, org) => {
+    await c.query(`SELECT engage.audit_append($1::uuid, 'system', 'tenant.created', 'tenant', $1::text, '{}'::jsonb)`, [org]);
+  },
   ops_alerts: async (c, org) => {
     await c.query(`INSERT INTO engage.ops_alerts (organization_id, rule, subject, severity, data) VALUES ($1, 'provider_failing', $2, 'warning', '{}'::jsonb)`, [org, `seed-${Math.random()}`]);
   },

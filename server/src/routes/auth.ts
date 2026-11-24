@@ -98,9 +98,11 @@ authRouter.post('/refresh', async (req, res) => {
 // Public or with Bearer: logout (revoke session)
 authRouter.post('/logout', async (req, res) => {
   const refreshToken = req.cookies?.refreshToken as string | undefined;
-  const { sessionId } = req.body as { sessionId?: string };
+  const { sessionId } = (req.body ?? {}) as { sessionId?: string };
+  // A session id in the body ends only the caller's own session (WP-31): before, anyone could end any session by its id.
+  const ownSessionId = typeof sessionId === 'string' && req.sessionId && sessionId === req.sessionId ? sessionId : null;
   try {
-    await authService.logout(refreshToken ?? null, sessionId ?? null, req);
+    await authService.logout(refreshToken ?? null, ownSessionId, req);
   } catch {
     // ignore
   }
@@ -135,6 +137,8 @@ authRouter.put('/password/change', requireJwt, async (req, res) => {
       ipAddress: req.ip ?? undefined,
       userAgent: req.headers['user-agent'] ?? undefined,
     });
+    // A new password ends every other session of the account (WP-31): whoever knew the old one is signed out.
+    await authService.afterPasswordChange(userId, req.sessionId ?? null);
     return res.json({ success: true, message: 'Password changed' });
   } catch (e) {
     console.error('[auth] password/change error:', e);

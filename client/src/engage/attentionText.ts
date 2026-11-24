@@ -51,6 +51,8 @@ function opsAlertText(item: AttentionItem): { title: string; detail: string } | 
       return { title: 'Messages are waiting longer than expected', detail: `${num(d.overdue)} messages are past their send time (the oldest for ${num(d.oldestMinutes)} minutes) and ${num(d.staleSending)} are stuck while sending. If this does not clear by itself, contact your Messign contact.` };
     case 'trigger_outbox_stuck':
       return { title: 'Journey triggers are not being processed', detail: `${num(d.pending)} events are waiting to start journeys${num(d.failed) ? ` and ${num(d.failed)} failed` : ''}. If this does not clear by itself, contact your Messign contact.` };
+    case 'audit_chain_broken':
+      return { title: 'The change history no longer verifies', detail: `An entry in the change history was edited or removed (first problem at entry ${num(d.firstBadSeq)} of ${num(d.entries)}). Contact your Messign contact.` };
     case 'whatsapp_frequency_limited':
       return { title: 'Meta is holding back WhatsApp marketing messages', detail: `Meta did not deliver ${num(d.limited)} of ${num(d.sent)} WhatsApp messages in the last 24 hours (${pct(d.rate)}), to keep customers from getting too many marketing messages from businesses. These customers were not opted out. Send less often, or make the content more relevant; trying again at once does not help.` };
     case 'whatsapp_pacing_holding':

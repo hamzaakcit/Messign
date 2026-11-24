@@ -148,9 +148,12 @@ export function EmailCampaignDetailPanel({ emailId, onUpdated }: EmailCampaignDe
 
       <div className="flex-1 min-h-0 overflow-auto bg-[#0a0c10] p-3">
         {html ? (
-          <div
-            className="min-h-[320px] rounded-lg border border-black/10 bg-white p-4 text-left shadow-inner [&_img]:max-w-full"
-            dangerouslySetInnerHTML={{ __html: html }}
+          // Email HTML is shown in a sandboxed frame (no scripts, its own origin), never inside the app page (WP-31).
+          <iframe
+            title="Email preview"
+            sandbox=""
+            srcDoc={html}
+            className="h-[480px] min-h-[320px] w-full rounded-lg border border-black/10 bg-white shadow-inner"
           />
         ) : (
           <div className="flex h-full items-center justify-center p-8 text-center text-sm text-app-muted">

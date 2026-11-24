@@ -56,7 +56,7 @@ describe('ENGAGE_DATABASE_URL validation', () => {
   it('accepts a full connection string for Railway internal and public hosts', async () => {
     const { assertValidEngageUrl } = await vi.importActual<typeof import('../../engage/db.js')>('../../engage/db.js');
     expect(() => assertValidEngageUrl('postgresql://messign_engage:s3cret@postgres.railway.internal:5432/railway')).not.toThrow();
-    expect(() => assertValidEngageUrl('postgres://messign_engage:s3cret@caboose.proxy.rlwy.net:40126/railway?sslmode=require')).not.toThrow();
+    expect(() => assertValidEngageUrl('postgres://messign_engage:s3cret@db.example.test:40126/railway?sslmode=require')).not.toThrow();
   });
   it('mountEngage logs the format error as the reason', async () => {
     const { getEngagePool } = await vi.importActual<typeof import('../../engage/db.js')>('../../engage/db.js');

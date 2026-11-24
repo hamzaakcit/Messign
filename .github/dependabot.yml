@@ -1,0 +1,18 @@
+# Weekly dependency update pull requests (WP-31). They only open PRs: nothing merges by itself, and CI (tests, type-check,
+# production build, the audit gate and the secret scan) decides whether a bump is safe. Security advisories open their own
+# PRs at any time, whatever this schedule says.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

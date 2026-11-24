@@ -9,6 +9,7 @@
  * The password is shown in YOUR terminal only: copy it from there, it is not stored anywhere else.
  */
 import 'dotenv/config';
+import { setOperatorActor } from '../engage/actor.js';
 
 const arg = (name: string): string => {
   const i = process.argv.indexOf(`--${name}`);
@@ -18,6 +19,7 @@ const arg = (name: string): string => {
 };
 
 async function main(): Promise<void> {
+  setOperatorActor('provision'); // the audit log names this script as the actor
   const admin = process.env.DATABASE_ADMIN_URL?.trim();
   if (admin) { process.env.DATABASE_PUBLIC_URL = admin; delete process.env.PGBOUNCER_URL; }
   const { validateProvisionInput, provisionWithAdminPool } = await import('../engage/bootstrap/provisionOrganization.js');

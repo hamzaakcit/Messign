@@ -22,11 +22,16 @@ import { copyDraftRouter } from './copyDraftRoutes.js';
 import { settingsRouter } from './settingsRoutes.js';
 import { whatsappRouter } from './whatsappRoutes.js';
 import { errorFields, logError, logInfo } from './log.js';
+import { engageIpRateLimit, hasOwnLimiter } from './rateLimit.js';
+import { engageResponseHeaders } from './responseHeaders.js';
 import './types.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const engageRouter = Router();
+engageRouter.use(engageResponseHeaders);
+// Per-address limit for the whole engage API except the paths that have their own (tenant servers, providers).
+engageRouter.use((req, res, next) => (hasOwnLimiter(req.path) ? next() : engageIpRateLimit(req, res, next)));
 engageRouter.use('/channel-accounts', credentialRouter);
 engageRouter.use('/profiles', profileRouter);
 engageRouter.use('/v1', v1Router);

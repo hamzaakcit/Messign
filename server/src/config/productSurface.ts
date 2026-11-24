@@ -27,7 +27,3 @@ export function isModuleOnSurface(
 ): boolean {
   return mountsFrozenModules(surface) || ENGAGE_MODULE_NAMESPACES.has(namespace);
 }
-
-export function mountsSeedRoutes(nodeEnv: string | undefined = process.env.NODE_ENV): boolean {
-  return nodeEnv !== 'production';
-}

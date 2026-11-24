@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# It only calls two deploy hooks; the token needs no access (WP-31).
+permissions: {}
+
 jobs:
   trigger-hosting:
     runs-on: ubuntu-latest

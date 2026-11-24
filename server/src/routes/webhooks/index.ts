@@ -7,13 +7,19 @@ const webhookRouter = Router();
 
 webhookRouter.use(reimbursementAuth);
 webhookRouter.use(requireAdmin);
+// Every query below is scoped to the caller's organization. A caller without one gets nothing (before WP-31 the list
+// treated a missing organization as "all organizations").
+webhookRouter.use((req: ReimbursementRequest, res, next) => {
+  if (!req.organizationId) { res.status(403).json({ error: 'Organization required' }); return; }
+  next();
+});
 
 webhookRouter.get('/', async (req: ReimbursementRequest, res) => {
   try {
     const rows = await query(
       `SELECT id, name, url, events, headers, is_active, retry_count, last_triggered_at, last_status_code, failure_count, created_at
        FROM webhooks
-       WHERE ($1::uuid IS NULL OR organization_id = $1::uuid)
+       WHERE organization_id = $1::uuid
        ORDER BY created_at DESC`,
       [req.organizationId ?? null],
     );

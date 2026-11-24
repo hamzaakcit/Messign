@@ -85,12 +85,39 @@ check_ready() {
   return 1
 }
 
+# check_header NAME PATH PATTERN: the response headers of GET PATH must match the (case-insensitive) pattern.
+check_header() {
+  name=$1; path=$2; pattern=$3
+  headers=$(curl -s -D - -o /dev/null -m 15 "$BASE$path" | tr -d '\r') || headers=""
+  if printf '%s' "$headers" | grep -qiE "$pattern"; then
+    echo "PASS  $name  (GET $path)"
+    return 0
+  fi
+  echo "FAIL  $name  (GET $path: header not found: $pattern)"
+  record_fail "$name"
+  return 1
+}
+
+# A token signed with the placeholder secret from the repository. If production still used it (NODE_ENV not production, or
+# JWT_SECRET missing) the signature would verify, and the user lookup would answer 403 "User not provisioned"; a server with
+# its own secret ignores the token and answers 401.
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+forged_token() {
+  now=$(date +%s)
+  head=$(printf '%s' '{"alg":"HS256","typ":"JWT"}' | b64url)
+  body=$(printf '{"sub":"smoke-forged","type":"access","role":"admin","organizationId":"00000000-0000-0000-0000-000000000001","iat":%s,"exp":%s}' "$now" "$((now + 600))" | b64url)
+  sig=$(printf '%s.%s' "$head" "$body" | openssl dgst -sha256 -hmac 'messign-access-secret-change-in-production' -binary | b64url)
+  printf '%s.%s.%s' "$head" "$body" "$sig"
+}
+
 FORGED='X-User-Id: 00000000-0000-0000-0000-000000000001'
 
 echo "Smoke checks against $BASE (engage expected: $ENGAGE)"
 check_ready || { echo; echo "The API is not answering, skipping the remaining checks."; echo "RESULT: FAILED$FAILURES"; exit 1; }
 
 check "Liveness"                                   200 GET  /health/live
+check_header "API sends a deny-all content security policy" /health/live "^content-security-policy: default-src 'none'"
+check_header "API sends nosniff"                            /health/live "^x-content-type-options: nosniff"
 check "Protected route needs a login"              401 GET  /api/dashboard
 check "Forged X-User-Id does not authenticate"     401 GET  /api/dashboard -H "$FORGED"
 check "Seed routes are not exposed (GET)"          404 GET  /api/seed/finance
@@ -99,6 +126,7 @@ check "Seed routes are not exposed (POST)"         404 POST /api/seed/finance
 if [ "$ENGAGE" = "yes" ]; then
   check "Engage mounted: user route needs a login"        401 GET  /api/engage/me
   check "Engage: forged X-User-Id does not authenticate"  401 GET  /api/engage/me -H "$FORGED"
+  check "Engage: token signed with the placeholder secret is refused" 401 GET /api/engage/me -H "Authorization: Bearer $(forged_token)"
   check "Engage: credentials list needs a login"          401 GET  /api/engage/channel-accounts
   check "Engage: credential create needs a login"         401 POST /api/engage/channel-accounts -H 'content-type: application/json' -d '{}'
   check "Engage: API key route needs a key"               401 GET  /api/engage/key/me

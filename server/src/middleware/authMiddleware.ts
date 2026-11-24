@@ -87,7 +87,7 @@ function verifyFingerprint(req: Request, fp?: string): boolean {
 
 /**
  * Optional JWT auth: if Authorization Bearer is present, verify and set req.userId (and req.role, req.sessionId).
- * If no Bearer token, does nothing (caller may fall back to X-User-Id or return 401).
+ * If no Bearer token, does nothing (the caller returns 401). There is no header-based fallback (WP-01).
  */
 export async function optionalJwt(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
@@ -120,7 +120,7 @@ export async function optionalJwt(req: Request, _res: Response, next: NextFuncti
 
 /**
  * Require JWT: if Authorization Bearer is present, verify and set req.userId. Otherwise 401.
- * Does not fall back to X-User-Id.
+ * No header-based fallback.
  */
 export async function requireJwt(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;

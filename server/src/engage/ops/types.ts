@@ -61,6 +61,8 @@ export interface Snapshot {
   queue: QueueStats;
   /** The tenant's own attention items (email domain lost, İYS sync): the same facts the Settings screen shows. */
   attention: AttentionItem[];
+  /** The audit log's hash chain (WP-31). Absent in older snapshots; a broken chain is always critical. */
+  auditChain?: { ok: boolean; entries: number; firstBadSeq: number | null };
 }
 
 export type Severity = 'warning' | 'critical';

@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from 'express';
 import { getEngagePool, withApiKeyLookup, withEngageTenant } from '../db.js';
 import { hashApiKey, looksLikeApiKey, type ApiKeyScope } from '../apiKeys.js';
 import type { EngageUserContext } from '../types.js';
+import { actorLabel, runAsActor } from '../actor.js';
+import { engageUserRateLimit, platformAdminRateLimit } from '../rateLimit.js';
 import { errorFields, logError } from '../log.js';
 
 interface LookupRow {
@@ -59,7 +61,8 @@ export async function requireEngageUser(req: Request, res: Response, next: NextF
     if (!r.ok) return fail(res, r.failure);
     if (!ENGAGE_PRODUCTS.has(r.product)) return fail(res, { status: 403, error: 'Organization is not an engage tenant' });
     req.engageUser = r.user;
-    next();
+    // The audit log names who made each change (WP-31); a per-user limit follows the sign-in.
+    runAsActor(actorLabel('user', r.user.userId), () => engageUserRateLimit(req, res, next));
   } catch (err) {
     logError('requireEngageUser failed', errorFields(err));
     res.status(500).json({ error: 'Authentication failed' });
@@ -85,7 +88,7 @@ export async function requirePlatformAdmin(req: Request, res: Response, next: Ne
       return fail(res, { status: 403, error: 'Platform admin required' });
     }
     req.engageUser = r.user;
-    next();
+    runAsActor(actorLabel('platform_admin', r.user.userId), () => platformAdminRateLimit(req, res, next));
   } catch (err) {
     logError('requirePlatformAdmin failed', errorFields(err));
     res.status(500).json({ error: 'Authentication failed' });
@@ -96,6 +99,7 @@ interface KeyRow {
   id: string;
   organization_id: string;
   scopes: string[];
+  rate_limit_per_min: number;
   revoked_at: string | null;
   last_used_at: string | null;
 }
@@ -111,7 +115,7 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
     const hash = hashApiKey(presented);
     const row = await withApiKeyLookup(hash, async (client) => {
       const r = await client.query<KeyRow>(
-        'SELECT id, organization_id, scopes, revoked_at, last_used_at FROM engage.api_keys WHERE key_hash = $1',
+        'SELECT id, organization_id, scopes, rate_limit_per_min, revoked_at, last_used_at FROM engage.api_keys WHERE key_hash = $1',
         [hash],
       );
       return r.rows[0];
@@ -126,8 +130,8 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
         client.query('UPDATE engage.api_keys SET last_used_at = now() WHERE id = $1', [row.id]),
       );
     }
-    req.engageApiKey = { organizationId: row.organization_id, keyId: row.id, scopes: row.scopes as ApiKeyScope[] };
-    next();
+    req.engageApiKey = { organizationId: row.organization_id, keyId: row.id, scopes: row.scopes as ApiKeyScope[], rateLimitPerMin: row.rate_limit_per_min };
+    runAsActor(actorLabel('api_key', row.id), next);
   } catch (err) {
     logError('requireApiKey failed', errorFields(err));
     res.status(500).json({ error: 'Authentication failed' });

@@ -1,9 +1,10 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getProductSurface,
   isModuleOnSurface,
   mountsFrozenModules,
-  mountsSeedRoutes,
 } from '../../config/productSurface.js';
 
 const FROZEN_MODULES = [
@@ -57,9 +58,10 @@ describe('productSurface', () => {
     expect(isModuleOnSurface(namespace, 'workspace')).toBe(true);
   });
 
-  it('never mounts seed routes in production', () => {
-    expect(mountsSeedRoutes('production')).toBe(false);
-    expect(mountsSeedRoutes('development')).toBe(true);
-    expect(mountsSeedRoutes(undefined)).toBe(true);
+  it('has no HTTP seed route at all (WP-31: seeding is a terminal command)', () => {
+    const root = join(__dirname, '..', '..');
+    expect(existsSync(join(root, 'routes', 'seed.ts'))).toBe(false);
+    const index = readFileSync(join(root, 'index.ts'), 'utf8');
+    expect(index).not.toMatch(/api\/seed|seedRouter|routes\/seed/);
   });
 });

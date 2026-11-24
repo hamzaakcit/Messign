@@ -14,6 +14,8 @@ export interface EngageApiKeyContext {
   organizationId: string;
   keyId: string;
   scopes: ApiKeyScope[];
+  /** This key's own limit (engage.api_keys.rate_limit_per_min). The ingestion limiter applies it per key. */
+  rateLimitPerMin?: number;
 }
 
 declare global {

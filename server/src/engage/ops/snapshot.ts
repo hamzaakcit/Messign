@@ -2,6 +2,7 @@ import { withEngageTenant } from '../db.js';
 import { expectsDeliveryReports } from '../messaging/index.js';
 import { currentSendMode } from '../messaging/gate.js';
 import { getAttention } from '../settings/attention.js';
+import { verifyAuditChain } from '../audit.js';
 import { pacingStateOn, type PacingState } from '../whatsapp/operate.js';
 import type { Thresholds } from './thresholds.js';
 import type { AccountStats, DenialStats, QueueStats, Snapshot } from './types.js';
@@ -106,5 +107,6 @@ export async function takeSnapshot(orgId: string, t: Thresholds, now: Date = new
     outboxPending: num(m.outbox.pending), oldestOutboxSeconds: Math.max(0, num(m.outbox.oldest)), outboxFailed: num(m.outbox.failed),
   };
 
-  return { at: now, accounts, denials: { byCode }, queue, attention: await getAttention(orgId, now) };
+  const chain = await verifyAuditChain(orgId);
+  return { at: now, accounts, denials: { byCode }, queue, attention: await getAttention(orgId, now), auditChain: { ok: chain.ok, entries: chain.entries, firstBadSeq: chain.firstBadSeq } };
 }

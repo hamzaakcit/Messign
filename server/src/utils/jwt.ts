@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 
 function requireSecret(envKeys: string[], fallback: string): string {
   for (const key of envKeys) {
@@ -50,20 +51,22 @@ export function signAccess(payload: AccessPayload): string {
   return jwt.sign(
     { ...payload, type: 'access' },
     ACCESS_SECRET,
-    { expiresIn: parseExpiryToSeconds(ACCESS_EXPIRY) }
+    { algorithm: 'HS256', expiresIn: parseExpiryToSeconds(ACCESS_EXPIRY) }
   );
 }
 
 export function signRefresh(payload: RefreshPayload): string {
   return jwt.sign(
-    { ...payload, type: 'refresh' },
+    // jti: every refresh token is unique, even two minted for the same session in the same second, so rotation always
+    // replaces the token and a replayed one can be told apart (WP-31).
+    { ...payload, type: 'refresh', jti: randomUUID() },
     REFRESH_SECRET,
-    { expiresIn: parseExpiryToSeconds(REFRESH_EXPIRY) }
+    { algorithm: 'HS256', expiresIn: parseExpiryToSeconds(REFRESH_EXPIRY) }
   );
 }
 
 export function verifyAccess(token: string): AccessPayload {
-  const decoded = jwt.verify(token, ACCESS_SECRET) as jwt.JwtPayload & AccessPayload;
+  const decoded = jwt.verify(token, ACCESS_SECRET, { algorithms: ['HS256'] }) as jwt.JwtPayload & AccessPayload;
   if (decoded.type !== 'access') throw new Error('Invalid token type');
   return {
     sub: decoded.sub,
@@ -75,7 +78,7 @@ export function verifyAccess(token: string): AccessPayload {
 }
 
 export function verifyRefresh(token: string): RefreshPayload {
-  const decoded = jwt.verify(token, REFRESH_SECRET) as jwt.JwtPayload & RefreshPayload;
+  const decoded = jwt.verify(token, REFRESH_SECRET, { algorithms: ['HS256'] }) as jwt.JwtPayload & RefreshPayload;
   if (decoded.type !== 'refresh') throw new Error('Invalid token type');
   return { sub: decoded.sub, sessionId: decoded.sessionId };
 }

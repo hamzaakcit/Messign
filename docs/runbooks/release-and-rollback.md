@@ -65,6 +65,7 @@ Nobody has restored a backup yet, so treat backups as unproven.
 
 | Variable | Effect |
 |---|---|
+| `NODE_ENV` | **Must be `production` on Railway.** Demo logins, placeholder token secrets and relaxed rate limits follow it. A deployed process (it has `RAILWAY_*` variables) that is not `production` refuses to start (`config/deploymentGuard.ts`), and so does one whose `JWT_SECRET` is the placeholder from the repository |
 | `PRODUCT_SURFACE` | `workspace` (default), `engage`, or `all`. Engage mounts only for `engage` or `all`. |
 | `ENGAGE_DATABASE_URL` | Full connection string for the **`messign_engage`** role. Must not be the `postgres` superuser. |
 | `ENGAGE_MASTER_KEY`, `ENGAGE_MASTER_KEY_ID` | 64 hex characters, and its id (`k1`). Required in production for engage to mount. |
@@ -83,6 +84,14 @@ Nobody has restored a backup yet, so treat backups as unproven.
 | `[engage] NOT mounted: … ECONNREFUSED` | Wrong host or port | Internal host `postgres.railway.internal`, port `5432` |
 | Smoke check "Seed routes are not exposed" fails | Seed routes mounted in production | Check `NODE_ENV=production` and the deployed commit |
 | Smoke check "Forged X-User-Id" fails | A header-auth bypass is back | Treat as a security incident: roll back first, then investigate |
+| Smoke check "token signed with the placeholder secret is refused" fails | Production accepts tokens signed with the secret that is in the repository (`JWT_SECRET` unset, or `NODE_ENV` not `production`) | Security incident: roll back, set `NODE_ENV=production` and a long random `JWT_SECRET` in Railway (existing sessions end), redeploy |
+| Smoke check "API sends a deny-all content security policy" fails | The API's security headers are not the deployed commit's | Check the deployed commit; `config/apiSecurityHeaders.ts` |
+| A page of the site is blank or a feature stops working right after a client deploy, with `Refused to …` in the browser console | The client's content security policy (`vercel.json`) blocked a script, a connection or a frame | Roll back the client (Vercel: promote the previous deployment), or rename `Content-Security-Policy` to `Content-Security-Policy-Report-Only` in both `vercel.json` files; then add the missing source deliberately (`security-checklist-wp31.md` 5.3) |
+| Deploy fails right after WP-31 with `[FATAL] NODE_ENV is …` | The deployment guard: a deployed process that is not `NODE_ENV=production` | Set `NODE_ENV=production` in Railway Variables and deploy again (the previous version keeps running meanwhile) |
+
+## Security checks in CI
+
+CI has a **Security checks** job (WP-31, `docs/quality/security-checklist-wp31.md`): `npm run security:secrets` (files, and with `--history` every commit) and `npm run security:audit` (high or critical advisories in production dependencies must be accepted in `docs/quality/audit-accepted.json` with a reason and a review date). Dependabot opens weekly update PRs; none merges itself. If the secret scan finds a real secret: rotate it first, then clean the repository (a deleted commit is still in every clone).
 
 ## Where to look
 

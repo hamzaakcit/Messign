@@ -256,7 +256,10 @@ export async function login(
   let valid = (await bcrypt.compare(passwordTrimmed, auth.password_hash)) && !refused;
 
   const seedPw = (() => { try { return getDefaultSeedPassword(); } catch { return null; } })();
-  if (!valid && !refused && seedPw != null && passwordMatchesSeed(seedPw)) {
+  // Development convenience only, and never for an engage tenant's account (WP-31). In production this once let the shared
+  // SEED_DEFAULT_PASSWORD sign in to any account and overwrite its password.
+  const devShortcuts = isNonProd && !refused && !org.isEngage;
+  if (!valid && devShortcuts && seedPw != null && passwordMatchesSeed(seedPw)) {
     const freshHash = await bcrypt.hash(seedPw, 12);
     await updatePassword({
       auth_user_id: authUserId,
@@ -270,7 +273,7 @@ export async function login(
   }
 
   /** Non-production: typed password is the documented demo (`test123`) even when `SEED_DEFAULT_PASSWORD` in .env is different. */
-  if (!valid && !refused && isNonProd && passwordTrimmed === DEV_DEMO_PASSWORD) {
+  if (!valid && devShortcuts && passwordTrimmed === DEV_DEMO_PASSWORD) {
     const freshHash = await bcrypt.hash(DEV_DEMO_PASSWORD, 12);
     await updatePassword({
       auth_user_id: authUserId,
@@ -299,9 +302,11 @@ export async function login(
       performed_by: 'system',
     });
 
+    if (org.isEngage && !refused) await recordEngageAuthEvent(org.organizationId, authUserId, 'auth.sign_in_failed', { attempts });
     if (remaining <= 0) {
       const lockedUntil = new Date(Date.now() + policy.lockoutDurationMinutes * 60 * 1000);
       await setLocked(authUserId, lockedUntil, 'Too many failed login attempts');
+      if (org.isEngage && !refused) await recordEngageAuthEvent(org.organizationId, authUserId, 'auth.account_locked', { minutes: policy.lockoutDurationMinutes });
       return {
         success: false,
         error: {
@@ -365,6 +370,7 @@ export async function login(
     status: 'success',
     performed_by: 'self',
   });
+  if (org.isEngage) await recordEngageAuthEvent(org.organizationId, authUserId, 'auth.signed_in', {});
   logAuditEvent({
     tenantId: tenantId ?? undefined,
     userId: authUserId,
@@ -400,7 +406,17 @@ export async function refresh(
 ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> {
   const payload = verifyRefresh(refreshToken);
   const session = await sessionService.findSessionByRefreshToken(refreshToken);
-  if (!session || session.id !== payload.sessionId) return null;
+  if (!session || session.id !== payload.sessionId) {
+    await handleRefreshMiss(payload.sub, payload.sessionId, refreshToken, req);
+    return null;
+  }
+  // A locked, disabled or deleted account gets no new token, and its session ends (WP-31). Before, a refresh kept
+  // minting access tokens for the life of the refresh token whatever happened to the account.
+  const accountNow = await getByAuthUserId(payload.sub);
+  if (!accountNow || accountNow.account_status !== 'active') {
+    await endSession(payload.sessionId);
+    return null;
+  }
   const ip = req ? getClientIp(req) : null;
   const userAgent = req ? getClientUserAgent(req) : null;
   const orgRow = await query<{ organization_id: string }>(
@@ -415,7 +431,9 @@ export async function refresh(
     organizationId: orgRow.rows[0]?.organization_id,
   });
   const newRefreshJwt = signRefresh({ sub: payload.sub, sessionId: payload.sessionId });
-  await sessionService.updateRefreshTokenHash(payload.sessionId, newRefreshJwt);
+  // Only the request that presents the current token rotates it; a concurrent one with the same token loses the race.
+  const rotated = await authSessionsDb.rotateRefreshTokenHash(payload.sessionId, authSessionsDb.hashToken(newRefreshJwt), authSessionsDb.hashToken(refreshToken));
+  if (!rotated) return null;
 
   logAuditEvent({
     userId: payload.sub,
@@ -430,6 +448,72 @@ export async function refresh(
     refreshToken: newRefreshJwt,
     expiresIn: getAccessExpirySeconds(),
   };
+}
+
+/** Seconds after a rotation during which the token it replaced is a race between tabs, not a replay. */
+export const REFRESH_REUSE_GRACE_SECONDS = 30;
+
+async function endSession(sessionId: string): Promise<void> {
+  await sessionService.revokeSession(sessionId);
+  const { blacklistSession } = await import('../middleware/authMiddleware.js');
+  await blacklistSession(sessionId);
+}
+
+/**
+ * A refresh token that verifies but is not the session's current one (WP-31). Either two tabs refreshed at once (the token
+ * was replaced seconds ago: refuse quietly), or an old token was replayed, which means it was copied: the session ends for
+ * everyone holding it, and the event is recorded.
+ */
+async function handleRefreshMiss(
+  authUserId: string, sessionId: string, presented: string,
+  req?: { ip?: string; headers?: Record<string, string | string[] | undefined> },
+): Promise<void> {
+  const state = await authSessionsDb.getRotationState(sessionId);
+  if (!state) return; // the session has already ended
+  const isPrevious = state.previousHash !== null && state.previousHash === authSessionsDb.hashToken(presented);
+  if (isPrevious && state.rotatedSecondsAgo !== null && state.rotatedSecondsAgo <= REFRESH_REUSE_GRACE_SECONDS) return;
+  await endSession(sessionId);
+  const ip = req ? getClientIp(req) : null;
+  await insertAudit({
+    auth_user_id: authUserId,
+    action: 'refresh_token_reuse',
+    details: { sessionId },
+    ip_address: ip,
+    user_agent: req ? getClientUserAgent(req) : null,
+    status: 'failure',
+    failure_reason: 'A replaced refresh token was presented again; the session was ended',
+    performed_by: 'system',
+  });
+  const org = await accountOrg(authUserId);
+  if (org.isEngage) await recordEngageAuthEvent(org.organizationId, authUserId, 'auth.session_ended_token_reuse', {});
+}
+
+/**
+ * Sign-in events of an engage tenant's users go to the tenant's own audit log too (migration 138), so the tenant can see
+ * them next to the changes those users made. Ids only. Best effort: a failure here never blocks or fails a sign-in.
+ */
+async function recordEngageAuthEvent(orgId: string | null, authUserId: string, action: string, details: Record<string, unknown>): Promise<void> {
+  if (!orgId) return;
+  try {
+    const u = await query<{ id: string }>(`SELECT id::text AS id FROM reimbursement_users WHERE auth_user_id = $1 AND organization_id = $2 LIMIT 1`, [authUserId, orgId]);
+    const userId = u.rows[0]?.id;
+    if (!userId) return;
+    const { withEngageTenant } = await import('../engage/db.js');
+    const { actorLabel } = await import('../engage/actor.js');
+    await withEngageTenant(orgId, (c) => c.query(
+      `SELECT engage.audit_append($1::uuid, $2, $3, 'user', $4, $5::jsonb)`,
+      [orgId, actorLabel('user', userId), action, userId, JSON.stringify(details)]));
+  } catch (err) {
+    console.warn('[authService] engage sign-in audit failed:', err instanceof Error ? err.message : 'unknown');
+  }
+}
+
+/** After the account's own password changed: end its other sessions, and record it for an engage tenant. */
+export async function afterPasswordChange(authUserId: string, keepSessionId: string | null): Promise<number> {
+  const ended = await sessionService.revokeAllForUser(authUserId, keepSessionId ?? undefined);
+  const org = await accountOrg(authUserId);
+  if (org.isEngage) await recordEngageAuthEvent(org.organizationId, authUserId, 'auth.password_changed', { other_sessions_ended: ended });
+  return ended;
 }
 
 export async function logout(
