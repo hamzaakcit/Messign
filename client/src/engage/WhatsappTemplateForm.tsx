@@ -26,7 +26,7 @@ const label = (r: Row) => (r.source === 'system' ? 'sender_name' : r.name.trim()
 function VariableRow({ row, onChange, title, testId }: { row: Row; onChange: (r: Row) => void; title: string; testId: string }): JSX.Element {
   return (
     <div className="grid gap-2 sm:grid-cols-[6rem_1fr_1fr_1fr] sm:items-end" data-testid={testId}>
-      <span className="text-sm font-mono text-app">{title}</span>
+      <span className="text-sm font-mono text-app-text">{title}</span>
       <Select value={row.source} onChange={(source) => onChange({ ...row, source })} options={SOURCES} ariaLabel={`${title} source`} />
       {row.source === 'system'
         ? <span className="text-xs text-app-muted">the sender name from Settings</span>
@@ -110,7 +110,7 @@ export function WhatsappTemplateForm({ initial, saveLabel, onSave }: {
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} aria-label="Body" className={`${inputClass} text-sm`} data-testid="whatsapp-body" />
       </Field>
       {count > 0 && (
-        <div className="space-y-2 rounded-md border border-app p-3">
+        <div className="space-y-2 rounded-md border border-app-border p-3">
           <p className="text-xs text-app-muted">Where each value comes from: a customer field (for example first_name), a value of the trigger (for example cart_id, in a journey), or the sender name.</p>
           {shown.map((r, i) => (
             <VariableRow key={i} row={r} title={`{{${i + 1}}}`} testId={`whatsapp-variable-${i + 1}`}
@@ -118,8 +118,8 @@ export function WhatsappTemplateForm({ initial, saveLabel, onSave }: {
           ))}
         </div>
       )}
-      <details className="rounded-md border border-app p-3" open={Boolean(headerText || buttonBase)}>
-        <summary className="cursor-pointer text-sm text-app">Header and link button (optional)</summary>
+      <details className="rounded-md border border-app-border p-3" open={Boolean(headerText || buttonBase)}>
+        <summary className="cursor-pointer text-sm text-app-text">Header and link button (optional)</summary>
         <div className="mt-3 space-y-3">
           <Field label="Text header, as approved" hint="at most one value, {{1}}"><TextInput value={headerText} onChange={setHeaderText} ariaLabel="Header text" /></Field>
           {headerHasVariable && <VariableRow row={headerRow} onChange={setHeaderRow} title="header {{1}}" testId="whatsapp-header-variable" />}
@@ -131,7 +131,7 @@ export function WhatsappTemplateForm({ initial, saveLabel, onSave }: {
         </div>
       </details>
       {body.trim() && (
-        <div className="rounded-md bg-app-muted/10 p-3 text-sm text-app" data-testid="whatsapp-preview">
+        <div className="rounded-md bg-app-muted/10 p-3 text-sm text-app-text" data-testid="whatsapp-preview">
           {headerText.trim() && <p className="font-semibold">{headerText.replace(PLACEHOLDER, `[${label(headerRow)}]`)}</p>}
           <p className="whitespace-pre-wrap">{preview}</p>
           {buttonBase.trim() && <p className="mt-1 font-mono text-xs text-app-muted">{buttonBase.trim()}[{label(buttonRow)}]</p>}

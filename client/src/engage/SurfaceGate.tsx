@@ -21,7 +21,7 @@ export function SurfaceGate({ children }: { children: ReactNode }): JSX.Element 
   // Hiding the app while a refetch runs would unmount and remount it (and every request it makes) again and again.
   if (shared && !hasAnsweredEngageMe(me)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-app">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-app-muted">Loading…</div>
       </div>
     );

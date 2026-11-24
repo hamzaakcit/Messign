@@ -19,8 +19,8 @@ const checkErrorText = (code: string): string => CHECK_ERROR_TEXT[code] ?? `The 
 
 function Section({ title, children, testId }: { title: string; children: React.ReactNode; testId: string }): JSX.Element {
   return (
-    <div data-testid={testId} className="space-y-1 border-t border-app/60 pt-3">
-      <h4 className="text-sm font-medium text-app">{title}</h4>
+    <div data-testid={testId} className="space-y-1 border-t border-app-border pt-3">
+      <h4 className="text-sm font-medium text-app-text">{title}</h4>
       {children}
     </div>
   );
@@ -30,8 +30,8 @@ export function WhatsappCard(): JSX.Element {
   const q = useQuery({ queryKey: WHATSAPP_SETUP_KEY, queryFn: getWhatsappSetup, retry: false });
   const title = 'WhatsApp';
   const shell = (body: React.ReactNode) => (
-    <section data-testid="settings-whatsapp" className="space-y-3 rounded-md border border-app p-3">
-      <h3 className="text-sm font-semibold text-app">{title}</h3>
+    <section data-testid="settings-whatsapp" className="space-y-3 rounded-md border border-app-border p-3">
+      <h3 className="text-sm font-semibold text-app-text">{title}</h3>
       {body}
     </section>
   );
@@ -52,7 +52,7 @@ export function WhatsappCard(): JSX.Element {
       <TemplatesSection templates={v.templatesInUse} />
       {v.readiness.problems.length > 0 && (
         <Section title="What WhatsApp sending still needs" testId="whatsapp-readiness">
-          <ul className="list-disc pl-5 text-sm text-app">
+          <ul className="list-disc pl-5 text-sm text-app-text">
             {v.readiness.problems.map((p) => <li key={p.code}>{p.message}</li>)}
           </ul>
         </Section>
@@ -65,10 +65,10 @@ function AccountLine({ v }: { v: WhatsappSetup }): JSX.Element {
   if (v.accountProblem === 'whatsapp_account_ambiguous') {
     return <p role="alert" className="text-sm text-red-600" data-testid="whatsapp-account-problem">More than one WhatsApp account is active. Keep exactly one (disable the others under Channel accounts).</p>;
   }
-  if (!v.account) return <p className="text-sm text-app" data-testid="whatsapp-account-none">No WhatsApp account is set up yet.</p>;
+  if (!v.account) return <p className="text-sm text-app-text" data-testid="whatsapp-account-none">No WhatsApp account is set up yet.</p>;
   const a = v.account;
   return (
-    <p className="text-sm text-app" data-testid="whatsapp-account">
+    <p className="text-sm text-app-text" data-testid="whatsapp-account">
       Account {a.label} ({a.provider === 'mock' ? 'development mock' : a.mode === 'live' ? 'live' : 'test'}), phone number id{' '}
       <code className="font-mono">{a.phoneNumberId ?? '—'}</code>, WhatsApp Business Account <code className="font-mono">{a.wabaId ?? 'not set'}</code>
     </p>
@@ -84,7 +84,7 @@ function Checklist({ v }: { v: WhatsappSetup }): JSX.Element {
           <li key={step} data-testid={`whatsapp-step-${step}`} className="flex gap-2">
             <span className={done ? 'text-emerald-700' : 'text-amber-700'} aria-label={done ? 'done' : 'to do'}>{done ? '✓' : '○'}</span>
             <span>
-              <span className="font-medium text-app">{t.title}</span>
+              <span className="font-medium text-app-text">{t.title}</span>
               {!done && t.todo && <span className="block text-xs text-app-muted">{t.todo}</span>}
             </span>
           </li>
@@ -105,8 +105,8 @@ function WebhookSection({ v }: { v: WhatsappSetup }): JSX.Element {
     <Section title="Webhook (Meta App Dashboard > WhatsApp > Configuration)" testId="whatsapp-webhook">
       {w.url ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-app">Callback URL:</span>
-          <code className="break-all font-mono text-xs text-app" data-testid="whatsapp-webhook-url">{w.url}</code>
+          <span className="text-app-text">Callback URL:</span>
+          <code className="break-all font-mono text-xs text-app-text" data-testid="whatsapp-webhook-url">{w.url}</code>
           <Button onClick={() => { void copy(); }} testId="whatsapp-webhook-copy">{copied ? 'Copied' : 'Copy'}</Button>
         </div>
       ) : (
@@ -143,7 +143,7 @@ function CheckSection({ v }: { v: WhatsappSetup }): JSX.Element {
   const failing = c.lastError !== null && c.consecutiveFailures > 0;
   return (
     <Section title="Template check" testId="whatsapp-check">
-      <p className="text-sm text-app" data-testid="whatsapp-check-state">
+      <p className="text-sm text-app-text" data-testid="whatsapp-check-state">
         {c.lastAttemptAt === null
           ? 'The template check has not run yet.'
           : `Last successful check: ${c.lastOkAt ? formatTime(c.lastOkAt) : 'never'}; ${c.templatesSeen} template${c.templatesSeen === 1 ? '' : 's'} at Meta.`}
@@ -170,7 +170,7 @@ function CheckSection({ v }: { v: WhatsappSetup }): JSX.Element {
 function PacingSection({ pacing: p }: { pacing: NonNullable<WhatsappSetup['pacing']> }): JSX.Element {
   return (
     <Section title="Daily limit of new customers" testId="whatsapp-pacing">
-      <p className="text-sm text-app" data-testid="whatsapp-pacing-state">
+      <p className="text-sm text-app-text" data-testid="whatsapp-pacing-state">
         {p.contacted24h.toLocaleString('en-US')} of {p.limit.toLocaleString('en-US')} customers messaged in the last 24 hours
         {p.limitIsDefault ? ' (Meta\'s starting limit; the account does not say its own yet)' : ''}.
         {p.waiting > 0 ? ` ${p.waiting} message${p.waiting === 1 ? ' is' : 's are'} waiting for room${p.waitingOverADay > 0 ? `, ${p.waitingOverADay} for over a day` : ''}.` : ''}
@@ -198,7 +198,7 @@ function TemplatesSection({ templates }: { templates: WhatsappTemplateInUse[] })
             const pending = !bad && t.status !== 'APPROVED';
             return (
               <li key={`${t.metaName}|${t.language}`} data-testid={`whatsapp-template-${t.metaName}-${t.language}`} className="flex flex-wrap items-center gap-2">
-                <code className="font-mono text-app">{t.metaName}</code>
+                <code className="font-mono text-app-text">{t.metaName}</code>
                 <span className="text-xs text-app-muted">{t.language}</span>
                 <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${bad ? 'bg-red-500/15 text-red-600' : pending ? 'bg-amber-500/15 text-amber-700' : 'bg-emerald-500/15 text-emerald-700'}`}>
                   {statusText(t.status)}{t.quality === 'RED' ? ', quality red' : t.quality === 'YELLOW' ? ', quality yellow' : ''}

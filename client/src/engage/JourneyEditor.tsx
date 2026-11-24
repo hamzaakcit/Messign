@@ -37,7 +37,7 @@ function LeafEditor({ leaf, onChange, scopes, label }: { leaf: LeafForm; onChang
 function OptionalLeaf({ leaf, onChange, scopes, label, toggle }: { leaf: LeafForm | null; onChange: (l: LeafForm | null) => void; scopes: string; label: string; toggle: string }): JSX.Element {
   return (
     <div className="space-y-2">
-      <label className="flex items-center gap-2 text-sm text-app">
+      <label className="flex items-center gap-2 text-sm text-app-text">
         <input type="checkbox" checked={leaf !== null} onChange={(e) => onChange(e.target.checked ? emptyLeaf() : null)} />
         {toggle}
       </label>
@@ -54,9 +54,9 @@ function StepEditor({ step, index, steps, templates, onChange, onRemove, onMove 
   const nextOptions = [{ value: '', label: index === steps.length - 1 ? 'End of the journey' : `The next step (${steps[index + 1]?.id})` }, ...others];
   const set = (patch: Partial<StepForm>) => onChange({ ...step, ...patch });
   return (
-    <li className="rounded-md border border-app p-3" data-testid={`step-${index}`}>
+    <li className="rounded-md border border-app-border p-3" data-testid={`step-${index}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-app">{index + 1}. {step.type === 'message' ? `Send ${step.channel === 'whatsapp' ? 'WhatsApp' : 'email'}` : STEP_LABEL[step.type]}</span>
+        <span className="text-sm font-semibold text-app-text">{index + 1}. {step.type === 'message' ? `Send ${step.channel === 'whatsapp' ? 'WhatsApp' : 'email'}` : STEP_LABEL[step.type]}</span>
         <div className="flex gap-1">
           <Button onClick={() => onMove(-1)} disabled={index === 0}>↑</Button>
           <Button onClick={() => onMove(1)} disabled={index === steps.length - 1}>↓</Button>
@@ -102,7 +102,7 @@ function StepEditor({ step, index, steps, templates, onChange, onRemove, onMove 
       {step.type === 'branch' && (
         <div className="mt-3 space-y-3">
           {step.branches.map((b, k) => (
-            <div key={k} className="rounded border border-app p-2">
+            <div key={k} className="rounded border border-app-border p-2">
               <p className="mb-2 text-xs text-app-muted">Rule {k + 1}: if</p>
               <LeafEditor leaf={b.when} onChange={(when) => set({ branches: step.branches.map((x, j) => (j === k ? { ...x, when } : x)) })} scopes="attributes.tier or reachable.whatsapp" label={`Step ${index + 1} rule ${k + 1}`} />
               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -295,7 +295,7 @@ export function JourneyEditor({ target, initialDefinition, onSaved }: JourneyEdi
       )}
 
       <Issues issues={issues} />
-      {message && <p role="status" className="text-sm text-app">{message}</p>}
+      {message && <p role="status" className="text-sm text-app-text">{message}</p>}
       <div className="flex flex-wrap gap-2">
         <Button onClick={validate} disabled={busy}>Check</Button>
         <Button kind="primary" onClick={save} disabled={busy} testId="save-journey">

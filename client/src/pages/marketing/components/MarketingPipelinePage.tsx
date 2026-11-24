@@ -10,7 +10,7 @@ export function MarketingPipelinePage(): JSX.Element {
   const ctx = useMarketingContext();
 
   return (
-    <div className={`flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden ${marketingShell.bgStack}`}>
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
       <section
         className={`flex flex-1 min-h-0 flex-col border-t ${marketingShell.borderSubtle} overflow-hidden`}
         aria-label="Content pipeline"

@@ -36,8 +36,8 @@ function useSettingsSave<A>(run: (input: A) => Promise<TenantSettings>) {
 
 function Card({ title, children, testId }: { title: string; children: ReactNode; testId: string }): JSX.Element {
   return (
-    <section data-testid={testId} className="space-y-3 rounded-md border border-app p-3">
-      <h3 className="text-sm font-semibold text-app">{title}</h3>
+    <section data-testid={testId} className="space-y-3 rounded-md border border-app-border p-3">
+      <h3 className="text-sm font-semibold text-app-text">{title}</h3>
       {children}
     </section>
   );
@@ -52,12 +52,12 @@ function SaveErrors({ error }: { error: unknown }): JSX.Element | null {
     <div className="space-y-1" data-testid="settings-error">
       <ErrorLine error={error} />
       {problems.length > 0 && (
-        <ul className="list-disc pl-5 text-sm text-app" data-testid="settings-problems">
+        <ul className="list-disc pl-5 text-sm text-app-text" data-testid="settings-problems">
           {problems.map((p) => <li key={p.code}>{p.message}</li>)}
         </ul>
       )}
       {issues.length > 0 && (
-        <ul className="list-disc pl-5 text-sm text-app">
+        <ul className="list-disc pl-5 text-sm text-app-text">
           {issues.map((i) => <li key={i}><code className="text-xs text-app-muted">{i}</code></li>)}
         </ul>
       )}
@@ -94,11 +94,11 @@ function SendingCard({ s }: { s: TenantSettings }): JSX.Element {
     <Card title="Sending" testId="settings-sending">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <StatusBadge status={s.sendEnabled ? 'active' : 'draft'} />
-        <span className="text-app" data-testid="settings-send-state">{s.sendEnabled ? 'Sending is on for this organization.' : 'Sending is off for this organization.'}</span>
+        <span className="text-app-text" data-testid="settings-send-state">{s.sendEnabled ? 'Sending is on for this organization.' : 'Sending is off for this organization.'}</span>
         <span className="text-xs text-app-muted">Server mode: {s.readiness.sendMode}</span>
       </div>
       {!ready && (
-        <div className="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-sm text-app">
+        <div className="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-sm text-app-text">
           <p className="font-medium">Sending cannot be turned on yet:</p>
           <ul className="list-disc pl-5">
             {s.readiness.problems.map((p) => <li key={p.code}>{p.message}</li>)}
@@ -183,9 +183,9 @@ const EMAIL_DOMAIN_ITEM = 'email_domain_authenticated';
 /** The domain item is not typed in: it follows the last DNS check (see the card below). */
 function DomainItemRow({ recorded }: { recorded: TenantSettings['readinessItems'][number] | null }): JSX.Element {
   return (
-    <div className="rounded-md border border-app/60 p-2" data-testid={`readiness-email-${EMAIL_DOMAIN_ITEM}`}>
+    <div className="rounded-md border border-app-border p-2" data-testid={`readiness-email-${EMAIL_DOMAIN_ITEM}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-medium text-app">email · {EMAIL_DOMAIN_ITEM}</span>
+        <span className="font-medium text-app-text">email · {EMAIL_DOMAIN_ITEM}</span>
         <span className={recorded ? 'text-xs text-emerald-700' : 'text-xs text-app-muted'}>
           {recorded ? `Checked ${formatTime(recorded.recordedAt)}` : 'Not checked, or the last check failed'}
         </span>
@@ -226,7 +226,7 @@ function EmailDomainCard(): JSX.Element {
       {problem ? (
         <p role="alert" className="text-sm text-red-600" data-testid="email-domain-problem">{problem}</p>
       ) : (
-        <p className="text-sm text-app" data-testid="email-domain-account">Sending domain: <code className="font-mono">{v.account?.domain}</code> (account {v.account?.label})</p>
+        <p className="text-sm text-app-text" data-testid="email-domain-account">Sending domain: <code className="font-mono">{v.account?.domain}</code> (account {v.account?.label})</p>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="DKIM selectors" hint="up to 5, separated by commas, as your email provider shows them (for example s1, s2)">
@@ -250,7 +250,7 @@ function DomainResult({ check }: { check: EmailDomainCheck }): JSX.Element {
   const row = (label: string, ok: boolean, text: string, testId: string) => (
     <li key={testId} data-testid={testId} className="flex gap-2">
       <span className={ok ? 'text-emerald-700' : 'text-red-600'} aria-label={ok ? 'found' : 'not found'}>{ok ? '✓' : '✗'}</span>
-      <span><span className="font-medium text-app">{label}</span> <span className="text-app-muted">{text}</span></span>
+      <span><span className="font-medium text-app-text">{label}</span> <span className="text-app-muted">{text}</span></span>
     </li>
   );
   return (
@@ -276,9 +276,9 @@ function ReadinessRow({ channel, item, recorded }: {
   const [evidence, setEvidence] = useState(recorded?.evidenceUrl ?? '');
   const save = useSettingsSave(() => recordReadinessItem(channel, item, value.trim(), evidence.trim() || null));
   return (
-    <div className="rounded-md border border-app/60 p-2" data-testid={`readiness-${channel}-${item}`}>
+    <div className="rounded-md border border-app-border p-2" data-testid={`readiness-${channel}-${item}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-medium text-app">{channel} · {item}</span>
+        <span className="font-medium text-app-text">{channel} · {item}</span>
         <span className={recorded ? 'text-xs text-emerald-700' : 'text-xs text-app-muted'}>
           {recorded ? `Recorded ${formatTime(recorded.recordedAt)}` : 'Not recorded'}
         </span>
@@ -385,7 +385,7 @@ function CapsCard({ s }: { s: TenantSettings }): JSX.Element {
       <div className="space-y-1 text-sm" data-testid="settings-budget-list">
         {s.budgetCaps.length === 0 && <p className="text-app-muted">No monthly cap is set yet.</p>}
         {s.budgetCaps.map((c) => (
-          <p key={c.channel} className="text-app">{c.channel}: {money(c.monthlyCapMinor, c.currency)} per month</p>
+          <p key={c.channel} className="text-app-text">{c.channel}: {money(c.monthlyCapMinor, c.currency)} per month</p>
         ))}
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
@@ -397,10 +397,10 @@ function CapsCard({ s }: { s: TenantSettings }): JSX.Element {
       {capSave.isSuccess && <p className="text-xs text-app-muted">Cap saved.</p>}
       <SaveErrors error={capSave.error} />
 
-      <div className="space-y-1 border-t border-app/60 pt-3 text-sm" data-testid="settings-rate-list">
+      <div className="space-y-1 border-t border-app-border pt-3 text-sm" data-testid="settings-rate-list">
         {s.rateCards.length === 0 && <p className="text-app-muted">No rate is set yet. Messages are not allowed without one.</p>}
         {s.rateCards.map((r) => (
-          <p key={`${r.channel}.${r.category}.${r.route}`} className="text-app">
+          <p key={`${r.channel}.${r.category}.${r.route}`} className="text-app-text">
             {r.channel} {r.category} ({r.route}): {money(r.unitCostMinor, r.currency)} per message, from {formatTime(r.effectiveFrom)}
           </p>
         ))}
@@ -434,8 +434,8 @@ function AccountsCard({ s }: { s: TenantSettings }): JSX.Element {
       {s.channelAccounts.length === 0 && <p className="text-sm text-app-muted">No channel account yet. Sending needs exactly one active email account.</p>}
       <div className="space-y-2">
         {s.channelAccounts.map((a) => (
-          <div key={a.id} className="flex flex-wrap items-center gap-2 rounded-md border border-app/60 p-2 text-sm" data-testid={`account-${a.id}`}>
-            <span className="font-medium text-app">{a.label}</span>
+          <div key={a.id} className="flex flex-wrap items-center gap-2 rounded-md border border-app-border p-2 text-sm" data-testid={`account-${a.id}`}>
+            <span className="font-medium text-app-text">{a.label}</span>
             <span className="text-xs text-app-muted">{a.channel} · {a.provider} · {a.mode} mode{a.hint ? ` · ${a.hint}` : ''}</span>
             <StatusBadge status={a.status} />
             <span className="text-xs text-app-muted">added {formatTime(a.createdAt)}</span>
@@ -465,7 +465,7 @@ function AttentionCard(): JSX.Element | null {
   if (items.length === 0) return null;
   return (
     <section data-testid="settings-attention" role="alert" className="space-y-2 rounded-md border border-red-500/40 bg-red-500/5 p-3">
-      <h3 className="text-sm font-semibold text-app">Needs attention</h3>
+      <h3 className="text-sm font-semibold text-app-text">Needs attention</h3>
       <ul className="space-y-2">
         {items.map((item) => {
           const t = attentionText(item);
@@ -504,7 +504,7 @@ function DeliveryHealthCard(): JSX.Element | null {
       {h.accounts.length === 0 && <p className="text-sm text-app-muted" data-testid="delivery-none">There is no active channel account yet.</p>}
       <ul className="space-y-2">
         {h.accounts.map((a) => (
-          <li key={a.accountId} data-testid={`delivery-${a.accountId}`} className="text-sm text-app">
+          <li key={a.accountId} data-testid={`delivery-${a.accountId}`} className="text-sm text-app-text">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{a.label}</span>
               <span className="text-xs text-app-muted">{a.channel} · {a.provider} · {a.mode}</span>
@@ -544,7 +544,7 @@ function IysCard(): JSX.Element {
     return (
       <Card title={title} testId="settings-iys">
         {intro}
-        <p className="text-sm text-app" data-testid="iys-not-connected">
+        <p className="text-sm text-app-text" data-testid="iys-not-connected">
           No İYS account is connected. Your İYS access (the API user name and password İYS gave you) is added by your Messign contact; it is never typed in this browser.
         </p>
       </Card>
@@ -555,11 +555,11 @@ function IysCard(): JSX.Element {
   return (
     <Card title={title} testId="settings-iys">
       {intro}
-      <div className="flex flex-wrap items-center gap-2 text-sm text-app">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-app-text">
         <span data-testid="iys-account">Account: {c.provider === 'mock' ? 'development mock' : c.mode === 'live' ? 'live' : 'İYS sandbox'}, İYS no. <code className="font-mono">{c.iysCode ?? '—'}</code>, brand no. <code className="font-mono">{c.brandCode ?? '—'}</code></span>
         <span data-testid="iys-health" className={`rounded px-1.5 py-0.5 text-xs font-medium ${HEALTH_STYLE[r.health]}`}>{r.health === 'ok' ? 'All good' : r.health === 'warning' ? 'Needs a look' : 'Needs action'}</span>
       </div>
-      <ul className="space-y-1 text-sm text-app">
+      <ul className="space-y-1 text-sm text-app-text">
         <li data-testid="iys-push">
           Opt-outs waiting to be reported to İYS: <strong>{r.push.pending}</strong>
           {r.push.late + r.push.atRisk + r.push.breached > 0 && (

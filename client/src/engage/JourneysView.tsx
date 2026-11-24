@@ -31,16 +31,16 @@ export function JourneysSection({ onOpen, onNew }: { onOpen: (id: string) => voi
       <ErrorLine error={q.error} />
       {q.data && q.data.length === 0 && <Empty>No journeys yet.</Empty>}
       {q.data && q.data.length > 0 && (
-        <div className="mt-4 overflow-x-auto rounded-md border border-app">
+        <div className="mt-4 overflow-x-auto rounded-md border border-app-border">
           <table className="w-full text-left text-sm">
             <thead className="bg-app-muted/10 text-xs uppercase text-app-muted">
               <tr><th className="px-3 py-2">Name</th><th className="px-3 py-2">Key</th><th className="px-3 py-2">Status</th><th className="hidden px-3 py-2 sm:table-cell">Created</th></tr>
             </thead>
             <tbody>
               {q.data.map((j) => (
-                <tr key={j.id} className="border-t border-app hover:bg-app-muted/10">
+                <tr key={j.id} className="border-t border-app-border hover:bg-app-muted/10">
                   <td className="px-3 py-2">
-                    <button type="button" onClick={() => onOpen(j.id)} className="font-medium text-app hover:underline">{j.name}</button>
+                    <button type="button" onClick={() => onOpen(j.id)} className="font-medium text-app-text hover:underline">{j.name}</button>
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-app-muted">{j.key}</td>
                   <td className="px-3 py-2">
@@ -69,10 +69,10 @@ function VersionCard({ journeyId, v, isAdmin, onNewVersion }: { journeyId: strin
   const form = definitionToForm(v.definition);
   const t = (v.definition.trigger ?? {}) as Record<string, unknown>;
   return (
-    <li className="rounded-md border border-app p-3" data-testid={`version-${v.version}`}>
+    <li className="rounded-md border border-app-border p-3" data-testid={`version-${v.version}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-app">Version {v.version}</span>
+          <span className="font-semibold text-app-text">Version {v.version}</span>
           <StatusBadge status={v.status} />
         </div>
         <div className="flex flex-wrap gap-2">
@@ -91,20 +91,20 @@ function VersionCard({ journeyId, v, isAdmin, onNewVersion }: { journeyId: strin
       <ErrorLine error={act.error} />
       {open && (
         <div className="mt-3 text-sm">
-          <p className="text-app">
+          <p className="text-app-text">
             <span className="text-app-muted">Starts: </span>
             {t.type === 'event' ? `when ${String(t.event)} arrives${t.filter ? ' (filtered)' : ''}` : t.type === 'api' ? 'through the trigger API'
               : t.type === 'segment' ? `every ${String(t.every_days)} day(s) at ${String(t.at_local_time)} for segment ${String(t.segment)} v${String(t.segment_version)}` : String(t.type)}
           </p>
           {form.ok ? (
             <>
-              {form.form.exitEvents.length > 0 && <p className="text-app"><span className="text-app-muted">Stops early on: </span>{form.form.exitEvents.join(', ')}</p>}
-              <p className="text-app"><span className="text-app-muted">Holdout: </span>{form.form.holdoutPercent}% · <span className="text-app-muted">re-entry: </span>{form.form.reEntry === 'never' ? 'once only' : 'after the previous time ended'}</p>
-              <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-app">
+              {form.form.exitEvents.length > 0 && <p className="text-app-text"><span className="text-app-muted">Stops early on: </span>{form.form.exitEvents.join(', ')}</p>}
+              <p className="text-app-text"><span className="text-app-muted">Holdout: </span>{form.form.holdoutPercent}% · <span className="text-app-muted">re-entry: </span>{form.form.reEntry === 'never' ? 'once only' : 'after the previous time ended'}</p>
+              <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-app-text">
                 {form.form.steps.map((s) => <li key={s.id}><span className="font-mono text-xs text-app-muted">{s.id}</span> {describeStep(s)}</li>)}
               </ol>
             </>
-          ) : <pre className="mt-2 overflow-x-auto rounded bg-app-muted/10 p-2 text-xs text-app">{JSON.stringify(v.definition, null, 2)}</pre>}
+          ) : <pre className="mt-2 overflow-x-auto rounded bg-app-muted/10 p-2 text-xs text-app-text">{JSON.stringify(v.definition, null, 2)}</pre>}
         </div>
       )}
     </li>
@@ -119,7 +119,7 @@ function SegmentRuns({ journeyId }: { journeyId: string }): JSX.Element {
       {q.data && q.data.length > 0 && (
         <ul className="space-y-1 text-sm">
           {q.data.map((r) => (
-            <li key={r.id} className="text-app">
+            <li key={r.id} className="text-app-text">
               {formatTime(r.slot)} <StatusBadge status={r.status} />{' '}
               <span className="text-app-muted">{r.matched} matched · {r.enrolled} entered · {r.skipped} already in or not allowed back{r.truncated ? ' · capped' : ''}{r.error ? ` · ${r.error.replace(/_/g, ' ')}` : ''}</span>
             </li>

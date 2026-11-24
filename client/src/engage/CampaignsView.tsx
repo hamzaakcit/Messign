@@ -30,17 +30,17 @@ export function CampaignsSection({ onOpen, onNew, pollMs = PROGRESS_POLL_MS }: {
       <ErrorLine error={q.error} />
       {q.data && q.data.length === 0 && <Empty>No campaigns yet. A campaign sends one email or WhatsApp message to one segment, now.</Empty>}
       {q.data && q.data.length > 0 && (
-        <div className="mt-4 overflow-x-auto rounded-md border border-app">
+        <div className="mt-4 overflow-x-auto rounded-md border border-app-border">
           <table className="w-full text-left text-sm">
             <thead className="bg-app-muted/10 text-xs uppercase text-app-muted">
               <tr><th className="px-3 py-2">Name</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Customers</th><th className="hidden px-3 py-2 md:table-cell">Template</th><th className="hidden px-3 py-2 sm:table-cell">Started</th></tr>
             </thead>
             <tbody>
               {q.data.map((c) => (
-                <tr key={c.id} className="border-t border-app hover:bg-app-muted/10">
-                  <td className="px-3 py-2"><button type="button" onClick={() => onOpen(c.id)} className="font-medium text-app hover:underline">{c.name}</button></td>
+                <tr key={c.id} className="border-t border-app-border hover:bg-app-muted/10">
+                  <td className="px-3 py-2"><button type="button" onClick={() => onOpen(c.id)} className="font-medium text-app-text hover:underline">{c.name}</button></td>
                   <td className="px-3 py-2"><StatusBadge status={c.status} /></td>
-                  <td className="px-3 py-2 text-app">{c.enrolled.toLocaleString('en')}</td>
+                  <td className="px-3 py-2 text-app-text">{c.enrolled.toLocaleString('en')}</td>
                   <td className="hidden px-3 py-2 font-mono text-xs text-app-muted md:table-cell">{c.channel === 'whatsapp' ? 'WhatsApp · ' : ''}{c.templateKey} v{c.templateVersion}</td>
                   <td className="hidden px-3 py-2 text-app-muted sm:table-cell">{formatTime(c.createdAt)}</td>
                 </tr>
@@ -65,7 +65,7 @@ function Problems({ problems }: { problems: ReadinessProblem[] }): JSX.Element |
   return (
     <div role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm" data-testid="send-problems">
       <p className="font-medium text-amber-700">Sending is not ready</p>
-      <ul className="mt-1 list-disc pl-5 text-app">{problems.map((p) => <li key={p.code}>{p.message}</li>)}</ul>
+      <ul className="mt-1 list-disc pl-5 text-app-text">{problems.map((p) => <li key={p.code}>{p.message}</li>)}</ul>
       <p className="mt-2 text-xs text-app-muted">A platform admin sets these up; the settings screen for it comes with a later release.</p>
     </div>
   );
@@ -141,7 +141,7 @@ export function NewCampaignPanel({ onSent }: { onSent: (id: string) => void }): 
 
       {preview && (
         <Card title="Before it goes out">
-          <div className="space-y-2 text-sm text-app" data-testid="campaign-preview">
+          <div className="space-y-2 text-sm text-app-text" data-testid="campaign-preview">
             {isWhatsapp && preview.template.whatsapp
               ? <>
                 <p><span className="text-app-muted">WhatsApp: </span>{preview.template.name} v{preview.template.version}, Meta template {preview.template.whatsapp.metaName} ({preview.template.whatsapp.language}), {preview.template.whatsapp.category}</p>
@@ -164,7 +164,7 @@ export function NewCampaignPanel({ onSent }: { onSent: (id: string) => void }): 
 
       {preview && sendable && (
         <Card title="Send">
-          <label className="flex items-start gap-2 text-sm text-app">
+          <label className="flex items-start gap-2 text-sm text-app-text">
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1" data-testid="confirm-campaign" />
             <span>I understand this sends {isWhatsapp ? 'a WhatsApp message' : 'an email'} to {preview.audience.withConsent.toLocaleString('en')} customers now, and it cannot be undone.</span>
           </label>
@@ -204,25 +204,25 @@ export function CampaignPanel({ id, isAdmin, pollMs = PROGRESS_POLL_MS }: { id: 
   return (
     <div className="space-y-4" data-testid="engage-campaign">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2"><h2 className="text-base font-semibold text-app">{c.name}</h2><StatusBadge status={c.status} /></div>
+        <div className="flex items-center gap-2"><h2 className="text-base font-semibold text-app-text">{c.name}</h2><StatusBadge status={c.status} /></div>
         {isAdmin && c.status === 'sending' && <Button onClick={() => finish.mutate()} disabled={finish.isPending} testId="finish-campaign">Finish sending</Button>}
       </div>
       <ErrorLine error={finish.error} />
       <Card title="What was sent">
         <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-          <div><dt className="inline text-app-muted">{c.channel === 'whatsapp' ? 'WhatsApp' : 'Email'}: </dt><dd className="inline font-mono text-xs text-app">{c.templateKey} v{c.templateVersion}</dd></div>
-          <div><dt className="inline text-app-muted">Segment: </dt><dd className="inline font-mono text-xs text-app">{c.segmentKey} v{c.segmentVersion}</dd></div>
-          <div><dt className="inline text-app-muted">Started: </dt><dd className="inline text-app">{formatTime(c.createdAt)}</dd></div>
-          <div><dt className="inline text-app-muted">Finished: </dt><dd className="inline text-app">{c.finishedAt ? formatTime(c.finishedAt) : '—'}</dd></div>
-          <div><dt className="inline text-app-muted">Customers with consent: </dt><dd className="inline text-app" data-testid="campaign-enrolled">{c.enrolled.toLocaleString('en')}</dd></div>
-          <div><dt className="inline text-app-muted">Held back: </dt><dd className="inline text-app">{c.holdoutPercent}%</dd></div>
+          <div><dt className="inline text-app-muted">{c.channel === 'whatsapp' ? 'WhatsApp' : 'Email'}: </dt><dd className="inline font-mono text-xs text-app-text">{c.templateKey} v{c.templateVersion}</dd></div>
+          <div><dt className="inline text-app-muted">Segment: </dt><dd className="inline font-mono text-xs text-app-text">{c.segmentKey} v{c.segmentVersion}</dd></div>
+          <div><dt className="inline text-app-muted">Started: </dt><dd className="inline text-app-text">{formatTime(c.createdAt)}</dd></div>
+          <div><dt className="inline text-app-muted">Finished: </dt><dd className="inline text-app-text">{c.finishedAt ? formatTime(c.finishedAt) : '—'}</dd></div>
+          <div><dt className="inline text-app-muted">Customers with consent: </dt><dd className="inline text-app-text" data-testid="campaign-enrolled">{c.enrolled.toLocaleString('en')}</dd></div>
+          <div><dt className="inline text-app-muted">Held back: </dt><dd className="inline text-app-text">{c.holdoutPercent}%</dd></div>
         </dl>
         {c.status === 'sending' && <p className="mt-2 text-sm text-app-muted">Adding customers… {c.enrolled.toLocaleString('en')} so far.</p>}
         {c.truncated && <p className="mt-2 text-sm text-amber-700">The audience was capped at one campaign's limit; the rest were not sent.</p>}
         {c.error && <p className="mt-2 text-sm text-red-600">{ERROR_TEXT[c.error] ?? c.error.replace(/_/g, ' ')}</p>}
       </Card>
       <Card title="What happened">
-        <div className="space-y-1 text-sm text-app" data-testid="campaign-outcome">
+        <div className="space-y-1 text-sm text-app-text" data-testid="campaign-outcome">
           {o.messages === 0 && o.inFlight && <p className="text-app-muted">Preparing the messages…</p>}
           {o.messages > 0 && (
             <>

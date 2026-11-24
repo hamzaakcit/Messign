@@ -85,7 +85,7 @@ function DefinitionEditor({ initial, onSave, saveLabel }: { initial?: unknown; o
         </>
       ) : (
         <>
-          <div className="flex items-center gap-2 text-sm text-app">
+          <div className="flex items-center gap-2 text-sm text-app-text">
             Customers who match
             <div className="w-28"><Select value={rows.combine} onChange={(combine) => setRows({ ...rows, combine })} options={[{ value: 'all', label: 'all' }, { value: 'any', label: 'any' }]} ariaLabel="Combine" /></div>
             of these:
@@ -108,7 +108,7 @@ function DefinitionEditor({ initial, onSave, saveLabel }: { initial?: unknown; o
       <Issues issues={issues} />
       <ErrorLine error={error} />
       {count && (
-        <p className="text-sm text-app" data-testid="segment-count">
+        <p className="text-sm text-app-text" data-testid="segment-count">
           <strong>{count.count}</strong> customer{count.count === 1 ? '' : 's'} match now
           {count.sample.length > 0 && <span className="text-app-muted"> (for example {count.sample.slice(0, 5).map((s) => s.externalId).join(', ')})</span>}
         </p>
@@ -134,10 +134,10 @@ export function SegmentsSection({ onOpen, onNew }: { onOpen: (id: string) => voi
       <ErrorLine error={q.error} />
       {q.data && q.data.length === 0 && <Empty>No segments yet.</Empty>}
       {q.data && q.data.length > 0 && (
-        <ul className="mt-4 divide-y divide-app rounded-md border border-app">
+        <ul className="mt-4 divide-y divide-app-border rounded-md border border-app-border">
           {q.data.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-              <button type="button" onClick={() => onOpen(s.id)} className="font-medium text-app hover:underline">{s.name}</button>
+              <button type="button" onClick={() => onOpen(s.id)} className="font-medium text-app-text hover:underline">{s.name}</button>
               <span className="text-xs text-app-muted"><code className="font-mono">{s.key}</code> · v{s.latestVersion} · {formatTime(s.createdAt)}</span>
             </li>
           ))}
@@ -172,7 +172,7 @@ function VersionCount({ id, version }: { id: string; version: number }): JSX.Ele
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button onClick={() => c.mutate()} disabled={c.isPending}>Count v{version} now</Button>
-      {c.data && <span className="text-sm text-app"><strong>{c.data.count}</strong> customers</span>}
+      {c.data && <span className="text-sm text-app-text"><strong>{c.data.count}</strong> customers</span>}
       <ErrorLine error={c.error} />
     </div>
   );
@@ -202,7 +202,7 @@ export function SegmentPanel({ id }: { id: string }): JSX.Element {
       )}
       {versions.map((v) => (
         <Card key={v.id} title={`Version ${v.version} · ${formatTime(v.createdAt)}`}>
-          <pre className="mb-2 overflow-x-auto rounded bg-app-muted/10 p-2 text-xs text-app">{JSON.stringify(v.definition, null, 2)}</pre>
+          <pre className="mb-2 overflow-x-auto rounded bg-app-muted/10 p-2 text-xs text-app-text">{JSON.stringify(v.definition, null, 2)}</pre>
           <VersionCount id={id} version={v.version} />
         </Card>
       ))}

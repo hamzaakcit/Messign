@@ -53,10 +53,10 @@ function Decision({ d }: { d: TrailDecision }): JSX.Element {
   const colour = d.decision === 'allow' ? 'text-emerald-700' : d.decision === 'defer' ? 'text-amber-700' : 'text-red-600';
   const others = d.reasons.map((r) => r.code).filter((c): c is string => Boolean(c) && c !== d.code);
   return (
-    <li className="rounded border border-app px-3 py-2 text-sm" data-testid="gate-decision">
+    <li className="rounded border border-app-border px-3 py-2 text-sm" data-testid="gate-decision">
       <div className="flex flex-wrap items-baseline gap-x-2">
         <span className={`font-semibold ${colour}`}>{d.decision}</span>
-        <span className="text-app">{decisionText(d.code)}</span>
+        <span className="text-app-text">{decisionText(d.code)}</span>
         <span className="text-xs text-app-muted">{formatTime(d.createdAt)} · {d.sendMode}</span>
       </div>
       {others.length > 0 && <p className="mt-1 text-xs text-app-muted">Also: {others.map(decisionText).join(', ')}</p>}
@@ -71,10 +71,10 @@ function Decision({ d }: { d: TrailDecision }): JSX.Element {
 
 function Message({ m }: { m: TrailMessage }): JSX.Element {
   return (
-    <li className="rounded-md border border-app p-3" data-testid="trail-message">
+    <li className="rounded-md border border-app-border p-3" data-testid="trail-message">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="font-medium text-app">{m.subject ?? (m.renderError ? 'Template could not be filled' : '(no subject)')}</span>
-        <span className="text-xs text-app-muted">{m.channel} · {m.purpose} · <strong className="text-app">{m.status}</strong> · {formatTime(m.createdAt)}</span>
+        <span className="font-medium text-app-text">{m.subject ?? (m.renderError ? 'Template could not be filled' : '(no subject)')}</span>
+        <span className="text-xs text-app-muted">{m.channel} · {m.purpose} · <strong className="text-app-text">{m.status}</strong> · {formatTime(m.createdAt)}</span>
       </div>
       <p className="mt-1 text-xs text-app-muted">
         {m.journey ? `Journey ${m.journey.journeyKey}, step ${m.journey.stepId}` : 'Sent directly (not from a journey)'}
@@ -95,7 +95,7 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
   return (
     <>
       <header>
-        <h1 className="mt-2 break-all font-mono text-lg font-bold text-app">{p.externalId}</h1>
+        <h1 className="mt-2 break-all font-mono text-lg font-bold text-app-text">{p.externalId}</h1>
         <p className="mt-1 text-sm text-app-muted">
           {p.identifiers.email ?? 'no email'} · {p.identifiers.phone ?? 'no phone'} · since {formatTime(p.createdAt)}
           {p.erasedAt ? ` · erased ${formatTime(p.erasedAt)}` : ''}
@@ -115,11 +115,11 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
         {t.enrollments.length ? (
           <ul className="space-y-3">
             {t.enrollments.map((e) => (
-              <li key={e.id} className="rounded-md border border-app p-3 text-sm" data-testid="trail-enrollment">
+              <li key={e.id} className="rounded-md border border-app-border p-3 text-sm" data-testid="trail-enrollment">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-medium text-app">{e.journeyName} <span className="text-xs text-app-muted">v{e.version}</span></span>
+                  <span className="font-medium text-app-text">{e.journeyName} <span className="text-xs text-app-muted">v{e.version}</span></span>
                   <span className="text-xs text-app-muted">
-                    <strong className="text-app">{e.status}</strong>{e.endReason ? ` (${e.endReason.replace(/_/g, ' ')})` : ''}
+                    <strong className="text-app-text">{e.status}</strong>{e.endReason ? ` (${e.endReason.replace(/_/g, ' ')})` : ''}
                     {e.cohort === 'holdout' ? ' · holdout: no messages' : ''} · entered {formatTime(e.enteredAt)}
                   </span>
                 </div>
@@ -140,7 +140,7 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
         {t.consents.length ? (
           <ul className="space-y-1 text-sm">
             {t.consents.map((c) => (
-              <li key={c.id} className="text-app">
+              <li key={c.id} className="text-app-text">
                 {c.channel} <strong>{c.status}</strong> <span className="text-app-muted">via {c.source.replace(/_/g, ' ')} · {formatTime(c.recordedAt)}</span>
               </li>
             ))}
@@ -151,7 +151,7 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
       <Section title="Suppressed addresses" count={t.suppressions.length}>
         {t.suppressions.length ? (
           <ul className="space-y-1 text-sm">
-            {t.suppressions.map((s) => <li key={`${s.channel}:${s.value}`} className="text-app">{s.value} <span className="text-app-muted">({s.channel}, {s.reason.replace(/_/g, ' ')}, {formatTime(s.createdAt)})</span></li>)}
+            {t.suppressions.map((s) => <li key={`${s.channel}:${s.value}`} className="text-app-text">{s.value} <span className="text-app-muted">({s.channel}, {s.reason.replace(/_/g, ' ')}, {formatTime(s.createdAt)})</span></li>)}
           </ul>
         ) : <Empty text="None." />}
       </Section>
@@ -159,7 +159,7 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
       <Section title="Addresses" count={t.identifiers.length}>
         <ul className="space-y-1 text-sm">
           {t.identifiers.map((i) => (
-            <li key={`${i.type}:${i.value}:${i.firstSeenAt}`} className={i.active ? 'text-app' : 'text-app-muted line-through'}>
+            <li key={`${i.type}:${i.value}:${i.firstSeenAt}`} className={i.active ? 'text-app-text' : 'text-app-muted line-through'}>
               {i.value} <span className="text-app-muted no-underline">({i.type}{i.active ? '' : `, replaced ${formatTime(i.deactivatedAt)}`})</span>
             </li>
           ))}
@@ -170,7 +170,7 @@ function Trail({ t }: { t: CustomerTrail }): JSX.Element {
         {t.events.length ? (
           <ul className="space-y-1 text-sm">
             {t.events.map((e) => (
-              <li key={e.id} className="text-app">
+              <li key={e.id} className="text-app-text">
                 {e.name} <span className="text-app-muted">{formatTime(e.occurredAt)}</span>
               </li>
             ))}

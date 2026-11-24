@@ -55,7 +55,7 @@ export function CustomersSection({ onOpen, onNew }: { onOpen: (id: string) => vo
         )}
 
         {rows.length > 0 && (
-          <div className="mt-4 overflow-x-auto rounded-md border border-app">
+          <div className="mt-4 overflow-x-auto rounded-md border border-app-border">
             <table className="w-full text-left text-sm">
               <thead className="bg-app-muted/10 text-xs uppercase text-app-muted">
                 <tr>
@@ -73,10 +73,10 @@ export function CustomersSection({ onOpen, onNew }: { onOpen: (id: string) => vo
                     onClick={() => onOpen(c.id)}
                     onKeyDown={(e) => { if (e.key === 'Enter') onOpen(c.id); }}
                     tabIndex={0}
-                    className="cursor-pointer border-t border-app hover:bg-app-muted/10 focus:bg-app-muted/10 focus:outline-none"
+                    className="cursor-pointer border-t border-app-border hover:bg-app-muted/10 focus:bg-app-muted/10 focus:outline-none"
                   >
-                    <td className="px-3 py-2 font-mono text-xs text-app">{c.externalId}</td>
-                    <td className="px-3 py-2 text-app">{c.email ?? <span className="text-app-muted">—</span>}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-app-text">{c.externalId}</td>
+                    <td className="px-3 py-2 text-app-text">{c.email ?? <span className="text-app-muted">—</span>}</td>
                     <td className="px-3 py-2"><ConsentBadge c={c} /></td>
                     <td className="hidden px-3 py-2 text-app-muted sm:table-cell">{formatTime(c.lastEventAt)}</td>
                     <td className="hidden px-3 py-2 text-app-muted md:table-cell">{formatTime(c.createdAt)}</td>
@@ -91,7 +91,7 @@ export function CustomersSection({ onOpen, onNew }: { onOpen: (id: string) => vo
             type="button"
             onClick={() => void query.fetchNextPage()}
             disabled={query.isFetchingNextPage}
-            className="mt-4 rounded-md border border-app px-3 py-1.5 text-sm text-app hover:bg-app-muted/10 disabled:opacity-50"
+            className="mt-4 rounded-md border border-app-border px-3 py-1.5 text-sm text-app-text hover:bg-app-muted/10 disabled:opacity-50"
           >
             {query.isFetchingNextPage ? 'Loading…' : 'Load more'}
           </button>

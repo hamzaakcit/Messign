@@ -32,7 +32,7 @@ export function JourneyResults({ journeyId }: { journeyId: string }): JSX.Elemen
       {q.data && !q.data.conversion && <p className="text-sm text-app-muted">Results are not available for this journey.</p>}
       {q.data?.conversion && (
         <div className="space-y-3 text-sm" data-testid="journey-results">
-          <p className="text-app" data-testid="uplift-text">{upliftText(q.data)}</p>
+          <p className="text-app-text" data-testid="uplift-text">{upliftText(q.data)}</p>
           <table className="w-full text-left">
             <thead className="text-xs uppercase text-app-muted">
               <tr><th className="py-1">Group</th><th className="py-1">Customers</th><th className="py-1">Converted</th><th className="py-1">Rate</th><th className="py-1">Revenue per customer</th></tr>
@@ -41,8 +41,8 @@ export function JourneyResults({ journeyId }: { journeyId: string }): JSX.Elemen
               {(['treatment', 'holdout'] as const).map((g) => {
                 const c = q.data!.conversion[g];
                 return (
-                  <tr key={g} className="border-t border-app">
-                    <td className="py-1 text-app">{g === 'treatment' ? 'Journey' : 'Holdout (no messages)'}</td>
+                  <tr key={g} className="border-t border-app-border">
+                    <td className="py-1 text-app-text">{g === 'treatment' ? 'Journey' : 'Holdout (no messages)'}</td>
                     <td className="py-1">{c.n}</td>
                     <td className="py-1">{c.converted}</td>
                     <td className="py-1">{pct(c.conversionRate)}</td>

@@ -37,7 +37,7 @@ export function MarketingWorkspaceLayout(): JSX.Element {
   const ctx = useMarketingContext();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-app">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Error banners */}
       <WorkspaceBootstrapBanner error={ctx.bootstrapError} onRetry={() => void ctx.refetchBootstrap()} />
       <MarketingWorkspaceSecondaryAlerts
