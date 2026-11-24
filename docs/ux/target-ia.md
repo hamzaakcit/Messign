@@ -8,7 +8,7 @@
 |---|---|---|---|
 | **Offers** | The shop's offers: still, caption and journey email on each. The home | `/marketing` list + `/marketing/pipeline` board (two lists) | One list. Pipeline becomes a "by status" view of the same list (UX-04) |
 | **Calendar** | Put a *ready* offer on a day; warns when a live send mode would publish | `/marketing/calendar`, accepts drafts | Ready offers only (UX-07) |
-| **Email designs** | Unlayer email layouts and saved templates | `/marketing/builder` (Email + Documents) | Email only. Documents is Company-OS; decision UX-D2 |
+| **Email designs** | Unlayer email layouts and saved templates | `/marketing/builder`, email only (UX-D2) | Unchanged |
 | **Shop settings** | Product truth rows, brand profile, language, handle | Floating "Brands" button over every screen | A page under the shop switcher (UX-05) |
 | **Engage** *(organizations with engage)* | Customers, Journeys, Campaigns, Segments, Templates, Settings | Tabs after Offers on the same page (ADR-016) | Unchanged structure; adopts ADR-026 components when touched |
 

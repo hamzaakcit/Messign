@@ -8,14 +8,14 @@
 |---|---|---|
 | UX-A | Reconnaissance: inventory, control audit, duplication map, copy audit | done 2026-11-24 |
 | UX-01 | Delete and hide: frozen screens, 38 unreachable files, Mock and No-op controls, Unlayer setup text | done 2026-11-24 (PR #68) |
-| UX-01b | Lucy composer down to Instagram + email (no frozen-channel templates); engage tab label contrast; Phase 2 docs | done 2026-11-24 (this PR) |
+| UX-01b | Lucy composer down to Instagram + email (no frozen-channel templates); engage tab label contrast; Phase 2 docs; UX-D1 (engage sections light on paper) and UX-D2 (Builder email-only) applied | done 2026-11-24 (PR #69) |
 
 ## Next packages (one session each)
 
 | ID | Package | Files | Acceptance | Tests | Pri | Replaces |
 |---|---|---|---|---|---|---|
 | UX-02 | **Help pattern.** `InfoTooltip` tap/Escape/`helpId`; `HelpDrawer`; `lib/helpContent.ts`; apply the copy-audit **T**/**H** moves | `components/ui/InfoTooltip.tsx`, new `HelpDrawer.tsx`, `lib/helpContent.ts`, `EmailDesignWizard`, `Va2DiagnosticsPanel`, `TenantContentSetupPanel`, `MarketingChannelAgentModal` | No explanatory block > 1 sentence visible by default on kept screens; every tip ≤ 120 chars | Registry test (one sentence, ≤ 120, every used id exists); InfoTooltip keyboard + tap | P0 | — (new) |
-| UX-03 | **Tokens and theme.** Ban bare `text-app`/`bg-app` in marketing + engage (104 uses); settle decision UX-D1 | `pages/marketing/**`, `engage/**` | Lint-style test green; selected/hover states pass AA on their real background | Class-ban test; contrast spot checks in the browser | P0 | MC-15 |
+| UX-03 | **Tokens.** Ban bare `text-app`/`bg-app` in marketing + engage (104 uses). Theme is decided (UX-D1: paper; engage sections in the light theme, done in UX-01b) | `pages/marketing/**`, `engage/**` | Lint-style test green; selected/hover states pass AA on their real background | Class-ban test; contrast spot checks in the browser | P0 | MC-15 |
 | UX-04 | **One offer list.** Pipeline becomes the status view of Offers; `/marketing/content` and `/pipeline` redirect | `LucyMarketingPage`, `MarketingPipelinePage`, `KanbanBoard`, router | One list of content; old URLs land on it with the filter set | Router + list tests | P1 | MC-09 |
 | UX-05 | **Shop settings page.** Replaces the Brands FAB | `TenantContentSetupPanel`, `BrandProfileManager`, router | No floating button; truth rows edited in one place | Page test | P1 | MC-11 |
 | UX-06 | **Offer detail redesign.** One primary ("Looks good"), `⋯` for the rest; journey email readable without Unlayer | `ContentDetailPanel`, `OfferDetailView`, `ContentEmailSection` | One filled button; email subject, price, window and unsubscribe visible | Component tests; browser click-through | P0 | MC-07, MC-08 |
@@ -37,10 +37,10 @@ MC-12 (a campaign is a name on a set of offers), MC-16 (dogfood one bookstore an
 
 ## Decisions for the founder
 
-| ID | Question | Recommendation |
+| ID | Question | Outcome |
 |---|---|---|
-| UX-D1 | One theme on `/marketing`: the paper shop counter (MC-04) or the dark app theme the engage sections use? | **Paper for the marketing rooms, dark panels for engage sections on the same page (as now)** until a tenant sees it. Restyling every engage component is not worth a session before then |
-| UX-D2 | Keep "Documents" in the builder? It is Company-OS (reports, proposals), not shop marketing | **Hide it** with the next builder change; the backend stays |
+| UX-D1 | One theme on `/marketing`? | **Paper everywhere** (2026-11-24). The engage tab row, sections, create actions and panels render under `data-theme="light"` on the shop counter. The tenants' own engage page (`EngageHub`) keeps the dark theme |
+| UX-D2 | Keep "Documents" in the builder? | **Hidden** (2026-11-24). The Builder is email-only; `/marketing/documents` redirects there; the backend stays |
 
 ## Acceptance bar for the track (from the master prompt)
 

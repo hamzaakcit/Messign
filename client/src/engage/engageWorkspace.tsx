@@ -76,9 +76,9 @@ const PANEL_WIDTH: Record<Exclude<Panel, null>['kind'], number> = {
 };
 
 export const TILE_BTN =
-  'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/[0.12] bg-slate-950/50 px-2 py-1.5 text-xs font-medium text-app-text shadow-sm ring-1 ring-violet-500/10 transition-all hover:brightness-110 sm:justify-start';
+  'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-app-border bg-app-card px-2 py-1.5 text-xs font-medium text-app-text shadow-sm transition-colors hover:bg-app-hover sm:justify-start';
 export const PRIMARY_CREATE =
-  'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-primary-500/35 bg-gradient-to-b from-primary-950/50 to-slate-950/90 px-2 py-1.5 text-xs font-medium text-app-text ring-1 ring-primary-500/20 transition-all hover:brightness-110 sm:justify-start';
+  'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-primary-500/40 bg-primary-500/10 px-2 py-1.5 text-xs font-medium text-app-text transition-colors hover:bg-primary-500/20 sm:justify-start';
 
 export interface EngageAccess {
   /** Whether the engage sections can be shown to this user on this page. */
@@ -147,7 +147,7 @@ export function EngageTabStrip({ workspace, withLucy = false, lucyLabel = 'Lucy'
           onClick={() => workspace.goTo(t.id)}
           className={cn(
             'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-            workspace.tab === t.id ? 'border-violet-400/60 bg-violet-500/15 text-app-text' : 'border-white/[0.12] text-app-muted hover:text-app-text',
+            workspace.tab === t.id ? 'border-violet-400/60 bg-violet-500/15 text-app-text' : 'border-app-border text-app-muted hover:text-app-text',
           )}
         >
           {t.label}

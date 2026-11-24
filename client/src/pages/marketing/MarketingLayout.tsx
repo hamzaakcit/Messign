@@ -80,7 +80,7 @@ function CalendarRoute(): JSX.Element {
   );
 }
 
-/** Builder (email / document) */
+/** Builder (email designs) */
 function BuilderRoute(): JSX.Element {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -314,7 +314,7 @@ function MarketingRouter(): JSX.Element {
         <Route path="email" element={<Navigate to="/marketing/builder?type=email" replace />} />
         <Route path="pages" element={<Navigate to={ROUTES.MARKETING_BUILDER} replace />} />
         <Route path="popups" element={<Navigate to={ROUTES.MARKETING_BUILDER} replace />} />
-        <Route path="documents" element={<Navigate to="/marketing/builder?type=document" replace />} />
+        <Route path="documents" element={<Navigate to={ROUTES.MARKETING_BUILDER} replace />} />
         <Route path="agent" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="command-center" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
         <Route path="dashboard" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
