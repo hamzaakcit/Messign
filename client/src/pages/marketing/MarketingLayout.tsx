@@ -9,8 +9,6 @@ import { MarketingWorkspaceLayout } from './MarketingWorkspaceLayout';
 import { LucyMarketingPage } from './LucyMarketingPage';
 import { NewOfferPage } from './NewOfferPage';
 import { CampaignDetailPanel } from './components/CampaignDetailPanel';
-import { CampaignCreatePanel } from './components/CampaignCreatePanel';
-import { ContentCreatePanel } from './components/ContentCreatePanel';
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
 import { TenantContentSetupPanel } from './components/TenantContentSetupPanel';
@@ -218,39 +216,6 @@ function MarketingPanels(): JSX.Element {
         {ctx.detail?.type === 'email' && (
           <EmailCampaignDetailPanel emailId={ctx.detail.id} />
         )}
-      </SlideOverPanel>
-
-      {/* Create panels */}
-      <SlideOverPanel
-        isOpen={ctx.createCampaignOpen}
-        onClose={ctx.closeCreateCampaign}
-        title="New Campaign"
-        width={520}
-      >
-        <CampaignCreatePanel
-          onCreated={() => {
-            ctx.closeCreateCampaign();
-            void ctx.invalidateWorkspace();
-          }}
-          onCancel={ctx.closeCreateCampaign}
-        />
-      </SlideOverPanel>
-
-      <SlideOverPanel
-        isOpen={ctx.createContentOpen}
-        onClose={ctx.closeCreateContent}
-        title={ctx.contentCreatePreset === 'instagram' ? 'New Instagram content' : 'New Content'}
-        width={560}
-      >
-        <ContentCreatePanel
-          preset={ctx.contentCreatePreset}
-          onDraftWithMarketingAgent={ctx.handleDraftWithMarketingFromPanel}
-          onCreated={() => {
-            ctx.closeCreateContent();
-            void ctx.invalidateWorkspace();
-          }}
-          onCancel={ctx.closeCreateContent}
-        />
       </SlideOverPanel>
     </>
   );

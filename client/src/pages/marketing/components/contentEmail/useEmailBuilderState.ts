@@ -6,7 +6,7 @@ import { buildEmailBrandOverridesForAssembly } from '../../lib/emailBrandHeaderO
 import { toast } from 'sonner';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
-import type { UnlayerEmailEditorHandle } from '../UnlayerEmailEditor';
+import type { UnlayerEditorHandle } from '../UnlayerEditor';
 import { getStarterTemplates } from '../../unlayerTemplates/registry';
 import {
   buildEmailDesignFromAiDraft,
@@ -49,7 +49,7 @@ export function useEmailBuilderState({
   const userId = user?.authUserId || user?.id || '';
 
   const [builderOpen, setBuilderOpen] = useState(false);
-  const editorRef = useRef<UnlayerEmailEditorHandle>(null);
+  const editorRef = useRef<UnlayerEditorHandle>(null);
   const [bodyHtml, setBodyHtml] = useState(content.body_html ?? '');
   const [bodyDesign, setBodyDesign] = useState<Record<string, unknown> | null>(content.body_design ?? null);
   const [editorKey, setEditorKey] = useState(content.id);
