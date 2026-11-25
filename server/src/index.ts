@@ -58,6 +58,7 @@ import { mountsEngage, mountsFrozenModules, mountsSeedRoutes } from './config/pr
 import { mountEngage } from './engage/index.js';
 import aiV2Router from './routes/knowledge-hub/ai-v2.js';
 import { optionalJwt } from './middleware/authMiddleware.js';
+import { createAiLimiter, createApiLimiter, createFloodLimiter, limitsFor } from './middleware/apiRateLimit.js';
 import { isEngageTenantOrg, tenantGuard } from './middleware/tenantGuard.js';
 import { responseTimer } from './middleware/responseTimer.js';
 import { initializeAuthRecords } from './services/initAuth.js';
@@ -235,24 +236,23 @@ app.get('/health', async (_req, res) => {
 
 // Rate limiting (relaxed in development for E2E tests and local dev)
 const isDev = process.env.NODE_ENV !== 'production' || process.env.E2E_TEST === '1';
-const apiLimiter = rateLimit({
-  windowMs: 60_000,
-  max: isDev ? 1000 : 100,
-  message: { error: 'Too many requests' },
-});
-app.use('/api', apiLimiter);
+const apiLimits = limitsFor(isDev);
+// A flood cap per address first (before any token is verified); the per-person limit follows `optionalJwt` below.
+app.use('/api', createFloodLimiter(apiLimits));
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isDev ? 100 : 10,
   message: { error: 'Too many login attempts' },
 });
 app.use('/api/auth/login', authLimiter);
-const aiLimiter = rateLimit({ windowMs: 60_000, max: 10, message: { error: 'AI rate limit reached' } });
-app.use('/api/dora', aiLimiter);
 
 app.use('/api', optionalJwt);
 // An engage tenant's token reaches sign-in and the engage API only; every Company-OS route is closed to it (ADR-017).
 app.use('/api', tenantGuard);
+// Signed-in people each get their own bucket; anonymous requests keep the tight per-address limit (middleware/apiRateLimit.ts).
+// After the token is read and the tenant guard, so `req.userId` is known; the flood cap above runs before either.
+app.use('/api', createApiLimiter(apiLimits));
+app.use('/api/dora', createAiLimiter(apiLimits));
 
 // API Routes
 app.use('/api/auth', authRouter);
