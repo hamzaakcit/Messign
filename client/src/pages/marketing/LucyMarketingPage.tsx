@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   EngagePanels, EngageQuickActions, EngageSectionBody, EngageTabStrip, useEngageAccess, useEngageWorkspace,
 } from '@/engage/engageWorkspace';
@@ -10,11 +10,11 @@ import { ViewportWrapper } from '@/pages/marketing/components/bento/ViewportWrap
 import { ContentTenantSwitch } from '@/pages/marketing/components/ContentTenantSwitch';
 import { DoraRail } from '@/pages/marketing/components/DoraRail';
 import { useContentTenant } from '@/pages/marketing/lib/contentTenant';
-import { shopOfferRows, type ShopOfferRow } from '@/pages/marketing/lib/shopOffers';
+import { OFFER_FILTERS, parseOfferFilter, shopOfferRows, type ShopOfferRow } from '@/pages/marketing/lib/shopOffers';
+import { cn } from '@/lib/utils';
 import { useMarketingContext } from './MarketingContext';
 
 const MORE_LINKS: Array<{ label: string; path: string }> = [
-  { label: 'Pipeline', path: ROUTES.MARKETING_PIPELINE },
   { label: 'Calendar', path: ROUTES.MARKETING_CALENDAR },
   { label: 'Builder', path: ROUTES.MARKETING_BUILDER },
 ];
@@ -29,6 +29,7 @@ export function LucyMarketingPage(): JSX.Element {
   const ctx = useMarketingContext();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const userId = useAuthStore((s) => s.user?.authUserId ?? s.user?.id ?? null);
   const { setup } = useContentTenant();
   const [items, setItems] = useState<ContentItem[]>([]);
@@ -47,12 +48,13 @@ export function LucyMarketingPage(): JSX.Element {
     }
     setLoadError(null);
     try {
-      const [offers, posts] = await Promise.all([
+      const [offers, posts, emails] = await Promise.all([
         marketingAPI.listContent(userId, { contentType: 'offer', pageSize: '50' }),
         marketingAPI.listContent(userId, { channel: 'instagram', pageSize: '200' }),
+        marketingAPI.listContent(userId, { channel: 'email', pageSize: '200' }),
       ]);
       const byId = new Map<string, ContentItem>();
-      for (const item of [...offers.data, ...posts.data]) byId.set(item.id, item);
+      for (const item of [...offers.data, ...posts.data, ...emails.data]) byId.set(item.id, item);
       setItems([...byId.values()]);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Could not load offers');
@@ -72,14 +74,37 @@ export function LucyMarketingPage(): JSX.Element {
   }, [location.state, location.pathname, location.search, navigate]);
 
   const rows = shopOfferRows(items, setup);
+  const filter = parseOfferFilter(searchParams.get('status'));
+  const visibleRows = filter === 'all' ? rows : rows.filter((row) => row.stage === filter);
+  const setFilter = (next: string) => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next === 'all') params.delete('status');
+      else params.set('status', next);
+      return params;
+    }, { replace: true });
+  };
+
+  // Old Pipeline and approval links arrive as `?contentId=…`.
+  const linkedId = searchParams.get('contentId');
+  useEffect(() => {
+    if (!linkedId) return;
+    ctx.openDetail({ type: 'content', id: linkedId });
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete('contentId');
+      return params;
+    }, { replace: true });
+  }, [linkedId, ctx, setSearchParams]);
 
   useEffect(() => {
     if (loading || loadError) return;
     if (ctx.detail?.type !== 'content') return;
     const openId = ctx.detail.id;
-    const visible = rows.some((row) => row.offer.id === openId || row.child?.id === openId);
+    const shopOffers = new Set(rows.map((row) => row.offer.id));
+    const visible = shopOffers.has(openId) || items.some((item) => item.id === openId && shopOffers.has(item.parent_content_id ?? ''));
     if (!visible) ctx.closeDetail();
-  }, [loading, loadError, rows, ctx]);
+  }, [loading, loadError, rows, items, ctx]);
 
   return (
     <ViewportWrapper className="relative min-h-0 flex-1 bg-[#f4efe8]">
@@ -158,8 +183,29 @@ export function LucyMarketingPage(): JSX.Element {
                   </button>
                 </div>
               ) : null}
+              {rows.length > 0 ? (
+                <div role="group" aria-label="Offer status" className="mt-3 flex flex-wrap gap-1.5">
+                  {OFFER_FILTERS.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      aria-pressed={filter === f.id}
+                      onClick={() => setFilter(f.id)}
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs',
+                        filter === f.id ? 'border-[#1c1917] bg-[#1c1917] text-white' : 'border-[#e7e0d6] bg-white text-[#44403c] hover:border-[#a8a29e]',
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {rows.length > 0 && visibleRows.length === 0 ? (
+                <p className="mt-4 text-sm text-[#78716c]">No offers in this view.</p>
+              ) : null}
               <ul className="mt-4 space-y-4">
-                {rows.map((row) => (
+                {visibleRows.map((row) => (
                   <li key={row.offer.id}>
                     <OfferLine row={row} onOpen={() => ctx.openDetail({ type: 'content', id: row.offer.id })} />
                   </li>
@@ -180,10 +226,7 @@ export function LucyMarketingPage(): JSX.Element {
               Close Lucy
             </button>
           </div>
-          <DoraRail
-            layout="pageSplit"
-            selectedCard={null}
-          />
+          <DoraRail layout="pageSplit" />
         </div>
       ) : null}
       {engage.available ? (

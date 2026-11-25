@@ -113,10 +113,10 @@ describe('Marketing calendar navigation', () => {
     });
   });
 
-  it('navigates to /marketing/calendar when Calendar tab is clicked from pipeline', async () => {
+  it('navigates to /marketing/calendar when Calendar tab is clicked from the builder', async () => {
     render(
       wrap(
-        <MemoryRouter initialEntries={['/marketing/pipeline']}>
+        <MemoryRouter initialEntries={['/marketing/builder']}>
           <Routes>
             <Route path="/*" element={<MarketingLayout />} />
           </Routes>
@@ -125,10 +125,9 @@ describe('Marketing calendar navigation', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: /content pipeline/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Calendar/i })).toBeTruthy();
     });
 
-    // New WorkspaceTopBar uses text-labeled tabs
     fireEvent.click(screen.getByRole('button', { name: /Calendar/i }));
 
     await waitFor(() => {

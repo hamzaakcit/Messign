@@ -104,7 +104,7 @@ describe('the marketing page and engage as one page (ADR-016)', () => {
     await waitFor(() => expect(urls.some((u) => u.endsWith('/engage/me'))).toBe(true));
     expect(screen.queryByRole('tablist')).toBeNull();
     openMore();
-    expect(screen.getByRole('button', { name: /^Pipeline$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Calendar$/i })).toBeInTheDocument();
     expect(screen.queryByTestId('hub-new-journey')).toBeNull();
   });
 
@@ -119,7 +119,7 @@ describe('the marketing page and engage as one page (ADR-016)', () => {
     expect(screen.getAllByRole('button', { name: 'New offer' }).length).toBeGreaterThan(0);
     expect(screen.queryByTestId('hub-go-journeys')).toBeNull();
     openMore();
-    expect(screen.getByRole('button', { name: /^Pipeline$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Calendar$/i })).toBeInTheDocument();
     expect(screen.getByTestId('hub-new-journey')).toBeInTheDocument();
     expect(screen.queryByTestId('hub-customers')).toBeNull();
   });

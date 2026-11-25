@@ -7,8 +7,9 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
+const auth = vi.hoisted(() => ({ role: 'employee' }));
 vi.mock('@/stores/authStore', () => ({
-  useAuthStore: () => ({ user: { authUserId: 'user-1', id: 'user-1' } }),
+  useAuthStore: () => ({ user: { authUserId: 'user-1', id: 'user-1', role: auth.role } }),
 }));
 
 vi.mock('@/pages/marketing/MarketingContext', () => ({
@@ -178,5 +179,27 @@ describe('offer sheet on the detail panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     expect(screen.getByRole('menuitem', { name: 'Open email' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Draft journey email' })).not.toBeInTheDocument();
+  });
+
+  it('shows Approve to a manager when the post is in review, and approves it', async () => {
+    auth.role = 'manager';
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({
+      data: [{ id: 'child-1', channel: 'instagram', parent_content_id: 'offer-1', body: 'The novel is in the window.', image_url: 'https://cdn.example/still.png', title: 'Window drop', status: 'in_review' }],
+    } as never);
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+    expect(marketingAPI.updateContent).toHaveBeenCalledWith('user-1', 'child-1', { status: 'approved' });
+    auth.role = 'employee';
+  });
+
+  it('shows "In review" without Approve to someone who cannot approve', async () => {
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({
+      data: [{ id: 'child-1', channel: 'instagram', parent_content_id: 'offer-1', body: 'x', image_url: 'y', title: 'Window drop', status: 'in_review' }],
+    } as never);
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    const button = await screen.findByRole('button', { name: 'In review' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('title', 'A manager or admin approves it.');
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
   });
 });

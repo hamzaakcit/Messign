@@ -29,6 +29,9 @@ export interface OfferDetailViewProps {
   regenerating?: boolean;
   /** Sends the post (or, for a cart offer, the email) to review. Never schedules or posts. */
   onLooksGood?: (childId: string) => void;
+  /** Shown to a manager or admin when the post is in review. */
+  onApprove?: (childId: string) => void;
+  canApprove?: boolean;
   submitting?: boolean;
   onOpenChild?: (childId: string) => void;
   onDraftJourneyEmail?: () => void;
@@ -48,6 +51,8 @@ export function OfferDetailView({
   onRegenerate,
   regenerating = false,
   onLooksGood,
+  onApprove,
+  canApprove = false,
   submitting = false,
   onOpenChild,
   onDraftJourneyEmail,
@@ -60,7 +65,7 @@ export function OfferDetailView({
   const product = sheet.product || offer.title;
   const look = STILL_LOOKS.find((row) => row.id === sheet.style) ?? STILL_LOOKS[0];
   const frame = FRAME_LABEL[instagramFormatFromTags(instagram?.tags) ?? 'feed'];
-  const review = offerReviewAction(instagram, email);
+  const review = offerReviewAction(instagram, email, canApprove && Boolean(onApprove));
   const mail = email ? journeyEmailSummary(email) : null;
   const reference = instagram?.reference_image_url ?? offer.reference_image_url;
 
@@ -85,7 +90,11 @@ export function OfferDetailView({
                 type="button"
                 disabled={review.disabled || submitting}
                 title={review.reason ?? undefined}
-                onClick={() => review.targetId && onLooksGood(review.targetId)}
+                onClick={() => {
+                  if (!review.targetId) return;
+                  if (review.kind === 'approve') onApprove?.(review.targetId);
+                  else onLooksGood(review.targetId);
+                }}
                 className="rounded-lg bg-[#1c1917] px-4 py-2 text-sm font-medium text-white hover:bg-[#292524] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {submitting ? 'Sending…' : review.label}

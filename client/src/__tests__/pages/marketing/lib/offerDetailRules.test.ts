@@ -7,7 +7,7 @@ const mail = { id: 'em', body: 'SUBJECT: Hi\nUnsubscribe: {{unsubscribe_url}}', 
 
 describe('offerReviewAction', () => {
   it('sends the Instagram post to review when the still and caption exist', () => {
-    expect(offerReviewAction(post, mail)).toEqual({ targetId: 'ig', label: 'Looks good', disabled: false, reason: null });
+    expect(offerReviewAction(post, mail)).toEqual({ targetId: 'ig', kind: 'review', label: 'Looks good', disabled: false, reason: null });
   });
 
   it('waits for the still and the caption', () => {
@@ -21,8 +21,26 @@ describe('offerReviewAction', () => {
   });
 
   it('shows "In review" once sent, and nothing to review without children', () => {
-    expect(offerReviewAction({ ...post, status: 'in_review' }, null)).toMatchObject({ label: 'In review', disabled: true });
+    expect(offerReviewAction({ ...post, status: 'in_review' }, null)).toMatchObject({ label: 'In review', disabled: true, reason: 'A manager or admin approves it.' });
     expect(offerReviewAction(null, null)).toMatchObject({ targetId: null, disabled: true });
+  });
+});
+
+describe('offerReviewAction for approvers', () => {
+  it('offers Approve on a post in review', () => {
+    expect(offerReviewAction({ ...post, status: 'in_review' }, null, true)).toEqual({
+      targetId: 'ig', kind: 'approve', label: 'Approve', disabled: false, reason: null,
+    });
+  });
+
+  it('shows Approved once approved, scheduled or published', () => {
+    for (const status of ['approved', 'scheduled', 'published']) {
+      expect(offerReviewAction({ ...post, status }, null, true)).toMatchObject({ label: 'Approved', disabled: true });
+    }
+  });
+
+  it('still asks for review first on a draft, even for an approver', () => {
+    expect(offerReviewAction(post, null, true)).toMatchObject({ kind: 'review', label: 'Looks good' });
   });
 });
 

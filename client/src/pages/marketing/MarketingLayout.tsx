@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback } from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ViewportContainer } from '@/components/layout/ViewportContainer';
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -8,7 +8,6 @@ import { MarketingProvider, useMarketingContext } from './MarketingContext';
 import { MarketingWorkspaceLayout } from './MarketingWorkspaceLayout';
 import { LucyMarketingPage } from './LucyMarketingPage';
 import { NewOfferPage } from './NewOfferPage';
-import { MarketingPipelinePage } from './components/MarketingPipelinePage';
 import { CampaignDetailPanel } from './components/CampaignDetailPanel';
 import { CampaignCreatePanel } from './components/CampaignCreatePanel';
 import { ContentCreatePanel } from './components/ContentCreatePanel';
@@ -64,9 +63,13 @@ function LucyHubRoute(): JSX.Element {
   );
 }
 
-/** Pipeline / Content board — reads context internally. */
-function PipelineRoute(): JSX.Element {
-  return <MarketingPipelinePage />;
+/** Old board URLs land on the offer list, keeping `?contentId=` (and any status) so links still open their item. */
+function ToOffers({ status }: { status?: string }): JSX.Element {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  if (status && !params.has('status')) params.set('status', status);
+  const qs = params.toString();
+  return <Navigate to={{ pathname: ROUTES.MARKETING, search: qs ? `?${qs}` : '' }} replace />;
 }
 
 function CalendarRoute(): JSX.Element {
@@ -145,10 +148,6 @@ function MarketingBootstrapBanner({
 
 function MarketingPanels(): JSX.Element {
   const ctx = useMarketingContext();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const segment = location.pathname.split('/').filter(Boolean)[1];
-
   const handleDetailUpdated = useCallback(() => {
     void ctx.invalidateWorkspace();
   }, [ctx.invalidateWorkspace]);
@@ -158,12 +157,7 @@ function MarketingPanels(): JSX.Element {
       {/* Detail panels */}
       <SlideOverPanel
         isOpen={ctx.detail?.type === 'content'}
-        onClose={() => {
-          ctx.closeDetail();
-          if (segment === 'content') {
-            navigate(ROUTES.MARKETING_PIPELINE, { replace: true });
-          }
-        }}
+        onClose={ctx.closeDetail}
         title="Content Detail"
         width={1200}
       >
@@ -289,8 +283,6 @@ function MarketingRouter(): JSX.Element {
 
         {/* Workspace routes — wrapped in workspace layout with Outlet */}
         <Route element={<MarketingWorkspaceLayout />}>
-          <Route path="pipeline" element={<PipelineRoute />} />
-          <Route path="content" element={<PipelineRoute />} />
           <Route
             path="calendar"
             element={
@@ -317,12 +309,14 @@ function MarketingRouter(): JSX.Element {
         <Route path="popups" element={<Navigate to={ROUTES.MARKETING_BUILDER} replace />} />
         <Route path="documents" element={<Navigate to={ROUTES.MARKETING_BUILDER} replace />} />
         <Route path="agent" element={<Navigate to={ROUTES.MARKETING} replace />} />
-        <Route path="command-center" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
-        <Route path="dashboard" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
-        <Route path="creative-hub" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
-        <Route path="automation" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
-        <Route path="leads" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
-        <Route path="approvals" element={<Navigate to={ROUTES.MARKETING_PIPELINE} replace />} />
+        <Route path="pipeline" element={<ToOffers />} />
+        <Route path="content" element={<ToOffers />} />
+        <Route path="approvals" element={<ToOffers status="review" />} />
+        <Route path="command-center" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="dashboard" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="creative-hub" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="automation" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="leads" element={<Navigate to={ROUTES.MARKETING} replace />} />
 
         {/* Unknown segment → hub */}
         <Route path="*" element={<Navigate to="/marketing" replace />} />

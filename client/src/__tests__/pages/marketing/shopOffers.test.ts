@@ -55,7 +55,16 @@ describe('shop offers', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.product).toBe('Kürk Mantolu Madonna');
     expect(rows[0]?.price).toBe('₺189');
-    expect(rows[0]?.step).toBe('Review');
+    expect(rows[0]?.step).toBe('Ready for review');
+    expect(rows[0]?.stage).toBe('progress');
     expect(rows[0]?.child?.id).toBe('ig-1');
+  });
+
+  it('takes the status from the post, not the offer row, and falls back to the email child', () => {
+    const offer = item({ id: 'o', content_type: 'offer', user_brief: 'product: Kürk Mantolu Madonna', status: 'draft' });
+    const approvedPost = item({ id: 'ig', parent_content_id: 'o', channel: 'instagram', status: 'approved', body: 'x', image_url: 'y' });
+    expect(shopOfferRows([offer, approvedPost], contentSetupFor('bookstore'))[0]).toMatchObject({ step: 'Approved', stage: 'approved' });
+    const reviewEmail = item({ id: 'em', parent_content_id: 'o', channel: 'email', status: 'in_review', body: 'SUBJECT: x' });
+    expect(shopOfferRows([offer, reviewEmail], contentSetupFor('bookstore'))[0]).toMatchObject({ step: 'In review', stage: 'review', child: { id: 'em' } });
   });
 });

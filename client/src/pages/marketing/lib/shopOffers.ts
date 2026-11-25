@@ -6,12 +6,30 @@ import type { ContentItem } from '@/lib/marketingApi';
 import { readStudioSheet } from './offerSheetForm';
 import type { TenantContentSetup } from './tenantContentSetup';
 
+export type OfferStage = 'progress' | 'review' | 'approved' | 'scheduled' | 'live';
+
 export interface ShopOfferRow {
   offer: ContentItem;
+  /** The Instagram post, or the email when the offer has no post (cart). */
   child: ContentItem | null;
   product: string;
   price: string;
-  step: 'Writing' | 'Picture' | 'Review' | 'Ready' | 'Draft';
+  step: 'Draft' | 'Writing' | 'Picture' | 'Ready for review' | 'In review' | 'Approved' | 'Scheduled' | 'Live';
+  stage: OfferStage;
+}
+
+/** The offer list's status view (what the Pipeline board used to show). */
+export const OFFER_FILTERS: Array<{ id: 'all' | OfferStage; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'progress', label: 'In progress' },
+  { id: 'review', label: 'In review' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'scheduled', label: 'Scheduled' },
+  { id: 'live', label: 'Live' },
+];
+
+export function parseOfferFilter(value: string | null): 'all' | OfferStage {
+  return OFFER_FILTERS.some((f) => f.id === value) ? (value as 'all' | OfferStage) : 'all';
 }
 
 /**
@@ -43,20 +61,22 @@ export function offerMatchesShop(brief: string | null | undefined, setup: Tenant
 }
 
 /**
- * Where the offer sits. Ready covers review, schedule, and publish.
- * A caption without a still is Picture. A child with neither is Writing.
+ * Where the offer sits, read from its post (the offer row itself stays a draft). Before review: a child with
+ * neither text nor still is Writing, a caption without a still is Picture, both is Ready for review.
  */
-export function offerStep(offer: ContentItem, child: ContentItem | null): ShopOfferRow['step'] {
-  const status = (offer.status || child?.status || '').toLowerCase();
-  if (status === 'in_review' || status === 'approved' || status === 'ready' || status === 'scheduled' || status === 'published') {
-    return 'Ready';
-  }
+export function offerStep(offer: ContentItem, child: ContentItem | null): Pick<ShopOfferRow, 'step' | 'stage'> {
+  const status = (child?.status || offer.status || '').toLowerCase();
+  if (status === 'in_review') return { step: 'In review', stage: 'review' };
+  if (status === 'approved' || status === 'ready') return { step: 'Approved', stage: 'approved' };
+  if (status === 'scheduled') return { step: 'Scheduled', stage: 'scheduled' };
+  if (status === 'published') return { step: 'Live', stage: 'live' };
+  const isEmail = (child?.channel ?? '').toLowerCase() === 'email';
   const hasBody = Boolean(child?.body?.trim());
-  const hasImage = Boolean(child?.image_url?.trim() || offer.image_url?.trim());
-  if (hasBody && hasImage) return 'Review';
-  if (hasBody) return 'Picture';
-  if (child) return 'Writing';
-  return 'Draft';
+  const hasImage = isEmail || Boolean(child?.image_url?.trim() || offer.image_url?.trim());
+  if (hasBody && hasImage) return { step: 'Ready for review', stage: 'progress' };
+  if (hasBody) return { step: 'Picture', stage: 'progress' };
+  if (child) return { step: 'Writing', stage: 'progress' };
+  return { step: 'Draft', stage: 'progress' };
 }
 
 /**
@@ -66,14 +86,18 @@ export function shopOfferRows(items: readonly ContentItem[], setup: TenantConten
   const offers = items.filter((item) => (item.content_type ?? '') === 'offer' && offerMatchesShop(item.user_brief, setup));
   return offers
     .map((offer) => {
-      const child = items.find((item) => item.parent_content_id === offer.id && (item.channel ?? '').toLowerCase() === 'instagram') ?? null;
+      const children = items.filter((item) => item.parent_content_id === offer.id);
+      const child =
+        children.find((item) => (item.channel ?? '').toLowerCase() === 'instagram') ??
+        children.find((item) => (item.channel ?? '').toLowerCase() === 'email') ??
+        null;
       const sheet = readStudioSheet(offer.user_brief);
       return {
         offer,
         child,
         product: sheet.product || offer.title,
         price: sheet.price,
-        step: offerStep(offer, child),
+        ...offerStep(offer, child),
       };
     })
     .sort((a, b) => (b.offer.created_at || '').localeCompare(a.offer.created_at || ''));

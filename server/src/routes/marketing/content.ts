@@ -54,6 +54,7 @@ import {
   type ResolveImagesManifest,
 } from '../../services/marketing/emailImageResolvePipeline.js';
 import { emailBulkResolveQueue } from '../../queue/emailBulkResolveQueue.js';
+import { approvalRoleBlock } from '../../services/marketing/approvalRole.js';
 
 const router = Router();
 
@@ -210,6 +211,11 @@ router.post('/', async (req: ReimbursementRequest, res: Response) => {
     const submitForReview = req.body.submit_for_review === true;
     let status = typeof req.body.status === 'string' ? req.body.status : 'idea';
     if (submitForReview) status = 'in_review';
+    const createBlock = approvalRoleBlock(status, null, req.reimbursementUser?.role);
+    if (createBlock) {
+      res.status(403).json({ error: createBlock });
+      return;
+    }
 
     let truthValidation: ProductTruthValidationResult | undefined;
     let truthValidatedAt: string | undefined;
@@ -853,6 +859,11 @@ router.put('/:id', async (req: ReimbursementRequest, res: Response) => {
     const submitForReview = req.body.submit_for_review === true;
     let nextStatus = req.body.status !== undefined ? String(req.body.status) : existing.status;
     if (submitForReview) nextStatus = 'in_review';
+    const approveBlock = approvalRoleBlock(nextStatus, existing.status, req.reimbursementUser?.role);
+    if (approveBlock) {
+      res.status(403).json({ error: approveBlock });
+      return;
+    }
 
     const movingToReview = nextStatus === 'in_review' && existing.status !== 'in_review';
 
