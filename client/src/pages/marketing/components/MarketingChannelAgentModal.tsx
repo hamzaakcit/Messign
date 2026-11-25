@@ -6,6 +6,8 @@ import {
   MARKETING_CHANNEL_AGENT_MODAL_TITLES,
   validateEmailVa2AgentForm,
   buildEmailVa2AgentMessage,
+  EMAIL_LAYOUTS,
+  type EmailLayout,
 } from '@/pages/marketing/lib/marketingChannelAgentBuilders';
 
 export interface MarketingChannelAgentModalProps {
@@ -24,6 +26,7 @@ export function MarketingChannelAgentModal({
   onSend,
   onApplyToComposer,
 }: MarketingChannelAgentModalProps): JSX.Element | null {
+  const [layout, setLayout] = useState<EmailLayout>('standard');
   const [emailAudience, setEmailAudience] = useState('');
   const [offer, setOffer] = useState('');
   const [emailNotes, setEmailNotes] = useState('');
@@ -32,6 +35,7 @@ export function MarketingChannelAgentModal({
   useEffect(() => {
     if (!isOpen || !channel) return;
     setFieldErrors({});
+    setLayout('standard');
     setEmailAudience('');
     setOffer('');
     setEmailNotes('');
@@ -40,7 +44,7 @@ export function MarketingChannelAgentModal({
   const handleSubmit = useCallback(
     (mode: 'send' | 'composer') => {
       if (!channel) return;
-      const v = { audience: emailAudience, offer, notes: emailNotes };
+      const v = { audience: emailAudience, offer, notes: emailNotes, layout };
       const errs = validateEmailVa2AgentForm(v);
       const mapped: Record<string, string> = {};
       if (errs.audience) mapped.emailAudience = errs.audience;
@@ -52,7 +56,7 @@ export function MarketingChannelAgentModal({
       else onApplyToComposer?.(msg);
       onClose();
     },
-    [channel, emailAudience, offer, emailNotes, onSend, onApplyToComposer, onClose],
+    [channel, emailAudience, offer, emailNotes, layout, onSend, onApplyToComposer, onClose],
   );
 
   if (!channel) return null;
@@ -61,6 +65,22 @@ export function MarketingChannelAgentModal({
     <Modal isOpen={isOpen} onClose={onClose} title={MARKETING_CHANNEL_AGENT_MODAL_TITLES[channel]} size="lg" forceDark>
       <div className="space-y-3 text-sm text-app-text">
         <p className="text-xs text-app-muted leading-relaxed">Describe the audience and the offer.</p>
+          <div>
+            <label htmlFor="ch-email-layout" className="mb-1 block text-xs font-medium text-app-muted">
+              Layout
+            </label>
+            <select
+              id="ch-email-layout"
+              value={layout}
+              onChange={(e) => setLayout(e.target.value as EmailLayout)}
+              className="input-theme h-[42px] w-full rounded-lg px-3 text-sm"
+            >
+              {EMAIL_LAYOUTS.map((row) => (
+                <option key={row.id} value={row.id}>{row.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-app-muted">{EMAIL_LAYOUTS.find((row) => row.id === layout)?.hint}</p>
+          </div>
           <div>
             <label htmlFor="ch-email-audience" className="mb-1 block text-xs font-medium text-app-muted">
               Audience <span className="text-red-400">*</span>

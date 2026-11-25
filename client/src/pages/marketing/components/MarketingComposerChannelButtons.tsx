@@ -4,19 +4,15 @@ import type { MarketingChannelAgentModalId } from '@/pages/marketing/lib/marketi
 import { MARKETING_COMPOSER_QUICK_ACTIONS } from '@/pages/marketing/components/marketingDoraQuickActions';
 import { MarketingDoraQuickActionIcon } from '@/pages/marketing/components/MarketingDoraQuickActionIcon';
 
-const INSTAGRAM_TITLE =
-  'Instagram assistant — structured caption, hashtags, and optional image brief (opens a focused modal).';
+const INSTAGRAM_TITLE = 'Instagram post — start a new offer: product, picture and words in five steps.';
 
 /** Shared glass base so every tile reads “designed,” not flat. */
 const CHANNEL_TILE_BASE =
   'border bg-gradient-to-b from-slate-900/85 to-slate-950/95 shadow-sm shadow-black/20 hover:brightness-110';
 
-/** All email templates (`email`, `email_newsletter_depth`, etc.) open the same VA2 email modal. */
+/** The Email tile opens the email brief. Its layouts (newsletter, flash sale, event invite) are chosen in that form. */
 function quickActionIdToModalChannel(id: string): MarketingChannelAgentModalId | null {
-  if (id === 'email' || id.startsWith('email_')) {
-    return 'email';
-  }
-  return null;
+  return id === 'email' ? 'email' : null;
 }
 
 export interface MarketingComposerChannelButtonsProps {
@@ -32,7 +28,7 @@ export interface MarketingComposerChannelButtonsProps {
 }
 
 /**
- * Instagram opens its own modal; other channels open MarketingChannelAgentModal-driven briefs.
+ * Instagram goes to New offer; Email opens the email brief.
  */
 export function MarketingComposerChannelButtons({
   isLoading,
