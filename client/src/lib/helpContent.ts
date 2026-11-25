@@ -44,6 +44,10 @@ export const HELP = {
       'Rebuild it in the builder and press "Apply HTML & design" once. From then on it opens with its design. ' +
       'The saved HTML stays below for reference.',
   },
+  ultraReference: {
+    title: 'Reference photo',
+    tip: 'The still keeps only what is in the reference photo; a higher strength cannot add missing objects.',
+  },
   shopContentSetup: {
     title: 'Content setup',
     tip: 'Each shop keeps its own brand, language, Instagram handle and product rows.',

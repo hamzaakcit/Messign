@@ -90,6 +90,8 @@ vi.mock('@/lib/marketingApi', () => ({
         },
       ],
     }),
+    updateContent: vi.fn().mockResolvedValue({}),
+    draftJourneyEmail: vi.fn().mockResolvedValue({ id: 'email-1' }),
     regenerateContentImage: vi.fn().mockResolvedValue({
       success: true,
       image_url: 'https://cdn.example/still.png',
@@ -129,7 +131,7 @@ describe('offer sheet on the detail panel', () => {
       'Editorial photograph of a novel in the shop window, titled Kürk Mantolu Madonna, at Karaköy kitapçı vitrini. No letters, numbers, or logos.',
     );
     expect(screen.getByText('Look: Editorial')).toBeInTheDocument();
-    expect(screen.getByText(/Ultra keeps what is inside this photo/)).toBeInTheDocument();
+    expect(screen.queryByText('Reference photo attached')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }));
     expect(marketingAPI.regenerateContentImage).toHaveBeenCalledWith(
       'user-1',
@@ -140,5 +142,41 @@ describe('offer sheet on the detail panel', () => {
           'Editorial photograph of a novel in the shop window, titled Kürk Mantolu Madonna, at Karaköy kitapçı vitrini. No letters, numbers, or logos.',
       }),
     );
+  });
+
+  it('has one primary action that sends the post to review, and the rest under the menu', async () => {
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    await screen.findByTestId('offer-detail');
+    const looksGood = await screen.findByRole('button', { name: 'Looks good' });
+    expect(looksGood).toBeEnabled();
+    fireEvent.click(looksGood);
+    expect(marketingAPI.updateContent).toHaveBeenCalledWith('user-1', 'child-1', { submit_for_review: true });
+    expect(marketingAPI.scheduleContent).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Open Instagram post' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Open email' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Draft journey email' }));
+    expect(marketingAPI.draftJourneyEmail).toHaveBeenCalledWith('user-1', 'offer-1');
+  });
+
+  it('shows the journey email on the offer without opening the builder', async () => {
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({
+      data: [
+        { id: 'child-1', channel: 'instagram', parent_content_id: 'offer-1', body: 'The novel is in the window.', image_url: 'https://cdn.example/still.png', title: 'Window drop', status: 'draft' },
+        {
+          id: 'email-1', channel: 'email', parent_content_id: 'offer-1', title: 'Window drop', status: 'draft',
+          body: 'SUBJECT: Kürk Mantolu Madonna vitrinde\nProduct: Kürk Mantolu Madonna\nPrice: ₺189\nUnsubscribe: {{unsubscribe_url}}',
+        },
+      ],
+    } as never);
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    const block = await screen.findByTestId('journey-email');
+    expect(block).toHaveTextContent('Kürk Mantolu Madonna vitrinde');
+    expect(block).toHaveTextContent('₺189');
+    expect(screen.getByTestId('journey-email-unsubscribe')).toHaveTextContent('Included');
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Open email' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Draft journey email' })).not.toBeInTheDocument();
   });
 });

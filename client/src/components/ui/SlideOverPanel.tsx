@@ -27,7 +27,8 @@ export function SlideOverPanel({
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && layerRef.current === openPanelCount) {
+      // An open menu or tooltip inside the panel closes first; the next Escape closes the panel.
+      if (e.key === 'Escape' && layerRef.current === openPanelCount && !document.querySelector('[data-escape-layer]')) {
         e.stopImmediatePropagation();
         onClose();
       }
