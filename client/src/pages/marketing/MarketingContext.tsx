@@ -62,9 +62,6 @@ interface MarketingContextValue {
   contentCreatePreset: ContentCreatePreset;
   openCreateContent: (preset?: ContentCreatePreset) => void;
   closeCreateContent: () => void;
-  brandManagerOpen: boolean;
-  openBrandManager: () => void;
-  closeBrandManager: () => void;
 
   // === Workspace actions ===
   invalidateWorkspace: () => Promise<void>;
@@ -108,7 +105,6 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const [createContentOpen, setCreateContentOpen] = useState(false);
   const [contentCreatePreset, setContentCreatePreset] = useState<ContentCreatePreset>('default');
-  const [brandManagerOpen, setBrandManagerOpen] = useState(false);
 
   // --- Data hooks ---
   const workspace = useMarketingWorkspace({ userId, accessToken });
@@ -140,9 +136,6 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
     setCreateContentOpen(false);
     setContentCreatePreset('default');
   }, []);
-
-  const openBrandManager = useCallback(() => setBrandManagerOpen(true), []);
-  const closeBrandManager = useCallback(() => setBrandManagerOpen(false), []);
 
   // --- Dora / Lucy integration ---
   const handleInstagramDraftAi = useCallback(() => {
@@ -209,9 +202,6 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
       contentCreatePreset,
       openCreateContent,
       closeCreateContent,
-      brandManagerOpen,
-      openBrandManager,
-      closeBrandManager,
 
       // Actions
       invalidateWorkspace: workspace.invalidateWorkspace,
@@ -235,7 +225,6 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
       detail, detailRefreshKey, openDetail, closeDetail, bumpContentDetail,
       createCampaignOpen, openCreateCampaign, closeCreateCampaign,
       createContentOpen, contentCreatePreset, openCreateContent, closeCreateContent,
-      brandManagerOpen, openBrandManager, closeBrandManager,
       handleInstagramDraftAi, handleCreateInstagramContent, handleDraftWithMarketingFromPanel,
     ],
   );

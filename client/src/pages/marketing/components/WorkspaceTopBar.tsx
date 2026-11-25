@@ -8,6 +8,7 @@ import {
   Mail,
   Megaphone,
   Plus,
+  Store,
   Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ const TABS: TabDef[] = [
   { id: 'offers', label: 'Offers', icon: LayoutGrid, path: ROUTES.MARKETING },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, path: ROUTES.MARKETING_CALENDAR },
   { id: 'builder', label: 'Builder', icon: Mail, path: ROUTES.MARKETING_BUILDER },
+  { id: 'shop', label: 'Shop settings', icon: Store, path: ROUTES.MARKETING_SHOP },
 ];
 
 // ---------------------------------------------------------------------------

@@ -193,4 +193,21 @@ describe('shop counter', () => {
     expect(screen.queryByRole('button', { name: /^Dora/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Kürk Mantolu Madonna/ })).toBeInTheDocument();
   });
+
+  it('opens Shop settings from More, with no floating Brands button', async () => {
+    sessionStorage.setItem('messign.contentTenant', 'messign');
+    renderLucy();
+    await screen.findByRole('button', { name: /^Dora/ });
+    expect(screen.queryByRole('button', { name: 'Brands' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Shop settings' }));
+    expect(await screen.findByRole('heading', { name: 'Shop settings' })).toBeInTheDocument();
+    expect(screen.getByText('Content setup')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Brand profiles' })).toBeInTheDocument();
+  });
+
+  it('sends the old brand-social URL to Shop settings', async () => {
+    renderLucy('/marketing/brand-social');
+    expect(await screen.findByRole('heading', { name: 'Shop settings' })).toBeInTheDocument();
+  });
 });

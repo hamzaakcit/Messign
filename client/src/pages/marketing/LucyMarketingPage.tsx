@@ -17,6 +17,7 @@ import { useMarketingContext } from './MarketingContext';
 const MORE_LINKS: Array<{ label: string; path: string }> = [
   { label: 'Calendar', path: ROUTES.MARKETING_CALENDAR },
   { label: 'Builder', path: ROUTES.MARKETING_BUILDER },
+  { label: 'Shop settings', path: ROUTES.MARKETING_SHOP },
 ];
 
 /**
