@@ -10,7 +10,7 @@ import { ContentTenantSwitch } from '@/pages/marketing/components/ContentTenantS
 import { useContentTenant } from '@/pages/marketing/lib/contentTenant';
 import { createInstagramOfferPair } from '@/pages/marketing/lib/createInstagramOfferPair';
 import { resolveCampaignId } from '@/pages/marketing/lib/offerCampaign';
-import { NEW_OFFER_STEPS, productDropNeedsProduct, type NewOfferStep } from '@/pages/marketing/lib/newOfferSteps';
+import { offerIntent, offerSteps, productDropNeedsProduct, type NewOfferStep } from '@/pages/marketing/lib/newOfferSteps';
 import { planRecipeChildren, type OfferRecipe } from '@/pages/marketing/lib/offerRecipes';
 import {
   fixtureTruthId,
@@ -75,7 +75,8 @@ export function NewOfferPage(): JSX.Element {
   const sceneLine = wantsInstagram
     ? offerSceneSentence({ product: productName, place, materials, inFrame, keepOut, look })
     : '';
-  const stepIndex = NEW_OFFER_STEPS.indexOf(step);
+  const steps = offerSteps(wantsInstagram);
+  const stepIndex = steps.indexOf(step);
 
   const goNext = useCallback(() => {
     if (step === 'Product' && productDropNeedsProduct(recipe, productName)) {
@@ -88,9 +89,9 @@ export function NewOfferPage(): JSX.Element {
     }
     setProductError('');
     setTopicError('');
-    const next = NEW_OFFER_STEPS[stepIndex + 1];
+    const next = steps[stepIndex + 1];
     if (next) setStep(next);
-  }, [step, recipe, productName, topic, stepIndex]);
+  }, [step, recipe, productName, topic, steps, stepIndex]);
 
   const save = useCallback(() => {
     if (productDropNeedsProduct(recipe, productName) || !topic.trim() || saving || !userId) {
@@ -102,7 +103,7 @@ export function NewOfferPage(): JSX.Element {
     }
     const picture = wantsInstagram;
     const brief = serializeStudioBrief({
-      intent: [topic.trim(), captionDirection.trim()].filter(Boolean).join('\n'),
+      intent: offerIntent({ topic, direction: captionDirection, tone }),
       product: productName.trim(),
       truthId: productName.trim() ? fixtureTruthId(setup.orgKey, productName) : '',
       place: picture ? place : '',
@@ -159,11 +160,12 @@ export function NewOfferPage(): JSX.Element {
     ctx,
     navigate,
     captionDirection,
+    tone,
   ]);
 
   return (
     <ViewportWrapper className="min-h-0 flex-1 bg-[#f4efe8] text-[#1c1917] [&_.text-app-muted]:text-[#78716c] [&_.text-app-text]:text-[#1c1917]">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-xl flex-col px-4 py-4 pb-24">
+      <div data-theme="light" className="mx-auto flex h-full min-h-0 w-full max-w-xl flex-col px-4 py-4 pb-24">
         <div className="mb-4 flex items-end gap-3">
           <button type="button" className="mb-2 text-sm text-[#78716c]" onClick={() => navigate(ROUTES.MARKETING)}>
             Back to offers
@@ -175,7 +177,7 @@ export function NewOfferPage(): JSX.Element {
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#e7e0d6] bg-white p-4">
         <ol className="mb-4 flex flex-wrap gap-2">
-          {NEW_OFFER_STEPS.map((name, index) => (
+          {steps.map((name, index) => (
             <li key={name} className={`text-xs ${index === stepIndex ? 'text-app-text' : 'text-app-muted'}`} aria-current={index === stepIndex ? 'step' : undefined}>
               {name}
             </li>
@@ -209,35 +211,29 @@ export function NewOfferPage(): JSX.Element {
             />
           ) : null}
           {step === 'Picture' ? (
-            wantsInstagram ? (
-              <PictureStep
-                materials={materials}
-                setMaterials={setMaterials}
-                place={place}
-                setPlace={setPlace}
-                inFrame={inFrame}
-                setInFrame={setInFrame}
-                keepOut={keepOut}
-                setKeepOut={setKeepOut}
-                look={look}
-                setLook={setLook}
-                format={format}
-                setFormat={setFormat}
-                sceneLine={sceneLine}
-                onFile={(file) => {
-                  if (!file || !userId) return;
-                  void marketingAPI.uploadLucyReferenceImage(userId, file).catch((err: unknown) => {
-                    toast.error('Upload failed', {
-                      description: err instanceof Error ? err.message : 'Could not upload image',
-                    });
+            <PictureStep
+              materials={materials}
+              setMaterials={setMaterials}
+              place={place}
+              setPlace={setPlace}
+              inFrame={inFrame}
+              setInFrame={setInFrame}
+              keepOut={keepOut}
+              setKeepOut={setKeepOut}
+              look={look}
+              setLook={setLook}
+              format={format}
+              setFormat={setFormat}
+              sceneLine={sceneLine}
+              onFile={(file) => {
+                if (!file || !userId) return;
+                void marketingAPI.uploadLucyReferenceImage(userId, file).catch((err: unknown) => {
+                  toast.error('Upload failed', {
+                    description: err instanceof Error ? err.message : 'Could not upload image',
                   });
-                }}
-              />
-            ) : (
-              <p className="text-sm text-app-muted">
-                A public Instagram post is a different recipe. This saves the email only.
-              </p>
-            )
+                });
+              }}
+            />
           ) : null}
           {step === 'Words' ? (
             <WordsStep
@@ -251,7 +247,8 @@ export function NewOfferPage(): JSX.Element {
               setTone={setTone}
               captionDirection={captionDirection}
               setCaptionDirection={setCaptionDirection}
-              showCaption={Boolean(productName.trim() || place.trim())}
+              emailOnly={!wantsInstagram}
+              showDirection={Boolean(productName.trim() || place.trim())}
             />
           ) : null}
           {step === 'Preview' ? (
@@ -283,7 +280,7 @@ export function NewOfferPage(): JSX.Element {
               type="button"
               className="text-sm text-app-muted"
               onClick={() => {
-                const prev = NEW_OFFER_STEPS[stepIndex - 1];
+                const prev = steps[stepIndex - 1];
                 if (prev) setStep(prev);
               }}
             >
@@ -487,7 +484,9 @@ function WordsStep(props: {
   setTone: (value: string) => void;
   captionDirection: string;
   setCaptionDirection: (value: string) => void;
-  showCaption: boolean;
+  /** An email-only offer has no caption: the direction is for the email. */
+  emailOnly: boolean;
+  showDirection: boolean;
 }): JSX.Element {
   return (
     <div className="space-y-3">
@@ -500,9 +499,9 @@ function WordsStep(props: {
         Tone
         <Input id="offer-tone" value={props.tone} onChange={(e) => props.setTone(e.target.value)} className="mt-1 w-full" />
       </label>
-      {props.showCaption ? (
+      {props.showDirection ? (
         <label className="block text-xs text-app-muted" htmlFor="offer-caption">
-          Caption direction
+          {props.emailOnly ? 'Direction for the email' : 'Caption direction'}
           <Input
             id="offer-caption"
             value={props.captionDirection}

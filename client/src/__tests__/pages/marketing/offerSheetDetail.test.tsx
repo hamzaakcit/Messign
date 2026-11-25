@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { marketingAPI } from '@/lib/marketingApi';
 import { ContentDetailPanel } from '@/pages/marketing/components/ContentDetailPanel';
@@ -88,6 +88,9 @@ vi.mock('@/lib/marketingApi', () => ({
           image_url: 'https://cdn.example/still.png',
           title: 'Window drop',
           status: 'draft',
+          image_generation_metadata: {
+            fal_returned_prompt: 'Photorealistic photograph of Kürk Mantolu Madonna at Karaköy kitapçı vitrini, returned.',
+          },
         },
       ],
     }),
@@ -106,17 +109,72 @@ vi.mock('@/lib/marketingApi', () => ({
 }));
 
 describe('offer sheet on the detail panel', () => {
-  it('shows the sheet product and the prompt Fal returned', async () => {
-    render(<ContentDetailPanel contentId="child-1" onUpdated={() => undefined} />);
-    const sheet = await screen.findByTestId('offer-sheet-detail');
+  it('shows the offer sheet and the prompt Fal returned once, on the offer', async () => {
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    await screen.findByTestId('offer-detail');
+    await waitFor(() => expect(screen.getByTestId('offer-sheet-detail')).toHaveTextContent('Prompt Fal returned'));
+    const sheet = screen.getByTestId('offer-sheet-detail');
+    expect(screen.getAllByTestId('offer-sheet-detail')).toHaveLength(1);
     expect(sheet).toHaveTextContent('Product: Kürk Mantolu Madonna');
-    expect(sheet).toHaveTextContent(
-      'Scene sent to Fal: Photorealistic photograph of a novel in the shop window, titled Kürk Mantolu Madonna, at Karaköy kitapçı vitrini. In frame: the closed book standing face-out in the glass. Keep out: people, flowers, a crown, letters. No letters, numbers, or logos.',
-    );
+    expect(sheet).toHaveTextContent('Scene sent to Fal: Editorial photograph of a novel in the shop window, titled Kürk Mantolu Madonna');
     expect(sheet.textContent?.split('Scene sent to Fal:')[1]?.split('Prompt Fal returned')[0]).not.toContain('₺');
     expect(sheet).toHaveTextContent(
       'Prompt Fal returned: Photorealistic photograph of Kürk Mantolu Madonna at Karaköy kitapçı vitrini, returned.',
     );
+  });
+
+  it('does not repeat the sheet, Looks good, Draft, Scheduled or a fake account on the post panel', async () => {
+    render(<ContentDetailPanel contentId="child-1" onUpdated={() => undefined} />);
+    await screen.findByTestId('instagram-studio');
+    expect(screen.queryByTestId('offer-sheet-detail')).not.toBeInTheDocument();
+    for (const name of ['Looks good', 'Draft', 'Scheduled']) {
+      expect(screen.queryByRole('button', { name, exact: true })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText(/@your_brand|@messign_workspace/)).not.toBeInTheDocument();
+    // What the offer view cannot do yet stays here: change the format, edit with a photo.
+    expect(screen.getByRole('button', { name: 'story' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Regenerate image/ })).toBeInTheDocument();
+  });
+
+  it('does not poll for a caption that nobody is writing', async () => {
+    const original = vi.mocked(marketingAPI.getContent).getMockImplementation();
+    vi.mocked(marketingAPI.getContent).mockImplementation(async (userId: string, id: string) => ({
+      ...((await original?.(userId, id)) as object),
+      body: '',
+      image_url: null,
+    }) as never);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<ContentDetailPanel contentId="child-1" onUpdated={() => undefined} />);
+      await screen.findByTestId('instagram-studio');
+      const loads = vi.mocked(marketingAPI.getContent).mock.calls.length;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(13_000);
+      });
+      expect(vi.mocked(marketingAPI.getContent).mock.calls.length).toBe(loads);
+    } finally {
+      vi.useRealTimers();
+      if (original) vi.mocked(marketingAPI.getContent).mockImplementation(original);
+    }
+  });
+
+  it('puts a post in review or approved back to draft from the offer menu, and not before', async () => {
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    await screen.findByRole('button', { name: 'Looks good' });
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.queryByRole('menuitem', { name: 'Back to draft' })).not.toBeInTheDocument();
+  });
+
+  it('offers Back to draft when the post is in review', async () => {
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({
+      data: [{ id: 'child-1', channel: 'instagram', parent_content_id: 'offer-1', body: 'Caption', image_url: 'https://cdn.example/still.png', title: 'Window drop', status: 'in_review' }],
+    } as never);
+    vi.mocked(marketingAPI.updateContent).mockClear();
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'In review' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Back to draft' }));
+    await waitFor(() => expect(marketingAPI.updateContent).toHaveBeenCalledWith('user-1', 'child-1', { status: 'draft' }));
   });
 
   it('opens an offer as the still and the caption', async () => {

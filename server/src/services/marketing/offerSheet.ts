@@ -102,7 +102,9 @@ export function parseOfferSheet(brief: string | null | undefined): OfferSheetPar
     const key = splitAt > 0 ? line.slice(0, splitAt).trim().toLowerCase().replace(/\s+/g, '_') : '';
     const field = key ? LABEL_TO_FIELD[key] : undefined;
     if (!field) {
-      if (!seenLabel && !key) intentLines.push(line);
+      // Before the first known label this is the human intent, colons and all ("Sale: 20% off", "Tone: warm").
+      // After it, an unknown label is ignored.
+      if (!seenLabel) intentLines.push(line);
       continue;
     }
     seenLabel = true;

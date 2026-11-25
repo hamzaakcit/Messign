@@ -40,6 +40,8 @@ export interface OfferDetailViewProps {
   /** The model writes the post's caption from the offer sheet. Offered while the post is a draft. */
   onWriteCaption?: (postId: string) => void;
   writingCaption?: boolean;
+  /** Takes the post (or the email, for a cart offer) back from review or approval so it can be changed. */
+  onBackToDraft?: (childId: string) => void;
   /** The campaign this offer is named under (a plain name), the names that exist, and how to change it. */
   campaignName?: string | null;
   campaignNames?: readonly string[];
@@ -68,6 +70,7 @@ export function OfferDetailView({
   draftingEmail = false,
   onWriteCaption,
   writingCaption = false,
+  onBackToDraft,
   campaignName = null,
   campaignNames = [],
   onCampaign,
@@ -89,6 +92,10 @@ export function OfferDetailView({
   const menu: OverflowMenuItem[] = [];
   if (instagram && onOpenChild) menu.push({ label: 'Open Instagram post', onSelect: () => onOpenChild(instagram.id) });
   if (email && onOpenChild) menu.push({ label: 'Open email', onSelect: () => onOpenChild(email.id) });
+  const reviewed = instagram ?? email;
+  if (reviewed && onBackToDraft && ['in_review', 'approved', 'ready'].includes((reviewed.status ?? '').toLowerCase())) {
+    menu.push({ label: 'Back to draft', onSelect: () => onBackToDraft(reviewed.id), disabled: submitting });
+  }
   if (!email && onDraftJourneyEmail) {
     menu.push({ label: draftingEmail ? 'Drafting email…' : 'Draft journey email', onSelect: onDraftJourneyEmail, disabled: draftingEmail });
   }

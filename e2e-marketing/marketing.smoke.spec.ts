@@ -136,6 +136,44 @@ test('campaigns: the offer view names an offer under a campaign, and the post mo
   expect(mock.rows.get('ig-dora')?.campaign_id).toBeNull();
 });
 
+test('new offer: an email-only offer has four steps and keeps the tone it was given', async ({ page }) => {
+  const errors = watchErrors(page);
+  const mock = await installApi(page);
+  await page.goto('/marketing/offer/new');
+  const main = page.locator('#main-content');
+  await main.locator('#offer-recipe').selectOption('cart');
+  await expect(main.getByRole('listitem')).toHaveText(['Product', 'Words', 'Preview', 'Looks good']);
+  await expect.poll(() => main.locator('#offer-product option').count()).toBeGreaterThan(1);
+  const options = await main.locator('#offer-product option').evaluateAll((els) => els.map((e) => (e as HTMLOptionElement).value).filter(Boolean));
+  await main.locator('#offer-product').selectOption(options[0]);
+  await main.getByRole('button', { name: 'Next' }).click(); // straight to Words: no Picture step
+  await expect(main.locator('#offer-topic')).toBeVisible();
+  await expect(main.getByText('Direction for the email')).toBeVisible();
+  await main.locator('#offer-topic').fill('Still in your cart: a reminder');
+  await main.locator('#offer-tone').fill('quiet and literary');
+  await main.getByRole('button', { name: 'Next' }).click(); // Preview
+  await main.getByRole('button', { name: 'Next' }).click(); // Looks good
+  await main.getByRole('button', { name: 'Looks good' }).click();
+  await expect(page).toHaveURL(/\/marketing$/);
+  const offer = [...mock.rows.values()].find((r) => r.content_type === 'offer' && r.title === 'Still in your cart: a reminder');
+  expect(offer?.user_brief?.split('\n').slice(0, 2)).toEqual(['Still in your cart: a reminder', 'Tone: quiet and literary']);
+  // A cart offer makes only the email.
+  expect([...mock.rows.values()].filter((r) => r.channel === 'instagram' && r.title === 'Still in your cart: a reminder')).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
+
+test('offer detail: a post in review goes back to draft from the ⋯ menu', async ({ page }) => {
+  const mock = await installApi(page);
+  await page.goto('/marketing?contentId=offer-dora');
+  const detail = page.getByTestId('offer-detail');
+  await detail.getByRole('button', { name: 'Looks good' }).click();
+  await expect.poll(() => mock.rows.get('ig-dora')?.status).toBe('in_review');
+  await detail.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Back to draft' }).click();
+  await expect.poll(() => mock.rows.get('ig-dora')?.status).toBe('draft');
+  await expect(detail.getByRole('button', { name: 'Looks good' })).toBeEnabled();
+});
+
 test('offer detail: the ⋯ menu lists the post and the email, and Escape closes only the menu', async ({ page }) => {
   await installApi(page);
   await page.goto('/marketing?contentId=offer-dora');

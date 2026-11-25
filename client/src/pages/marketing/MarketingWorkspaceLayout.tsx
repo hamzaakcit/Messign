@@ -16,7 +16,7 @@ function WorkspaceBootstrapBanner({
   if (!error) return null;
   return (
     <div
-      className="shrink-0 px-4 py-1.5 text-xs bg-rose-950/50 text-rose-100 border-b border-rose-500/30 flex items-center justify-between gap-2"
+      className="shrink-0 px-4 py-1.5 text-xs bg-red-50 text-red-800 border-b border-red-200 flex items-center justify-between gap-2"
       role="alert"
     >
       <span className="truncate">{error.message}</span>
@@ -37,7 +37,7 @@ export function MarketingWorkspaceLayout(): JSX.Element {
   const ctx = useMarketingContext();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div data-theme="light" className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#f4efe8] text-[#1c1917]">
       {/* Error banners */}
       <WorkspaceBootstrapBanner error={ctx.bootstrapError} onRetry={() => void ctx.refetchBootstrap()} />
       <MarketingWorkspaceSecondaryAlerts
@@ -49,7 +49,7 @@ export function MarketingWorkspaceLayout(): JSX.Element {
       <WorkspaceTopBar />
 
       {/* Page canvas — visually inset to reinforce "focused workspace" vs hub overview */}
-      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.25)]">
+      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <Outlet />
       </div>
     </div>

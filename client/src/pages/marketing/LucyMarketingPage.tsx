@@ -133,7 +133,7 @@ export function LucyMarketingPage(): JSX.Element {
     <ViewportWrapper className="relative min-h-0 flex-1 bg-[#f4efe8]">
       <div className="flex h-full min-h-0 flex-col text-[#1c1917]">
         <header className="flex flex-wrap items-end gap-3 border-b border-[#e7e0d6] px-4 py-3">
-          <div className="w-48">
+          <div data-theme="light" className="w-48 text-app-text">
             <ContentTenantSwitch />
           </div>
           <button

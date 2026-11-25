@@ -24,7 +24,6 @@ import { useMarketingWorkspace } from './hooks/useMarketingWorkspace';
 
 type DetailTarget =
   | { type: 'content'; id: string }
-  | { type: 'campaign'; id: string }
   | { type: 'lead'; id: string }
   | { type: 'email'; id: string }
   | null;

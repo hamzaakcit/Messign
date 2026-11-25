@@ -3,14 +3,14 @@ import { TENANT_CONTENT_SETUPS } from '../lib/tenantContentSetup';
 import { useContentTenant, type ContentTenantKey } from '../lib/contentTenant';
 
 /**
- * Picks Messign, the florist, or the bookstore for this drafting session.
+ * Picks the shop (Messign, Lilyana or Kitapyurdu) whose offers this page shows and makes.
  */
 export function ContentTenantSwitch(): JSX.Element {
   const selectId = useId();
   const { setup, setTenant } = useContentTenant();
   return (
     <label className="block text-xs" htmlFor={selectId}>
-      <span className="mb-1 block font-medium text-app-muted">Content tenant</span>
+      <span className="mb-1 block font-medium text-app-muted">Shop</span>
       <select
         id={selectId}
         value={setup.orgKey}

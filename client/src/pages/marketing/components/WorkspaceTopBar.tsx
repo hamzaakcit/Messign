@@ -2,7 +2,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, LayoutGrid, Mail, Plus, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/routes';
-import { marketingShell } from '@/pages/marketing/lib/marketingShellTheme';
 
 // ---------------------------------------------------------------------------
 // Tab definitions
@@ -48,11 +47,7 @@ export function WorkspaceTopBar(): JSX.Element {
 
   return (
     <div
-      className={cn(
-        'flex items-center gap-1 px-2 sm:px-3 py-1.5 shrink-0 z-20 min-w-0',
-        'border-b bg-app-surface-tertiary/40 backdrop-blur-sm',
-        marketingShell.borderSubtle,
-      )}
+      className={cn('flex items-center gap-1 px-2 sm:px-3 py-1.5 shrink-0 z-20 min-w-0', 'border-b border-[#e7e0d6] bg-[#f4efe8]')}
     >
       {/* Primary tabs */}
       <nav className="flex items-center gap-0.5 overflow-x-auto min-w-0" aria-label="Marketing workspace">
@@ -68,15 +63,12 @@ export function WorkspaceTopBar(): JSX.Element {
               className={cn(
                 'relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
                 active
-                  ? 'bg-primary-500/15 text-primary-300'
-                  : 'text-app-muted hover:text-app-text hover:bg-white/[0.04]',
+                  ? 'bg-[#1c1917] text-white'
+                  : 'text-[#78716c] hover:text-[#1c1917] hover:bg-white',
               )}
             >
               <Icon className="w-3.5 h-3.5 shrink-0" />
               <span>{tab.label}</span>
-              {active && (
-                <span className="absolute -bottom-[7px] left-2 right-2 h-0.5 rounded-full bg-primary-400" />
-              )}
             </button>
           );
         })}
@@ -89,7 +81,7 @@ export function WorkspaceTopBar(): JSX.Element {
       <button
         type="button"
         onClick={() => navigate(ROUTES.MARKETING_OFFER_NEW)}
-        className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-primary-500/90 text-white hover:bg-primary-500 transition-colors"
+        className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#1c1917] text-white hover:bg-[#292524] transition-colors"
       >
         <Plus className="w-3.5 h-3.5" />
         <span>New offer</span>

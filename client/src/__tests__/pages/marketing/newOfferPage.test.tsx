@@ -20,8 +20,13 @@ vi.mock('@/stores/authStore', () => ({
   },
 }));
 
+// One object for every render, as the real provider's memoised value is: a fresh object each time would rebuild
+// every callback that lists it and hide a stale closure.
+const { context } = vi.hoisted(() => ({
+  context: { openDetail, campaigns: [{ id: 'c-spring', name: 'Spring Sale' }], invalidateWorkspace: vi.fn() },
+}));
 vi.mock('@/pages/marketing/MarketingContext', () => ({
-  useMarketingContext: () => ({ openDetail, campaigns: [{ id: 'c-spring', name: 'Spring Sale' }], invalidateWorkspace: vi.fn() }),
+  useMarketingContext: () => context,
 }));
 
 vi.mock('@/pages/marketing/lib/createInstagramOfferPair', () => ({
@@ -109,12 +114,48 @@ describe('new offer steps', () => {
     expect((createInstagramOfferPair.mock.calls[0]?.[1] as { campaignId: string }).campaignId).toBe('c-new');
   });
 
-  it('lets a cart reminder skip the picture', () => {
+  it('gives an email-only offer no Picture step: four steps, and Next goes straight to the words', () => {
     renderOffer();
     fireEvent.change(screen.getByLabelText(/^Recipe/), { target: { value: 'cart' } });
+    const steps = () => screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(steps()).toEqual(['Product', 'Words', 'Preview', 'Looks good']);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByText(/saves the email only/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Topic/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Reference photo')).not.toBeInTheDocument();
+    expect(screen.queryByText(/saves the email only/)).not.toBeInTheDocument();
+    // Back from Words returns to Product, not to a step that is not there.
+    fireEvent.click(screen.getByRole('button', { name: 'Back', exact: true }));
+    expect(screen.getByLabelText(/^Recipe/)).toBeInTheDocument();
+  });
+
+  it('keeps the Picture step for an offer with a post', () => {
+    renderOffer();
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Product', 'Picture', 'Words', 'Preview', 'Looks good']);
+  });
+
+  it('calls the direction field what it is: for the email when there is no caption', () => {
+    renderOffer();
+    fireEvent.change(screen.getByLabelText(/^Recipe/), { target: { value: 'cart' } });
+    fireEvent.change(screen.getByLabelText(/^Product/), { target: { value: 'Kürk Mantolu Madonna' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByLabelText('Direction for the email')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Caption direction')).not.toBeInTheDocument();
+  });
+
+  it('saves the tone with the intent, so it reaches the caption writer', async () => {
+    renderOffer();
+    fireEvent.change(screen.getByLabelText(/^Product/), { target: { value: 'Kürk Mantolu Madonna' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Window drop: new week' } });
+    fireEvent.change(screen.getByLabelText('Tone'), { target: { value: 'quiet and literary' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Looks good' }));
+    await waitFor(() => expect(createInstagramOfferPair).toHaveBeenCalled());
+    const brief = (createInstagramOfferPair.mock.calls[0]?.[1] as { userBrief: string }).userBrief;
+    expect(brief.split('\n')[0]).toBe('Window drop: new week');
+    expect(brief.split('\n')[1]).toBe('Tone: quiet and literary');
   });
 
   it('opens the scene with the look on the picture step', () => {
@@ -138,7 +179,7 @@ describe('new offer steps', () => {
     fireEvent.change(screen.getByLabelText(/^Product/), { target: { value: 'Dora' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByLabelText('Materials')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/Content tenant/), { target: { value: 'bookstore' } });
+    fireEvent.change(screen.getByLabelText('Shop'), { target: { value: 'bookstore' } });
     expect(screen.getByLabelText(/^Product/)).toHaveValue('');
     expect(screen.queryByRole('option', { name: 'Dora' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Materials')).not.toBeInTheDocument();
