@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   EngagePanels, EngageQuickActions, EngageSectionBody, EngageTabStrip, useEngageAccess, useEngageWorkspace,
@@ -67,6 +67,14 @@ export function LucyMarketingPage(): JSX.Element {
   useEffect(() => {
     void load();
   }, [load, setup.orgKey]);
+
+  // Anything done in the offer panel (a new still, Looks good, Approve) changes the card: reload when it closes.
+  const panelOpen = ctx.detail?.type === 'content';
+  const wasPanelOpen = useRef(false);
+  useEffect(() => {
+    if (wasPanelOpen.current && !panelOpen) void load();
+    wasPanelOpen.current = panelOpen;
+  }, [panelOpen, load]);
 
   useEffect(() => {
     const st = location.state as { openInstagramAi?: boolean } | null;

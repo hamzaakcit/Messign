@@ -62,6 +62,8 @@ export function OfferDetailView({
   const sheet = readStudioSheet(pictureBrief);
   const still = instagram?.image_url || offer.image_url;
   const caption = (instagram?.body || offer.body || '').trim();
+  /** An email-only offer (cart, or an occasion without a post) has no still and no caption to wait for. */
+  const hasPost = Boolean(instagram);
   const product = sheet.product || offer.title;
   const look = STILL_LOOKS.find((row) => row.id === sheet.style) ?? STILL_LOOKS[0];
   const frame = FRAME_LABEL[instagramFormatFromTags(instagram?.tags) ?? 'feed'];
@@ -106,14 +108,16 @@ export function OfferDetailView({
 
         {still ? (
           <img src={still} alt="" className="aspect-[4/5] w-full object-cover" />
-        ) : (
+        ) : hasPost ? (
           <div className="flex aspect-[4/5] items-center justify-center bg-[#f4efe8] text-sm text-[#78716c]">
             No still yet
           </div>
-        )}
+        ) : null}
 
         <div className="space-y-4 p-5">
-          <p className="whitespace-pre-wrap text-sm leading-6">{caption || 'No caption yet.'}</p>
+          {hasPost || caption ? (
+            <p className="whitespace-pre-wrap text-sm leading-6">{caption || 'No caption yet.'}</p>
+          ) : null}
           {instagram ? (
             <div className="space-y-2 text-sm">
               <p>Look: {look.label}</p>
@@ -152,6 +156,7 @@ export function OfferDetailView({
 
           <OfferSheetDetail
             tone="paper"
+            hideScene={!hasPost}
             brief={offer.user_brief || instagram?.user_brief}
             returnedPrompt={instagram?.image_generation_metadata?.fal_returned_prompt ?? offer.image_generation_metadata?.fal_returned_prompt}
             referenceImageUrl={reference}
