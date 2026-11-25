@@ -109,6 +109,14 @@ export async function installApi(page: Page): Promise<Mock> {
       mock.rows.set(row.id, row);
       return json(row, 201);
     }
+    const caption = path.match(/^\/marketing\/content\/([^/]+)\/caption$/);
+    if (caption && method === 'POST') {
+      const row = mock.rows.get(caption[1]);
+      if (!row) return json({ error: 'Not found' }, 404);
+      if (row.status !== 'draft') return json({ error: 'Only a draft can be written or rewritten.' }, 409);
+      row.body = 'A caption written by the model.';
+      return json(row);
+    }
     const journey = path.match(/^\/marketing\/content\/([^/]+)\/journey-email$/);
     if (journey && method === 'POST') {
       const row: Row = {

@@ -19,13 +19,17 @@ The Kitapyurdu offer finishes without Lucy. The Lilyana offer does not reach "re
 
 Each has a test that fails on the old code (`offerSheetDetail.test.tsx`, `LucyMarketingPage.test.tsx`).
 
+## Fixed by MC-18 (2026-11-25): findings A, B and C
+
+A is closed by a **Write caption** action on the offer (the model writes it from the offer sheet; see the weekly progress entry). B and C went with it: the post panel no longer says "Lucy is writing the caption" and the first picture button reads **Make still**. They stay in the table below as the record.
+
 ## Open findings
 
 | # | Finding | Why it matters | Suggested |
 |---|---|---|---|
-| A | **No way to get a caption.** New offer creates the post with an empty caption. The offer view has no caption field and no "write caption" action, and the post panel shows "0 / 2,200" with no editable field. Looks good needs the still and the caption, so a product drop or an occasion with a post cannot be marked ready without opening Lucy. | Breaks MC-16's acceptance for any offer with a post. | New work package MC-18: a "Write caption" action on the offer (server draft, editable text). Decision for you: generate with the creative model, or type by hand first. |
-| B | The post panel says "Lucy is writing the caption. This usually takes a minute." when nothing started. | A promise nothing keeps. | Replace with the real state once A exists. |
-| C | The first still is made by a button labelled **Regenerate**; nothing makes it on save. | Reads as a repeat of something that never ran. | Label it "Make still" when there is none, or start it on save (cost decision). |
+| A (fixed, MC-18) | **No way to get a caption.** New offer creates the post with an empty caption. The offer view has no caption field and no "write caption" action, and the post panel shows "0 / 2,200" with no editable field. Looks good needs the still and the caption, so a product drop or an occasion with a post cannot be marked ready without opening Lucy. | Breaks MC-16's acceptance for any offer with a post. | New work package MC-18: a "Write caption" action on the offer (server draft, editable text). Decision for you: generate with the creative model, or type by hand first. |
+| B (fixed, MC-18) | The post panel says "Lucy is writing the caption. This usually takes a minute." when nothing started. | A promise nothing keeps. | Replace with the real state once A exists. |
+| C (fixed, MC-18) | The first still is made by a button labelled **Regenerate**; nothing makes it on save. | Reads as a repeat of something that never ran. | Label it "Make still" when there is none, or start it on save (cost decision). |
 | D | An email-only offer still walks the Picture step (one line: "This saves the email only.") and the Words step asks for "Caption direction". | Two steps and a field that do not apply. | Skip Picture and rename the field for email-only recipes. |
 | E | Form controls on New offer (selects, inputs) are dark on the paper page. The Picture step sits in a small inner scroll box at 1024×768, so "Reference photo" is cut off. The post panel (⋯ → Open Instagram post) is dark. | UX-D1 says paper everywhere. | One UX package on New offer and the post panel. |
 | F | The shop switcher's accessible name is its current value ("Messign"), not "Content tenant". | Screen readers lose the label. | Add `aria-label`. |

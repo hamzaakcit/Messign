@@ -44,6 +44,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
   const [scheduleTime, setScheduleTime] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [draftingEmail, setDraftingEmail] = useState(false);
+  const [writingCaption, setWritingCaption] = useState(false);
   const [publishMode, setPublishMode] = useState<'mock' | 'live'>('mock');
   const [testPublishing, setTestPublishing] = useState(false);
   const [offerChildrenLine, setOfferChildrenLine] = useState<string | null>(null);
@@ -156,6 +157,21 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
     }
   };
 
+  /** The model writes (or rewrites) the post's caption from the offer sheet. Only a draft post can be written. */
+  const handleWriteCaption = async (postId: string) => {
+    setWritingCaption(true);
+    try {
+      await marketingAPI.writeCaption(userId, postId, contentTenant.brandName);
+      toast.success('Caption written');
+      setChildrenVersion((n) => n + 1);
+      onUpdated();
+    } catch (e) {
+      toast.error('Could not write the caption', { description: e instanceof Error ? e.message : 'Request failed' });
+    } finally {
+      setWritingCaption(false);
+    }
+  };
+
   const canApprove = user?.role === 'manager' || user?.role === 'admin';
 
   const handleOfferApprove = async (childId: string) => {
@@ -244,6 +260,8 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
         canApprove={canApprove}
         submitting={submittingReview}
         onOpenChild={(childId) => openDetail({ type: 'content', id: childId })}
+        onWriteCaption={(postId) => void handleWriteCaption(postId)}
+        writingCaption={writingCaption}
         onDraftJourneyEmail={() => void handleDraftJourneyEmail(true)}
         draftingEmail={draftingEmail}
         publishAllowed={contentTenant.publishAllowed}

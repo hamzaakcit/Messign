@@ -92,6 +92,7 @@ vi.mock('@/lib/marketingApi', () => ({
       ],
     }),
     updateContent: vi.fn().mockResolvedValue({}),
+    writeCaption: vi.fn().mockResolvedValue({ id: 'child-1' }),
     draftJourneyEmail: vi.fn().mockResolvedValue({ id: 'email-1' }),
     regenerateContentImage: vi.fn().mockResolvedValue({
       success: true,
@@ -121,7 +122,8 @@ describe('offer sheet on the detail panel', () => {
     render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
     const detail = await screen.findByTestId('offer-detail');
     expect(detail).toHaveTextContent('Kürk Mantolu Madonna');
-    expect(detail).toHaveTextContent('The novel is in the window.');
+    // The post is a child of the offer and loads a moment after the card.
+    await waitFor(() => expect(screen.getByTestId('offer-detail')).toHaveTextContent('The novel is in the window.'));
     expect(detail.querySelector('img')?.getAttribute('src')).toBe('https://cdn.example/still.png');
     expect(screen.queryByRole('button', { name: 'Hashtags' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Timing' })).not.toBeInTheDocument();
@@ -173,6 +175,40 @@ describe('offer sheet on the detail panel', () => {
     expect(detail).not.toHaveTextContent('Scene sent to Fal');
     expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument();
     expect(screen.getByTestId('journey-email')).toHaveTextContent('Included');
+  });
+
+  const bareChild = (patch: Record<string, unknown> = {}) => ({
+    id: 'child-1', channel: 'instagram', parent_content_id: 'offer-1', title: 'Window drop', status: 'draft',
+    body: '', image_url: 'https://cdn.example/still.png', ...patch,
+  });
+
+  it('writes the caption with the model when the post has none, then shows it and enables Looks good', async () => {
+    vi.mocked(marketingAPI.listContent)
+      .mockResolvedValueOnce({ data: [bareChild()] } as never)
+      .mockResolvedValueOnce({ data: [bareChild({ body: 'Vitrinde bu hafta: Kürk Mantolu Madonna.' })] } as never);
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    const detail = await screen.findByTestId('offer-detail');
+    await waitFor(() => expect(detail).toHaveTextContent('No caption yet.'));
+    expect(screen.getByRole('button', { name: 'Looks good' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Write caption' }));
+    expect(marketingAPI.writeCaption).toHaveBeenCalledWith('user-1', 'child-1', expect.any(String));
+    await waitFor(() => expect(screen.getByTestId('offer-detail')).toHaveTextContent('Vitrinde bu hafta: Kürk Mantolu Madonna.'));
+    expect(screen.getByRole('button', { name: 'Rewrite caption' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Looks good' })).toBeEnabled();
+  });
+
+  it('does not offer to write a caption once the post is in review', async () => {
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({ data: [bareChild({ status: 'in_review', body: 'Checked text' })] } as never);
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    await waitFor(() => expect(screen.getByTestId('offer-detail')).toHaveTextContent('Checked text'));
+    expect(screen.queryByRole('button', { name: /caption/i })).not.toBeInTheDocument();
+  });
+
+  it('calls the first picture "Make still", not "Regenerate"', async () => {
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({ data: [bareChild({ image_url: null })] } as never);
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    expect(await screen.findByRole('button', { name: 'Make still' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument();
   });
 
   it('has one primary action that sends the post to review, and the rest under the menu', async () => {

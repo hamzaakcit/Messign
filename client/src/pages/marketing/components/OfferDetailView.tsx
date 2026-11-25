@@ -36,6 +36,9 @@ export interface OfferDetailViewProps {
   onOpenChild?: (childId: string) => void;
   onDraftJourneyEmail?: () => void;
   draftingEmail?: boolean;
+  /** The model writes the post's caption from the offer sheet. Offered while the post is a draft. */
+  onWriteCaption?: (postId: string) => void;
+  writingCaption?: boolean;
 }
 
 /**
@@ -57,6 +60,8 @@ export function OfferDetailView({
   onOpenChild,
   onDraftJourneyEmail,
   draftingEmail = false,
+  onWriteCaption,
+  writingCaption = false,
 }: OfferDetailViewProps): JSX.Element {
   const pictureBrief = instagram?.user_brief || offer.user_brief;
   const sheet = readStudioSheet(pictureBrief);
@@ -118,6 +123,16 @@ export function OfferDetailView({
           {hasPost || caption ? (
             <p className="whitespace-pre-wrap text-sm leading-6">{caption || 'No caption yet.'}</p>
           ) : null}
+          {instagram && onWriteCaption && (instagram.status ?? 'draft') === 'draft' ? (
+            <button
+              type="button"
+              className="text-sm underline underline-offset-2 disabled:opacity-40"
+              disabled={writingCaption}
+              onClick={() => onWriteCaption(instagram.id)}
+            >
+              {writingCaption ? 'Writing' : caption ? 'Rewrite caption' : 'Write caption'}
+            </button>
+          ) : null}
           {instagram ? (
             <div className="space-y-2 text-sm">
               <p>Look: {look.label}</p>
@@ -134,7 +149,7 @@ export function OfferDetailView({
               ) : null}
               {onRegenerate ? (
                 <button type="button" className="text-sm underline underline-offset-2" disabled={regenerating} onClick={onRegenerate}>
-                  {regenerating ? 'Regenerating' : 'Regenerate'}
+                  {still ? (regenerating ? 'Regenerating' : 'Regenerate') : regenerating ? 'Making still' : 'Make still'}
                 </button>
               ) : null}
             </div>

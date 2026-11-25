@@ -35,7 +35,7 @@ export function InstagramJourneyStrip({ phase }: { phase: InstagramJourneyPhase 
   const current = phaseIndex(phase);
   const hint =
     phase === 'writing'
-      ? 'Lucy is writing the caption. This usually takes a minute.'
+      ? 'No caption yet. Open the offer and press Write caption.'
       : phase === 'image'
         ? 'Caption is in. The image is generating.'
         : phase === 'review'
