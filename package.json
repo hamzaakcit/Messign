@@ -20,6 +20,7 @@
     "start:client": "npx serve client/dist -l $PORT",
     "type-check": "npm run type-check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "e2e:marketing": "playwright test -c playwright.marketing.config.ts",
     "db:seed": "npm run db:seed --workspace=server",
     "db:setup": "npm run db:setup --workspace=server",
     "db:migrate": "npm run db:migrate --workspace=server",
