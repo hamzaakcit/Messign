@@ -11,6 +11,7 @@ import { ContentTenantSwitch } from '@/pages/marketing/components/ContentTenantS
 import { DoraRail } from '@/pages/marketing/components/DoraRail';
 import { useContentTenant } from '@/pages/marketing/lib/contentTenant';
 import { OFFER_FILTERS, parseOfferFilter, shopOfferRows, type ShopOfferRow } from '@/pages/marketing/lib/shopOffers';
+import { usedCampaigns } from '@/pages/marketing/lib/offerCampaign';
 import { cn } from '@/lib/utils';
 import { useMarketingContext } from './MarketingContext';
 
@@ -84,7 +85,20 @@ export function LucyMarketingPage(): JSX.Element {
 
   const rows = shopOfferRows(items, setup);
   const filter = parseOfferFilter(searchParams.get('status'));
-  const visibleRows = filter === 'all' ? rows : rows.filter((row) => row.stage === filter);
+  const campaigns = usedCampaigns(rows.map((row) => row.offer));
+  const campaignParam = searchParams.get('campaign') ?? '';
+  const campaignFilter = campaigns.some((c) => c.id === campaignParam) ? campaignParam : '';
+  const visibleRows = rows.filter(
+    (row) => (filter === 'all' || row.stage === filter) && (!campaignFilter || row.campaignId === campaignFilter),
+  );
+  const setCampaignFilter = (next: string) => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next) params.set('campaign', next);
+      else params.delete('campaign');
+      return params;
+    }, { replace: true });
+  };
   const setFilter = (next: string) => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
@@ -210,6 +224,21 @@ export function LucyMarketingPage(): JSX.Element {
                   ))}
                 </div>
               ) : null}
+              {campaigns.length > 0 ? (
+                <label className="mt-3 flex items-center gap-2 text-xs text-[#78716c]">
+                  Campaign
+                  <select
+                    value={campaignFilter}
+                    onChange={(e) => setCampaignFilter(e.target.value)}
+                    className="rounded-lg border border-[#e7e0d6] bg-white px-2 py-1 text-xs text-[#1c1917]"
+                  >
+                    <option value="">All campaigns</option>
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               {rows.length > 0 && visibleRows.length === 0 ? (
                 <p className="mt-4 text-sm text-[#78716c]">No offers in this view.</p>
               ) : null}
@@ -260,6 +289,7 @@ function OfferLine({ row, onOpen }: { row: ShopOfferRow; onOpen: () => void }): 
         <span className="min-w-0">
           <span className="block truncate text-base">{row.product}</span>
           {row.price ? <span className="block text-sm text-[#78716c]">{row.price}</span> : null}
+          {row.campaignName ? <span className="block text-xs text-[#78716c]">{row.campaignName}</span> : null}
         </span>
         <span className="text-xs text-[#78716c]">{row.step}</span>
       </span>

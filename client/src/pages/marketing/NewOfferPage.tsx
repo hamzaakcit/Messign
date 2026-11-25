@@ -9,6 +9,7 @@ import { ViewportWrapper } from '@/pages/marketing/components/bento/ViewportWrap
 import { ContentTenantSwitch } from '@/pages/marketing/components/ContentTenantSwitch';
 import { useContentTenant } from '@/pages/marketing/lib/contentTenant';
 import { createInstagramOfferPair } from '@/pages/marketing/lib/createInstagramOfferPair';
+import { resolveCampaignId } from '@/pages/marketing/lib/offerCampaign';
 import { NEW_OFFER_STEPS, productDropNeedsProduct, type NewOfferStep } from '@/pages/marketing/lib/newOfferSteps';
 import { planRecipeChildren, type OfferRecipe } from '@/pages/marketing/lib/offerRecipes';
 import {
@@ -32,6 +33,7 @@ const FORMAT_OPTIONS: Array<{ value: 'feed' | 'story' | 'reel'; label: string }>
 export function NewOfferPage(): JSX.Element {
   const navigate = useNavigate();
   const ctx = useMarketingContext();
+  const campaigns = ctx.campaigns ?? [];
   const userId = useAuthStore((s) => s.user?.authUserId ?? s.user?.id ?? '');
   const { setup } = useContentTenant();
   const [step, setStep] = useState<NewOfferStep>('Product');
@@ -40,6 +42,7 @@ export function NewOfferPage(): JSX.Element {
   const [productName, setProductName] = useState('');
   const [price, setPrice] = useState('');
   const [claim, setClaim] = useState('');
+  const [campaignName, setCampaignName] = useState('');
   const [place, setPlace] = useState('');
   const [materials, setMaterials] = useState('');
   const [inFrame, setInFrame] = useState('');
@@ -112,14 +115,19 @@ export function NewOfferPage(): JSX.Element {
       language: setup.language,
     });
     setSaving(true);
-    void createInstagramOfferPair(userId, {
-      topic: topic.trim(),
-      format,
-      recipe,
-      includeInstagram,
-      userBrief: brief,
-    })
+    void resolveCampaignId(userId, campaignName, campaigns)
+      .then((campaignId) =>
+        createInstagramOfferPair(userId, {
+          topic: topic.trim(),
+          format,
+          recipe,
+          includeInstagram,
+          userBrief: brief,
+          campaignId,
+        }),
+      )
       .then((pair) => {
+        if (campaignName.trim()) void ctx.invalidateWorkspace();
         ctx.openDetail({ type: 'content', id: pair.offer.id });
         navigate(ROUTES.MARKETING);
       })
@@ -146,6 +154,8 @@ export function NewOfferPage(): JSX.Element {
     setup,
     format,
     includeInstagram,
+    campaignName,
+    campaigns,
     ctx,
     navigate,
     captionDirection,
@@ -182,6 +192,9 @@ export function NewOfferPage(): JSX.Element {
               productError={productError}
               price={price}
               claim={claim}
+              campaign={campaignName}
+              setCampaign={setCampaignName}
+              campaignNames={campaigns.map((c) => c.name)}
               products={setup.productTruth}
               onProduct={(name) => {
                 setProductName(name);
@@ -259,6 +272,7 @@ export function NewOfferPage(): JSX.Element {
             <div className="space-y-3 text-sm text-app-text">
               <p>Looks good saves this draft. It does not schedule or post.</p>
               <p className="text-app-muted">{productName || topic}</p>
+              {campaignName.trim() ? <p className="text-app-muted">Campaign: {campaignName.trim()}</p> : null}
               {sceneLine ? <p className="text-app-muted">{sceneLine}</p> : null}
             </div>
           ) : null}
@@ -301,6 +315,9 @@ function ProductStep(props: {
   productError: string;
   price: string;
   claim: string;
+  campaign: string;
+  setCampaign: (name: string) => void;
+  campaignNames: readonly string[];
   products: ReadonlyArray<{ name: string }>;
   onProduct: (name: string) => void;
 }): JSX.Element {
@@ -353,6 +370,24 @@ function ProductStep(props: {
       <label className="block text-xs text-app-muted" htmlFor="offer-claim">
         Claim
         <Input id="offer-claim" value={props.claim} readOnly className="mt-1 w-full" />
+      </label>
+      <label className="block text-xs text-app-muted" htmlFor="offer-campaign">
+        Campaign (optional)
+        <Input
+          id="offer-campaign"
+          list="offer-campaign-names"
+          value={props.campaign}
+          onChange={(e) => props.setCampaign(e.target.value)}
+          placeholder="Name it, or pick one"
+          maxLength={120}
+          autoComplete="off"
+          className="mt-1 w-full"
+        />
+        <datalist id="offer-campaign-names">
+          {props.campaignNames.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
       </label>
     </div>
   );

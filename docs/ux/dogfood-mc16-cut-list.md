@@ -52,3 +52,8 @@ Written down, **not deleted**. The rule from the plan: anything not opened in th
 - **Real photo (AI additive edit)** with **Choose photo**: the New offer page already takes a reference photo
 
 **Not part of this list:** the Engage tabs (Customers, Journeys, Campaigns, Segments, Templates, Settings). They are the Engage product on the same page (ADR-016) and have their own suite.
+
+**Added with MC-12 (2026-11-25):**
+- The **campaign detail slide-over** (`CampaignDetailPanel`, opened by `detail.type === 'campaign'`) has had no caller since the create-campaign form and the board went. It is unreachable code, a candidate to delete. A campaign is now a plain name on offers: no budget, dates or channel mix.
+- **Name clash:** the Engage tab strip on the same page has a **Campaigns** tab (customer messaging). An offer's campaign is a different thing that happens to share the word. If shops confuse them, rename the offer field ("Group") rather than the Engage tab.
+

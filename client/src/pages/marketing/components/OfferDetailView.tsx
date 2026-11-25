@@ -2,6 +2,7 @@
  * The offer on the content slide-over: one card, the still large, the caption, and the journey email.
  */
 
+import { useEffect, useState } from 'react';
 import type { ContentItem } from '@/lib/marketingApi';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/ui/OverflowMenu';
@@ -39,6 +40,11 @@ export interface OfferDetailViewProps {
   /** The model writes the post's caption from the offer sheet. Offered while the post is a draft. */
   onWriteCaption?: (postId: string) => void;
   writingCaption?: boolean;
+  /** The campaign this offer is named under (a plain name), the names that exist, and how to change it. */
+  campaignName?: string | null;
+  campaignNames?: readonly string[];
+  onCampaign?: (name: string) => void;
+  savingCampaign?: boolean;
 }
 
 /**
@@ -62,6 +68,10 @@ export function OfferDetailView({
   draftingEmail = false,
   onWriteCaption,
   writingCaption = false,
+  campaignName = null,
+  campaignNames = [],
+  onCampaign,
+  savingCampaign = false,
 }: OfferDetailViewProps): JSX.Element {
   const pictureBrief = instagram?.user_brief || offer.user_brief;
   const sheet = readStudioSheet(pictureBrief);
@@ -90,6 +100,9 @@ export function OfferDetailView({
           <div className="min-w-0">
             <h3 className="text-2xl font-medium">{product}</h3>
             {sheet.price ? <p className="mt-1 text-sm text-[#78716c]">{sheet.price}</p> : null}
+            {onCampaign ? (
+              <CampaignLine name={campaignName ?? ''} names={campaignNames} saving={savingCampaign} onCommit={onCampaign} />
+            ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {onLooksGood ? (
@@ -184,5 +197,50 @@ export function OfferDetailView({
         </div>
       </article>
     </div>
+  );
+}
+
+/** The campaign name on this offer. Typing a name and leaving the field (or pressing Enter) saves it; empty removes it. */
+function CampaignLine({
+  name,
+  names,
+  saving,
+  onCommit,
+}: {
+  name: string;
+  names: readonly string[];
+  saving: boolean;
+  onCommit: (name: string) => void;
+}): JSX.Element {
+  const [draft, setDraft] = useState(name);
+  /** What was last sent, so Enter followed by leaving the field sends once. */
+  const [sent, setSent] = useState(name);
+  useEffect(() => setDraft(name), [name]);
+  // When a save ends, the saved name is the truth again: a failed save can be tried again.
+  useEffect(() => { if (!saving) setSent(name); }, [saving, name]);
+  const commit = (): void => {
+    if (draft.trim() === sent.trim()) return;
+    setSent(draft);
+    onCommit(draft);
+  };
+  return (
+    <label className="mt-2 flex items-center gap-2 text-xs text-[#78716c]">
+      Campaign
+      <input
+        value={draft}
+        list="offer-detail-campaign-names"
+        placeholder="None"
+        maxLength={120}
+        disabled={saving}
+        autoComplete="off"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+        className="min-w-0 flex-1 rounded-md border border-[#e7e0d6] bg-white px-2 py-1 text-xs text-[#1c1917] placeholder:text-[#a8a29e]"
+      />
+      <datalist id="offer-detail-campaign-names">
+        {names.map((n) => (<option key={n} value={n} />))}
+      </datalist>
+    </label>
   );
 }

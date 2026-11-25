@@ -13,7 +13,7 @@ vi.mock('@/stores/authStore', () => ({
 }));
 
 vi.mock('@/pages/marketing/MarketingContext', () => ({
-  useMarketingContext: () => ({ openDetail: vi.fn() }),
+  useMarketingContext: () => ({ openDetail: vi.fn(), campaigns: [{ id: 'c-1', name: 'Window week' }], invalidateWorkspace: vi.fn() }),
 }));
 
 vi.mock('@/lib/marketingApi', () => ({
@@ -92,6 +92,7 @@ vi.mock('@/lib/marketingApi', () => ({
       ],
     }),
     updateContent: vi.fn().mockResolvedValue({}),
+    createCampaign: vi.fn().mockResolvedValue({ id: 'c-new' }),
     writeCaption: vi.fn().mockResolvedValue({ id: 'child-1' }),
     draftJourneyEmail: vi.fn().mockResolvedValue({ id: 'email-1' }),
     regenerateContentImage: vi.fn().mockResolvedValue({
@@ -209,6 +210,32 @@ describe('offer sheet on the detail panel', () => {
     render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
     expect(await screen.findByRole('button', { name: 'Make still' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument();
+  });
+
+  it('names the offer under an existing campaign, and the post moves with it', async () => {
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    const field = await screen.findByLabelText('Campaign');
+    await waitFor(() => expect(marketingAPI.listContent).toHaveBeenCalled());
+    fireEvent.change(field, { target: { value: 'window WEEK' } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(marketingAPI.updateContent).toHaveBeenCalledWith('user-1', 'offer-1', { campaign_id: 'c-1' }));
+    expect(marketingAPI.updateContent).toHaveBeenCalledWith('user-1', 'child-1', { campaign_id: 'c-1' });
+    expect(marketingAPI.createCampaign).not.toHaveBeenCalled();
+  });
+
+  it('makes a campaign from a new name, and emptying the field takes the offer out of its campaign', async () => {
+    vi.mocked(marketingAPI.updateContent).mockClear();
+    vi.mocked(marketingAPI.createCampaign).mockClear();
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    const field = await screen.findByLabelText('Campaign');
+    await waitFor(() => expect(marketingAPI.listContent).toHaveBeenCalled());
+    fireEvent.change(field, { target: { value: 'Teachers Day' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    fireEvent.blur(field); // Enter and then leaving the field must not save twice
+    await waitFor(() => expect(marketingAPI.createCampaign).toHaveBeenCalledWith('user-1', { name: 'Teachers Day', channel: 'other' }));
+    await waitFor(() => expect(marketingAPI.updateContent).toHaveBeenCalledWith('user-1', 'offer-1', { campaign_id: 'c-new' }));
+    expect(marketingAPI.createCampaign).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(marketingAPI.updateContent).mock.calls.filter((c) => c[1] === 'offer-1')).toHaveLength(1);
   });
 
   it('has one primary action that sends the post to review, and the rest under the menu', async () => {

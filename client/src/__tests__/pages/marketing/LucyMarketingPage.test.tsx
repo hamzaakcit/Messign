@@ -222,6 +222,7 @@ describe('shop counter', () => {
 
   it('reloads the list when the offer panel closes, so a change made inside shows on the card', async () => {
     const { marketingAPI } = await import('@/lib/marketingApi');
+    const original = vi.mocked(marketingAPI.listContent).getMockImplementation();
     sessionStorage.setItem('messign.contentTenant', 'messign');
     renderLucy();
     fireEvent.click(await screen.findByRole('button', { name: /^Dora/ }));
@@ -236,6 +237,46 @@ describe('shop counter', () => {
       return { data, total: data.length, page: 1, pageSize: 50 } as never;
     });
     fireEvent.click(screen.getByRole('button', { name: 'Close panel' }));
-    expect(await screen.findByRole('button', { name: /^Dora.*In review/ })).toBeInTheDocument();
+    try {
+      expect(await screen.findByRole('button', { name: /^Dora.*In review/ })).toBeInTheDocument();
+    } finally {
+      if (original) vi.mocked(marketingAPI.listContent).mockImplementation(original);
+    }
+  });
+
+  it('names the campaign on the card and filters the list by it', async () => {
+    const { marketingAPI } = await import('@/lib/marketingApi');
+    const original = vi.mocked(marketingAPI.listContent).getMockImplementation();
+    sessionStorage.setItem('messign.contentTenant', 'messign');
+    const row = (id: string, product: string, campaign: { id: string; name: string } | null) => ({
+      id, content_type: 'offer', title: product, status: 'draft', channel: 'internal', user_brief: `product: ${product}`,
+      created_at: '2026-11-14T00:00:00.000Z', body: null,
+      campaign_id: campaign?.id ?? null, campaign_name: campaign?.name ?? null,
+    });
+    vi.mocked(marketingAPI.listContent).mockImplementation(async (_user, filters) => {
+      const offers = [row('o1', 'Dora', { id: 'c1', name: 'Launch week' }), row('o2', 'Knowledge Hub', null)];
+      const data = filters?.contentType === 'offer' ? offers : [];
+      return { data, total: data.length, page: 1, pageSize: 50 } as never;
+    });
+    renderLucy();
+    try {
+      // A card with no still starts with "No still yet", so match inside the name.
+      expect(await screen.findByRole('button', { name: /Dora.*Launch week/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Knowledge Hub/ })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Campaign'), { target: { value: 'c1' } });
+      expect(screen.queryByRole('button', { name: /Knowledge Hub/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Dora/ })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Campaign'), { target: { value: '' } });
+      expect(await screen.findByRole('button', { name: /Knowledge Hub/ })).toBeInTheDocument();
+    } finally {
+      if (original) vi.mocked(marketingAPI.listContent).mockImplementation(original);
+    }
+  });
+
+  it('shows no campaign filter when no offer is in a campaign', async () => {
+    sessionStorage.setItem('messign.contentTenant', 'messign');
+    renderLucy();
+    await screen.findByRole('button', { name: /^Dora/ });
+    expect(screen.queryByLabelText('Campaign')).not.toBeInTheDocument();
   });
 });

@@ -73,6 +73,66 @@ test('offer detail: Write caption has the model write the caption, and then Look
   await expect(detail.getByRole('button', { name: 'Looks good' })).toBeEnabled();
 });
 
+test('campaigns: a name typed on New offer groups the offers, and the list filters by it', async ({ page }) => {
+  const errors = watchErrors(page);
+  const mock = await installApi(page);
+  await page.goto('/marketing/offer/new');
+  const main = page.locator('#main-content');
+
+  // No create-campaign step: the name is a field on the offer.
+  await expect.poll(() => main.locator('#offer-product option').count()).toBeGreaterThan(1); // the placeholder plus the shop's products
+  const options = await main.locator('#offer-product option').evaluateAll((els) => els.map((e) => (e as HTMLOptionElement).value).filter(Boolean));
+  await main.locator('#offer-product').selectOption(options[0]);
+  await main.locator('#offer-campaign').fill('Smoke week');
+  await main.getByRole('button', { name: 'Next' }).click(); // Picture
+  await main.getByRole('button', { name: 'Next' }).click(); // Words
+  await main.locator('#offer-topic').fill('Smoke test drop');
+  await main.getByRole('button', { name: 'Next' }).click(); // Preview
+  await main.getByRole('button', { name: 'Next' }).click(); // Looks good
+  await expect(main.getByText('Campaign: Smoke week')).toBeVisible();
+  await main.getByRole('button', { name: 'Looks good' }).click();
+  await expect(page).toHaveURL(/\/marketing$/);
+
+  expect(mock.writes).toContain('POST /marketing/campaigns');
+  expect([...mock.campaigns.values()].map((c) => c.name)).toEqual(['Smoke week']);
+  const grouped = [...mock.rows.values()].filter((r) => r.campaign_name === 'Smoke week');
+  expect(grouped.length).toBeGreaterThanOrEqual(2); // the offer and its post
+
+  // Close the new offer; the list reloads and offers a campaign filter.
+  await expect(page.getByTestId('offer-detail')).toBeVisible(); // the panel loads lazily: wait to see it before closing it
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('offer-detail')).toHaveCount(0);
+  const list = main.locator('ul > li');
+  await expect(main.getByLabel('Campaign')).toBeVisible();
+  const before = await list.count();
+  expect(before).toBeGreaterThan(1);
+  await main.getByLabel('Campaign').selectOption({ label: 'Smoke week' });
+  await expect(list).toHaveCount(1);
+  await expect(list.first()).toContainText('Smoke week');
+  await main.getByLabel('Campaign').selectOption({ label: 'All campaigns' });
+  await expect(list).toHaveCount(before);
+  expect(errors).toEqual([]);
+  expect(mock.unmocked).toEqual([]);
+});
+
+test('campaigns: the offer view names an offer under a campaign, and the post moves with it', async ({ page }) => {
+  const mock = await installApi(page);
+  await page.goto('/marketing?contentId=offer-dora');
+  const detail = page.getByTestId('offer-detail');
+  await detail.getByLabel('Campaign').fill('Launch week');
+  await detail.getByLabel('Campaign').press('Enter');
+  await expect.poll(() => mock.rows.get('offer-dora')?.campaign_name).toBe('Launch week');
+  expect(mock.rows.get('ig-dora')?.campaign_name).toBe('Launch week');
+  expect(mock.rows.get('em-dora')?.campaign_name).toBe('Launch week');
+  expect(mock.writes).toContain('POST /marketing/campaigns');
+
+  // Emptying the field takes the offer out of the campaign again.
+  await detail.getByLabel('Campaign').fill('');
+  await detail.getByLabel('Campaign').press('Enter');
+  await expect.poll(() => mock.rows.get('offer-dora')?.campaign_id).toBeNull();
+  expect(mock.rows.get('ig-dora')?.campaign_id).toBeNull();
+});
+
 test('offer detail: the ⋯ menu lists the post and the email, and Escape closes only the menu', async ({ page }) => {
   await installApi(page);
   await page.goto('/marketing?contentId=offer-dora');

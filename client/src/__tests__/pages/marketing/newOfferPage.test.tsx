@@ -1,11 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NewOfferPage } from '@/pages/marketing/NewOfferPage';
 
-const { createInstagramOfferPair, openDetail } = vi.hoisted(() => ({
+const { createInstagramOfferPair, openDetail, createCampaign } = vi.hoisted(() => ({
   createInstagramOfferPair: vi.fn(),
   openDetail: vi.fn(),
+  createCampaign: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -20,7 +21,7 @@ vi.mock('@/stores/authStore', () => ({
 }));
 
 vi.mock('@/pages/marketing/MarketingContext', () => ({
-  useMarketingContext: () => ({ openDetail }),
+  useMarketingContext: () => ({ openDetail, campaigns: [{ id: 'c-spring', name: 'Spring Sale' }], invalidateWorkspace: vi.fn() }),
 }));
 
 vi.mock('@/pages/marketing/lib/createInstagramOfferPair', () => ({
@@ -30,6 +31,7 @@ vi.mock('@/pages/marketing/lib/createInstagramOfferPair', () => ({
 vi.mock('@/lib/marketingApi', () => ({
   marketingAPI: {
     uploadLucyReferenceImage: vi.fn(),
+    createCampaign: (...args: unknown[]) => createCampaign(...args),
   },
 }));
 
@@ -46,6 +48,8 @@ describe('new offer steps', () => {
   beforeEach(() => {
     createInstagramOfferPair.mockReset();
     openDetail.mockReset();
+    createCampaign.mockReset();
+    createCampaign.mockResolvedValue({ id: 'c-new' });
     createInstagramOfferPair.mockResolvedValue({
       offer: { id: 'offer-1' },
       child: { id: 'ig-1' },
@@ -60,7 +64,7 @@ describe('new offer steps', () => {
     expect(screen.queryByLabelText('Materials')).not.toBeInTheDocument();
   });
 
-  it('saves a draft on Looks good and does not ask Lucy', () => {
+  it('saves a draft on Looks good and does not ask Lucy', async () => {
     renderOffer();
     fireEvent.change(screen.getByLabelText(/^Product/), { target: { value: 'Kürk Mantolu Madonna' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -70,11 +74,39 @@ describe('new offer steps', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Looks good' }));
-    expect(createInstagramOfferPair).toHaveBeenCalled();
-    const brief = (createInstagramOfferPair.mock.calls[0]?.[1] as { userBrief: string }).userBrief;
-    expect(brief).toContain('product: Kürk Mantolu Madonna');
-    expect(brief).toContain('₺189');
+    await waitFor(() => expect(createInstagramOfferPair).toHaveBeenCalled());
+    const input = createInstagramOfferPair.mock.calls[0]?.[1] as { userBrief: string; campaignId: string | null };
+    expect(input.userBrief).toContain('product: Kürk Mantolu Madonna');
+    expect(input.userBrief).toContain('₺189');
+    expect(input.campaignId).toBeNull();
+    expect(createCampaign).not.toHaveBeenCalled();
     expect(screen.getByText(/does not schedule or post/)).toBeInTheDocument();
+  });
+
+  const saveWithCampaign = async (name: string): Promise<void> => {
+    renderOffer();
+    fireEvent.change(screen.getByLabelText(/^Product/), { target: { value: 'Kürk Mantolu Madonna' } });
+    fireEvent.change(screen.getByLabelText(/^Campaign/), { target: { value: name } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Window drop' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText(`Campaign: ${name}`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Looks good' }));
+    await waitFor(() => expect(createInstagramOfferPair).toHaveBeenCalled());
+  };
+
+  it('names the offer under a campaign that exists, without making a new one', async () => {
+    await saveWithCampaign('spring sale');
+    expect((createInstagramOfferPair.mock.calls[0]?.[1] as { campaignId: string }).campaignId).toBe('c-spring');
+    expect(createCampaign).not.toHaveBeenCalled();
+  });
+
+  it('makes a campaign from a new name on the offer, with no create-campaign step', async () => {
+    await saveWithCampaign('Teachers Day');
+    expect(createCampaign).toHaveBeenCalledWith('user-1', { name: 'Teachers Day', channel: 'other' });
+    expect((createInstagramOfferPair.mock.calls[0]?.[1] as { campaignId: string }).campaignId).toBe('c-new');
   });
 
   it('lets a cart reminder skip the picture', () => {
