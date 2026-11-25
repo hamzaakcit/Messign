@@ -25,8 +25,8 @@ import {
   type ContentItem,
 } from '@/lib/marketingApi';
 import { ContentDetailPanel } from '../components/ContentDetailPanel';
-import { ContentCreatePanel } from '../components/ContentCreatePanel';
 import { calendarChip } from '../lib/calendarChip';
+import { readyToSchedule, scheduleDropRule } from '../lib/calendarSchedule';
 
 type ViewMode = 'month' | 'week' | 'list';
 
@@ -84,8 +84,9 @@ export function ContentCalendarTab(): JSX.Element {
   const [list, setList] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
-  const [createDate, setCreateDate] = useState<string | null>(null);
-  const [draggedContentId, setDraggedContentId] = useState<string | null>(null);
+  const [dragged, setDragged] = useState<ContentItem | null>(null);
+  const [ready, setReady] = useState<ContentItem[]>([]);
+  const [liveSend, setLiveSend] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
 
   const month = anchorDate.getMonth() + 1;
@@ -98,18 +99,29 @@ export function ContentCalendarTab(): JSX.Element {
       const monthString = String(month).padStart(2, '0');
       const startDate = `${year}-${monthString}-01`;
       const endDate = new Date(year, month, 0).toISOString().slice(0, 10);
-      const [calendarRes, listRes] = await Promise.all([
+      const [calendarRes, listRes, approvedRes] = await Promise.all([
         marketingAPI.getCalendarView(userId, month, year),
         marketingAPI.listContent(userId, { dateFrom: startDate, dateTo: endDate, pageSize: '100' }),
+        marketingAPI.listContent(userId, { status: 'approved', pageSize: '50' }),
       ]);
       setCalendar(calendarRes);
       setList(listRes.data);
+      setReady(readyToSchedule(approvedRes.data));
     } finally {
       setLoading(false);
     }
   }, [month, userId, year]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void marketingAPI.instagramPublishMode(userId).then((row) => {
+      if (!cancelled) setLiveSend(row.mode === 'live');
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const contentIdFromUrl = searchParams.get('contentId');
   useEffect(() => {
@@ -143,10 +155,16 @@ export function ContentCalendarTab(): JSX.Element {
   }, [calendarMap, anchorDate, month]);
 
   const handleDrop = async (dayDate: string) => {
-    if (!draggedContentId) return;
+    if (!dragged) return;
+    const rule = scheduleDropRule(dragged);
+    if (!rule.ok) {
+      setDragged(null);
+      toast.message(rule.message);
+      return;
+    }
     try {
-      await marketingAPI.scheduleContent(userId, draggedContentId, dayDate);
-      setDraggedContentId(null);
+      await marketingAPI.scheduleContent(userId, dragged.id, dayDate);
+      setDragged(null);
       toast.success('Rescheduled');
       await fetchData();
     } catch { toast.error('Failed to reschedule'); }
@@ -168,7 +186,7 @@ export function ContentCalendarTab(): JSX.Element {
     ) : null;
     if (chip.kind === 'instagram') {
       return (
-        <button key={item.id} draggable onDragStart={() => setDraggedContentId(item.id)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
+        <button key={item.id} draggable onDragStart={() => setDragged(item)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
           <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
             <div className="flex items-center gap-1">
               {chip.thumb ? (
@@ -186,7 +204,7 @@ export function ContentCalendarTab(): JSX.Element {
     }
     if (chip.kind === 'email') {
       return (
-        <button key={item.id} draggable onDragStart={() => setDraggedContentId(item.id)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
+        <button key={item.id} draggable onDragStart={() => setDragged(item)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
           <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
             <div className="text-[8px] uppercase tracking-wide opacity-70">Subject</div>
             <div className="truncate font-medium">{chip.subject}</div>
@@ -196,7 +214,7 @@ export function ContentCalendarTab(): JSX.Element {
       );
     }
     return (
-      <button key={item.id} draggable onDragStart={() => setDraggedContentId(item.id)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
+      <button key={item.id} draggable onDragStart={() => setDragged(item)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
         <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
           <div className="flex items-center gap-1">{channelIcon(item.channel)}<span className="truncate font-medium">{item.title}</span></div>
           {time}
@@ -209,7 +227,7 @@ export function ContentCalendarTab(): JSX.Element {
     const isToday = day.date === todayKey;
     const hasWarning = day.items.length >= 3;
     return (
-      <div key={day.date} className={cn('min-h-[120px] border-r border-b border-white/[0.06] p-1.5 transition-colors', day.inMonth ? 'bg-[#0c0f14]' : 'bg-[#080a0e] opacity-50', draggedContentId && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)} onClick={(e) => { if (e.target === e.currentTarget) setCreateDate(day.date); }}>
+      <div key={day.date} data-testid={`day-${day.date}`} className={cn('min-h-[120px] border-r border-b border-white/[0.06] p-1.5 transition-colors', day.inMonth ? 'bg-[#0c0f14]' : 'bg-[#080a0e] opacity-50', dragged && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)}>
         <div className="flex items-center justify-between mb-1">
           <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-500')}>{new Date(day.date + 'T12:00:00').getDate()}</span>
           {hasWarning && <AlertTriangle className="h-3 w-3 text-amber-400/80" />}
@@ -224,6 +242,23 @@ export function ContentCalendarTab(): JSX.Element {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3">
+      {liveSend ? (
+        <p role="status" data-testid="live-send-warning" className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          Live sending is on: a scheduled Instagram post will be published on its day.
+        </p>
+      ) : null}
+      <section className="mb-3 rounded-xl border border-app-border bg-app-surface-tertiary px-3 py-2" data-testid="ready-tray">
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Ready to schedule</h3>
+        {ready.length === 0 ? (
+          <p className="mt-1 text-xs text-slate-500">Nothing approved yet.</p>
+        ) : (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {ready.map((item) => (
+              <div key={item.id} className="w-44">{renderCalendarItem(item)}</div>
+            ))}
+          </div>
+        )}
+      </section>
       <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden mb-4">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-2">
@@ -258,7 +293,7 @@ export function ContentCalendarTab(): JSX.Element {
               {weekDays.map((day) => { const d = new Date(day.date + 'T12:00:00'); const isToday = day.date === todayKey; return (<div key={day.date} className="border-r border-white/[0.06] px-2 py-2 last:border-r-0 text-center"><div className="text-[10px] uppercase tracking-wider text-slate-600">{d.toLocaleDateString('en', { weekday: 'short' })}</div><div className={cn('mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-300')}>{d.getDate()}</div></div>); })}
             </div>
             <div className="grid grid-cols-7 min-h-[300px]">
-              {weekDays.map((day) => (<div key={day.date} className={cn('border-r border-white/[0.06] p-2 last:border-r-0', draggedContentId && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)} onClick={(e) => { if (e.target === e.currentTarget) setCreateDate(day.date); }}><div className="space-y-1">{day.items.map(renderCalendarItem)}</div>{day.items.length === 0 && <p className="mt-8 text-center text-[9px] text-slate-700">Click to add</p>}</div>))}
+              {weekDays.map((day) => (<div key={day.date} className={cn('border-r border-white/[0.06] p-2 last:border-r-0', dragged && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)}><div className="space-y-1">{day.items.map(renderCalendarItem)}</div></div>))}
             </div>
           </div>
         )}
@@ -293,9 +328,6 @@ export function ContentCalendarTab(): JSX.Element {
         {selectedContentId && <ContentDetailPanel contentId={selectedContentId} onUpdated={fetchData} />}
       </SlideOverPanel>
 
-      <SlideOverPanel isOpen={!!createDate} onClose={() => setCreateDate(null)} title="Create Content" width={560}>
-        <ContentCreatePanel initialDate={createDate ?? undefined} onCreated={() => { setCreateDate(null); void fetchData(); }} onCancel={() => setCreateDate(null)} />
-      </SlideOverPanel>
     </div>
   );
 }
