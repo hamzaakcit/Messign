@@ -19,7 +19,7 @@
 | UX-04 | **One offer list.** Pipeline becomes the status view of Offers; `/marketing/content` and `/pipeline` redirect | `LucyMarketingPage`, `MarketingPipelinePage`, `KanbanBoard`, router | One list of content; old URLs land on it with the filter set | Router + list tests | P1 | MC-09 |
 | UX-05 | **Shop settings page.** Replaces the Brands FAB | `TenantContentSetupPanel`, `BrandProfileManager`, router | No floating button; truth rows edited in one place | Page test | P1 | MC-11 |
 | UX-06 ✅ done 2026-11-25 | **Offer detail redesign.** One primary ("Looks good"), `⋯` for the rest; journey email readable without Unlayer | `ContentDetailPanel`, `OfferDetailView`, `ContentEmailSection` | One filled button; email subject, price, window and unsubscribe visible | Component tests; browser click-through | P0 | MC-07, MC-08 |
-| UX-07 | **Calendar takes ready offers.** Live-publish warning only when `SEND_MODE=live` | `ContentCalendarTab` | A draft can't be dropped on a day | Drop-rule test | P0 | MC-10 |
+| UX-07 ✅ done 2026-11-25 | **Calendar takes ready offers.** Live-publish warning only when `SEND_MODE=live` | `ContentCalendarTab` | A draft can't be dropped on a day | Drop-rule test | P0 | MC-10 |
 | UX-08 | **Leftover duplicates.** `ContentCreatePanel` Instagram preset → New offer; "Draft journey email" only when no email child; inline `UnlayerEmailEditor`; trim unused channel forms from `MarketingChannelAgentModal` | named files | `duplication-map.md` groups 3, 7 and 9 closed | Existing tests updated | P1 | — (new, small) |
 | UX-09 | **Smoke test.** Playwright clicks every primary action on Offers, New offer, Offer detail, Calendar, Email designs, Shop settings (mocked API) | `e2e/` | Runs in CI | the spec itself | P0 | MC-16 (partly) |
 
