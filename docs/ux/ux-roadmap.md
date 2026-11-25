@@ -21,7 +21,7 @@
 | UX-06 ✅ done 2026-11-25 | **Offer detail redesign.** One primary ("Looks good"), `⋯` for the rest; journey email readable without Unlayer | `ContentDetailPanel`, `OfferDetailView`, `ContentEmailSection` | One filled button; email subject, price, window and unsubscribe visible | Component tests; browser click-through | P0 | MC-07, MC-08 |
 | UX-07 ✅ done 2026-11-25 | **Calendar takes ready offers.** Live-publish warning only when `SEND_MODE=live` | `ContentCalendarTab` | A draft can't be dropped on a day | Drop-rule test | P0 | MC-10 |
 | UX-08 | **Leftover duplicates.** (done) `ContentCreatePanel` Instagram preset → New offer; "Draft journey email" only when no email child; inline `UnlayerEmailEditor`; trim unused channel forms from `MarketingChannelAgentModal` | named files | `duplication-map.md` groups 3, 7 and 9 closed | Existing tests updated | P1 | — (new, small) |
-| UX-09 | **Smoke test.** Playwright clicks every primary action on Offers, New offer, Offer detail, Calendar, Email designs, Shop settings (mocked API) | `e2e/` | Runs in CI | the spec itself | P0 | MC-16 (partly) |
+| UX-09 | **Smoke test.** (done) Playwright clicks every primary action on Offers, New offer, Offer detail, Calendar, Email designs, Shop settings (mocked API) | `e2e/` | Runs in CI | the spec itself | P0 | MC-16 (partly) |
 
 Order: UX-02 → UX-03 → UX-06 → UX-07 → UX-04 → UX-05 → UX-08 → UX-09. Fix-or-remove for Broken controls (master prompt step 5) has nothing to do: the audit found none.
 

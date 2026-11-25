@@ -86,3 +86,36 @@ jobs:
 
       - name: Client output exists
         run: test -s client/dist/index.html
+
+  marketing-smoke:
+    name: Marketing smoke (Playwright)
+    runs-on: ubuntu-latest
+    # UX-09: clicks every primary action on the kept marketing screens with the API mocked. Needs only the Vite
+    # client, so there is no server or database here.
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Marketing smoke
+        run: npm run e2e:marketing
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketing-smoke-results
+          path: test-results/
+          retention-days: 7
