@@ -101,7 +101,7 @@ Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 
 | MC-06 | Picture step keeps look, frame, reference, regenerate | P0 | done | Scene line matches the Fal sentence |
 | MC-07 | Journey email readable on the offer | P0 | done (UX-06) | Subject, price, and unsubscribe without Unlayer |
 | MC-08 | Looks good marks review and does not schedule or post | P0 | done (UX-06) | Disabled until still and caption exist |
-| MC-09 | Pipeline becomes the offer list | P1 | moved → UX-04 | `/marketing/content` redirects there |
+| MC-09 | Pipeline becomes the offer list | P1 | done (UX-04) | `/marketing/content` redirects there |
 | MC-10 | Calendar schedules a ready offer and warns about live send | P0 | done (UX-07) | A draft cannot be dropped on a day |
 | MC-11 | Shop settings replace the Brands button | P1 | moved → UX-05 | Truth and brand in one place |
 | MC-12 | A campaign is a name on a set of offers | P1 | todo | No campaign button on the home |
@@ -124,7 +124,7 @@ Detail: `docs/ux/ux-roadmap.md` (principles `docs/ux/design-principles.md`, ADR-
 | UX-03 | Tokens and theme: ban bare `text-app`/`bg-app` in marketing + engage | P0 | done | Class-ban test green; AA on real backgrounds |
 | UX-06 | Offer detail: one primary, `⋯` menu, email readable without Unlayer | P0 | done | One filled button; subject/price/unsubscribe shown |
 | UX-07 | Calendar takes ready offers; live-publish warning | P0 | done | A draft can't be dropped on a day |
-| UX-04 | One offer list (Pipeline = status view) | P1 | todo | Old URLs redirect with filter |
+| UX-04 | One offer list (Pipeline = status view) | P1 | done | Old URLs redirect with filter |
 | UX-05 | Shop settings page replaces the Brands FAB | P1 | todo | No floating button |
 | UX-08 | Leftover duplicates (IG preset, journey-email button, editor wrapper, unused channel forms) | P1 | todo | Duplication groups 3, 7, 9 closed |
 | UX-09 | Playwright smoke: every primary action on kept screens | P0 | todo | Runs in CI |

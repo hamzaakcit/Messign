@@ -7,7 +7,6 @@ import { AIMessageBubble, AITypingIndicator } from '@/components/knowledge-hub/a
 import { LucyGreetingCard, LucySidebarLogo } from '@/pages/marketing/components/lucy';
 import { useAuthStore } from '@/stores/authStore';
 import type { AIMessage } from '@/types/knowledge-hub/ai';
-import type { BoardCardData } from './BoardCard';
 import type { MarketingChannelAgentModalId } from '@/pages/marketing/lib/marketingChannelAgentBuilders';
 import { useMarketingContext } from '@/pages/marketing/MarketingContext';
 import { MarketingChannelAgentModal } from './MarketingChannelAgentModal';
@@ -19,7 +18,6 @@ const noop = (): void => {};
 export const MARKETING_DORA_RAIL_OUTSET_RIGHT = 'max-sm:right-6 sm:right-[424px]';
 
 interface DoraRailProps {
-  selectedCard: BoardCardData | null;
   /** Increment to open the Instagram agent modal (e.g. SparkBar “Instagram (AI)”). */
   instagramModalSignal?: number;
   /** Auto-send a prefilled prompt (Command Center “Execute with Lucy”). */
@@ -33,7 +31,6 @@ interface DoraRailProps {
 }
 
 export function DoraRail({
-  selectedCard,
   instagramModalSignal = 0,
   executePrompt = null,
   layout = 'rail',
@@ -126,7 +123,7 @@ export function DoraRail({
           setInputValue(msg);
           inputRef.current?.focus();
         }}
-        defaultTopic={selectedCard?.title ?? null}
+        defaultTopic={null}
       />
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -141,17 +138,6 @@ export function DoraRail({
           <Trash2 className="w-3 h-3" />
         </button>
       </div>
-
-      {selectedCard && (
-        <div className="px-3 py-2 border-b border-white/[0.06] bg-app-surface-tertiary shrink-0">
-          <p className="text-[10px] text-app-muted uppercase tracking-wider mb-1">Selected</p>
-          <p className="text-xs font-medium text-app-text truncate">{selectedCard.title}</p>
-          <div className="flex items-center gap-2 mt-1 text-[10px] text-app-muted">
-            <span className="capitalize">{selectedCard.channel || selectedCard.type}</span>
-            <span className="capitalize">{selectedCard.status}</span>
-          </div>
-        </div>
-      )}
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2">
         {messages.length === 0 && !isLoading && (

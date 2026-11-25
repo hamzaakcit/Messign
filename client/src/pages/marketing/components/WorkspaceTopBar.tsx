@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
   CalendarDays,
   ChevronDown,
   Instagram,
@@ -9,7 +8,6 @@ import {
   Mail,
   Megaphone,
   Plus,
-  Sparkles,
   Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,7 +27,7 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { id: 'pipeline', label: 'Pipeline', icon: LayoutGrid, path: ROUTES.MARKETING_PIPELINE },
+  { id: 'offers', label: 'Offers', icon: LayoutGrid, path: ROUTES.MARKETING },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, path: ROUTES.MARKETING_CALENDAR },
   { id: 'builder', label: 'Builder', icon: Mail, path: ROUTES.MARKETING_BUILDER },
 ];
@@ -44,8 +42,6 @@ function normalizePath(p: string): string {
 
 function getActiveTabId(pathname: string): string | null {
   const p = normalizePath(pathname);
-  // /marketing/content shares pipeline's tab
-  if (p === ROUTES.MARKETING_CONTENT) return 'pipeline';
   const match = TABS.find((t) => normalizePath(t.path) === p);
   return match?.id ?? null;
 }
@@ -71,19 +67,6 @@ export function WorkspaceTopBar(): JSX.Element {
         marketingShell.borderSubtle,
       )}
     >
-      {/* ← Lucy home */}
-      <button
-        type="button"
-        onClick={() => navigate(ROUTES.MARKETING)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-purple-300 hover:bg-purple-500/10 transition-colors shrink-0"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        <Sparkles className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Lucy</span>
-      </button>
-
-      <div className="w-px h-5 bg-white/[0.08] mx-1 shrink-0" />
-
       {/* Primary tabs */}
       <nav className="flex items-center gap-0.5 overflow-x-auto min-w-0" aria-label="Marketing workspace">
         {TABS.map((tab) => {

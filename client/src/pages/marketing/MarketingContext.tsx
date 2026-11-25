@@ -8,10 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import {
-  marketingAPI,
   type BrandProfileClient,
   type Campaign,
   type ContentItem,
@@ -21,11 +19,8 @@ import {
 import { ROUTES } from '@/lib/routes';
 import { useMarketingApprovalQueue } from '@/hooks/useMarketingApprovalQueue';
 import type { ApprovalQueueItem } from './approvalQueue/types';
-import type { LaneId } from './components/KanbanBoard';
-import type { BoardCardData } from './components/BoardCard';
 import type { ContentCreatePreset } from './components/ContentCreatePanel';
 import { useMarketingWorkspace } from './hooks/useMarketingWorkspace';
-import { boardMove, refusedMoveMessage } from './lib/boardMoves';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,9 +72,6 @@ interface MarketingContextValue {
   refetchBrands: () => Promise<unknown>;
   approveItem: (id: string) => Promise<void>;
 
-  // === Pipeline card handlers ===
-  handleCardClick: (card: BoardCardData) => void;
-  handleCardMove: (cardId: string, fromLane: LaneId, toLane: LaneId, card: BoardCardData) => void;
 
   // === Dora / Lucy integration ===
   handleInstagramDraftAi: () => void;
@@ -169,66 +161,12 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
     navigate(ROUTES.MARKETING_OFFER_NEW);
   }, [navigate]);
 
-  // --- Pipeline card handlers ---
-  const handleCardClick = useCallback(
-    (card: BoardCardData) => {
-      if (card.type === 'content') {
-        const c = card.sourceData as ContentItem;
-        setDetail({ type: 'content', id: c.id });
-      } else if (card.type === 'campaign') {
-        const c = card.sourceData as Campaign;
-        setDetail({ type: 'campaign', id: c.id });
-      } else if (card.type === 'email') {
-        const e = card.sourceData as EmailCampaign;
-        setDetail({ type: 'email', id: e.id });
-      } else if (card.type === 'approval') {
-        const a = card.sourceData as ApprovalQueueItem;
-        if (a.contentId) {
-          setDetail({ type: 'content', id: a.contentId });
-        }
-      }
-    },
-    [],
-  );
-
-  const handleCardMove = useCallback(
-    async (_cardId: string, fromLane: LaneId, toLane: LaneId, card: BoardCardData) => {
-      const move = boardMove(fromLane, toLane, card);
-      if (!move) {
-        toast.message(refusedMoveMessage(toLane));
-        return;
-      }
-      try {
-        if (move === 'submit_for_review') {
-          const c = card.sourceData as ContentItem;
-          await marketingAPI.updateContent(userId, c.id, { submit_for_review: true });
-          toast.success('Sent to review');
-        } else {
-          const a = card.sourceData as ApprovalQueueItem;
-          await approveItem(a.id);
-          toast.success('Approved');
-        }
-        await workspace.invalidateWorkspace();
-      } catch (e) {
-        toast.error('Move failed', { description: e instanceof Error ? e.message : 'Unknown' });
-      }
-    },
-    [userId, approveItem, workspace.invalidateWorkspace],
-  );
-
   // --- Side effects: location-state-driven navigation ---
   useEffect(() => {
     const st = location.state as {
       openInstagramContent?: boolean;
-      openPipeline?: boolean;
     } | null;
     if (!st) return;
-    const pathNorm = location.pathname.replace(/\/$/, '') || '/';
-
-    if (st.openPipeline && pathNorm === ROUTES.MARKETING) {
-      navigate(ROUTES.MARKETING_PIPELINE, { replace: true, state: { openPipeline: true } });
-      return;
-    }
 
     let handled = false;
     if (st.openInstagramContent) {
@@ -240,16 +178,6 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
       navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
     }
   }, [location.state, location.pathname, location.search, navigate]);
-
-  // --- Deep link: /marketing/content?contentId=<uuid> ---
-  const segment = location.pathname.split('/').filter(Boolean)[1];
-  useEffect(() => {
-    if (segment !== 'content') return;
-    const id = new URLSearchParams(location.search).get('contentId');
-    if (id) {
-      setDetail({ type: 'content', id });
-    }
-  }, [segment, location.search]);
 
   // --- Context value (stable via useMemo) ---
   const value = useMemo<MarketingContextValue>(
@@ -291,9 +219,6 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
       refetchBrands: workspace.refetchBrands,
       approveItem,
 
-      // Pipeline handlers
-      handleCardClick,
-      handleCardMove,
 
       // Dora / Lucy
       handleInstagramDraftAi,
@@ -311,7 +236,6 @@ export function MarketingProvider({ children }: { children: ReactNode }): JSX.El
       createCampaignOpen, openCreateCampaign, closeCreateCampaign,
       createContentOpen, contentCreatePreset, openCreateContent, closeCreateContent,
       brandManagerOpen, openBrandManager, closeBrandManager,
-      handleCardClick, handleCardMove,
       handleInstagramDraftAi, handleCreateInstagramContent, handleDraftWithMarketingFromPanel,
     ],
   );

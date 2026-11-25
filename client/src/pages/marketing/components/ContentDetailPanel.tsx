@@ -30,7 +30,7 @@ interface ContentDetailPanelProps {
 
 export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: ContentDetailPanelProps) {
   const { user } = useAuthStore();
-  const { openDetail } = useMarketingContext();
+  const { openDetail, approvalItems = [], approveItem } = useMarketingContext();
   const { setup: contentTenant } = useContentTenant();
   const userId = user?.authUserId || user?.id || '';
   const [content, setContent] = useState<ContentItem | null>(null);
@@ -156,6 +156,26 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
     }
   };
 
+  const canApprove = user?.role === 'manager' || user?.role === 'admin';
+
+  const handleOfferApprove = async (childId: string) => {
+    setSubmittingReview(true);
+    try {
+      const queued = approvalItems.find((item) => item.contentId === childId);
+      if (queued && approveItem) await approveItem(queued.id);
+      else {
+        await marketingAPI.updateContent(userId, childId, { status: 'approved' });
+        toast.success('Approved');
+      }
+      setChildrenVersion((n) => n + 1);
+      onUpdated();
+    } catch (e) {
+      toast.error('Could not approve', { description: e instanceof Error ? e.message : 'Request failed' });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   const handleDraftJourneyEmail = async (stay = false) => {
     if (!content) return;
     setDraftingEmail(true);
@@ -220,6 +240,8 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
         instagram={instagram}
         email={email}
         onLooksGood={(childId) => void handleOfferLooksGood(childId)}
+        onApprove={(childId) => void handleOfferApprove(childId)}
+        canApprove={canApprove}
         submitting={submittingReview}
         onOpenChild={(childId) => openDetail({ type: 'content', id: childId })}
         onDraftJourneyEmail={() => void handleDraftJourneyEmail(true)}

@@ -113,10 +113,10 @@ function wrap(ui: ReactElement): JSX.Element {
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
-function renderLucy() {
+function renderLucy(path = '/marketing') {
   return render(
     wrap(
-      <MemoryRouter initialEntries={['/marketing']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/*" element={<MarketingLayout />} />
         </Routes>
@@ -143,28 +143,40 @@ describe('shop counter', () => {
     expect(await screen.findByTestId('dora-rail')).toBeInTheDocument();
   });
 
-  it('navigates to pipeline from More', async () => {
+  it('lands the old Pipeline URL on the offer list, which More no longer links to', async () => {
+    sessionStorage.setItem('messign.contentTenant', 'messign');
+    renderLucy('/marketing/pipeline');
+    expect(await screen.findByRole('button', { name: /^Dora/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    expect(screen.queryByRole('button', { name: 'Pipeline' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Calendar' })).toBeInTheDocument();
+  });
+
+  it('filters the offers by status, the view Pipeline used to give', async () => {
     sessionStorage.setItem('messign.contentTenant', 'messign');
     renderLucy();
-    await screen.findByRole('button', { name: /Dora/ });
-    fireEvent.click(screen.getByRole('button', { name: 'More' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pipeline' }));
-    await waitFor(() => {
-      expect(screen.getByRole('region', { name: /content pipeline/i })).toBeInTheDocument();
-    });
+    await screen.findByRole('button', { name: /^Dora/ });
+    fireEvent.click(screen.getByRole('button', { name: 'In review' }));
+    expect(screen.getByRole('button', { name: 'In review' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('No offers in this view.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Dora/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'In progress' }));
+    expect(screen.getByRole('button', { name: /^Dora/ })).toBeInTheDocument();
   });
 
   it('names the shop when it has no offers and retries after an error', async () => {
     const { marketingAPI } = await import('@/lib/marketingApi');
     sessionStorage.setItem('messign.contentTenant', 'bookstore');
-    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({ data: [], total: 0, page: 1, pageSize: 50 });
-    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({ data: [], total: 0, page: 1, pageSize: 50 });
+    for (let i = 0; i < 3; i += 1) {
+      vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({ data: [], total: 0, page: 1, pageSize: 50 });
+    }
     renderLucy();
     expect(await screen.findByText('No offers for Kitapyurdu.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Dora/ })).not.toBeInTheDocument();
 
-    vi.mocked(marketingAPI.listContent).mockRejectedValueOnce(new Error('Could not load offers'));
-    vi.mocked(marketingAPI.listContent).mockRejectedValueOnce(new Error('Could not load offers'));
+    for (let i = 0; i < 3; i += 1) {
+      vi.mocked(marketingAPI.listContent).mockRejectedValueOnce(new Error('Could not load offers'));
+    }
     fireEvent.change(screen.getByLabelText(/Content tenant/), { target: { value: 'messign' } });
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
