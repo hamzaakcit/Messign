@@ -52,6 +52,22 @@ describe('createInstagramOfferPair', () => {
     expect(instagramCreates).toHaveLength(1);
   });
 
+  it('puts the offer and its post in the campaign, and leaves the field out when there is none', async () => {
+    createContent
+      .mockResolvedValueOnce({ id: 'offer-1', title: 'Launch' })
+      .mockResolvedValueOnce({ id: 'child-1', title: 'Launch', parent_content_id: 'offer-1', channel: 'instagram' });
+    await createInstagramOfferPair('user-1', { topic: 'Launch', campaignId: 'c-1' });
+    expect(createContent.mock.calls[0]?.[1]).toMatchObject({ content_type: 'offer', campaign_id: 'c-1' });
+    expect(createContent.mock.calls[1]?.[1]).toMatchObject({ channel: 'instagram', campaign_id: 'c-1' });
+
+    createContent.mockReset();
+    createContent
+      .mockResolvedValueOnce({ id: 'offer-2', title: 'Plain' })
+      .mockResolvedValueOnce({ id: 'child-2', title: 'Plain', parent_content_id: 'offer-2', channel: 'instagram' });
+    await createInstagramOfferPair('user-1', { topic: 'Plain', campaignId: null });
+    expect(createContent.mock.calls[0]?.[1]).not.toHaveProperty('campaign_id');
+  });
+
   it('creates zero Instagram rows for a cart reminder', async () => {
     createContent.mockResolvedValueOnce({ id: 'offer-1', title: 'Cart' });
 

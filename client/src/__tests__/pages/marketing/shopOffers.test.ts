@@ -60,6 +60,18 @@ describe('shop offers', () => {
     expect(rows[0]?.child?.id).toBe('ig-1');
   });
 
+  it('carries the campaign name from the offer row, and none when the offer is not in one', () => {
+    const setup = contentSetupFor('bookstore');
+    const brief = 'product: Kürk Mantolu Madonna';
+    const rows = shopOfferRows([
+      item({ id: 'in-campaign', content_type: 'offer', user_brief: brief, campaign_id: 'c-1', campaign_name: 'Window week' }),
+      item({ id: 'alone', content_type: 'offer', user_brief: brief }),
+    ], setup);
+    const byId = Object.fromEntries(rows.map((r) => [r.offer.id, r]));
+    expect(byId['in-campaign']).toMatchObject({ campaignId: 'c-1', campaignName: 'Window week' });
+    expect(byId.alone).toMatchObject({ campaignId: null, campaignName: null });
+  });
+
   it('takes the status from the post, not the offer row, and falls back to the email child', () => {
     const offer = item({ id: 'o', content_type: 'offer', user_brief: 'product: Kürk Mantolu Madonna', status: 'draft' });
     const approvedPost = item({ id: 'ig', parent_content_id: 'o', channel: 'instagram', status: 'approved', body: 'x', image_url: 'y' });

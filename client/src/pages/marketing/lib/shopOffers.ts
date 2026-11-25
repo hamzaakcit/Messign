@@ -14,6 +14,9 @@ export interface ShopOfferRow {
   child: ContentItem | null;
   product: string;
   price: string;
+  /** The campaign this offer is named under, when it has one. */
+  campaignId: string | null;
+  campaignName: string | null;
   step: 'Draft' | 'Writing' | 'Picture' | 'Ready for review' | 'In review' | 'Approved' | 'Scheduled' | 'Live';
   stage: OfferStage;
 }
@@ -97,6 +100,8 @@ export function shopOfferRows(items: readonly ContentItem[], setup: TenantConten
         child,
         product: sheet.product || offer.title,
         price: sheet.price,
+        campaignId: offer.campaign_id ?? null,
+        campaignName: offer.campaign_name ?? null,
         ...offerStep(offer, child),
       };
     })

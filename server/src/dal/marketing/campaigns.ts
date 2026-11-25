@@ -365,9 +365,9 @@ export async function createCampaign(ctx: CallerContext, data: CreateCampaignInp
     `INSERT INTO marketing_campaigns (
        organization_id, name, objective, description, channel, status, budget, actual_spend,
        currency, budget_eur, actual_spend_eur, start_date, end_date, target_audience,
-       goals, owner_id, tags
+       goals, owner_id, tags, tenant_id
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,0,$10,$11,$12,$13,$14,$15)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,0,$10,$11,$12,$13,$14,$15,$1)
      RETURNING *`,
     [
       tenantId,

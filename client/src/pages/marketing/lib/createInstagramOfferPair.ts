@@ -12,6 +12,8 @@ export interface CreateInstagramOfferPairInput {
   topic: string;
   format?: 'feed' | 'story' | 'reel';
   brandProfileId?: string | null;
+  /** The campaign this offer is named under. The post and the email join it. */
+  campaignId?: string | null;
   recipe?: OfferRecipe;
   /** Occasion only. Defaults to on. Ignored for product drop and cart. */
   includeInstagram?: boolean;
@@ -46,6 +48,7 @@ export async function createInstagramOfferPair(
   if (input.mockImage) tags.push('image_gen:mock');
   if (recipe === 'occasion' && input.includeInstagram === false) tags.push('ig_slot:off');
   const brandId = input.brandProfileId?.trim() || undefined;
+  const campaign = input.campaignId ? { campaign_id: input.campaignId } : {};
 
   const offer = await marketingAPI.createContent(userId, {
     title: topic,
@@ -54,6 +57,7 @@ export async function createInstagramOfferPair(
     status: 'draft',
     user_brief: brief,
     tags,
+    ...campaign,
   });
 
   let child: ContentItem | null = null;
@@ -66,6 +70,7 @@ export async function createInstagramOfferPair(
       parent_content_id: offer.id,
       user_brief: brief,
       tags,
+      ...campaign,
     });
   }
 

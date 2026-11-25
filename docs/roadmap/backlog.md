@@ -89,7 +89,7 @@ Detail: `content-production-roadmap.md`. Draft 2026-11-13. CP-01 through CP-11 a
 
 ## Marketing counter (parallel evenings — shop window)
 
-Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 are done. MC-13 and MC-14 were done by UX-01 (2026-11-24). MC-07…11 and MC-15 moved to the UX track (`docs/ux/ux-roadmap.md`). Remaining here: MC-12 (MC-16, MC-17 and MC-18 done 2026-11-25).
+Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 are done. MC-13 and MC-14 were done by UX-01 (2026-11-24). MC-07…11 and MC-15 moved to the UX track (`docs/ux/ux-roadmap.md`). The counter track is complete as of 2026-11-25 (MC-12, MC-16, MC-17 and MC-18 done).
 
 | WP | Title | Pri | Status | Acceptance (short) |
 |---|---|---|---|---|
@@ -104,7 +104,7 @@ Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 
 | MC-09 | Pipeline becomes the offer list | P1 | done (UX-04) | `/marketing/content` redirects there |
 | MC-10 | Calendar schedules a ready offer and warns about live send | P0 | done (UX-07) | A draft cannot be dropped on a day |
 | MC-11 | Shop settings replace the Brands button | P1 | done (UX-05) | Truth and brand in one place |
-| MC-12 | A campaign is a name on a set of offers | P1 | todo | No campaign button on the home |
+| MC-12 | A campaign is a name on a set of offers | P1 | done 2026-11-25 | No campaign button on the home; a name typed on an offer is the campaign |
 | MC-13 | Intel, funnel, and leads leave the marketing nav | P1 | done (UX-01: removed, not kept under More) | More shows Intel only |
 | MC-14 | Sandbox, command center, creative hub, automation leave the nav | P1 | done (UX-01) | Old links still redirect |
 | MC-15 | Shop-window theme on Offers, Calendar, and Shop settings | P1 | moved → UX-03 | Three rooms feel like one product |

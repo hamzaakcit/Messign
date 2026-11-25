@@ -15,6 +15,8 @@ export interface Row {
   parent_content_id: string | null;
   user_brief: string | null;
   scheduled_for: string | null;
+  campaign_id: string | null;
+  campaign_name: string | null;
   created_at: string;
   updated_at: string;
   tags: string[];
@@ -22,7 +24,7 @@ export interface Row {
 
 const NOW = '2026-11-20T09:00:00.000Z';
 const base = {
-  image_url: null, parent_content_id: null, user_brief: null, scheduled_for: null,
+  image_url: null, parent_content_id: null, user_brief: null, scheduled_for: null, campaign_id: null, campaign_name: null,
   created_at: NOW, updated_at: NOW, tags: [] as string[],
 };
 
@@ -38,6 +40,8 @@ export function seedRows(): Row[] {
 
 export interface Mock {
   rows: Map<string, Row>;
+  /** Campaigns by id: a campaign is only a name here. */
+  campaigns: Map<string, { id: string; name: string }>;
   /** Calls that changed something: `PUT /content/ig-dora`, `POST /content/ig-ready/schedule`. */
   writes: string[];
   unmocked: string[];
@@ -64,7 +68,8 @@ export async function signIn(page: Page): Promise<void> {
 const page1 = (rows: Row[]) => ({ data: rows, total: rows.length, page: 1, pageSize: 50, totalPages: 1 });
 
 export async function installApi(page: Page): Promise<Mock> {
-  const mock: Mock = { rows: new Map(seedRows().map((r) => [r.id, r])), writes: [], unmocked: [] };
+  const mock: Mock = { rows: new Map(seedRows().map((r) => [r.id, r])), campaigns: new Map(), writes: [], unmocked: [] };
+  const campaignName = (id: unknown): string | null => (typeof id === 'string' ? mock.campaigns.get(id)?.name ?? null : null);
 
   await page.route('**/api/**', async (route: Route) => {
     const req = route.request();
@@ -77,7 +82,13 @@ export async function installApi(page: Page): Promise<Mock> {
     if (path.startsWith('/auth/')) return json({ success: true, data: { accessToken: 'smoke-token', expiresIn: 3600, user, mustChangePassword: false } });
     if (path === '/marketing/dashboard/bootstrap') {
       const rows = [...mock.rows.values()];
-      return json({ metrics: { mqls: 0, cpl: 0, roi: 0, emailOpenRate: 0, monthlyTrend: [] }, hotLeads: [], content: page1(rows), campaigns: page1([]), emailCampaigns: page1([]) });
+      return json({ metrics: { mqls: 0, cpl: 0, roi: 0, emailOpenRate: 0, monthlyTrend: [] }, hotLeads: [], content: page1(rows), campaigns: page1([...mock.campaigns.values()] as unknown as Row[]), emailCampaigns: page1([]) });
+    }
+    if (path === '/marketing/campaigns' && method === 'POST') {
+      const body = JSON.parse(req.postData() || '{}') as { name?: string };
+      const campaign = { id: `camp-${mock.campaigns.size + 1}`, name: body.name ?? 'Untitled' };
+      mock.campaigns.set(campaign.id, campaign);
+      return json({ success: true, data: { campaign_id: campaign.id, campaign } }, 201);
     }
     if (path === '/marketing/approvals') return json({ success: true, data: { items: [] } });
     if (path === '/marketing/emails' && method === 'GET') {
@@ -105,6 +116,7 @@ export async function installApi(page: Page): Promise<Mock> {
         body: channel === 'instagram' ? 'A caption for the new offer' : null,
         image_url: channel === 'instagram' ? 'https://cdn.example/new.jpg' : null,
         parent_content_id: body.parent_content_id ?? null, user_brief: body.user_brief ?? null,
+        campaign_id: body.campaign_id ?? null, campaign_name: campaignName(body.campaign_id),
       };
       mock.rows.set(row.id, row);
       return json(row, 201);
@@ -122,6 +134,7 @@ export async function installApi(page: Page): Promise<Mock> {
       const row: Row = {
         ...base, id: `new-${mock.rows.size + 1}`, title: 'Journey subject', content_type: 'email', channel: 'email', status: 'draft',
         body: 'SUBJECT: Journey subject\nUnsubscribe: {{unsubscribe_url}}', parent_content_id: journey[1], tags: ['journey_email'],
+        campaign_id: mock.rows.get(journey[1])?.campaign_id ?? null, campaign_name: mock.rows.get(journey[1])?.campaign_name ?? null,
       };
       mock.rows.set(row.id, row);
       return json(row, 201);
@@ -143,6 +156,7 @@ export async function installApi(page: Page): Promise<Mock> {
         const patch = JSON.parse(req.postData() || '{}') as Record<string, unknown>;
         if (patch.submit_for_review) { row.status = 'in_review'; delete patch.submit_for_review; }
         Object.assign(row, patch);
+        if ('campaign_id' in patch) row.campaign_name = campaignName(patch.campaign_id);
       }
       return json(row);
     }

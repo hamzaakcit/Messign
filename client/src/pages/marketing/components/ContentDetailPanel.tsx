@@ -18,6 +18,7 @@ import { useMarketingContext } from '../MarketingContext';
 import { journeyTemplateRefFromTags } from '../lib/journeyTemplateRef';
 import { offerChildStatusLine } from '../lib/offerChildStatus';
 import { useContentTenant } from '../lib/contentTenant';
+import { resolveCampaignId } from '../lib/offerCampaign';
 import { readStudioSheet } from '../lib/offerSheetForm';
 import { OfferSheetDetail } from './OfferSheetDetail';
 
@@ -30,7 +31,7 @@ interface ContentDetailPanelProps {
 
 export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: ContentDetailPanelProps) {
   const { user } = useAuthStore();
-  const { openDetail, approvalItems = [], approveItem } = useMarketingContext();
+  const { openDetail, approvalItems = [], approveItem, campaigns = [], invalidateWorkspace } = useMarketingContext();
   const { setup: contentTenant } = useContentTenant();
   const userId = user?.authUserId || user?.id || '';
   const [content, setContent] = useState<ContentItem | null>(null);
@@ -45,6 +46,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
   const [submittingReview, setSubmittingReview] = useState(false);
   const [draftingEmail, setDraftingEmail] = useState(false);
   const [writingCaption, setWritingCaption] = useState(false);
+  const [savingCampaign, setSavingCampaign] = useState(false);
   const [publishMode, setPublishMode] = useState<'mock' | 'live'>('mock');
   const [testPublishing, setTestPublishing] = useState(false);
   const [offerChildrenLine, setOfferChildrenLine] = useState<string | null>(null);
@@ -157,6 +159,27 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
     }
   };
 
+  /** Names the offer under a campaign (or removes it). The post and the email move with it. */
+  const handleCampaign = async (name: string) => {
+    if (!offerId) return;
+    setSavingCampaign(true);
+    try {
+      const campaignId = await resolveCampaignId(userId, name, campaigns);
+      await Promise.all(
+        [offerId, ...offerChildren.map((child) => child.id)].map((id) => marketingAPI.updateContent(userId, id, { campaign_id: campaignId })),
+      );
+      toast.success(campaignId ? 'Campaign saved' : 'Removed from the campaign');
+      setChildrenVersion((n) => n + 1);
+      await fetchContent();
+      await invalidateWorkspace?.();
+      onUpdated();
+    } catch (e) {
+      toast.error('Could not save the campaign', { description: e instanceof Error ? e.message : 'Request failed' });
+    } finally {
+      setSavingCampaign(false);
+    }
+  };
+
   /** The model writes (or rewrites) the post's caption from the offer sheet. Only a draft post can be written. */
   const handleWriteCaption = async (postId: string) => {
     setWritingCaption(true);
@@ -262,6 +285,10 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
         onOpenChild={(childId) => openDetail({ type: 'content', id: childId })}
         onWriteCaption={(postId) => void handleWriteCaption(postId)}
         writingCaption={writingCaption}
+        campaignName={content.campaign_name ?? null}
+        campaignNames={campaigns.map((c) => c.name)}
+        onCampaign={(name) => void handleCampaign(name)}
+        savingCampaign={savingCampaign}
         onDraftJourneyEmail={() => void handleDraftJourneyEmail(true)}
         draftingEmail={draftingEmail}
         publishAllowed={contentTenant.publishAllowed}

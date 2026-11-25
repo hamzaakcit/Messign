@@ -888,7 +888,8 @@ router.post('/:id/journey-email', async (req: ReimbursementRequest, res: Respons
       userBrief: offer.user_brief,
       tags: offer.tags,
     });
-    const created = await contentDal.createContent(ctx, draft);
+    // The email is part of the offer, so it joins the offer's campaign too.
+    const created = await contentDal.createContent(ctx, offer.campaign_id ? { ...draft, campaign_id: offer.campaign_id } : draft);
     res.status(201).json(created);
   } catch (err) {
     console.error('[marketing/content/:id/journey-email POST]', err);
