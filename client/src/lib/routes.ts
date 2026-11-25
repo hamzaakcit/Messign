@@ -55,6 +55,8 @@ export const ROUTES = {
   MARKETING_AUTOMATION: '/marketing/automation',
   MARKETING_DASHBOARD: '/marketing/dashboard',
   MARKETING_BUILDER: '/marketing/builder',
+  /** Shop settings: content setup and brand profiles (UX-05). */
+  MARKETING_SHOP: '/marketing/shop',
 
   RECRUITMENT: '/recruitment',
   RECRUITMENT_PIPELINE: '/recruitment/pipeline',

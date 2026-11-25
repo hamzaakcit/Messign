@@ -17,7 +17,7 @@
 | UX-02 ✅ done 2026-11-24 | **Help pattern.** `InfoTooltip` tap/Escape/`helpId`; `HelpDrawer`; `lib/helpContent.ts`; apply the copy-audit **T**/**H** moves | `components/ui/InfoTooltip.tsx`, new `HelpDrawer.tsx`, `lib/helpContent.ts`, `EmailDesignWizard`, `Va2DiagnosticsPanel`, `TenantContentSetupPanel`, `MarketingChannelAgentModal` | No explanatory block > 1 sentence visible by default on kept screens; every tip ≤ 120 chars | Registry test (one sentence, ≤ 120, every used id exists); InfoTooltip keyboard + tap | P0 | — (new) |
 | UX-03 ✅ done 2026-11-24 | **Tokens.** Ban bare `text-app`/`bg-app` in marketing + engage (104 uses). Theme is decided (UX-D1: paper; engage sections in the light theme, done in UX-01b) | `pages/marketing/**`, `engage/**` | Lint-style test green; selected/hover states pass AA on their real background | Class-ban test; contrast spot checks in the browser | P0 | MC-15 |
 | UX-04 ✅ done 2026-11-25 | **One offer list.** Pipeline becomes the status view of Offers; `/marketing/content` and `/pipeline` redirect | `LucyMarketingPage`, `MarketingPipelinePage`, `KanbanBoard`, router | One list of content; old URLs land on it with the filter set | Router + list tests | P1 | MC-09 |
-| UX-05 | **Shop settings page.** Replaces the Brands FAB | `TenantContentSetupPanel`, `BrandProfileManager`, router | No floating button; truth rows edited in one place | Page test | P1 | MC-11 |
+| UX-05 | **Shop settings page.** Replaces the Brands FAB (done) | `TenantContentSetupPanel`, `BrandProfileManager`, router | No floating button; truth rows edited in one place | Page test | P1 | MC-11 |
 | UX-06 ✅ done 2026-11-25 | **Offer detail redesign.** One primary ("Looks good"), `⋯` for the rest; journey email readable without Unlayer | `ContentDetailPanel`, `OfferDetailView`, `ContentEmailSection` | One filled button; email subject, price, window and unsubscribe visible | Component tests; browser click-through | P0 | MC-07, MC-08 |
 | UX-07 ✅ done 2026-11-25 | **Calendar takes ready offers.** Live-publish warning only when `SEND_MODE=live` | `ContentCalendarTab` | A draft can't be dropped on a day | Drop-rule test | P0 | MC-10 |
 | UX-08 | **Leftover duplicates.** `ContentCreatePanel` Instagram preset → New offer; "Draft journey email" only when no email child; inline `UnlayerEmailEditor`; trim unused channel forms from `MarketingChannelAgentModal` | named files | `duplication-map.md` groups 3, 7 and 9 closed | Existing tests updated | P1 | — (new, small) |
@@ -47,7 +47,7 @@ MC-12 (a campaign is a name on a set of offers), MC-16 (dogfood one bookstore an
 | Bar | Now |
 |---|---|
 | 0 visible No-op / Mock controls on kept screens | **met** (UX-01) |
-| 0 duplicate entry points | 4 groups left (UX-04, UX-05, UX-08) |
+| 0 duplicate entry points | groups left only in UX-08 |
 | Explanatory copy −70% | **met**: visible-by-default text ≈ 400 → 40 words (UX-02) |
 | InfoTips ≤ 1 sentence, one registry | **met** (`lib/helpContent.ts`, enforced by `helpContent.test.ts`) |
 | Kept screens and engage on one component set | UX-02, UX-03 |

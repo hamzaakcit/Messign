@@ -99,6 +99,21 @@ function BuilderRoute(): JSX.Element {
   );
 }
 
+/** Shop settings: the shop's content setup and its brand profiles, on paper (UX-05 replaces the Brands button). */
+function ShopSettingsRoute(): JSX.Element {
+  return (
+    <div data-theme="light" className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-app-bg text-app-text">
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+        <h1 className="text-lg font-semibold">Shop settings</h1>
+        <TenantContentSetupPanel />
+        <section aria-label="Brand profiles">
+          <BrandProfileManager />
+        </section>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Legacy ?panel= redirect (hub-only)
 // ---------------------------------------------------------------------------
@@ -237,34 +252,7 @@ function MarketingPanels(): JSX.Element {
           onCancel={ctx.closeCreateContent}
         />
       </SlideOverPanel>
-
-      <SlideOverPanel
-        isOpen={ctx.brandManagerOpen}
-        onClose={ctx.closeBrandManager}
-        title="Brand Profiles"
-        width={560}
-      >
-        <TenantContentSetupPanel />
-        <BrandProfileManager />
-      </SlideOverPanel>
     </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Brands FAB
-// ---------------------------------------------------------------------------
-
-function BrandsFab(): JSX.Element {
-  const ctx = useMarketingContext();
-  return (
-    <button
-      type="button"
-      onClick={ctx.openBrandManager}
-      className="fixed bottom-6 right-6 z-30 px-4 py-2 rounded-full text-xs font-medium bg-app-card border border-app-border text-app-text shadow-lg hover:bg-app-nav-hover transition-colors"
-    >
-      Brands
-    </button>
   );
 }
 
@@ -292,6 +280,7 @@ function MarketingRouter(): JSX.Element {
             }
           />
           <Route path="builder" element={<BuilderRoute />} />
+          <Route path="shop" element={<ShopSettingsRoute />} />
         </Route>
 
         {/* Named legacy redirects */}
@@ -299,7 +288,7 @@ function MarketingRouter(): JSX.Element {
         <Route path="workspace" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="executive" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="intelligence" element={<Navigate to={ROUTES.MARKETING} replace />} />
-        <Route path="brand-social" element={<Navigate to={ROUTES.MARKETING} replace />} />
+        <Route path="brand-social" element={<Navigate to={ROUTES.MARKETING_SHOP} replace />} />
         <Route path="funnel" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="experiments" element={<Navigate to={ROUTES.MARKETING} replace />} />
         <Route path="sandbox" element={<Navigate to={ROUTES.MARKETING} replace />} />
@@ -339,7 +328,6 @@ export function MarketingLayout(): JSX.Element {
       <div data-theme="light" className="text-app-text">
         <HelpDrawer />
       </div>
-      <BrandsFab />
     </MarketingProvider>
   );
 }
