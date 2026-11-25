@@ -26,7 +26,7 @@ import {
 } from '@/lib/marketingApi';
 import { ContentDetailPanel } from '../components/ContentDetailPanel';
 import { calendarChip } from '../lib/calendarChip';
-import { readyToSchedule, scheduleDropRule } from '../lib/calendarSchedule';
+import { readyToSchedule, scheduleDropRule, trayLabel } from '../lib/calendarSchedule';
 
 type ViewMode = 'month' | 'week' | 'list';
 
@@ -254,7 +254,7 @@ export function ContentCalendarTab(): JSX.Element {
         ) : (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {ready.map((item) => (
-              <div key={item.id} className="w-44">{renderCalendarItem(item)}</div>
+              <div key={item.id} className="w-44">{renderCalendarItem({ ...item, title: trayLabel(item) })}</div>
             ))}
           </div>
         )}

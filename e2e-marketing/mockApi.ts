@@ -34,6 +34,8 @@ export function seedRows(): Row[] {
     { ...base, id: 'ig-dora', title: 'Dora post', content_type: 'social', channel: 'instagram', status: 'draft', body: 'Dora in the city', image_url: 'https://cdn.example/dora.jpg', parent_content_id: 'offer-dora' },
     { ...base, id: 'em-dora', title: 'Dora email', content_type: 'email', channel: 'email', status: 'draft', parent_content_id: 'offer-dora', tags: ['journey_email'], body: 'SUBJECT: Dora\nProduct: Dora\nPrice: 450\nUnsubscribe: {{unsubscribe_url}}' },
     { ...base, id: 'offer-ready', title: 'Window drop', content_type: 'offer', channel: 'internal', status: 'draft', body: null, user_brief: 'product: Window drop' },
+    { ...base, id: 'li-old', title: 'Old LinkedIn post', content_type: 'social', channel: 'linkedin', status: 'approved', body: 'A LinkedIn caption', image_url: 'https://cdn.example/li.jpg' },
+    { ...base, id: 'ig-no-still', title: 'AI draft', content_type: 'social', channel: 'instagram', status: 'approved', body: 'Caption without a picture' },
     { ...base, id: 'ig-ready', title: 'Window post', content_type: 'social', channel: 'instagram', status: 'approved', body: 'Window drop caption', image_url: 'https://cdn.example/window.jpg', parent_content_id: 'offer-ready' },
   ];
 }

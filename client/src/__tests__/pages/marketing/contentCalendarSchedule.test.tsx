@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { toast } from 'sonner';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { ContentCalendarTab } from '@/pages/marketing/sections/ContentCalendarTab';
-import { readyToSchedule, scheduleDropRule } from '@/pages/marketing/lib/calendarSchedule';
+import { readyToSchedule, scheduleDropRule, trayLabel } from '@/pages/marketing/lib/calendarSchedule';
 
 vi.mock('sonner', () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/stores/authStore', () => ({ useAuthStore: () => ({ user: { authUserId: 'u1', id: 'u1' } }) }));
@@ -21,7 +21,7 @@ function item(over: Partial<ContentItem>): ContentItem {
 }
 
 const draftOnCalendar = item({ id: 'draft-1', title: 'Draft post', status: 'draft', scheduled_date: day(10) });
-const approved = item({ id: 'ready-1', title: 'Papatya buketi', status: 'approved' });
+const approved = item({ id: 'ready-1', title: 'Papatya buketi', status: 'approved', image_url: 'https://cdn.example/papatya.jpg' });
 
 vi.mock('@/lib/marketingApi', () => ({
   marketingAPI: {
@@ -52,6 +52,25 @@ describe('scheduleDropRule', () => {
     expect(scheduleDropRule({ status: 'draft' })).toEqual({ ok: false, message: 'Only approved posts go on the calendar.' });
     expect(scheduleDropRule({ status: 'in_review' })).toMatchObject({ ok: false });
     expect(scheduleDropRule({ status: 'published' })).toEqual({ ok: false, message: 'This post is already published.' });
+  });
+
+  it('takes only Instagram posts with a caption and a still: another channel or a missing picture would fail on its day', () => {
+    const still = 'https://cdn.example/still.jpg';
+    const rows = [
+      item({ id: 'ok', status: 'approved', image_url: still }),
+      item({ id: 'linkedin', status: 'approved', channel: 'linkedin', image_url: still }),
+      item({ id: 'no-still', status: 'approved', image_url: null }),
+      item({ id: 'no-caption', status: 'approved', body: '  ', image_url: still }),
+      item({ id: 'email', status: 'approved', channel: 'email', image_url: null }),
+    ];
+    expect(readyToSchedule(rows).map((i) => i.id)).toEqual(['ok']);
+  });
+
+  it('labels a tray card by its caption when the title is the generic AI draft', () => {
+    expect(trayLabel({ title: 'Papatya buketi', body: 'Caption' })).toBe('Papatya buketi');
+    expect(trayLabel({ title: 'AI draft', body: 'Vitrinde bu hafta: Kürk Mantolu Madonna, ₺189 ile.\nGel bak.' })).toBe('Vitrinde bu hafta: Kürk Mantolu Mado…');
+    expect(trayLabel({ title: 'AI draft', body: 'Short caption' })).toBe('Short caption');
+    expect(trayLabel({ title: '', body: '' })).toBe('Untitled post');
   });
 
   it('lists approved posts without a day as ready', () => {

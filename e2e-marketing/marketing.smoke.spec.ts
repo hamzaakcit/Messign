@@ -184,6 +184,9 @@ test('calendar: an approved post waits in the tray and is scheduled by dragging 
 
   const tray = page.getByTestId('ready-tray');
   await expect(tray.getByText('Window post')).toBeVisible();
+  // Only what can go out: not a LinkedIn post, not an Instagram post with no picture.
+  await expect(tray.getByText('Old LinkedIn post')).toHaveCount(0);
+  await expect(tray.getByText('Caption without a picture')).toHaveCount(0);
   await expect(page.getByTestId('live-send-warning')).toHaveCount(0);
   // No create-on-click: the calendar only schedules.
   await expect(page.getByRole('dialog', { name: /New Content/i })).toHaveCount(0);
