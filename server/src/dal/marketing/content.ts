@@ -214,6 +214,23 @@ function parseImageVariantsJson(raw: unknown): ImageVariant[] | null {
   return out.length > 0 ? out : null;
 }
 
+/**
+ * A DATE column as `YYYY-MM-DD`. node-pg returns a DATE as a JS Date at local midnight, and `String()` of that is a long
+ * locale string ("Fri Nov 27 2026 00:00:00 GMT+0300 (...)") that no screen can match to a calendar day, show as a date or
+ * put in a date input. The local parts of that Date are the stored date, whatever the server's time zone.
+ */
+export function toDateOnly(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+  const text = String(value);
+  const iso = /^(\d{4}-\d{2}-\d{2})/.exec(text);
+  return iso ? iso[1] : text;
+}
+
 function mapContent(row: Record<string, unknown>): Content {
   return {
     id: String(row.id),
@@ -229,7 +246,7 @@ function mapContent(row: Record<string, unknown>): Content {
       row.body_design != null && typeof row.body_design === 'object' && !Array.isArray(row.body_design)
         ? (row.body_design as Record<string, unknown>)
         : null,
-    scheduled_date: row.scheduled_date ? String(row.scheduled_date) : null,
+    scheduled_date: toDateOnly(row.scheduled_date),
     scheduled_time: row.scheduled_time ? String(row.scheduled_time) : null,
     published_at: row.published_at ? String(row.published_at) : null,
     author_id: row.author_id ? String(row.author_id) : null,
@@ -712,7 +729,8 @@ export async function getCalendarView(
 ): Promise<ContentCalendarDay[]> {
   const monthValue = String(month).padStart(2, '0');
   const startDate = `${year}-${monthValue}-01`;
-  const endDate = new Date(year, month, 0).toISOString().slice(0, 10);
+  // The last day of the month, as local parts: toISOString() of local midnight is the day before east of UTC.
+  const endDate = `${year}-${monthValue}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
   const content = await listContent(
     ctx,
     { scheduledDateRange: { from: startDate, to: endDate } },

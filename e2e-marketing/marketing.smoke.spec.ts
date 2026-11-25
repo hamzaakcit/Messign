@@ -7,6 +7,9 @@ import { installApi, signIn } from './mockApi';
  * person clicks and check what the page then shows and which writes it made. A page error or an unmocked marketing
  * call fails the test, so a control that points at nothing cannot hide.
  */
+// The shops are in Turkey: run in their time zone, where a local midnight is the previous day in UTC.
+test.use({ timezoneId: 'Europe/Istanbul' });
+
 test.beforeEach(async ({ page }) => { await signIn(page); });
 
 /** The Dora offer card in the page (the sidebar has a Dora button too). */
@@ -184,6 +187,9 @@ test('calendar: an approved post waits in the tray and is scheduled by dragging 
 
   const tray = page.getByTestId('ready-tray');
   await expect(tray.getByText('Window post')).toBeVisible();
+  // Only what can go out: not a LinkedIn post, not an Instagram post with no picture.
+  await expect(tray.getByText('Old LinkedIn post')).toHaveCount(0);
+  await expect(tray.getByText('Caption without a picture')).toHaveCount(0);
   await expect(page.getByTestId('live-send-warning')).toHaveCount(0);
   // No create-on-click: the calendar only schedules.
   await expect(page.getByRole('dialog', { name: /New Content/i })).toHaveCount(0);
@@ -197,6 +203,8 @@ test('calendar: an approved post waits in the tray and is scheduled by dragging 
   await expect.poll(() => mock.writes).toContain('POST /marketing/content/ig-ready/schedule');
   expect(mock.rows.get('ig-ready')?.status).toBe('scheduled');
   await expect(tray.getByText('Nothing approved yet.')).toBeVisible();
+  // The post now sits on its day in the grid.
+  await expect(page.getByTestId('day-2026-11-20')).toContainText('Window post');
   expect(errors).toEqual([]);
   expect(mock.unmocked).toEqual([]);
 });
