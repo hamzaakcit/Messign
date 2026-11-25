@@ -37,13 +37,13 @@ export function InstagramJourneyStrip({ phase }: { phase: InstagramJourneyPhase 
     phase === 'writing'
       ? 'No caption yet. Open the offer and press Write caption.'
       : phase === 'image'
-        ? 'Caption is in. The image is generating.'
+        ? 'Caption is in. The still is next: use Regenerate image below.'
         : phase === 'review'
-          ? 'Read the caption and the image, then mark it ready.'
+          ? 'Read the caption and the still, then press Looks good on the offer.'
           : 'This draft is in review, approved, or scheduled.';
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-slate-950/50 px-3 py-2.5" data-testid="instagram-journey">
+    <div className="rounded-xl border border-[#e7e0d6] bg-white px-3 py-2.5" data-testid="instagram-journey">
       <ol className="flex flex-wrap gap-1.5">
         {PHASES.map((step, index) => {
           const state = index < current ? 'done' : index === current ? 'current' : 'upcoming';
@@ -52,10 +52,10 @@ export function InstagramJourneyStrip({ phase }: { phase: InstagramJourneyPhase 
               key={step.id}
               className={
                 state === 'current'
-                  ? 'rounded-full border border-pink-400/50 bg-pink-500/15 px-2.5 py-0.5 text-[11px] font-medium text-pink-100'
+                  ? 'rounded-full border border-[#1c1917] bg-[#1c1917] px-2.5 py-0.5 text-[11px] font-medium text-white'
                   : state === 'done'
-                    ? 'rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-200'
-                    : 'rounded-full border border-white/[0.08] px-2.5 py-0.5 text-[11px] text-app-muted'
+                    ? 'rounded-full border border-[#d6d3d1] bg-[#f4efe8] px-2.5 py-0.5 text-[11px] font-medium text-[#44403c]'
+                    : 'rounded-full border border-[#e7e0d6] px-2.5 py-0.5 text-[11px] text-[#a8a29e]'
               }
               aria-current={state === 'current' ? 'step' : undefined}
             >
@@ -64,7 +64,7 @@ export function InstagramJourneyStrip({ phase }: { phase: InstagramJourneyPhase 
           );
         })}
       </ol>
-      <p className="mt-2 text-xs text-app-muted">{hint}</p>
+      <p className="mt-2 text-xs text-[#78716c]">{hint}</p>
     </div>
   );
 }

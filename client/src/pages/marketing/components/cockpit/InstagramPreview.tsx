@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { cacheBustImageUrl } from '@/lib/cacheBustImageUrl';
 
@@ -40,7 +40,6 @@ export function InstagramPreview({
   imagePrompt,
   isGenerating,
   carouselImages,
-  username = 'your_brand',
   onSlideIndexChange,
 }: {
   caption: string;
@@ -48,7 +47,6 @@ export function InstagramPreview({
   imagePrompt: string | null | undefined;
   isGenerating?: boolean;
   carouselImages?: CarouselSlide[] | null;
-  username?: string;
   onSlideIndexChange?: (index: number) => void;
 }) {
   const [slideIndex, setSlideIndex] = useState(0);
@@ -90,15 +88,7 @@ export function InstagramPreview({
   const totalSlides = isCarousel ? carouselImages!.length : 1;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0f14] shadow-lg">
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-purple-500/40 to-pink-500/30 ring-1 ring-white/10" />
-          <span className="truncate text-[12px] font-semibold text-slate-100">@{username}</span>
-        </div>
-        <span className="text-slate-500">•••</span>
-      </div>
-
+    <div className="overflow-hidden rounded-xl border border-[#e7e0d6] bg-white">
       {/* Checkerboard shows through transparent PNG alpha so a failed/empty decode does not read as solid black on dark chrome. */}
       <div
         className="relative aspect-square w-full overflow-hidden"
@@ -110,8 +100,8 @@ export function InstagramPreview({
       >
         {isGenerating ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-            <div className="h-10 w-10 animate-pulse rounded-full bg-app-surface-tertiary" />
-            <p className="text-[11px] text-slate-500">Generating visuals…</p>
+            <div className="h-10 w-10 animate-pulse rounded-full bg-[#e7e0d6]" />
+            <p className="text-[11px] text-[#78716c]">Generating visuals…</p>
           </div>
         ) : currentImage && !imgLoadError ? (
           <>
@@ -156,7 +146,7 @@ export function InstagramPreview({
                       key={i}
                       className={cn(
                         'h-1.5 w-1.5 rounded-full transition-colors',
-                        i === slideIndex ? 'bg-cyan-400' : 'bg-white/30',
+                        i === slideIndex ? 'bg-[#1c1917]' : 'bg-white/60',
                       )}
                     />
                   ))}
@@ -166,14 +156,14 @@ export function InstagramPreview({
           </>
         ) : currentImage && imgLoadError ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-            <ImageOff className="h-7 w-7 text-slate-600" strokeWidth={1.5} />
-            <p className="text-[10px] text-slate-500 text-center">
+            <ImageOff className="h-7 w-7 text-[#a8a29e]" strokeWidth={1.5} />
+            <p className="text-[10px] text-[#78716c] text-center">
               Image could not be loaded — regenerate to create a new one.
             </p>
           </div>
         ) : (
           <div className="flex h-full flex-col justify-end p-3">
-            <p className="text-[10px] leading-relaxed text-slate-500 line-clamp-[12]">
+            <p className="text-[10px] leading-relaxed text-[#78716c] line-clamp-[12]">
               {imagePrompt?.trim() ||
                 'No image — add a prompt and generate, or wait for the pipeline to produce a visual.'}
             </p>
@@ -181,23 +171,15 @@ export function InstagramPreview({
         )}
       </div>
 
-      <div className="flex items-center gap-4 border-b border-white/[0.05] px-3 py-2 text-slate-300">
-        <Heart className="h-5 w-5" strokeWidth={1.5} />
-        <MessageCircle className="h-5 w-5" strokeWidth={1.5} />
-        <Send className="h-5 w-5" strokeWidth={1.5} />
-        <Bookmark className="ml-auto h-5 w-5" strokeWidth={1.5} />
-      </div>
-
       <div className="space-y-1.5 px-3 py-3 text-[12px] leading-relaxed">
-        <p className="text-slate-200">
-          <span className="font-semibold text-slate-100">@{username}</span>{' '}
+        <p className="text-[#44403c]">
           <span className="whitespace-pre-wrap">{visible}</span>
-          {more && <span className="text-slate-500"> …more</span>}
+          {more && <span className="text-[#a8a29e]"> …more</span>}
         </p>
         {hashtags.length > 0 && (
           <p className="text-[11px] leading-snug">
             {hashtags.map((t, i) => (
-              <span key={i} className={cn('text-cyan-400/90', i > 0 && 'ml-1')}>
+              <span key={i} className={cn('text-[#57534e]', i > 0 && 'ml-1')}>
                 {t}
               </span>
             ))}

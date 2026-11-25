@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Calendar, Clock, Eye, Rocket, Send } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { useAuthStore } from '@/stores/authStore';
@@ -20,7 +19,6 @@ import { offerChildStatusLine } from '../lib/offerChildStatus';
 import { useContentTenant } from '../lib/contentTenant';
 import { resolveCampaignId } from '../lib/offerCampaign';
 import { readStudioSheet } from '../lib/offerSheetForm';
-import { OfferSheetDetail } from './OfferSheetDetail';
 
 interface ContentDetailPanelProps {
   contentId: string;
@@ -38,7 +36,6 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [imageGenProgress, setImageGenProgress] = useState('');
   const [igFormat, setIgFormat] = useState<InstagramFormat>('feed');
   const [showScheduleEditor, setShowScheduleEditor] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -112,34 +109,17 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
     fetchContent();
   }, [fetchContent]);
 
-  const waitingOnLucy =
-    (content?.channel ?? '').toLowerCase() === 'instagram' &&
-    (!(content?.body ?? '').trim() || !(content?.image_url ?? '').trim()) &&
-    (content?.status ?? 'draft') === 'draft';
-
-  useEffect(() => {
-    if (!waitingOnLucy) return undefined;
-    const started = Date.now();
-    const timer = window.setInterval(() => {
-      if (Date.now() - started > 3 * 60 * 1000) {
-        window.clearInterval(timer);
-        return;
-      }
-      void fetchContent();
-    }, 4000);
-    return () => window.clearInterval(timer);
-  }, [waitingOnLucy, fetchContent]);
-
-  const handleLooksGood = async () => {
-    if (!content) return;
+  /** Takes a post (or a cart offer's email) back from review or approval to a draft, so it can be changed again. */
+  const handleBackToDraft = async (childId: string) => {
     setSubmittingReview(true);
     try {
-      await marketingAPI.updateContent(userId, content.id, { submit_for_review: true });
-      toast.success('Marked ready for review');
+      await marketingAPI.updateContent(userId, childId, { status: 'draft' });
+      toast.success('Back to draft');
+      setChildrenVersion((n) => n + 1);
       await fetchContent();
       onUpdated();
     } catch (e) {
-      toast.error('Could not send to review', { description: e instanceof Error ? e.message : 'Request failed' });
+      toast.error('Could not go back to draft', { description: e instanceof Error ? e.message : 'Request failed' });
     } finally {
       setSubmittingReview(false);
     }
@@ -283,6 +263,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
         canApprove={canApprove}
         submitting={submittingReview}
         onOpenChild={(childId) => openDetail({ type: 'content', id: childId })}
+        onBackToDraft={(childId) => void handleBackToDraft(childId)}
         onWriteCaption={(postId) => void handleWriteCaption(postId)}
         writingCaption={writingCaption}
         campaignName={content.campaign_name ?? null}
@@ -298,7 +279,6 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
           instagram && picture.scene
             ? () => {
                 setIsGeneratingImage(true);
-                setImageGenProgress('Regenerating visual…');
                 void marketingAPI
                   .regenerateContentImage(userId, instagram.id, {
                     image_prompt: picture.scene,
@@ -322,7 +302,6 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                   })
                   .finally(() => {
                     setIsGeneratingImage(false);
-                    setImageGenProgress('');
                   });
               }
             : undefined
@@ -334,26 +313,28 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
   const formatAspectRatio = aspectRatioForInstagramFormat(igFormat);
 
   return (
-    <div className="flex h-full min-h-0 gap-0">
+    <div className="flex h-full min-h-0 gap-0 bg-[#f4efe8] text-[#1c1917]">
       {/* Left column: preview + controls */}
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Badge variant="blue">{content.content_type}</Badge>
-            <Badge variant={content.status === 'published' ? 'green' : 'default'}>{content.status}</Badge>
-            {isInstagram && (
-              <Badge variant="purple">{igFormat === 'feed' ? '1:1 Feed' : igFormat === 'story' ? '9:16 Story' : '9:16 Reel'}</Badge>
-            )}
+            {[
+              content.content_type,
+              content.status,
+              ...(isInstagram ? [igFormat === 'feed' ? '1:1 Feed' : igFormat === 'story' ? '9:16 Story' : '9:16 Reel'] : []),
+            ].map((label) => (
+              <span key={label} className="rounded-full border border-[#e7e0d6] bg-white px-2.5 py-0.5 text-xs text-[#44403c]">{label}</span>
+            ))}
           </div>
           {isEmail ? (
-            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Subject</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-[#78716c]">Subject</p>
           ) : null}
-          <h3 className="text-2xl font-semibold text-app-text">{content.title}</h3>
+          <h3 className="text-2xl font-medium text-[#1c1917]">{content.title}</h3>
           {content.parent_title ? (
-            <p className="mt-1 text-xs text-violet-300/90">Offer · {content.parent_title}</p>
+            <p className="mt-1 text-xs text-[#78716c]">Offer · {content.parent_title}</p>
           ) : null}
           {offerChildrenLine ? (
-            <p className="mt-1 text-xs text-slate-300" data-testid="offer-child-status">{offerChildrenLine}</p>
+            <p className="mt-1 text-xs text-[#57534e]" data-testid="offer-child-status">{offerChildrenLine}</p>
           ) : null}
           {offerChildren.some((child) => child.id !== content.id && (child.channel === 'email' || child.channel === 'instagram')) ? (
             <div className="mt-2 flex flex-wrap gap-2" data-testid="offer-siblings">
@@ -365,17 +346,17 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                     type="button"
                     data-testid={`offer-sibling-${(child.channel ?? 'child').toLowerCase()}`}
                     onClick={() => openDetail({ type: 'content', id: child.id })}
-                    className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary px-2.5 py-1 text-xs text-slate-200 hover:border-app-border-strong"
+                    className="rounded-lg border border-[#e7e0d6] bg-white px-2.5 py-1 text-xs text-[#44403c] hover:border-[#a8a29e]"
                   >
                     {child.channel === 'email' ? 'Email' : 'Instagram'} · {child.title}
                   </button>
                 ))}
             </div>
           ) : null}
-          <p className="text-sm text-app-muted mt-2">{content.channel || 'No channel'} • {content.campaign_name || 'No campaign'}</p>
+          <p className="text-sm text-[#78716c] mt-2">{content.channel || 'No channel'} • {content.campaign_name || 'No campaign'}</p>
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-app-muted">
+        <div className="flex items-center gap-4 text-xs text-[#78716c]">
           <span className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
             {content.scheduled_date
@@ -393,7 +374,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
         {/* Instagram format selector */}
         {isInstagram && (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Format</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[#78716c]">Format</span>
             {(['feed', 'story', 'reel'] as const).map((fmt) => (
               <button
                 key={fmt}
@@ -402,8 +383,8 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                 className={cn(
                   'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors capitalize',
                   igFormat === fmt
-                    ? 'border-pink-500/40 bg-pink-500/10 text-pink-300'
-                    : 'border-white/[0.08] bg-app-surface-tertiary text-slate-400 hover:border-app-border-strong',
+                    ? 'border-[#1c1917] bg-[#1c1917] text-white'
+                    : 'border-[#e7e0d6] bg-white text-[#44403c] hover:border-[#a8a29e]',
                 )}
               >
                 {fmt}
@@ -413,9 +394,9 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
         )}
 
         {!isInstagram && journeyTemplateRefFromTags(content.tags) ? (
-          <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2">
-            <p className="text-sm font-medium text-violet-100">Ready for journey</p>
-            <p className="mt-1 text-xs text-violet-200/80">
+          <div className="rounded-lg border border-[#e7e0d6] bg-white px-3 py-2">
+            <p className="text-sm font-medium text-[#1c1917]">Ready for journey</p>
+            <p className="mt-1 text-xs text-[#78716c]">
               This screen does not send. Engage will render this template later.
             </p>
           </div>
@@ -435,7 +416,6 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
           <InstagramStudio
             content={content}
             isGenerating={isGeneratingImage}
-            progressMessage={imageGenProgress}
             onUploadReferenceImage={async (file) => {
               const r = await marketingAPI.uploadReferenceImage(userId, content.id, file);
               setContent((c) => (c ? { ...c, reference_image_url: r.reference_image_url } : c));
@@ -443,7 +423,6 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
             }}
             onApplyAiPhotoEdit={async (editPrompt, stylePreset) => {
               setIsGeneratingImage(true);
-              setImageGenProgress('AI editing your photo…');
               try {
                 const r = await marketingAPI.aiPhotoEdit(userId, content.id, {
                   edit_prompt: editPrompt,
@@ -479,7 +458,6 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                 });
               } finally {
                 setIsGeneratingImage(false);
-                setImageGenProgress('');
               }
             }}
             onSelectImageVariant={async (imageUrl) => {
@@ -494,7 +472,6 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
             }}
             onRegenerateImage={async (newPrompt, stylePreset, slideIndex = 0, extras) => {
               setIsGeneratingImage(true);
-              setImageGenProgress(slideIndex > 0 ? `Regenerating slide ${slideIndex + 1}…` : 'Regenerating visual…');
               try {
                 const r = await marketingAPI.regenerateContentImage(userId, content.id, {
                   image_prompt: newPrompt,
@@ -525,28 +502,19 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                 });
               } finally {
                 setIsGeneratingImage(false);
-                setImageGenProgress('');
               }
             }}
           />
         ) : (
-          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4">
-            <div className="text-sm text-app-text whitespace-pre-wrap">{content.body || 'No body yet.'}</div>
+          <div className="rounded-xl border border-[#e7e0d6] bg-white p-4">
+            <div className="text-sm text-[#1c1917] whitespace-pre-wrap">{content.body || 'No body yet.'}</div>
           </div>
         )}
-
-        {isInstagram ? (
-          <OfferSheetDetail
-            brief={content.user_brief}
-            returnedPrompt={content.image_generation_metadata?.fal_returned_prompt}
-            referenceImageUrl={content.reference_image_url}
-          />
-        ) : null}
 
         {(content.tags?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1">
             {content.tags?.map((tag) => (
-              <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-app-surface-tertiary text-app-muted">{tag}</span>
+              <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-white border border-[#e7e0d6] text-[#78716c]">{tag}</span>
             ))}
           </div>
         )}
@@ -559,40 +527,11 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                 type="button"
                 onClick={() => void handleDraftJourneyEmail()}
                 disabled={draftingEmail}
-                className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20 disabled:opacity-40"
+                className="rounded-lg border border-[#e7e0d6] bg-white px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20 disabled:opacity-40"
               >
                 {draftingEmail ? 'Drafting email…' : 'Draft journey email'}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => void handleLooksGood()}
-              disabled={submittingReview || !(content.body ?? '').trim() || content.status === 'in_review'}
-              className="rounded-lg bg-pink-600 px-3 py-2 text-sm font-medium text-white hover:bg-pink-500 disabled:opacity-40"
-            >
-              {content.status === 'in_review' ? 'In review' : submittingReview ? 'Sending…' : 'Looks good'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void marketingAPI.updateContent(userId, content.id, { status: 'draft' }).then(() => {
-                  toast.success('Draft');
-                  void fetchContent();
-                  onUpdated();
-                }).catch(() => toast.error('Could not save the draft'));
-              }}
-              className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary px-3 py-2 text-sm font-medium text-slate-200 hover:border-app-border-strong"
-            >
-              Draft
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowScheduleEditor((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 hover:bg-cyan-500/20"
-            >
-              <Clock className="h-3.5 w-3.5" />
-              Scheduled
-            </button>
             {isInstagram && contentTenant.publishAllowed ? (
             <button
               type="button"
@@ -612,13 +551,13 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                 }).finally(() => setTestPublishing(false));
               }}
               disabled={testPublishing || !(content.image_url ?? '').trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e7e0d6] bg-white px-3 py-2 text-sm font-medium text-[#44403c] hover:border-[#a8a29e] disabled:opacity-40"
             >
               <Rocket className="h-3.5 w-3.5" />
               {testPublishing ? 'Publishing…' : `Test publish · ${publishMode}`}
             </button>
             ) : isInstagram ? (
-              <p className="text-xs text-app-muted" data-testid="publish-off">
+              <p className="text-xs text-[#78716c]" data-testid="publish-off">
                 Publish is off for {contentTenant.brandName}.
               </p>
             ) : null}
@@ -629,7 +568,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
               onClick={() => setShowScheduleEditor((v) => !v)}
               title={content.scheduled_date ? 'Reschedule' : 'Schedule'}
               aria-label={content.scheduled_date ? 'Reschedule' : 'Schedule'}
-              className="h-8 w-8 flex items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#e7e0d6] bg-white text-[#44403c] hover:border-[#a8a29e] transition-colors"
             >
               <Clock className="w-4 h-4" />
             </button>
@@ -642,27 +581,27 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
 
         {/* Schedule editor */}
         {showScheduleEditor && (
-          <div className="rounded-xl border border-app-border bg-app-surface-tertiary p-4 space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pick date & time</p>
+          <div className="rounded-xl border border-[#e7e0d6] bg-white p-4 space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#78716c]">Pick date & time</p>
             <div className="flex items-center gap-3">
               <input
                 type="date"
                 title="Schedule date"
                 value={scheduleDate || content.scheduled_date || ''}
                 onChange={(e) => setScheduleDate(e.target.value)}
-                className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-slate-200"
+                className="rounded-lg border border-[#e7e0d6] bg-white px-3 py-2 text-sm text-[#1c1917]"
               />
               <input
                 type="time"
                 title="Schedule time"
                 value={scheduleTime || content.scheduled_time || ''}
                 onChange={(e) => setScheduleTime(e.target.value)}
-                className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-slate-200"
+                className="rounded-lg border border-[#e7e0d6] bg-white px-3 py-2 text-sm text-[#1c1917]"
               />
               <button
                 onClick={() => void handleManualSchedule()}
                 disabled={!scheduleDate}
-                className="rounded-lg bg-cyan-600/80 px-4 py-2 text-sm font-medium text-app-text hover:bg-cyan-500 disabled:opacity-40"
+                className="rounded-lg bg-[#1c1917] px-4 py-2 text-sm font-medium text-white hover:bg-[#292524] disabled:opacity-40"
               >
                 Confirm
               </button>

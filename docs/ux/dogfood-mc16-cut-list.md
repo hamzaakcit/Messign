@@ -57,3 +57,27 @@ Written down, **not deleted**. The rule from the plan: anything not opened in th
 - The **campaign detail slide-over** (`CampaignDetailPanel`, opened by `detail.type === 'campaign'`) has had no caller since the create-campaign form and the board went. It is unreachable code, a candidate to delete. A campaign is now a plain name on offers: no budget, dates or channel mix.
 - **Name clash:** the Engage tab strip on the same page has a **Campaigns** tab (customer messaging). An offer's campaign is a different thing that happens to share the word. If shops confuse them, rename the offer field ("Group") rather than the Engage tab.
 
+## Closed on 2026-11-26 (marketing leftovers, done together)
+
+| Item | What was done |
+|---|---|
+| D: empty Picture step and "Caption direction" on an email-only offer | An offer with no post has **four steps** (no Picture) and the field reads "Direction for the email". |
+| Tone field | **It saved nothing**: `save` was a memoised callback missing `tone` from its dependencies, so a tone typed under the topic was dropped. Fixed, and the tone now goes into the brief's intent, which the caption writer reads. |
+| Intent lines with a colon | The server's sheet parser dropped any intent line containing a colon ("Sale: 20% off", "Tone: warm"). Everything before the first known label is now the intent. |
+| E: dark on paper | New offer, the home's shop switcher, the slide-over chrome, the post panel and its preview, the calendar, and the shared top bar and canvas (Calendar, Builder, Shop settings) are on paper. |
+| F: switcher label | Not a bug: the label was associated all along (the inspection tool names a select by its value). The visible label "Content tenant" is now "Shop". |
+| G: the post panel loaded the same row five times | It **polled every 4 seconds for up to 3 minutes** for a caption or still that nothing writes in the background any more (the old "Send to Lucy" flow). Removed. |
+| Cut list, the agreed items | Removed from the post panel: the second Offer sheet and "Prompt Fal returned" (the offer view keeps its one), the second **Looks good**, the **Draft** and **Scheduled** buttons, the fake `@your_brand` header and like-row, the internal id hash, and the cockpit's own unreachable copy of that fake preview with its code. **Draft** was a real capability (taking a post back from review), so it moved to the offer's ⋯ menu as **Back to draft**. The calendar is now the one place to schedule a post. The unreachable campaign detail panel is deleted. |
+| Status hints | The post panel's strip no longer says "Lucy is writing…" or "mark it ready" where there is no such button. |
+| Dev data | The 3 placeholder posts in the tray, the 2 throwaway rows, the Nov 27 scheduled post (now unscheduled, back to approved) and the "Teachers Day" campaign were removed. |
+
+### Still open
+
+- **Two more old placeholder posts** ("[DRAFT — Pending Review] This has not been published."): a LinkedIn post (`7d7ed745-7e9a-4666-ab19-a0f8459eadd5`) and an Instagram post with no picture (`13293503-52a3-4132-91f6-78e83a3e88ec`). They do not show in the tray (the rule excludes them) but are `approved`. Not deleted: they were not part of the approved cleanup. One more old approved post, "Serenity found. A paper plane made f…", is still in the tray.
+- **Two unreachable panels**, like the campaign one: `LeadDetailPanel` and `EmailCampaignDetailPanel` (nothing opens the `lead` or `email` detail). Candidates to delete.
+- **Format toggle and photo edit** stay on the post panel until the offer view can change them.
+- **A generic blue "Dora tracks campaign ROI…" strip** on Builder (the Company-OS insight bar). Not touched.
+- **`scheduleContent` is two steps** (queue for the publisher, then save the date), not one transaction. If the second fails, a post is queued with no date and the calendar cannot show it. Rare, but worth making atomic.
+- **404s on every page** for `/api/reimbursements/counts` and `/api/approvals/counts` (the Company-OS shell).
+- **The email child's panel internals** (`ContentEmailSection`) are Builder-style and were not restyled.
+

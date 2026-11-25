@@ -8,7 +8,6 @@ import { MarketingProvider, useMarketingContext } from './MarketingContext';
 import { MarketingWorkspaceLayout } from './MarketingWorkspaceLayout';
 import { LucyMarketingPage } from './LucyMarketingPage';
 import { NewOfferPage } from './NewOfferPage';
-import { CampaignDetailPanel } from './components/CampaignDetailPanel';
 import { LeadDetailPanel } from './components/LeadDetailPanel';
 import { BrandProfileManager } from './components/BrandProfileManager';
 import { TenantContentSetupPanel } from './components/TenantContentSetupPanel';
@@ -100,7 +99,7 @@ function BuilderRoute(): JSX.Element {
 /** Shop settings: the shop's content setup and its brand profiles, on paper (UX-05 replaces the Brands button). */
 function ShopSettingsRoute(): JSX.Element {
   return (
-    <div data-theme="light" className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-app-bg text-app-text">
+    <div data-theme="light" className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f4efe8] text-[#1c1917]">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
         <h1 className="text-lg font-semibold">Shop settings</h1>
         <TenantContentSetupPanel />
@@ -144,7 +143,7 @@ function MarketingBootstrapBanner({
   if (!error) return null;
   return (
     <div
-      className="shrink-0 px-4 py-1.5 text-xs bg-rose-950/50 text-rose-100 border-b border-rose-500/30 flex items-center justify-between gap-2"
+      className="shrink-0 px-4 py-1.5 text-xs bg-red-50 text-red-800 border-b border-red-200 flex items-center justify-between gap-2"
       role="alert"
     >
       <span className="truncate">{error.message}</span>
@@ -159,6 +158,9 @@ function MarketingBootstrapBanner({
 // Shared panels (detail, create, brand — unified, no duplication)
 // ---------------------------------------------------------------------------
 
+/** The slide-over chrome (its header and edge) in the shop counter's paper colours instead of the app's cool white. */
+const PAPER_PANEL_VARS = { '--app-sidebar': '#f4efe8', '--app-border': '#e7e0d6' } as React.CSSProperties;
+
 function MarketingPanels(): JSX.Element {
   const ctx = useMarketingContext();
   const handleDetailUpdated = useCallback(() => {
@@ -166,7 +168,7 @@ function MarketingPanels(): JSX.Element {
   }, [ctx.invalidateWorkspace]);
 
   return (
-    <>
+    <div data-theme="light" className="text-app-text" style={PAPER_PANEL_VARS}>
       {/* Detail panels */}
       <SlideOverPanel
         isOpen={ctx.detail?.type === 'content'}
@@ -182,17 +184,6 @@ function MarketingPanels(): JSX.Element {
               onUpdated={handleDetailUpdated}
             />
           </Suspense>
-        )}
-      </SlideOverPanel>
-
-      <SlideOverPanel
-        isOpen={ctx.detail?.type === 'campaign'}
-        onClose={ctx.closeDetail}
-        title="Campaign Detail"
-        width={760}
-      >
-        {ctx.detail?.type === 'campaign' && (
-          <CampaignDetailPanel campaignId={ctx.detail.id} onUpdated={handleDetailUpdated} />
         )}
       </SlideOverPanel>
 
@@ -217,7 +208,7 @@ function MarketingPanels(): JSX.Element {
           <EmailCampaignDetailPanel emailId={ctx.detail.id} />
         )}
       </SlideOverPanel>
-    </>
+    </div>
   );
 }
 

@@ -177,7 +177,7 @@ describe('shop counter', () => {
     for (let i = 0; i < 3; i += 1) {
       vi.mocked(marketingAPI.listContent).mockRejectedValueOnce(new Error('Could not load offers'));
     }
-    fireEvent.change(screen.getByLabelText(/Content tenant/), { target: { value: 'messign' } });
+    fireEvent.change(screen.getByLabelText('Shop'), { target: { value: 'messign' } });
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
@@ -186,7 +186,7 @@ describe('shop counter', () => {
     renderLucy();
     fireEvent.click(await screen.findByRole('button', { name: /^Dora/ }));
     expect(await screen.findByRole('heading', { name: 'Dora' }, { timeout: 5000 })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/Content tenant/), { target: { value: 'bookstore' } });
+    fireEvent.change(screen.getByLabelText('Shop'), { target: { value: 'bookstore' } });
     await waitFor(() => {
       expect(screen.queryByRole('heading', { name: 'Content Detail' })).not.toBeInTheDocument();
     });

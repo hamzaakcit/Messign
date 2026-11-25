@@ -11,7 +11,7 @@ export function MarketingWorkspaceSecondaryAlerts({
   if (!brandsError) return null;
   return (
     <div
-      className="shrink-0 px-4 py-1 text-[11px] bg-amber-950/40 text-amber-100/95 border-b border-amber-500/25 flex flex-wrap items-center gap-x-4 gap-y-1"
+      className="shrink-0 px-4 py-1 text-[11px] bg-amber-50 text-amber-900 border-b border-amber-200 flex flex-wrap items-center gap-x-4 gap-y-1"
       role="status"
       aria-live="polite"
     >

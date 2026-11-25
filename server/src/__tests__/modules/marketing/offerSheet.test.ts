@@ -43,6 +43,16 @@ describe('offer sheet', () => {
     expect(again.sheet).toEqual(parsed.sheet);
   });
 
+  it('keeps intent lines that contain a colon, and still ignores an unknown label after the facts', () => {
+    const parsed = parseOfferSheet(['Teachers Day: daisy bouquets', 'Tone: warm', '', 'product: Papatya buketi', 'price: ₺450', 'mood: calm'].join('\n'));
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.sheet.intent).toBe('Teachers Day: daisy bouquets\nTone: warm');
+    expect(parsed.sheet.product).toBe('Papatya buketi');
+    expect(parsed.sheet.price).toBe('₺450');
+    expect(serializeOfferSheet(parsed.sheet)).not.toContain('mood');
+    expect(parseOfferSheet(serializeOfferSheet(parsed.sheet)).sheet).toEqual(parsed.sheet);
+  });
+
   it('treats a sentence with no labels as intent only', () => {
     const parsed = parseOfferSheet('Window drop for the novel.');
     expect(parsed.errors).toEqual([]);

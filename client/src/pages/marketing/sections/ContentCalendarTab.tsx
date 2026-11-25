@@ -30,6 +30,9 @@ import { localDateKey, monthGridLength, monthRange, readyToSchedule, scheduleDro
 
 type ViewMode = 'month' | 'week' | 'list';
 
+/** The slide-over chrome in the shop counter's paper colours. */
+const PAPER_PANEL_VARS = { '--app-sidebar': '#f4efe8', '--app-border': '#e7e0d6' } as React.CSSProperties;
+
 function contentVariant(t: string): 'default' | 'blue' | 'purple' | 'green' | 'orange' | 'red' {
   if (t === 'blog') return 'blue';
   if (t === 'social') return 'purple';
@@ -41,19 +44,16 @@ function contentVariant(t: string): 'default' | 'blue' | 'purple' | 'green' | 'o
 
 function channelIcon(channel?: string | null): JSX.Element {
   const c = (channel ?? '').toLowerCase();
-  if (c === 'instagram') return <Instagram className="h-3 w-3 text-pink-400" />;
-  if (c === 'email') return <Mail className="h-3 w-3 text-green-400" />;
-  return <Megaphone className="h-3 w-3 text-slate-400" />;
+  if (c === 'instagram') return <Instagram className="h-3 w-3 text-pink-600" />;
+  if (c === 'email') return <Mail className="h-3 w-3 text-green-700" />;
+  return <Megaphone className="h-3 w-3 text-[#78716c]" />;
 }
 
 function channelBg(channel?: string | null): string {
   const c = (channel ?? '').toLowerCase();
-  if (c === 'instagram') return 'bg-pink-500/15 text-pink-300 border-pink-500/20';
-  if (c === 'email') return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20';
-  if (c === 'twitter' || c === 'x') return 'bg-sky-500/15 text-sky-300 border-sky-500/20';
-  if (c === 'linkedin') return 'bg-blue-500/15 text-blue-300 border-blue-500/20';
-  if (c === 'facebook') return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20';
-  return 'bg-app-surface-tertiary text-slate-300 border-white/[0.08]';
+  if (c === 'instagram') return 'bg-[#fdf2f8] text-[#9d174d] border-[#fbcfe8]';
+  if (c === 'email') return 'bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]';
+  return 'bg-[#f4efe8] text-[#44403c] border-[#e7e0d6]';
 }
 
 function startOfCalendarMonth(year: number, monthIndex: number): Date {
@@ -169,11 +169,11 @@ export function ContentCalendarTab(): JSX.Element {
   };
 
   const contentColumns = useMemo<ColumnDef<ContentItem>[]>(() => [
-    { key: 'title', header: 'Title', render: (_v, row) => (<div className="flex items-center gap-2">{channelIcon(row.channel)}<span className="font-medium text-app-text">{row.title}</span></div>) },
+    { key: 'title', header: 'Title', render: (_v, row) => (<div className="flex items-center gap-2">{channelIcon(row.channel)}<span className="font-medium text-[#1c1917]">{row.title}</span></div>) },
     { key: 'content_type', header: 'Type', render: (v) => <Badge variant={contentVariant(String(v))}>{String(v)}</Badge> },
     { key: 'channel', header: 'Channel', render: (v) => <span className={cn('inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium', channelBg(String(v)))}>{channelIcon(String(v))}{String(v)}</span> },
     { key: 'status', header: 'Status', render: (v) => <Badge variant="default">{String(v)}</Badge> },
-    { key: 'scheduled_date', header: 'Scheduled', render: (v, row) => v ? <span className="text-slate-300">{String(v)}{row.scheduled_time ? ` \u00B7 ${row.scheduled_time}` : ''}</span> : <span className="text-app-muted">Not scheduled</span> },
+    { key: 'scheduled_date', header: 'Scheduled', render: (v, row) => v ? <span className="text-[#57534e]">{String(v)}{row.scheduled_time ? ` \u00B7 ${row.scheduled_time}` : ''}</span> : <span className="text-app-muted">Not scheduled</span> },
     { key: 'campaign_name', header: 'Campaign' },
   ], []);
 
@@ -185,14 +185,14 @@ export function ContentCalendarTab(): JSX.Element {
     if (chip.kind === 'instagram') {
       return (
         <button key={item.id} draggable onDragStart={() => setDragged(item)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
-          <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
+          <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-[#a8a29e]')}>
             <div className="flex items-center gap-1">
               {chip.thumb ? (
                 <img src={chip.thumb} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
               ) : channelIcon(item.channel)}
               <span className="truncate font-medium">{chip.title}</span>
               {chip.format ? (
-                <span className="shrink-0 rounded bg-black/30 px-1 py-0.5 text-[8px] uppercase tracking-wide">{chip.format}</span>
+                <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 text-[8px] uppercase tracking-wide">{chip.format}</span>
               ) : null}
             </div>
             {time}
@@ -203,7 +203,7 @@ export function ContentCalendarTab(): JSX.Element {
     if (chip.kind === 'email') {
       return (
         <button key={item.id} draggable onDragStart={() => setDragged(item)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
-          <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
+          <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-[#a8a29e]')}>
             <div className="text-[8px] uppercase tracking-wide opacity-70">Subject</div>
             <div className="truncate font-medium">{chip.subject}</div>
             {time}
@@ -213,7 +213,7 @@ export function ContentCalendarTab(): JSX.Element {
     }
     return (
       <button key={item.id} draggable onDragStart={() => setDragged(item)} onClick={(e) => { e.stopPropagation(); setSelectedContentId(item.id); }} className="w-full text-left group">
-        <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-white/20')}>
+        <div className={cn('rounded-md border px-2 py-1 text-[10px] transition-all', channelBg(item.channel), 'hover:ring-1 hover:ring-[#a8a29e]')}>
           <div className="flex items-center gap-1">{channelIcon(item.channel)}<span className="truncate font-medium">{item.title}</span></div>
           {time}
         </div>
@@ -225,30 +225,30 @@ export function ContentCalendarTab(): JSX.Element {
     const isToday = day.date === todayKey;
     const hasWarning = day.items.length >= 3;
     return (
-      <div key={day.date} data-testid={`day-${day.date}`} className={cn('min-h-[120px] border-r border-b border-white/[0.06] p-1.5 transition-colors', day.inMonth ? 'bg-[#0c0f14]' : 'bg-[#080a0e] opacity-50', dragged && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)}>
+      <div key={day.date} data-testid={`day-${day.date}`} className={cn('min-h-[120px] border-r border-b border-[#e7e0d6] p-1.5 transition-colors', day.inMonth ? 'bg-white' : 'bg-[#f4efe8] opacity-60', dragged && 'hover:bg-[#f4efe8]')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)}>
         <div className="flex items-center justify-between mb-1">
-          <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-500')}>{new Date(day.date + 'T12:00:00').getDate()}</span>
+          <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium', isToday ? 'bg-[#1c1917] text-white' : 'text-[#78716c]')}>{new Date(day.date + 'T12:00:00').getDate()}</span>
           {hasWarning && <AlertTriangle className="h-3 w-3 text-amber-400/80" />}
         </div>
         <div className="space-y-0.5">
           {day.items.slice(0, 4).map(renderCalendarItem)}
-          {day.items.length > 4 && <p className="text-[8px] text-slate-600 text-center">+{day.items.length - 4} more</p>}
+          {day.items.length > 4 && <p className="text-[8px] text-[#a8a29e] text-center">+{day.items.length - 4} more</p>}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3">
+    <div data-theme="light" className="flex-1 overflow-y-auto bg-[#f4efe8] px-4 py-3 text-[#1c1917]" style={PAPER_PANEL_VARS}>
       {liveSend ? (
-        <p role="status" data-testid="live-send-warning" className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        <p role="status" data-testid="live-send-warning" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Live sending is on: a scheduled Instagram post will be published on its day.
         </p>
       ) : null}
-      <section className="mb-3 rounded-xl border border-app-border bg-app-surface-tertiary px-3 py-2" data-testid="ready-tray">
-        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Ready to schedule</h3>
+      <section className="mb-3 rounded-xl border border-[#e7e0d6] bg-white px-3 py-2" data-testid="ready-tray">
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#78716c]">Ready to schedule</h3>
         {ready.length === 0 ? (
-          <p className="mt-1 text-xs text-slate-500">Nothing approved yet.</p>
+          <p className="mt-1 text-xs text-[#78716c]">Nothing approved yet.</p>
         ) : (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {ready.map((item) => (
@@ -257,29 +257,29 @@ export function ContentCalendarTab(): JSX.Element {
           </div>
         )}
       </section>
-      <div className="rounded-xl border border-app-border bg-app-surface-tertiary overflow-hidden mb-4">
-        <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+      <div className="rounded-xl border border-[#e7e0d6] bg-white overflow-hidden mb-4">
+        <div className="flex items-center justify-between border-b border-[#e7e0d6] px-4 py-3">
           <div className="flex items-center gap-2">
-            <button title="Previous" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() - 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-1.5 text-slate-400 hover:bg-app-hover hover:text-slate-200"><ChevronLeft className="h-4 w-4" /></button>
-            <h2 className="min-w-[180px] text-center text-sm font-semibold text-slate-100">
+            <button title="Previous" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() - 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1)); } }} className="rounded-lg border border-[#e7e0d6] bg-white p-1.5 text-[#78716c] hover:bg-[#f4efe8] hover:text-[#1c1917]"><ChevronLeft className="h-4 w-4" /></button>
+            <h2 className="min-w-[180px] text-center text-sm font-semibold text-[#1c1917]">
               {viewMode === 'week'
                 ? `${weekDays[0] ? new Date(weekDays[0].date + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' }) : ''} \u2013 ${weekDays[6] ? new Date(weekDays[6].date + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}`
                 : anchorDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </h2>
-            <button title="Next" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() + 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1)); } }} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-1.5 text-slate-400 hover:bg-app-hover hover:text-slate-200"><ChevronRight className="h-4 w-4" /></button>
-            <button onClick={() => setAnchorDate(new Date())} className="rounded-lg border border-white/[0.08] bg-app-surface-tertiary px-2.5 py-1.5 text-[10px] font-medium text-slate-400 hover:bg-app-hover hover:text-slate-200">Today</button>
+            <button title="Next" onClick={() => { if (viewMode === 'week') { setAnchorDate((c) => { const d = new Date(c); d.setDate(d.getDate() + 7); return d; }); } else { setAnchorDate((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1)); } }} className="rounded-lg border border-[#e7e0d6] bg-white p-1.5 text-[#78716c] hover:bg-[#f4efe8] hover:text-[#1c1917]"><ChevronRight className="h-4 w-4" /></button>
+            <button onClick={() => setAnchorDate(new Date())} className="rounded-lg border border-[#e7e0d6] bg-white px-2.5 py-1.5 text-[10px] font-medium text-[#78716c] hover:bg-[#f4efe8] hover:text-[#1c1917]">Today</button>
           </div>
-          <div className="flex rounded-lg border border-white/[0.08] bg-app-surface-tertiary p-0.5">
+          <div className="flex rounded-lg border border-[#e7e0d6] bg-[#f4efe8] p-0.5">
             {([{ id: 'month' as const, icon: CalendarDays, label: 'Month' }, { id: 'week' as const, icon: LayoutGrid, label: 'Week' }, { id: 'list' as const, icon: List, label: 'List' }]).map(({ id, icon: Icon, label }) => (
-              <button key={id} type="button" onClick={() => setViewMode(id)} title={label} className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors', viewMode === id ? 'bg-app-surface-tertiary text-slate-100' : 'text-slate-500 hover:text-slate-300')}><Icon className="h-3.5 w-3.5" />{label}</button>
+              <button key={id} type="button" onClick={() => setViewMode(id)} title={label} className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors', viewMode === id ? 'bg-white text-[#1c1917] shadow-sm' : 'text-[#78716c] hover:text-[#1c1917]')}><Icon className="h-3.5 w-3.5" />{label}</button>
             ))}
           </div>
         </div>
 
         {viewMode === 'month' && (
           <div>
-            <div className="grid grid-cols-7 border-b border-white/[0.06]">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((l) => <div key={l} className="border-r border-white/[0.06] px-2 py-1.5 text-[10px] uppercase tracking-wider text-slate-600 last:border-r-0">{l}</div>)}
+            <div className="grid grid-cols-7 border-b border-[#e7e0d6]">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((l) => <div key={l} className="border-r border-[#e7e0d6] px-2 py-1.5 text-[10px] uppercase tracking-wider text-[#a8a29e] last:border-r-0">{l}</div>)}
             </div>
             <div className="grid grid-cols-7">{gridDays.map(renderCalendarCell)}</div>
           </div>
@@ -287,11 +287,11 @@ export function ContentCalendarTab(): JSX.Element {
 
         {viewMode === 'week' && (
           <div>
-            <div className="grid grid-cols-7 border-b border-white/[0.06]">
-              {weekDays.map((day) => { const d = new Date(day.date + 'T12:00:00'); const isToday = day.date === todayKey; return (<div key={day.date} className="border-r border-white/[0.06] px-2 py-2 last:border-r-0 text-center"><div className="text-[10px] uppercase tracking-wider text-slate-600">{d.toLocaleDateString('en', { weekday: 'short' })}</div><div className={cn('mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium', isToday ? 'bg-cyan-500 text-app-text' : 'text-slate-300')}>{d.getDate()}</div></div>); })}
+            <div className="grid grid-cols-7 border-b border-[#e7e0d6]">
+              {weekDays.map((day) => { const d = new Date(day.date + 'T12:00:00'); const isToday = day.date === todayKey; return (<div key={day.date} className="border-r border-[#e7e0d6] px-2 py-2 last:border-r-0 text-center"><div className="text-[10px] uppercase tracking-wider text-[#a8a29e]">{d.toLocaleDateString('en', { weekday: 'short' })}</div><div className={cn('mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium', isToday ? 'bg-[#1c1917] text-white' : 'text-[#57534e]')}>{d.getDate()}</div></div>); })}
             </div>
             <div className="grid grid-cols-7 min-h-[300px]">
-              {weekDays.map((day) => (<div key={day.date} className={cn('border-r border-white/[0.06] p-2 last:border-r-0', dragged && 'hover:bg-cyan-500/5')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)}><div className="space-y-1">{day.items.map(renderCalendarItem)}</div></div>))}
+              {weekDays.map((day) => (<div key={day.date} className={cn('border-r border-[#e7e0d6] p-2 last:border-r-0', dragged && 'hover:bg-[#f4efe8]')} onDragOver={(e) => e.preventDefault()} onDrop={() => void handleDrop(day.date)}><div className="space-y-1">{day.items.map(renderCalendarItem)}</div></div>))}
             </div>
           </div>
         )}
@@ -306,16 +306,16 @@ export function ContentCalendarTab(): JSX.Element {
       {viewMode !== 'list' && (
         <div className="grid grid-cols-4 gap-2 mb-4">
           {[
-            { label: 'Posts', value: list.length, icon: CalendarDays, color: 'text-cyan-400' },
-            { label: 'Instagram', value: list.filter((c) => (c.channel ?? '').toLowerCase() === 'instagram').length, icon: Instagram, color: 'text-pink-400' },
-            { label: 'Scheduled', value: list.filter((c) => c.scheduled_date).length, icon: Clock, color: 'text-emerald-400' },
-            { label: 'Unscheduled', value: list.filter((c) => !c.scheduled_date && c.status !== 'published').length, icon: Sparkles, color: 'text-amber-400' },
+            { label: 'Posts', value: list.length, icon: CalendarDays, color: 'text-[#44403c]' },
+            { label: 'Instagram', value: list.filter((c) => (c.channel ?? '').toLowerCase() === 'instagram').length, icon: Instagram, color: 'text-pink-600' },
+            { label: 'Scheduled', value: list.filter((c) => c.scheduled_date).length, icon: Clock, color: 'text-emerald-700' },
+            { label: 'Unscheduled', value: list.filter((c) => !c.scheduled_date && c.status !== 'published').length, icon: Sparkles, color: 'text-amber-700' },
           ].map((stat) => (
-            <div key={stat.label} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-[#0c0f14] px-3 py-2">
+            <div key={stat.label} className="flex items-center gap-2 rounded-lg border border-[#e7e0d6] bg-white px-3 py-2">
               <stat.icon className={cn('h-4 w-4', stat.color)} />
               <div>
-                <p className="text-sm font-semibold text-slate-100">{stat.value}</p>
-                <p className="text-[9px] text-slate-500">{stat.label}</p>
+                <p className="text-sm font-semibold text-[#1c1917]">{stat.value}</p>
+                <p className="text-[9px] text-[#78716c]">{stat.label}</p>
               </div>
             </div>
           ))}

@@ -24,7 +24,6 @@ export interface InstagramStudioContent {
 export interface InstagramStudioProps {
   content: InstagramStudioContent;
   isGenerating?: boolean;
-  progressMessage?: string;
   onRegenerateImage?: (
     newPrompt: string,
     stylePreset: string,
@@ -66,7 +65,6 @@ function asCarousel(value: unknown[] | null | undefined): CarouselSlide[] | null
 export function InstagramStudio({
   content,
   isGenerating,
-  progressMessage,
   onRegenerateImage,
   onSelectImageVariant,
   onUploadReferenceImage,
@@ -97,7 +95,7 @@ export function InstagramStudio({
         onSlideIndexChange={setSlideIndex}
       />
       {slides && slides.length > 1 ? (
-        <p className="text-[11px] text-slate-400">Regenerate updates slide {activeSlide + 1} of {slides.length}.</p>
+        <p className="text-[11px] text-[#78716c]">Regenerate updates slide {activeSlide + 1} of {slides.length}.</p>
       ) : null}
       {variants.length > 0 && onSelectImageVariant ? (
         <div className="grid grid-cols-2 gap-2">
@@ -106,44 +104,44 @@ export function InstagramStudio({
               key={variant.id}
               type="button"
               onClick={() => onSelectImageVariant(variant.image_url)}
-              className="overflow-hidden rounded-lg border border-white/[0.08] text-left"
+              className="overflow-hidden rounded-lg border border-[#e7e0d6] bg-white text-left"
             >
               <img src={variant.image_url} alt="" className="aspect-square w-full object-cover" />
-              <span className="block px-1.5 py-1 text-[9px] text-slate-300">{variant.style_preset.replace(/_/g, ' ')}</span>
+              <span className="block px-1.5 py-1 text-[9px] text-[#57534e]">{variant.style_preset.replace(/_/g, ' ')}</span>
             </button>
           ))}
         </div>
       ) : null}
       {isReel ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,240px)_1fr]" data-testid="reel-storyboard">
-          <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">Cover</p>
+          <div className="rounded-xl border border-[#e7e0d6] bg-white p-3">
+            <p className="text-[10px] uppercase tracking-wide text-[#78716c]">Cover</p>
             {imageUrl ? (
               <img src={imageUrl} alt="" className="mt-2 aspect-[9/16] w-full rounded-lg object-cover" />
             ) : (
-              <div className="mt-2 flex aspect-[9/16] items-center justify-center rounded-lg border border-dashed border-white/10 text-[11px] text-slate-500">
+              <div className="mt-2 flex aspect-[9/16] items-center justify-center rounded-lg border border-dashed border-[#e7e0d6] text-[11px] text-[#78716c]">
                 Cover still
               </div>
             )}
-            <p className="mt-2 text-[11px] text-slate-300">{reel?.coverPrompt ?? 'Cover prompt arrives with the storyboard.'}</p>
+            <p className="mt-2 text-[11px] text-[#57534e]">{reel?.coverPrompt ?? 'Cover prompt arrives with the storyboard.'}</p>
           </div>
-          <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
+          <div className="rounded-xl border border-[#e7e0d6] bg-white p-3">
             {reel ? (
               <>
-                <p className="text-sm font-medium text-slate-100">{reel.hook}</p>
+                <p className="text-sm font-medium text-[#1c1917]">{reel.hook}</p>
                 <ol className="mt-3 space-y-2">
                   {reel.shots.map((shot, index) => (
-                    <li key={`${shot.shot}-${index}`} className="text-[12px] text-slate-200">
-                      <span className="text-slate-500">{index + 1}. </span>
+                    <li key={`${shot.shot}-${index}`} className="text-[12px] text-[#44403c]">
+                      <span className="text-[#78716c]">{index + 1}. </span>
                       {shot.shot}
-                      {shot.onScreen ? <span className="mt-0.5 block text-[11px] text-slate-400">On screen: {shot.onScreen}</span> : null}
+                      {shot.onScreen ? <span className="mt-0.5 block text-[11px] text-[#78716c]">On screen: {shot.onScreen}</span> : null}
                     </li>
                   ))}
                 </ol>
-                <p className="mt-3 text-[11px] text-slate-400">Audio: {reel.audioNote}</p>
+                <p className="mt-3 text-[11px] text-[#78716c]">Audio: {reel.audioNote}</p>
                 <button
                   type="button"
-                  className="mt-3 rounded-lg border border-white/[0.08] px-3 py-1.5 text-xs text-slate-200"
+                  className="mt-3 rounded-lg border border-[#e7e0d6] bg-white px-3 py-1.5 text-xs text-[#44403c]"
                   onClick={() => {
                     const text = reelExportText(reel, imageUrl);
                     void navigator.clipboard?.writeText(text);
@@ -153,7 +151,7 @@ export function InstagramStudio({
                 </button>
               </>
             ) : (
-              <p className="text-[12px] text-slate-400">
+              <p className="text-[12px] text-[#78716c]">
                 A reel here is a cover still and a storyboard: a hook, three to six shots, on-screen lines, a caption, and an audio note.
               </p>
             )}
@@ -161,14 +159,11 @@ export function InstagramStudio({
         </div>
       ) : null}
       <InstagramCockpit
-        showPreview={false}
         caption={content.body ?? ''}
         contentTitle={content.title}
         imageUrl={imageUrl}
         imagePrompt={slides?.[activeSlide]?.prompt ?? content.image_prompt ?? null}
-        altText={content.visual_description ?? null}
         isGenerating={isGenerating}
-        progressMessage={progressMessage}
         contentId={content.id}
         referenceImageUrl={content.reference_image_url ?? null}
         initialLook={readStudioSheet(content.user_brief).style}
