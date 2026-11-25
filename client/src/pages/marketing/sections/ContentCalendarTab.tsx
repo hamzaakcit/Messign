@@ -26,7 +26,7 @@ import {
 } from '@/lib/marketingApi';
 import { ContentDetailPanel } from '../components/ContentDetailPanel';
 import { calendarChip } from '../lib/calendarChip';
-import { readyToSchedule, scheduleDropRule, trayLabel } from '../lib/calendarSchedule';
+import { localDateKey, monthGridLength, monthRange, readyToSchedule, scheduleDropRule, trayLabel } from '../lib/calendarSchedule';
 
 type ViewMode = 'month' | 'week' | 'list';
 
@@ -72,7 +72,7 @@ function startOfCalendarWeek(date: Date): Date {
   return d;
 }
 
-const todayKey = new Date().toISOString().slice(0, 10);
+const todayKey = localDateKey(new Date());
 
 export function ContentCalendarTab(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,9 +96,7 @@ export function ContentCalendarTab(): JSX.Element {
     if (!userId) return;
     setLoading(true);
     try {
-      const monthString = String(month).padStart(2, '0');
-      const startDate = `${year}-${monthString}-01`;
-      const endDate = new Date(year, month, 0).toISOString().slice(0, 10);
+      const { from: startDate, to: endDate } = monthRange(year, month);
       const [calendarRes, listRes, approvedRes] = await Promise.all([
         marketingAPI.getCalendarView(userId, month, year),
         marketingAPI.listContent(userId, { dateFrom: startDate, dateTo: endDate, pageSize: '100' }),
@@ -136,10 +134,10 @@ export function ContentCalendarTab(): JSX.Element {
 
   const gridDays = useMemo(() => {
     const start = startOfCalendarMonth(year, month - 1);
-    return Array.from({ length: 35 }, (_, index) => {
+    return Array.from({ length: monthGridLength(year, month - 1) }, (_, index) => {
       const date = new Date(start);
       date.setDate(start.getDate() + index);
-      const key = date.toISOString().slice(0, 10);
+      const key = localDateKey(date);
       return { date: key, inMonth: date.getMonth() === month - 1, items: calendarMap.get(key) ?? [] };
     });
   }, [calendarMap, month, year]);
@@ -149,7 +147,7 @@ export function ContentCalendarTab(): JSX.Element {
     return Array.from({ length: 7 }, (_, i) => {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
-      const key = date.toISOString().slice(0, 10);
+      const key = localDateKey(date);
       return { date: key, inMonth: date.getMonth() === month - 1, items: calendarMap.get(key) ?? [] };
     });
   }, [calendarMap, anchorDate, month]);

@@ -37,3 +37,32 @@ export function trayLabel(item: Pick<ContentItem, 'title' | 'body'>): string {
   const caption = (item.body ?? '').replace(/\s+/g, ' ').trim();
   return caption ? `${caption.slice(0, 36)}${caption.length > 36 ? '…' : ''}` : 'Untitled post';
 }
+
+/**
+ * The first and last day of a month as `YYYY-MM-DD` (month is 1 to 12). Built from local parts: `toISOString()` of
+ * a local midnight is the previous day in any time zone east of UTC, which left the last day out of the month.
+ */
+export function monthRange(year: number, month: number): { from: string; to: string } {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const last = new Date(year, month, 0).getDate();
+  return { from: `${year}-${pad(month)}-01`, to: `${year}-${pad(month)}-${pad(last)}` };
+}
+
+/**
+ * A day as `YYYY-MM-DD` from its local parts. `toISOString().slice(0, 10)` of a local midnight is the previous day in any
+ * time zone east of UTC (Turkey), which put every date one column early on the calendar.
+ */
+export function localDateKey(date: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * How many day cells a Monday-first month grid needs: whole weeks from the Monday on or before the 1st to the Sunday on
+ * or after the last day. A fixed five weeks cut off the end of a month that starts on a Sunday (Nov 2026) or Saturday.
+ */
+export function monthGridLength(year: number, monthIndex: number): number {
+  const firstColumn = (new Date(year, monthIndex, 1).getDay() + 6) % 7;
+  const days = new Date(year, monthIndex + 1, 0).getDate();
+  return Math.ceil((firstColumn + days) / 7) * 7;
+}

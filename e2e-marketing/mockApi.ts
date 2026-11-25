@@ -15,6 +15,8 @@ export interface Row {
   parent_content_id: string | null;
   user_brief: string | null;
   scheduled_for: string | null;
+  /** The day it goes out, `YYYY-MM-DD`, as the server returns it. */
+  scheduled_date: string | null;
   campaign_id: string | null;
   campaign_name: string | null;
   created_at: string;
@@ -24,7 +26,7 @@ export interface Row {
 
 const NOW = '2026-11-20T09:00:00.000Z';
 const base = {
-  image_url: null, parent_content_id: null, user_brief: null, scheduled_for: null, campaign_id: null, campaign_name: null,
+  image_url: null, parent_content_id: null, user_brief: null, scheduled_for: null, scheduled_date: null, campaign_id: null, campaign_name: null,
   created_at: NOW, updated_at: NOW, tags: [] as string[],
 };
 
@@ -102,7 +104,12 @@ export async function installApi(page: Page): Promise<Mock> {
     if (path === '/marketing/brand-profile') return json({ profile: null });
     if (path === '/marketing/content/instagram-publish-mode') return json({ mode: 'mock' });
     if (path === '/marketing/content/instagram-connection') return json({ connected: false, accountId: null, username: null });
-    if (path === '/marketing/content/calendar') return json([]);
+    if (path === '/marketing/content/calendar') {
+      // The calendar as the server groups it: one entry per day (YYYY-MM-DD) that has a scheduled post.
+      const days = new Map<string, Row[]>();
+      for (const r of mock.rows.values()) if (r.scheduled_date) days.set(r.scheduled_date, [...(days.get(r.scheduled_date) ?? []), r]);
+      return json([...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, items]) => ({ date, items })));
+    }
     if (path === '/marketing/content' && method === 'GET') {
       const parent = url.searchParams.get('parent_id');
       const status = url.searchParams.get('status');
@@ -148,6 +155,7 @@ export async function installApi(page: Page): Promise<Mock> {
       const body = JSON.parse(req.postData() || '{}') as { date?: string; time?: string };
       row.status = 'scheduled';
       row.scheduled_for = `${body.date}T${body.time ?? '09:00'}:00.000Z`;
+      row.scheduled_date = body.date ?? null;
       return json(row);
     }
     const one = path.match(/^\/marketing\/content\/([^/]+)$/);
