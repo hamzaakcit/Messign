@@ -89,7 +89,8 @@ jobs:
 
   marketing-smoke:
     name: Marketing smoke (Playwright)
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest is 26.04, which Playwright 1.58 cannot install Chromium on.
+    runs-on: ubuntu-24.04
     # UX-09: clicks every primary action on the kept marketing screens with the API mocked. Needs only the Vite
     # client, so there is no server or database here.
 
