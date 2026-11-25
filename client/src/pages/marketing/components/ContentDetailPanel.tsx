@@ -265,6 +265,8 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                       return;
                     }
                     toast.success('Image generated');
+                    // The still lives on the post, a child of this offer: reload the children too.
+                    setChildrenVersion((n) => n + 1);
                     await fetchContent();
                     onUpdated();
                   })

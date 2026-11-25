@@ -219,4 +219,23 @@ describe('shop counter', () => {
     expect(screen.queryByTitle('Create new')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Campaign/ })).not.toBeInTheDocument();
   });
+
+  it('reloads the list when the offer panel closes, so a change made inside shows on the card', async () => {
+    const { marketingAPI } = await import('@/lib/marketingApi');
+    sessionStorage.setItem('messign.contentTenant', 'messign');
+    renderLucy();
+    fireEvent.click(await screen.findByRole('button', { name: /^Dora/ }));
+    expect(await screen.findByRole('heading', { name: 'Dora' }, { timeout: 5000 })).toBeInTheDocument();
+    // While the panel is open the post goes to review.
+    vi.mocked(marketingAPI.listContent).mockImplementation(async (_user, filters) => {
+      const rows = [
+        { id: 'offer-dora', content_type: 'offer', title: 'Dora is in Istanbul', status: 'draft', channel: 'internal', user_brief: 'product: Dora', created_at: '2026-11-14T00:00:00.000Z', body: null },
+        { id: 'ig-dora', content_type: 'social', channel: 'instagram', parent_content_id: 'offer-dora', body: 'Dora in the city', image_url: 'https://cdn.example/dora.jpg', status: 'in_review', created_at: '2026-11-14T00:00:00.000Z' },
+      ];
+      const data = filters?.channel ? rows.filter((r) => r.channel === filters.channel) : filters?.contentType ? rows.filter((r) => r.content_type === filters.contentType) : rows;
+      return { data, total: data.length, page: 1, pageSize: 50 } as never;
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Close panel' }));
+    expect(await screen.findByRole('button', { name: /^Dora.*In review/ })).toBeInTheDocument();
+  });
 });

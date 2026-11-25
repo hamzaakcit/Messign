@@ -10,6 +10,8 @@ export interface OfferSheetDetailProps {
   referenceImageUrl?: string | null;
   /** Paper sits on the shop-window card. The default stays on the dark detail. */
   tone?: 'ink' | 'paper';
+  /** An offer with no Instagram post sends nothing to Fal, so it does not show a scene. */
+  hideScene?: boolean;
 }
 
 /**
@@ -20,8 +22,9 @@ export function OfferSheetDetail({
   returnedPrompt,
   referenceImageUrl,
   tone = 'ink',
+  hideScene = false,
 }: OfferSheetDetailProps): JSX.Element | null {
-  const sheet = readStudioSheet(brief);
+  const sheet = hideScene ? { ...readStudioSheet(brief), scene: '' } : readStudioSheet(brief);
   const returned = returnedPrompt?.trim() ?? '';
   const hasSheet = Boolean(sheet.product || sheet.place || sheet.price || sheet.claim || sheet.scene);
   if (!hasSheet && !returned && !referenceImageUrl) return null;

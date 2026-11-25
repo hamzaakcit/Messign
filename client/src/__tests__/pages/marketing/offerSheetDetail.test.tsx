@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { marketingAPI } from '@/lib/marketingApi';
 import { ContentDetailPanel } from '@/pages/marketing/components/ContentDetailPanel';
@@ -143,6 +143,36 @@ describe('offer sheet on the detail panel', () => {
           'Editorial photograph of a novel in the shop window, titled Kürk Mantolu Madonna, at Karaköy kitapçı vitrini. No letters, numbers, or logos.',
       }),
     );
+  });
+
+  it('reloads the post after Regenerate, so the new still shows without closing the panel', async () => {
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    const detail = await screen.findByTestId('offer-detail');
+    expect(detail.querySelector('img')?.getAttribute('src')).toBe('https://cdn.example/still.png');
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({
+      data: [{
+        id: 'child-1', channel: 'instagram', parent_content_id: 'offer-1', body: 'The novel is in the window.',
+        image_url: 'https://cdn.example/new-still.png', title: 'Window drop', status: 'draft',
+      }],
+    } as never);
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }));
+    await waitFor(() => expect(screen.getByTestId('offer-detail').querySelector('img')?.getAttribute('src')).toBe('https://cdn.example/new-still.png'));
+  });
+
+  it('shows an email-only offer without a still, a caption, a regenerate button or a Fal scene', async () => {
+    vi.mocked(marketingAPI.listContent).mockResolvedValueOnce({
+      data: [{
+        id: 'email-1', channel: 'email', parent_content_id: 'offer-1', title: 'Window drop', status: 'draft', tags: ['journey_email'],
+        body: 'SUBJECT: Window drop\nProduct: Kürk Mantolu Madonna\nPrice: ₺189\nUnsubscribe: {{unsubscribe_url}}',
+      }],
+    } as never);
+    render(<ContentDetailPanel contentId="offer-1" onUpdated={() => undefined} />);
+    const detail = await screen.findByTestId('journey-email').then(() => screen.getByTestId('offer-detail'));
+    expect(detail).not.toHaveTextContent('No still yet');
+    expect(detail).not.toHaveTextContent('No caption yet.');
+    expect(detail).not.toHaveTextContent('Scene sent to Fal');
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('journey-email')).toHaveTextContent('Included');
   });
 
   it('has one primary action that sends the post to review, and the rest under the menu', async () => {
