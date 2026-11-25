@@ -12,6 +12,8 @@ import {
 } from '../../services/ai/marketing/productTruthValidator.js';
 import { runBrandVoiceCheck } from '../../services/ai/marketing/brandVoiceChecker.js';
 import { regenerateImageForContent } from '../../services/marketing/workflows/instagramContentWorkflow.js';
+import { draftOfferCaption, CaptionDraftError } from '../../services/marketing/offerCaption.js';
+import { buildCallLLM } from '../../services/marketing/batchService.js';
 import { generateImageVariations } from '../../services/marketing/workflows/instagramImagePipeline.js';
 import { repurposeContent } from '../../services/ai/marketing/repurposeService.js';
 import {
@@ -471,6 +473,52 @@ router.post('/:id/repurpose', async (req: ReimbursementRequest, res: Response) =
   } catch (err) {
     console.error('[REPURPOSE] Error:', err instanceof Error ? err.message : err);
     res.status(500).json({ success: false, error: 'Repurpose failed' });
+  }
+});
+
+/**
+ * The model writes the caption for an offer's Instagram post from the saved offer sheet (MC-18).
+ * Only a draft post is written or rewritten: a post in review or approved keeps the text that was checked.
+ */
+router.post('/:id/caption', async (req: ReimbursementRequest, res: Response) => {
+  try {
+    const ctx = buildCtx(req);
+    const orgId = ctx.organizationId;
+    if (!orgId) {
+      res.status(400).json({ error: 'Organization required' });
+      return;
+    }
+    const post = await contentDal.getContentById(ctx, req.params.id);
+    if (!post) {
+      res.status(404).json({ error: 'Content not found' });
+      return;
+    }
+    if ((post.channel ?? '').trim().toLowerCase() !== 'instagram') {
+      res.status(400).json({ error: 'Only an Instagram post gets a caption here.' });
+      return;
+    }
+    if (post.status !== 'draft') {
+      res.status(409).json({ error: 'Only a draft can be written or rewritten.' });
+      return;
+    }
+    let brief = post.user_brief;
+    if (!brief?.trim() && post.parent_content_id) {
+      brief = (await contentDal.getContentById(ctx, post.parent_content_id))?.user_brief ?? null;
+    }
+    const brandRaw = typeof req.body?.brand_name === 'string' ? req.body.brand_name.trim() : '';
+    const caption = await draftOfferCaption(
+      { brief, title: post.title, brandName: brandRaw.slice(0, 80) || null },
+      buildCallLLM(orgId),
+    );
+    const updated = await contentDal.updateContent(ctx, post.id, { body: caption });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof CaptionDraftError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    console.error('[marketing/content/:id/caption POST]', err);
+    res.status(500).json({ error: 'Could not write the caption' });
   }
 });
 

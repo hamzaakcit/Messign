@@ -56,6 +56,23 @@ test('offer detail: Looks good sends the post to review, then a manager approves
   await expect(detail.getByRole('button', { name: 'Approved', exact: true })).toBeDisabled();
 });
 
+test('offer detail: Write caption has the model write the caption, and then Looks good is ready', async ({ page }) => {
+  const mock = await installApi(page);
+  const post = mock.rows.get('ig-dora');
+  if (post) post.body = '';
+  await page.goto('/marketing?contentId=offer-dora');
+
+  const detail = page.getByTestId('offer-detail');
+  await expect(detail.getByText('No caption yet.')).toBeVisible();
+  await expect(detail.getByRole('button', { name: 'Looks good' })).toBeDisabled();
+
+  await detail.getByRole('button', { name: 'Write caption' }).click();
+  await expect(detail.getByText('A caption written by the model.')).toBeVisible();
+  expect(mock.writes).toContain('POST /marketing/content/ig-dora/caption');
+  await expect(detail.getByRole('button', { name: 'Rewrite caption' })).toBeVisible();
+  await expect(detail.getByRole('button', { name: 'Looks good' })).toBeEnabled();
+});
+
 test('offer detail: the ⋯ menu lists the post and the email, and Escape closes only the menu', async ({ page }) => {
   await installApi(page);
   await page.goto('/marketing?contentId=offer-dora');

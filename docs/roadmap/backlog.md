@@ -89,7 +89,7 @@ Detail: `content-production-roadmap.md`. Draft 2026-11-13. CP-01 through CP-11 a
 
 ## Marketing counter (parallel evenings — shop window)
 
-Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 are done. MC-13 and MC-14 were done by UX-01 (2026-11-24). MC-07…11 and MC-15 moved to the UX track (`docs/ux/ux-roadmap.md`). Remaining here: MC-12 and MC-18 (MC-16 and MC-17 done 2026-11-25).
+Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 are done. MC-13 and MC-14 were done by UX-01 (2026-11-24). MC-07…11 and MC-15 moved to the UX track (`docs/ux/ux-roadmap.md`). Remaining here: MC-12 (MC-16, MC-17 and MC-18 done 2026-11-25).
 
 | WP | Title | Pri | Status | Acceptance (short) |
 |---|---|---|---|---|
@@ -110,7 +110,7 @@ Detail: `marketing-counter-120-day.md`. Started 2026-11-14. MC-01 through MC-06 
 | MC-15 | Shop-window theme on Offers, Calendar, and Shop settings | P1 | moved → UX-03 | Three rooms feel like one product |
 | MC-16 | Dogfood one bookstore offer and one florist offer | P0 | done 2026-11-25, with one blocker (MC-18) | Both finish as drafts, Lucy stays closed |
 | MC-17 | Cut list from the dogfood | P0 | done 2026-11-25 | Unused tabs written down, not deleted (`docs/ux/dogfood-mc16-cut-list.md`) |
-| MC-18 | Write a caption for an offer's post (found by the dogfood) | P0 | todo | A product drop reaches Looks good without opening Lucy |
+| MC-18 | Write a caption for an offer's post (found by the dogfood) | P0 | done 2026-11-25 | A product drop reaches Looks good without opening Lucy |
 
 ## Marketing UX track (parallel evenings — replaces MC-07…11, 15)
 

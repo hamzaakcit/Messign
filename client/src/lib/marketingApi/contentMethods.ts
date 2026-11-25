@@ -70,6 +70,13 @@ export const contentMethods = {
       externalPostId?: string;
       skipped?: boolean;
     }>(`/content/${contentId}/test-publish`, { method: 'POST' }, userId),
+  /** The model writes the caption for an Instagram draft from the offer sheet. Returns the updated post. */
+  writeCaption: (userId: string, contentId: string, brandName?: string) =>
+    marketingRequest<ContentItem>(
+      `/content/${contentId}/caption`,
+      { method: 'POST', body: JSON.stringify(brandName ? { brand_name: brandName } : {}) },
+      userId,
+    ),
   regenerateContentImage: (
     userId: string,
     contentId: string,
