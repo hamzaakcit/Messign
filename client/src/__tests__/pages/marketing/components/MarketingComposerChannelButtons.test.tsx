@@ -31,7 +31,7 @@ describe('MarketingComposerChannelButtons', () => {
     }
   });
 
-  it('opens email modal for Email · Newsletter depth and other email_* templates', () => {
+  it('has one Email tile, not one per layout, and it opens the email form', () => {
     const onChannel = vi.fn();
     render(
       <MarketingComposerChannelButtons
@@ -41,7 +41,12 @@ describe('MarketingComposerChannelButtons', () => {
         variant="comfortable"
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /Newsletter depth/i }));
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Email/i })).toHaveLength(1);
+    for (const name of [/Newsletter/i, /Flash/i, /Event invite/i]) {
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
+    fireEvent.click(screen.getByRole('button', { name: /^Email/i }));
     expect(onChannel).toHaveBeenCalledWith('email');
   });
 
