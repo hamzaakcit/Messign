@@ -113,6 +113,7 @@ export function InfoTooltip({ content, helpId, className, 'aria-label': ariaLabe
       ref={popoverRef}
       id={tooltipId}
       role="tooltip"
+      data-escape-layer=""
       className="fixed z-[9999] w-72 rounded-xl border border-slate-600 bg-slate-800 p-3.5 text-[13px] leading-relaxed text-slate-100 shadow-xl ring-1 ring-black/20"
       style={{ top: position.top, left: position.left }}
       onMouseEnter={show}

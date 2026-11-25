@@ -48,6 +48,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
   const [testPublishing, setTestPublishing] = useState(false);
   const [offerChildrenLine, setOfferChildrenLine] = useState<string | null>(null);
   const [offerChildren, setOfferChildren] = useState<ContentItem[]>([]);
+  const [childrenVersion, setChildrenVersion] = useState(0);
   const hasContentRef = useRef(false);
   hasContentRef.current = content != null;
 
@@ -84,7 +85,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
     return () => {
       cancelled = true;
     };
-  }, [userId, offerId, content?.status]);
+  }, [userId, offerId, content?.status, childrenVersion]);
 
   const fetchContent = useCallback(async () => {
     if (!userId || !contentId) return;
@@ -141,13 +142,28 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
     }
   };
 
-  const handleDraftJourneyEmail = async () => {
+  const handleOfferLooksGood = async (childId: string) => {
+    setSubmittingReview(true);
+    try {
+      await marketingAPI.updateContent(userId, childId, { submit_for_review: true });
+      toast.success('Marked ready for review');
+      setChildrenVersion((n) => n + 1);
+      onUpdated();
+    } catch (e) {
+      toast.error('Could not send to review', { description: e instanceof Error ? e.message : 'Request failed' });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleDraftJourneyEmail = async (stay = false) => {
     if (!content) return;
     setDraftingEmail(true);
     try {
       const email = await marketingAPI.draftJourneyEmail(userId, content.id);
       toast.success('Journey email draft ready');
-      openDetail({ type: 'content', id: email.id });
+      if (stay) setChildrenVersion((n) => n + 1);
+      else openDetail({ type: 'content', id: email.id });
       onUpdated();
     } catch (e) {
       toast.error('Could not draft the journey email', {
@@ -196,11 +212,18 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
 
   if (content.content_type === 'offer') {
     const instagram = offerChildren.find((child) => (child.channel ?? '').toLowerCase() === 'instagram') ?? null;
+    const email = offerChildren.find((child) => (child.channel ?? '').toLowerCase() === 'email') ?? null;
     const picture = readStudioSheet(instagram?.user_brief || content.user_brief);
     return (
       <OfferDetailView
         offer={content}
         instagram={instagram}
+        email={email}
+        onLooksGood={(childId) => void handleOfferLooksGood(childId)}
+        submitting={submittingReview}
+        onOpenChild={(childId) => openDetail({ type: 'content', id: childId })}
+        onDraftJourneyEmail={() => void handleDraftJourneyEmail(true)}
+        draftingEmail={draftingEmail}
         publishAllowed={contentTenant.publishAllowed}
         brandName={contentTenant.brandName}
         regenerating={isGeneratingImage}
@@ -461,7 +484,8 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
 
         {isInstagram ? (
           <div className="flex flex-wrap items-center gap-2">
-            {(content.parent_content_id || content.content_type === 'offer') && (
+            {(content.parent_content_id || content.content_type === 'offer') &&
+              !offerChildren.some((child) => (child.channel ?? '').toLowerCase() === 'email') && (
               <button
                 type="button"
                 onClick={() => void handleDraftJourneyEmail()}
