@@ -4,7 +4,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { toast } from 'sonner';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
 import { ContentCalendarTab } from '@/pages/marketing/sections/ContentCalendarTab';
-import { readyToSchedule, scheduleDropRule, trayLabel } from '@/pages/marketing/lib/calendarSchedule';
+import { localDateKey, monthGridLength, monthRange, readyToSchedule, scheduleDropRule, trayLabel } from '@/pages/marketing/lib/calendarSchedule';
+
+// The shops are in Turkey: a time zone east of UTC, where a local midnight is the previous day in UTC.
+vi.hoisted(() => {
+  process.env.TZ = 'Europe/Istanbul';
+});
 
 vi.mock('sonner', () => ({ toast: { message: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/stores/authStore', () => ({ useAuthStore: () => ({ user: { authUserId: 'u1', id: 'u1' } }) }));
@@ -73,8 +78,50 @@ describe('scheduleDropRule', () => {
     expect(trayLabel({ title: '', body: '' })).toBe('Untitled post');
   });
 
+  it('gives the first and last day of the month, including in a time zone east of UTC', () => {
+    expect(monthRange(2026, 11)).toEqual({ from: '2026-11-01', to: '2026-11-30' });
+    expect(monthRange(2026, 12)).toEqual({ from: '2026-12-01', to: '2026-12-31' });
+    expect(monthRange(2028, 2)).toEqual({ from: '2028-02-01', to: '2028-02-29' });
+  });
+
+  it('keys a day by its local date, not the UTC date of its midnight', () => {
+    expect(localDateKey(new Date(2026, 10, 27))).toBe('2026-11-27');
+    expect(localDateKey(new Date(2026, 0, 1))).toBe('2026-01-01');
+    expect(localDateKey(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');
+  });
+
+  it('gives a month grid whole weeks, six when the month needs them', () => {
+    expect(monthGridLength(2026, 10)).toBe(42); // Nov 2026 starts on a Sunday and has 30 days
+    expect(monthGridLength(2027, 1)).toBe(28); // Feb 2027 starts on a Monday and has 28 days: exactly four weeks
+    expect(monthGridLength(2026, 1)).toBe(35); // Feb 2026 starts on a Sunday
+    expect(monthGridLength(2026, 11)).toBe(35); // Dec 2026
+    expect(monthGridLength(2027, 4)).toBe(42); // May 2027 starts on a Saturday and has 31 days
+  });
+
   it('lists approved posts without a day as ready', () => {
     expect(readyToSchedule([approved, item({ id: 'a2', status: 'approved', scheduled_date: day(3) }), draftOnCalendar]).map((i) => i.id)).toEqual(['ready-1']);
+  });
+});
+
+describe('calendar grid', () => {
+  it('starts on a Monday, covers the whole month, and puts each date under its weekday', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 18, 10, 0, 0));
+    try {
+      renderCalendar();
+      await screen.findByTestId('ready-tray');
+      const cells = screen.getAllByTestId(/^day-/);
+      expect(cells).toHaveLength(42);
+      expect(cells[0]).toHaveAttribute('data-testid', 'day-2026-10-26'); // a Monday
+      expect(cells[41]).toHaveAttribute('data-testid', 'day-2026-12-06'); // a Sunday
+      expect(screen.getByTestId('day-2026-11-30')).toBeInTheDocument();
+      const column = (key: string) => cells.findIndex((c) => c.getAttribute('data-testid') === `day-${key}`) % 7;
+      expect(column('2026-11-02')).toBe(0); // Monday
+      expect(column('2026-11-27')).toBe(4); // Friday
+      expect(column('2026-11-29')).toBe(6); // Sunday
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
