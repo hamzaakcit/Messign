@@ -8,7 +8,7 @@ import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/stores/authStore';
 import { marketingAPI, type EmailCampaign } from '@/lib/marketingApi';
-import { UnlayerEmailEditor, type UnlayerEmailEditorHandle } from '../components/UnlayerEmailEditor';
+import { UnlayerEditor, type UnlayerEditorHandle } from '../components/UnlayerEditor';
 import { CampaignMetricsPanel } from '../components/CampaignMetricsPanel';
 import { getStarterTemplates } from '../unlayerTemplates/registry';
 
@@ -128,7 +128,7 @@ function EmailDetailPanel({
   onClose: () => void;
   onUpdated: () => void;
 }): JSX.Element {
-  const editorRef = useRef<UnlayerEmailEditorHandle>(null);
+  const editorRef = useRef<UnlayerEditorHandle>(null);
   const [saving, setSaving] = useState(false);
   const [meta, setMeta] = useState({
     name: item.name,
@@ -186,7 +186,8 @@ function EmailDetailPanel({
         </div>
 
         <div className="lg:col-span-3 min-w-0">
-          <UnlayerEmailEditor
+          <UnlayerEditor
+            displayMode="email"
             ref={editorRef}
             editorKey={item.id}
             initialDesign={bodyDesign}
@@ -244,7 +245,8 @@ function EmailCreatePanel({
         <div><label className="block text-sm text-app-muted mb-1">From Email</label><input className={inputClass} value={form.from_email} onChange={(e) => setForm((c) => ({ ...c, from_email: e.target.value }))} /></div>
       </div>
       <div><label className="block text-sm text-app-muted mb-1">Recipients</label><input className={inputClass} type="number" value={form.recipient_count} onChange={(e) => setForm((c) => ({ ...c, recipient_count: e.target.value }))} /></div>
-      <UnlayerEmailEditor
+      <UnlayerEditor
+        displayMode="email"
         editorKey="create-email"
         initialDesign={null}
         starterTemplates={getStarterTemplates('email')}

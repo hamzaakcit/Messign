@@ -1,20 +1,8 @@
-import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  CalendarDays,
-  ChevronDown,
-  Instagram,
-  LayoutGrid,
-  Mail,
-  Megaphone,
-  Plus,
-  Store,
-  Target,
-} from 'lucide-react';
+import { CalendarDays, LayoutGrid, Mail, Plus, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/routes';
 import { marketingShell } from '@/pages/marketing/lib/marketingShellTheme';
-import { useMarketingContext } from '@/pages/marketing/MarketingContext';
 
 // ---------------------------------------------------------------------------
 // Tab definitions
@@ -55,9 +43,6 @@ function getActiveTabId(pathname: string): string | null {
 export function WorkspaceTopBar(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
-  const ctx = useMarketingContext();
-
-  const [createOpen, setCreateOpen] = useState(false);
 
   const activeTab = getActiveTabId(location.pathname);
 
@@ -100,54 +85,15 @@ export function WorkspaceTopBar(): JSX.Element {
       {/* Spacer */}
       <div className="flex-1 min-w-0" />
 
-      {/* Create dropdown */}
-      <div className="relative shrink-0">
-        <button
-          type="button"
-          onClick={() => setCreateOpen((o) => !o)}
-          title="Create new"
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-primary-500/90 text-white hover:bg-primary-500 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">New</span>
-          <ChevronDown className="w-3 h-3 opacity-70" />
-        </button>
-        {createOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
-            <div className={`absolute right-0 top-full mt-1 z-50 w-44 rounded-lg ${marketingShell.popoverMenu}`}>
-              <button
-                type="button"
-                onClick={() => { ctx.openCreateCampaign(); setCreateOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
-              >
-                <Megaphone className="w-3.5 h-3.5 text-app-muted" /> Campaign
-              </button>
-              <button
-                type="button"
-                onClick={() => { ctx.openCreateContent('default'); setCreateOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
-              >
-                <Target className="w-3.5 h-3.5 text-app-muted" /> Content
-              </button>
-              <button
-                type="button"
-                onClick={() => { ctx.handleInstagramDraftAi(); setCreateOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
-              >
-                <Instagram className="w-3.5 h-3.5 text-pink-300" /> Instagram post
-              </button>
-              <button
-                type="button"
-                onClick={() => { navigate(ROUTES.MARKETING_BUILDER); setCreateOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-app-text hover:bg-app-nav-hover"
-              >
-                <Mail className="w-3.5 h-3.5 text-app-muted" /> Email
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      {/* One way to create: New offer (UX-08) */}
+      <button
+        type="button"
+        onClick={() => navigate(ROUTES.MARKETING_OFFER_NEW)}
+        className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-primary-500/90 text-white hover:bg-primary-500 transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        <span>New offer</span>
+      </button>
     </div>
   );
 }

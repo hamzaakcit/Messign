@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MarketingLayout } from '@/pages/marketing/MarketingLayout';
@@ -209,5 +209,14 @@ describe('shop counter', () => {
   it('sends the old brand-social URL to Shop settings', async () => {
     renderLucy('/marketing/brand-social');
     expect(await screen.findByRole('heading', { name: 'Shop settings' })).toBeInTheDocument();
+  });
+
+  it('gives the tab bar one create button, New offer, and no create menu', async () => {
+    renderLucy('/marketing/shop');
+    await screen.findByRole('heading', { name: 'Shop settings' });
+    const bar = screen.getByRole('navigation', { name: 'Marketing workspace' }).parentElement as HTMLElement;
+    expect(within(bar).getByRole('button', { name: 'New offer' })).toBeInTheDocument();
+    expect(screen.queryByTitle('Create new')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Campaign/ })).not.toBeInTheDocument();
   });
 });

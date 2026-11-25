@@ -123,7 +123,6 @@ export function DoraRail({
           setInputValue(msg);
           inputRef.current?.focus();
         }}
-        defaultTopic={null}
       />
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">

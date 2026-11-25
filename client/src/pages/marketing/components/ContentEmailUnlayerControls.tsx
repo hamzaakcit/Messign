@@ -4,7 +4,7 @@ import { Bookmark, ChevronDown, Download, FileDown, HelpCircle, Mail, RefreshCw,
 import { SlideOverPanel } from '@/components/ui/SlideOverPanel';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { marketingAPI, type ContentItem } from '@/lib/marketingApi';
-import { UnlayerEmailEditor } from './UnlayerEmailEditor';
+import { UnlayerEditor } from './UnlayerEditor';
 import {
   EmailDesignWizard,
 } from './EmailDesignWizard';
@@ -591,7 +591,8 @@ export function ContentEmailUnlayerControls({
                 </div>
               }
             >
-              <UnlayerEmailEditor
+              <UnlayerEditor
+                displayMode="email"
                 ref={editorRef}
                 editorKey={editorKey}
                 initialDesign={bodyDesign}

@@ -126,7 +126,7 @@ Detail: `docs/ux/ux-roadmap.md` (principles `docs/ux/design-principles.md`, ADR-
 | UX-07 | Calendar takes ready offers; live-publish warning | P0 | done | A draft can't be dropped on a day |
 | UX-04 | One offer list (Pipeline = status view) | P1 | done | Old URLs redirect with filter |
 | UX-05 | Shop settings page replaces the Brands FAB | P1 | done | No floating button |
-| UX-08 | Leftover duplicates (IG preset, journey-email button, editor wrapper, unused channel forms) | P1 | todo | Duplication groups 3, 7, 9 closed |
+| UX-08 | Leftover duplicates (IG preset, journey-email button, editor wrapper, unused channel forms) | P1 | done | Duplication groups 3, 7, 9 closed |
 | UX-09 | Playwright smoke: every primary action on kept screens | P0 | todo | Runs in CI |
 
 ## Post-90-day backlog (speculative until a real customer asks — principle 1)
