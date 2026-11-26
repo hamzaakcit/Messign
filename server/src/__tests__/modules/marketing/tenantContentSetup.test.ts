@@ -77,6 +77,13 @@ describe('tenant content setup', () => {
     expect(foreignProductName('Kürk Mantolu Madonna yanında Dora duruyor.', productTruthMarkdown(bookstore!))).toBe('Dora');
   });
 
+  it('treats the brand name as copy and Lucy as a foreign product', () => {
+    const florist = TENANT_CONTENT_SETUPS.find((setup) => setup.orgKey === 'florist')!;
+    const sheet = productTruthMarkdown(florist);
+    expect(foreignProductName('Messign helps teams collaborate.', sheet)).toBeNull();
+    expect(foreignProductName('Lucy için bir buket.', sheet)).toBe('Lucy');
+  });
+
   it('leaves a florist prompt that stays on the flower sheet alone', () => {
     const florist = TENANT_CONTENT_SETUPS.find((setup) => setup.orgKey === 'florist')!;
     const prompt = 'Papatya buketi Lilyana vitrininde.';
