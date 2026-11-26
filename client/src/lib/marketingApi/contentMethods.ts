@@ -77,10 +77,23 @@ export const contentMethods = {
       { method: 'POST', body: JSON.stringify(brandName ? { brand_name: brandName } : {}) },
       userId,
     ),
+  /** Engines with a key on the server. `all` is true when more than one is connected. */
+  listImageProviders: (userId: string) =>
+    marketingRequest<{
+      providers: Array<{ id: 'fal' | 'gemini' | 'openai' | 'litellm'; label: string }>;
+      all: boolean;
+    }>('/content/image-providers', { method: 'GET' }, userId),
   regenerateContentImage: (
     userId: string,
     contentId: string,
-    payload: { image_prompt: string; style_preset?: string; aspect_ratio?: string; slide_index?: number; mock?: boolean },
+    payload: {
+      image_prompt: string;
+      style_preset?: string;
+      aspect_ratio?: string;
+      slide_index?: number;
+      mock?: boolean;
+      image_provider?: 'fal' | 'gemini' | 'openai' | 'litellm' | 'all';
+    },
   ) =>
     marketingRequest<{ success: boolean; image_url: string | null; error: string | null }>(
       `/content/${contentId}/regenerate-image`,

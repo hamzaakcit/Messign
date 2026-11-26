@@ -46,6 +46,9 @@ export type ImageGenerationBackend =
   | 'openai'
   | 'litellm';
 
+/** Which connected image engine a still should use. `all` tries each configured engine. */
+export type ImageProviderChoice = 'fal' | 'gemini' | 'openai' | 'litellm' | 'all';
+
 export interface ImageGenerationMetadata {
   model: string;
   resolution: string;
@@ -167,6 +170,11 @@ export interface ImageGenerationInput {
   reference_image_url?: string | null;
   /** Return a placeholder and do not call an image provider. */
   mock?: boolean;
+  /**
+   * Engine for this still. Unset keeps the current route (Instagram stays on Fal when that lock is on).
+   * `all` tries Fal, then Gemini, then OpenAI, then LiteLLM.
+   */
+  image_provider?: ImageProviderChoice;
   /** Product the returned Fal prompt must still name. */
   scene_product?: string;
   /** Place the returned Fal prompt must still name. */

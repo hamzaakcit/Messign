@@ -19,6 +19,7 @@ import { offerChildStatusLine } from '../lib/offerChildStatus';
 import { useContentTenant } from '../lib/contentTenant';
 import { resolveCampaignId } from '../lib/offerCampaign';
 import { readStudioSheet } from '../lib/offerSheetForm';
+import type { ImageEngine } from '../lib/imageEngine';
 
 interface ContentDetailPanelProps {
   contentId: string;
@@ -48,9 +49,24 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
   const [testPublishing, setTestPublishing] = useState(false);
   const [offerChildrenLine, setOfferChildrenLine] = useState<string | null>(null);
   const [offerChildren, setOfferChildren] = useState<ContentItem[]>([]);
+  const [imageEngines, setImageEngines] = useState<Array<Exclude<ImageEngine, 'all'>> | undefined>(undefined);
   const [childrenVersion, setChildrenVersion] = useState(0);
   const hasContentRef = useRef(false);
   hasContentRef.current = content != null;
+
+  useEffect(() => {
+    const list = marketingAPI.listImageProviders;
+    if (!userId || typeof list !== 'function') return;
+    let cancelled = false;
+    void list(userId)
+      .then((row) => {
+        if (!cancelled) setImageEngines(row.providers.map((item) => item.id));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!userId || (content?.channel ?? '').toLowerCase() !== 'instagram') return;
@@ -275,14 +291,16 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
         publishAllowed={contentTenant.publishAllowed}
         brandName={contentTenant.brandName}
         regenerating={isGeneratingImage}
+        imageEngines={imageEngines}
         onRegenerate={
           instagram && picture.scene
-            ? () => {
+            ? (imageEngine) => {
                 setIsGeneratingImage(true);
                 void marketingAPI
                   .regenerateContentImage(userId, instagram.id, {
                     image_prompt: picture.scene,
                     style_preset: picture.style,
+                    image_provider: imageEngine,
                   })
                   .then(async (result) => {
                     if (!result.success) {
@@ -416,6 +434,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
           <InstagramStudio
             content={content}
             isGenerating={isGeneratingImage}
+            imageEngines={imageEngines}
             onUploadBrandLogo={async (file) => {
               const r = await marketingAPI.uploadBrandLogo(userId, content.id, file);
               setContent((c) => (c ? { ...c, brand_logo_url: r.brand_logo_url } : c));
@@ -484,6 +503,7 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
                   aspect_ratio: formatAspectRatio !== '1:1' ? formatAspectRatio : undefined,
                   slide_index: slideIndex,
                   mock: extras?.mock === true,
+                  image_provider: extras?.image_provider,
                 });
                 if (r.success && r.image_url) {
                   if (slideIndex === 0) {

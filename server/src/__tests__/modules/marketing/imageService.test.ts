@@ -320,4 +320,41 @@ describe('generateImage', () => {
     expect(result.error ?? '').toMatch(/Instagram Fal-only image generation failed/i);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('image_provider gemini skips Fal and calls Gemini', async () => {
+    process.env.FAL_KEY = 'fal-test-key';
+    process.env.GOOGLE_GEMINI_API_KEY = 'test-gemini-key';
+    const pngBody = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(32, 0),
+    ]);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [{ inlineData: { mimeType: 'image/png', data: pngBody.toString('base64') } }],
+            },
+          },
+        ],
+      }),
+    });
+
+    vi.resetModules();
+    const falMod = await import('../../../services/marketing/publishing/imageService/falImageGeneration.js');
+    const falSpy = vi.spyOn(falMod, 'callFalMarketingImageGeneration');
+    const { generateImage } = await import('../../../services/marketing/publishing/imageService.js');
+    const result = await generateImage({
+      org_id: '00000000-0000-0000-0000-000000000001',
+      content_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      prompt: 'A trade-show booth with a blank tower face',
+      image_provider: 'gemini',
+    });
+
+    expect(falSpy).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain('generativelanguage.googleapis.com');
+  });
 });

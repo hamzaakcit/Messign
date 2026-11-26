@@ -101,6 +101,23 @@ describe('validateImageGenerationInput', () => {
     if (!r.ok) expect(r.error).toMatch(/Conflicting flags/i);
   });
 
+  it('passes through a chosen image engine', () => {
+    const r = validateImageGenerationInput({
+      ...validInput,
+      image_provider: 'gemini',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.normalized.image_provider).toBe('gemini');
+  });
+
+  it('rejects an unknown image engine', () => {
+    const r = validateImageGenerationInput({
+      ...validInput,
+      image_provider: 'midjourney' as 'fal',
+    });
+    expect(r.ok).toBe(false);
+  });
+
   it('passes through instagram_fal_only and instagram_direct_prompt when true', () => {
     const r = validateImageGenerationInput({
       ...validInput,

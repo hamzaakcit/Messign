@@ -39,12 +39,12 @@ describe('InstagramStudio', () => {
       />,
     );
     fireEvent.click(screen.getByText('Regenerate image'));
-    fireEvent.click(screen.getByText('Generate with Nano Banana 2'));
+    fireEvent.click(screen.getByText('Generate image'));
     expect(onRegenerateImage).toHaveBeenCalledWith(
       'A bookstore window in warm light, no people',
       'photoreal',
       0,
-      { mock: false },
+      { mock: false, image_provider: 'fal' },
     );
   });
 

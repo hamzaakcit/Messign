@@ -22,8 +22,9 @@ import {
   buildLucyReferenceUploadStorageKey,
   uploadToStorage,
   editMarketingPhotoWithKontext,
+  configuredImageProviders,
 } from '../../services/marketing/publishing/imageService.js';
-import type { StylePreset, AspectRatio, ImageGenerationInput } from '../../dal/marketing/instagramTypes.js';
+import type { StylePreset, AspectRatio, ImageProviderChoice } from '../../dal/marketing/instagramTypes.js';
 import { triggerBrandComplianceScan } from '../../services/marketing/complianceScanner.js';
 import {
   journeyDraftPiiError,
@@ -351,6 +352,11 @@ router.get('/instagram-publish-mode', (_req: ReimbursementRequest, res: Response
   res.json({ mode: instagramPublishMode() });
 });
 
+router.get('/image-providers', (_req: ReimbursementRequest, res: Response) => {
+  const providers = configuredImageProviders();
+  res.json({ providers, all: providers.length > 1 });
+});
+
 router.get('/instagram-connection', async (req: ReimbursementRequest, res: Response) => {
   try {
     const orgId = buildCtx(req).organizationId;
@@ -541,6 +547,12 @@ router.post('/:id/regenerate-image', async (req: ReimbursementRequest, res: Resp
       (typeof req.body?.style === 'string' && req.body.style);
     const stylePreset = (stylePresetRaw || undefined) as StylePreset | undefined;
     const aspectRatio = (typeof req.body?.aspect_ratio === 'string' ? req.body.aspect_ratio : undefined) as AspectRatio | undefined;
+    const providerRaw = typeof req.body?.image_provider === 'string' ? req.body.image_provider.trim().toLowerCase() : '';
+    const imageProvider = (['fal', 'gemini', 'openai', 'litellm', 'all'] as const).find((id) => id === providerRaw);
+    if (providerRaw && !imageProvider) {
+      res.status(400).json({ success: false, error: 'Unknown image engine' });
+      return;
+    }
     const slideIndexRaw = req.body?.slide_index;
     const slideIndex = slideIndexRaw == null || slideIndexRaw === '' ? undefined : Number(slideIndexRaw);
     if (slideIndex != null && !Number.isInteger(slideIndex)) {
@@ -554,6 +566,7 @@ router.post('/:id/regenerate-image', async (req: ReimbursementRequest, res: Resp
       aspect_ratio: aspectRatio,
       slide_index: slideIndex,
       mock: typeof req.body?.mock === 'boolean' ? req.body.mock : undefined,
+      ...(imageProvider ? { image_provider: imageProvider as ImageProviderChoice } : {}),
     });
     const errMsg = result.error ?? undefined;
     res.json({
