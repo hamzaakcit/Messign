@@ -3,7 +3,8 @@ import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Protects /admin routes: requires authenticated user with role === 'admin'.
- * Redirects to / if not authenticated or not admin.
+ * Redirects to /login when signed out, and to /dashboard when the user is not an admin.
+ * `/` is the public website, so a non-admin stays in the workspace.
  */
 export function AdminGuard() {
   const { user, isAuthenticated } = useAuthStore();
@@ -13,7 +14,7 @@ export function AdminGuard() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   if (user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

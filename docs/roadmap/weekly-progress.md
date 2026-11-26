@@ -2,6 +2,11 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-27 · Public marketing site at `/`
+- **Done:** `/` is the public Messign homepage. Login stays at `/login`. After sign-in, the workspace opens at `/dashboard`. No server change and no migration in this commit.
+- **Next:** Consent preferences are not started.
+- **Blockers:** none.
+
 ## 2026-11-26 · Messign stills: sharp name and logo, not blank and not painted
 - **Cause:** The still prompt told the model to paint no letters and no logo, so a Messign booth came back with empty signs. The model cannot paint a clean word; asking it to write Messign again makes the letters wobble.
 - **Done:** After the photo is made, a sign is set in Inter on the lower part: the attached logo, the word Messign, and one short line (The engagement platform, or the product name). The model still does not paint type. A book or flower still only gets the corner logo, as before. Tests: the sign is dark type plus the logo color, and the top of the frame stays clear. Takes effect when the server is deployed. Press Make still again.
