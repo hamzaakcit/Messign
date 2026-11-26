@@ -92,8 +92,8 @@ export interface ImageGenerationMetadata {
   fal_aspect_ratio?: string;
   /** Ultra `image_prompt_strength` sent with a reference photo. */
   fal_image_prompt_strength?: number;
-  /** Attached shop logo placed on the still after generation. */
-  brand_mark?: 'attached_logo';
+  /** Sharp mark placed on the still after generation. The model does not paint it. */
+  brand_mark?: 'attached_logo' | 'messign_lockup';
 }
 
 export type AspectRatio = '1:1' | '4:5' | '9:16' | '16:9';

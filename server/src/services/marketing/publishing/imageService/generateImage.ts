@@ -46,7 +46,8 @@ import {
   getRasterDimensions,
 } from './kontextRasterNormalize.js';
 import { buildStorageKey, uploadToStorage } from './storage.js';
-import { stampBrandLogo } from './stampMessignPlane.js';
+import { isMessignBrandStill } from './messignBrandMark.js';
+import { messignLockupSubtitle, stampBrandLogo, stampMessignLockup } from './stampMessignPlane.js';
 import { fetchReferenceImageBufferForFal } from './falReferenceImage.js';
 import { callFalMarketingImageGeneration, getFalApiKey } from './falImageGeneration.js';
 import {
@@ -1928,13 +1929,27 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
         }
       }
 
-      let stampedBrandMark = false;
+      let stampedBrandMark: 'attached_logo' | 'messign_lockup' | false = false;
       const logoUrl = normalized.brand_logo_url?.trim();
-      if (normalized.instagram_feed === true && logoUrl && !preserveOverlayAlpha) {
+      const messignStill =
+        normalized.instagram_feed === true &&
+        isMessignBrandStill({
+          product: normalized.scene_product,
+          shopStill: normalized.shop_still === true,
+        });
+      if (normalized.instagram_feed === true && !preserveOverlayAlpha && (messignStill || logoUrl)) {
         try {
-          const logo = await fetchReferenceImageBufferForFal(logoUrl);
-          uploadBuffer = await stampBrandLogo(uploadBuffer, logo);
-          stampedBrandMark = true;
+          const logo = logoUrl ? await fetchReferenceImageBufferForFal(logoUrl) : undefined;
+          if (messignStill) {
+            uploadBuffer = await stampMessignLockup(uploadBuffer, {
+              logo,
+              subtitle: messignLockupSubtitle(normalized.scene_product),
+            });
+            stampedBrandMark = 'messign_lockup';
+          } else if (logo) {
+            uploadBuffer = await stampBrandLogo(uploadBuffer, logo);
+            stampedBrandMark = 'attached_logo';
+          }
         } catch (stampErr) {
           console.warn('[imageService] brand_logo_stamp_failed', {
             content_id: normalized.content_id,
@@ -1997,7 +2012,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
                   : 0.1,
             }
           : {}),
-        ...(stampedBrandMark ? { brand_mark: 'attached_logo' as const } : {}),
+        ...(stampedBrandMark ? { brand_mark: stampedBrandMark } : {}),
       };
 
       console.log('[imageService] Generation succeeded', {

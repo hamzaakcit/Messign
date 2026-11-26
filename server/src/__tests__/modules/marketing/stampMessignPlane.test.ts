@@ -1,7 +1,11 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { isMessignBrandStill } from '../../../services/marketing/publishing/imageService/messignBrandMark.js';
-import { stampBrandLogo } from '../../../services/marketing/publishing/imageService/stampMessignPlane.js';
+import {
+  messignLockupSubtitle,
+  stampBrandLogo,
+  stampMessignLockup,
+} from '../../../services/marketing/publishing/imageService/stampMessignPlane.js';
 import { buildDirectInstagramFalPrompt } from '../../../services/marketing/publishing/imageService/promptBuilder.js';
 
 describe('isMessignBrandStill', () => {
@@ -54,6 +58,39 @@ describe('stampBrandLogo', () => {
 
     const quiet = await sharp(stamped).extract({ left: 0, top: 300, width: 40, height: 40 }).raw().toBuffer();
     expect(quiet.every((value) => value > 250)).toBe(true);
+  });
+
+  it('sets Messign and the logo in type on the lower sign, and leaves the top clear', async () => {
+    const jpeg = await sharp({
+      create: { width: 800, height: 800, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    })
+      .jpeg()
+      .toBuffer();
+    const logo = await sharp({
+      create: { width: 80, height: 40, channels: 4, background: { r: 0, g: 80, b: 220, alpha: 1 } },
+    })
+      .png()
+      .toBuffer();
+    const stamped = await stampMessignLockup(jpeg, {
+      logo,
+      subtitle: messignLockupSubtitle('Messign'),
+    });
+    const top = await sharp(stamped).extract({ left: 0, top: 0, width: 80, height: 80 }).raw().toBuffer();
+    expect(top.every((value) => value > 250)).toBe(true);
+
+    const sign = await sharp(stamped).extract({ left: 80, top: 520, width: 640, height: 240 }).raw().toBuffer();
+    let dark = 0;
+    let blue = 0;
+    for (let i = 0; i < sign.length; i += 3) {
+      const r = sign[i] ?? 0;
+      const g = sign[i + 1] ?? 0;
+      const b = sign[i + 2] ?? 0;
+      if (r < 40 && g < 40 && b < 40) dark += 1;
+      if (b > r + 30 && b > 80) blue += 1;
+    }
+    expect(dark).toBeGreaterThan(80);
+    expect(blue).toBeGreaterThan(20);
+    expect(messignLockupSubtitle('Dora')).toBe('Dora');
   });
 
   it('returns a tiny image unchanged', async () => {
