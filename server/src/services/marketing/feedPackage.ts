@@ -8,6 +8,7 @@ import type { AspectRatio, StylePreset } from '../../dal/marketing/instagramType
 import { parseOfferSheet, type OfferSheet } from './offerSheet.js';
 import { offerSheetIsActive } from './offerProductionGate.js';
 import { inferEcommerceVertical } from '../../modules/marketing/prompts/ecommercePromptPack.js';
+import { isMessignBrandStill } from './publishing/imageService/messignBrandMark.js';
 import { buildInstagramFeedT2iPrompt } from './workflows/instagramFeedT2i.js';
 
 export interface FeedPackageError {
@@ -57,11 +58,19 @@ export function checkFeedStill(input: {
 }): FeedPackageError[] {
   const errors: FeedPackageError[] = [];
   const returned = input.returnedPrompt?.trim() ?? '';
-  if (!input.sheet.product.trim() || !includesFact(returned, input.sheet.product)) {
-    errors.push({ field: 'product', message: 'Returned prompt must name the product.' });
-  }
-  if (!input.sheet.place.trim() || !includesFact(returned, input.sheet.place)) {
-    errors.push({ field: 'place', message: 'Returned prompt must name the place.' });
+  if (returned) {
+    const shopStill =
+      inferEcommerceVertical([input.sheet.product, input.sheet.place].filter(Boolean).join('\n')) != null;
+    const messign = isMessignBrandStill({ product: input.sheet.product, shopStill });
+    if (!messign && (!input.sheet.product.trim() || !includesFact(returned, input.sheet.product))) {
+      errors.push({ field: 'product', message: 'Returned prompt must name the product.' });
+    }
+    if (!messign && (!input.sheet.place.trim() || !includesFact(returned, input.sheet.place))) {
+      errors.push({ field: 'place', message: 'Returned prompt must name the place.' });
+    }
+    if (messign && input.sheet.place.trim() && !includesFact(returned, input.sheet.place)) {
+      errors.push({ field: 'place', message: 'Returned prompt must name the place.' });
+    }
   }
   if (input.aspectRatio !== '1:1') {
     errors.push({ field: 'frame', message: 'Feed frame must be square.' });

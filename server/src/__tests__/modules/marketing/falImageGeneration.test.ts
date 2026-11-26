@@ -446,6 +446,24 @@ describe('falImageGeneration', () => {
       expect(calls[0]?.negative_prompt).toBeUndefined();
     });
 
+    it('keeps the still when the product name was left out of the prompt on purpose', async () => {
+      const result = await subscribeFalStillWithSceneCheck({
+        modelId: 'fal-ai/flux-pro/v1.1',
+        product: 'Dora',
+        place: 'Istanbul Taksim',
+        sentPrompt: 'Editorial photograph of Istanbul Taksim. Signs stay blank.',
+        buildInput: () => ({ prompt: 'Editorial photograph of Istanbul Taksim. Signs stay blank.' }),
+        subscribe: async () => ({
+          data: {
+            images: [{ url: 'https://cdn.example/still.png', width: 1024, height: 1024 }],
+            prompt: 'Editorial photograph of Istanbul Taksim. Signs stay blank.',
+            has_nsfw_concepts: [false],
+          },
+        }),
+      });
+      expect(result.attempts).toBe(1);
+    });
+
     it('does not return an image when Fal marks it unsafe', async () => {
       let calls = 0;
       await expect(

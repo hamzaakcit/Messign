@@ -71,7 +71,7 @@ describe('generateImage', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('generativelanguage.googleapis.com');
     expect(url).toContain('generateContent');
-    expect(url).toMatch(/gemini-2\.0-flash-preview-image-generation/);
+    expect(url).toMatch(/gemini-2\.5-flash-image/);
     expect(url).not.toMatch(/[?&]key=/);
     const hdrs = init.headers as Record<string, string>;
     expect(hdrs['X-goog-api-key']).toBe('test-gemini-key');
@@ -139,14 +139,21 @@ describe('generateImage', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.metadata?.model).toBe('openai/dall-e-3');
+    expect(result.metadata?.model).toBe('openai/gpt-image-2.6-flare');
     const [openAiUrl] = fetchMock.mock.calls[0] as [string];
     expect(openAiUrl).toBe('https://api.openai.com/v1/images/generations');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, openAiInit] = fetchMock.mock.calls[0] as [string, RequestInit];
-    const openAiBody = JSON.parse(openAiInit.body as string) as { quality?: string; model?: string };
-    expect(openAiBody.model).toBe('dall-e-3');
-    expect(openAiBody.quality).toBe('hd');
+    const openAiBody = JSON.parse(openAiInit.body as string) as {
+      quality?: string;
+      model?: string;
+      response_format?: string;
+      style?: string;
+    };
+    expect(openAiBody.model).toBe('gpt-image-2.6-flare');
+    expect(openAiBody.quality).toBe('high');
+    expect(openAiBody.response_format).toBeUndefined();
+    expect(openAiBody.style).toBeUndefined();
   });
 
   it('uses global aiplatform.googleapis.com ?key= before other Gemini paths when set', async () => {
@@ -319,6 +326,29 @@ describe('generateImage', () => {
     expect(result.success).toBe(false);
     expect(result.error ?? '').toMatch(/Instagram Fal-only image generation failed/i);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('image_provider openai reports the provider error instead of a generic failure', async () => {
+    process.env.OPENAI_API_KEY = 'sk-test-openai';
+    process.env.FAL_KEY = 'fal-test-key';
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => '{"error":{"message":"model not available"}}',
+    });
+
+    vi.resetModules();
+    const { generateImage } = await import('../../../services/marketing/publishing/imageService.js');
+    const result = await generateImage({
+      org_id: '00000000-0000-0000-0000-000000000001',
+      content_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      prompt: 'A booth with blank screens',
+      image_provider: 'openai',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error ?? '').toMatch(/OpenAI images 400/);
+    expect(result.error ?? '').not.toMatch(/all configured backends/);
   });
 
   it('image_provider gemini skips Fal and calls Gemini', async () => {
