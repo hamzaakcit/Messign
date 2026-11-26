@@ -10,6 +10,15 @@ import { useAuthStore } from '@/stores/authStore'
 /** Apply persisted light/dark (`data-theme`) before any route; Settings is not mounted on /login. */
 import '@/stores/themeStore'
 import './styles/globals.css'
+import { installStaleChunkReload } from '@/lib/reloadOnStaleChunk'
+
+// A tab opened before a deploy asks for page chunks the new deploy removed: load the new version once.
+installStaleChunkReload({
+  addEventListener: (type, listener) => window.addEventListener(type, listener),
+  reload: () => window.location.reload(),
+  storage: (() => { try { return window.sessionStorage; } catch { return null; } })(),
+  now: () => Date.now(),
+});
 
 // Catch unhandled promise rejections globally — prevents silent failures
 window.addEventListener('unhandledrejection', (event) => {
