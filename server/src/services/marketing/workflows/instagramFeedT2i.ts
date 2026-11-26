@@ -15,6 +15,8 @@ export interface InstagramPromptIntentContext {
   userBrief?: string | null;
   /** Truth-row prose. The scene uses this and leaves price and place labels out. */
   materials?: string | null;
+  /** The shop attached a logo file for this still. */
+  brandLogoAttached?: boolean;
 }
 
 /**
@@ -52,6 +54,7 @@ export function buildInstagramFeedT2iPrompt(
         aspectRatio,
         materials: intentContext?.materials ?? null,
         look: stylePreset,
+        brandLogoAttached: intentContext?.brandLogoAttached === true,
       }),
       instagram_direct_prompt: true,
     };

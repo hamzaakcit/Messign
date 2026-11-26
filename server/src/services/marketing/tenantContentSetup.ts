@@ -25,7 +25,7 @@ export interface TenantContentSetup {
 }
 
 /** Names that belong to Messign. A florist sheet must not list them. */
-export const MESSIGN_PRODUCT_NAMES = ['Dora', 'Knowledge Hub', 'Work Management', 'Gamification'] as const;
+export const MESSIGN_PRODUCT_NAMES = ['Dora', 'Lucy', 'Messign', 'Knowledge Hub', 'Work Management', 'Gamification'] as const;
 
 export const TENANT_CONTENT_SETUPS: readonly TenantContentSetup[] = [
   {
@@ -37,6 +37,8 @@ export const TENANT_CONTENT_SETUPS: readonly TenantContentSetup[] = [
     recipes: ['product_drop', 'occasion', 'cart'],
     productTruth: [
       { name: 'Dora', description: 'AI assistant for the workspace' },
+      { name: 'Lucy', description: 'Marketing assistant' },
+      { name: 'Messign', description: 'The engagement platform' },
       { name: 'Knowledge Hub', description: 'Shared docs and answers' },
       { name: 'Work Management', description: 'Tasks and projects' },
     ],

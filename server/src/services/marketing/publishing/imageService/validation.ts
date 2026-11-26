@@ -116,6 +116,7 @@ export function validateImageGenerationInput(
       ...(typeof input.image_prompt_strength === 'number' && Number.isFinite(input.image_prompt_strength)
         ? { image_prompt_strength: input.image_prompt_strength }
         : {}),
+      ...(input.brand_logo_url?.trim() ? { brand_logo_url: input.brand_logo_url.trim() } : {}),
     },
   };
 }

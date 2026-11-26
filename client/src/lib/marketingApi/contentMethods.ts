@@ -88,6 +88,17 @@ export const contentMethods = {
       userId,
     ),
 
+  /** Upload the shop logo (JPEG/PNG/WebP, field name `image`). Placed on later stills. */
+  uploadBrandLogo: (userId: string, contentId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('image', file);
+    return marketingRequest<{ success: boolean; brand_logo_url: string; content_id: string }>(
+      `/content/${contentId}/brand-logo`,
+      { method: 'POST', body: fd },
+      userId,
+    );
+  },
+
   /** Upload reference JPEG/PNG/WebP (field name `image`) — sets `reference_image_url` on the content row. */
   uploadReferenceImage: (userId: string, contentId: string, file: File) => {
     const fd = new FormData();

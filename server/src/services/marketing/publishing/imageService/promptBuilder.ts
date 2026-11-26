@@ -6,6 +6,7 @@ import type { ImageGenerationInput, StylePreset } from '../../../../dal/marketin
 import { emailImagePromptExplicitlyRequestsPeople } from './emailImagePromptSubject.js';
 import { parseOfferSheet } from '../../offerSheet.js';
 import { inferEcommerceVertical } from '../../../../modules/marketing/prompts/ecommercePromptPack.js';
+import { isMessignBrandStill } from './messignBrandMark.js';
 
 export interface ImageGenContext {
   channel: 'email' | 'instagram' | 'general';
@@ -182,6 +183,8 @@ export function buildDirectInstagramFalPrompt(params: {
   aspectRatio?: ImageGenerationInput['aspect_ratio'];
   /** Look used when the sheet has no style. A style on the offer wins. */
   look?: string | null;
+  /** The shop attached a logo file. It is placed on the photo after generation. */
+  brandLogoAttached?: boolean;
   /** Prose from the truth row. Price and place labels must already be removed. */
   materials?: string | null;
 }): string {
@@ -213,9 +216,48 @@ export function buildDirectInstagramFalPrompt(params: {
         : null;
 
   const realismLines = stillRealismLines(look);
+  const blankSignage = blankSignageLine();
+  const brandMark = brandMarkLine({
+    product: sheet.product,
+    brief: params.userBrief,
+    shopStill: vertical === 'bookstore' || vertical === 'florist',
+    logoAttached: params.brandLogoAttached === true,
+  });
 
   const frame = instagramFrameLine(params.aspectRatio);
-  return [scene, shopLine, realismLines, frame].filter(Boolean).join('\n\n').trim();
+  return [scene, shopLine, realismLines, blankSignage, brandMark, frame].filter(Boolean).join('\n\n').trim();
+}
+
+/**
+ * Messign is the brand on its own stills. An attached logo file is placed afterwards, so the model must not paint a name.
+ */
+function brandMarkLine(input: {
+  product: string;
+  brief?: string | null;
+  shopStill: boolean;
+  logoAttached: boolean;
+}): string | null {
+  const messign = isMessignBrandStill({
+    product: input.product,
+    brief: input.brief,
+    shopStill: input.shopStill,
+  });
+  if (!messign && !input.logoAttached) return null;
+  const parts: string[] = [];
+  if (messign) {
+    parts.push('The brand is Messign. A product name in this brief is not the brand. Do not paint either name.');
+  }
+  if (input.logoAttached) {
+    parts.push('The attached logo is placed on the photo afterwards. Draw no logo and no writing.');
+  }
+  return parts.join(' ');
+}
+
+/**
+ * Walls and screens must not become slide decks. The model paints stacked lines of type when a booth has monitors.
+ */
+function blankSignageLine(): string {
+  return 'Screens, signs, banners, badges, and wall panels stay blank. A screen or wall graphic shows only a photograph, a solid color, or an empty surface. No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs. Do not paint letters, words, numbers, or a wordmark. Names in this brief are context, not writing.';
 }
 
 /**
@@ -425,6 +467,7 @@ export function enhanceImagePrompt(
           '- When the brief includes people, teams, portraits, or lifestyle with humans: show real individuals in the scene with visible faces where appropriate — not anonymous silhouettes or everyone facing away unless the brief asks for anonymity.',
           '- Fashion / retail / ecommerce: show the garments, bags, storefront, or street scene requested — not unrelated headshots or B2B meeting stock.',
           '- Match aspect ratio and framing if specified in the brief (e.g. 16:9 vs 1:1); default is square only when the brief does not specify otherwise.',
+          `- ${blankSignageLine()}`,
         ].join('\n')
       : '';
 

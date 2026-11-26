@@ -336,6 +336,8 @@ export async function runInstagramImageGeneration(opts: {
   const resolution = cover?.resolution ?? resolveResolution(resolvedAspect);
   const stillPrompt = reelPack?.coverPrompt ?? parsed.imagePrompt;
   const shopStill = inferEcommerceVertical([sceneProduct, scenePlace].filter(Boolean).join('\n')) != null;
+  const brandLogoUrl = contentRow?.brand_logo_url?.trim() || undefined;
+  const stillIntent = { ...intentContext, brandLogoAttached: Boolean(brandLogoUrl) };
 
   console.log(`${LOG} gen_start`, {
     contentId,
@@ -350,7 +352,7 @@ export async function runInstagramImageGeneration(opts: {
 
   // A reference photo is a new Ultra still. Kontext stays on the edit path.
   if (refUrl) {
-    const t2i = buildInstagramFeedT2iPrompt(stillPrompt, look, intentContext, resolvedAspect);
+    const t2i = buildInstagramFeedT2iPrompt(stillPrompt, look, stillIntent, resolvedAspect);
     const genResult = await generateImage({
       org_id: orgId,
       content_id: contentId,
@@ -366,6 +368,7 @@ export async function runInstagramImageGeneration(opts: {
       scene_place: scenePlace || undefined,
       shop_still: shopStill,
       image_prompt_strength: opts.imagePromptStrength,
+      ...(brandLogoUrl ? { brand_logo_url: brandLogoUrl } : {}),
     });
     if (genResult.success && genResult.image_url) {
       const packageErrors = checkFeedPackage({
@@ -430,7 +433,7 @@ export async function runInstagramImageGeneration(opts: {
     };
   }
 
-  const t2i = buildInstagramFeedT2iPrompt(stillPrompt, look, intentContext, resolvedAspect);
+  const t2i = buildInstagramFeedT2iPrompt(stillPrompt, look, stillIntent, resolvedAspect);
   const genResult = await generateImage({
     org_id: orgId,
     content_id: contentId,
@@ -444,6 +447,7 @@ export async function runInstagramImageGeneration(opts: {
     scene_product: sceneProduct || undefined,
     scene_place: scenePlace || undefined,
     shop_still: shopStill,
+    ...(brandLogoUrl ? { brand_logo_url: brandLogoUrl } : {}),
   });
 
   console.log(`${LOG} gen_result`, {

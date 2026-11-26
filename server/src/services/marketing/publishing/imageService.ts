@@ -43,6 +43,7 @@ export { buildValuePropItemImagePrompt } from './imageService/valuePropImageProm
 export {
   buildStorageKey,
   buildReferenceUploadStorageKey,
+  buildBrandLogoUploadStorageKey,
   buildLucyReferenceUploadStorageKey,
   uploadToStorage,
 } from './imageService/storage.js';

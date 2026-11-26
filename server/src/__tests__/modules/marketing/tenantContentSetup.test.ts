@@ -23,7 +23,17 @@ describe('tenant content setup', () => {
     for (const setup of TENANT_CONTENT_SETUPS) {
       expect(contentSetupComplete(setup)).toBe(true);
       expect(setup.publishAllowed).toBe(false);
-      expect(setup.productTruth).toHaveLength(3);
+      if (setup.orgKey === 'messign') {
+        expect(setup.productTruth.map((row) => row.name)).toEqual([
+          'Dora',
+          'Lucy',
+          'Messign',
+          'Knowledge Hub',
+          'Work Management',
+        ]);
+      } else {
+        expect(setup.productTruth).toHaveLength(3);
+      }
     }
   });
 

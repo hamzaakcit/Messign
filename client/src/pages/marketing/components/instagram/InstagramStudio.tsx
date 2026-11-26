@@ -15,6 +15,7 @@ export interface InstagramStudioContent {
   image_prompt?: string | null;
   visual_description?: string | null;
   reference_image_url?: string | null;
+  brand_logo_url?: string | null;
   carousel_images?: unknown[] | null;
   image_variants?: Array<{ id: string; image_url: string; style_preset: string }> | null;
   tags?: readonly string[] | null;
@@ -32,6 +33,7 @@ export interface InstagramStudioProps {
   ) => void;
   onSelectImageVariant?: (imageUrl: string) => void;
   onUploadReferenceImage?: (file: File) => Promise<void>;
+  onUploadBrandLogo?: (file: File) => Promise<void>;
   onApplyAiPhotoEdit?: (editPrompt: string, stylePreset: string) => Promise<void>;
 }
 
@@ -68,6 +70,7 @@ export function InstagramStudio({
   onRegenerateImage,
   onSelectImageVariant,
   onUploadReferenceImage,
+  onUploadBrandLogo,
   onApplyAiPhotoEdit,
 }: InstagramStudioProps): ReactElement {
   const [slideIndex, setSlideIndex] = useState(0);
@@ -166,6 +169,8 @@ export function InstagramStudio({
         isGenerating={isGenerating}
         contentId={content.id}
         referenceImageUrl={content.reference_image_url ?? null}
+        brandLogoUrl={content.brand_logo_url ?? null}
+        onUploadBrandLogo={onUploadBrandLogo}
         initialLook={readStudioSheet(content.user_brief).style}
         onRegenerateImage={
           onRegenerateImage

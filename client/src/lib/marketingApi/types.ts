@@ -123,6 +123,8 @@ export interface ContentItem {
   image_prompt?: string | null;
   /** User-uploaded real photo URL for Kontext edits (composite in image_url). */
   reference_image_url?: string | null;
+  /** Shop logo placed on generated stills. The image model does not paint it. */
+  brand_logo_url?: string | null;
   parent_title?: string | null;
   carousel_images?: unknown[] | null;
   body_html?: string | null;

@@ -28,6 +28,8 @@ export const TENANT_CONTENT_SETUPS: readonly TenantContentSetup[] = [
     recipes: ['product drop', 'occasion', 'cart'],
     productTruth: [
       { name: 'Dora', description: 'AI assistant for the workspace' },
+      { name: 'Lucy', description: 'Marketing assistant' },
+      { name: 'Messign', description: 'The engagement platform' },
       { name: 'Knowledge Hub', description: 'Shared docs and answers' },
       { name: 'Work Management', description: 'Tasks and projects' },
     ],
@@ -78,7 +80,7 @@ export const TENANT_CONTENT_SETUPS: readonly TenantContentSetup[] = [
   },
 ];
 
-const MESSIGN_PRODUCT_NAMES = ['Dora', 'Knowledge Hub', 'Work Management', 'Gamification'];
+const MESSIGN_PRODUCT_NAMES = ['Dora', 'Lucy', 'Messign', 'Knowledge Hub', 'Work Management', 'Gamification'];
 
 /** True when a florist row uses a Messign product name. */
 export function floristUsesMessignProduct(setups: readonly TenantContentSetup[] = TENANT_CONTENT_SETUPS): boolean {

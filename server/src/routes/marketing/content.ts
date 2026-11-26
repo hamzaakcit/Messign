@@ -18,6 +18,7 @@ import { generateImageVariations } from '../../services/marketing/workflows/inst
 import { repurposeContent } from '../../services/ai/marketing/repurposeService.js';
 import {
   buildReferenceUploadStorageKey,
+  buildBrandLogoUploadStorageKey,
   buildLucyReferenceUploadStorageKey,
   uploadToStorage,
   editMarketingPhotoWithKontext,
@@ -610,6 +611,49 @@ router.post(
       });
     } catch (err) {
       console.error('[marketing/content/:id/reference-image POST]', err);
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Upload failed' });
+    }
+  },
+);
+
+/**
+ * Attach the shop logo (JPEG/PNG/WebP). Field name: `image`.
+ * The file is placed on later stills. The image model is not asked to paint the brand.
+ */
+router.post(
+  '/:id/brand-logo',
+  referencePhotoUpload.single('image'),
+  async (req: ReimbursementRequest, res: Response) => {
+    try {
+      const ctx = buildCtx(req);
+      const orgId = ctx.organizationId;
+      if (!orgId) {
+        res.status(400).json({ error: 'Organization required' });
+        return;
+      }
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ error: 'Image file required (field name: image)' });
+        return;
+      }
+      const existing = await contentDal.getContentById(ctx, req.params.id);
+      if (!existing) {
+        res.status(404).json({ error: 'Content not found' });
+        return;
+      }
+      const ext = mimeToImageExt(file.mimetype);
+      const key = buildBrandLogoUploadStorageKey(orgId, req.params.id, ext);
+      const publicUrl = await uploadToStorage(file.buffer, key, file.mimetype);
+      const updated = await contentDal.updateContent(ctx, req.params.id, {
+        brand_logo_url: publicUrl,
+      });
+      res.json({
+        success: true,
+        brand_logo_url: publicUrl,
+        content_id: updated.id,
+      });
+    } catch (err) {
+      console.error('[marketing/content/:id/brand-logo POST]', err);
       res.status(400).json({ error: err instanceof Error ? err.message : 'Upload failed' });
     }
   },

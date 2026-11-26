@@ -46,6 +46,8 @@ import {
   getRasterDimensions,
 } from './kontextRasterNormalize.js';
 import { buildStorageKey, uploadToStorage } from './storage.js';
+import { stampBrandLogo } from './stampMessignPlane.js';
+import { fetchReferenceImageBufferForFal } from './falReferenceImage.js';
 import { callFalMarketingImageGeneration, getFalApiKey } from './falImageGeneration.js';
 import {
   buildGlobalPublisherGeminiGenerateContentUrl,
@@ -1824,6 +1826,21 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
         }
       }
 
+      let stampedBrandMark = false;
+      const logoUrl = normalized.brand_logo_url?.trim();
+      if (normalized.instagram_feed === true && logoUrl && !preserveOverlayAlpha) {
+        try {
+          const logo = await fetchReferenceImageBufferForFal(logoUrl);
+          uploadBuffer = await stampBrandLogo(uploadBuffer, logo);
+          stampedBrandMark = true;
+        } catch (stampErr) {
+          console.warn('[imageService] brand_logo_stamp_failed', {
+            content_id: normalized.content_id,
+            error: stampErr instanceof Error ? stampErr.message : String(stampErr),
+          });
+        }
+      }
+
       const isJpeg =
         uploadBuffer.length >= 2 && uploadBuffer[0] === 0xff && uploadBuffer[1] === 0xd8;
       const storageKey = buildStorageKey(
@@ -1878,6 +1895,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
                   : 0.1,
             }
           : {}),
+        ...(stampedBrandMark ? { brand_mark: 'attached_logo' as const } : {}),
       };
 
       console.log('[imageService] Generation succeeded', {
