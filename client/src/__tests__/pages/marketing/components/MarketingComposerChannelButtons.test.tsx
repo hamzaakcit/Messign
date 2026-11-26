@@ -13,7 +13,7 @@ describe('MarketingComposerChannelButtons', () => {
         variant="comfortable"
       />,
     );
-    expect(screen.getAllByRole('button')).toHaveLength(1 + MARKETING_COMPOSER_QUICK_ACTIONS.length);
+    expect(screen.getAllByRole('button')).toHaveLength(2 + MARKETING_COMPOSER_QUICK_ACTIONS.length);
     expect(screen.getByRole('button', { name: /^Instagram/i })).toBeTruthy();
   });
 
@@ -41,13 +41,16 @@ describe('MarketingComposerChannelButtons', () => {
         variant="comfortable"
       />,
     );
-    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getAllByRole('button')).toHaveLength(3);
     expect(screen.getAllByRole('button', { name: /^Email/i })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /^WhatsApp/i })).toBeTruthy();
     for (const name of [/Newsletter/i, /Flash/i, /Event invite/i]) {
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
     fireEvent.click(screen.getByRole('button', { name: /^Email/i }));
     expect(onChannel).toHaveBeenCalledWith('email');
+    fireEvent.click(screen.getByRole('button', { name: /^WhatsApp/i }));
+    expect(onChannel).toHaveBeenCalledWith('whatsapp');
   });
 
   it('compact variant exposes the same number of actions', () => {
@@ -59,6 +62,6 @@ describe('MarketingComposerChannelButtons', () => {
         variant="compact"
       />,
     );
-    expect(screen.getAllByRole('button')).toHaveLength(1 + MARKETING_COMPOSER_QUICK_ACTIONS.length);
+    expect(screen.getAllByRole('button')).toHaveLength(2 + MARKETING_COMPOSER_QUICK_ACTIONS.length);
   });
 });

@@ -3,10 +3,11 @@
  * UX-08: the LinkedIn, X, blog, ads and metrics forms were unreachable and are gone.
  */
 
-export type MarketingChannelAgentModalId = 'email';
+export type MarketingChannelAgentModalId = 'email' | 'whatsapp';
 
 export const MARKETING_CHANNEL_AGENT_MODAL_TITLES: Record<MarketingChannelAgentModalId, string> = {
   email: 'Email brief',
+  whatsapp: 'WhatsApp brief',
 };
 
 const MIN_EMAIL_FIELD = 4;
@@ -78,5 +79,19 @@ export function buildEmailVa2AgentMessage(v: EmailVa2AgentFormValues): string {
   const goal = EMAIL_LAYOUTS.find((row) => row.id === (v.layout ?? 'standard'))?.goal;
   if (goal) parts.splice(2, 0, goal);
   if (notes) parts.splice(goal ? 3 : 2, 0, `Additional notes: ${notes}`);
+  return parts.join(' ');
+}
+
+/**
+ * A WhatsApp brief is a short template body. Lucy does not send it, and it is not an email design.
+ */
+export function buildWhatsappAgentMessage(v: Pick<EmailVa2AgentFormValues, 'audience' | 'offer' | 'notes'>): string {
+  const parts = [
+    'Channel: WhatsApp. Draft one marketing template body. Not an email, and not a design.',
+    `Audience: ${v.audience.trim()}. Offer: ${v.offer.trim()}.`,
+    'Plain text, short enough for a phone. No subject line and no HTML. One next step. Say that a reply of STOP stops these messages. Use {{1}} only when a first name is needed.',
+  ];
+  const notes = v.notes?.trim();
+  if (notes) parts.push(`Notes: ${notes}`);
   return parts.join(' ');
 }

@@ -2,6 +2,11 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-26 · Lucy: a WhatsApp brief next to Instagram and Email
+- **Done:** Ask Lucy shows three tiles in one row: Instagram, Email, and WhatsApp. WhatsApp opens a short brief (audience, offer, notes). Lucy drafts one template body and does not send it. The tab bar still has one create button, New offer. Tests: composer tiles and the WhatsApp brief. Takes effect when the client is deployed.
+- **Next:** none from this change.
+- **Blockers:** none.
+
 ## 2026-11-26 · Still engines: blank signs, and live image models
 - **Cause:** Fal rejected a Messign still with "Fal prompt dropped the product or the place" because the prompt no longer repeats the product name (so the model does not paint it) and the check still demanded that name back. "All connected" stopped on that Fal error. OpenAI and Gemini then failed on every still: the defaults were `dall-e-3` (shut down 12 May 2026) and `gemini-2.0-flash-preview-image-generation` (shut down 14 Nov 2025), and a chosen engine's real error was replaced with "Image generation failed on all configured backends".
 - **Done:** Fal only requires a product or place that was actually in the prompt it was sent. A Messign still no longer fails the later package check for omitting Dora, Lucy, or Messign. OpenAI defaults to `gpt-image-2.6-flare` (no DALL·E `response_format` or `style`). Gemini defaults to `gemini-2.5-flash-image`, then `gemini-3.1-flash-lite-image`, then `gemini-nano-banana-2.1`. A retired id set in the environment is treated as unset. Choosing one engine shows that engine's error. Tests: Fal scene, feed package, image service. Takes effect when the server is deployed. The booth photo already made stays until you press Make still again.

@@ -6,6 +6,7 @@ import {
   MARKETING_CHANNEL_AGENT_MODAL_TITLES,
   validateEmailVa2AgentForm,
   buildEmailVa2AgentMessage,
+  buildWhatsappAgentMessage,
   EMAIL_LAYOUTS,
   type EmailLayout,
 } from '@/pages/marketing/lib/marketingChannelAgentBuilders';
@@ -18,7 +19,7 @@ export interface MarketingChannelAgentModalProps {
   onApplyToComposer?: (message: string) => void;
 }
 
-/** Lucy's email brief: audience, offer and notes become one structured request (the composer's email templates). */
+/** Lucy's channel brief: audience, offer and notes become one structured request. */
 export function MarketingChannelAgentModal({
   channel,
   isOpen,
@@ -51,7 +52,7 @@ export function MarketingChannelAgentModal({
       if (errs.offer) mapped.offer = errs.offer;
       setFieldErrors(mapped);
       if (Object.keys(mapped).length) return;
-      const msg = buildEmailVa2AgentMessage(v);
+      const msg = channel === 'whatsapp' ? buildWhatsappAgentMessage(v) : buildEmailVa2AgentMessage(v);
       if (mode === 'send') onSend(msg);
       else onApplyToComposer?.(msg);
       onClose();
@@ -64,7 +65,12 @@ export function MarketingChannelAgentModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={MARKETING_CHANNEL_AGENT_MODAL_TITLES[channel]} size="lg" forceDark>
       <div className="space-y-3 text-sm text-app-text">
-        <p className="text-xs text-app-muted leading-relaxed">Describe the audience and the offer.</p>
+        <p className="text-xs text-app-muted leading-relaxed">
+          {channel === 'whatsapp'
+            ? 'Describe who should get the message and what it offers. Lucy drafts the words. It does not send them.'
+            : 'Describe the audience and the offer.'}
+        </p>
+          {channel === 'email' ? (
           <div>
             <label htmlFor="ch-email-layout" className="mb-1 block text-xs font-medium text-app-muted">
               Layout
@@ -81,6 +87,7 @@ export function MarketingChannelAgentModal({
             </select>
             <p className="mt-1 text-xs text-app-muted">{EMAIL_LAYOUTS.find((row) => row.id === layout)?.hint}</p>
           </div>
+          ) : null}
           <div>
             <label htmlFor="ch-email-audience" className="mb-1 block text-xs font-medium text-app-muted">
               Audience <span className="text-red-400">*</span>
@@ -89,7 +96,7 @@ export function MarketingChannelAgentModal({
               id="ch-email-audience"
               value={emailAudience}
               onChange={(e) => setEmailAudience(e.target.value)}
-              placeholder="Who is this email for?"
+              placeholder={channel === 'whatsapp' ? 'Who should get this WhatsApp message?' : 'Who is this email for?'}
               className="w-full"
               autoComplete="off"
             />

@@ -45,3 +45,19 @@ describe('the email brief', () => {
     expect(onSend.mock.calls[0]?.[0]).not.toContain('Goal:');
   });
 });
+
+describe('the WhatsApp brief', () => {
+  it('asks for a short template and does not offer an email layout', () => {
+    const onSend = vi.fn();
+    render(<MarketingChannelAgentModal channel="whatsapp" isOpen onClose={vi.fn()} onSend={onSend} />);
+    expect(screen.getByRole('heading', { name: 'WhatsApp brief' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Layout')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/^Audience/), { target: { value: 'People who left a bouquet in the cart' } });
+    fireEvent.change(screen.getByLabelText(/^Offer/), { target: { value: 'The bouquet is still held until tonight' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send to Lucy' }));
+    const message = onSend.mock.calls[0]?.[0] as string;
+    expect(message).toContain('Channel: WhatsApp');
+    expect(message).toContain('STOP');
+    expect(message).not.toContain('Design Manifest');
+  });
+});
