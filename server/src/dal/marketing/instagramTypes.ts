@@ -4,6 +4,8 @@ export interface ImageGenerationFields {
   image_url?: string | null;
   /** User's real-world photo (HTTPS) — input for Kontext edits; result in image_url. */
   reference_image_url?: string | null;
+  /** Shop logo placed on generated stills. The image model does not paint it. */
+  brand_logo_url?: string | null;
   visual_description?: string | null;
   image_generation_metadata?: ImageGenerationMetadata | null;
   /** Carousel: ordered list of generated image URLs (slide 0 = main, slide 1+ = carousel). */
