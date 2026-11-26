@@ -44,7 +44,7 @@ export function LoginPage(): JSX.Element {
     const state = useAuthStore.getState();
     if (!state.isAuthenticated) return;
     if (state.mustChangePassword) navigate('/force-password-change', { replace: true });
-    else navigate('/', { replace: true });
+    else navigate('/dashboard', { replace: true });
   });
 
   return (

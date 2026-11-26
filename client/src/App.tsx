@@ -9,6 +9,15 @@ import { ReimbursementProvider } from '@/contexts/ReimbursementContext';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignUpPage } from '@/pages/SignUpPage';
 import { UnsubscribePage } from '@/engage/UnsubscribePage';
+import { SiteShell } from '@/site/SiteShell';
+import { HomePage } from '@/site/HomePage';
+import { EngagePage } from '@/site/EngagePage';
+import { InfrastructurePage } from '@/site/InfrastructurePage';
+import { DevelopersPage } from '@/site/DevelopersPage';
+import { CompanyPage } from '@/site/CompanyPage';
+import { ContactPage } from '@/site/ContactPage';
+import { SolutionPage } from '@/site/SolutionPage';
+import { skipsDevLoginScreen } from '@/site/paths';
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage';
 import { ENGAGE_HOME_PATH, isPathOnSurface, mountsFrozenModules } from '@/lib/productSurface';
 import { useEffectiveSurface } from '@/lib/useEffectiveSurface';
@@ -96,6 +105,7 @@ const DEV_AUTOLOGIN_EMAIL = 'alex.chen@messign.com';
 const DEV_AUTOLOGIN_PASSWORD = 'test123';
 
 function App() {
+  const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   /**
@@ -149,7 +159,7 @@ function App() {
     );
   }
 
-  if (showLoginWhileDevSignsIn) {
+  if (showLoginWhileDevSignsIn && !skipsDevLoginScreen(location.pathname)) {
     return <LoginPage />;
   }
 
@@ -157,7 +167,16 @@ function App() {
     <>
       {user && <NotificationSocketSubscriber />}
       <Routes>
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route element={<SiteShell />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/engage" element={<EngagePage />} />
+          <Route path="/infrastructure" element={<InfrastructurePage />} />
+          <Route path="/solutions/:slug" element={<SolutionPage />} />
+          <Route path="/developers" element={<DevelopersPage />} />
+          <Route path="/company" element={<CompanyPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+        </Route>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         {/* Public, no sign-in: the signed token in the link is the credential (engage unsubscribe, WP-13). */}
         <Route path="/u/:token" element={<UnsubscribePage />} />
@@ -206,7 +225,7 @@ function App() {
             <MainApp />
           </AuthGuard>
         } />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   );

@@ -56,7 +56,7 @@ export function ForcePasswordChangePage() {
     try {
       await authAPI.changePassword(currentPassword, newPassword);
       setMustChangePassword(false);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
     } finally {

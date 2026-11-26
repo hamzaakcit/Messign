@@ -169,7 +169,7 @@ export function AdminSidebar() {
       {/* Back to Main App */}
       <div className="p-3 border-t border-app-border">
         <Link
-          to="/"
+          to="/dashboard"
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-app-muted hover:text-primary-500 hover:bg-app-nav-hover transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-app-sidebar"
           aria-label="Back to main app"
         >

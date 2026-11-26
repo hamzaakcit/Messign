@@ -4,6 +4,7 @@
  */
 
 export const ROUTES = {
+  /** Public marketing homepage. The signed-in workspace opens at {@link ROUTES.DASHBOARD}. */
   ROOT: '/',
   LOGIN: '/login',
   SIGNUP: '/signup',
