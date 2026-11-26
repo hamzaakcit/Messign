@@ -1,8 +1,24 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { PilotPlaneSVG } from '@/components/dora/pilot/PilotPlaneSVG';
 import { cn } from '@/lib/utils';
 import { STATUS_LABEL, type SiteStatus } from './content';
+
+export interface SiteMarkProps {
+  size?: number;
+}
+
+/**
+ * Company mark for the public site: Dora's paper plane, with the face left off.
+ */
+export function SiteMark({ size = 28 }: SiteMarkProps): JSX.Element {
+  return (
+    <span className="inline-flex shrink-0" aria-hidden>
+      <PilotPlaneSVG size={size} showFace={false} />
+    </span>
+  );
+}
 
 /** Shared horizontal measure for the public site. */
 export function SiteContainer({

@@ -42,6 +42,10 @@ describe('public site', () => {
     const login = screen.getAllByRole('link', { name: 'Login' });
     expect(login.length).toBeGreaterThan(0);
     for (const link of login) expect(link).toHaveAttribute('href', '/login');
+    const home = screen.getByRole('link', { name: 'Messign home' });
+    const mark = home.querySelector('svg');
+    expect(mark?.innerHTML ?? '').toContain('M10 32L52 14L44 32L52 50L10 32Z');
+    expect(mark?.innerHTML ?? '').not.toContain('M28 27Q31 30.5 34 27');
     expect(screen.getByRole('link', { name: 'Explore Messign' })).toHaveAttribute('href', '/engage');
     expect(screen.getAllByRole('link', { name: 'Contact Sales' })[0]).toHaveAttribute('href', '/contact');
   });

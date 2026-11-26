@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessignIcon } from '@/components/ui/MessignLogo';
+import { SiteMark } from './ui';
 
 const TABS = ['Customers', 'Journeys', 'Campaigns', 'Segments', 'Templates'] as const;
 type WorkspaceTab = (typeof TABS)[number];
@@ -14,7 +14,7 @@ export function HeroStage(): JSX.Element {
       <div className="overflow-hidden rounded-[28px] border border-[#d5deea] bg-[#0c1733] text-white shadow-[0_24px_60px_rgba(16,24,40,0.16)]">
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-5">
           <div className="flex items-center gap-2.5">
-            <MessignIcon size={26} variant="dark" animate={false} />
+            <SiteMark size={30} />
             <div>
               <p className="text-[12px] font-medium tracking-wide text-white">Engage</p>
               <p className="text-[11px] text-white/50">Workspace sections</p>
