@@ -1,16 +1,19 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BROWSER_ID_PATTERN, BROWSER_ID_RE, SITE_KEY_PATTERN, SITE_KEY_RE, siteKeyPrefix } from './ids.js';
 
-const tokens = readFileSync(
-  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../server/src/engage/website/tokens.ts'),
-  'utf8',
+const tokensPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../server/src/engage/website/tokens.ts',
 );
+const tokens = existsSync(tokensPath) ? readFileSync(tokensPath, 'utf8') : null;
 
 describe('identifier contract', () => {
-  it('copies the server site-key and browser-id patterns', () => {
+  // The server module is the source of the same patterns. It is not on main yet,
+  // so the comparison runs only when that file is present.
+  it.skipIf(tokens === null)('copies the server site-key and browser-id patterns', () => {
     expect(tokens).toContain(`const SITE_KEY_RE = /${SITE_KEY_PATTERN}/`);
     expect(tokens).toContain(`const BROWSER_ID_RE = /${BROWSER_ID_PATTERN}/`);
   });
