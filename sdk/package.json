@@ -1,0 +1,12 @@
+{
+  "name": "messign-sdk",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node ../client/scripts/build-sdk.mjs",
+    "build:dev": "SDK_ENV=development node ../client/scripts/build-sdk.mjs",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "test": "node ../client/scripts/build-sdk.mjs && vitest run"
+  }
+}
