@@ -1,10 +1,11 @@
-import { Instagram } from 'lucide-react';
+import { Instagram, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MarketingChannelAgentModalId } from '@/pages/marketing/lib/marketingChannelAgentBuilders';
 import { MARKETING_COMPOSER_QUICK_ACTIONS } from '@/pages/marketing/components/marketingDoraQuickActions';
 import { MarketingDoraQuickActionIcon } from '@/pages/marketing/components/MarketingDoraQuickActionIcon';
 
 const INSTAGRAM_TITLE = 'Instagram post — start a new offer: product, picture and words in five steps.';
+const WHATSAPP_TITLE = 'WhatsApp message — describe the audience and the offer, and Lucy drafts a short template.';
 
 /** Shared glass base so every tile reads “designed,” not flat. */
 const CHANNEL_TILE_BASE =
@@ -28,7 +29,7 @@ export interface MarketingComposerChannelButtonsProps {
 }
 
 /**
- * Instagram goes to New offer; Email opens the email brief.
+ * Instagram goes to New offer. Email and WhatsApp open a brief.
  */
 export function MarketingComposerChannelButtons({
   isLoading,
@@ -61,6 +62,27 @@ export function MarketingComposerChannelButtons({
     </button>
   );
 
+  const whatsappButton = (
+    <button
+      type="button"
+      disabled={isLoading}
+      onClick={() => onOpenChannelModal('whatsapp')}
+      title={WHATSAPP_TITLE}
+      aria-label={WHATSAPP_TITLE}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-lg font-medium text-app-text transition disabled:opacity-40',
+        CHANNEL_TILE_BASE,
+        'border-[#25D366]/40 from-emerald-950/50 to-green-950/40 ring-1 ring-[#25D366]/20',
+        compact
+          ? 'shrink-0 snap-start px-1.5 py-1 text-[9px] font-semibold min-w-[4rem] max-h-9'
+          : 'min-h-[2.75rem] w-full justify-center px-2 py-2 text-xs sm:text-sm',
+      )}
+    >
+      <MessageCircle className={cn('shrink-0', compact ? 'w-3 h-3' : 'w-4 h-4 text-[#25D366]')} />
+      <span className={cn('leading-tight', compact && 'truncate max-w-[4.25rem]')}>WhatsApp</span>
+    </button>
+  );
+
   const templateButtons = MARKETING_COMPOSER_QUICK_ACTIONS.map((q) => (
     <button
       key={q.id}
@@ -79,7 +101,7 @@ export function MarketingComposerChannelButtons({
         q.upgraded && 'ring-1 ring-violet-400/15',
         compact
           ? 'shrink-0 snap-start px-1.5 py-1 text-[9px] font-semibold min-w-[4rem] max-h-9'
-          : 'min-h-[2.75rem] w-full justify-start px-2.5 py-2 text-xs sm:text-sm',
+          : 'min-h-[2.75rem] w-full justify-center px-2 py-2 text-xs sm:text-sm',
       )}
     >
       <MarketingDoraQuickActionIcon icon={q.icon} size={compact ? 'sm' : 'md'} />
@@ -99,6 +121,7 @@ export function MarketingComposerChannelButtons({
       <div className="flex gap-0.5 overflow-x-auto max-h-[2.75rem] items-center snap-x scrollbar-thin [-webkit-overflow-scrolling:touch] pb-0.5">
         {instagramButton}
         {templateButtons}
+        {whatsappButton}
       </div>
     );
   }
@@ -106,9 +129,10 @@ export function MarketingComposerChannelButtons({
   return (
     <div className="space-y-2">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-app-muted">Templates</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-1.5">
         {instagramButton}
         {templateButtons}
+        {whatsappButton}
       </div>
     </div>
   );
