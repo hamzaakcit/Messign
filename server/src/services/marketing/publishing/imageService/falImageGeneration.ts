@@ -393,18 +393,28 @@ export function falResultHasNsfw(data: unknown): boolean {
 }
 
 /**
- * True when a returned prompt string is present and omits the product or the place.
- * A payload with no prompt field is left alone.
+ * True when a returned prompt string is present and omits a product or place that was in the prompt we sent.
+ * A name we left out on purpose (a Messign still does not paint the product name) is not a drop.
+ * A payload with no prompt field is left alone. With no sent prompt, every named fact is required.
  */
-export function returnedPromptDropsScene(data: unknown, product: string, place: string): boolean {
+export function returnedPromptDropsScene(
+  data: unknown,
+  product: string,
+  place: string,
+  sentPrompt?: string,
+): boolean {
   const prompt = extractFalReturnedPrompt(data);
   if (prompt == null) return false;
   const haystack = prompt.toLocaleLowerCase('tr');
-  const namedProduct = product.trim();
-  const namedPlace = place.trim();
-  if (namedProduct && !haystack.includes(namedProduct.toLocaleLowerCase('tr'))) return true;
-  if (namedPlace && !haystack.includes(namedPlace.toLocaleLowerCase('tr'))) return true;
-  return false;
+  const sent = sentPrompt?.toLocaleLowerCase('tr');
+  const dropped = (fact: string): boolean => {
+    const named = fact.trim();
+    if (!named) return false;
+    const needle = named.toLocaleLowerCase('tr');
+    if (sent != null && !sent.includes(needle)) return false;
+    return !haystack.includes(needle);
+  };
+  return dropped(product) || dropped(place);
 }
 
 /**
@@ -415,6 +425,8 @@ export async function subscribeFalStillWithSceneCheck(params: {
   modelId: string;
   product: string;
   place: string;
+  /** Prompt Fal was asked to follow. Facts absent from it are not required back. */
+  sentPrompt?: string;
   buildInput: (enhancePrompt: boolean) => Record<string, unknown>;
   subscribe: (modelId: string, input: Record<string, unknown>) => Promise<FalSubscribeResult>;
 }): Promise<{ data: unknown; requestId?: string; attempts: number; enhancePrompt: boolean }> {
@@ -431,7 +443,7 @@ export async function subscribeFalStillWithSceneCheck(params: {
     if (falResultHasNsfw(result.data)) {
       throw new Error('Fal marked the image unsafe');
     }
-    if (!watchScene || !returnedPromptDropsScene(result.data, product, place)) {
+    if (!watchScene || !returnedPromptDropsScene(result.data, product, place, params.sentPrompt)) {
       return { data: result.data, requestId: result.requestId, attempts: attempt, enhancePrompt };
     }
     enhancePrompt = false;
@@ -671,6 +683,7 @@ async function callFalMarketingImageGenerationCore(
     modelId,
     product: options?.sceneProduct ?? '',
     place: options?.scenePlace ?? '',
+    sentPrompt: prompt,
     buildInput,
     subscribe,
   });

@@ -35,6 +35,30 @@ describe('checkFeedPackage', () => {
     expect(errors.map((error) => error.field)).toContain('price');
   });
 
+  it('does not require a Messign product name that the still prompt left out', () => {
+    const errors = checkFeedPackage({
+      brief: ['Booth', '', 'product: Dora', 'place: Istanbul Taksim', 'language: en'].join('\n'),
+      returnedPrompt: 'Editorial photograph of Istanbul Taksim. Signs stay blank.',
+      aspectRatio: '1:1',
+      caption: 'The booth is open this week. Link in bio',
+      format: 'feed',
+    });
+    expect(errors.map((error) => error.field)).not.toContain('product');
+    expect(errors.map((error) => error.field)).not.toContain('place');
+  });
+
+  it('does not fail a still when the engine returns no prompt echo', () => {
+    const errors = checkFeedPackage({
+      brief,
+      returnedPrompt: undefined,
+      aspectRatio: '1:1',
+      caption,
+      format: 'feed',
+    });
+    expect(errors.map((error) => error.field)).not.toContain('product');
+    expect(errors.map((error) => error.field)).not.toContain('place');
+  });
+
   it('passes a square still whose caption keeps the sheet price', () => {
     const errors = checkFeedPackage({
       brief,

@@ -13,7 +13,7 @@
 //   LITELLM_MASTER_KEY   — Bearer token for LiteLLM (skipped for images when IMAGE_GEN_OPENAI_GEMINI_ONLY is set)
 //   GOOGLE_GEMINI_API_KEY — direct Gemini image gen when LiteLLM is not used or not configured
 //   OPENAI_API_KEY — optional; used after Fal + Gemini when set
-//   OPENAI_IMAGE_MODEL — optional (default dall-e-3)
+//   OPENAI_IMAGE_MODEL — optional (default gpt-image-2.6-flare). Retired ids (dall-e-3, gpt-image-1, gpt-image-1.5) map to the default.
 //   OPENAI_IMAGE_QUALITY — dall-e-3 only: standard | hd (default hd)
 //   OPENAI_IMAGE_STYLE — dall-e-3 only: vivid | natural (optional; API default if unset)
 //   GEMINI_IMAGE_GEN_MODEL — optional; if unset, tries several candidate ids
@@ -75,8 +75,25 @@ function getOpenAiApiKey(): string {
   return process.env.OPENAI_API_KEY?.trim() ?? '';
 }
 
+const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-2.6-flare';
+
+/** Image models that no longer accept requests. An env pin to one of these uses the current default. */
+const RETIRED_OPENAI_IMAGE_MODELS = new Set([
+  'dall-e-2',
+  'dall-e-3',
+  'gpt-image-1',
+  'gpt-image-1-mini',
+  'gpt-image-1.5',
+  'chatgpt-image-latest',
+]);
+
 function getOpenAiImageModel(): string {
-  return process.env.OPENAI_IMAGE_MODEL?.trim() || 'dall-e-3';
+  const raw = process.env.OPENAI_IMAGE_MODEL?.trim() || DEFAULT_OPENAI_IMAGE_MODEL;
+  return RETIRED_OPENAI_IMAGE_MODELS.has(raw) ? DEFAULT_OPENAI_IMAGE_MODEL : raw;
+}
+
+function isDalleImageModel(model: string): boolean {
+  return model === 'dall-e-2' || model === 'dall-e-3';
 }
 
 /** DALL·E 3 only: `hd` = finer detail (default for marketing); `standard` = faster/cheaper. */
@@ -121,20 +138,24 @@ function dedupeModelIds(ids: string[]): string[] {
 
 /**
  * Native `generateContent` models that return IMAGE bytes (not text/tool JSON).
- * Default is a single id: `gemini-2.0-flash-preview-image-generation`. Older Flash
- * aliases (`gemini-2.0-flash`, `gemini-flash-latest`, …) typically return 400
- * (“does not support response modalities”) or prose instead of inline images — iterating
- * them wasted minutes and log noise before OpenAI fallback.
+ * Default is `gemini-2.5-flash-image` (generateContent, IMAGE modality), then newer
+ * Nano Banana ids if that model is missing. `gemini-2.0-flash-preview-image-generation`
+ * was shut down on 14 Nov 2025 and is treated as unset.
  */
+const RETIRED_GEMINI_IMAGE_MODELS = new Set([
+  'gemini-2.0-flash-preview-image-generation',
+  'gemini-2.5-flash-image-preview',
+]);
+
 function geminiImageModelCandidates(): string[] {
-  if (GEMINI_IMAGE_GEN_MODEL_EXPLICIT) {
-    return dedupeModelIds([
-      GEMINI_IMAGE_GEN_MODEL_EXPLICIT,
-      ...parseGeminiImageGenModelFallbacks(),
-    ]);
+  const explicit = GEMINI_IMAGE_GEN_MODEL_EXPLICIT;
+  if (explicit && !RETIRED_GEMINI_IMAGE_MODELS.has(explicit)) {
+    return dedupeModelIds([explicit, ...parseGeminiImageGenModelFallbacks()]);
   }
   return dedupeModelIds([
-    'gemini-2.0-flash-preview-image-generation',
+    'gemini-2.5-flash-image',
+    'gemini-3.1-flash-lite-image',
+    'gemini-nano-banana-2.1',
     ...parseGeminiImageGenModelFallbacks(),
   ]);
 }
@@ -524,13 +545,16 @@ async function upscaleRasterToTargetDimensions(
     .toBuffer();
 }
 
-function openaiImageSizeFromResolution(resolution: string): '1024x1024' | '1024x1792' | '1792x1024' {
+function openaiImageSizeFromResolution(resolution: string, model: string): string {
   const r = resolution.toLowerCase();
-  if (r.includes('1792') && r.includes('1024')) {
-    if (r.startsWith('1792') || r.indexOf('1792') < r.indexOf('1024')) return '1792x1024';
-    return '1024x1792';
+  const wide = r.includes('1792') && r.includes('1024');
+  const landscape = wide && (r.startsWith('1792') || r.indexOf('1792') < r.indexOf('1024'));
+  if (isDalleImageModel(model)) {
+    if (!wide) return '1024x1024';
+    return landscape ? '1792x1024' : '1024x1792';
   }
-  return '1024x1024';
+  if (!wide) return '1024x1024';
+  return landscape ? '1536x1024' : '1024x1536';
 }
 
 async function callOpenAIImagesGeneration(
@@ -542,20 +566,24 @@ async function callOpenAIImagesGeneration(
   if (!openaiKey) {
     throw new Error('OPENAI_API_KEY not set');
   }
-  const size = openaiImageSizeFromResolution(resolution);
-  const prompt = imagePrompt.slice(0, 4000);
   const model = getOpenAiImageModel();
+  const size = openaiImageSizeFromResolution(resolution, model);
+  const prompt = imagePrompt.slice(0, isDalleImageModel(model) ? 4000 : 32000);
   const payload: Record<string, unknown> = {
     model,
     prompt,
     n: 1,
     size,
-    response_format: 'b64_json',
   };
-  if (model === 'dall-e-3') {
-    payload.quality = getOpenAiImageQualityForDalle3();
-    const style = stylePreset === 'photoreal' ? 'natural' : getOpenAiImageStyleForDalle3();
-    if (style) payload.style = style;
+  if (isDalleImageModel(model)) {
+    payload.response_format = 'b64_json';
+    if (model === 'dall-e-3') {
+      payload.quality = getOpenAiImageQualityForDalle3();
+      const style = stylePreset === 'photoreal' ? 'natural' : getOpenAiImageStyleForDalle3();
+      if (style) payload.style = style;
+    }
+  } else {
+    payload.quality = 'high';
   }
 
   const controller = new AbortController();
@@ -1277,6 +1305,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
     return devPlaceholderResult(normalized, startMs, 'mock image');
   }
   let lastError = '';
+  let engineError = '';
 
   const chosenProvider = normalized.image_provider;
   const instagramFalOnlyMode =
@@ -1429,6 +1458,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
           };
         } catch (falErr) {
           const falMessage = falErr instanceof Error ? falErr.message : String(falErr);
+          engineError = falMessage.replace(/\s+/g, ' ').trim().slice(0, 400);
           if (/unsafe|dropped the product or the place/i.test(falMessage)) {
             const metadata: ImageGenerationMetadata = {
               model: 'fal',
@@ -1590,6 +1620,10 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
             }
           } catch (geminiErr) {
             geminiFailed = true;
+            engineError = (geminiErr instanceof Error ? geminiErr.message : String(geminiErr))
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 400);
             console.warn('[imageService] Gemini failed after Fal, falling back to OpenAI/LiteLLM', {
               message: geminiErr instanceof Error ? geminiErr.message : String(geminiErr),
             });
@@ -1609,6 +1643,10 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
             backend = 'openai';
           } catch (openaiErr) {
             openaiFailed = true;
+            engineError = (openaiErr instanceof Error ? openaiErr.message : String(openaiErr))
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 400);
             console.warn('[imageService] OpenAI image generation failed', {
               message: openaiErr instanceof Error ? openaiErr.message : String(openaiErr),
             });
@@ -1634,8 +1672,14 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
       if (!imageBuffer) {
         if (exclusiveFal) {
           throw new Error(
-            'Instagram Fal-only image generation failed: Fal did not return a usable image',
+            engineError
+              ? `Instagram Fal-only image generation failed: ${engineError}`
+              : 'Instagram Fal-only image generation failed: Fal did not return a usable image',
           );
+        }
+        if (chosenProvider && chosenProvider !== 'all') {
+          const label = IMAGE_PROVIDER_LABEL[chosenProvider];
+          throw new Error(engineError || `${label} image generation failed`);
         }
         if (!hasGeminiImageBackend() && !getOpenAiApiKey() && !useFalForImages()) {
           throw new Error('No image backend available after routing');
@@ -1666,7 +1710,11 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
         if (hasGeminiImageBackend() && geminiFailed && !getOpenAiApiKey()) {
           throw new Error('Gemini image generation failed and OPENAI_API_KEY is not configured');
         }
-        throw new Error('Image generation failed on all configured backends');
+        throw new Error(
+          engineError
+            ? `Image generation failed on all configured backends. ${engineError}`
+            : 'Image generation failed on all configured backends',
+        );
       }
 
       if (!imageBuffer || imageBuffer.length === 0) {
