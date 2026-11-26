@@ -136,6 +136,7 @@ export function feedRegenScene(params: {
   newPrompt: string;
   stylePreset: StylePreset;
   aspectRatio?: AspectRatio | null;
+  brandLogoAttached?: boolean;
 }): FeedRegenScene {
   const sheet = parseOfferSheet(params.userBrief).sheet;
   const aspectRatio = params.aspectRatio ?? '1:1';
@@ -146,6 +147,7 @@ export function feedRegenScene(params: {
   }
   const built = buildInstagramFeedT2iPrompt(params.newPrompt, params.stylePreset, {
     userBrief: params.userBrief,
+    brandLogoAttached: params.brandLogoAttached === true,
   }, aspectRatio);
   const shopStill =
     inferEcommerceVertical([sheet.product, sheet.place].filter(Boolean).join('\n')) != null;

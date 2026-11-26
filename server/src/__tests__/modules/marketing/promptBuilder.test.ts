@@ -104,7 +104,7 @@ describe('buildDirectInstagramFalPrompt', () => {
     expect(out).not.toContain('₺');
     expect(out).not.toContain('Bu hafta vitrinde');
     expect(out).toContain('Screens, signs, banners, badges, and wall panels stay blank.');
-    expect(out).toContain('No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs.');
+    expect(out).toContain('No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs, no tagline, and no subtitle.');
     expect(out).not.toContain('The brand is Messign');
     expect(out).not.toContain('Shoppers passing the window');
     expect(out).not.toContain('2026-11-13');
@@ -156,10 +156,13 @@ describe('buildDirectInstagramFalPrompt', () => {
       ].join('\n'),
       imagePrompt: 'ignored',
     });
-    expect(out).toContain('Editorial photograph of AI assistant for the workspace, titled Dora, at Istanbul Taksim.');
+    expect(out).toContain('Editorial photograph of Istanbul Taksim.');
+    expect(out).not.toContain('Dora');
+    expect(out).not.toContain('AI assistant');
     expect(out).toContain('Screens, signs, banners, badges, and wall panels stay blank.');
-    expect(out).toContain('No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs.');
-    expect(out).toContain('The brand is Messign. A product name in this brief is not the brand.');
+    expect(out).toContain('No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs, no tagline, and no subtitle.');
+    expect(out).toContain('No wordmark, no tagline, and no subtitle.');
+    expect(out).not.toContain('The brand is Messign');
     expect(out).not.toContain('The attached logo is placed');
     expect(out).not.toContain('Photorealistic');
 
@@ -173,8 +176,25 @@ describe('buildDirectInstagramFalPrompt', () => {
       imagePrompt: 'ignored',
       look: 'photoreal',
     });
-    expect(requested).toContain('Editorial photograph of AI assistant for the workspace, titled Dora, at Istanbul Taksim.');
+    expect(requested).toContain('Editorial photograph of Istanbul Taksim.');
+    expect(requested).not.toContain('Dora');
     expect(requested).not.toContain('Photorealistic');
     expect(out).not.toContain('aI assistant');
+  });
+
+  it('does not ask the model to paint the Messign name or its tagline', () => {
+    const out = buildDirectInstagramFalPrompt({
+      userBrief: [
+        'product: Messign',
+        'place: a trade-show booth',
+        'materials: The engagement platform',
+        'in_frame: Messign wordmark and the line Engagement Platform on the tower',
+      ].join('\n'),
+      imagePrompt: 'ignored',
+    });
+    expect(out.toLowerCase()).not.toContain('messign');
+    expect(out.toLowerCase()).not.toContain('engagement');
+    expect(out).toContain('a trade-show booth');
+    expect(out).toContain('No wordmark, no tagline, and no subtitle.');
   });
 });

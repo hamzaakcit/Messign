@@ -10,6 +10,7 @@ import { instagramFormatFromTags } from '../lib/instagramFormat';
 import { journeyEmailSummary } from '../lib/journeyEmailSummary';
 import { offerReviewAction } from '../lib/offerReview';
 import { readStudioSheet, STILL_LOOKS } from '../lib/offerSheetForm';
+import { IMAGE_ENGINE_LABEL, imageEngineOptions, type ImageEngine } from '../lib/imageEngine';
 import { OfferSheetDetail } from './OfferSheetDetail';
 
 const FRAME_LABEL: Record<'feed' | 'story' | 'reel', string> = {
@@ -26,7 +27,9 @@ export interface OfferDetailViewProps {
   publishAllowed: boolean;
   brandName: string;
   /** Regenerates the still with the look saved on the offer. */
-  onRegenerate?: () => void;
+  onRegenerate?: (imageEngine: ImageEngine) => void;
+  /** Engines the server reported as connected. Empty shows every engine. */
+  imageEngines?: readonly Exclude<ImageEngine, 'all'>[];
   regenerating?: boolean;
   /** Sends the post (or, for a cart offer, the email) to review. Never schedules or posts. */
   onLooksGood?: (childId: string) => void;
@@ -60,6 +63,7 @@ export function OfferDetailView({
   publishAllowed,
   brandName,
   onRegenerate,
+  imageEngines,
   regenerating = false,
   onLooksGood,
   onApprove,
@@ -78,6 +82,9 @@ export function OfferDetailView({
 }: OfferDetailViewProps): JSX.Element {
   const pictureBrief = instagram?.user_brief || offer.user_brief;
   const sheet = readStudioSheet(pictureBrief);
+  const engines = imageEngineOptions(imageEngines);
+  const [engine, setEngine] = useState<ImageEngine>('fal');
+  const selectedEngine = engines.includes(engine) ? engine : (engines[0] ?? 'fal');
   const still = instagram?.image_url || offer.image_url;
   const caption = (instagram?.body || offer.body || '').trim();
   /** An email-only offer (cart, or an occasion without a post) has no still and no caption to wait for. */
@@ -168,9 +175,25 @@ export function OfferDetailView({
                 </p>
               ) : null}
               {onRegenerate ? (
-                <button type="button" className="text-sm underline underline-offset-2" disabled={regenerating} onClick={onRegenerate}>
-                  {still ? (regenerating ? 'Regenerating' : 'Regenerate') : regenerating ? 'Making still' : 'Make still'}
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs text-[#78716c]">
+                    Image engine
+                    <select
+                      aria-label="Image engine"
+                      value={selectedEngine}
+                      disabled={regenerating}
+                      onChange={(event) => setEngine(event.target.value as ImageEngine)}
+                      className="rounded border border-[#e7e0d6] bg-white px-2 py-1 text-sm text-[#1c1917]"
+                    >
+                      {engines.map((id) => (
+                        <option key={id} value={id}>{IMAGE_ENGINE_LABEL[id]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="button" className="text-sm underline underline-offset-2" disabled={regenerating} onClick={() => onRegenerate(selectedEngine)}>
+                    {still ? (regenerating ? 'Regenerating' : 'Regenerate') : regenerating ? 'Making still' : 'Make still'}
+                  </button>
+                </div>
               ) : null}
             </div>
           ) : null}

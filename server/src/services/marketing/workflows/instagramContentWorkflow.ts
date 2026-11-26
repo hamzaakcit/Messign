@@ -3,7 +3,7 @@
  */
 import type { CallerContext } from '../../../dal/types.js';
 import * as contentDal from '../../../dal/marketing/content.js';
-import type { ImageGenerationInput, ImageGenerationResult, AspectRatio } from '../../../dal/marketing/instagramTypes.js';
+import type { ImageGenerationInput, ImageGenerationResult, AspectRatio, ImageProviderChoice } from '../../../dal/marketing/instagramTypes.js';
 import { ASPECT_RATIO_RESOLUTIONS } from '../../../dal/marketing/instagramTypes.js';
 import { generateImage, enhanceImagePrompt, editMarketingPhotoWithKontext } from '../publishing/imageService.js';
 import { resolveStillLook } from '../publishing/imageService/promptBuilder.js';
@@ -26,6 +26,8 @@ export async function regenerateImageForContent(
     slide_index?: number;
     /** Skip the image provider and store a placeholder. */
     mock?: boolean;
+    /** Fal, Gemini, OpenAI, LiteLLM, or all connected engines. */
+    image_provider?: ImageProviderChoice;
   },
 ): Promise<ImageGenerationResult> {
   const orgId = ctx.organizationId;
@@ -73,12 +75,16 @@ export async function regenerateImageForContent(
   const stylePreset = resolveStillLook(parseOfferSheet(row?.user_brief).sheet.style || input.style_preset);
   const trimmedPrompt = input.new_prompt.trim();
 
+  const provider = input.image_provider;
+  const falOnly =
+    provider === 'fal' || (provider == null && isInstagramImageFalOnlyFromEnv());
   const scene = isInstagram
     ? feedRegenScene({
         userBrief: row?.user_brief,
         newPrompt: trimmedPrompt,
         stylePreset,
         aspectRatio: input.aspect_ratio,
+        brandLogoAttached: Boolean(row?.brand_logo_url?.trim()),
       })
     : null;
 
@@ -99,7 +105,7 @@ export async function regenerateImageForContent(
           dev_placeholder: true,
         },
       }
-    : refUrl
+    : refUrl && (provider == null || provider === 'fal')
     ? await editMarketingPhotoWithKontext({
         org_id: orgId,
         content_id: input.content_id,
@@ -114,14 +120,19 @@ export async function regenerateImageForContent(
         resolution: resolution ?? '1024x1024',
         style_preset: stylePreset,
         aspect_ratio: scene?.aspectRatio ?? input.aspect_ratio,
-        ...(isInstagram && !refUrl && scene
+        ...(provider ? { image_provider: provider } : {}),
+        ...(row?.brand_logo_url?.trim() ? { brand_logo_url: row.brand_logo_url.trim() } : {}),
+        ...(isInstagram && scene
           ? {
               instagram_feed: true as const,
-              instagram_fal_only: isInstagramImageFalOnlyFromEnv(),
+              instagram_fal_only: falOnly,
               instagram_direct_prompt: scene.direct,
               scene_product: scene.sceneProduct,
               scene_place: scene.scenePlace,
               shop_still: scene.shopStill,
+              ...(refUrl && provider != null && provider !== 'fal'
+                ? { reference_image_url: refUrl }
+                : {}),
             }
           : {}),
       });

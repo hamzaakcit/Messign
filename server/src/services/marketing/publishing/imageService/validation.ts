@@ -75,10 +75,22 @@ export function validateImageGenerationInput(
 
   const skipFal = input.skip_fal === true;
   const instagramFalOnly = input.instagram_fal_only === true;
-  if (skipFal && instagramFalOnly) {
+  const providerRaw = typeof input.image_provider === 'string' ? input.image_provider.trim().toLowerCase() : '';
+  const imageProvider =
+    providerRaw === 'fal' ||
+    providerRaw === 'gemini' ||
+    providerRaw === 'openai' ||
+    providerRaw === 'litellm' ||
+    providerRaw === 'all'
+      ? providerRaw
+      : undefined;
+  if (providerRaw && !imageProvider) {
+    return { ok: false, error: `Unknown image engine: ${providerRaw}` };
+  }
+  if (skipFal && (instagramFalOnly || imageProvider === 'fal')) {
     return {
       ok: false,
-      error: 'Conflicting flags: skip_fal and instagram_fal_only cannot both be true',
+      error: 'Conflicting flags: skip_fal and a Fal-only image engine cannot both be set',
     };
   }
 
@@ -117,6 +129,7 @@ export function validateImageGenerationInput(
         ? { image_prompt_strength: input.image_prompt_strength }
         : {}),
       ...(input.brand_logo_url?.trim() ? { brand_logo_url: input.brand_logo_url.trim() } : {}),
+      ...(imageProvider ? { image_provider: imageProvider } : {}),
     },
   };
 }

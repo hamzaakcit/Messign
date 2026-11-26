@@ -10,6 +10,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Camera, Download, Sparkles } from 'lucide-react';
+import { IMAGE_ENGINE_LABEL, imageEngineOptions, type ImageEngine } from '../lib/imageEngine';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,7 +26,13 @@ export interface InstagramCockpitProps {
   /** Whether image is currently being generated */
   isGenerating?: boolean;
   /** Callback to regenerate image with edited prompt */
-  onRegenerateImage?: (newPrompt: string, stylePreset: string, extras?: { mock?: boolean }) => void;
+  onRegenerateImage?: (
+    newPrompt: string,
+    stylePreset: string,
+    extras?: { mock?: boolean; image_provider?: ImageEngine },
+  ) => void;
+  /** Engines the server reported as connected. Empty shows every engine. */
+  imageEngines?: readonly Exclude<ImageEngine, 'all'>[];
   /** Callback when caption is edited */
   onCaptionEdit?: (newCaption: string) => void;
   /** Callback to approve and queue */
@@ -120,6 +127,7 @@ export function InstagramCockpit({
   onUploadReferenceImage,
   onApplyAiPhotoEdit,
   initialLook,
+  imageEngines,
   className,
 }: InstagramCockpitProps) {
   const [isPromptEditorOpen, setPromptEditorOpen] = useState(false);
@@ -128,6 +136,9 @@ export function InstagramCockpit({
     STYLE_PRESETS.some((preset) => preset.value === initialLook) ? (initialLook as string) : 'photoreal',
   );
   const [mockImage, setMockImage] = useState(false);
+  const engines = imageEngineOptions(imageEngines);
+  const [engine, setEngine] = useState<ImageEngine>('fal');
+  const selectedEngine = engines.includes(engine) ? engine : (engines[0] ?? 'fal');
   const [refUploading, setRefUploading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [aiEditBusy, setAiEditBusy] = useState(false);
@@ -152,10 +163,10 @@ export function InstagramCockpit({
 
   const handleRegenerate = useCallback(() => {
     if (onRegenerateImage && editedPrompt.trim().length > 10) {
-      onRegenerateImage(editedPrompt.trim(), selectedStyle, { mock: mockImage });
+      onRegenerateImage(editedPrompt.trim(), selectedStyle, { mock: mockImage, image_provider: selectedEngine });
       setPromptEditorOpen(false);
     }
-  }, [editedPrompt, selectedStyle, onRegenerateImage, mockImage]);
+  }, [editedPrompt, selectedStyle, onRegenerateImage, mockImage, selectedEngine]);
 
   const handleLogoFile = useCallback(
     async (file: File | undefined) => {
@@ -529,6 +540,19 @@ export function InstagramCockpit({
             </div>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#78716c' }}>
+              Image engine
+              <select
+                aria-label="Image engine"
+                value={selectedEngine}
+                onChange={(e) => setEngine(e.target.value as ImageEngine)}
+                style={{ fontSize: 12, color: '#1c1917', background: '#fff', border: '1px solid #e7e0d6', borderRadius: 8, padding: '4px 8px' }}
+              >
+                {engines.map((id) => (
+                  <option key={id} value={id}>{IMAGE_ENGINE_LABEL[id]}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#78716c' }}>
               <input
                 type="checkbox"
                 checked={mockImage}
@@ -550,7 +574,7 @@ export function InstagramCockpit({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
-              Generate with Nano Banana 2
+              Generate image
             </button>
           </div>
         </div>

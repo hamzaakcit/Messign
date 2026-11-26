@@ -5,6 +5,7 @@ import { InstagramJourneyStrip, instagramJourneyPhase } from './InstagramJourney
 import { parseReelPackage, reelExportText } from '../../lib/reelStoryboard';
 import { readStudioSheet } from '../../lib/offerSheetForm';
 import { instagramFormatFromTags } from '../../lib/instagramFormat';
+import type { ImageEngine } from '../../lib/imageEngine';
 
 export interface InstagramStudioContent {
   id?: string;
@@ -29,8 +30,9 @@ export interface InstagramStudioProps {
     newPrompt: string,
     stylePreset: string,
     slideIndex?: number,
-    extras?: { mock?: boolean },
+    extras?: { mock?: boolean; image_provider?: ImageEngine },
   ) => void;
+  imageEngines?: readonly Exclude<ImageEngine, 'all'>[];
   onSelectImageVariant?: (imageUrl: string) => void;
   onUploadReferenceImage?: (file: File) => Promise<void>;
   onUploadBrandLogo?: (file: File) => Promise<void>;
@@ -72,6 +74,7 @@ export function InstagramStudio({
   onUploadReferenceImage,
   onUploadBrandLogo,
   onApplyAiPhotoEdit,
+  imageEngines,
 }: InstagramStudioProps): ReactElement {
   const [slideIndex, setSlideIndex] = useState(0);
   const slides = asCarousel(content.carousel_images);
@@ -172,6 +175,7 @@ export function InstagramStudio({
         brandLogoUrl={content.brand_logo_url ?? null}
         onUploadBrandLogo={onUploadBrandLogo}
         initialLook={readStudioSheet(content.user_brief).style}
+        imageEngines={imageEngines}
         onRegenerateImage={
           onRegenerateImage
             ? (prompt, style, extras) => onRegenerateImage(prompt, style, activeSlide, extras)

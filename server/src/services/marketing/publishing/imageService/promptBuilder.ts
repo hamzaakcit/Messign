@@ -194,20 +194,29 @@ export function buildDirectInstagramFalPrompt(params: {
   const materials = cleanOfferMaterials(sheet.materials) || cleanOfferMaterials(params.materials);
 
   const look = resolveStillLook(sheet.style || params.look);
-  let scene = useSheet
-    ? offerStillSceneSentence({
-        product: sheet.product,
-        place: sheet.place,
-        materials,
-        inFrame: sheet.inFrame,
-        keepOut: sheet.keepOut,
-        look,
-      })
-    : sceneFromImagePrompt(params.imagePrompt, params.userBrief);
-
   const vertical = useSheet
     ? inferEcommerceVertical([sheet.product, sheet.place, materials].filter(Boolean).join('\n'))
     : null;
+  const messignBrand =
+    isMessignBrandStill({
+      product: sheet.product,
+      brief: params.userBrief,
+      shopStill: vertical === 'bookstore' || vertical === 'florist',
+    });
+  let scene = useSheet
+    ? offerStillSceneSentence({
+        product: messignBrand ? '' : sheet.product,
+        place: sheet.place,
+        materials: messignBrand ? '' : materials,
+        inFrame: messignBrand ? stripBrandCopy(sheet.inFrame) : sheet.inFrame,
+        keepOut: messignBrand ? stripBrandCopy(sheet.keepOut) : sheet.keepOut,
+        look,
+      })
+    : sceneFromImagePrompt(params.imagePrompt, params.userBrief);
+  if (messignBrand && !useSheet) scene = stripBrandCopy(scene);
+  if (messignBrand && !scene.trim()) {
+    scene = `${stillLook(look).opener} of a physical space with blank wall panels and blank screens. No letters, numbers, or logos.`;
+  }
   const shopLine =
     vertical === 'bookstore'
       ? 'Show the named book in the named shop. Do not replace it with a flower still-life.'
@@ -245,7 +254,7 @@ function brandMarkLine(input: {
   if (!messign && !input.logoAttached) return null;
   const parts: string[] = [];
   if (messign) {
-    parts.push('The brand is Messign. A product name in this brief is not the brand. Do not paint either name.');
+    parts.push('Signs, screens, and wall faces stay a solid color or a photograph. No wordmark, no tagline, and no subtitle.');
   }
   if (input.logoAttached) {
     parts.push('The attached logo is placed on the photo afterwards. Draw no logo and no writing.');
@@ -257,7 +266,19 @@ function brandMarkLine(input: {
  * Walls and screens must not become slide decks. The model paints stacked lines of type when a booth has monitors.
  */
 function blankSignageLine(): string {
-  return 'Screens, signs, banners, badges, and wall panels stay blank. A screen or wall graphic shows only a photograph, a solid color, or an empty surface. No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs. Do not paint letters, words, numbers, or a wordmark. Names in this brief are context, not writing.';
+  return 'Screens, signs, banners, badges, and wall panels stay blank. A screen or wall graphic shows only a photograph, a solid color, or an empty surface. No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs, no tagline, and no subtitle. Do not paint letters, words, numbers, or a wordmark. Names in this brief are context, not writing.';
+}
+
+/** Drop brand and product names so a still does not paint them as signage. */
+function stripBrandCopy(value: string | null | undefined): string {
+  let out = (value ?? '').trim();
+  if (!out) return '';
+  const phrases = ['engagement platform', 'Knowledge Hub', 'Work Management', 'Messign', 'Lucy', 'Dora', 'Gamification'];
+  for (const phrase of phrases) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(escaped, 'gi'), ' ');
+  }
+  return out.replace(/\s+/g, ' ').replace(/\s+([,.;])/g, '$1').trim();
 }
 
 /**

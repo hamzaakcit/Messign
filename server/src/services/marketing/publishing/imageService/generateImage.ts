@@ -251,6 +251,32 @@ function useFalForImages(): boolean {
   );
 }
 
+const IMAGE_PROVIDER_LABEL = {
+  fal: 'Fal',
+  gemini: 'Gemini',
+  openai: 'OpenAI',
+  litellm: 'LiteLLM',
+} as const;
+
+/**
+ * Image engines that have a key configured. Used by the still controls.
+ */
+export function configuredImageProviders(): Array<{ id: keyof typeof IMAGE_PROVIDER_LABEL; label: string }> {
+  const out: Array<{ id: keyof typeof IMAGE_PROVIDER_LABEL; label: string }> = [];
+  if (useFalForImages()) out.push({ id: 'fal', label: IMAGE_PROVIDER_LABEL.fal });
+  if (hasGeminiImageBackend()) out.push({ id: 'gemini', label: IMAGE_PROVIDER_LABEL.gemini });
+  if (hasOpenAiImageCredentials()) out.push({ id: 'openai', label: IMAGE_PROVIDER_LABEL.openai });
+  if (useLiteLLMForImages()) out.push({ id: 'litellm', label: IMAGE_PROVIDER_LABEL.litellm });
+  return out;
+}
+
+function imageProviderReady(provider: 'fal' | 'gemini' | 'openai' | 'litellm'): boolean {
+  if (provider === 'fal') return useFalForImages();
+  if (provider === 'gemini') return hasGeminiImageBackend();
+  if (provider === 'openai') return hasOpenAiImageCredentials();
+  return useLiteLLMForImages();
+}
+
 function hasAnyImageBackend(): boolean {
   return (
     useLiteLLMForImages() ||
@@ -1252,10 +1278,18 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
   }
   let lastError = '';
 
+  const chosenProvider = normalized.image_provider;
   const instagramFalOnlyMode =
-    normalized.instagram_feed === true && normalized.instagram_fal_only === true;
+    chosenProvider == null &&
+    normalized.instagram_feed === true &&
+    normalized.instagram_fal_only === true;
+  const exclusiveFal = chosenProvider === 'fal' || instagramFalOnlyMode;
+  const allowFal = chosenProvider == null || chosenProvider === 'fal' || chosenProvider === 'all';
+  const allowGemini = chosenProvider == null ? !exclusiveFal : chosenProvider === 'gemini' || chosenProvider === 'all';
+  const allowOpenAi = chosenProvider == null ? !exclusiveFal : chosenProvider === 'openai' || chosenProvider === 'all';
+  const allowLite = chosenProvider == null ? !exclusiveFal : chosenProvider === 'litellm' || chosenProvider === 'all';
 
-  if (instagramFalOnlyMode && !useFalForImages()) {
+  if (exclusiveFal && !useFalForImages()) {
     return {
       success: false,
       image_url: null,
@@ -1272,7 +1306,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
     };
   }
 
-  if (isExplicitImageGenDevFallback() && !instagramFalOnlyMode) {
+  if (isExplicitImageGenDevFallback() && !exclusiveFal) {
     const url = buildDevPlaceholderImageUrl(normalized.prompt);
     console.log('[IMG] Dev fallback — returning placeholder for:', normalized.content_id);
     return {
@@ -1292,6 +1326,26 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
 
   if (!hasAnyImageBackend() && isDevPlaceholderFallbackEnabled()) {
     return devPlaceholderResult(normalized, startMs, imageBackendMissingHint());
+  }
+
+  if (
+    chosenProvider &&
+    chosenProvider !== 'all' &&
+    !imageProviderReady(chosenProvider)
+  ) {
+    return {
+      success: false,
+      image_url: null,
+      storage_key: null,
+      metadata: {
+        model: IMAGE_MODEL,
+        resolution,
+        retries: 0,
+        generated_at: new Date().toISOString(),
+        duration_ms: Date.now() - startMs,
+      },
+      error: `${IMAGE_PROVIDER_LABEL[chosenProvider]} is not connected on this server.`,
+    };
   }
 
   if (!hasAnyImageBackend()) {
@@ -1343,7 +1397,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
 
       // 1) Fal AI first (Flux, etc.) — default when FAL_KEY is set; see `useFalForImages()` / IMAGE_GEN_DISABLE_FAL.
       //    Per-request skip_fal: true skips Fal (e.g. paper-plane overlay policy).
-      if (useFalForImages() && !normalized.skip_fal) {
+      if (allowFal && useFalForImages() && !normalized.skip_fal) {
         try {
           const out = await callFalMarketingImageGeneration(normalized.prompt, resolution, {
             emailCampaign: normalized.email_campaign,
@@ -1394,7 +1448,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
             };
           }
           console.warn(
-            instagramFalOnlyMode
+            exclusiveFal
               ? '[imageService] Fal image generation failed (Instagram Fal-only; no Gemini/OpenAI fallback)'
               : '[imageService] Fal image generation failed, falling back to Gemini/OpenAI',
             {
@@ -1514,7 +1568,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
 
       // 2–3) Vertex / global Publisher / Gemini AI Studio, then OpenAI Images (order swap when IMAGE_GEN_OPENAI_BEFORE_GEMINI=1)
       const runGeminiImageBackend = async (): Promise<void> => {
-        if (!imageBuffer && !instagramFalOnlyMode && hasGeminiImageBackend()) {
+        if (!imageBuffer && allowGemini && hasGeminiImageBackend()) {
           try {
             const out = await callGeminiNativeImageGeneration(normalized.prompt, resolution, {
               skipOpenAiFallback: true,
@@ -1544,7 +1598,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
       };
 
       const runOpenAiImageBackend = async (): Promise<void> => {
-        if (!imageBuffer && !instagramFalOnlyMode && getOpenAiApiKey()) {
+        if (!imageBuffer && allowOpenAi && getOpenAiApiKey()) {
           try {
             imageBuffer = await callOpenAIImagesGeneration(
               normalized.prompt,
@@ -1571,14 +1625,14 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
       }
 
       // 4) LiteLLM last (when enabled)
-      if (!imageBuffer && !instagramFalOnlyMode && useLiteLLMForImages()) {
+      if (!imageBuffer && allowLite && useLiteLLMForImages()) {
         imageBuffer = await callImageModelLiteLLM(normalized.prompt, resolution, normalized.style_preset);
         generationModel = IMAGE_MODEL;
         backend = 'litellm';
       }
 
       if (!imageBuffer) {
-        if (instagramFalOnlyMode) {
+        if (exclusiveFal) {
           throw new Error(
             'Instagram Fal-only image generation failed: Fal did not return a usable image',
           );
@@ -1693,7 +1747,7 @@ async function generateImageCore(input: ImageGenerationInput): Promise<ImageGene
             attempt,
           });
         } else if (postLum != null && postLum < postMin) {
-          if (normalized.instagram_fal_only === true) {
+          if (exclusiveFal) {
             console.warn('[imageService] fal_instagram_flat_jpeg_too_dark_fal_only_no_fallback', {
               content_id: normalized.content_id,
               postLum,
