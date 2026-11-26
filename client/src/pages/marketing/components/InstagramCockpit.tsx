@@ -34,6 +34,10 @@ export interface InstagramCockpitProps {
   contentId?: string;
   /** Post title — used to build a default image prompt when the agent did not set `image_prompt`. */
   contentTitle?: string | null;
+  /** Shop logo placed on new stills. */
+  brandLogoUrl?: string | null;
+  /** Upload a JPEG/PNG/WebP logo. The file is placed on later stills. */
+  onUploadBrandLogo?: (file: File) => Promise<void>;
   /** Public URL after user uploaded a real-world reference photo (Kontext input). */
   referenceImageUrl?: string | null;
   /** Upload a JPEG/PNG/WebP; parent persists via API and updates `referenceImageUrl`. */
@@ -110,6 +114,8 @@ export function InstagramCockpit({
   onApprove,
   contentId,
   contentTitle,
+  brandLogoUrl,
+  onUploadBrandLogo,
   referenceImageUrl,
   onUploadReferenceImage,
   onApplyAiPhotoEdit,
@@ -123,9 +129,11 @@ export function InstagramCockpit({
   );
   const [mockImage, setMockImage] = useState(false);
   const [refUploading, setRefUploading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [aiEditBusy, setAiEditBusy] = useState(false);
   const [aiEditPrompt, setAiEditPrompt] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync from server; when `image_prompt` is absent, pre-fill a valid prompt so Regenerate works (server min 10 chars).
@@ -148,6 +156,20 @@ export function InstagramCockpit({
       setPromptEditorOpen(false);
     }
   }, [editedPrompt, selectedStyle, onRegenerateImage, mockImage]);
+
+  const handleLogoFile = useCallback(
+    async (file: File | undefined) => {
+      if (!file || !onUploadBrandLogo) return;
+      setLogoUploading(true);
+      try {
+        await onUploadBrandLogo(file);
+      } finally {
+        setLogoUploading(false);
+        if (logoInputRef.current) logoInputRef.current.value = '';
+      }
+    },
+    [onUploadBrandLogo],
+  );
 
   const handleReferenceFile = useCallback(
     async (file: File | undefined) => {
@@ -249,6 +271,50 @@ export function InstagramCockpit({
               background: '#ffffff',
             }}
           >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#1c1917' }}>Brand logo</span>
+            </div>
+            <p style={{ fontSize: 11, color: '#78716c', marginBottom: 10, lineHeight: 1.45 }}>
+              Attach the shop logo. It is placed on new stills. The picture does not paint a brand name.
+            </p>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              data-testid="brand-logo-file"
+              disabled={logoUploading}
+              onChange={(e) => void handleLogoFile(e.target.files?.[0])}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              <button
+                type="button"
+                data-testid="brand-logo-attach"
+                disabled={logoUploading || !onUploadBrandLogo}
+                onClick={() => logoInputRef.current?.click()}
+                style={{
+                  ...styles.controlBtn,
+                  fontSize: 11,
+                  padding: '6px 12px',
+                  opacity: logoUploading ? 0.6 : 1,
+                }}
+              >
+                {logoUploading ? 'Uploading…' : 'Attach logo'}
+              </button>
+              {brandLogoUrl ? (
+                <span style={{ fontSize: 10, color: '#166534' }}>Logo saved</span>
+              ) : (
+                <span style={{ fontSize: 10, color: '#78716c' }}>No logo yet</span>
+              )}
+            </div>
+            {brandLogoUrl ? (
+              <img
+                src={brandLogoUrl}
+                alt="Shop logo"
+                data-testid="brand-logo-preview"
+                style={{ maxHeight: 64, maxWidth: 180, objectFit: 'contain', marginBottom: 14 }}
+              />
+            ) : null}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <Camera size={14} style={{ opacity: 0.85 }} />
               <span style={{ fontSize: 12, fontWeight: 600, color: '#1c1917' }}>Real photo (AI additive edit)</span>

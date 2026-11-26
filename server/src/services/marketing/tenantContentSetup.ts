@@ -25,7 +25,13 @@ export interface TenantContentSetup {
 }
 
 /** Names that belong to Messign. A florist sheet must not list them. */
-export const MESSIGN_PRODUCT_NAMES = ['Dora', 'Knowledge Hub', 'Work Management', 'Gamification'] as const;
+export const MESSIGN_PRODUCT_NAMES = ['Dora', 'Lucy', 'Messign', 'Knowledge Hub', 'Work Management', 'Gamification'] as const;
+
+/**
+ * Product names another shop must not use. Messign itself stays off this list:
+ * the company name is also a product, and a sentence that says Messign is brand copy.
+ */
+const FOREIGN_PRODUCT_NAMES = MESSIGN_PRODUCT_NAMES.filter((name) => name !== 'Messign');
 
 export const TENANT_CONTENT_SETUPS: readonly TenantContentSetup[] = [
   {
@@ -37,6 +43,8 @@ export const TENANT_CONTENT_SETUPS: readonly TenantContentSetup[] = [
     recipes: ['product_drop', 'occasion', 'cart'],
     productTruth: [
       { name: 'Dora', description: 'AI assistant for the workspace' },
+      { name: 'Lucy', description: 'Marketing assistant' },
+      { name: 'Messign', description: 'The engagement platform' },
       { name: 'Knowledge Hub', description: 'Shared docs and answers' },
       { name: 'Work Management', description: 'Tasks and projects' },
     ],
@@ -146,7 +154,7 @@ function mentionsName(text: string, name: string): boolean {
 export function foreignProductName(
   text: string,
   productTruthMd: string,
-  foreignNames: readonly string[] = MESSIGN_PRODUCT_NAMES,
+  foreignNames: readonly string[] = FOREIGN_PRODUCT_NAMES,
 ): string | null {
   for (const name of foreignNames) {
     if (mentionsName(text, name) && !mentionsName(productTruthMd, name)) return name;

@@ -4,6 +4,8 @@ export interface ImageGenerationFields {
   image_url?: string | null;
   /** User's real-world photo (HTTPS) — input for Kontext edits; result in image_url. */
   reference_image_url?: string | null;
+  /** Shop logo placed on generated stills. The image model does not paint it. */
+  brand_logo_url?: string | null;
   visual_description?: string | null;
   image_generation_metadata?: ImageGenerationMetadata | null;
   /** Carousel: ordered list of generated image URLs (slide 0 = main, slide 1+ = carousel). */
@@ -87,6 +89,8 @@ export interface ImageGenerationMetadata {
   fal_aspect_ratio?: string;
   /** Ultra `image_prompt_strength` sent with a reference photo. */
   fal_image_prompt_strength?: number;
+  /** Attached shop logo placed on the still after generation. */
+  brand_mark?: 'attached_logo';
 }
 
 export type AspectRatio = '1:1' | '4:5' | '9:16' | '16:9';
@@ -171,4 +175,6 @@ export interface ImageGenerationInput {
   shop_still?: boolean;
   /** Ultra reference strength. Omitted keeps the 0.1 default. */
   image_prompt_strength?: number;
+  /** Public URL of the shop logo placed on the finished still. */
+  brand_logo_url?: string | null;
 }

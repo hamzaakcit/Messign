@@ -90,6 +90,8 @@ export interface CreateContentInput {
   image_prompt?: string | null;
   image_url?: string | null;
   reference_image_url?: string | null;
+  /** Shop logo placed on generated stills. The image model does not paint it. */
+  brand_logo_url?: string | null;
   visual_description?: string | null;
   image_generation_metadata?: ImageGenerationMetadata | null;
   carousel_images?: CarouselSlideImage[] | null;
@@ -289,6 +291,7 @@ function mapContent(row: Record<string, unknown>): Content {
     image_prompt: row.image_prompt != null ? String(row.image_prompt) : null,
     image_url: row.image_url != null ? String(row.image_url) : null,
     reference_image_url: row.reference_image_url != null ? String(row.reference_image_url) : null,
+    brand_logo_url: row.brand_logo_url != null ? String(row.brand_logo_url) : null,
     visual_description: row.visual_description != null ? String(row.visual_description) : null,
     image_generation_metadata: parseImageGenerationMetadata(row.image_generation_metadata),
     carousel_images: parseCarouselImagesJson(row.carousel_images),
@@ -620,6 +623,9 @@ export async function updateContent(
   }
   if (data.reference_image_url !== undefined) {
     fields.push(['reference_image_url', data.reference_image_url ?? null]);
+  }
+  if (data.brand_logo_url !== undefined) {
+    fields.push(['brand_logo_url', data.brand_logo_url ?? null]);
   }
   if (data.visual_description !== undefined) {
     fields.push(['visual_description', data.visual_description ?? null]);

@@ -103,6 +103,9 @@ describe('buildDirectInstagramFalPrompt', () => {
     expect(out).toContain('Square 1:1 frame.');
     expect(out).not.toContain('₺');
     expect(out).not.toContain('Bu hafta vitrinde');
+    expect(out).toContain('Screens, signs, banners, badges, and wall panels stay blank.');
+    expect(out).toContain('No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs.');
+    expect(out).not.toContain('The brand is Messign');
     expect(out).not.toContain('Shoppers passing the window');
     expect(out).not.toContain('2026-11-13');
     expect(out).not.toContain('generic office');
@@ -154,6 +157,10 @@ describe('buildDirectInstagramFalPrompt', () => {
       imagePrompt: 'ignored',
     });
     expect(out).toContain('Editorial photograph of AI assistant for the workspace, titled Dora, at Istanbul Taksim.');
+    expect(out).toContain('Screens, signs, banners, badges, and wall panels stay blank.');
+    expect(out).toContain('No slide layouts, no stacked lines of type, no columns of bullets, no paragraphs.');
+    expect(out).toContain('The brand is Messign. A product name in this brief is not the brand.');
+    expect(out).not.toContain('The attached logo is placed');
     expect(out).not.toContain('Photorealistic');
 
     const requested = buildDirectInstagramFalPrompt({

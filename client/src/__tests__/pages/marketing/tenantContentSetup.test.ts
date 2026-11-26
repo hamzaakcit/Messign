@@ -3,6 +3,14 @@ import { floristUsesMessignProduct, TENANT_CONTENT_SETUPS } from '@/pages/market
 
 describe('tenant content setup', () => {
   it('keeps Messign product names off the florist sheet', () => {
+    const messign = TENANT_CONTENT_SETUPS.find((setup) => setup.orgKey === 'messign');
+    expect(messign?.productTruth.map((row) => row.name)).toEqual([
+      'Dora',
+      'Lucy',
+      'Messign',
+      'Knowledge Hub',
+      'Work Management',
+    ]);
     expect(floristUsesMessignProduct()).toBe(false);
     const florist = TENANT_CONTENT_SETUPS.find((setup) => setup.orgKey === 'florist');
     expect(florist?.publishAllowed).toBe(false);

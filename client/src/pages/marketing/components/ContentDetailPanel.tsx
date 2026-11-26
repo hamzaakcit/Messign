@@ -416,6 +416,11 @@ export function ContentDetailPanel({ contentId, onUpdated, refreshKey = 0 }: Con
           <InstagramStudio
             content={content}
             isGenerating={isGeneratingImage}
+            onUploadBrandLogo={async (file) => {
+              const r = await marketingAPI.uploadBrandLogo(userId, content.id, file);
+              setContent((c) => (c ? { ...c, brand_logo_url: r.brand_logo_url } : c));
+              toast.success('Logo saved', { description: 'Make still to place it on the photo.' });
+            }}
             onUploadReferenceImage={async (file) => {
               const r = await marketingAPI.uploadReferenceImage(userId, content.id, file);
               setContent((c) => (c ? { ...c, reference_image_url: r.reference_image_url } : c));

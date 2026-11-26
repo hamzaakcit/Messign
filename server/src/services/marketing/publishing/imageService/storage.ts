@@ -33,6 +33,15 @@ export function buildStorageKey(orgId: string, contentId: string, ext: 'png' | '
 /**
  * Object path for a user-uploaded reference JPEG/PNG before AI edit (Kontext).
  */
+/**
+ * Shop logo attached to a content row. Placed on generated stills.
+ */
+export function buildBrandLogoUploadStorageKey(orgId: string, contentId: string, ext: string): string {
+  const nonce = randomUUID().slice(0, 8);
+  const safeExt = ext.replace(/^\./, '').toLowerCase() || 'png';
+  return `${orgId}/brand-logo/${contentId}_${nonce}.${safeExt}`;
+}
+
 export function buildReferenceUploadStorageKey(orgId: string, contentId: string, ext: string): string {
   const nonce = randomUUID().slice(0, 8);
   const safeExt = ext.replace(/^\./, '').toLowerCase() || 'jpg';

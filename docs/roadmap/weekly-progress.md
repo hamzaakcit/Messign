@@ -2,6 +2,17 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-26 · Messign shop products: Lucy and Messign
+- **Done:** The Messign shop’s product list now includes Lucy (marketing assistant) and Messign (the engagement platform), after Dora. A florist or bookstore sheet still cannot use those names. A still for either product is treated as a Messign-brand still.
+- **Next:** none from this change.
+- **Blockers:** none.
+
+## 2026-11-26 · Instagram stills: Messign is the brand, and a logo you attach
+- **Cause:** A Messign booth still painted a letter M, slide-like wall copy, and treated Dora as the brand. Dora is a product. The image model cannot paint a logo or readable type.
+- **Done:** A Messign still (Dora, Knowledge Hub, Work Management, or a brief that names Messign) tells the model the brand is Messign and not to paint either name. Screens and wall panels stay blank: a photograph, a solid color, or an empty surface, with no slide layout. On the post, **Attach logo** saves a file on that post (`brand_logo_url`, migration 140). New stills place that file top-right. A book or flower still is not called Messign. An attached logo on any shop is placed the same way. Tests: prompt (Dora names Messign, a book does not, an attached logo is named), stamp (logo color top-right). Takes effect when the server is deployed and the migration has run. The current booth photo stays until you attach the logo and press Make still.
+- **Next:** none from this change.
+- **Blockers:** none.
+
 ## 2026-11-26 · Live site: stale page chunk after a deploy, and missing pictures
 - **Stale chunk:** "Failed to fetch dynamically imported module .../ContentCalendarTab-FLKiUsD5.js". A tab opened before a deploy still asks for the old page chunk, which the new deploy no longer has (Vercel answers with the app shell, not the file). Vite reports this as `vite:preloadError`; `lib/reloadOnStaleChunk.ts` now loads the new version once, with a 30-second guard so a chunk that is missing for good cannot reload forever. 4 tests; client typecheck clean, 738 client tests pass. Until this is deployed, a hard refresh of the tab fixes it.
 - **Missing pictures (fixed, data only):** On the live site the blue paper-plane offers showed broken images. Their addresses were **relative** (`/uploads/marketing/...`): files on a server's own disk, saved when the upload to Supabase storage failed or was not configured (`storage.ts` falls back to local disk). Locally the dev proxy serves them; on `www.messign.com` the page asked Vercel for `/uploads/...`, which has none. 9 Instagram rows (of 116) were like this. After a dry run, the 9 files were uploaded to the Supabase bucket under the same keys, each new address was checked to answer 200 before any row changed, and the 9 `image_url` values were updated in one transaction. A second dry run finds 0 left, and the 7 pictures in the Messign offer list now load from Supabase. One of the nine (`0101ecce`) is a reference photo uploaded through Lucy, used as that post's picture; it is now in the same public bucket as the others. Nothing was deleted: the local files are still on the development machine.

@@ -23,7 +23,17 @@ describe('tenant content setup', () => {
     for (const setup of TENANT_CONTENT_SETUPS) {
       expect(contentSetupComplete(setup)).toBe(true);
       expect(setup.publishAllowed).toBe(false);
-      expect(setup.productTruth).toHaveLength(3);
+      if (setup.orgKey === 'messign') {
+        expect(setup.productTruth.map((row) => row.name)).toEqual([
+          'Dora',
+          'Lucy',
+          'Messign',
+          'Knowledge Hub',
+          'Work Management',
+        ]);
+      } else {
+        expect(setup.productTruth).toHaveLength(3);
+      }
     }
   });
 
@@ -65,6 +75,13 @@ describe('tenant content setup', () => {
     const bookstore = TENANT_CONTENT_SETUPS.find((setup) => setup.orgKey === 'bookstore');
     expect(bookstore).toBeDefined();
     expect(foreignProductName('Kürk Mantolu Madonna yanında Dora duruyor.', productTruthMarkdown(bookstore!))).toBe('Dora');
+  });
+
+  it('treats the brand name as copy and Lucy as a foreign product', () => {
+    const florist = TENANT_CONTENT_SETUPS.find((setup) => setup.orgKey === 'florist')!;
+    const sheet = productTruthMarkdown(florist);
+    expect(foreignProductName('Messign helps teams collaborate.', sheet)).toBeNull();
+    expect(foreignProductName('Lucy için bir buket.', sheet)).toBe('Lucy');
   });
 
   it('leaves a florist prompt that stays on the flower sheet alone', () => {
