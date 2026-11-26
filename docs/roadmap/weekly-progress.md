@@ -2,6 +2,11 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-27 · Public site logo
+- **Done:** The public site mark is Dora's paper plane with the face left off. Header and the Engage sample use that mark. No server change and no migration.
+- **Next:** Consent preferences are not started.
+- **Blockers:** none.
+
 ## 2026-11-27 · Public marketing site at `/`
 - **Done:** `/` is the public Messign homepage. Login stays at `/login`. After sign-in, the workspace opens at `/dashboard`. No server change and no migration in this commit.
 - **Next:** Consent preferences are not started.

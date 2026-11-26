@@ -1,10 +1,9 @@
 import { useEffect, useId, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
-import { MessignIcon } from '@/components/ui/MessignLogo';
 import { cn } from '@/lib/utils';
 import { SITE_MENUS, type SiteMenu } from './content';
-import { SiteContainer, StatusMark } from './ui';
+import { SiteContainer, SiteMark, StatusMark } from './ui';
 
 interface SiteNavProps {
   isAuthenticated: boolean;
@@ -47,7 +46,7 @@ export function SiteNav({ isAuthenticated }: SiteNavProps): JSX.Element {
       <SiteContainer>
         <div className="flex h-16 items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2.5 text-[#101828]" aria-label="Messign home">
-            <MessignIcon size={28} variant="light" animate={false} />
+            <SiteMark size={32} />
             <span className="text-[16px] font-medium tracking-[-0.02em]">Messign</span>
           </Link>
 
