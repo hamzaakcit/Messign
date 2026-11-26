@@ -254,7 +254,9 @@ function brandMarkLine(input: {
   if (!messign && !input.logoAttached) return null;
   const parts: string[] = [];
   if (messign) {
-    parts.push('Signs, screens, and wall faces stay a solid color or a photograph. No wordmark, no tagline, and no subtitle.');
+    parts.push(
+      'Signs, screens, and wall faces stay a solid color or a photograph. No wordmark, no tagline, and no subtitle. Leave the lower quarter of the frame visually quiet. A sharp sign is placed there afterwards.',
+    );
   }
   if (input.logoAttached) {
     parts.push('The attached logo is placed on the photo afterwards. Draw no logo and no writing.');

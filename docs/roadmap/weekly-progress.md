@@ -2,6 +2,12 @@
 
 Append one entry per session: date · session · WP · done · remaining · next · blockers. Newest on top.
 
+## 2026-11-26 · Messign stills: sharp name and logo, not blank and not painted
+- **Cause:** The still prompt told the model to paint no letters and no logo, so a Messign booth came back with empty signs. The model cannot paint a clean word; asking it to write Messign again makes the letters wobble.
+- **Done:** After the photo is made, a sign is set in Inter on the lower part: the attached logo, the word Messign, and one short line (The engagement platform, or the product name). The model still does not paint type. A book or flower still only gets the corner logo, as before. Tests: the sign is dark type plus the logo color, and the top of the frame stays clear. Takes effect when the server is deployed. Press Make still again.
+- **Next:** none from this change.
+- **Blockers:** none.
+
 ## 2026-11-26 · Lucy: a WhatsApp brief next to Instagram and Email
 - **Done:** Ask Lucy shows three tiles in one row: Instagram, Email, and WhatsApp. WhatsApp opens a short brief (audience, offer, notes). Lucy drafts one template body and does not send it. The tab bar still has one create button, New offer. Tests: composer tiles and the WhatsApp brief. Takes effect when the client is deployed.
 - **Next:** none from this change.

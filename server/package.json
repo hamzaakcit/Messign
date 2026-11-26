@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "(npx kill-port 3001 || true) && tsx watch --ignore './uploads/**' --ignore './**/*.test.ts' --ignore './src/db/seeds/**' --ignore './src/scripts/**' --ignore './src/migrations/**' src/index.ts",
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/services/marketing/publishing/imageService/fonts && cp src/services/marketing/publishing/imageService/fonts/Inter-Regular.otf src/services/marketing/publishing/imageService/fonts/Inter-SemiBold.otf src/services/marketing/publishing/imageService/fonts/LICENSE.txt dist/services/marketing/publishing/imageService/fonts/",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "start": "node dist/index.js",
