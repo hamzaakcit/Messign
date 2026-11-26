@@ -21,6 +21,9 @@ dist/
 .cache/
 .npm-cache/
 
+# Generated website SDK. client/scripts/build-sdk.mjs writes this during the client build.
+/client/public/sdk/
+
 # Vercel
 .vercel/
 
